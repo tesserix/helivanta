@@ -157,23 +157,29 @@ quarantine for pharmacist re-release (#163, #202). Also:
 Admission and bed billing (#1387), service charges (#1388), e-prescription dispensing (#170),
 insurer splits, NPPA ceilings (#1371), credit sales and customer credit, B2B and e-invoicing.
 
-## Decisions only the product owner can make
+## Product owner decisions (2026-10-27)
 
-1. **Licence gate (A1).** Should an outlet without a reviewed, valid drug licence be unable
-   to sell anything? I recommend yes. Selling without one is illegal, and a pilot outlet
-   only needs its licence entered once.
-2. **Selling before the drug master is loaded (A2, B5).** The drug master stays empty until
-   a licensed dataset is approved, and without it no product has a schedule class. The
-   options:
-   - **(a) OTC only.** Sell only products the outlet marks OTC, with a pharmacist's
-     attestation, until the drug master is loaded.
-   - **(b) Outlet-declared class.** The pharmacist records the class on the product with
-     its source, reviewed by a second person. The drug master overrides it once linked.
+1. **Licence gate: yes.** An outlet with no reviewed licence valid today sells nothing.
+2. **Outlet-declared class (option b).**
+   - Until the drug master is loaded, a pharmacist records each product's schedule class
+     and NDPS flag, with the source (for example, the pack label or the CDSCO list).
+   - A second person reviews it before the product can be released or sold.
+   - Invoices and registers show it as "declared by the outlet".
+   - Once the product is linked to the drug master (later slice), the master's class wins,
+     and a disagreement blocks sale until reviewed.
+3. **Discounts: my call, recorded for review.**
+   - Only `pharmacy.sale.discount` holders may discount, always with a reason.
+   - Each outlet has a configured ceiling as a percentage of the line price. It defaults to
+     0, meaning no discounts, until a manager sets it.
+   - A discount above the ceiling is refused.
+   - I set no ceiling value myself; that is a commercial decision.
+4. **Invoice series: one per outlet per financial year.** GST invoice series run per
+   registration, and an outlet is the unit that holds the GSTIN and the stock. A
+   hospital-wide view is a report, not a shared counter.
 
-   I recommend (b), so pilots can run, with each declared class shown as "declared by the
-   outlet" on invoices and registers.
+### Built differently from A2
 
-3. **Discounts (B3).** Who may discount, and is there a ceiling, such as a percentage of MRP
-   per line?
-4. **Invoice series (B7).** One series per outlet per financial year, or a hospital-wide
-   series?
+Linking a catalogue product to the drug master needs a pharmacy-side projection of drug
+master products and classes (modules never read each other's tables). The declared class
+(decision 2) carries slice A and B. The drug master link, and its override, become a slice
+of their own once a licensed release exists.

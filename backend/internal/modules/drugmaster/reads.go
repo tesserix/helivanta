@@ -57,7 +57,8 @@ const formulationColumns = `v.formulation_id, v.id AS version_id, v.valid_from::
 	v.regulatory_class, v.ndps, v.teleconsult_prescribable`
 
 // upperBound is the first key after every key starting with prefix.
-// Keys hold only [a-z0-9], so bumping the last byte cannot overflow.
+// Keys hold only [a-z0-9] (searchKey and the generated columns agree),
+// so bumping the last byte cannot overflow.
 func upperBound(prefix string) string {
 	b := []byte(prefix)
 	b[len(b)-1]++
@@ -89,8 +90,9 @@ func (h *readHandlers) search(c *gin.Context) {
 			 JOIN drugmaster_products p ON p.id=pv.product_id
 			 WHERE pv.search_key ~>=~ ? AND pv.search_key ~<~ ?)
 			SELECT ` + formulationColumns + ` FROM candidates c
-			JOIN LATERAL (SELECT * FROM drugmaster_formulation_versions x WHERE x.formulation_id=c.formulation_id
-			 AND x.valid_from<=` + todayIST + ` ORDER BY x.valid_from DESC LIMIT 1) v ON true
+			JOIN LATERAL (SELECT x.* FROM drugmaster_formulation_versions x JOIN drugmaster_releases r ON r.id=x.release_id
+			 WHERE x.formulation_id=c.formulation_id AND x.valid_from<=` + todayIST + `
+			 ORDER BY x.valid_from DESC, r.sequence DESC LIMIT 1) v ON true
 			WHERE (?='' OR v.dose_form=?) AND (?='' OR v.regulatory_class=?)
 			ORDER BY v.label, v.formulation_id LIMIT ?`
 		if err := tx.Raw(q, key, upperBound(key), key, upperBound(key), form, form, class, class, searchLimit).
@@ -208,8 +210,9 @@ func (h *readHandlers) formulation(c *gin.Context) {
 	var rows []Formulation
 	err = h.db.WithSystem(c.Request.Context(), func(tx *gorm.DB) error {
 		if err := tx.Raw(`SELECT `+formulationColumns+` FROM drugmaster_formulation_versions v
+			JOIN drugmaster_releases r ON r.id=v.release_id
 			WHERE v.formulation_id=? AND v.valid_from<=COALESCE(NULLIF(?,'')::date,`+todayIST+`)
-			ORDER BY v.valid_from DESC LIMIT 1`, id, at).Scan(&rows).Error; err != nil {
+			ORDER BY v.valid_from DESC, r.sequence DESC LIMIT 1`, id, at).Scan(&rows).Error; err != nil {
 			return err
 		}
 		return attachIngredients(tx, rows)
@@ -243,8 +246,8 @@ type Product struct {
 
 const productQuery = `SELECT p.id AS product_id, v.id AS version_id, p.formulation_id, v.valid_from::text AS valid_from, v.brand_name,
 	v.manufacturer, v.pack_size, v.unit_of_issue, v.gtin, v.hsn_code, v.status
-	FROM drugmaster_products p JOIN LATERAL (SELECT * FROM drugmaster_product_versions x WHERE x.product_id=p.id
-	 AND x.valid_from<=` + todayIST + ` ORDER BY x.valid_from DESC LIMIT 1) v ON true `
+	FROM drugmaster_products p JOIN LATERAL (SELECT x.* FROM drugmaster_product_versions x JOIN drugmaster_releases r ON r.id=x.release_id
+	 WHERE x.product_id=p.id AND x.valid_from<=` + todayIST + ` ORDER BY x.valid_from DESC, r.sequence DESC LIMIT 1) v ON true `
 
 func (h *readHandlers) product(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
@@ -262,6 +265,7 @@ func (h *readHandlers) productByGTIN(c *gin.Context) {
 		return
 	}
 	// The subquery reaches the gtin index; the version in force must still hold it.
+	gtin = gtin14(gtin)
 	h.oneProduct(c, productQuery+`WHERE p.id IN (SELECT product_id FROM drugmaster_product_versions WHERE gtin=?) AND v.gtin=?`, gtin, gtin)
 }
 

@@ -1119,7 +1119,7 @@
       "migrations": [
         {
           "id": "0001_drugmaster",
-          "sql_sha256": "6071ffcf7ece15bbb80ad89dbedb31862d1cf93e246183161b300848518b26f7",
+          "sql_sha256": "d019c4aa3c5f67ebd3b9af7a782bddce55d00b9ca98ff3699a39b379a58191b9",
           "creates_tables": [
             "drugmaster_releases",
             "drugmaster_molecules",

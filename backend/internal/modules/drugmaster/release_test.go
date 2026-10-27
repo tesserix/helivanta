@@ -2,7 +2,10 @@ package drugmaster_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"testing"
@@ -94,9 +97,10 @@ func raw(t *testing.T, f drugmaster.ReleaseFile) []byte {
 
 func (s stack) publish(t *testing.T, f drugmaster.ReleaseFile) uuid.UUID {
 	t.Helper()
-	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, f), "Asha Stager")
+	file := raw(t, f)
+	id, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
 	require.NoError(t, err)
-	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, "Ravi Approver", true, "reviewed against source"))
+	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, file, "Ravi Approver", true, "reviewed against source"))
 	return id
 }
 
@@ -175,7 +179,8 @@ func (s stack) releaseStatus(t *testing.T, id uuid.UUID) string {
 // approves it, and publishing announces itself.
 func TestStagedReleaseIsInvisibleUntilApproved(t *testing.T) {
 	s := newStack(t)
-	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v1", "2020-01-01", "H", "active")), "Asha Stager")
+	file := raw(t, amoxicillin("v1", "2020-01-01", "H", "active"))
+	id, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
 	require.NoError(t, err)
 
 	require.Empty(t, s.searchLabels(t, "amox"))
@@ -183,7 +188,7 @@ func TestStagedReleaseIsInvisibleUntilApproved(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, code)
 	s.quiet(t)
 
-	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, "Ravi Approver", true, "reviewed against source"))
+	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, file, "Ravi Approver", true, "reviewed against source"))
 
 	code, body := s.get(t, "/search?q=amox")
 	require.Equal(t, http.StatusOK, code)
@@ -209,10 +214,11 @@ func TestStagedReleaseIsInvisibleUntilApproved(t *testing.T) {
 // Review focus 4: whoever staged a release cannot decide it.
 func TestTheStagerCannotApproveTheirOwnRelease(t *testing.T) {
 	s := newStack(t)
-	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v1", "2020-01-01", "H", "active")), "Asha Stager")
+	file := raw(t, amoxicillin("v1", "2020-01-01", "H", "active"))
+	id, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
 	require.NoError(t, err)
 
-	err = drugmaster.Decide(t.Context(), s.approver, id, "  asha stager ", true, "self-approval attempt")
+	err = drugmaster.Decide(t.Context(), s.approver, id, file, "  asha stager ", true, "self-approval attempt")
 	require.ErrorContains(t, err, "drugmaster_release_four_eyes")
 	require.Equal(t, "staged", s.releaseStatus(t, id))
 	require.Empty(t, s.searchLabels(t, "amox"))
@@ -222,10 +228,11 @@ func TestTheStagerCannotApproveTheirOwnRelease(t *testing.T) {
 // content: one stolen login is never enough.
 func TestEachStewardRoleDoesOnlyItsOwnStep(t *testing.T) {
 	s := newStack(t)
-	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v1", "2020-01-01", "H", "active")), "Asha Stager")
+	file := raw(t, amoxicillin("v1", "2020-01-01", "H", "active"))
+	id, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
 	require.NoError(t, err)
 
-	err = drugmaster.Decide(t.Context(), s.stager, id, "Ravi Approver", true, "stager publishing")
+	err = drugmaster.Decide(t.Context(), s.stager, id, file, "Ravi Approver", true, "stager publishing")
 	require.ErrorContains(t, err, "permission denied")
 	_, err = drugmaster.Stage(t.Context(), s.approver, raw(t, amoxicillin("v2", "2020-01-01", "H", "active")), "Ravi Approver")
 	require.ErrorContains(t, err, "permission denied")
@@ -245,7 +252,7 @@ func TestPublishedContentIsNeverRewritten(t *testing.T) {
 	formulation := func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO drugmaster_formulations (id,release_id,code) VALUES (?,?,'TEST-LATE')`, uuid.Must(uuid.NewV7()), id).Error
 	}
-	require.ErrorContains(t, s.stager.WithSystem(t.Context(), formulation), "joins only a staged release")
+	require.ErrorContains(t, s.stager.WithSystem(t.Context(), formulation), "staged in this transaction")
 	require.ErrorContains(t, s.stager.WithSystem(t.Context(), func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE drugmaster_formulation_versions SET regulatory_class='X' WHERE id=?`, version).Error
 	}), "permission denied")
@@ -299,6 +306,8 @@ func TestReclassificationKeepsWhatApplied(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	require.Equal(t, "H1", now["regulatory_class"])
 	require.NotEqual(t, past["version_id"], now["version_id"])
+	code, _ = s.get(t, "/formulations/"+formulation+"?at=0000-01-01")
+	require.Equal(t, http.StatusBadRequest, code, "a year Postgres cannot hold is the caller's error (review M8)")
 	code, _ = s.get(t, "/formulations/"+formulation+"?at=2019-12-31")
 	require.Equal(t, http.StatusNotFound, code, "a date before the first version is never answered with today's rules")
 
@@ -320,9 +329,10 @@ func TestBackdatedChangesAreRefused(t *testing.T) {
 	s := newStack(t)
 	s.publish(t, amoxicillin("v1", "2020-01-01", "H", "active"))
 
-	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v2", "2024-01-01", "X", "active")), "Asha Stager")
+	file := raw(t, amoxicillin("v2", "2024-01-01", "X", "active"))
+	id, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
 	require.NoError(t, err)
-	err = drugmaster.Decide(t.Context(), s.approver, id, "Ravi Approver", true, "backdated")
+	err = drugmaster.Decide(t.Context(), s.approver, id, file, "Ravi Approver", true, "backdated")
 	require.ErrorContains(t, err, "rewrite a date already answered")
 	require.Equal(t, "staged", s.releaseStatus(t, id))
 	code, body := s.get(t, "/formulations/"+body0(t, s, "amox")+"?at=2024-06-30")
@@ -368,15 +378,170 @@ func TestARejectedReleaseCanBeCorrectedAndRestaged(t *testing.T) {
 	s := newStack(t)
 	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v1", "2020-01-01", "X", "active")), "Asha Stager")
 	require.NoError(t, err)
-	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, "Ravi Approver", false, "500 mg is not Schedule X"))
+	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, nil, "Ravi Approver", false, "500 mg is not Schedule X"))
 	require.Equal(t, "rejected", s.releaseStatus(t, id))
 	require.Empty(t, s.searchLabels(t, "amox"))
 	s.quiet(t)
-	require.ErrorIs(t, drugmaster.Decide(t.Context(), s.approver, id, "Ravi Approver", true, "second try"), drugmaster.ErrNotStaged)
+	require.ErrorIs(t, drugmaster.Decide(t.Context(), s.approver, id, raw(t, amoxicillin("v1", "2020-01-01", "X", "active")), "Ravi Approver", true, "second try"), drugmaster.ErrNotStaged)
 
 	s.publish(t, amoxicillin("v1-corrected", "2020-01-01", "H", "active"))
 	_, body := s.get(t, "/formulations/"+body0(t, s, "amox"))
 	require.Equal(t, "H", body["regulatory_class"])
+}
+
+// Review I1: what a rejected release got wrong (an ATC code, a pack's
+// formulation) never binds the corrected release.
+func TestARejectedReleaseBindsNothing(t *testing.T) {
+	s := newStack(t)
+	typo := amoxicillin("v1", "2020-01-01", "H", "active")
+	typo.Molecules[0].ATCCode = ptr("J01CA01")
+	typo.Products[0].Formulation = "TEST-AMOX-250-CAP"
+	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, typo), "Asha Stager")
+	require.NoError(t, err)
+	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, nil, "Ravi Approver", false, "wrong ATC code and pack"))
+
+	s.publish(t, amoxicillin("v1-corrected", "2020-01-01", "H", "active"))
+	_, product := s.get(t, "/products/by-gtin/8901234567890")
+	require.Equal(t, body0(t, s, "amox"), product["formulation_id"], "the pack belongs to the 500 mg, as corrected")
+}
+
+// Review C1: once staged, a release is sealed, so nothing joins it later.
+func TestAStagedReleaseIsSealed(t *testing.T) {
+	s := newStack(t)
+	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v1", "2020-01-01", "H", "active")), "Asha Stager")
+	require.NoError(t, err)
+	err = s.stager.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO drugmaster_formulations (id,release_id,code) VALUES (?,?,'TEST-LATE')`, uuid.Must(uuid.NewV7()), id).Error
+	})
+	require.ErrorContains(t, err, "staged in this transaction")
+}
+
+// Review C1: a release whose rows differ from the reviewed file is not
+// published, even when its recorded checksum is that file's.
+func TestAReleaseIsPublishedOnlyAsItsFileSays(t *testing.T) {
+	s := newStack(t)
+	reviewed := raw(t, amoxicillin("v1", "2020-01-01", "H", "active"))
+	sum := sha256.Sum256(reviewed)
+	release := uuid.Must(uuid.NewV7())
+	// Forged by hand with the stager login: the reviewed file's checksum,
+	// but the 500 mg capsule recorded as needing no prescription.
+	forged := amoxicillin("v1", "2020-01-01", "none", "active")
+	require.NoError(t, s.stager.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		molecule, formulation, version := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+		for _, q := range []struct {
+			sql  string
+			args []any
+		}{
+			{`INSERT INTO drugmaster_releases (id,country,source_name,licence_ref,source_version,file_sha256,staged_by) VALUES (?,'IN','synthetic-test-fixture','TEST-LICENCE','v1',?,'Asha Stager')`, []any{release, hex.EncodeToString(sum[:])}},
+			{`INSERT INTO drugmaster_molecules (id,release_id,inn_name,atc_code) VALUES (?,?,'Amoxicillin','J01CA04')`, []any{molecule, release}},
+			{`INSERT INTO drugmaster_formulations (id,release_id,code) VALUES (?,?,'TEST-AMOX-500-CAP')`, []any{formulation, release}},
+			{`INSERT INTO drugmaster_formulation_versions (id,formulation_id,release_id,valid_from,label,dose_form,route,regulatory_class,ndps,teleconsult_prescribable) VALUES (?,?,?,'2020-01-01','Amoxicillin 500 mg capsule','capsule','oral',?,false,true)`, []any{version, formulation, release, forged.Formulations[0].RegulatoryClass}},
+			{`INSERT INTO drugmaster_formulation_ingredients (version_id,position,molecule_id,strength_value,strength_unit) VALUES (?,1,?,500,'mg')`, []any{version, molecule}},
+		} {
+			if err := tx.Exec(q.sql, q.args...).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+
+	err := drugmaster.Decide(t.Context(), s.approver, release, reviewed, "Ravi Approver", true, "checked the file")
+	require.ErrorIs(t, err, drugmaster.ErrReleaseMismatch)
+	err = drugmaster.Decide(t.Context(), s.approver, release, raw(t, forged), "Ravi Approver", true, "checked another file")
+	require.ErrorIs(t, err, drugmaster.ErrReleaseMismatch, "only the staged file can be the reviewed one")
+	require.Equal(t, "staged", s.releaseStatus(t, release))
+	require.Empty(t, s.searchLabels(t, "amox"))
+}
+
+// Review I2: decisions are serialised, so two releases decided at once
+// cannot both give one barcode to different products.
+func TestConcurrentDecisionsCannotShareABarcode(t *testing.T) {
+	s := newStack(t)
+	base := amoxicillin("base", "2020-01-01", "H", "active")
+	base.Products = nil
+	s.publish(t, base)
+	files := make([][]byte, 2)
+	ids := make([]uuid.UUID, 2)
+	for i := range files {
+		f := amoxicillin(fmt.Sprintf("v%d", i), "2020-01-01", "H", "active")
+		f.Molecules, f.Formulations = nil, nil
+		f.Products[0].Code = fmt.Sprintf("TEST-MOXA-%d", i)
+		files[i] = raw(t, f)
+		id, err := drugmaster.Stage(t.Context(), s.stager, files[i], "Asha Stager")
+		require.NoError(t, err)
+		ids[i] = id
+	}
+	// Hold the first publication open; the second must wait for it, then
+	// see its barcode. Without the lock it would publish alongside.
+	second := make(chan error, 1)
+	require.NoError(t, s.approver.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		if err := tx.Exec(`UPDATE drugmaster_releases SET status='published',decided_by='Ravi Approver',decision_reason='first' WHERE id=?`, ids[0]).Error; err != nil {
+			return err
+		}
+		go func() {
+			second <- drugmaster.Decide(t.Context(), s.approver, ids[1], files[1], "Ravi Approver", true, "second")
+		}()
+		select {
+		case err := <-second:
+			second <- err
+			return fmt.Errorf("the second decision did not wait for the first: %v", err)
+		case <-time.After(time.Second):
+			return nil
+		}
+	}))
+	require.ErrorContains(t, <-second, "would name two products")
+	code, _ := s.get(t, "/products/by-gtin/8901234567890")
+	require.Equal(t, http.StatusOK, code)
+}
+
+// Review I3: a recall takes effect today even when a version for a later
+// date is already published.
+func TestARecallIsNotHeldBackByAFutureVersion(t *testing.T) {
+	s := newStack(t)
+	s.publish(t, amoxicillin("v1", "2020-01-01", "H", "active"))
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	require.NoError(t, err)
+	future := amoxicillin("v2", time.Now().In(loc).AddDate(0, 1, 0).Format(time.DateOnly), "H", "active")
+	future.Formulations = nil
+	future.Molecules = nil
+	future.Products[0].PackSize = 20
+	s.publish(t, future)
+
+	recall := amoxicillin("v3", todayIST(t), "H", "recalled")
+	recall.Formulations = nil
+	recall.Molecules = nil
+	s.publish(t, recall)
+	_, body := s.get(t, "/products/by-gtin/08901234567890")
+	require.Equal(t, "recalled", body["status"], "the GTIN-14 form finds the same pack (review M4)")
+}
+
+// Review I4: a pack cannot be published before its formulation has rules.
+func TestAProductNeedsItsFormulationInForce(t *testing.T) {
+	s := newStack(t)
+	early := amoxicillin("v1", "2021-01-01", "H", "active")
+	early.Products[0].ValidFrom = "2020-06-01"
+	file := raw(t, early)
+	id, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
+	require.NoError(t, err)
+	err = drugmaster.Decide(t.Context(), s.approver, id, file, "Ravi Approver", true, "pack before its rules")
+	require.ErrorContains(t, err, "formulation in force from its first day")
+
+	orphan := amoxicillin("v2", "2020-01-01", "H", "active")
+	orphan.Formulations, orphan.Molecules = nil, nil
+	_, err = drugmaster.Stage(t.Context(), s.stager, raw(t, orphan), "Asha Stager")
+	require.ErrorIs(t, err, drugmaster.ErrInvalidRelease, "a staged-only formulation is not one a pack can name")
+}
+
+// The approver decides; the database alone dates and orders decisions
+// (review M5).
+func TestTheApproverCannotSetDecisionMetadata(t *testing.T) {
+	s := newStack(t)
+	id, err := drugmaster.Stage(t.Context(), s.stager, raw(t, amoxicillin("v1", "2020-01-01", "H", "active")), "Asha Stager")
+	require.NoError(t, err)
+	err = s.approver.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Exec(`UPDATE drugmaster_releases SET status='published',decided_by='Ravi',decision_reason='x',sequence=999,decided_at='2001-01-01' WHERE id=?`, id).Error
+	})
+	require.ErrorContains(t, err, "permission denied")
 }
 
 func TestSearchMatchesBrandsFlagsConfusablesAndValidates(t *testing.T) {
@@ -408,9 +573,15 @@ func TestStagingRefusesUnsafeFiles(t *testing.T) {
 	missingFlag.Formulations[0].NDPS = nil
 	unknownMolecule := amoxicillin("v1", "2020-01-01", "H", "active")
 	unknownMolecule.Molecules = nil
+	nonASCII := amoxicillin("v1", "2020-01-01", "H", "active")
+	nonASCII.Molecules = append(nonASCII.Molecules, drugmaster.MoleculeIn{INNName: "β-Carotene"})
+	paddedSource := amoxicillin("v1", "2020-01-01", "H", "active")
+	paddedSource.Source.Name = "synthetic-test-fixture "
 	for name, file := range map[string][]byte{
 		"missing ndps":     raw(t, missingFlag),
 		"unknown molecule": raw(t, unknownMolecule),
+		"non-ASCII name":   raw(t, nonASCII),
+		"padded source":    raw(t, paddedSource),
 		"unknown field":    []byte(`{"country":"IN","extra":1}`),
 	} {
 		_, err := drugmaster.Stage(t.Context(), s.stager, file, "Asha Stager")
@@ -450,11 +621,13 @@ func TestTheCatalogueIsReadOnlyToTheApp(t *testing.T) {
 		require.True(t, r.Select, r.Relname)
 		require.False(t, r.Write, r.Relname)
 	}
-	var allowed struct{ Test, Production, Real bool }
+	var allowed struct{ Test, Production, Disguised, Real, AppSequence bool }
 	require.NoError(t, s.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT drugmaster_source_allowed('synthetic-test-fixture','hms_test_7') AS test,
 			drugmaster_source_allowed('synthetic-test-fixture','helivanta') AS production,
-			drugmaster_source_allowed('Licensed Source','helivanta') AS real`).Scan(&allowed).Error
+			drugmaster_source_allowed(' Synthetic-Test-Fixture ','helivanta') AS disguised,
+			drugmaster_source_allowed('Licensed Source','helivanta') AS real,
+			has_sequence_privilege('hms_app','drugmaster_release_sequence','USAGE') AS app_sequence`).Scan(&allowed).Error
 	}))
-	require.Equal(t, struct{ Test, Production, Real bool }{true, false, true}, allowed)
+	require.Equal(t, struct{ Test, Production, Disguised, Real, AppSequence bool }{true, false, false, true, false}, allowed)
 }

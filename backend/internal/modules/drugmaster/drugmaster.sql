@@ -34,11 +34,13 @@ CREATE TABLE drugmaster_molecules (
  id uuid PRIMARY KEY CHECK (substring(id::text,15,1)='7'),
  release_id uuid NOT NULL REFERENCES drugmaster_releases(id),
  inn_name text NOT NULL CHECK (length(inn_name) BETWEEN 1 AND 200 AND inn_name=btrim(inn_name)),
- search_key text GENERATED ALWAYS AS (lower(regexp_replace(inn_name,'[^[:alnum:]]','','g'))) STORED,
+ search_key text GENERATED ALWAYS AS (regexp_replace(lower(inn_name),'[^a-z0-9]','','g')) STORED,
  atc_code text CHECK (atc_code IS NULL OR atc_code ~ '^[A-Z][0-9]{2}[A-Z]{2}[0-9]{2}$'),
  created_at timestamptz NOT NULL DEFAULT now(),
- UNIQUE (search_key),
- CHECK (length(search_key) >= 2)
+ -- Unique per release, not globally: a rejected release's identity must
+ -- not block a corrected one. Publication keeps published ones unique.
+ UNIQUE (search_key,release_id),
+ CHECK (length(search_key) >= 2 AND inn_name ~ '^[ -~]+$')
 );
 CREATE INDEX drugmaster_molecule_search ON drugmaster_molecules (search_key text_pattern_ops);
 
@@ -47,8 +49,9 @@ CREATE INDEX drugmaster_molecule_search ON drugmaster_molecules (search_key text
 CREATE TABLE drugmaster_formulations (
  id uuid PRIMARY KEY CHECK (substring(id::text,15,1)='7'),
  release_id uuid NOT NULL REFERENCES drugmaster_releases(id),
- code text NOT NULL UNIQUE CHECK (code ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$'),
- created_at timestamptz NOT NULL DEFAULT now()
+ code text NOT NULL CHECK (code ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$'),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE (code,release_id)
 );
 
 CREATE TABLE drugmaster_formulation_versions (
@@ -90,9 +93,10 @@ CREATE INDEX drugmaster_ingredient_molecule ON drugmaster_formulation_ingredient
 CREATE TABLE drugmaster_products (
  id uuid PRIMARY KEY CHECK (substring(id::text,15,1)='7'),
  release_id uuid NOT NULL REFERENCES drugmaster_releases(id),
- code text NOT NULL UNIQUE CHECK (code ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$'),
+ code text NOT NULL CHECK (code ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$'),
  formulation_id uuid NOT NULL REFERENCES drugmaster_formulations(id),
- created_at timestamptz NOT NULL DEFAULT now()
+ created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE (code,release_id)
 );
 CREATE INDEX drugmaster_product_formulation ON drugmaster_products (formulation_id);
 
@@ -102,11 +106,12 @@ CREATE TABLE drugmaster_product_versions (
  release_id uuid NOT NULL REFERENCES drugmaster_releases(id),
  valid_from date NOT NULL,
  brand_name text NOT NULL CHECK (length(brand_name) BETWEEN 1 AND 200 AND brand_name=btrim(brand_name)),
- search_key text GENERATED ALWAYS AS (lower(regexp_replace(brand_name,'[^[:alnum:]]','','g'))) STORED,
+ search_key text GENERATED ALWAYS AS (regexp_replace(lower(brand_name),'[^a-z0-9]','','g')) STORED,
  manufacturer text NOT NULL CHECK (length(btrim(manufacturer)) BETWEEN 1 AND 200),
  pack_size integer NOT NULL CHECK (pack_size BETWEEN 1 AND 1000000),
  unit_of_issue text NOT NULL CHECK (length(btrim(unit_of_issue)) BETWEEN 1 AND 40),
- gtin text CHECK (gtin IS NULL OR gtin ~ '^([0-9]{8}|[0-9]{12,14})$'),
+ -- Stored as GTIN-14, so the 8-, 12- and 13-digit forms of one item agree.
+ gtin text CHECK (gtin IS NULL OR gtin ~ '^[0-9]{14}$'),
  hsn_code text NOT NULL CHECK (hsn_code ~ '^[0-9]{4}([0-9]{2}){0,2}$'),
  status text NOT NULL CHECK (status IN ('active','discontinued','recalled')),
  created_at timestamptz NOT NULL DEFAULT now(),
@@ -142,8 +147,11 @@ BEGIN
  ELSE
   release:=NEW.release_id;
  END IF;
- IF NOT EXISTS (SELECT 1 FROM drugmaster_releases r WHERE r.id=release AND r.status='staged') THEN
-  RAISE EXCEPTION 'drug master content joins only a staged release' USING ERRCODE='23514';
+ -- Only in the transaction that staged the release (review C1): once staged,
+ -- a release is sealed, so what the approver reviews is all it will hold.
+ IF NOT EXISTS (SELECT 1 FROM drugmaster_releases r WHERE r.id=release AND r.status='staged'
+    AND r.xmin::text=(pg_current_xact_id()::text::bigint % 4294967296)::text) THEN
+  RAISE EXCEPTION 'drug master content joins only a release staged in this transaction' USING ERRCODE='23514';
  END IF;
  RETURN NEW;
 END $$;
@@ -162,7 +170,7 @@ END $$;
 -- Synthetic fixtures (spec D7) never reach a real catalogue: only the
 -- harness's hms_test_N databases accept them.
 CREATE FUNCTION drugmaster_source_allowed(source text, db name) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
- SELECT source<>'synthetic-test-fixture' OR db::text LIKE 'hms\_test\_%'
+ SELECT lower(btrim(source))<>'synthetic-test-fixture' OR db::text LIKE 'hms\_test\_%'
 $$;
 
 CREATE FUNCTION drugmaster_release_guard() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -184,29 +192,58 @@ BEGIN
        IS DISTINCT FROM (OLD.id,OLD.country,OLD.source_name,OLD.licence_ref,OLD.source_version,OLD.file_sha256,OLD.staged_by,OLD.staged_at) THEN
   RAISE EXCEPTION 'a staged release is only published or rejected' USING ERRCODE='23514';
  END IF;
- IF NEW.status='published' THEN
-  -- A new version of something already published starts no earlier than
-  -- today (India) and after its predecessor, so no past date is ever
-  -- answered differently than it was (spec D4). A first version may
-  -- carry its historical valid_from.
-  IF EXISTS (SELECT 1 FROM drugmaster_formulation_versions n JOIN drugmaster_formulation_versions p
-     ON p.formulation_id=n.formulation_id AND p.release_id<>n.release_id AND drugmaster_published(p.release_id)
-     WHERE n.release_id=NEW.id AND (n.valid_from<=p.valid_from OR n.valid_from<(now() AT TIME ZONE 'Asia/Kolkata')::date)) THEN
-   RAISE EXCEPTION 'a formulation version would rewrite a date already answered' USING ERRCODE='23514';
-  END IF;
-  IF EXISTS (SELECT 1 FROM drugmaster_product_versions n JOIN drugmaster_product_versions p
-     ON p.product_id=n.product_id AND p.release_id<>n.release_id AND drugmaster_published(p.release_id)
-     WHERE n.release_id=NEW.id AND (n.valid_from<=p.valid_from OR n.valid_from<(now() AT TIME ZONE 'Asia/Kolkata')::date)) THEN
-   RAISE EXCEPTION 'a product version would rewrite a date already answered' USING ERRCODE='23514';
-  END IF;
-  -- A barcode names one product: no other product's latest version may hold it.
-  IF EXISTS (SELECT 1 FROM drugmaster_product_versions n JOIN LATERAL (
-       SELECT pv.product_id FROM drugmaster_product_versions pv
-       WHERE pv.gtin=n.gtin AND pv.product_id<>n.product_id
-         AND (drugmaster_published(pv.release_id) OR pv.release_id=NEW.id)) o ON true
+ -- One decision at a time (review I2): each sees every earlier one.
+ PERFORM pg_advisory_xact_lock(476001);
+ -- The database, not the caller, says when and in what order (review M5).
+ NEW.decided_at:=now();
+ IF NEW.status='rejected' THEN
+  NEW.sequence:=NULL;
+  RETURN NEW;
+ END IF;
+ NEW.sequence:=nextval('drugmaster_release_sequence');
+ -- A new version of something already published starts no earlier than
+ -- today (India): no earlier date is ever answered differently (spec D4).
+ -- A version for a future date supersedes one published for that same
+ -- date, by release order; a first version may carry its historical date.
+ IF EXISTS (SELECT 1 FROM drugmaster_formulation_versions n
+     WHERE n.release_id=NEW.id AND n.valid_from<(now() AT TIME ZONE 'Asia/Kolkata')::date
+     AND EXISTS (SELECT 1 FROM drugmaster_formulation_versions p WHERE p.formulation_id=n.formulation_id AND drugmaster_published(p.release_id))) THEN
+  RAISE EXCEPTION 'a formulation version would rewrite a date already answered' USING ERRCODE='23514';
+ END IF;
+ IF EXISTS (SELECT 1 FROM drugmaster_product_versions n
+     WHERE n.release_id=NEW.id AND n.valid_from<(now() AT TIME ZONE 'Asia/Kolkata')::date
+     AND EXISTS (SELECT 1 FROM drugmaster_product_versions p WHERE p.product_id=n.product_id AND drugmaster_published(p.release_id))) THEN
+  RAISE EXCEPTION 'a product version would rewrite a date already answered' USING ERRCODE='23514';
+ END IF;
+ -- A pack is dispensable only with its formulation's rules in force (review I4).
+ IF EXISTS (SELECT 1 FROM drugmaster_product_versions n JOIN drugmaster_products p ON p.id=n.product_id
+     WHERE n.release_id=NEW.id AND NOT EXISTS (SELECT 1 FROM drugmaster_formulation_versions f
+      WHERE f.formulation_id=p.formulation_id AND f.valid_from<=n.valid_from
+      AND (f.release_id=NEW.id OR drugmaster_published(f.release_id)))) THEN
+  RAISE EXCEPTION 'a product needs its formulation in force from its first day' USING ERRCODE='23514';
+ END IF;
+ -- Published identities stay unique by key and code (review I1).
+ IF EXISTS (SELECT 1 FROM drugmaster_formulation_ingredients i JOIN drugmaster_formulation_versions v ON v.id=i.version_id
+     JOIN drugmaster_molecules m ON m.id=i.molecule_id JOIN drugmaster_molecules o ON o.search_key=m.search_key AND o.id<>m.id
+     JOIN drugmaster_formulation_ingredients oi ON oi.molecule_id=o.id JOIN drugmaster_formulation_versions ov ON ov.id=oi.version_id
+     WHERE v.release_id=NEW.id AND drugmaster_published(ov.release_id)) THEN
+  RAISE EXCEPTION 'a molecule would be published twice' USING ERRCODE='23514';
+ END IF;
+ IF EXISTS (SELECT 1 FROM drugmaster_formulation_versions v JOIN drugmaster_formulations f ON f.id=v.formulation_id
+     JOIN drugmaster_formulations o ON o.code=f.code AND o.id<>f.id JOIN drugmaster_formulation_versions ov ON ov.formulation_id=o.id
+     WHERE v.release_id=NEW.id AND drugmaster_published(ov.release_id)) THEN
+  RAISE EXCEPTION 'a formulation code would be published twice' USING ERRCODE='23514';
+ END IF;
+ IF EXISTS (SELECT 1 FROM drugmaster_product_versions v JOIN drugmaster_products p ON p.id=v.product_id
+     JOIN drugmaster_products o ON o.code=p.code AND o.id<>p.id JOIN drugmaster_product_versions ov ON ov.product_id=o.id
+     WHERE v.release_id=NEW.id AND drugmaster_published(ov.release_id)) THEN
+  RAISE EXCEPTION 'a product code would be published twice' USING ERRCODE='23514';
+ END IF;
+ -- A barcode names one product.
+ IF EXISTS (SELECT 1 FROM drugmaster_product_versions n JOIN drugmaster_product_versions o
+     ON o.gtin=n.gtin AND o.product_id<>n.product_id AND (o.release_id=NEW.id OR drugmaster_published(o.release_id))
      WHERE n.release_id=NEW.id AND n.gtin IS NOT NULL) THEN
-   RAISE EXCEPTION 'a GTIN would name two products' USING ERRCODE='23514';
-  END IF;
+  RAISE EXCEPTION 'a GTIN would name two products' USING ERRCODE='23514';
  END IF;
  RETURN NEW;
 END $$;
@@ -257,7 +294,8 @@ CREATE POLICY drugmaster_stage ON drugmaster_formulation_ingredients FOR INSERT 
 CREATE POLICY drugmaster_stage ON drugmaster_products FOR INSERT TO helivanta_drug_stager WITH CHECK (drugmaster_staged(release_id));
 CREATE POLICY drugmaster_stage ON drugmaster_product_versions FOR INSERT TO helivanta_drug_stager WITH CHECK (drugmaster_staged(release_id));
 
-GRANT UPDATE(status,decided_by,decided_at,decision_reason,sequence) ON drugmaster_releases TO helivanta_drug_approver;
+GRANT UPDATE(status,decided_by,decision_reason) ON drugmaster_releases TO helivanta_drug_approver;
+REVOKE ALL ON SEQUENCE drugmaster_release_sequence FROM PUBLIC, hms_app;
 GRANT USAGE ON SEQUENCE drugmaster_release_sequence TO helivanta_drug_approver;
 CREATE POLICY drugmaster_decide ON drugmaster_releases FOR UPDATE TO helivanta_drug_approver
  USING (status='staged') WITH CHECK (status IN ('published','rejected'));

@@ -5,7 +5,11 @@
 // the person who staged the release.
 //
 //	drugmaster-release stage  -file release.json -by "Name"
-//	drugmaster-release decide -release <id> -by "Name" -publish|-reject -reason "..."
+//	drugmaster-release decide -release <id> -file release.json -by "Name" -publish -reason "..."
+//	drugmaster-release decide -release <id> -by "Name" -reject -reason "..."
+//
+// Publishing takes the file the approver reviewed and refuses a release
+// whose rows differ from it.
 package main
 
 import (
@@ -33,7 +37,7 @@ func main() {
 	}
 }
 
-var errUsage = errors.New("usage: drugmaster-release stage -file F -by NAME | decide -release ID -by NAME (-publish|-reject) -reason TEXT")
+var errUsage = errors.New("usage: drugmaster-release stage -file F -by NAME | decide -release ID -by NAME (-publish -file F | -reject) -reason TEXT")
 
 func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 	if len(args) == 0 {
@@ -76,15 +80,21 @@ func run(ctx context.Context, args []string, dsn string, out io.Writer) error {
 	case "decide":
 		id, err := uuid.Parse(*release)
 		// Exactly one of -publish and -reject: an unstated decision is no decision.
-		if err != nil || *by == "" || *publish == *reject {
+		if err != nil || *by == "" || *publish == *reject || (*publish && *file == "") {
 			return errUsage
+		}
+		var raw []byte
+		if *publish {
+			if raw, err = os.ReadFile(*file); err != nil { //nolint:gosec // G703: the operator names the file they reviewed
+				return err
+			}
 		}
 		db, err := tenantdb.OpenRuntime(ctx, dsn)
 		if err != nil {
 			return err
 		}
 		defer func() { _ = db.Close() }()
-		return drugmaster.Decide(ctx, db, id, *by, *publish, *reason)
+		return drugmaster.Decide(ctx, db, id, raw, *by, *publish, *reason)
 	}
 	return errUsage
 }

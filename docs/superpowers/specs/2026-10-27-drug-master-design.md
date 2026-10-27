@@ -36,7 +36,8 @@ diverges, and a divergent schedule or dose is a patient-safety fault.
   `INSERT, UPDATE, DELETE, TRUNCATE` from `hms_app`. Forced RLS gives `hms_app` a read-only
   policy, and only the steward roles (D3) can write. An app bug or injected SQL therefore
   cannot change a schedule. This is the fail-closed direction: no request-path write exists
-  to get wrong. An archtest pins both the grant and the policy.
+  to get wrong. The module's tests pin the grants and forced RLS, and prove each policy by
+  what each role can and cannot read or write.
 - **D2 India only, for now.** Each release has `country = 'IN'`, enforced by a CHECK, the
   same way pharmacy's `india_only.sql` does it. Regulatory class is a closed set taken from
   the Drugs Rules 1945 (source S09 in `docs/domain/india/sources.md`): `none` (OTC), `G`,
@@ -65,12 +66,14 @@ diverges, and a divergent schedule or dose is a patient-safety fault.
     - Each version holds the ordered molecule and strength list (value and unit, so
       combinations work), dose form, route, regulatory class, NDPS flag and
       teleconsult-prescribable flag.
-    - Each version also holds `valid_from` and `valid_to` and the release that introduced it.
+    - Each version also holds `valid_from` and the release that introduced it; there is no
+      `valid_to`, because a later version ends it.
   - `drugmaster_products`: brand, manufacturer, pack size and unit of issue, GTIN, HSN code
     and status (`active | discontinued | recalled`), also versioned per release.
 
-  A release that reclassifies a formulation closes the open version (`valid_to`) and opens
-  a new one, in the same transaction. Published rows are guarded by immutability triggers.
+  A release that reclassifies a formulation adds a new version with a later `valid_from`.
+  The version in force on a date is the latest `valid_from` on or before it, the later
+  release winning a tie. No row is ever updated. Published rows are guarded by immutability triggers.
   A prescription stores the formulation **version id**, so a two-year-old H1 prescription
   is read under the rules that applied then.
 
@@ -143,6 +146,21 @@ diverges, and a divergent schedule or dose is a patient-safety fault.
    (no non-tenant permission today). That authority must be filed and designed first.
 
 ## Built differently from the first draft
+
+- **Sealed releases (review C1).** Content can join a release only in the transaction that
+  staged it. Publishing re-reads the reviewed file and refuses a release whose rows
+  differ. Without this, a stager login could add unreviewed rows after review.
+- **Decisions are serialised** by an advisory lock in the release trigger. The trigger, not
+  the approver, sets `decided_at` and `sequence`.
+- **Identities are reused only when published.** Codes and molecule keys are unique per
+  release, and publication keeps published ones unique, so a rejected release binds
+  nothing.
+- **A future version does not block today.** Only "starts before today" is refused for
+  something already published. A later release supersedes an earlier one for the same
+  date.
+- **Staging is batched.** It loads the published catalogue once and inserts in batches. A
+  60,000-product release stages in about 8 s and verifies and publishes in about 2 s
+  (local, 2026-10-27).
 
 - **Identity rows** (molecule, formulation, product) become visible once a published
   version uses them, not when their own release is published. A rejected release may have

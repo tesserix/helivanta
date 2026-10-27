@@ -19,7 +19,12 @@ licensed source, staged by one person and decided by another.
 | Request | `hms_app`                 | Read rows of published releases                                        | Write any drug master table              |
 
 The database refuses a decision whose named decider matches the named
-stager (case and spacing ignored). **Custody is an operations control**: the
+stager (case and spacing ignored). A release is **sealed** once its
+staging transaction commits: no row can join it afterwards. Publishing
+takes the file the approver reviewed, and refuses unless the release's rows
+are exactly what that file says, so the approver never publishes something
+they did not see. Decisions run one at a time, and the database, not the
+caller, records when and in what order. **Custody is an operations control**: the
 two logins' credentials must be held by different people. One person holding
 both defeats the two-person rule, and the database cannot detect it. Both
 roles are `NOLOGIN` in production until that custody is reviewed, the same
@@ -37,8 +42,8 @@ DRUGMASTER_DATABASE_URL=postgres://helivanta_drug_stager@… \
 
 # as the approver, after checking the file against its source
 DRUGMASTER_DATABASE_URL=postgres://helivanta_drug_approver@… \
-  drugmaster-release decide -release <id> -by "Other Name" -publish -reason "checked against <source> <version>"
-# or -reject -reason "…"
+  drugmaster-release decide -release <id> -file release.json -by "Other Name" -publish -reason "checked against <source> <version>"
+# or, without a file: -reject -reason "…"
 ```
 
 Publishing emits `catalogue_published.v1`, one `formulation_reclassified.v1`
@@ -98,11 +103,17 @@ Rules the command or the database enforces:
   check digit. Dose forms, routes, strength units and classes are closed
   sets in `drugmaster.sql`.
 - **Dates:** a new version of something already published must start today
-  (India) or later, and after its current version. History is never
-  re-answered.
-- **Identities:** a product code stays bound to its formulation. A different
-  composition needs a new product code. A molecule's ATC code is fixed at
-  first use.
+  (India) or later. History is never re-answered. A version for a date
+  that already has one supersedes it, in release order. So a recall dated
+  today takes effect even when a later-dated version is already published.
+- **Packs need rules:** a product version is refused unless its formulation
+  has a published version in force from the product's first day.
+- **Identities:** once published, a product code stays bound to its
+  formulation (a different composition needs a new code), and a molecule's
+  ATC code is fixed. A rejected release binds nothing. Molecule names are
+  plain ASCII.
+- **GTINs** are stored as GTIN-14, so the 8-, 12- and 13-digit forms of one
+  item resolve to the same pack.
 - **Duplicates and test data:** the same file (by SHA-256) is staged only
   once. Source name `synthetic-test-fixture` is refused outside test
   databases.

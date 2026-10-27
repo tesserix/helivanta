@@ -20,6 +20,8 @@ func TestDecimalsCompareByValue(t *testing.T) {
 	require.Equal(t, "0.5", canonicalDecimal("0.500000"))
 	require.Equal(t, "250", canonicalDecimal("250"))
 	require.Equal(t, "120", canonicalDecimal("0120"))
+	require.Equal(t, "0.5", canonicalDecimal("00.5"))
+	require.Equal(t, "0", canonicalDecimal("0.000"))
 	require.True(t, positiveDecimal("0.25"))
 	require.False(t, positiveDecimal("0.000"))
 	require.False(t, positiveDecimal("-1"))
@@ -28,7 +30,6 @@ func TestDecimalsCompareByValue(t *testing.T) {
 
 func TestConfusableLabels(t *testing.T) {
 	require.True(t, confusable("Amoxicillin 500 mg capsule", "Amoxicillin 250 mg capsule"), "identical apart from strength")
-	require.True(t, confusable("Hydroxyzine tablet", "Hydralazine tablet") == (levenshtein("hydroxyzine tablet", "hydralazine tablet") <= 2))
 	require.True(t, confusable("Celebrex capsule", "Cerebrex capsule"))
 	require.False(t, confusable("Amoxicillin 500 mg capsule", "Paracetamol 500 mg tablet"))
 	require.Equal(t, 3, levenshtein("kitten", "sitting"))

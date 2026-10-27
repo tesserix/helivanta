@@ -47,7 +47,7 @@ through a two-person release.
    - Tables:
      - `releases`;
      - `molecules` (unique normalised INN);
-     - `formulations` and `formulation_versions`, unique on `(formulation_id, valid_from)`;
+     - `formulations` and `formulation_versions`, unique on `(formulation_id, valid_from, release_id)`, a later release winning a tie;
      - `formulation_ingredients`, with numerator and optional denominator strength in units
        `mg|g|mcg|IU|mL|%`;
      - `products` and `product_versions`, with GTIN (GS1 check digit validated in Go;

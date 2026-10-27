@@ -330,7 +330,7 @@ var lintAllowlist = map[string]bool{
 	// The drug master (#476 spec D1) is one catalogue every tenant reads,
 	// not tenant data: no PHI, no tenant to scope on. Each table is still
 	// FORCE ROW LEVEL SECURITY, hms_app holds SELECT only and sees only
-	// published releases, and drugmaster's schema test pins all three.
+	// published releases; TestTheCatalogueIsReadOnlyToTheApp pins all three.
 	"drugmaster_releases":                true,
 	"drugmaster_molecules":               true,
 	"drugmaster_formulations":            true,

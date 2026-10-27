@@ -41,6 +41,18 @@ An outlet may sell only while it holds an approved licence that is valid on the 
 
 Later slices call `pharmacy_outlet_licence_in_force(tenant, outlet, day)` inside their own transactions. Not covered yet: uploading the licence document (the reviewer checks the original) and renewal notices.
 
+### Declared schedule class (#1386 A2)
+
+Until the drug master is loaded, each product's Drugs Rules class (`none|G|H|H1|X`) and NDPS flag are declared by the outlet, together with their source. A second person must approve the declaration.
+
+| Route                                             | Behaviour                                                                                                                                     |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/catalogue/products/{id}/schedule/{uuidv7}` | Declares `{regulatory_class, ndps, source}`. Requires `pharmacy.schedule.declare`. Idempotent                                                 |
+| `POST …/schedule/{declaration}/review`            | Records `{decision, reason}`. Requires `pharmacy.schedule.review`. The reviewer must not be the declarer (database-enforced; 409 `four_eyes`) |
+| `GET …/catalogue/products/{id}/schedule`          | Returns `{in_force, origin: declared_by_outlet, reason, history}`                                                                             |
+
+Only the **latest** declaration counts, and only once it is approved. If the latest one is still awaiting review or was rejected, the product has no class, so an older approval cannot bypass a stricter reclassification. Later slices call `pharmacy_product_schedule_in_force(tenant, outlet, product)`.
+
 ## Integration requirements
 
 Published catalogue, stock, payable, settlement and safety events mostly carry scoped references only. `dispense_recorded.v1` carries dispense/visit IDs. The current visit-intake consumer still receives patient name from MediCore and opens a pending task automatically; it is not a prescription order.

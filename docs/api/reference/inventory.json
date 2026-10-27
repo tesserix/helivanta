@@ -2201,6 +2201,78 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
           "permission": "pharmacy.sale.read",
@@ -2596,6 +2668,18 @@
           ]
         },
         {
+          "permission": "pharmacy.prescription.record",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.prescription.read",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2628,7 +2712,9 @@
         "helivanta.in.pharmacy.payable_recorded.v1",
         "helivanta.in.pharmacy.settlement_recorded.v1",
         "helivanta.in.pharmacy.batch_safety_recorded.v1",
-        "helivanta.in.pharmacy.sale_posted.v1"
+        "helivanta.in.pharmacy.sale_posted.v1",
+        "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
+        "helivanta.in.pharmacy.prescription_image_changed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -2637,6 +2723,11 @@
           "name": "pharmacy-visit-intake",
           "subject": "helivanta.in.medicore.visit_created.v1",
           "after_commit": false
+        },
+        {
+          "name": "pharmacy-prescription-image-scan",
+          "subject": "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
+          "after_commit": true
         }
       ],
       "broadcasts": [],
@@ -2751,6 +2842,14 @@
             "pharmacy_sales",
             "pharmacy_sale_lines",
             "pharmacy_sale_tenders"
+          ]
+        },
+        {
+          "id": "0016_pharmacy",
+          "sql_sha256": "a1611e73c0d5e3f777e455f28c704d43f474f6200c42f15d7b0e1f1129db3d7d",
+          "creates_tables": [
+            "pharmacy_prescriptions",
+            "pharmacy_prescription_images"
           ]
         }
       ]

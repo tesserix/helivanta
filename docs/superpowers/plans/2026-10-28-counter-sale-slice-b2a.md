@@ -32,16 +32,16 @@ Next.js shell with `@helivanta/api`.
 
 - **Routes** are under `/pharmacy/pharmacies/:pharmacy/outlets/:outlet/`:
 
-  | Route                                                     | Permission                    |
-  | --------------------------------------------------------- | ----------------------------- |
-  | `PUT /prescriptions/:id`                                  | `pharmacy.prescription.record` |
-  | `GET /prescriptions/:id`                                  | `pharmacy.prescription.read`   |
-  | `GET /prescriptions` (ListRoute)                          | `pharmacy.prescription.read`   |
-  | `PUT /prescriptions/:id/images/:file` (intent)            | `pharmacy.prescription.record` |
-  | `PUT /prescriptions/:id/images/:file/content`             | `pharmacy.prescription.record` |
-  | `POST /prescriptions/:id/images/:file/retry/:attempt`     | `pharmacy.prescription.record` |
-  | `GET /prescriptions/:id/images/:file/download`            | `pharmacy.prescription.read`   |
-  | `GET /prescriptions/:id/images` (ListRoute)               | `pharmacy.prescription.read`   |
+  | Route                                                 | Permission                     |
+  | ----------------------------------------------------- | ------------------------------ |
+  | `PUT /prescriptions/:id`                              | `pharmacy.prescription.record` |
+  | `GET /prescriptions/:id`                              | `pharmacy.prescription.read`   |
+  | `GET /prescriptions` (ListRoute)                      | `pharmacy.prescription.read`   |
+  | `PUT /prescriptions/:id/images/:file` (intent)        | `pharmacy.prescription.record` |
+  | `PUT /prescriptions/:id/images/:file/content`         | `pharmacy.prescription.record` |
+  | `POST /prescriptions/:id/images/:file/retry/:attempt` | `pharmacy.prescription.record` |
+  | `GET /prescriptions/:id/images/:file/download`        | `pharmacy.prescription.read`   |
+  | `GET /prescriptions/:id/images` (ListRoute)           | `pharmacy.prescription.read`   |
 
 - **Permissions:** both are held by `RolePharmacist` only. Writes need the outlet `editor`
   grant and reads any outlet grant. Other tenants and outlets get 404.
@@ -55,6 +55,7 @@ Next.js shell with `@helivanta/api`.
 
   Text is trimmed-equal (no leading or trailing space) and contains no control characters. A
   replay with the same id and body returns 200; a different body returns 409 `conflict`.
+
 - **Images:**
   - `image/png` or `image/jpeg`, 1 B to 10 MiB;
   - filename 1–180 characters, with no `/`, `\` or control characters;
@@ -63,6 +64,7 @@ Next.js shell with `@helivanta/api`.
   Status: `upload_pending` → `scan_pending` → `available`, `rejected` or `scan_error`, and
   `scan_error` → `scan_pending` on the next attempt. There is no `revoked` state in B-2a.
   Intents expire after 30 minutes.
+
 - **Object scope:** owner kind `pharmacy_outlet`, owner id is the outlet, record id is the
   prescription. It is tenant-scoped, with no hospital.
 - **Names:**
@@ -78,6 +80,7 @@ Next.js shell with `@helivanta/api`.
   - `helivanta.in.pharmacy.prescription_image_changed.v1` carries the same plus `status`.
 
   Neither carries prescriber or patient fields.
+
 - **Not covered:** revocation, selling against a prescription, prescription validity periods,
   OCR, and owner access. All of these are stated in the spec.
 
@@ -110,6 +113,7 @@ Next.js shell with `@helivanta/api`.
 ### Task 2: Migration `0016_pharmacy` and the worker identity
 
 **Files:**
+
 - create `backend/internal/modules/pharmacy/prescriptions.sql`;
 - modify `module.go` (embed it as `0016_pharmacy`);
 - modify `dev/init-db.sql` and `backend/internal/testinfra/containers.go` (the LOGIN role);
@@ -117,6 +121,7 @@ Next.js shell with `@helivanta/api`.
 - test `backend/internal/modules/pharmacy/prescription_schema_test.go`.
 
 **Tables:**
+
 - `pharmacy_prescriptions(tenant_id, outlet_id, id, the fields, recorded_by, created_at)`:
   - PK `(tenant_id, outlet_id, id)`, with a UUIDv7 CHECK and field CHECKs;
   - the `pharmacy_catalogue_immutable` trigger for UPDATE and DELETE;
@@ -129,13 +134,15 @@ Next.js shell with `@helivanta/api`.
   - audit.
 
 **Policies:**
+
 - `pharmacy_prescriptions`: `pharmacy_outlet_allowed(tenant_id, outlet_id, false)` for USING and
   `true` for CHECK.
 - `pharmacy_prescription_images`: `CASE WHEN current_user='helivanta_pharmacy_evidence_worker'
-  THEN pharmacy_evidence_worker_allowed(tenant_id, outlet_id, prescription_id, id) ELSE
-  pharmacy_outlet_allowed(…) END`.
+THEN pharmacy_evidence_worker_allowed(tenant_id, outlet_id, prescription_id, id) ELSE
+pharmacy_outlet_allowed(…) END`.
 
 **Grants:**
+
 - the worker gets column SELECT and UPDATE on images only, and nothing on prescriptions;
 - it can INSERT into `audit_events` and `outbox_events`, under restrictive policies copied from
   supply with pharmacy names and subject `…prescription_image_changed.v1`.
@@ -149,13 +156,14 @@ Next.js shell with `@helivanta/api`.
     - the worker cannot SELECT `pharmacy_prescriptions`;
     - `available` → `upload_pending` raises.
 - [ ] **Step 2: Run** `go test ./internal/modules/pharmacy -run 'Prescription.*Schema|PrescriptionsAre|PrescriptionImageTransitions'`.
-  Expected: FAIL (no table).
+      Expected: FAIL (no table).
 - [ ] **Step 3: Implement** the SQL, the role and the DSN helper.
 - [ ] **Step 4: Run it again.** Expected: PASS. Commit.
 
 ### Task 3: Recording and reading prescriptions
 
 **Files:**
+
 - create `prescriptions.go`;
 - modify `module.go`: `PermPrescriptionRecord` and `PermPrescriptionRead` (pharmacist), and the
   routes;
@@ -177,12 +185,13 @@ plus `id, outlet_id, recorded_by, created_at`) and `loadPrescription(tx, tenant,
   - tenant B gets 404.
 - [ ] **Step 2: Run it.** Expected: 404, because there is no route.
 - [ ] **Step 3: Implement**, using `h.transaction(ctx, p, outlet, writing, fn)` with
-  `decodeCatalogue` and `catalogueID`.
+      `decodeCatalogue` and `catalogueID`.
 - [ ] **Step 4: Run it again.** Expected: PASS. Commit.
 
 ### Task 4: Image intent, upload, retry, download and list
 
 **Files:**
+
 - create `prescription_images.go` (intent and list), `prescription_image_upload.go` and
   `prescription_image_access.go` (download and retry), each mirroring the supply file of the
   same role;
@@ -190,9 +199,10 @@ plus `id, outlet_id, recorded_by, created_at`) and `loadPrescription(tx, tenant,
 - test `prescription_images_test.go`.
 
 **Interfaces:**
+
 - produces `image.objectScope() attachments.ObjectScope`;
 - `pharmacycontract.PrescriptionImageScanInput{TenantID, OutletID, PrescriptionID, FileID string;
-  ScanAttempt int64}`;
+ScanAttempt int64}`;
 - `PrescriptionImageScanRequestedData` and `PrescriptionImageChangedData`.
 
 The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is 503
@@ -218,6 +228,7 @@ The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is
 ### Task 5: Processor, workflow, consumer and worker binary
 
 **Files:**
+
 - create `prescription_image_processor.go`, `prescription_image_workflow.go` and
   `prescription_image_consumer.go`, mirroring supply;
 - modify `module.go`: `Consumers(deps)` returns the scan consumer, and Publishes gains both
@@ -251,6 +262,7 @@ The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is
 ### Task 6: Contracts, archtests and docs
 
 **Files:**
+
 - `internal/archtest/matrix_test.go`, `arch_test.go` (the unpaginated allowlist for single-object
   GETs and the download) and `event_payload_test.go`;
 - `operational_roles_test.go`;
@@ -258,13 +270,14 @@ The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is
 - the regenerated `docs/api/reference/*`.
 
 - [ ] **Step 1: Run** `go run ./cmd/contractdocs && go run ./cmd/contractdocs -check` and
-  `go test ./internal/archtest/...`. Expected: failures naming the new routes and events.
+      `go test ./internal/archtest/...`. Expected: failures naming the new routes and events.
 - [ ] **Step 2: Add** the entries and justifications.
 - [ ] **Step 3: Run them again.** Expected: PASS. Commit.
 
 ### Task 7: The prescription screen
 
 **Files:**
+
 - `packages/api/src/pharmacy.ts` (types `PharmacyPrescription` and `PharmacyPrescriptionImage`)
   and a `pharmacy-prescription-images.ts` upload client that reuses `attachment-file.ts`, as
   `supply-evidence.ts` does;
@@ -275,6 +288,7 @@ The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is
   `pharmacy.prescription.read`, plus `zones.test.ts`.
 
 **Behaviour:**
+
 - A `useZodForm` form records a prescription. Its date limit is the server's 400; there is no
   native validation.
 - The list shows prescriber, date and patient.
@@ -294,6 +308,7 @@ The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is
 ### Task 8: Deployment (tesserix-k8s, a separate PR)
 
 Mirror the supply worker:
+
 - `supply-evidence-worker.yaml`;
 - `supply-evidence-alerts.yaml`;
 - its network policy entries;

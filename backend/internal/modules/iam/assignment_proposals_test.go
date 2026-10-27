@@ -1,4 +1,4 @@
-package globalapi
+package iam_test
 
 import (
 	"encoding/json"
@@ -11,8 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/helivanta/internal/modules/iam"
-	"github.com/tesserix/helivanta/internal/modules/workforce"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/globalapi"
+	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test uses its own module; architecture checks enforce ownership.
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
@@ -21,6 +22,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// Wire permission names are pinned here; foreign implementations come only from bootstrap.
+const assignmentHospitalManage authz.Permission = "workforce.hospital.manage"
+const assignmentLeaveApprove authz.Permission = "workforce.leave.approve"
+
+func assignmentWorkforceModule() platform.Module {
+	for _, module := range bootstrap.Modules(nil, nil) {
+		if module.Name() == "workforce" {
+			return module
+		}
+	}
+	panic("bootstrap must register the workforce owner")
+}
+
 func TestAssignmentProposalVerifiesScopeThroughOwnerEvents(t *testing.T) {
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
@@ -28,14 +42,14 @@ func TestAssignmentProposalVerifiesScopeThroughOwnerEvents(t *testing.T) {
 		Writer: fga, Roles: fga,
 		Tokens: map[string]string{"admin": testutil.TenantA, "outsider": testutil.TenantA, "foreign": testutil.TenantB, "candidate": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermMemberManage, workforce.PermHospitalManage, "iam.assignment.manage"},
+			"admin":    {iam.PermMemberManage, assignmentHospitalManage, "iam.assignment.manage"},
 			"outsider": {"iam.assignment.manage"}, "foreign": {"iam.assignment.manage", iam.PermMemberManage},
 		},
-		Modules: []platform.Module{iam.New(nil), workforce.New()},
+		Modules: []platform.Module{iam.New(nil), assignmentWorkforceModule()},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)
-	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
+	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
 	require.NoError(t, err)
 	call := func(method, path, token, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
@@ -179,13 +193,13 @@ func TestAssignmentDecisionsRequireIndependentScopedReview(t *testing.T) {
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "outsider": testutil.TenantA, "target": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermMemberManage, workforce.PermHospitalManage, "iam.assignment.manage", "iam.assignment.review"},
+			"admin":    {iam.PermMemberManage, assignmentHospitalManage, "iam.assignment.manage", "iam.assignment.review"},
 			"reviewer": {"iam.assignment.review"}, "outsider": {"iam.assignment.review"}, "target": {"iam.assignment.review"},
-		}, Modules: []platform.Module{iam.New(nil), workforce.New()},
+		}, Modules: []platform.Module{iam.New(nil), assignmentWorkforceModule()},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)
-	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
+	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
 	require.NoError(t, err)
 	call := func(method, path, token, body string, status int) *httptest.ResponseRecorder {
 		t.Helper()

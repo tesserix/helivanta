@@ -1,4 +1,4 @@
-package globalapi
+package iam_test
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/helivanta/internal/modules/iam"
-	"github.com/tesserix/helivanta/internal/modules/workforce"
+	"github.com/tesserix/helivanta/internal/globalapi"
+	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test uses its own module; architecture checks enforce ownership.
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -36,11 +36,11 @@ type scopedProbeIAM struct{ *iam.Module }
 
 func (m scopedProbeIAM) Routes(r *platform.Router, deps platform.Deps) {
 	m.Module.Routes(r, deps)
-	r.Group("/iam").POSTScopedHospital("/qa/hospitals/:hospital/review", workforce.PermLeaveApprove, "hospital", func(c *gin.Context) {
-		grant, ok := authz.HospitalScopeGrant(c, workforce.PermLeaveApprove, c.Param("hospital"))
+	r.Group("/iam").POSTScopedHospital("/qa/hospitals/:hospital/review", assignmentLeaveApprove, "hospital", func(c *gin.Context) {
+		grant, ok := authz.HospitalScopeGrant(c, assignmentLeaveApprove, c.Param("hospital"))
 		if ok {
 			_, otherAction := authz.HospitalScopeGrant(c, iam.PermMemberManage, c.Param("hospital"))
-			_, otherHospital := authz.HospitalScopeGrant(c, workforce.PermLeaveApprove, "00000000-0000-0000-0000-000000000001")
+			_, otherHospital := authz.HospitalScopeGrant(c, assignmentLeaveApprove, "00000000-0000-0000-0000-000000000001")
 			respond.OK(c, gin.H{"assignment_id": grant.AssignmentID, "other_action": otherAction, "other_hospital": otherHospital})
 			return
 		}
@@ -101,16 +101,16 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 		Writer: writer, Roles: fga,
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "target": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermMemberManage, workforce.PermHospitalManage, iam.PermAssignmentManage, workforce.PermLeaveApprove},
+			"admin":    {iam.PermMemberManage, assignmentHospitalManage, iam.PermAssignmentManage, assignmentLeaveApprove},
 			"reviewer": {iam.PermAssignmentReview},
-		}, Modules: []platform.Module{scopedProbeIAM{iam.New(nil)}, workforce.New()},
+		}, Modules: []platform.Module{scopedProbeIAM{iam.New(nil)}, assignmentWorkforceModule()},
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, routeGraph) },
 	})
 	upstream := httptest.NewServer(r)
 	authority := iam.NewScopedAuthorizer(db, fga)
 	request := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: "user-target", Permission: "workforce.leave.approve"}
 	t.Cleanup(upstream.Close)
-	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
+	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
 	require.NoError(t, err)
 	call := func(method, path, token, body string, status int) *httptest.ResponseRecorder {
 		t.Helper()

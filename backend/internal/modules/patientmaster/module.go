@@ -21,10 +21,16 @@ const (
 	PermPatientAccessManage    authz.Permission = "patient.access.manage"
 	PermPatientRead            authz.Permission = "patient.read"
 	PermPatientRegister        authz.Permission = "patient.register"
+	// PermRegistrationReplay re-announces existing registrations to
+	// consumers that started after them (#1377); tenant admins only.
+	PermRegistrationReplay authz.Permission = "patient.registration.replay"
 )
 
 //go:embed hospital.sql
 var hospitalSchema string
+
+//go:embed registration_replay.sql
+var registrationReplaySchema string
 
 //go:embed blood_group.sql
 var bloodGroupSchema string
@@ -66,6 +72,7 @@ func (m *Module) Permissions() []authz.Grant {
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
 		{Permission: PermPatientRegister, Roles: []authz.Role{authz.RoleReceptionist}},
+		{Permission: PermRegistrationReplay},
 	}
 }
 
@@ -229,7 +236,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		{ID: "0011_patientmaster", ConcurrentIndexes: []tenantdb.ConcurrentIndex{
 			{Name: "patient_clinical_consent_proxy_authority", Table: "patient_clinical_consents", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "proxy_authority_id"}}},
 			{Name: "patient_sharing_notice_capacity_page", Table: "patient_sharing_notices", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "authority_kind"}, {Name: "status"}, {Name: "purpose"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
-		}}}
+		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -274,6 +281,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.putAccess)
 	g.DELETE("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.deleteAccess)
 	g.GET("/hospitals/:hospital/access", PermPatientRead, patients.getAccess)
+	platform.SearchRoute(g, "/hospitals/:hospital/registration-replays", PermRegistrationReplay, patients.replayRegistrations)
 	platform.ListRoute(g, "/link-reviews", PermPatientRegister, patients.listLinkReviews)
 	g.PUT("/link-reviews/:request/decision/:decision", PermPatientRegister, patients.decideLinkReview)
 	g.GET("/link-reviews/:request", PermPatientRegister, patients.getLinkReview)

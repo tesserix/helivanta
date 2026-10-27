@@ -499,6 +499,7 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false | false |
+| POST | `/v1/patients/hospitals/:hospital/registration-replays` | `patient.registration.replay` | true | false |
 | PUT | `/v1/patients/link-reviews/:request/decision/:decision` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews/:request` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews` | `patient.register` | true | false |

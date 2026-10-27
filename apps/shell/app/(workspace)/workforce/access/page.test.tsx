@@ -26,6 +26,98 @@ const row = {
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 const permissions = ["iam.assignment.manage", "iam.assignment.review"];
 afterEach(() => vi.unstubAllGlobals());
+
+it("lets a membership administrator enroll staff without assignment permissions", async () => {
+  setup("membership-admin", [], ["iam.member.manage"]);
+  const prior = fetch;
+  const commands: Array<{ url: string; init?: RequestInit }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/iam/members") && init?.method === "POST") {
+        commands.push({ url, init });
+        return Response.json({ id });
+      }
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.type(await screen.findByLabelText("Existing account ID"), "synthetic-reviewer");
+  await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
+  await waitFor(() => expect(commands).toHaveLength(1));
+  expect(JSON.parse(String(commands[0]?.init?.body))).toEqual({
+    subject: "synthetic-reviewer",
+    role_key: "staff_member",
+  });
+  expect(await screen.findByText(/Membership recorded for synthetic-reviewer/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
+});
+
+it("does not offer membership enrollment to assignment reviewers", async () => {
+  setup();
+  renderWithProviders(<AccessPage />);
+  await screen.findByText("Synthetic review");
+  expect(screen.queryByLabelText("Existing account ID")).not.toBeInTheDocument();
+});
+
+it("retains the exact tenant and subject when enrollment has an uncertain outcome", async () => {
+  setup("membership-admin", [], ["iam.member.manage"]);
+  const prior = fetch;
+  const commands: Array<{ body: string; tenant: string | null }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/iam/members") && init?.method === "POST") {
+        commands.push({
+          body: String(init.body),
+          tenant: new Headers(init.headers).get("X-Helivanta-Expected-Tenant"),
+        });
+        if (commands.length === 1)
+          return Response.json({ error: "unavailable", message: "Unavailable" }, { status: 502 });
+        return Response.json({ id });
+      }
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.type(await screen.findByLabelText("Existing account ID"), "synthetic-reviewer");
+  await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("may have been recorded");
+  expect(screen.getByLabelText("Existing account ID")).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Retry same enrollment" }));
+  await waitFor(() => expect(commands).toHaveLength(2));
+  expect(commands[0]).toEqual(commands[1]);
+  expect(commands[0]?.tenant).toBe(tenant);
+  expect(await screen.findByText(/Membership recorded for synthetic-reviewer/)).toBeInTheDocument();
+});
+
+it("validates enrollment before submitting and stops after a workspace conflict", async () => {
+  setup("membership-admin", [], ["iam.member.manage"]);
+  const prior = fetch;
+  const commands: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/iam/members") && init?.method === "POST") {
+        commands.push(init.body);
+        return Response.json(
+          { error: "session_changed", message: "Your workspace changed." },
+          { status: 409 },
+        );
+      }
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.click(await screen.findByRole("button", { name: "Enroll staff member" }));
+  expect(screen.getByLabelText("Existing account ID")).toHaveAttribute("aria-invalid", "true");
+  expect(commands).toHaveLength(0);
+  await user.type(screen.getByLabelText("Existing account ID"), "synthetic-reviewer");
+  await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("workspace changed");
+  expect(screen.getByRole("button", { name: "Retry same enrollment" })).toBeDisabled();
+  expect(commands).toHaveLength(1);
+});
 function setup(subject = "reviewer", rows = [row], perms = permissions) {
   const writes: Array<{ url: string; body: unknown; tenant: string | null }> = [];
   vi.stubGlobal(

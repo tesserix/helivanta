@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
 import { PageHeading, Panel, LoadMore, formatDateTime } from "@helivanta/ui";
 import {
@@ -13,6 +13,7 @@ import {
   type StaffAssignmentScope,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
+import { StaffMembershipForm } from "./membership-form";
 
 type Identity = { tenant_id: string; subject: string; data: string[] };
 const labels: Record<StaffAssignment["status"], string> = {
@@ -26,24 +27,39 @@ const labels: Record<StaffAssignment["status"], string> = {
   withdrawn: "Withdrawn",
 };
 
+const subscribeHydration = () => () => {};
+
 export default function StaffAccessPage() {
+  // Permission data may resolve before this page hydrates inside the shared shell.
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false,
+  );
   const identity = useApiQuery<Identity>(["iam", "me", "permissions"], "/iam/me/permissions");
   return (
     <>
       <PageHeading description="Propose and independently review hospital-scoped assignments." />
-      {identity.isPending ? (
+      {!hydrated || identity.isPending ? (
         <p role="status">Checking assignment access…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (
         <p role="alert">Could not verify assignment access. Refresh this page to try again.</p>
       ) : !identity.data.data.some(
-          (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
+          (p) =>
+            p === "iam.assignment.manage" ||
+            p === "iam.assignment.review" ||
+            p === "iam.member.manage",
         ) ? (
         <p>Assignment administration is not available for this account.</p>
       ) : (
-        <Assignments
-          key={`${identity.data.tenant_id}:${identity.data.subject}`}
-          identity={identity.data}
-        />
+        <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
+          {identity.data.data.includes("iam.member.manage") && (
+            <StaffMembershipForm tenantId={identity.data.tenant_id} />
+          )}
+          {identity.data.data.some(
+            (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
+          ) && <Assignments identity={identity.data} />}
+        </div>
       )}
     </>
   );

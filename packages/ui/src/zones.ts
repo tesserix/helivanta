@@ -48,6 +48,7 @@ export type ZonePage = {
   href: string;
   icon: LucideIcon;
   permission: string;
+  alternativePermissions?: string[];
   /** Heading the page panel shows before the first page of a run (#1258 D1). */
   section?: string;
 };
@@ -268,6 +269,7 @@ export const ZONES: Zone[] = [
         href: "/workforce/access",
         icon: ShieldCheck,
         permission: "iam.assignment.manage",
+        alternativePermissions: ["iam.member.manage", "iam.assignment.review"],
       },
       {
         label: "HR setup",
@@ -393,7 +395,9 @@ export const ZONES: Zone[] = [
 export function visibleZones(can: (permission: string) => boolean, zones: Zone[] = ZONES): Zone[] {
   return zones
     .map((zone) => {
-      const pages = zone.pages.filter((page) => can(page.permission));
+      const pages = zone.pages.filter(
+        (page) => can(page.permission) || page.alternativePermissions?.some(can),
+      );
       return {
         ...zone,
         pages,

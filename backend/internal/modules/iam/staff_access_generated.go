@@ -66,3 +66,12 @@ type ProposalDecisionRecord struct {
 type ProjectionRequest struct {
 	ProposalID uuid.UUID `json:"proposal_id"`
 }
+
+type MemberGrantInput struct {
+	Subject string `json:"subject" binding:"required,max=200"`
+	RoleKey string `json:"role_key" binding:"required,max=100"`
+}
+
+type MemberGrantResult struct {
+	ID uuid.UUID `json:"id"`
+}

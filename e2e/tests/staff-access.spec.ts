@@ -39,4 +39,46 @@ test("a member without assignment administration sees a restricted state", async
   );
   await expect(page.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
   expect(privateRequests).toHaveLength(0);
+  await expect(page.getByRole("form", { name: "Staff membership enrollment" })).toHaveCount(0);
+});
+
+test("administrator enrolls an existing identity without adding business permissions", async ({
+  page,
+  browser,
+}) => {
+  const context = await browser.newContext();
+  try {
+    const member = await context.newPage();
+    await login(member, specPharmacist());
+    const before = await member.request.get("/api/v1/iam/me/permissions");
+    expect(before.status()).toBe(200);
+    const identity = await before.json();
+    expect(identity.subject).toBeTruthy();
+    expect(identity.tenant_id).toBeTruthy();
+    await login(page);
+    await page.goto("/workforce/access");
+    await page.getByLabel("Existing account ID", { exact: true }).fill(identity.subject);
+    const accepted = page.waitForResponse(
+      (r) => new URL(r.url()).pathname === "/api/v1/iam/members" && r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Enroll staff member", exact: true }).click();
+    const response = await accepted;
+    expect(response.status()).toBe(202);
+    expect(response.request().postDataJSON()).toEqual({
+      subject: identity.subject,
+      role_key: "staff_member",
+    });
+    expect(response.request().headers()["x-helivanta-expected-tenant"]).toBe(identity.tenant_id);
+    await expect(
+      page.getByRole("status").filter({ hasText: "Membership recorded for" }),
+    ).toContainText(identity.subject);
+    await expect(
+      page.getByText("Access synchronization may still be pending.", { exact: false }),
+    ).toBeVisible();
+    const after = await member.request.get("/api/v1/iam/me/permissions");
+    expect(after.status()).toBe(200);
+    expect((await after.json()).data.sort()).toEqual(identity.data.sort());
+  } finally {
+    await context.close();
+  }
 });

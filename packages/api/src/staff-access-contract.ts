@@ -140,3 +140,26 @@ export const ProjectionRequestContract = z
   })
   .strict();
 export type ProjectionRequest = z.infer<typeof ProjectionRequestContract>;
+
+export const MemberGrantInputContract = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    role_key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type MemberGrantInput = z.infer<typeof MemberGrantInputContract>;
+
+export const MemberGrantResultContract = z
+  .object({
+    id: identifier,
+  })
+  .strict();
+export type MemberGrantResult = z.infer<typeof MemberGrantResultContract>;

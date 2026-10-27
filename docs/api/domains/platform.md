@@ -28,6 +28,32 @@ File workflows require GCS, exact-content ClamAV verdicts and a matching durable
 
 ## Future external/service boundaries
 
+### Staff membership enrollment
+
+`/workforce/access` exposes an existing-account enrollment form to callers with
+`iam.member.manage`, independently of assignment administration. It submits only
+`staff_member` through the Global API platform destination. This role supplies
+membership with no declared business permissions. It creates no identity,
+reviewed login link, hospital grant, scoped assignment or clinical privilege.
+Administrators must obtain the existing identity-provider subject; the generic
+membership endpoint does not verify that identity's existence at the provider.
+
+`POST /v1/iam/members` now honors the optional
+`X-Helivanta-Expected-Tenant` precondition through the shared principal helper.
+Mismatched, malformed, empty or repeated values return `409 session_changed`
+before any write; headerless clients retain their existing contract. The header
+never selects the tenant. Normal membership and `iam.member.manage` checks remain
+mandatory. The general endpoint still accepts the existing system-role catalog;
+the Staff UI fixes its request to `staff_member`.
+
+`MemberGrantInput` and `MemberGrantResult` in `contracts/staff-access.json` are the
+canonical generated request and `{id}` response models. An accepted `202` commits
+the membership row and outbox event, not a verified login or synchronized access.
+The tenant/subject/role uniqueness constraint preserves the membership ID for an
+identical retry and republishes the event for graph repair. The form retains its
+original subject and tenant after an uncertain result. A rejected workspace or
+access check requires refreshing before another attempt.
+
 ### Assignment proposals and independent decisions
 
 The Staff access page at `/workforce/access` uses the existing contracts below for

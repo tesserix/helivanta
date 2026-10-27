@@ -22,6 +22,7 @@ Tenant, hospital, pharmacy outlet, supply premise, emergency base and receiving 
 | Audit                         | `pkg/audit`, owner audit tables and migration triggers                     | Actor/tenant/object/action/time and attributable changes; no unrestricted PHI export or mutating historical evidence                     |
 | Events                        | `pkg/events`, module `/contract` packages                                  | Atomic outbox/inbox, declared subjects, bounded delivery and scoped provenance; [integration specification](../integration-contracts.md) |
 | Pagination/insights           | `pkg/pagination`, platform list/insight helpers                            | Cursor bounds and calendar/timezone/window semantics; reports state freshness and missing data                                           |
+| Drug master                   | `drugmaster`; [runbook](../../drugmaster.md)                               | One global catalogue, read-only to the app; content only by a release staged and decided by different people; versions never rewritten   |
 
 File workflows require GCS, exact-content ClamAV verdicts and a matching durable Temporal execution. Storage failure leaves uploads incomplete/quarantined; scanner unavailability cannot yield clean status; revoked/changed content cannot reuse an old verdict. Protected release/download is reauthorized, and a path prefix or signed URL is not the full security model. See [file storage/scanning architecture](../../architecture/07-file-storage-and-scanning.md) and each current owner API.
 
@@ -38,14 +39,14 @@ also checks the current authoritative IAM `tenant_admin` membership, so stale
 graph permissions cannot restore revoked administration. UI traffic uses the
 Global API platform destination.
 
-| Operation | Contract |
-| --- | --- |
-| `PUT /v1/iam/assignment-proposals/:id` | Stable canonical UUIDv7 ID; body `{hospital_id,subject,template_key,reason,valid_from,expires_at}`; first template `workforce.leave_reviewer.v1` proposes leave approval only |
-| `GET /v1/iam/assignment-proposals` | Audited, bounded proposal list |
-| `GET /v1/iam/assignment-proposals/:id` | Audited detail `{id,input:{...proposal fields},proposed_by,status,version,created_at,updated_at}` |
-| `GET /v1/iam/assignment-proposals/:id/history` | Audited, immutable ID/version/status/timestamp history; original fields remain immutable on the retained proposal |
-| `POST /v1/iam/assignment-proposals/:id/decision` | `{expected_version,decision,reason}`; decision is `approve`, `reject` or `withdraw`; returns the current proposal directly |
-| `GET /v1/iam/assignment-proposals/:id/decisions` | Audited, paginated immutable command ledger with actor, reason, expected/result versions and timestamp |
+| Operation                                        | Contract                                                                                                                                                                      |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT /v1/iam/assignment-proposals/:id`           | Stable canonical UUIDv7 ID; body `{hospital_id,subject,template_key,reason,valid_from,expires_at}`; first template `workforce.leave_reviewer.v1` proposes leave approval only |
+| `GET /v1/iam/assignment-proposals`               | Audited, bounded proposal list                                                                                                                                                |
+| `GET /v1/iam/assignment-proposals/:id`           | Audited detail `{id,input:{...proposal fields},proposed_by,status,version,created_at,updated_at}`                                                                             |
+| `GET /v1/iam/assignment-proposals/:id/history`   | Audited, immutable ID/version/status/timestamp history; original fields remain immutable on the retained proposal                                                             |
+| `POST /v1/iam/assignment-proposals/:id/decision` | `{expected_version,decision,reason}`; decision is `approve`, `reject` or `withdraw`; returns the current proposal directly                                                    |
+| `GET /v1/iam/assignment-proposals/:id/decisions` | Audited, paginated immutable command ledger with actor, reason, expected/result versions and timestamp                                                                        |
 
 All reads are `no-store`; collections use keyset pagination, default 50/max 200.
 Bodies are limited to 8 KiB, subjects to 200 characters without whitespace, NUL

@@ -42,6 +42,22 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"drugmaster.CataloguePublishedData.ReleaseID":                           "opaque id of a published catalogue release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.CataloguePublishedData.Sequence":                            "publication order of releases; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.CataloguePublishedData.FormulationVersions":                 "count of formulation versions in the release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.CataloguePublishedData.ProductVersions":                     "count of product versions in the release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.FormulationID":                  "opaque catalogue formulation id; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.VersionID":                      "opaque catalogue formulation version id; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.ValidFrom":                      "date the new regulatory class takes effect; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.FromClass":                      "Drugs Rules schedule letter before the release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.ToClass":                        "Drugs Rules schedule letter after the release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.FromNDPS":                       "NDPS control flag before the release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.FormulationReclassifiedData.ToNDPS":                         "NDPS control flag after the release; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.ProductStatusChangedData.ProductID":                         "opaque catalogue product id; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.ProductStatusChangedData.VersionID":                         "opaque catalogue product version id; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.ProductStatusChangedData.ValidFrom":                         "date the product status takes effect; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.ProductStatusChangedData.Status":                            "active, discontinued or recalled; shared drug master reference data (#476): no patient, staff or tenant data",
+	"drugmaster.ProductStatusChangedData.ReleaseID":                         "opaque id of the publishing release; shared drug master reference data (#476): no patient, staff or tenant data",
 	"patientmaster.RegistrationReference.HospitalID":                        "opaque hospital scope binding on an authorized exact reference read; no hospital attributes or location",
 	"patientmaster.RegistrationReference.RecordAccessAuthorized":            "always false for this projection; expressly denies any inference of record-access authority",
 	"practitioner.EvidenceScanInput.ScanAttempt":                            "bounded internal processing attempt counter; no private attributes",

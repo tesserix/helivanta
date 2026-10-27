@@ -1057,6 +1057,82 @@
       ]
     },
     {
+      "name": "drugmaster",
+      "source": "backend/internal/modules/drugmaster/module.go",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/formulations/:id",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/products/:id",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/products/by-gtin/:gtin",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/search",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "drugmaster.catalogue.read",
+          "roles": [
+            "doctor",
+            "nurse",
+            "pharmacist"
+          ]
+        }
+      ],
+      "publishes": [
+        "helivanta.in.drugmaster.catalogue_published.v1",
+        "helivanta.in.drugmaster.formulation_reclassified.v1",
+        "helivanta.in.drugmaster.product_status_changed.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_drugmaster",
+          "sql_sha256": "6071ffcf7ece15bbb80ad89dbedb31862d1cf93e246183161b300848518b26f7",
+          "creates_tables": [
+            "drugmaster_releases",
+            "drugmaster_molecules",
+            "drugmaster_formulations",
+            "drugmaster_formulation_versions",
+            "drugmaster_formulation_ingredients",
+            "drugmaster_products",
+            "drugmaster_product_versions"
+          ]
+        }
+      ]
+    },
+    {
       "name": "medicore",
       "source": "backend/internal/modules/medicore/module.go",
       "routes": [

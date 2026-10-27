@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
@@ -53,7 +54,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -344,6 +345,10 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /drugmaster/search":                                                    "typeahead pick list capped at 20 best matches of shared reference data; no tenant or patient rows",
+	"GET /drugmaster/formulations/:id":                                          "one formulation version in force on one date",
+	"GET /drugmaster/products/:id":                                              "one product version in force today",
+	"GET /drugmaster/products/by-gtin/:gtin":                                    "one product resolved by barcode",
 	"GET /iam/assignment-proposals/:id":                                         "one tenant-scoped proposal by stable ID; lists and history are separately paginated",
 	"GET /patients/:id/registration-reference":                                  "one exact patient registration reference; not a collection; the HTTP projection test asserts its complete three-field object",
 	"GET /patients/proxy-authorities/:authority":                                "one reviewed hospital-scoped proxy authority receipt",

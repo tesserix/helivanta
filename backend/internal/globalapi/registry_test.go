@@ -19,7 +19,7 @@ type noMembership struct{}
 func (noMembership) IsMember(context.Context, string, string) (bool, error) { return false, nil }
 
 func TestEveryRegisteredRouteReachesItsProductOwner(t *testing.T) {
-	expectedOwners := map[string]string{"privacy": "platform", "iam": "platform", "workspace": "platform", "patientmaster": "platform", "reference": "platform", "medicore": "medicore", "mediconnect": "mediconnect", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "workforce": "workforce", "emergency": "emergency"}
+	expectedOwners := map[string]string{"privacy": "platform", "iam": "platform", "workspace": "platform", "patientmaster": "platform", "reference": "platform", "drugmaster": "platform", "medicore": "medicore", "mediconnect": "mediconnect", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "workforce": "workforce", "emergency": "emergency"}
 	cfg := Config{Development: true, Timeout: time.Second, Upstreams: map[string]string{}}
 	for _, product := range expectedOwners {
 		if _, exists := cfg.Upstreams[product]; exists {

@@ -171,6 +171,31 @@ Migration table declarations:
 - `0004_emergency`: `emergency_dispatches`, `emergency_dispatch_members`, `emergency_dispatch_commands`, `emergency_crew_commitments`.
 - `0006_emergency`: `emergency_receiving_facilities`, `emergency_receiving_facility_revisions`, `emergency_receiving_access`, `emergency_receiving_links`, `emergency_receiving_link_commands`, `emergency_receiving_requests`, `emergency_receiving_commands`, `emergency_receiving_timeouts`.
 
+## drugmaster
+
+Source: [backend/internal/modules/drugmaster/module.go](../../../backend/internal/modules/drugmaster/module.go). Payloads: `backend/internal/modules/drugmaster/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/drugmaster/formulations/:id` | `drugmaster.catalogue.read` | false | false |
+| GET | `/v1/drugmaster/products/:id` | `drugmaster.catalogue.read` | false | false |
+| GET | `/v1/drugmaster/products/by-gtin/:gtin` | `drugmaster.catalogue.read` | false | false |
+| GET | `/v1/drugmaster/search` | `drugmaster.catalogue.read` | false | false |
+
+Published subjects:
+
+- `helivanta.in.drugmaster.catalogue_published.v1`
+- `helivanta.in.drugmaster.formulation_reclassified.v1`
+- `helivanta.in.drugmaster.product_status_changed.v1`
+
+Subscriptions:
+
+None.
+
+Migration table declarations:
+
+- `0001_drugmaster`: `drugmaster_releases`, `drugmaster_molecules`, `drugmaster_formulations`, `drugmaster_formulation_versions`, `drugmaster_formulation_ingredients`, `drugmaster_products`, `drugmaster_product_versions`.
+
 ## medicore
 
 Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/modules/medicore/module.go). Payloads: `backend/internal/modules/medicore/contract/`, owning handlers, and [schema index](../schemas.md).

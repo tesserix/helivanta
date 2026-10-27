@@ -1,4 +1,104 @@
 {
+  "helivanta.in.drugmaster.catalogue_published.v1": {
+    "source": "backend/internal/modules/drugmaster/contract/events.go:18",
+    "go_type": "CataloguePublishedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "formulation_versions": {
+          "type": "integer"
+        },
+        "product_versions": {
+          "type": "integer"
+        },
+        "release_id": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "release_id",
+        "sequence",
+        "formulation_versions",
+        "product_versions"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.drugmaster.formulation_reclassified.v1": {
+    "source": "backend/internal/modules/drugmaster/contract/events.go:26",
+    "go_type": "FormulationReclassifiedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "formulation_id": {
+          "type": "string"
+        },
+        "from_class": {
+          "type": "string"
+        },
+        "from_ndps": {
+          "type": "boolean"
+        },
+        "to_class": {
+          "type": "string"
+        },
+        "to_ndps": {
+          "type": "boolean"
+        },
+        "valid_from": {
+          "type": "string"
+        },
+        "version_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "formulation_id",
+        "version_id",
+        "valid_from",
+        "from_class",
+        "to_class",
+        "from_ndps",
+        "to_ndps"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.drugmaster.product_status_changed.v1": {
+    "source": "backend/internal/modules/drugmaster/contract/events.go:37",
+    "go_type": "ProductStatusChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "product_id": {
+          "type": "string"
+        },
+        "release_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "valid_from": {
+          "type": "string"
+        },
+        "version_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "product_id",
+        "version_id",
+        "valid_from",
+        "status",
+        "release_id"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.emergency.case_assessed.v1": {
     "source": "backend/internal/modules/emergency/contract/events.go:15",
     "go_type": "CaseAssessedData",

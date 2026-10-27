@@ -1,12 +1,21 @@
 # Full workforce / HR coverage
 
-## Active completion audit — 2026-10-27
+## Active completion audit — 2026-10-28
 
-The merged foundation at `527e343` is deployed, but full Staff Management is
-not complete. The live tenant administrator created a synthetic staff login-link
-proposal through the UI. A separate reviewer authenticated successfully but saw
-“No hospital access yet”; independent approval has not passed. Deployment health,
-schema application and an OpenFGA projection do not close this acceptance gap.
+Full Staff Management is **not complete**. Production was freshly observed at
+`a8af648722cc723e83ea63b87c92c0315155bbce` on 2026-10-28 (local date).
+Scoped leave review, supervision and subsequent fixes have merged after CI;
+their deployment and fresh production maker/reviewer/employee acceptance remain
+open. PR #1403 connects three more profile masters and merged after all CI
+checks passed as `9d1d6d355ba5b96cc3e0bd4d1ca7c072b0d45ed7`. Local persisted UI
+and full automated evidence passed; main CI and image publication are the next
+release gates. No production rollout or migration has been performed for it.
+
+Use the [nineteen-area acceptance ledger](qa/staff-management-acceptance.md) as
+the current source of observed workflow evidence. Historical implementation
+sections below retain their original checkpoint limits; later evidence does not
+close their wider stories automatically. No broad Staff issue is end-to-end
+complete from a successful form, deployment health or a schema check.
 
 The current implementation sequence follows the organization research and
 ADR-0044. Preserve the separation between employment, login membership,
@@ -14,14 +23,14 @@ hospital access, management supervision and clinical supervision. None of these
 may be inferred from a job title. Department and sub-unit ownership belongs to
 the platform organization owner, with workforce owning effective-dated postings.
 
-| Sequence                             | Issues                            | Required acceptance before completion                                                                                                                                                                          |
-| ------------------------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reviewed access administration       | #1053, #417, #434                 | Proposal, independent review, withdrawal, immutable history, pending/failure recovery and live Admin → reviewer acceptance. The Staff access UI is merged; live verification is pending. Legacy grant commands remain unexposed. |
-| Product enforcement and self-service | #1132, #426–#428                  | Current membership/assignment/link/staff checks, target-bound forced RLS, own leave/balance/ledger, no self-approval; stale/revoked/cross-hospital/foreign-tenant denial.                                      |
-| Organization and supervision         | #22, #287, #616, #429             | One department/sub-unit owner, effective-dated postings and explicit managerial/clinical supervision; no implied clinical authority or payroll disclosure.                                                     |
-| Employment and confidential files    | #1035, #1105, #1107               | Synthetic enrollment, scan/release denial paths, immutable employment revisions and recoverable effective-date offboarding.                                                                                    |
-| Operational workflows and payroll    | #118 and its existing HR children | Coverage-checked rosters, leave, exchanges, overtime, attendance and separately authorized payroll; configuration is not payroll execution or payment.                                                         |
-| Imports, dashboards and reporting    | #617, #558, #1018, #589, #1261    | Preview/row errors/duplicate handling, scoped reports, reconciled measures, accessible complete UI and sensitive-export audit.                                                                                 |
+| Sequence                             | Issues                            | Required acceptance before completion                                                                                                                                                                                                                                                                   |
+| ------------------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reviewed access administration       | #1053, #417, #434                 | Proposal, independent review, withdrawal, immutable history, pending/failure recovery and live Admin → reviewer acceptance. The Staff access UI and scoped leave-review consumer are merged; local independent review passed, while fresh deployed acceptance and wider lifecycle coverage remain open. |
+| Product enforcement and self-service | #1132, #426–#428                  | Current membership/assignment/link/staff checks, target-bound forced RLS, own leave/balance/ledger, no self-approval; stale/revoked/cross-hospital/foreign-tenant denial.                                                                                                                               |
+| Organization and supervision         | #22, #287, #616, #429             | One department/sub-unit owner, effective-dated postings and explicit managerial/clinical supervision; no implied clinical authority or payroll disclosure.                                                                                                                                              |
+| Employment and confidential files    | #1035, #1105, #1107, #1399        | Synthetic enrollment, scan/release denial paths, immutable employment revisions and recoverable effective-date offboarding.                                                                                                                                                                             |
+| Operational workflows and payroll    | #118 and its existing HR children | Coverage-checked rosters, leave, exchanges, overtime, attendance and separately authorized payroll; configuration is not payroll execution or payment.                                                                                                                                                  |
+| Imports, dashboards and reporting    | #617, #558, #1018, #589, #1261    | Preview/row errors/duplicate handling, scoped reports, reconciled measures, accessible complete UI and sensitive-export audit.                                                                                                                                                                          |
 
 Each change must link its issue, list the contracts consulted, pass the applicable
 tests and CI, merge, deploy through the established release path, and pass the
@@ -627,18 +636,18 @@ and organization-design changes. It does not establish that those changes are
 merged or deployed. Staff Connect is the product-facing HR scope; its current
 backend owner remains `workforce`, with `/v1/workforce/hospitals/...` routes.
 
-| Requirement group | Current evidence and remaining acceptance |
-| --- | --- |
-| Registry and masters (#1035, #617) | Enrollment and versioned masters exist. Import preview, duplicate reconciliation and the full synthetic registry walkthrough still require evidence. |
-| Planning (#1036), leave (#1037), duty/OT (#1038), attendance (#1039) | Registered handlers, immutable revisions/ledgers and integration tests exist. These four stories remain open; implementation presence does not close policy and end-to-end acceptance. |
-| Payroll policies (#1041), execution (#1040) | Salary, statutory and tax configuration/preview exists. Preparation, locking, processing, corrections, payslips and reconciled payroll execution remain separate requirements. Current HR/legal approval must precede activating statutory rules. |
-| Appraisals (#1042) | Open: objectives, reviewer scope, assessment, normalization, acknowledgment and protected history. Appraisal approval must not directly alter payroll. |
-| Private files (#1105), benefits (#1106), credentials (#1108) | #1105 remains open. #1106 and #1108 are closed, with merged implementation evidence; their runtime integrations must still be verified in the target environment. |
-| Letters and exit (#1107) | Open: versioned letters, effective milestones and recoverable identity/payroll/clinical handoffs. Setting the existing staff status to inactive is not access revocation. |
-| Identity and self-service (#1053, #1132, #417) | Reviewed staff-to-login links are deployed with history and independent-review checks. The live approval journey is blocked by reviewer hospital access; self-only leave/balance enforcement remains unfinished. |
-| Structure and access (#22, #287, #616, #429) | ADR-0044 assigns the department master to platform organization structure and postings to workforce. Department-scoped approved assignments are not implemented by the current tenant-level FGA model. |
-| Reports and UI (#1018, #589, #1261) | Purpose-scoped analytics, protected exports, accessible failure/empty states and complete synthetic browser walkthroughs remain acceptance gates. |
-| Global API and consumers (#118) | The worktree gateway maps `workforce` to an explicit owner destination and passes credentials to product authorization. Live authenticated routing, downstream handover/drill/facility consumers and reconciliation need their own proof. |
+| Requirement group                                                    | Current evidence and remaining acceptance                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Registry and masters (#1035, #617)                                   | Enrollment and versioned masters exist. Import preview, duplicate reconciliation and the full synthetic registry walkthrough still require evidence.                                                                                                                                                                            |
+| Planning (#1036), leave (#1037), duty/OT (#1038), attendance (#1039) | Registered handlers, immutable revisions/ledgers and integration tests exist. These four stories remain open; implementation presence does not close policy and end-to-end acceptance.                                                                                                                                          |
+| Payroll policies (#1041), execution (#1040)                          | Salary, statutory and tax configuration/preview exists. Preparation, locking, processing, corrections, payslips and reconciled payroll execution remain separate requirements. Current HR/legal approval must precede activating statutory rules.                                                                               |
+| Appraisals (#1042)                                                   | Open: objectives, reviewer scope, assessment, normalization, acknowledgment and protected history. Appraisal approval must not directly alter payroll.                                                                                                                                                                          |
+| Private files (#1105), benefits (#1106), credentials (#1108)         | #1105 remains open. #1106 and #1108 are closed, with merged implementation evidence; their runtime integrations must still be verified in the target environment.                                                                                                                                                               |
+| Letters and exit (#1107)                                             | Open: versioned letters, effective milestones and recoverable identity/payroll/clinical handoffs. Staff inactivation revokes reviewed login links, but does not prove universal IAM/legacy/session cutoff or completed settlement.                                                                                              |
+| Identity and self-service (#1053, #1132, #417)                       | Reviewed staff-to-login links are deployed with history and independent-review checks. Local independent login-link/access/leave review and self-only enforcement have evidence in the acceptance ledger. Fresh deployed reviewer/employee acceptance, wider account lifecycle and universal access cutoff remain open.         |
+| Structure and access (#22, #287, #616, #429)                         | ADR-0044 assigns the department master to platform organization structure and postings to workforce. Reviewed hospital-scoped assignments and current-state enforcement exist; department-scoped consumers and the platform organization master remain open. HR classification revisions do not establish department authority. |
+| Reports and UI (#1018, #589, #1261)                                  | Purpose-scoped analytics, protected exports, accessible failure/empty states and complete synthetic browser walkthroughs remain acceptance gates.                                                                                                                                                                               |
+| Global API and consumers (#118)                                      | The worktree gateway maps `workforce` to an explicit owner destination and passes credentials to product authorization. Live authenticated routing, downstream handover/drill/facility consumers and reconciliation need their own proof.                                                                                       |
 
 Verified merged examples include enrollment #1100, masters #1102, shifts #1110,
 dated rosters #1126, leave reports #1154, overtime #1160, attendance #1162,

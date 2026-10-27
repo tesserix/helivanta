@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/tesserix/helivanta/internal/platform"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -26,6 +27,7 @@ import (
 )
 
 type handlers struct {
+	roles     platform.RoleLister
 	db        *tenantdb.DB
 	bus       *events.Bus
 	documents *attachments.GCS
@@ -280,6 +282,11 @@ func (h *handlers) putStaff(c *gin.Context) {
 		 IS DISTINCT FROM (EXCLUDED.employee_code, EXCLUDED.display_name, EXCLUDED.job_category, EXCLUDED.employment_status)`,
 			p.TenantID, hospital, id, in.EmployeeCode, in.DisplayName, in.JobCategory, in.EmploymentStatus).Error; err != nil {
 			return err
+		}
+		if in.EmploymentStatus == "inactive" {
+			if err := h.revokeInactiveStaffLinks(tx, p, hospital, id); err != nil {
+				return err
+			}
 		}
 		return tx.Select(staffColumns).Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
 	})

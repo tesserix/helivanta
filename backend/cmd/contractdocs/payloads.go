@@ -31,36 +31,47 @@ func eventSchemas(doc reference, root string) (map[string]payloadContract, error
 		if len(mod.Publishes) == 0 {
 			continue
 		}
-		source := "backend/internal/modules/" + mod.Name + "/contract/events.go"
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, filepath.Join(root, source), nil, 0)
+		directory := "backend/internal/modules/" + mod.Name + "/contract"
+		files, err := filepath.Glob(filepath.Join(root, directory, "*.go"))
 		if err != nil {
-			return nil, fmt.Errorf("parse event contracts: %w", err)
+			return nil, fmt.Errorf("find event contracts: %w", err)
 		}
+		fset := token.NewFileSet()
 		types := map[string]*ast.StructType{}
 		constants := map[string]string{}
 		positions := map[string]int{}
-		ast.Inspect(file, func(node ast.Node) bool {
-			switch n := node.(type) {
-			case *ast.TypeSpec:
-				if body, ok := n.Type.(*ast.StructType); ok {
-					types[n.Name.Name] = body
-					positions[n.Name.Name] = fset.Position(n.Pos()).Line
-				}
-			case *ast.ValueSpec:
-				for i, name := range n.Names {
-					if i >= len(n.Values) {
-						continue
+		sources := map[string]string{}
+		for _, filename := range files {
+			if strings.HasSuffix(filename, "_test.go") {
+				continue
+			}
+			file, err := parser.ParseFile(fset, filename, nil, 0)
+			if err != nil {
+				return nil, fmt.Errorf("parse event contracts: %w", err)
+			}
+			ast.Inspect(file, func(node ast.Node) bool {
+				switch n := node.(type) {
+				case *ast.TypeSpec:
+					if body, ok := n.Type.(*ast.StructType); ok {
+						types[n.Name.Name] = body
+						positions[n.Name.Name] = fset.Position(n.Pos()).Line
+						sources[n.Name.Name] = directory + "/" + filepath.Base(filename)
 					}
-					if literal, ok := n.Values[i].(*ast.BasicLit); ok && literal.Kind == token.STRING {
-						if value, err := strconv.Unquote(literal.Value); err == nil {
-							constants[value] = name.Name
+				case *ast.ValueSpec:
+					for i, name := range n.Names {
+						if i >= len(n.Values) {
+							continue
+						}
+						if literal, ok := n.Values[i].(*ast.BasicLit); ok && literal.Kind == token.STRING {
+							if value, err := strconv.Unquote(literal.Value); err == nil {
+								constants[value] = name.Name
+							}
 						}
 					}
 				}
-			}
-			return true
-		})
+				return true
+			})
+		}
 		for _, subject := range mod.Publishes {
 			name := constants[subject]
 			if !strings.HasPrefix(name, "Subject") {
@@ -75,7 +86,7 @@ func eventSchemas(doc reference, root string) (map[string]payloadContract, error
 				return nil, fmt.Errorf("%s: %w", subject, err)
 			}
 			schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-			out[subject] = payloadContract{Source: fmt.Sprintf("%s:%d", source, positions[typeName]), Type: typeName, Schema: schema}
+			out[subject] = payloadContract{Source: fmt.Sprintf("%s:%d", sources[typeName], positions[typeName]), Type: typeName, Schema: schema}
 		}
 	}
 	return out, nil

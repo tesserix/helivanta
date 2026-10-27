@@ -475,7 +475,7 @@ func run() error {
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
 		fga,
-	)
+	).WithScopedAuthorizer(iam.NewScopedAuthorizer(db, fga))
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint

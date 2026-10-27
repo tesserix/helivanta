@@ -1,0 +1,144 @@
+{
+  "statuses": {
+    "pending": "Awaiting review",
+    "active": "Linked",
+    "rejected": "Rejected",
+    "withdrawn": "Withdrawn",
+    "revoked": "Revoked"
+  },
+  "models": {
+    "loginLinkInput": [
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200",
+        "pattern": "^[^\\p{White_Space}*#:]+$"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      }
+    ],
+    "loginLinkDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 1,
+        "binding": "required,gte=1"
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject", "withdraw", "revoke"],
+        "binding": "required,oneof=approve reject withdraw revoke"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      }
+    ],
+    "loginLink": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[^\\p{White_Space}*#:]+$"
+      },
+      {
+        "name": "status",
+        "type": "kind"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "proposal_reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "loginLinkHistory": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "status",
+        "type": "kind"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

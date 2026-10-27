@@ -14,6 +14,12 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | --- | --- | --- | --- | --- |
 | POST | `/v1/auth/renew` | `no_tenant_membership` | false | false |
 | POST | `/v1/auth/session/activity` | `no_tenant_membership` | false | false |
+| POST | `/v1/iam/assignment-proposals/:id/decision` | `public` | false | false |
+| GET | `/v1/iam/assignment-proposals/:id/decisions` | `public` | true | false |
+| GET | `/v1/iam/assignment-proposals/:id/history` | `public` | true | false |
+| GET | `/v1/iam/assignment-proposals/:id` | `public` | false | false |
+| PUT | `/v1/iam/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
+| GET | `/v1/iam/assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
@@ -26,12 +32,16 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 
 Published subjects:
 
+- `helivanta.in.iam.assignment_scope_requested.v1`
+- `helivanta.in.iam.assignment_projection_requested.v1`
 - `helivanta.in.iam.member_granted.v1`
 - `helivanta.in.iam.member_revoked.v1`
 - `helivanta.in.iam.credential_revoked.v1`
 
 Subscriptions:
 
+- `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
+- `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
 - `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: false.
 - `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: false.
 - Fanout broadcast ← `helivanta.in.iam.credential_revoked.v1`.
@@ -41,6 +51,10 @@ Migration table declarations:
 - `0001_iam`: `iam_roles`, `iam_members`.
 - `0003_iam`: `iam_credential_revocations`.
 - `0004_iam`: `login_attempt`.
+- `0008_iam_assignment_proposals`: `iam_assignment_proposals`, `iam_assignment_proposal_history`.
+- `0009_iam_assignment_decisions`: `iam_assignment_decisions`.
+- `0010_iam_assignment_projection`: `iam_assignment_scope_epochs`, `iam_assignment_snapshots`.
+- `0011_iam_assignment_membership`: `iam_subject_membership_epochs`, `iam_membership_revocations`.
 
 ## reference
 
@@ -728,6 +742,10 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `workforce.leave.request` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/decision` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false | false |
@@ -738,6 +756,8 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.assignment_scope_verified.v1`
+- `helivanta.in.workforce.login_link_changed.v1`
 - `helivanta.in.workforce.enrollment_changed.v1`
 - `helivanta.in.workforce.master_changed.v1`
 - `helivanta.in.workforce.shift_changed.v1`
@@ -776,6 +796,7 @@ Published subjects:
 
 Subscriptions:
 
+- `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
 - `workforce-document-scan` ← `helivanta.in.workforce.document_scan_requested.v1`; after-commit hook: true.
 - `workforce-credential-reminders` ← `helivanta.in.workforce.credential_validity_changed.v1`; after-commit hook: true.
 
@@ -809,6 +830,7 @@ Migration table declarations:
 - `0031_workforce_credential_reminders`: `workforce_credential_reminder_policies`, `workforce_credential_reminders`.
 - `0032_workforce_roster_credential_clashes`: `workforce_roster_credential_standing`, `workforce_roster_credential_acknowledgements`.
 - `0033_workforce_benefits`: `workforce_benefit_plans`, `workforce_benefit_plan_revisions`, `workforce_staff_dependents`, `workforce_staff_dependent_revisions`, `workforce_benefit_enrollment_proposals`, `workforce_benefit_enrollments`.
+- `0035_workforce_login_links`: `workforce_login_links`, `workforce_login_link_history`.
 
 ## workspace
 

@@ -18,6 +18,7 @@ import { Field, FormSelectField, PageHeading, SelectControl, useZodForm } from "
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
+import { StaffLoginLinkPanel } from "./login-link-panel";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -108,6 +109,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
   const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
   const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
+  const [linkStaff, setLinkStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
   }, [editing]);
@@ -138,6 +140,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
                 opener.current = event.currentTarget;
                 setDocumentStaff(null);
                 setCredentialStaff(null);
+                setLinkStaff(null);
                 setEditing("new");
               }}
             >
@@ -232,6 +235,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
                             opener.current = event.currentTarget;
                             setDocumentStaff(null);
                             setCredentialStaff(null);
+                            setLinkStaff(null);
                             setEditing(row);
                           }}
                           aria-label={`Edit ${row.display_name}`}
@@ -246,10 +250,27 @@ function Directory({ hospital }: { hospital: Hospital }) {
                             onClick={() => {
                               setEditing(null);
                               setCredentialStaff(null);
+                              setLinkStaff(null);
                               setDocumentStaff(row);
                             }}
                           >
                             Documents
+                          </Button>
+                        )}
+                        {(can("workforce.login_links.manage") ||
+                          can("workforce.login_links.review")) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Account link for ${row.display_name}`}
+                            onClick={() => {
+                              setEditing(null);
+                              setDocumentStaff(null);
+                              setCredentialStaff(null);
+                              setLinkStaff(row);
+                            }}
+                          >
+                            Account link
                           </Button>
                         )}
                         {can("workforce.enrollment.manage") && (
@@ -261,6 +282,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
                               setEditing(null);
                               setDocumentStaff(null);
                               setCredentialStaff(row);
+                              setLinkStaff(null);
                             }}
                           >
                             Credentials
@@ -296,6 +318,15 @@ function Directory({ hospital }: { hospital: Hospital }) {
           </div>
         </div>
       </section>
+      {linkStaff &&
+        writable &&
+        (can("workforce.login_links.manage") || can("workforce.login_links.review")) && (
+          <StaffLoginLinkPanel
+            hospital={hospital}
+            staff={linkStaff}
+            onClose={() => setLinkStaff(null)}
+          />
+        )}
       {documentStaff && writable && can("workforce.documents.manage") && (
         <StaffDocumentPanel
           key={documentStaff.id}

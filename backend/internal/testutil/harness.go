@@ -61,8 +61,8 @@ func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal
 }
 
 // harnessResolver resolves from a static token→permissions map, so module
-// tests need no OpenFGA container. Tests that must exercise real tuple
-// resolution use the matrix suite instead.
+// tests need no OpenFGA container. Tests that exercise real tuple
+// resolution supply HarnessOptions.Resolver.
 type harnessResolver struct {
 	tokens map[string]string
 	perms  map[string][]authz.Permission
@@ -179,6 +179,8 @@ type HarnessOptions struct {
 	Writer                      platform.TupleWriter
 	Roles                       platform.RoleLister
 	Membership                  authz.MembershipChecker
+	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
+	Resolver                    authz.Resolver
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
 	// to exercise the credential-revocation gate in authn.Middleware
@@ -329,12 +331,19 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	// TestRequestScopedLoggerCarriesCorrelationFields and
 	// internal/modules/reference's membership tests below.
 	r.Use(requestid.Middleware())
-	resolver := harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
+	resolver := opts.Resolver
+	if resolver == nil {
+		resolver = harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
+	}
+	var scopedAuthorizer authz.ScopedAuthorizer
+	if opts.ScopedAuthorizer != nil {
+		scopedAuthorizer = opts.ScopedAuthorizer(db)
+	}
 	api := platform.NewRouter(r.Group("/v1",
 		authn.Middleware(verifier, revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
-		membership)
+		membership).WithScopedAuthorizer(scopedAuthorizer)
 	for _, m := range opts.Modules {
 		m.Routes(api, deps)
 		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))

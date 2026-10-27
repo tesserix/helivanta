@@ -172,3 +172,36 @@ func TestReferenceIncludesConcurrentIndexDefinitionsAndOrdering(t *testing.T) {
 		t.Fatal("rendered migration reference omits concurrent indexes")
 	}
 }
+
+func TestEventSchemasIncludeGeneratedContractFiles(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "backend/internal/modules/example/contract")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"events.go":       `package contract; const SubjectChecked="helivanta.in.example.checked.v1"`,
+		"generated.go":    "package contract\ntype CheckedData struct { Allowed bool `json:\"allowed\"` }",
+		"ignored_test.go": "package contract\ntype CheckedData struct { Wrong string `json:\"wrong\"` }",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	schemas, err := eventSchemas(reference{Modules: []module{{Name: "example", Publishes: []string{"helivanta.in.example.checked.v1"}}}}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := schemas["helivanta.in.example.checked.v1"]
+	if got.Source != "backend/internal/modules/example/contract/generated.go:2" {
+		t.Fatalf("wrong source: %s", got.Source)
+	}
+	properties := got.Schema["properties"].(map[string]any)
+	if _, ok := properties["allowed"]; !ok {
+		t.Fatalf("missing generated field: %#v", properties)
+	}
+	if _, ok := properties["wrong"]; ok {
+		t.Fatal("test fixture type must not enter published schema")
+	}
+}

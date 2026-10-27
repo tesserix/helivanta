@@ -153,3 +153,21 @@ func TestDeclaredCarriesMethodAndPath(t *testing.T) {
 		Method: http.MethodPost, Path: "/v1/medicore/visits", Permission: "medicore.visit.create",
 	})
 }
+
+func TestScopedRouteDeclaresHospitalBoundary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	root := platform.NewRouter(gin.New().Group("/v1"), alwaysMember{})
+	root.Group("/workforce/hospitals/:hospital").POSTScopedHospital("/decisions", "workforce.leave.approve", "hospital", func(*gin.Context) {})
+	declared := root.Declared()
+	require.Len(t, declared, 1)
+	require.Equal(t, "hospital", declared[0].ScopeKind)
+	require.Equal(t, "hospital", declared[0].ScopeParameter)
+	require.Equal(t, "/v1/workforce/hospitals/:hospital/decisions", declared[0].Path)
+	for _, permission := range []authz.Permission{"", authz.Public, authz.NoTenantMembership} {
+		require.Panics(t, func() { root.POSTScopedHospital("/:hospital/unsafe", permission, "hospital", func(*gin.Context) {}) })
+	}
+	require.Panics(t, func() {
+		root.POSTScopedHospital("/:hospital_extra/unsafe", "workforce.leave.approve", "hospital", func(*gin.Context) {})
+	})
+	require.Len(t, root.Declared(), 1, "failed registration must not leave a declaration behind")
+}

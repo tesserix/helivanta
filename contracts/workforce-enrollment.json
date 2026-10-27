@@ -56,6 +56,7 @@
   ],
   "qualifications": [
     ["qualification", 150],
+    ["qualification_revision_id", "uuid", true],
     ["institution", 150],
     ["country", 2],
     ["completion_year", "year"]
@@ -78,5 +79,10 @@
     "query": "profile_masters",
     "version": "v1",
     "response_field": "profile_masters_version"
+  },
+  "qualification_masters_projection": {
+    "query": "qualification_masters",
+    "version": "v1",
+    "response_field": "qualification_masters_version"
   }
 }

@@ -218,7 +218,11 @@ func validateMasterReferences(tx *gorm.DB, p authn.Principal, hospital uuid.UUID
 	if err := tx.Exec(`SELECT set_config('app.workforce_hr_references','supported',true),set_config('app.workforce_profile_master_references','supported',true)`).Error; err != nil {
 		return err
 	}
-	for _, ref := range enrollmentMasterReferences(in, previous) {
+	return resolveMasterReferences(tx, p, hospital, enrollmentMasterReferences(in, previous), provided)
+}
+
+func resolveMasterReferences(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, refs []enrollmentMasterReference, provided map[string]bool) error {
+	for _, ref := range refs {
 		if !provided[ref.field] {
 			*ref.id = ref.previous
 		}

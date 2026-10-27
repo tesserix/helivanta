@@ -900,6 +900,7 @@ Migration table declarations:
 - `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_language_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, preferred_language_revision_id)`.
 - `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_exit_reason_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, exit_reason_revision_id)`.
 - `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_contract_type_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, contract_type_revision_id)`.
+- `0043_workforce_qualification_master_index`: concurrent index `workforce_qualification_master_ref_idx` on `workforce_enrollment_qualifications (tenant_id, hospital_id, qualification_revision_id)`.
 
 ## workspace
 

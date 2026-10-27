@@ -19,6 +19,7 @@ import {
   EMPTY_ENROLLMENT,
   ENROLLMENT_PROFILE_MASTERS,
   ENROLLMENT_PROFILE_MASTERS_PROJECTION,
+  ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION,
   EMPTY_ADDRESSES,
   EMPTY_EMERGENCY_CONTACTS,
   EMPTY_CREDENTIALS,
@@ -63,7 +64,7 @@ export function EnrollmentEditor({
 }) {
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
-  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}`;
+  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}`;
   const query = useApiQuery<StaffEnrollment>(
     [
       "workforce",
@@ -72,6 +73,8 @@ export function EnrollmentEditor({
       id,
       reload,
       ENROLLMENT_PROFILE_MASTERS_PROJECTION.version,
+      ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query,
+      ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version,
     ],
     path,
     {
@@ -102,7 +105,9 @@ export function EnrollmentEditor({
     );
   if (
     staff &&
-    query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version
+    (query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version ||
+      query.data?.qualification_masters_version !==
+        ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version)
   )
     return (
       <section className="mt-6 rounded-2xl border bg-card p-8">
@@ -218,6 +223,48 @@ function EnrollmentForm({
     });
     form.setFocus("staff.display_name");
   }, [form]);
+
+  const qualificationField = (index: number) => {
+    const nameKey = `qualifications.${index}.qualification` as const;
+    const revisionKey = `qualifications.${index}.qualification_revision_id` as const;
+    const rowID = form.watch(`qualifications.${index}.id`);
+    const revision = form.watch(revisionKey) ?? "";
+    const name = form.watch(nameKey);
+    const choices = masters.items.filter((row) => row.kind === "qualification" && row.active);
+    if (!choices.length && !revision) return field(nameKey, "Qualification");
+    const recorded = value.qualifications.find((row) => row.id === rowID)?.qualification ?? name;
+    const id = `enrollment-qualification-${rowID}-choice`;
+    return (
+      <>
+        <Field
+          id={id}
+          label="Qualification"
+          error={form.getFieldState(revisionKey, form.formState).error?.message}
+        >
+          <SelectControl
+            id={id}
+            value={revision}
+            onValueChange={(selected) => {
+              const row = choices.find((choice) => choice.revision_id === selected);
+              form.setValue(revisionKey, row?.revision_id ?? "", { shouldDirty: true });
+              form.setValue(nameKey, row?.name ?? name, { shouldDirty: true });
+            }}
+            options={[
+              { value: "", label: "Enter qualification text" },
+              ...choices.map((row) => ({
+                value: row.revision_id,
+                label: `${row.name} · ${row.code}`,
+              })),
+              ...(revision && !choices.some((row) => row.revision_id === revision)
+                ? [{ value: revision, label: `Recorded: ${recorded}` }]
+                : []),
+            ]}
+          />
+        </Field>
+        {!revision && field(nameKey, "Qualification text")}
+      </>
+    );
+  };
 
   const masterField = (kind: keyof typeof ENROLLMENT_PROFILE_MASTERS, label: string) => {
     const spec = ENROLLMENT_PROFILE_MASTERS[kind];
@@ -624,7 +671,7 @@ function EnrollmentForm({
             <div className="space-y-4">
               {qualifications.fields.map((row, i) => (
                 <div key={row.fieldKey} className={rowClass}>
-                  {field(`qualifications.${i}.qualification`, "Qualification")}
+                  {qualificationField(i)}
                   {field(`qualifications.${i}.institution`, "Institution")}
                   {field(`qualifications.${i}.country`, "Qualification country")}
                   {field(`qualifications.${i}.completion_year`, "Completion year", "number")}

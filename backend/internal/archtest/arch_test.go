@@ -446,6 +446,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":                                                             "one staff member's balances, bounded by the hospital's leave types",
 	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                                                                       "single roster head; allocations are paginated separately",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request":                                                    "one request with its days in a single leave year and its bounded roster clashes",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request":                                             "one pending review target, counted days within one leave year, and roster clashes capped at 1000; scoped read authorization and audits apply",
 	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":                                                          "one exchange with at most its six original, replacement and restored allocations",
 	"GET /workforce/hospitals/:hospital/hr/overtime/:request":                                                                 "one overtime request",
 	"GET /workforce/hospitals/:hospital/hr/overtime-settings":                                                                 "the hospital's single current overtime policy revision",

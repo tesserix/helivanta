@@ -20,6 +20,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -27,11 +28,12 @@ import (
 )
 
 type handlers struct {
-	roles     platform.RoleLister
-	db        *tenantdb.DB
-	bus       *events.Bus
-	documents *attachments.GCS
-	transit   *transit.Client
+	scopeAuthority authz.ScopedAuthorizer
+	roles          platform.RoleLister
+	db             *tenantdb.DB
+	bus            *events.Bus
+	documents      *attachments.GCS
+	transit        *transit.Client
 }
 
 type hospital struct {
@@ -128,7 +130,7 @@ func scope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 }
 
 func (h *handlers) transaction(ctx context.Context, p authn.Principal, hospital uuid.UUID, fn func(*gorm.DB) error) error {
-	return h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+	return h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.workforce_subject', ?, true), set_config('app.workforce_hospital', ?, true)`, p.Subject, hospital.String()).Error; err != nil {
 			return err
 		}

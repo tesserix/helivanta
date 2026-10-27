@@ -1,6 +1,7 @@
 package workforce
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -126,12 +127,19 @@ func checkLeaveStanding(tx *gorm.DB, c *gin.Context, p authn.Principal, r leaveR
 		return errLeaveStaffInactive
 	}
 	if !t.ProbationEligible {
-		// The enrollment profile stays behind its own permission; without it the probation rule cannot be confirmed.
-		if set, ok := authz.PermissionsFrom(c); !ok || !set.Has(PermEnrollmentManage) {
-			return errLeaveProbationAccess
-		}
-		if err := enrollmentScope(tx, p, r.HospitalID); err != nil {
-			return err
+		set, _ := authz.PermissionsFrom(c)
+		if set.Has(PermEnrollmentManage) {
+			if err := enrollmentScope(tx, p, r.HospitalID); err != nil {
+				return err
+			}
+		} else {
+			allowed, err := reviewedLeaveStanding(tx, c, p, r)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				return errLeaveProbationAccess
+			}
 		}
 		var ended bool
 		if err := tx.Raw(`SELECT COALESCE((SELECT probation_end_date < ?::date FROM workforce_enrollment_profile WHERE tenant_id=? AND hospital_id=? AND staff_id=?),false)`, r.StartOn, p.TenantID, r.HospitalID, r.StaffID).Scan(&ended).Error; err != nil {
@@ -486,106 +494,127 @@ func (h *handlers) transitionLeaveRequest(c *gin.Context, t leaveTransition, exp
 		respondLeaveRequestError(c, errLeaveNoteRequired)
 		return
 	}
+	if t.decides {
+		grant, err := authz.RecheckHospitalScope(c, PermLeaveApprove, hospital.String())
+		permissions, _ := authz.PermissionsFrom(c)
+		if err != nil && !permissions.Has(PermLeaveApprove) {
+			respondLeaveRequestError(c, authz.ErrScopedAuthorizationUnavailable)
+			return
+		}
+		if grant.AssignmentID == "" && !permissions.Has(PermLeaveApprove) {
+			respondLeaveRequestError(c, gorm.ErrRecordNotFound)
+			return
+		}
+	}
 	var result leaveRequestDetail
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := lockHospitalManager(tx, p, hospital, "app.workforce_leave_ledger", leaveLedgerLock); err != nil {
-			return err
-		}
-		var r leaveRequestRow
-		if err := tx.Raw(`SELECT tenant_id,hospital_id,id,staff_id,leave_type_id,leave_type_revision_id,assignment_revision_id,leave_year,unit,start_on,end_on,session,minutes,half_days,status,requested_by_subject,version
+	run := func(ctx context.Context) error {
+		return h.transaction(ctx, p, hospital, func(tx *gorm.DB) error {
+			scopeEvidence, err := prepareLeaveReview(tx, c, p, hospital, staffID, id, t.decides)
+			if err != nil {
+				return err
+			}
+			var r leaveRequestRow
+			if err := tx.Raw(`SELECT tenant_id,hospital_id,id,staff_id,leave_type_id,leave_type_revision_id,assignment_revision_id,leave_year,unit,start_on,end_on,session,minutes,half_days,status,requested_by_subject,version
  FROM workforce_leave_requests WHERE tenant_id=? AND hospital_id=? AND id=? AND staff_id=? FOR UPDATE`, p.TenantID, hospital, id, staffID).Scan(&r).Error; err != nil {
+				return err
+			}
+			if r.ID == uuid.Nil {
+				return gorm.ErrRecordNotFound
+			}
+			if t.separate {
+				if err := requireIndependentLeaveActor(tx, p, hospital, staffID, r.RequestedBySubject); err != nil {
+					return err
+				}
+			}
+			if r.Version == expected+1 && r.Status == t.to {
+				var replay bool
+				if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_leave_request_events WHERE tenant_id=? AND hospital_id=? AND request_id=? AND version=? AND actor_subject=? AND note=?)`, p.TenantID, hospital, id, r.Version, p.Subject, note).Scan(&replay).Error; err != nil {
+					return err
+				}
+				if replay {
+					var err error
+					result, err = loadLeaveRequestDetail(tx, p.TenantID, hospital, staffID, id)
+					return err
+				}
+			}
+			if r.Version != expected {
+				return errLeaveRequestVersion
+			}
+			if r.Status != t.from {
+				return errLeaveRequestState
+			}
+			var closed bool
+			if err := tx.Raw(`SELECT closed FROM workforce_leave_years WHERE tenant_id=? AND hospital_id=? AND leave_year=?`, p.TenantID, hospital, r.LeaveYear).Scan(&closed).Error; err != nil {
+				return err
+			}
+			if closed {
+				return errLeaveYearClosed
+			}
+			terms, err := loadLeaveTerms(tx, p.TenantID, hospital, r.LeaveTypeRevisionID, r.AssignmentRevisionID)
+			if err != nil {
+				return err
+			}
+			if t.to == "approved" {
+				if err := checkLeaveStanding(tx, c, p, r, terms, false); err != nil {
+					return err
+				}
+			}
+			set := "status=?,version=version+1,updated_at=clock_timestamp()"
+			args := []any{t.to}
+			if t.decides {
+				set += ",decided_by_subject=?,decided_at=clock_timestamp()"
+				args = append(args, p.Subject)
+			}
+			update := tx.Exec(`UPDATE workforce_leave_requests SET `+set+` WHERE tenant_id=? AND hospital_id=? AND id=? AND version=? AND status=?`, append(args, p.TenantID, hospital, id, expected, t.from)...)
+			if update.Error != nil {
+				return update.Error
+			}
+			if update.RowsAffected != 1 {
+				return errLeaveRequestVersion
+			}
+			r.Status, r.Version = t.to, expected+1
+			if err := tx.Exec(`INSERT INTO workforce_leave_request_events(tenant_id,hospital_id,id,request_id,version,status,note,actor_subject) VALUES(?,?,?,?,?,?,?,?)`, p.TenantID, hospital, uuid.New(), id, r.Version, r.Status, note, p.Subject).Error; err != nil {
+				return err
+			}
+			kind, amount := "", 0
+			switch {
+			case t.to == "approved" && terms.BalanceTracked && r.HalfDays > 0:
+				kind, amount = "consumption", -r.HalfDays
+			case t.reversal:
+				var consumed bool
+				if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_leave_ledger WHERE tenant_id=? AND hospital_id=? AND request_id=? AND kind='consumption')`, p.TenantID, hospital, id).Scan(&consumed).Error; err != nil {
+					return err
+				}
+				if consumed {
+					kind, amount = "reversal", r.HalfDays
+				}
+			}
+			if kind != "" {
+				entry := leaveLedgerRow{TenantID: p.TenantID, HospitalID: hospital, ID: uuid.New(), StaffID: staffID, LeaveTypeID: r.LeaveTypeID, LeaveTypeRevisionID: r.LeaveTypeRevisionID, LeaveYear: r.LeaveYear, Kind: kind, HalfDays: amount, EffectiveOn: r.StartOn, IdempotencyKey: kind + ":" + id.String(), RequestID: &id, ActorSubject: p.Subject}
+				if err := tx.Table("workforce_leave_ledger").Create(&entry).Error; err != nil {
+					return err
+				}
+				if err := h.publishLedger(tx, p, hospital, r.LeaveYear, "request", id, 1); err != nil {
+					return err
+				}
+			}
+			if err := tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('previous_status',?::text,'version',?::bigint,'ledger_half_days',?::int)||?::jsonb)`,
+				p.TenantID, hospital, p.Subject, "workforce.leave_request."+t.to, id, t.from, r.Version, amount, string(scopeEvidence)).Error; err != nil {
+				return err
+			}
+			if err := h.publishLeaveRequest(tx, p, r); err != nil {
+				return err
+			}
+			result, err = loadLeaveRequestDetail(tx, p.TenantID, hospital, staffID, id)
 			return err
-		}
-		if r.ID == uuid.Nil {
-			return gorm.ErrRecordNotFound
-		}
-		if t.separate {
-			if err := requireIndependentLeaveActor(tx, p, hospital, staffID, r.RequestedBySubject); err != nil {
-				return err
-			}
-		}
-		if r.Version == expected+1 && r.Status == t.to {
-			var replay bool
-			if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_leave_request_events WHERE tenant_id=? AND hospital_id=? AND request_id=? AND version=? AND actor_subject=? AND note=?)`, p.TenantID, hospital, id, r.Version, p.Subject, note).Scan(&replay).Error; err != nil {
-				return err
-			}
-			if replay {
-				var err error
-				result, err = loadLeaveRequestDetail(tx, p.TenantID, hospital, staffID, id)
-				return err
-			}
-		}
-		if r.Version != expected {
-			return errLeaveRequestVersion
-		}
-		if r.Status != t.from {
-			return errLeaveRequestState
-		}
-		var closed bool
-		if err := tx.Raw(`SELECT closed FROM workforce_leave_years WHERE tenant_id=? AND hospital_id=? AND leave_year=?`, p.TenantID, hospital, r.LeaveYear).Scan(&closed).Error; err != nil {
-			return err
-		}
-		if closed {
-			return errLeaveYearClosed
-		}
-		terms, err := loadLeaveTerms(tx, p.TenantID, hospital, r.LeaveTypeRevisionID, r.AssignmentRevisionID)
-		if err != nil {
-			return err
-		}
-		if t.to == "approved" {
-			if err := checkLeaveStanding(tx, c, p, r, terms, false); err != nil {
-				return err
-			}
-		}
-		set := "status=?,version=version+1,updated_at=clock_timestamp()"
-		args := []any{t.to}
-		if t.decides {
-			set += ",decided_by_subject=?,decided_at=clock_timestamp()"
-			args = append(args, p.Subject)
-		}
-		update := tx.Exec(`UPDATE workforce_leave_requests SET `+set+` WHERE tenant_id=? AND hospital_id=? AND id=? AND version=? AND status=?`, append(args, p.TenantID, hospital, id, expected, t.from)...)
-		if update.Error != nil {
-			return update.Error
-		}
-		if update.RowsAffected != 1 {
-			return errLeaveRequestVersion
-		}
-		r.Status, r.Version = t.to, expected+1
-		if err := tx.Exec(`INSERT INTO workforce_leave_request_events(tenant_id,hospital_id,id,request_id,version,status,note,actor_subject) VALUES(?,?,?,?,?,?,?,?)`, p.TenantID, hospital, uuid.New(), id, r.Version, r.Status, note, p.Subject).Error; err != nil {
-			return err
-		}
-		kind, amount := "", 0
-		switch {
-		case t.to == "approved" && terms.BalanceTracked && r.HalfDays > 0:
-			kind, amount = "consumption", -r.HalfDays
-		case t.reversal:
-			var consumed bool
-			if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM workforce_leave_ledger WHERE tenant_id=? AND hospital_id=? AND request_id=? AND kind='consumption')`, p.TenantID, hospital, id).Scan(&consumed).Error; err != nil {
-				return err
-			}
-			if consumed {
-				kind, amount = "reversal", r.HalfDays
-			}
-		}
-		if kind != "" {
-			entry := leaveLedgerRow{TenantID: p.TenantID, HospitalID: hospital, ID: uuid.New(), StaffID: staffID, LeaveTypeID: r.LeaveTypeID, LeaveTypeRevisionID: r.LeaveTypeRevisionID, LeaveYear: r.LeaveYear, Kind: kind, HalfDays: amount, EffectiveOn: r.StartOn, IdempotencyKey: kind + ":" + id.String(), RequestID: &id, ActorSubject: p.Subject}
-			if err := tx.Table("workforce_leave_ledger").Create(&entry).Error; err != nil {
-				return err
-			}
-			if err := h.publishLedger(tx, p, hospital, r.LeaveYear, "request", id, 1); err != nil {
-				return err
-			}
-		}
-		if err := tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('previous_status',?::text,'version',?::bigint,'ledger_half_days',?::int))`,
-			p.TenantID, hospital, p.Subject, "workforce.leave_request."+t.to, id, t.from, r.Version, amount).Error; err != nil {
-			return err
-		}
-		if err := h.publishLeaveRequest(tx, p, r); err != nil {
-			return err
-		}
-		result, err = loadLeaveRequestDetail(tx, p.TenantID, hospital, staffID, id)
-		return err
-	})
+		})
+	}
+	var err error
+	if t.decides {
+		err = authz.WithHospitalScopeCommand(c, PermLeaveApprove, hospital.String(), run)
+	} else {
+		err = run(c.Request.Context())
+	}
 	if err != nil {
 		respondLeaveRequestError(c, err)
 		return
@@ -710,6 +739,12 @@ func (h *handlers) leaveRequestHistory(c *gin.Context, params pagination.Params)
 func respondLeaveRequestError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
+	case errors.Is(err, authz.ErrScopedCredentialRevoked):
+		respond.Error(c, 401, "unauthenticated", "Invalid credentials.")
+	case errors.Is(err, authz.ErrScopedCommandDenied):
+		respond.Forbidden(c, "Leave decision is not permitted.")
+	case errors.Is(err, authz.ErrScopedAuthorizationUnavailable):
+		respond.Error(c, 503, "scoped_authorization_unavailable", "Scoped authorization is unavailable.")
 	case errors.Is(err, errLeaveInvalid):
 		respond.Error(c, 400, "invalid_request", "Review the request: dates must be valid and within a year of the start, half days and short leave cover one date with a session or 15-minute multiple of minutes, and text is at most 500 characters.")
 	case errors.Is(err, errLeaveNoteRequired):

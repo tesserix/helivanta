@@ -14,15 +14,16 @@ const hospitalScopeKey = "helivanta.hospital_scope_authorization"
 const hospitalScopeFailureKey = "helivanta.hospital_scope_unavailable"
 
 type hospitalScopeAuthorization struct {
-	request ScopeRequest
-	grant   ScopeGrant
+	request   ScopeRequest
+	grant     ScopeGrant
+	authority ScopedAuthorizer
 }
 
 // RequireHospitalScope accepts either the legacy route permission or current scoped authority.
 // The product handler must still check the corresponding live owner scope and object state.
 func RequireHospitalScope(permission Permission, hospitalParam string, authority ScopedAuthorizer) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		p, _, ok := authn.TenantPrincipal(c)
+		p, _, ok := authn.ExpectedTenantPrincipal(c)
 		if !ok {
 			return
 		}
@@ -46,11 +47,8 @@ func RequireHospitalScope(permission Permission, hospitalParam string, authority
 		} else {
 			grant, err = authority.AuthorizeScope(c.Request.Context(), request)
 		}
-		if err == nil && grant.AssignmentID != "" {
-			assignment, e := uuid.Parse(grant.AssignmentID)
-			if e != nil || assignment.Version() != 7 || assignment.String() != grant.AssignmentID || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 {
-				err = ErrScopedAuthorizationUnavailable
-			}
+		if err == nil {
+			err = validateScopeGrant(grant)
 		}
 		if err != nil {
 			c.Set(hospitalScopeFailureKey, true)
@@ -60,7 +58,7 @@ func RequireHospitalScope(permission Permission, hospitalParam string, authority
 				return
 			}
 		} else if grant.AssignmentID != "" {
-			c.Set(hospitalScopeKey, hospitalScopeAuthorization{request: request, grant: grant})
+			c.Set(hospitalScopeKey, hospitalScopeAuthorization{request: request, grant: grant, authority: authority})
 		} else if !legacy {
 			respond.Error(c, http.StatusForbidden, "forbidden", "You do not have permission to perform this action.")
 			c.Abort()

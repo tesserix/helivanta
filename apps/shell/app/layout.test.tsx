@@ -3,8 +3,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const requestHeaders = vi.hoisted(() => ({ current: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => requestHeaders.current }));
-vi.mock("@helivanta/api", () => ({
-  AppProviders: ({ children }: { children: React.ReactNode }) => children,
+vi.mock("@/components/application-providers", () => ({
+  ApplicationProviders: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("@/components/session-renewal", () => ({ SessionRenewal: () => null }));
 

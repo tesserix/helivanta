@@ -1,6 +1,7 @@
 package workforce_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -17,9 +18,16 @@ import (
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type caller func(method, path, user string, body any) (int, map[string]any)
+
+type noReviewedLeaveAuthority struct{}
+
+func (noReviewedLeaveAuthority) AuthorizeScope(context.Context, authz.ScopeRequest) (authz.ScopeGrant, error) {
+	return authz.ScopeGrant{}, nil
+}
 
 // leaveTypes are the configured type ids plus the structure revision that offers them.
 type leaveTypes struct {
@@ -33,7 +41,8 @@ type requestHarness struct {
 
 func newRequestHarness(t *testing.T, configure ...func(*testutil.HarnessOptions)) *requestHarness {
 	opts := testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "profiler": testutil.TenantA, "foreign": testutil.TenantB},
+		ScopedAuthorizer: func(*tenantdb.DB) authz.ScopedAuthorizer { return noReviewedLeaveAuthority{} },
+		Tokens:           map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "profiler": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"admin":    {workforce.PermHospitalManage, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveCorrect, workforce.PermLeaveRequest, workforce.PermEnrollmentManage, workforce.PermMasterManage},
 			"approver": {workforce.PermLeaveApprove, workforce.PermLeaveRequest, workforce.PermEnrollmentManage},

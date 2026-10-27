@@ -221,6 +221,7 @@ describe("SessionRenewal", () => {
         window.localStorage.getItem(PERMISSIONS_CACHE_KEY),
         "the cached permission set must not survive into the next user on this browser",
       ).toBeNull();
+      expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
     });
     setTimeoutSpy.mockRestore();
   });

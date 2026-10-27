@@ -16,7 +16,7 @@ export { AppProviders } from "./providers";
 export { useApiMutation, useApiQuery } from "./hooks";
 export { useApiPagedQuery, type Page, type UseApiPagedQueryResult } from "./paged";
 export { useApiPageQuery, PAGE_SIZE, type UseApiPageQueryResult } from "./page-query";
-export { Can, usePermissions } from "./permissions";
+export { Can, usePermissions, type PermissionsResponse } from "./permissions";
 export { PERMISSIONS_CACHE_KEY, clearPermissionsCache } from "./permissions-cache";
 export {
   EXPIRES_AT_KEY,
@@ -87,3 +87,4 @@ export * from "./emergency-review";
 export * from "./emergency-dispatch";
 
 export * from "./emergency-receiving";
+export { notifySessionChanged, SESSION_CHANGE_KEY } from "./session-change";

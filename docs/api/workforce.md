@@ -356,6 +356,91 @@ Every write takes one hospital advisory lock and commits state, an append-only `
 
 ## Leave requests and approvals
 
+### Reviewer scope discovery (development slice)
+
+`GET /workforce/leave-review-scopes` requires a verified session and current tenant
+membership. It derives the caller's own active reviewed account-link candidates,
+then requires current IAM leave-review authority and locked active employment/link
+validation for each returned hospital. A reviewed link alone is insufficient.
+The optional expected-tenant header is checked before owner queries. The response
+is `{data:[{hospital_id,name}],page:{has_more,next_cursor}}`, generated from
+`contracts/workforce-leave.json`; data rows expose only the hospital ID/name and no staff profiles or authority
+receipts. The opaque cursor carries the caller-bound candidate pagination key. Successful scope reads have minimized attributable audits.
+
+Discovery defaults to twenty candidates and accepts limits 1–20. Its cursor is
+bound to tenant, caller and route; it is not an authorization credential. Filtering
+may leave an empty page with `has_more:true`; callers must retain the supplied
+continuation rather than infer completion from `data.length`. Graph checks run
+outside transactions, at most four concurrently. Each disclosed scope is checked
+inside the existing IAM guard and product staff/link locks. Dependency failure
+returns an error without a partial scope page. Revoked credentials return 401;
+withdrawn/expired assignments or revoked/inactive links are absent from discovery.
+A separate concurrent-index migration supports the subject/status/keyset lookup.
+This is not the pending-request queue/detail API or a released reviewer UI.
+
+### Reviewer queue and detail (development slice)
+
+`GET /workforce/hospitals/{hospital}/leave-review-requests` is a scoped, keyset-paged
+pending queue (default 50, maximum 100). It requires a current reviewed IAM leave
+assignment plus the caller's locked active employment/account link. A legacy
+permission alone does not admit this purpose-bound queue. Linked self and original
+filer are excluded by both the query and forced RLS. The canonical
+`leaveReviewRequest` model exposes minimal staff display, leave type, dates/unit,
+amount, status, expected version and paging identity. Reasons and filer subjects
+are absent from queue rows.
+
+`GET /workforce/hospitals/{hospital}/staff/{id}/leave-review-requests/{request}`
+rechecks the same authority and the exact pending target, then releases the existing
+`leaveRequestDetail` model with reason, counted days and bounded roster clashes.
+Own, completed or inaccessible requests return 404; the endpoint does not expose
+request history or enrollment. Both reads use the IAM guard's transaction and
+locked actor/link validation, with minimized per-request disclosure audits. Their
+read-only RLS context cannot authorize decisions, ledger writes, payroll, private
+enrollment or unrelated staff access. Read-audit failure rolls back the read
+transaction and returns an error rather than a partial response.
+
+Scoped GET and POST gates check the optional expected-tenant assertion before
+scope lookup/product work; stale, malformed or multiple assertions return 409
+`session_changed`. Queue/detail use additive read policies in unreleased migration
+`0036`; `0038_workforce_leave_review_queue_index` builds the hospital/status/keyset
+index concurrently. Production migration and release are not established here.
+
+The development UI is `/workforce/leave-review`, linked as **Review leave** in
+Staff navigation. It discovers usable scopes, loads the pending queue and protected
+detail, and posts decisions to the existing decision endpoint. It needs no Staff
+directory lookup or tenant-wide business grant. Query keys bind tenant/subject and
+requests carry the expected tenant. The page clears during workspace transition;
+a known access/version refusal hides private detail and requires refresh. After
+an uncertain response, it preserves the exact decision/version/note, freezes edits
+and offers an identical retry. A 200 result refreshes the queue; errors never
+present success. Browser and live two-person acceptance remain required.
+
+### Request and decision contract
+
+
+The scoped decision consumer is implemented in the current development slice;
+reviewer discovery/queue UI and production acceptance remain outstanding. A scoped
+reviewer receives no hospital-manager grant or general directory, enrollment,
+payroll, cancellation or revocation authority. General request-list/detail/history
+routes retain their existing authorization until separately implemented.
+
+Before a scoped decision, IAM verifies the graph outside database locks, then
+checks current assignment, membership generation, acknowledged epoch, credential
+watermark and validity under owner locks. Workforce joins the same transaction,
+checks and locks the actor's active employment and reviewed account link, and
+restricts RLS to the exact target request and necessary leave rules. Own-filer and
+linked-self exclusions apply before decisions and retries. Decision, event, audit,
+outbox and any balance consumption commit together. Audit records the assignment
+revision/epochs and actor link revision without copying private leave reasons.
+
+Withdrawal that commits before a waiting guard prevents product work. Expiry
+while waiting for the leave-ledger lock cancels the transaction and returns 403;
+the request stays pending with no consumption or success audit. An obsolete link
+returns 404, revoked credentials return 401, stale versions return 409 and
+unavailable scoped authority returns 503. A credential denial cannot fall back to
+a legacy grant within the request. These guarantees apply to this guarded
+consumer, not all employment or session-disablement workflows.
+
 Design: [spec](../superpowers/specs/2026-10-15-leave-requests-design.md), [ADR 0021](../adr/0021-leave-management.md). UI: `/workforce/leave-requests`. Contract: `contracts/workforce-leave.json`.
 
 | Route                                                                                   | Access                                                | Behaviour                                                                                |
@@ -364,7 +449,7 @@ Design: [spec](../superpowers/specs/2026-10-15-leave-requests-design.md), [ADR 0
 | `PUT /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | `workforce.leave.request` and locked hospital manager | Client-chosen id; replay returns the request, reuse with other values returns 409        |
 | `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | Reader/manager grant                                  | Request, counted days and roster allocations it clashes with                             |
 | `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/history`       | Reader/manager grant                                  | Append-only transitions                                                                  |
-| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/decision`     | `workforce.leave.approve` and locked hospital manager | `expected_version`, `decision` (`approve`, `reject`), `note` (required to reject)        |
+| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/decision`     | `workforce.leave.approve` and locked hospital manager, or current reviewed hospital-scoped leave authority plus active reviewed staff-login link | `expected_version`, `decision` (`approve`, `reject`), `note` (required to reject)        |
 | `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/cancellation` | `workforce.leave.request` and locked hospital manager | Withdraws a pending request; `expected_version`, optional `note`                         |
 | `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/revocation`   | `workforce.leave.approve` and locked hospital manager | Cancels approved leave and writes its reversal; `expected_version`, `note` required      |
 

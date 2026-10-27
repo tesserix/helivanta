@@ -764,6 +764,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/hr/shifts/:id` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision` | `workforce.benefits.approve` | false | false |
@@ -803,6 +804,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `workforce.leave.request` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request` | `workforce.leave.approve` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
@@ -814,6 +816,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals` | `public` | true | false |
+| GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 
 Published subjects:
 
@@ -892,6 +895,8 @@ Migration table declarations:
 - `0032_workforce_roster_credential_clashes`: `workforce_roster_credential_standing`, `workforce_roster_credential_acknowledgements`.
 - `0033_workforce_benefits`: `workforce_benefit_plans`, `workforce_benefit_plan_revisions`, `workforce_staff_dependents`, `workforce_staff_dependent_revisions`, `workforce_benefit_enrollment_proposals`, `workforce_benefit_enrollments`.
 - `0035_workforce_login_links`: `workforce_login_links`, `workforce_login_link_history`.
+- `0037_workforce_leave_review_discovery_index`: concurrent index `workforce_login_links_review_discovery` on `workforce_login_links (tenant_id, subject, status, created_at DESC, id DESC)`.
+- `0038_workforce_leave_review_queue_index`: concurrent index `workforce_leave_requests_review_queue` on `workforce_leave_requests (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
 
 ## workspace
 

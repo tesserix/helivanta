@@ -201,7 +201,9 @@ function PeriodForm({
     },
   );
   const section = useRef<HTMLFormElement>(null);
-  useEffect(() => section.current?.scrollIntoView?.({ block: "start", behavior: "instant" }), []);
+  useEffect(() => {
+    section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
+  }, []);
   const errors = form.formState.errors;
   return (
     <form

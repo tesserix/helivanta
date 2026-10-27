@@ -29,7 +29,7 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-enrollment.json`    | Staff enrollment; `generate-workforce-enrollment.mjs`                                                   |
 | `workforce-roster-config.json` | Versioned roster definition; `generate-workforce-roster-config.mjs`                                     |
 | `workforce-documents.json`     | Private staff file models; `generate-workforce-documents.mjs`                                           |
-| `workforce-leave.json`         | Leave policies/requests/ledger; `generate-workforce-leave.mjs`                                          |
+| `workforce-leave.json`         | Leave policies/requests/ledger and reviewer scope discovery; `generate-workforce-leave.mjs`                                          |
 | `workforce-duty.json`          | Duty exchanges; `generate-workforce-duty.mjs`                                                           |
 | `workforce-overtime.json`      | Overtime configuration and decisions; `generate-workforce-overtime.mjs`                                 |
 | `workforce-attendance.json`    | Punches/corrections/periods/timesheets; `generate-workforce-attendance.mjs`                             |

@@ -299,7 +299,12 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
+	var scopedAuthorizer authz.ScopedAuthorizer
+	if opts.ScopedAuthorizer != nil {
+		scopedAuthorizer = opts.ScopedAuthorizer(db)
+	}
 	deps := platform.Deps{
+		ScopedAuthorizer:            scopedAuthorizer,
 		ProxyClinicalCaptureEnabled: opts.ProxyClinicalCaptureEnabled,
 		PrivacyDeadlinesEnabled:     opts.PrivacyDeadlinesEnabled,
 		Workflows:                   opts.Workflows,
@@ -336,10 +341,6 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	resolver := opts.Resolver
 	if resolver == nil {
 		resolver = harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
-	}
-	var scopedAuthorizer authz.ScopedAuthorizer
-	if opts.ScopedAuthorizer != nil {
-		scopedAuthorizer = opts.ScopedAuthorizer(db)
 	}
 	api := platform.NewRouter(r.Group("/v1",
 		authn.Middleware(verifier, revocation),

@@ -26,6 +26,16 @@ BEGIN
     RAISE EXCEPTION 'Staff supervision requires a current read-committed snapshot.'
       USING ERRCODE = '25001', CONSTRAINT = 'workforce_supervision_isolation';
   END IF;
+  -- RLS-hidden ancestors must not look like a terminal reporting node.
+  PERFORM 1 FROM workforce_hospital_access a
+    WHERE a.tenant_id = NEW.tenant_id AND a.hospital_id = NEW.hospital_id
+      AND a.subject = NULLIF(current_setting('app.workforce_subject', true), '')
+      AND a.level = 'manager'
+    FOR SHARE;
+  IF NOT FOUND OR workforce_enrollment_allowed(NEW.tenant_id, NEW.hospital_id) IS NOT TRUE THEN
+    RAISE EXCEPTION 'Staff supervision authority is unavailable.'
+      USING ERRCODE = '42501', CONSTRAINT = 'workforce_supervision_authority';
+  END IF;
   PERFORM workforce_lock_supervision(NEW.tenant_id, NEW.hospital_id);
   -- Bound each hop to its composite primary key; a plain join can rescan the hospital.
   WITH RECURSIVE chain(staff_id, supervisor_id) AS (

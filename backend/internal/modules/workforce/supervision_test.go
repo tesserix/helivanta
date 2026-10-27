@@ -411,3 +411,72 @@ func TestSupervisionConstraintFailsClosedForRepeatableReadSnapshots(t *testing.T
 		require.Equal(t, "workforce_supervision_isolation", refusal.ConstraintName)
 	}
 }
+
+func TestSupervisionConstraintRefusesLostReadAuthorityAtDeferredCommit(t *testing.T) {
+	for _, loss := range []string{"read_context", "hospital_scope", "tenant_scope", "hospital_grant", "hospital_reader"} {
+		t.Run(loss, func(t *testing.T) {
+			h := newSupervisionHarness(t)
+			first, firstPath, firstInput := h.person(t, "SYN-CONTEXT-FIRST")
+			second, secondPath, _ := h.person(t, "SYN-CONTEXT-SECOND")
+			firstInput["profile"] = map[string]any{"supervisor_id": second}
+			response := testutil.Do(h.router, "PUT", firstPath, "admin", string(mustJSON(t, firstInput)))
+			require.Equal(t, 200, response.Code, response.Body.String())
+			err := h.scoped(t, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SET CONSTRAINTS workforce_enrollment_supervisor_acyclic DEFERRED`).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`UPDATE workforce_enrollment_profile SET supervisor_id=? WHERE tenant_id=? AND hospital_id=? AND staff_id=?`, first, testutil.TenantA, h.hospital, second).Error; err != nil {
+					return err
+				}
+				switch loss {
+				case "read_context":
+					return tx.Exec(`SELECT set_config('app.workforce_enrollment','',true)`).Error
+				case "hospital_scope":
+					return tx.Exec(`SELECT set_config('app.workforce_hospital','',true)`).Error
+				case "tenant_scope":
+					return tx.Exec(`SELECT set_config('app.tenant_id','',true)`).Error
+				case "hospital_reader":
+					return tx.Exec(`UPDATE workforce_hospital_access SET level='reader' WHERE tenant_id=? AND hospital_id=? AND subject='user-admin'`, testutil.TenantA, h.hospital).Error
+				default:
+					return tx.Exec(`DELETE FROM workforce_hospital_access WHERE tenant_id=? AND hospital_id=? AND subject='user-admin'`, testutil.TenantA, h.hospital).Error
+				}
+			})
+			var refusal *pgconn.PgError
+			require.True(t, errors.As(err, &refusal), "lost read authority must not turn hidden ancestors into a terminal supervisor: %v", err)
+			require.Equal(t, "42501", refusal.Code)
+			require.Equal(t, "workforce_supervision_authority", refusal.ConstraintName)
+			response = testutil.Do(h.router, "GET", secondPath, "admin", "")
+			require.Equal(t, 200, response.Code, response.Body.String())
+			var retained struct {
+				Version int64 `json:"version"`
+				Profile struct {
+					SupervisorID string `json:"supervisor_id"`
+				} `json:"profile"`
+			}
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &retained))
+			require.EqualValues(t, 1, retained.Version)
+			require.Empty(t, retained.Profile.SupervisorID)
+		})
+	}
+}
+
+func TestEnrollmentAcceptsDirectoryOnlySupervisor(t *testing.T) {
+	h := newSupervisionHarness(t)
+	_, path, input := h.person(t, "SYN-DIRECTORY-CHILD")
+	supervisor := uuid.Must(uuid.NewV7()).String()
+	require.NoError(t, h.scoped(t, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO workforce_staff(tenant_id,hospital_id,id,employee_code,display_name,job_category,employment_status) VALUES(?,?,?,'SYN-DIRECTORY-SUPERVISOR','Synthetic directory supervisor','other','active')`, testutil.TenantA, h.hospital, supervisor).Error
+	}))
+	input["profile"] = map[string]any{"supervisor_id": supervisor}
+	response := testutil.Do(h.router, "PUT", path, "admin", string(mustJSON(t, input)))
+	require.Equal(t, 200, response.Code, response.Body.String())
+	var saved struct {
+		Version int64 `json:"version"`
+		Profile struct {
+			SupervisorID string `json:"supervisor_id"`
+		} `json:"profile"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &saved))
+	require.EqualValues(t, 2, saved.Version)
+	require.Equal(t, supervisor, saved.Profile.SupervisorID)
+}

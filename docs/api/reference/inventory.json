@@ -6657,7 +6657,7 @@
         },
         {
           "id": "0039_workforce_supervision",
-          "sql_sha256": "a66f31f2b1a46af4b4ae8c5ffc839133b02dcc3bb923e6c865e607ea351289ce",
+          "sql_sha256": "513297d11c47da7e97ec4266f51ea3881625601c4e9d710a59d35ede4a196922",
           "creates_tables": []
         }
       ]

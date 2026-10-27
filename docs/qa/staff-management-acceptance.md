@@ -465,3 +465,29 @@ Validation from `backend/`:
 
 No broad Staff or organization story is closed by these cases. The other setup
 categories and remaining 19-area acceptance gaps stay open.
+
+### Supervision review follow-up — 2026-10-28
+
+Review found and reproduced a deferred-constraint authority-loss bypass in
+#1397. Four initial variants committed the cycle; the guard now locks current
+hospital manager authority and checks the canonical enrollment policy with
+three-valued SQL logic failing closed. Missing enrollment/tenant/hospital
+context, grant deletion and downgrade to reader all refuse and roll back. The
+updated focused suite passed (48.694s); the explicit directory-only supervisor
+compatibility test was also run. The capacity probe still passed (7.909s):
+40.285 ms owner SELECT, 34.656 ms guarded UPDATE and 125.567 ms HTTP refusal.
+
+The combined backend race command passed Workforce (335.198s), architecture
+(55.111s) and contractdocs (8.698s), but failed Global API's existing real-clock
+expiry-lock observation. The original failed log is retained. Without changing
+product code or weakening assertions, the exact integration test passed three
+repetitions (68.680s), and the full Global API package then passed (30.751s).
+This does not establish the intermittent failure's cause.
+
+CI `40548628104` for the earlier `a1252ea` head passed Go/web/scripts/secret
+checks but failed the cross-zone navigation E2E: Emergency was clicked while
+Pharmacy's resolved scope was being added to the address, and the page stayed in
+Pharmacy. The trace and error context are retained privately; investigation of
+its automatic address synchronization is separate from the supervision guard.
+No navigation assertion was relaxed and no broad issue is tagged complete.
+Remote CI and production release remain open gates.

@@ -143,3 +143,31 @@ path disclosure. No caller may weaken the guard through a header or request fiel
 The regression anchors two actual repeatable-read snapshots before opposite
 writes, then checks that no cycle commits and both writes are refused. This avoids
 adding a second hierarchy/version table solely for database lock coordination.
+
+## Deferred authority boundary found in review
+
+An additional failing-first regression deferred the database constraint, changed
+B to report to A after A already reported to B, then removed the enrollment read
+marker before commit. The initial guard saw RLS-hidden profiles as terminal
+nodes and allowed the cycle. Missing tenant/hospital context and removal of the
+hospital manager grant reproduced the same problem.
+
+Before reading ancestors, the guard now locks the current subject's hospital
+manager grant for share and requires the canonical
+`workforce_enrollment_allowed(tenant,hospital)` policy to be **true**, including
+rejecting SQL NULL. This preserves one policy owner and stabilizes visibility
+through commit. Missing/reader authority or lost context raises named
+`workforce_supervision_authority` (42501), which retains the existing opaque
+not-found response. No RLS bypass or additional grant is introduced. Normal
+commands already take this grant lock before hospital/staff locks; the trigger
+now establishes the same authority boundary for deferred direct writes.
+
+All five deferred-loss variants passed: enrollment marker, hospital scope,
+tenant scope, grant deletion and downgrade to reader. The tests verify rollback
+of both the attempted profile change and any grant mutation. A directory-only
+supervisor remains a legitimate terminal node; authority failure is distinct
+from a genuinely absent optional enrollment profile.
+
+The updated local capacity probe passed with the same budgets: owner SELECT
+40.285 ms, guarded UPDATE 34.656 ms (34.119 ms trigger), and HTTP refusal
+125.567 ms. These are separate local samples, not an additional production SLA.

@@ -321,6 +321,9 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		if err := enrollmentScope(tx, p, hospital); err != nil {
 			return err
 		}
+		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid, ?::uuid)`, p.TenantID, hospital).Error; err != nil {
+			return err
+		}
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, p.TenantID+":"+hospital.String()+":"+id.String()).Error; err != nil {
 			return err
 		}
@@ -389,6 +392,18 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		return
 	}
 	var pg *pgconn.PgError
+	if errors.As(err, &pg) && pg.ConstraintName == "workforce_enrollment_supervisor_acyclic" {
+		respond.Error(c, http.StatusConflict, "supervisor_cycle", "Supervisor would create a circular reporting chain. Choose another supervisor or clear the link.")
+		return
+	}
+	if errors.As(err, &pg) && pg.ConstraintName == "workforce_supervision_isolation" {
+		respond.Error(c, http.StatusServiceUnavailable, "supervision_unavailable", "Staff supervision could not be verified. Refresh and retry.")
+		return
+	}
+	if errors.As(err, &pg) && pg.Code == "55P03" {
+		respond.Error(c, http.StatusServiceUnavailable, "supervision_busy", "Staff supervision is busy. Refresh and retry.")
+		return
+	}
 	if errors.As(err, &pg) && (pg.ConstraintName == "workforce_credential_reviewed" || pg.ConstraintName == "workforce_credential_validity_enrolled") {
 		respond.ConflictWithDetail(c, "A reviewed credential changes only through a credential review, and cannot be removed.", gin.H{"reason": "credential_reviewed"})
 		return

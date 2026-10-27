@@ -215,22 +215,17 @@ func (h *handlers) putMaster(c *gin.Context) {
 }
 
 func validateMasterReferences(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, in *enrollmentProfile, previous enrollmentProfile, provided map[string]bool) error {
-	if err := tx.Exec(`SELECT set_config('app.workforce_hr_references','supported',true)`).Error; err != nil {
+	if err := tx.Exec(`SELECT set_config('app.workforce_hr_references','supported',true),set_config('app.workforce_profile_master_references','supported',true)`).Error; err != nil {
 		return err
 	}
-	for _, ref := range []struct {
-		kind     string
-		id, name *string
-		previous string
-	}{
-		{"department", &in.DepartmentRevisionID, &in.Department, previous.DepartmentRevisionID},
-		{"designation", &in.DesignationRevisionID, &in.Designation, previous.DesignationRevisionID},
-		{"grade", &in.GradeRevisionID, &in.Grade, previous.GradeRevisionID},
-	} {
-		if !provided[ref.kind] {
+	for _, ref := range enrollmentMasterReferences(in, previous) {
+		if !provided[ref.field] {
 			*ref.id = ref.previous
 		}
 		if *ref.id == "" {
+			if ref.selectionOnly && *ref.name != "" {
+				return errMasterInactive
+			}
 			continue
 		}
 		id, err := uuid.Parse(*ref.id)

@@ -17,6 +17,8 @@ import {
   useApiMutation,
   enrollmentSchema,
   EMPTY_ENROLLMENT,
+  ENROLLMENT_PROFILE_MASTERS,
+  ENROLLMENT_PROFILE_MASTERS_PROJECTION,
   EMPTY_ADDRESSES,
   EMPTY_EMERGENCY_CONTACTS,
   EMPTY_CREDENTIALS,
@@ -61,9 +63,16 @@ export function EnrollmentEditor({
 }) {
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
-  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment`;
+  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}`;
   const query = useApiQuery<StaffEnrollment>(
-    ["workforce", "enrollment", hospital.id, id, reload],
+    [
+      "workforce",
+      "enrollment",
+      hospital.id,
+      id,
+      reload,
+      ENROLLMENT_PROFILE_MASTERS_PROJECTION.version,
+    ],
     path,
     {
       enabled: !!staff,
@@ -81,6 +90,23 @@ export function EnrollmentEditor({
     return (
       <section className="mt-6 rounded-2xl border bg-card p-8">
         <p role="alert">Could not load enrollment. Your existing record has not been changed.</p>
+        <div className="mt-4 flex gap-3">
+          <Button variant="outline" onClick={() => void query.refetch()}>
+            Try again
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </section>
+    );
+  if (
+    staff &&
+    query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version
+  )
+    return (
+      <section className="mt-6 rounded-2xl border bg-card p-8">
+        <p role="alert">This enrollment view is not available yet. Refresh and try again.</p>
         <div className="mt-4 flex gap-3">
           <Button variant="outline" onClick={() => void query.refetch()}>
             Try again
@@ -193,20 +219,23 @@ function EnrollmentForm({
     form.setFocus("staff.display_name");
   }, [form]);
 
-  const masterField = (kind: "department" | "designation" | "grade", label: string) => {
-    const revisionKey = `profile.${kind}_revision_id` as const;
-    const nameKey = `profile.${kind}` as const;
-    const revision = form.watch(revisionKey);
-    const name = form.watch(nameKey);
+  const masterField = (kind: keyof typeof ENROLLMENT_PROFILE_MASTERS, label: string) => {
+    const spec = ENROLLMENT_PROFILE_MASTERS[kind];
+    const key = spec.field;
+    const revisionKey = `profile.${key}_revision_id` as const;
+    const nameKey = `profile.${key}` as const;
+    const revision = form.watch(revisionKey) ?? "";
+    const name = form.watch(nameKey) ?? "";
     const choices = masters.items.filter((row) => row.kind === kind && row.active);
-    if (!choices.length && !revision) return field(nameKey, label);
-    const recorded = revision ? value.profile[kind] : name;
-    const id = `enrollment-${kind}-choice`;
+    if (!choices.length && !revision && !spec.selectionOnly) return field(nameKey, label);
+    const recorded = revision ? (value.profile[key] ?? "") : name;
+    const id = `enrollment-${key}-choice`;
+    const error = form.getFieldState(revisionKey, form.formState).error?.message;
     return (
-      <Field id={id} label={label}>
+      <Field id={id} label={label} error={error}>
         <SelectControl
           id={id}
-          value={revision || (name ? "__recorded" : "")}
+          value={revision || (!spec.selectionOnly && name ? "__recorded" : "")}
           onValueChange={(selected) => {
             if (selected === "__recorded") {
               form.setValue(revisionKey, "", { shouldDirty: true });
@@ -219,7 +248,7 @@ function EnrollmentForm({
           }}
           options={[
             { value: "", label: "Not assigned" },
-            ...(!value.profile[`${kind}_revision_id`] && recorded
+            ...(!spec.selectionOnly && !value.profile[`${key}_revision_id`] && recorded
               ? [{ value: "__recorded", label: `Recorded text: ${recorded}` }]
               : []),
             ...choices.map((row) => ({
@@ -353,7 +382,7 @@ function EnrollmentForm({
               {field("profile.personal_email", "Personal email", "email")}
               {field("profile.mobile_phone", "Mobile number", "tel")}
               {field("profile.work_phone", "Work phone", "tel")}
-              {field("profile.preferred_language", "Preferred language")}
+              {masterField("language", "Preferred language")}
               {select("profile.blood_group", "Reported blood group", [
                 { value: "", label: "Not known / not recorded" },
                 ...["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((value) => ({
@@ -389,6 +418,7 @@ function EnrollmentForm({
                   (value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }),
                 ),
               )}
+              {masterField("contract_type", "Contract type")}
               {masterField("department", "Department")}
               {masterField("designation", "Designation")}
               {select("profile.supervisor_id", "Supervisor", [
@@ -414,7 +444,7 @@ function EnrollmentForm({
               {field("profile.end_date", "End date", "date")}
               {field("profile.probation_end_date", "Probation end date", "date")}
               {field("profile.confirmation_date", "Confirmation date", "date")}
-              {field("profile.exit_reason", "Exit reason")}
+              {masterField("exit_reason", "Exit reason")}
             </div>
           </section>
           {masters.hasMore && (

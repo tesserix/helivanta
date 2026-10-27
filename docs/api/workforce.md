@@ -14,12 +14,12 @@ reached by web clients through Global API. All operations require verified tenan
 membership and a current hospital manager grant. The existing tenant administrator
 has the two new administrative permissions; other system roles do not gain them.
 
-| Method and suffix | Permission | Behavior |
-| --- | --- | --- |
-| `PUT /{link}` | `workforce.login_links.manage` | UUIDv7 command ID; `{subject, reason}` proposes an active staff member's immutable account binding |
+| Method and suffix       | Permission                                                  | Behavior                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `PUT /{link}`           | `workforce.login_links.manage`                              | UUIDv7 command ID; `{subject, reason}` proposes an active staff member's immutable account binding                           |
 | `POST /{link}/decision` | `.review` for approve/reject; `.manage` for withdraw/revoke | `{expected_version, decision, reason}`; independent review excludes proposer and target subject; withdrawal is proposer-only |
-| `GET /` | Either permission | Private, audited cursor page |
-| `GET /{link}/history` | Either permission | Immutable version history; private, audited cursor page |
+| `GET /`                 | Either permission                                           | Private, audited cursor page                                                                                                 |
+| `GET /{link}/history`   | Either permission                                           | Immutable version history; private, audited cursor page                                                                      |
 
 Bodies are limited to 8 KiB. Account subjects are opaque, case-sensitive strings
 of 1–200 characters, without whitespace, NUL or `*#:`; clients reject malformed
@@ -170,6 +170,37 @@ Design: [ADR 0016](../adr/0016-versioned-hr-masters.md). Diagram: [editable draw
 PUT input: `expected_version` (0 for creation), `kind`, `code` (1–40 ASCII letters/digits/underscore/hyphen), `name` (1–80 characters), `description` (0–500), `active` (boolean). Code/category cannot change. Name whitespace is collapsed; code is uppercase. Duplicate normalized name/code returns 409, even when a record is retired. An identical retry preserves revision/timestamps and emits no new event. A different stale edit returns 409. Invalid fields return 400; inaccessible objects return 404. Tenant/hospital identity and unknown JSON fields are rejected. All responses explicitly use `Cache-Control: no-store`.
 
 Categories: department, designation, grade, qualification, document_category, exit_reason, relationship, language, contract_type. This does not implement salary, tax, leave policy or KRA/KPI models. Retire/reactivate with `active`; no delete endpoint exists. List/history support the shared cursor and limit contract.
+
+Profile connections also accept optional `preferred_language_revision_id`,
+`exit_reason_revision_id`, `contract_type` (0–80 characters) and
+`contract_type_revision_id`. Language/exit-reason text remains compatible with
+legacy requests. Contract type is separate from engagement type and is a
+server-derived classification requiring its typed master reference when set;
+it does not activate employment, access, payroll rules or legal contract terms.
+The new fields can be omitted without clearing existing pins; explicit empty
+reference strings clear them. Null is rejected for these new reference fields
+and the new contract-type text. Existing reference null compatibility is
+unchanged. Owner lookup derives labels and rejects new inactive/stale references;
+existing historical pins remain editable during unrelated enrollment changes.
+
+The default GET/PUT enrollment response retains its original profile shape for
+older strict editors. Updated clients request `?profile_masters=v1` on both
+methods to receive the four extension properties and top-level
+`profile_masters_version: "v1"`. An empty, unsupported or repeated selector
+returns 400 before any enrollment write. The selector changes representation,
+not authority, stored facts, concurrency or retry behavior. Omitted input
+references preserve pins even when the legacy response hides them. The updated
+editor checks the response marker and separates its versioned cache key; an
+older API that ignores the selector produces an explicit unavailable view,
+without exposing an editable profile with unknown pins shown as blank.
+
+Migrations `0040_workforce_profile_masters` and
+`0041_workforce_profile_master_indexes` add typed tenant/hospital/category foreign
+keys, concurrent reference indexes and a distinct older-writer guard. This is
+source behavior, not a production deployment claim. Older binaries cannot use
+the existing generic HR-reference marker to erase the new pins. Deploy the
+schema and updated API fleet before exposing the new fields; retain the columns
+and guard on application rollback. No existing free text is bulk matched.
 
 Enrollment profiles can select `department_revision_id`, `designation_revision_id`, `grade_revision_id`. Foreign-key scope includes tenant, hospital and category. The server derives the assignment name from the immutable revision; supplied label text cannot forge a snapshot. New assignments must select the active current revision. An existing assignment may retain its older/retired revision. Explicit empty reference clears it; omitted reference fields from older clients preserve an existing assignment. Free-text legacy assignments remain supported without silently matching names. A database guard refuses older API writers attempting to remove a pinned profile during rolling deployment.
 
@@ -429,7 +460,6 @@ present success. Browser and live two-person acceptance remain required.
 
 ### Request and decision contract
 
-
 The scoped decision consumer is implemented in the current development slice;
 reviewer discovery/queue UI and production acceptance remain outstanding. A scoped
 reviewer receives no hospital-manager grant or general directory, enrollment,
@@ -455,15 +485,15 @@ consumer, not all employment or session-disablement workflows.
 
 Design: [spec](../superpowers/specs/2026-10-15-leave-requests-design.md), [ADR 0021](../adr/0021-leave-management.md). UI: `/workforce/leave-requests`. Contract: `contracts/workforce-leave.json`.
 
-| Route                                                                                   | Access                                                | Behaviour                                                                                |
-| --------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET /workforce/hospitals/{hospital}/hr/leave-requests`                                 | Reader/manager grant                                  | Optional `status`, `staff_id`, `leave_year`; newest filing first, keyset pages up to 100 |
-| `PUT /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | `workforce.leave.request` and locked hospital manager | Client-chosen id; replay returns the request, reuse with other values returns 409        |
-| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | Reader/manager grant                                  | Request, counted days and roster allocations it clashes with                             |
-| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/history`       | Reader/manager grant                                  | Append-only transitions                                                                  |
+| Route                                                                                   | Access                                                                                                                                           | Behaviour                                                                                |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/hr/leave-requests`                                 | Reader/manager grant                                                                                                                             | Optional `status`, `staff_id`, `leave_year`; newest filing first, keyset pages up to 100 |
+| `PUT /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | `workforce.leave.request` and locked hospital manager                                                                                            | Client-chosen id; replay returns the request, reuse with other values returns 409        |
+| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | Reader/manager grant                                                                                                                             | Request, counted days and roster allocations it clashes with                             |
+| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/history`       | Reader/manager grant                                                                                                                             | Append-only transitions                                                                  |
 | `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/decision`     | `workforce.leave.approve` and locked hospital manager, or current reviewed hospital-scoped leave authority plus active reviewed staff-login link | `expected_version`, `decision` (`approve`, `reject`), `note` (required to reject)        |
-| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/cancellation` | `workforce.leave.request` and locked hospital manager | Withdraws a pending request; `expected_version`, optional `note`                         |
-| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/revocation`   | `workforce.leave.approve` and locked hospital manager | Cancels approved leave and writes its reversal; `expected_version`, `note` required      |
+| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/cancellation` | `workforce.leave.request` and locked hospital manager                                                                                            | Withdraws a pending request; `expected_version`, optional `note`                         |
+| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/revocation`   | `workforce.leave.approve` and locked hospital manager                                                                                            | Cancels approved leave and writes its reversal; `expected_version`, `note` required      |
 
 Filing takes `leave_type_id`, `unit` (`full_day` over `start_on`–`end_on`; `half_day` on one date with `session` `first_half`/`second_half`; `short_leave` on one date with `minutes` in 15-minute steps) and an optional `reason` of up to 500 characters. A request lies inside one open leave year and pins the leave-type, assignment and holiday-calendar revisions in force; regular and government holidays count zero, a request of only holidays is 400 and a year without an active calendar is 409. The type must be active, in the staff member's structure and allow the unit (400). Overlapping pending or approved leave (a PostgreSQL exclusion over half-day slots), non-clubbable neighbours, an insufficient balance after pending holds, a closed year and a stale version return 409. Types closed during probation need `workforce.enrollment.manage` to read the probation end (403 without it, 409 when missing or not before the start).
 

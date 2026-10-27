@@ -63,9 +63,17 @@ func (in *enrollmentInput) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	in.providedReferences = map[string]bool{}
-	for _, kind := range []string{"department", "designation", "grade"} {
-		_, in.providedReferences[kind] = fields.Profile[kind+"_revision_id"]
+	for _, ref := range enrollmentMasterReferences(&in.Profile, enrollmentProfile{}) {
+		raw, present := fields.Profile[ref.field+"_revision_id"]
+		in.providedReferences[ref.field] = present
+		if ref.rejectNull && present && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			return errors.New("null HR profile reference")
+		}
+		if raw, present := fields.Profile[ref.field]; ref.selectionOnly && present && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			return errors.New("null controlled HR field")
+		}
 	}
+
 	return nil
 }
 
@@ -220,8 +228,38 @@ func enrollmentScope(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
 	return tx.Exec(`SELECT set_config('app.workforce_enrollment', 'authorized', true)`).Error
 }
 
+func includeProfileMasters(c *gin.Context) (bool, bool) {
+	versions, present := c.Request.URL.Query()[enrollmentProfileMastersQuery]
+	if !present {
+		return false, true
+	}
+	if len(versions) != 1 || versions[0] != enrollmentProfileMastersVersion {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "This enrollment view is not supported. Refresh and retry.")
+		return false, false
+	}
+	return true, true
+}
+
+func respondEnrollment(c *gin.Context, result enrollment, include bool) {
+	if include {
+		respond.OK(c, struct {
+			enrollment
+			enrollmentProfileMastersProjection
+		}{result, enrollmentProfileMastersProjection{Version: enrollmentProfileMastersVersion}})
+		return
+	}
+	respond.OK(c, struct {
+		enrollment
+		Profile map[string]any `json:"profile"`
+	}{result, legacyEnrollmentProfile(result.Profile)})
+}
+
 func (h *handlers) getEnrollment(c *gin.Context) {
 	p, hospital, ok := scope(c)
+	if !ok {
+		return
+	}
+	projection, ok := includeProfileMasters(c)
 	if !ok {
 		return
 	}
@@ -250,7 +288,7 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	respond.OK(c, result)
+	respondEnrollment(c, result, projection)
 }
 
 func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string]any, error) {
@@ -300,6 +338,10 @@ func replaceEnrollmentRows(tx *gorm.DB, tenant string, hospital, id uuid.UUID, i
 
 func (h *handlers) putEnrollment(c *gin.Context) {
 	p, hospital, ok := scope(c)
+	if !ok {
+		return
+	}
+	projection, ok := includeProfileMasters(c)
 	if !ok {
 		return
 	}
@@ -415,5 +457,5 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	respond.OK(c, result)
+	respondEnrollment(c, result, projection)
 }

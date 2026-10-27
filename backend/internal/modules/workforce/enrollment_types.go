@@ -2,30 +2,34 @@
 package workforce
 
 type enrollmentProfile struct {
-	GivenName             string `json:"given_name" binding:"max=100"`
-	FamilyName            string `json:"family_name" binding:"max=100"`
-	PreferredName         string `json:"preferred_name" binding:"max=100"`
-	DateOfBirth           string `json:"date_of_birth" binding:"omitempty,max=10"`
-	Gender                string `json:"gender" binding:"max=40"`
-	WorkEmail             string `json:"work_email" binding:"omitempty,max=254,email"`
-	PersonalEmail         string `json:"personal_email" binding:"omitempty,max=254,email"`
-	MobilePhone           string `json:"mobile_phone" binding:"omitempty,max=25"`
-	WorkPhone             string `json:"work_phone" binding:"omitempty,max=25"`
-	PreferredLanguage     string `json:"preferred_language" binding:"max=80"`
-	BloodGroup            string `json:"blood_group" binding:"max=10"`
-	EngagementType        string `json:"engagement_type" binding:"max=30"`
-	Department            string `json:"department" binding:"max=100"`
-	Designation           string `json:"designation" binding:"max=100"`
-	Grade                 string `json:"grade" binding:"max=80"`
-	DepartmentRevisionID  string `json:"department_revision_id" binding:"omitempty,uuid"`
-	DesignationRevisionID string `json:"designation_revision_id" binding:"omitempty,uuid"`
-	GradeRevisionID       string `json:"grade_revision_id" binding:"omitempty,uuid"`
-	SupervisorID          string `json:"supervisor_id" binding:"omitempty,uuid"`
-	StartDate             string `json:"start_date" binding:"omitempty,max=10"`
-	EndDate               string `json:"end_date" binding:"omitempty,max=10"`
-	ProbationEndDate      string `json:"probation_end_date" binding:"omitempty,max=10"`
-	ConfirmationDate      string `json:"confirmation_date" binding:"omitempty,max=10"`
-	ExitReason            string `json:"exit_reason" binding:"max=500"`
+	GivenName                   string `json:"given_name" binding:"max=100"`
+	FamilyName                  string `json:"family_name" binding:"max=100"`
+	PreferredName               string `json:"preferred_name" binding:"max=100"`
+	DateOfBirth                 string `json:"date_of_birth" binding:"omitempty,max=10"`
+	Gender                      string `json:"gender" binding:"max=40"`
+	WorkEmail                   string `json:"work_email" binding:"omitempty,max=254,email"`
+	PersonalEmail               string `json:"personal_email" binding:"omitempty,max=254,email"`
+	MobilePhone                 string `json:"mobile_phone" binding:"omitempty,max=25"`
+	WorkPhone                   string `json:"work_phone" binding:"omitempty,max=25"`
+	PreferredLanguage           string `json:"preferred_language" binding:"max=80"`
+	PreferredLanguageRevisionID string `json:"preferred_language_revision_id" binding:"omitempty,uuid"`
+	BloodGroup                  string `json:"blood_group" binding:"max=10"`
+	EngagementType              string `json:"engagement_type" binding:"max=30"`
+	ContractType                string `json:"contract_type" binding:"max=80"`
+	ContractTypeRevisionID      string `json:"contract_type_revision_id" binding:"omitempty,uuid"`
+	Department                  string `json:"department" binding:"max=100"`
+	Designation                 string `json:"designation" binding:"max=100"`
+	Grade                       string `json:"grade" binding:"max=80"`
+	DepartmentRevisionID        string `json:"department_revision_id" binding:"omitempty,uuid"`
+	DesignationRevisionID       string `json:"designation_revision_id" binding:"omitempty,uuid"`
+	GradeRevisionID             string `json:"grade_revision_id" binding:"omitempty,uuid"`
+	SupervisorID                string `json:"supervisor_id" binding:"omitempty,uuid"`
+	StartDate                   string `json:"start_date" binding:"omitempty,max=10"`
+	EndDate                     string `json:"end_date" binding:"omitempty,max=10"`
+	ProbationEndDate            string `json:"probation_end_date" binding:"omitempty,max=10"`
+	ConfirmationDate            string `json:"confirmation_date" binding:"omitempty,max=10"`
+	ExitReason                  string `json:"exit_reason" binding:"max=500"`
+	ExitReasonRevisionID        string `json:"exit_reason_revision_id" binding:"omitempty,uuid"`
 }
 
 type enrollmentAddress struct {
@@ -73,4 +77,58 @@ type enrollmentExperience struct {
 	Role      string `json:"role" binding:"max=100"`
 	StartDate string `json:"start_date" binding:"omitempty,max=10"`
 	EndDate   string `json:"end_date" binding:"omitempty,max=10"`
+}
+
+type enrollmentMasterReference struct {
+	kind, field               string
+	id, name                  *string
+	previous                  string
+	rejectNull, selectionOnly bool
+}
+
+func enrollmentMasterReferences(in *enrollmentProfile, previous enrollmentProfile) []enrollmentMasterReference {
+	return []enrollmentMasterReference{
+		{"department", "department", &in.DepartmentRevisionID, &in.Department, previous.DepartmentRevisionID, false, false},
+		{"designation", "designation", &in.DesignationRevisionID, &in.Designation, previous.DesignationRevisionID, false, false},
+		{"grade", "grade", &in.GradeRevisionID, &in.Grade, previous.GradeRevisionID, false, false},
+		{"language", "preferred_language", &in.PreferredLanguageRevisionID, &in.PreferredLanguage, previous.PreferredLanguageRevisionID, true, false},
+		{"exit_reason", "exit_reason", &in.ExitReasonRevisionID, &in.ExitReason, previous.ExitReasonRevisionID, true, false},
+		{"contract_type", "contract_type", &in.ContractTypeRevisionID, &in.ContractType, previous.ContractTypeRevisionID, true, true},
+	}
+}
+
+const enrollmentProfileMastersQuery = "profile_masters"
+const enrollmentProfileMastersVersion = "v1"
+
+type enrollmentProfileMastersProjection struct {
+	Version string `json:"profile_masters_version"`
+}
+
+func legacyEnrollmentProfile(in enrollmentProfile) map[string]any {
+	return map[string]any{
+		"given_name":              in.GivenName,
+		"family_name":             in.FamilyName,
+		"preferred_name":          in.PreferredName,
+		"date_of_birth":           in.DateOfBirth,
+		"gender":                  in.Gender,
+		"work_email":              in.WorkEmail,
+		"personal_email":          in.PersonalEmail,
+		"mobile_phone":            in.MobilePhone,
+		"work_phone":              in.WorkPhone,
+		"preferred_language":      in.PreferredLanguage,
+		"blood_group":             in.BloodGroup,
+		"engagement_type":         in.EngagementType,
+		"department":              in.Department,
+		"designation":             in.Designation,
+		"grade":                   in.Grade,
+		"department_revision_id":  in.DepartmentRevisionID,
+		"designation_revision_id": in.DesignationRevisionID,
+		"grade_revision_id":       in.GradeRevisionID,
+		"supervisor_id":           in.SupervisorID,
+		"start_date":              in.StartDate,
+		"end_date":                in.EndDate,
+		"probation_end_date":      in.ProbationEndDate,
+		"confirmation_date":       in.ConfirmationDate,
+		"exit_reason":             in.ExitReason,
+	}
 }

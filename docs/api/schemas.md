@@ -18,28 +18,40 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 
 ## Existing canonical inputs
 
-| Input under `contracts/`       | Scope / generator                                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `organization-identity.json`   | Organization identity bindings; `generate-organization-identity.mjs`                                    |
-| `country-profiles.json`        | Country/tax vocabulary; `generate-country-profiles.mjs`                                                 |
-| `trading-policy.json`          | Reviewed policy requirements/access/versions; `generate-trading-policy.mjs`                             |
-| `pharmacy.json`                | Organization/outlet, catalogue, inventory, safety and accounts inputs; `generate-pharmacy-contract.mjs` |
-| `supply.json`                  | Parties, licences, premises, access and operations inputs; `generate-supply-contract.mjs`               |
-| `emergency-dispatch.json`      | Dispatch/receiving models, commands, states and capabilities; `generate-emergency-dispatch.mjs`         |
-| `workforce-enrollment.json`    | Staff enrollment; `generate-workforce-enrollment.mjs`                                                   |
-| `workforce-roster-config.json` | Versioned roster definition; `generate-workforce-roster-config.mjs`                                     |
-| `workforce-documents.json`     | Private staff file models; `generate-workforce-documents.mjs`                                           |
-| `workforce-leave.json`         | Leave policies/requests/ledger and reviewer scope discovery; `generate-workforce-leave.mjs`                                          |
-| `workforce-duty.json`          | Duty exchanges; `generate-workforce-duty.mjs`                                                           |
-| `workforce-overtime.json`      | Overtime configuration and decisions; `generate-workforce-overtime.mjs`                                 |
-| `workforce-attendance.json`    | Punches/corrections/periods/timesheets; `generate-workforce-attendance.mjs`                             |
-| `workforce-payroll.json`       | Payroll configuration and review inputs; `generate-workforce-payroll.mjs`                               |
-| `workforce-credentials.json`   | Credential reviews/reminders; `generate-workforce-credentials.mjs`                                      |
-| `workforce-benefits.json`      | Dependents/benefits proposals and decisions; `generate-workforce-benefits.mjs`                          |
-| `workforce-login-links.json`   | Reviewed staff/account binding commands and history; `generate-workforce-login-links.mjs`              |
+| Input under `contracts/`       | Scope / generator                                                                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `organization-identity.json`   | Organization identity bindings; `generate-organization-identity.mjs`                                                                                                                                          |
+| `country-profiles.json`        | Country/tax vocabulary; `generate-country-profiles.mjs`                                                                                                                                                       |
+| `trading-policy.json`          | Reviewed policy requirements/access/versions; `generate-trading-policy.mjs`                                                                                                                                   |
+| `pharmacy.json`                | Organization/outlet, catalogue, inventory, safety and accounts inputs; `generate-pharmacy-contract.mjs`                                                                                                       |
+| `supply.json`                  | Parties, licences, premises, access and operations inputs; `generate-supply-contract.mjs`                                                                                                                     |
+| `emergency-dispatch.json`      | Dispatch/receiving models, commands, states and capabilities; `generate-emergency-dispatch.mjs`                                                                                                               |
+| `workforce-enrollment.json`    | Staff enrollment; `generate-workforce-enrollment.mjs`                                                                                                                                                         |
+| `workforce-roster-config.json` | Versioned roster definition; `generate-workforce-roster-config.mjs`                                                                                                                                           |
+| `workforce-documents.json`     | Private staff file models; `generate-workforce-documents.mjs`                                                                                                                                                 |
+| `workforce-leave.json`         | Leave policies/requests/ledger and reviewer scope discovery; `generate-workforce-leave.mjs`                                                                                                                   |
+| `workforce-duty.json`          | Duty exchanges; `generate-workforce-duty.mjs`                                                                                                                                                                 |
+| `workforce-overtime.json`      | Overtime configuration and decisions; `generate-workforce-overtime.mjs`                                                                                                                                       |
+| `workforce-attendance.json`    | Punches/corrections/periods/timesheets; `generate-workforce-attendance.mjs`                                                                                                                                   |
+| `workforce-payroll.json`       | Payroll configuration and review inputs; `generate-workforce-payroll.mjs`                                                                                                                                     |
+| `workforce-credentials.json`   | Credential reviews/reminders; `generate-workforce-credentials.mjs`                                                                                                                                            |
+| `workforce-benefits.json`      | Dependents/benefits proposals and decisions; `generate-workforce-benefits.mjs`                                                                                                                                |
+| `workforce-login-links.json`   | Reviewed staff/account binding commands and history; `generate-workforce-login-links.mjs`                                                                                                                     |
 | `staff-access.json`            | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
 
 Also inspect module-local catalogues such as `backend/internal/modules/emergency/contract/intake.json`; the top-level directory is not the complete schema universe. Existing generators often encode additional checks such as date ordering, normalization, safe integer bounds and scope constraints. Reusing field names while dropping those checks is a breaking validation change.
+
+`workforce-enrollment.json` field tuples are `[name, typeOrLimit, optional?]`.
+The optional input flag preserves omitted properties through SDK parsing rather
+than synthesizing empty-string clears. Its `profile_masters` tuples are
+`[category, profileField, rejectNull, selectionOnly]`; the generator validates
+complete unique reference coverage and produces Go bindings, null/selection
+rules and TypeScript selector metadata. These canonical mapping records are not
+HTTP request fields. Its `profile_masters_projection` metadata declares query,
+version and response-marker names; Go/TypeScript constants and the default
+legacy response projection are generated from the same canonical input. New
+optional fields are included only in the opted-in response. Existing validation
+exceptions stay explicit in the owner.
 
 ## Storage dictionary
 

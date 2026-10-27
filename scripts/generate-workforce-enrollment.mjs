@@ -4,9 +4,39 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const groups = JSON.parse(
-  await readFile(path.join(root, "contracts/workforce-enrollment.json"), "utf8"),
-);
+const {
+  profile_masters: profileMasters,
+  profile_masters_projection: profileMastersProjection,
+  ...groups
+} = JSON.parse(await readFile(path.join(root, "contracts/workforce-enrollment.json"), "utf8"));
+if (
+  !profileMastersProjection ||
+  typeof profileMastersProjection !== "object" ||
+  Array.isArray(profileMastersProjection) ||
+  Object.keys(profileMastersProjection).sort().join(",") !== "query,response_field,version" ||
+  !/^[a-z][a-z_]*$/.test(profileMastersProjection.query) ||
+  !/^[a-z][a-z_]*$/.test(profileMastersProjection.response_field) ||
+  !/^v[1-9][0-9]*$/.test(profileMastersProjection.version)
+)
+  throw new Error("Invalid enrollment profile master projection");
+const referenceFields = groups.profile.filter(([name]) => name.endsWith("_revision_id"));
+if (
+  !Array.isArray(profileMasters) ||
+  profileMasters.length !== referenceFields.length ||
+  new Set(profileMasters.map(([kind]) => kind)).size !== profileMasters.length ||
+  new Set(profileMasters.map(([, field]) => field)).size !== profileMasters.length ||
+  profileMasters.some(
+    ([kind, field, rejectNull, selectionOnly]) =>
+      typeof kind !== "string" ||
+      !/^[a-z][a-z_]*$/.test(kind) ||
+      !groups.profile.some(([name, type]) => name === field && typeof type === "number") ||
+      !referenceFields.some(([name, type]) => name === `${field}_revision_id` && type === "uuid") ||
+      typeof rejectNull !== "boolean" ||
+      typeof selectionOnly !== "boolean",
+  )
+)
+  throw new Error("Invalid enrollment profile master mapping");
+
 const names = {
   profile: "Profile",
   addresses: "Address",
@@ -56,7 +86,9 @@ for (const [group, fields] of Object.entries(groups)) {
     go += 'ID string `json:"id" binding:"required,uuid"`\n';
     ts += "id: identifier,\n";
   }
-  for (const [name, kind] of fields) {
+  for (const [name, kind, optional] of fields) {
+    if (optional !== undefined && typeof optional !== "boolean")
+      throw new Error(`Invalid optional enrollment field: ${group}.${name}`);
     const numeric = kind === "int" || kind === "year";
     const rule =
       {
@@ -81,10 +113,21 @@ for (const [group, fields] of Object.entries(groups)) {
     if (name === "country") schema = "country";
     if (required.has(`${group}.${name}`))
       schema += '.refine(value => value !== "", "Complete this field.")';
+    if (optional) schema += ".optional()";
     ts += `${name}: ${schema},\n`;
   }
   go += "}\n\n";
-  ts += `}).strict();\nexport type Enrollment${names[group]} = z.infer<typeof enrollment${names[group]}Schema>;\n`;
+  ts += "}).strict()";
+  if (group === "profile") {
+    const checks = profileMasters
+      .filter((entry) => entry[3])
+      .map(
+        ([, field]) =>
+          `if (value.${field} && !value.${field}_revision_id) ctx.addIssue({code: "custom", path: ["${field}_revision_id"], message: "Choose an HR setup record."});`,
+      );
+    if (checks.length) ts += `.superRefine((value, ctx) => {${checks.join("\n")}})`;
+  }
+  ts += `;\nexport type Enrollment${names[group]} = z.infer<typeof enrollment${names[group]}Schema>;\n`;
   const defaults = Object.fromEntries(
     fields.map(([name, kind]) => [
       name,
@@ -101,6 +144,41 @@ for (const [group, fields] of Object.entries(groups)) {
   );
   ts += `export const EMPTY_${group.toUpperCase()} = ${JSON.stringify(defaults)} as const;\n\n`;
 }
+go += `type enrollmentMasterReference struct {
+ kind, field string
+ id, name *string
+ previous string
+ rejectNull, selectionOnly bool
+}
+func enrollmentMasterReferences(in *enrollmentProfile, previous enrollmentProfile) []enrollmentMasterReference {
+ return []enrollmentMasterReference{
+${profileMasters
+  .map(
+    ([kind, field, rejectNull, selectionOnly]) =>
+      `{${JSON.stringify(kind)},${JSON.stringify(field)},&in.${pascal(field + "_revision_id")},&in.${pascal(field)},previous.${pascal(field + "_revision_id")},${rejectNull},${selectionOnly}},`,
+  )
+  .join("\n")}
+ }
+}
+`;
+ts += `export const ENROLLMENT_PROFILE_MASTERS = ${JSON.stringify(Object.fromEntries(profileMasters.map(([kind, field, , selectionOnly]) => [kind, { field, selectionOnly }])))} as const;\n`;
+go += `const enrollmentProfileMastersQuery = ${JSON.stringify(profileMastersProjection.query)}
+const enrollmentProfileMastersVersion = ${JSON.stringify(profileMastersProjection.version)}
+type enrollmentProfileMastersProjection struct {
+Version string \`json:"${profileMastersProjection.response_field}"\`
+}
+func legacyEnrollmentProfile(in enrollmentProfile) map[string]any {
+return map[string]any{
+${groups.profile
+  .filter(([, , optional]) => !optional)
+  .map(([field]) => `${JSON.stringify(field)}: in.${pascal(field)},`)
+  .join("\n")}
+}
+}
+`;
+ts += `export const ENROLLMENT_PROFILE_MASTERS_PROJECTION = ${JSON.stringify(profileMastersProjection)} as const;\n`;
+ts += `export type EnrollmentProfileMastersProjection = { ${JSON.stringify(profileMastersProjection.response_field)}: typeof ENROLLMENT_PROFILE_MASTERS_PROJECTION.version };\n`;
+
 const outputs = {
   "backend/internal/modules/workforce/enrollment_types.go": execFileSync("gofmt", [], {
     input: go,

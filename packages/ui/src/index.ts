@@ -16,6 +16,7 @@ export {
   isModifiedClick,
   NavigationGuardProvider,
   useConfirmLeave,
+  useNavigationPending,
   useLeaveGuard,
 } from "./navigation-guard";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";

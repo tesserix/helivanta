@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
-import Link from "next/link";
 import { Button, Input } from "@tesserix/web";
 import { PackageCheck, Warehouse, Layers3 } from "lucide-react";
 import {
@@ -26,6 +25,7 @@ import {
   type PharmacyMovement,
 } from "@helivanta/api";
 import {
+  GuardedLink as Link,
   ConfirmDialog,
   DetailHeader,
   Field,

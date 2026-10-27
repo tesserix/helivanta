@@ -1,12 +1,47 @@
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState, type AnchorHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
+vi.mock("next/link", () => ({
+  default: function MockLink({
+    onNavigate,
+    onClick,
+    href,
+    children,
+    ...props
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & {
+    onNavigate?: (event: { preventDefault: () => void }) => void;
+  }) {
+    return (
+      <a
+        {...props}
+        href={href}
+        onClick={(event) => {
+          onClick?.(event);
+          if (
+            !event.defaultPrevented &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.shiftKey &&
+            !event.altKey &&
+            event.button === 0
+          ) {
+            onNavigate?.({ preventDefault: () => event.preventDefault() });
+          }
+        }}
+      >
+        {children}
+      </a>
+    );
+  },
+}));
 import {
   NavigationGuardProvider,
+  GuardedLink,
+  useNavigationPending,
   useConfirmLeave,
   useGuardedLinkClick,
   useLeaveGuard,
@@ -241,4 +276,34 @@ describe("useLeaveGuard", () => {
     fireEvent(window, dirty);
     expect(dirty.defaultPrevented).toBe(true);
   });
+});
+
+it("tracks an approved guarded link until its transition settles", async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  router.push.mockReset();
+  router.push.mockReturnValueOnce(pending);
+  const clicked = vi.fn();
+  function Status() {
+    const navigation = useNavigationPending();
+    return (
+      <output aria-label="Navigation status">{navigation.pending ? "pending" : "idle"}</output>
+    );
+  }
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <GuardedLink href="/lab" onClick={clicked}>
+        Open lab
+      </GuardedLink>
+      <Status />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("link", { name: "Open lab" }));
+  expect(clicked).toHaveBeenCalledOnce();
+  expect(router.push).toHaveBeenCalledExactlyOnceWith("/lab");
+  expect(screen.getByLabelText("Navigation status")).toHaveTextContent("pending");
+  await act(async () => finish());
+  expect(screen.getByLabelText("Navigation status")).toHaveTextContent("idle");
 });

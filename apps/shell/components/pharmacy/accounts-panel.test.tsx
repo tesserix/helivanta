@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@helivanta/api/testing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders as renderProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { PharmacyWorkspace } from "./pharmacy-workspace";
 const pharmacy = "0199e000-0000-7000-8000-000000000010",
@@ -27,8 +27,7 @@ vi.mock("next/navigation", async () => {
   };
   const go = (method: "push" | "replace") => (href: string) => {
     nav.calls.push({ method, href });
-    nav.search = href.split("?")[1] ?? "";
-    nav.listeners.forEach((fn) => fn());
+    window.history[method === "push" ? "pushState" : "replaceState"](null, "", href);
   };
   return {
     usePathname: () => "/pharmacy/accounts",
@@ -36,7 +35,22 @@ vi.mock("next/navigation", async () => {
     useRouter: () => ({ push: go("push"), replace: go("replace") }),
   };
 });
+function renderWithProviders(ui: Parameters<typeof renderProviders>[0]) {
+  window.history.replaceState(null, "", `/pharmacy/accounts?${nav.search}`);
+  return renderProviders(ui);
+}
+beforeEach(() => {
+  for (const method of ["pushState", "replaceState"] as const) {
+    const original = window.history[method].bind(window.history);
+    vi.spyOn(window.history, method).mockImplementation((data, unused, url) => {
+      original(data, unused, url);
+      nav.search = new URL(window.location.href).search.slice(1);
+      nav.listeners.forEach((listener) => listener());
+    });
+  }
+});
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   sessionStorage.clear();
   nav.search = "";

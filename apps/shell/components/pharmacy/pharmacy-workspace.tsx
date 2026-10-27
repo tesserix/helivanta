@@ -70,6 +70,14 @@ const selectionSchema = z.object({
   pharmacyId: z.string().guid().or(z.literal("")),
   outletId: z.string().guid().or(z.literal("")),
 });
+function rememberPharmacySelection(storageKey: string, value: z.infer<typeof selectionSchema>) {
+  try {
+    sessionStorage.setItem(storageKey, JSON.stringify(value));
+  } catch {
+    /* Selection persistence is optional; every API request is authorised independently. */
+  }
+}
+
 function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: PharmacyView }) {
   const { can } = usePermissions();
   const storageKey = `helivanta:pharmacy:scope:${identity.tenant_id}`;
@@ -85,6 +93,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const query = params.toString();
   const leave = useConfirmLeave();
   // The address first, so a shared link opens the outlet it was copied from
   // (#1303 E8); then this tab's saved choice; then the first loaded.
@@ -96,13 +105,6 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
   const selection = addressed
     ? { pharmacyId: inAddress("pharmacy"), outletId: inAddress("outlet") }
     : readSaved();
-  function remember(value: z.infer<typeof selectionSchema>) {
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(value));
-    } catch {
-      /* Selection persistence is optional; every API request is authorised independently. */
-    }
-  }
   function select(value: z.infer<typeof selectionSchema>) {
     // A page, its cursor and an open record belong to one outlet's list:
     // another outlet's list opens at its first page with nothing open,
@@ -117,7 +119,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
       if (value.outletId) kept.set("outlet", value.outletId);
       else kept.delete("outlet");
       router.replace(`${pathname}?${kept}`);
-      remember(value);
+      rememberPharmacySelection(storageKey, value);
     });
   }
   const pharmacies = useApiPagedQuery<PharmacyOrganization>(
@@ -140,19 +142,22 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
     : outlets.items[0];
   // What resolved is written into the address, so a copied address always
   // carries it, and saved as this tab's working outlet.
-  const resolved = pharmacy && outlet ? `${pharmacy.id}:${outlet.id}` : "";
+  const pharmacyId = pharmacy?.id ?? "";
+  const outletId = outlet?.id ?? "";
   useEffect(() => {
-    if (!pharmacy || !outlet) return;
-    remember({ pharmacyId: pharmacy.id, outletId: outlet.id });
-    if (params.get("pharmacy") === pharmacy.id && params.get("outlet") === outlet.id) return;
-    const kept = new URLSearchParams(params);
-    kept.set("pharmacy", pharmacy.id);
-    kept.set("outlet", outlet.id);
-    router.replace(`${pathname}?${kept}`);
-    // The address's own scope too: a rail link to the same outlet drops it,
-    // and it must be put back. The comparison above ends the loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolved, params.get("pharmacy"), params.get("outlet")]);
+    if (!pharmacyId || !outletId) return;
+    const current = new URL(window.location.href);
+    if (current.pathname !== pathname || current.searchParams.toString() !== query) return;
+    rememberPharmacySelection(storageKey, { pharmacyId, outletId });
+    if (
+      current.searchParams.get("pharmacy") === pharmacyId &&
+      current.searchParams.get("outlet") === outletId
+    )
+      return;
+    current.searchParams.set("pharmacy", pharmacyId);
+    current.searchParams.set("outlet", outletId);
+    window.history.replaceState(null, "", `${current.pathname}${current.search}${current.hash}`);
+  }, [pharmacyId, outletId, pathname, query, storageKey]);
   return (
     <>
       <PageHeading

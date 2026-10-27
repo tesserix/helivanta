@@ -42,27 +42,27 @@ Every open item remains part of the full Staff Management goal.
 All areas below remain incomplete in this audit. Earlier implementation or CI
 evidence is a starting point, not proof of the full live workflow.
 
-| Order | Area / route | Workflow coverage required | Current evidence / gaps |
-| --- | --- | --- | --- |
-| 1 | Staff access `/workforce/access` | Identity creation and credential verification; tenant membership; reviewed staff/login binding; scoped assignment proposal, independent approve/reject, withdrawal, activation, expiry, revoke/renew; offboarding, reactivation, access removal and recovery | **In progress.** PRs #1381/#1382/#1385 merged and deployed. Synthetic identity created via IdP UI; `staff_member` membership recorded through the live Staff Admin UI. Read-only verification confirms no hospital grant. Reviewer password-change handoff remains pending. Scoped Workforce consumer, usable reviewer queue, independent administrator provisioning/bootstrap and full negative/lifecycle QA remain open. #417/#1053/#1132/#434 |
-| 2 | Staff directory `/workforce` | Employee/consultant creation; proper staff/employee IDs; identity/background checks; protected photo and ID-card issuance; profile, contacts, qualifications, experience, credentials and private files; supervisory relationships; status changes, transfer, exit, reactivation; account linking, import/export and safe removal | Not yet fully verified in this audit. Preserve Workforce ownership and distinguish staff records from logins and clinical practitioners. #1035/#417/#617/#1105/#1107 |
-| 3 | HR setup `/workforce/setup` | Every master type, code/name uniqueness, dependent references, versions/history, effective dates, activation/inactivation and referenced-record removal | Not yet fully verified. Include organization/department ownership and posting/supervision dependencies; do not create a second department master. #1035/#22/#287/#616/#429 |
-| 4 | Shifts `/workforce/shifts` | Day/night/overnight definitions, duration/break/grace/locum rules, changes/history, referenced shift inactivation and invalid timing | Not yet fully verified. #1036 |
-| 5 | Roster setup `/workforce/roster-setup` | Areas, groups, weekly templates, composition, applicability, version/effective-date rules and referenced-record removal | Not yet fully verified. #1036 |
-| 6 | Roster policy `/workforce/roster-policy` | Settings, staff/template assignments, effective dates, conflicts, history and inactive/transferred staff behavior | Not yet fully verified. #1036 |
-| 7 | Rosters `/workforce/rosters` | Draft creation/population, allocations, overnight/DST windows, locum/additional duty, clashes, credential/leave checks, freeze, correction and discard | Not yet fully verified. #1036 |
-| 8 | Leave setup `/workforce/leave-setup` | Leave types, calendars and structures; all rules, units, effective revisions, duplicates, inactivation and referenced definitions | Not yet fully verified. #1037 |
-| 9 | Leave balances `/workforce/leave-balances` | Year settings, staff structures, allocation/accrual/carry/expiry, monthly posting, corrections, closing, ledger, balances and self-only reads | Not yet fully verified. #1037/#1132 |
-| 10 | Leave requests `/workforce/leave-requests` | Filing and self-service, eligibility/probation, holiday/half-day/short leave, balance/overlap, independent approve/reject, cancellation/revocation, exact replay and roster/ledger consequences | Scoped-only approval/replay, own-leave denial, link revocation, post-input withdrawal and target-bound RLS regressions pass in development. Post-probation eligibility is checked without enrollment endpoint access. Command-boundary guard and endpoint rollback regressions now pass locally; combined real-IAM Workforce integration and withdrawal/expiry lock races pass; reviewer scope discovery passes locally; queue/detail/UI remain open; this consumer is not deployed. Full employee/reviewer UI journey remains open. #1037/#1132/#434 |
-| 11 | Leave reports `/workforce/leave-reports` | Monthly/status reports, filters, date/year bounds, paging, totals, permission/purpose, absence/staleness and export privacy | Not yet fully verified. #1037/#1018/#589 |
-| 12 | Duty exchanges `/workforce/duty-exchanges` | Propose, independent decision, holds/conflicts, cancellation/revocation, roster effects, duplicate/stale/concurrent requests | Not yet fully verified. #1038 |
-| 13 | Overtime `/workforce/overtime` | Policy/settings, filing, eligibility and units, approval/rejection, cancellation/reversal, history and payroll handoff | Not yet fully verified; approved overtime is not payment. #1038/#1040 |
-| 14 | Attendance `/workforce/attendance` | Punch/void, missing-punch corrections, independent decisions, local/overnight dates, period finalization/reopen, immutable timesheet revisions and payroll handoff | Not yet fully verified. #1039/#1040 |
-| 15 | Credential register `/workforce/credentials` | Evidence, validity, independent review, expiry, rejection/revocation, renewal, private disclosure and roster consequences | Not yet fully verified. Credential evidence never grants clinical privilege. #1108 |
-| 16 | Credential reminders `/workforce/credential-reminders` | Reviewed reminder policy, durable scheduling, threshold delivery, duplicate/retry handling, acknowledgment and changed/expired credentials | Not yet fully verified against deployed workers and dependencies. #1108 |
-| 17 | Payroll setup `/workforce/payroll-setup` | Every head/structure, salary assignment, bank/tax identifiers and reveals, statutory/tax policies, declarations/evidence, independent decisions; attendance/OT inputs; payroll preparation, lock/process/correct, payslips, reports, exports and payment/ERP reconciliation | Not yet fully verified. Reconcile implemented configuration with missing payroll execution/appraisal/exit workflows; previews are not a posted payroll ledger. Activate jurisdictional policy only with current qualified review. #1040/#1041/#1042/#1107 |
-| 18 | Benefits `/workforce/benefits` | Dependents, relationship/plan applicability, effective coverage, independent proposal decisions, overlap, evidence quarantine/release, expiry/revocation and protected exports | Not yet fully verified. Dependent enrollment must not create a patient identity automatically. #1106 |
-| 19 | Review leave `/workforce/leave-review` | Current scope discovery; bounded pending queue; protected detail; approve/reject; reject reasons; exact uncertain retry; stale/access/workspace states | Implemented locally. Real gateway/RLS and nine UI scenarios pass. Browser, independent administrator setup, current-main integration and live two-person release acceptance remain open. #434/#1132/#1053 |
+| Order | Area / route                                           | Workflow coverage required                                                                                                                                                                                                                                                                                                        | Current evidence / gaps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Staff access `/workforce/access`                       | Identity creation and credential verification; tenant membership; reviewed staff/login binding; scoped assignment proposal, independent approve/reject, withdrawal, activation, expiry, revoke/renew; offboarding, reactivation, access removal and recovery                                                                      | **In progress.** PRs #1381/#1382/#1385 merged and deployed. Synthetic identity created via IdP UI; `staff_member` membership recorded through the live Staff Admin UI. Read-only verification confirms no hospital grant. Reviewer password-change handoff remains pending. Scoped Workforce consumer, usable reviewer queue, independent administrator provisioning/bootstrap and full negative/lifecycle QA remain open. #417/#1053/#1132/#434                                                                                                      |
+| 2     | Staff directory `/workforce`                           | Employee/consultant creation; proper staff/employee IDs; identity/background checks; protected photo and ID-card issuance; profile, contacts, qualifications, experience, credentials and private files; supervisory relationships; status changes, transfer, exit, reactivation; account linking, import/export and safe removal | Not yet fully verified in this audit. Preserve Workforce ownership and distinguish staff records from logins and clinical practitioners. #1035/#417/#617/#1105/#1107                                                                                                                                                                                                                                                                                                                                                                                  |
+| 3     | HR setup `/workforce/setup`                            | Every master type, code/name uniqueness, dependent references, versions/history, effective dates, activation/inactivation and referenced-record removal                                                                                                                                                                           | Not yet fully verified. Include organization/department ownership and posting/supervision dependencies; do not create a second department master. #1035/#22/#287/#616/#429                                                                                                                                                                                                                                                                                                                                                                            |
+| 4     | Shifts `/workforce/shifts`                             | Day/night/overnight definitions, duration/break/grace/locum rules, changes/history, referenced shift inactivation and invalid timing                                                                                                                                                                                              | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 5     | Roster setup `/workforce/roster-setup`                 | Areas, groups, weekly templates, composition, applicability, version/effective-date rules and referenced-record removal                                                                                                                                                                                                           | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 6     | Roster policy `/workforce/roster-policy`               | Settings, staff/template assignments, effective dates, conflicts, history and inactive/transferred staff behavior                                                                                                                                                                                                                 | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 7     | Rosters `/workforce/rosters`                           | Draft creation/population, allocations, overnight/DST windows, locum/additional duty, clashes, credential/leave checks, freeze, correction and discard                                                                                                                                                                            | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 8     | Leave setup `/workforce/leave-setup`                   | Leave types, calendars and structures; all rules, units, effective revisions, duplicates, inactivation and referenced definitions                                                                                                                                                                                                 | Not yet fully verified. #1037                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 9     | Leave balances `/workforce/leave-balances`             | Year settings, staff structures, allocation/accrual/carry/expiry, monthly posting, corrections, closing, ledger, balances and self-only reads                                                                                                                                                                                     | Not yet fully verified. #1037/#1132                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 10    | Leave requests `/workforce/leave-requests`             | Filing and self-service, eligibility/probation, holiday/half-day/short leave, balance/overlap, independent approve/reject, cancellation/revocation, exact replay and roster/ledger consequences                                                                                                                                   | Scoped-only approval/replay, own-leave denial, link revocation, post-input withdrawal and target-bound RLS regressions pass in development. Post-probation eligibility is checked without enrollment endpoint access. Command-boundary guard and endpoint rollback regressions now pass locally; combined real-IAM Workforce integration and withdrawal/expiry lock races pass; reviewer scope discovery passes locally; queue/detail/UI remain open; this consumer is not deployed. Full employee/reviewer UI journey remains open. #1037/#1132/#434 |
+| 11    | Leave reports `/workforce/leave-reports`               | Monthly/status reports, filters, date/year bounds, paging, totals, permission/purpose, absence/staleness and export privacy                                                                                                                                                                                                       | Not yet fully verified. #1037/#1018/#589                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 12    | Duty exchanges `/workforce/duty-exchanges`             | Propose, independent decision, holds/conflicts, cancellation/revocation, roster effects, duplicate/stale/concurrent requests                                                                                                                                                                                                      | Not yet fully verified. #1038                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 13    | Overtime `/workforce/overtime`                         | Policy/settings, filing, eligibility and units, approval/rejection, cancellation/reversal, history and payroll handoff                                                                                                                                                                                                            | Not yet fully verified; approved overtime is not payment. #1038/#1040                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 14    | Attendance `/workforce/attendance`                     | Punch/void, missing-punch corrections, independent decisions, local/overnight dates, period finalization/reopen, immutable timesheet revisions and payroll handoff                                                                                                                                                                | Not yet fully verified. #1039/#1040                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 15    | Credential register `/workforce/credentials`           | Evidence, validity, independent review, expiry, rejection/revocation, renewal, private disclosure and roster consequences                                                                                                                                                                                                         | Not yet fully verified. Credential evidence never grants clinical privilege. #1108                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 16    | Credential reminders `/workforce/credential-reminders` | Reviewed reminder policy, durable scheduling, threshold delivery, duplicate/retry handling, acknowledgment and changed/expired credentials                                                                                                                                                                                        | Not yet fully verified against deployed workers and dependencies. #1108                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 17    | Payroll setup `/workforce/payroll-setup`               | Every head/structure, salary assignment, bank/tax identifiers and reveals, statutory/tax policies, declarations/evidence, independent decisions; attendance/OT inputs; payroll preparation, lock/process/correct, payslips, reports, exports and payment/ERP reconciliation                                                       | Not yet fully verified. Reconcile implemented configuration with missing payroll execution/appraisal/exit workflows; previews are not a posted payroll ledger. Activate jurisdictional policy only with current qualified review. #1040/#1041/#1042/#1107                                                                                                                                                                                                                                                                                             |
+| 18    | Benefits `/workforce/benefits`                         | Dependents, relationship/plan applicability, effective coverage, independent proposal decisions, overlap, evidence quarantine/release, expiry/revocation and protected exports                                                                                                                                                    | Not yet fully verified. Dependent enrollment must not create a patient identity automatically. #1106                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 19    | Review leave `/workforce/leave-review`                 | Current scope discovery; bounded pending queue; protected detail; approve/reject; reject reasons; exact uncertain retry; stale/access/workspace states                                                                                                                                                                            | Implemented locally. Real gateway/RLS and nine UI scenarios pass. Browser, independent administrator setup, current-main integration and live two-person release acceptance remain open. #434/#1132/#1053                                                                                                                                                                                                                                                                                                                                             |
 
 ## Disablement, suspension, resignation, termination and rehire
 
@@ -72,22 +72,22 @@ for the actor/state matrix, owners, primary references, current implementation
 evidence and synthetic acceptance scenarios.
 
 - [ ] Distinct UI commands and authority for global security disablement, tenant
-  suspension, hospital employment suspension, notice, resignation, termination,
-  contract end, transfer, archive/privacy deletion, restoration and rehire.
+      suspension, hospital employment suspension, notice, resignation, termination,
+      contract end, transfer, archive/privacy deletion, restoration and rehire.
 - [ ] Existing cookies/bearer tokens, renewals, scope switches, cached graph
-  decisions, private downloads/exports and queued approvals obey the effective
-  deny boundary, including missed broadcasts and unavailable dependencies.
+      decisions, private downloads/exports and queued approvals obey the effective
+      deny boundary, including missed broadcasts and unavailable dependencies.
 - [ ] Independent approval, effective dates/timezones, reasons, immutable history,
-  stable command IDs, exact retry and concurrent transition rules are verified.
+      stable command IDs, exact retry and concurrent transition rules are verified.
 - [ ] Supervisors receive accountable pending-work/clinical handovers; future
-  schedules, leave, duty/OT and attendance are reconciled without deleting history.
+      schedules, leave, duty/OT and attendance are reconciled without deleting history.
 - [ ] Cards/property, identity/credential obligations, letters, final payroll and
-  downstream acknowledgments have explicit owners and completion evidence.
+      downstream acknowledgments have explicit owners and completion evidence.
 - [ ] Leaving one hospital preserves independently authorized other scopes.
-  Reactivation/rehire never restores old grants, cards or stale queued events.
+      Reactivation/rehire never restores old grants, cards or stale queued events.
 - [ ] Former-staff documents, where permitted, require a separate self-only
-  disclosure purpose and current identity authority. Security-disabled accounts
-  receive no implicit self-service exception.
+      disclosure purpose and current identity authority. Security-disabled accounts
+      receive no implicit self-service exception.
 
 ## Staff identity, background verification and identity cards
 
@@ -96,30 +96,30 @@ owner. Existing employee codes, reviewed login links, credential evidence and
 private document uploads do not establish completion of these workflows.
 
 - [ ] A stable Workforce staff ID and properly scoped employee code identify the
-  person. Verify uniqueness, allocation/edit policy, transfer, rehire and card
-  reissue behavior without introducing a second staff master.
+      person. Verify uniqueness, allocation/edit policy, transfer, rehire and card
+      reissue behavior without introducing a second staff master.
 - [ ] Identity verification distinguishes submitted evidence, pending review,
-  verified/not verified, expired and revoked results. Record the actual checking
-  method/authority, evidence revision, reviewer, reason and dates. Email/account
-  verification is distinct from verification of the person's staff identity.
+      verified/not verified, expired and revoked results. Record the actual checking
+      method/authority, evidence revision, reviewer, reason and dates. Email/account
+      verification is distinct from verification of the person's staff identity.
 - [ ] Background verification covers the check types actually configured by the
-  organization, with applicable consent/purpose, authorized evidence/provider
-  handling, review, disputes/corrections, expiry/reverification and failure states.
-  Provider unavailability is not a successful check. Human reviewers make any
-  consequential employment decision; do not infer automatic rejection rules.
+      organization, with applicable consent/purpose, authorized evidence/provider
+      handling, review, disputes/corrections, expiry/reverification and failure states.
+      Provider unavailability is not a successful check. Human reviewers make any
+      consequential employment decision; do not infer automatic rejection rules.
 - [ ] Staff can supply a protected photograph through the UI, with file type,
-  byte/dimension limits, quarantine/scanning, authorized review, replacement and
-  audited disclosure. The photo must be associated with the correct staff record
-  and verified revision; a public asset URL is not access control.
+      byte/dimension limits, quarantine/scanning, authorized review, replacement and
+      audited disclosure. The photo must be associated with the correct staff record
+      and verified revision; a public asset URL is not access control.
 - [ ] Identity-card issuance uses the authorized current staff identity, employee
-  code and approved photograph. Verify preview, approval/issuance, card identifier
-  and version, validity, reissue/replacement, loss, withdrawal/revocation and
-  offboarding. Preserve issue history and distinguish card validity from login,
-  hospital authority and clinical privilege.
+      code and approved photograph. Verify preview, approval/issuance, card identifier
+      and version, validity, reissue/replacement, loss, withdrawal/revocation and
+      offboarding. Preserve issue history and distinguish card validity from login,
+      hospital authority and clinical privilege.
 - [ ] Test the whole journey with synthetic people and evidence through Staff
-  Admin and an independent reviewer, including wrong-person evidence, duplicate
-  identifiers, cross-hospital access, stale photos, rejected/expired checks,
-  concurrent issue/revoke and unavailable dependencies.
+      Admin and an independent reviewer, including wrong-person evidence, duplicate
+      identifiers, cross-hospital access, stale photos, rejected/expired checks,
+      concurrent issue/revoke and unavailable dependencies.
 
 Related existing trackers are #1035 (staff registry), #417 (staff accounts),
 #1053 (onboarding/access reconciliation) and #1105 (private evidence). #298 covers
@@ -155,7 +155,6 @@ Use [HR capability coverage](../hr-capability-coverage.md), the
 and actual GitHub issue criteria to expand each row into concrete assertions.
 Update this ledger with the observed result and remaining gaps after each area.
 
-
 ## Local command-guard verification — 2026-10-27
 
 The scoped leave decision now joins the IAM guard's transaction. A failed command
@@ -183,7 +182,6 @@ Workforce gateway test now verifies withdrawal/expiry lock races and credential
 cutoff even when middleware misses invalidation. Reviewer discovery/queue/UI and
 live two-person QA remain open.
 No new commit, merge, migration or production rollout is established by these tests.
-
 
 ## Real scoped reviewer integration — 2026-10-27
 
@@ -217,7 +215,6 @@ Final commands from `backend/`:
 Reviewer discovery, bounded queue/detail contracts, UI, independent administrator
 bootstrap and live two-person acceptance remain open. No issue is marked E2E
 complete, and no new migration or production rollout was performed.
-
 
 ## Reviewer scope discovery — 2026-10-27
 
@@ -253,7 +250,6 @@ Current main advanced to a MediCore change after the last recorded production
 release; integrate and revalidate it before preparing the next release packet.
 Nothing in this record establishes a new commit, merge or deployment.
 
-
 ## Reviewer queue/detail and UI — 2026-10-27
 
 The new Staff navigation entry makes the scoped reviewer workflow reachable.
@@ -284,3 +280,57 @@ reviewer credential handoff/login, real Staff Admin → reviewer browser QA, sca
 query plans, integration of current main, and release remain open. The complete
 staff lifecycle/identity/background/photo/card and wider Staff workflows remain
 active requirements.
+
+## Local UI evidence, 2026-10-28
+
+Continued on PR #1393's scoped worktree. The user explicitly approved a local-only
+hospital and two administrator-grant setup fixture after the empty environment
+blocked UI QA. All staff, employment edits, account-link proposals/decisions,
+access-assignment proposals/decisions, leave configuration, assignment, posting
+and filing/approval records below were created through the actual UI. Existing
+synthetic identities signed in normally; no injected session cookies were used.
+Credentials and IDs remain in the private local QA JSON, not this public repo.
+
+- Created reviewer and employee enrollment; saved and reread the employee's
+  supervisor reference. An administrator edited the probation end date and saved
+  it through enrollment. This proves this admin edit path, not every edit story.
+- Empty staff identity, link proposal/review reason, assignment hospital/subject/
+  reason, leave structure/review and leave type were rejected. Conditional filing
+  gates rejected a missing calendar and missing probation evidence with entered
+  values retained. Supplied those prerequisites through UI and retried the filing.
+- Separate administrators proposed/approved the login binding and scoped leave
+  authority. The proposer had no self-approval action. Assignment reached active
+  version 5 after owner verification/projection; OpenFGA's immutable assignment
+  subject tuple was read back. Reviewer has zero legacy hospital grants. Its
+  pre-existing pharmacist role remains: this live persona is not role-free.
+- Saved effective-dated annual leave, a ten-day allowance structure, January leave
+  year, employee binding and January allocation. Filed a one-day request; signed
+  in as the separate reviewer, discovered the hospital/queue, read protected
+  detail and approved it. Rejection without a note was blocked. PostgreSQL
+  verification found approved version 2, one approval audit, allocation +20 and
+  consumption -2 half-days. The refreshed pending queue was empty.
+- Reviewer could not reload the staff directory/employee/edit controls. Direct
+  payroll setup navigation returned to the inaccessible directory; no payroll
+  data was disclosed. These checks do not establish every object/tenant denial.
+- Administrator inactivated the reviewer through UI. The login binding became
+  revoked version 3; approved request/ledger history remained. On ordinary fresh
+  reviewer login, leave discovery returned no hospitals even though IAM's old
+  assignment record remained active. This is the guarded consumer's current-state
+  denial, not completion of global offboarding or removal of every assignment.
+- UI QA exposed promise-returning scroll effects crashing Staff forms with
+  `destroy is not a function`. A regression reproduced it. Updating the test
+  browser's scrolling behavior exposed eight failures in six Staff test files;
+  fixing the affected effects made all 241 tests in 31 Staff files pass.
+
+Still open: complete edit/correction coverage by role, retained-history query-plan
+measurements, production release approval/migrations, fresh deployed UI QA, pure
+staff-member live persona, full lifecycle/handover/settlement, identity/background/
+photo/card workflows, and every remaining menu's full acceptance. A previously
+open admin tab retained its rendered directory until refresh after an account
+switch; record and resolve that cross-tab privacy behavior before claiming full
+session/offboarding coverage. No broad issue is closed by this evidence.
+
+The requested branded payslip/offer/exit-letter research is in
+[Staff generated documents R&D](../superpowers/specs/2026-10-28-staff-generated-documents-rnd.md).
+It specifies renderer evaluation, required sources, versioned approval/correction
+and protected PDF delivery. These document-generation workflows are proposals.

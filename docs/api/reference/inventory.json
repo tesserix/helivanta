@@ -3420,6 +3420,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/patients/hospitals/:hospital/registration-replays",
+          "permission": "patient.registration.replay",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/patients/link-reviews/:request/decision/:decision",
           "permission": "patient.register",
@@ -3762,6 +3771,10 @@
           "roles": [
             "receptionist"
           ]
+        },
+        {
+          "permission": "patient.registration.replay",
+          "roles": []
         }
       ],
       "publishes": [
@@ -3917,6 +3930,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0012_patientmaster",
+          "sql_sha256": "fd75d486875bbc6983ef3a6cc811c28eda0cfb670adb47e0ab95811de50bb25c",
+          "creates_tables": []
         }
       ]
     },

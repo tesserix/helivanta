@@ -88,11 +88,21 @@ hospital_id, subject)`, administered with a new `medicore.access.manage` permiss
 
 ## Slices
 
-1. **This spec.** Projection, hospital grants, encounter columns and lifecycle, routes,
-   events, an OPD page listing a hospital's encounters with open and status actions.
-   Backend + migration + UI + tests in one PR.
-2. Pharmacy and lab consume `encounter_opened`; the UI stops creating legacy visits;
-   `visit_created.v1` retires once nothing reads it.
+1. **This spec** (shipped in #1379). Projection, hospital grants, encounter columns and
+   lifecycle, routes, events, an OPD page listing a hospital's encounters with open and
+   status actions.
+2. **Revised 2026-10-27: no automatic pharmacy or lab work from encounters.** The original
+   slice 2 had pharmacy and lab consume `encounter_opened`. That would have carried today's
+   demo wiring onto real visits: every encounter would open a pending dispense and a
+   hard-coded CBC lab order (`lab/module.go` defaults `test_name` to `'CBC'`), whether or
+   not a doctor asked for either. That is invented clinical work. Instead:
+   - pharmacy and lab stay on legacy `visit_created.v1` for the demo journey, unchanged;
+   - encounters create pharmacy work only through a signed prescription (#83, its event
+     consumed by #170) and lab work only through a doctor's lab order (its own issue);
+   - the legacy visit form, `visit_created.v1` and the automatic CBC retire together once
+     those exist.
+     Patients registered before slice 1 reach MediCore through patientmaster's registration
+     replay (#1377).
 3. The rest of #80: tokens and queues per doctor and session, triage and vitals as
    observations, payer context, appointment intake, FHIR `Encounter`.
 

@@ -36,6 +36,7 @@ export const enrollmentProfileSchema = z
     mobile_phone: internationalPhone,
     work_phone: internationalPhone,
     preferred_language: z.string().trim().max(80),
+    preferred_language_revision_id: z.union([z.literal(""), identifier]).optional(),
     blood_group: z.enum(["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]),
     engagement_type: z.enum([
       "employee",
@@ -45,6 +46,8 @@ export const enrollmentProfileSchema = z
       "trainee",
       "volunteer",
     ]),
+    contract_type: z.string().trim().max(80).optional(),
+    contract_type_revision_id: z.union([z.literal(""), identifier]).optional(),
     department: z.string().trim().max(100),
     designation: z.string().trim().max(100),
     grade: z.string().trim().max(80),
@@ -57,8 +60,17 @@ export const enrollmentProfileSchema = z
     probation_end_date: dateOnly,
     confirmation_date: dateOnly,
     exit_reason: z.string().trim().max(500),
+    exit_reason_revision_id: z.union([z.literal(""), identifier]).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.contract_type && !value.contract_type_revision_id)
+      ctx.addIssue({
+        code: "custom",
+        path: ["contract_type_revision_id"],
+        message: "Choose an HR setup record.",
+      });
+  });
 export type EnrollmentProfile = z.infer<typeof enrollmentProfileSchema>;
 export const EMPTY_PROFILE = {
   given_name: "",
@@ -71,8 +83,11 @@ export const EMPTY_PROFILE = {
   mobile_phone: "",
   work_phone: "",
   preferred_language: "",
+  preferred_language_revision_id: "",
   blood_group: "",
   engagement_type: "employee",
+  contract_type: "",
+  contract_type_revision_id: "",
   department: "",
   designation: "",
   grade: "",
@@ -85,6 +100,7 @@ export const EMPTY_PROFILE = {
   probation_end_date: "",
   confirmation_date: "",
   exit_reason: "",
+  exit_reason_revision_id: "",
 } as const;
 
 export const enrollmentAddressSchema = z
@@ -226,3 +242,20 @@ export const enrollmentExperienceSchema = z
   .strict();
 export type EnrollmentExperience = z.infer<typeof enrollmentExperienceSchema>;
 export const EMPTY_EXPERIENCES = { employer: "", role: "", start_date: "", end_date: "" } as const;
+
+export const ENROLLMENT_PROFILE_MASTERS = {
+  department: { field: "department", selectionOnly: false },
+  designation: { field: "designation", selectionOnly: false },
+  grade: { field: "grade", selectionOnly: false },
+  language: { field: "preferred_language", selectionOnly: false },
+  exit_reason: { field: "exit_reason", selectionOnly: false },
+  contract_type: { field: "contract_type", selectionOnly: true },
+} as const;
+export const ENROLLMENT_PROFILE_MASTERS_PROJECTION = {
+  query: "profile_masters",
+  version: "v1",
+  response_field: "profile_masters_version",
+} as const;
+export type EnrollmentProfileMastersProjection = {
+  profile_masters_version: typeof ENROLLMENT_PROFILE_MASTERS_PROJECTION.version;
+};

@@ -897,6 +897,9 @@ Migration table declarations:
 - `0035_workforce_login_links`: `workforce_login_links`, `workforce_login_link_history`.
 - `0037_workforce_leave_review_discovery_index`: concurrent index `workforce_login_links_review_discovery` on `workforce_login_links (tenant_id, subject, status, created_at DESC, id DESC)`.
 - `0038_workforce_leave_review_queue_index`: concurrent index `workforce_leave_requests_review_queue` on `workforce_leave_requests (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
+- `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_language_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, preferred_language_revision_id)`.
+- `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_exit_reason_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, exit_reason_revision_id)`.
+- `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_contract_type_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, contract_type_revision_id)`.
 
 ## workspace
 

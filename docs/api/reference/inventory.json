@@ -6659,6 +6659,72 @@
           "id": "0039_workforce_supervision",
           "sql_sha256": "513297d11c47da7e97ec4266f51ea3881625601c4e9d710a59d35ede4a196922",
           "creates_tables": []
+        },
+        {
+          "id": "0040_workforce_profile_masters",
+          "sql_sha256": "1eaea6b3ba02217d4581e246d89ecbc1502e884c84fedee0b944f1cb4538517e",
+          "creates_tables": []
+        },
+        {
+          "id": "0041_workforce_profile_master_indexes",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_profile_language_ref_idx",
+              "table": "workforce_enrollment_profile",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "preferred_language_revision_id",
+                  "descending": false
+                }
+              ]
+            },
+            {
+              "name": "workforce_profile_exit_reason_ref_idx",
+              "table": "workforce_enrollment_profile",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "exit_reason_revision_id",
+                  "descending": false
+                }
+              ]
+            },
+            {
+              "name": "workforce_profile_contract_type_ref_idx",
+              "table": "workforce_enrollment_profile",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "contract_type_revision_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

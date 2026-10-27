@@ -2,10 +2,55 @@ import "@/test/select";
 import { chooseOption } from "@/test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { EMPTY_PROFILE } from "@helivanta/api";
 import Workforce from "./page";
 
 const hospital = "11111111-1111-4111-8111-111111111111";
 afterEach(() => vi.unstubAllGlobals());
+
+it("keeps the editor closed when the API cannot confirm the profile projection", async () => {
+  const staff = {
+    id: "44444444-3333-4333-8444-555555555555",
+    display_name: "Synthetic older service staff",
+    employee_code: "SYN-OLDER-SERVICE",
+    job_category: "other",
+    employment_status: "active",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      const body = url.includes("permissions")
+        ? { data: ["workforce.enrollment.manage"] }
+        : url.endsWith("/hospitals")
+          ? {
+              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+              page: { has_more: false },
+            }
+          : url.includes("/enrollment")
+            ? {
+                staff,
+                version: 1,
+                profile: EMPTY_PROFILE,
+                addresses: [],
+                emergency_contacts: [],
+                credentials: [],
+                qualifications: [],
+                experiences: [],
+              }
+            : { data: [staff], page: { has_more: false } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(
+    await screen.findByRole("button", { name: "Edit Synthetic older service staff" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This enrollment view is not available yet",
+  );
+  expect(screen.queryByRole("button", { name: /^Save staff$/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Try again$/ })).toBeEnabled();
+});
 
 it("keeps typed text visible when HR choices arrive after the user starts editing", async () => {
   let resolveChoices!: (value: Response) => void;
@@ -95,6 +140,10 @@ it("pins an active department revision and preserves the selection on save failu
   await chooseOption(user, screen.getByLabelText("Department"), "Synthetic Care · SYN-DEPT");
   await user.click(screen.getByRole("button", { name: "Save staff" }));
   await waitFor(() => expect(writes).toHaveLength(1));
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringMatching(/\/enrollment\?profile_masters=v1$/),
+    expect.objectContaining({ method: "PUT" }),
+  );
   expect(writes[0]).toMatchObject({
     profile: { department: "Synthetic Care", department_revision_id: revision },
   });
@@ -116,7 +165,7 @@ function mockEnrollment(
         { status: options.status ?? 409 },
       );
     }
-    if (url.endsWith("/enrollment"))
+    if (url.endsWith("/enrollment?profile_masters=v1"))
       return new Response(JSON.stringify({ error: { message: "Unavailable" } }), { status: 503 });
     const body = url.includes("permissions")
       ? { data: options.permitted === false ? [] : ["workforce.enrollment.manage"] }
@@ -215,4 +264,244 @@ it("copies the edited address into the other address type", async () => {
   expect(
     screen.getAllByRole("combobox", { name: "Address type" }).map((select) => select.textContent),
   ).toEqual(["Permanent", "Current"]);
+});
+
+it("submits versioned language, exit reason and contract type choices without losing them on conflict", async () => {
+  const rows = [
+    {
+      kind: "language",
+      id: "language-master",
+      revision_id: "11111111-2222-4333-8444-555555555555",
+      code: "SYN-LANG",
+      name: "Synthetic language",
+      active: true,
+    },
+    {
+      kind: "exit_reason",
+      id: "exit-master",
+      revision_id: "22222222-2222-4333-8444-555555555555",
+      code: "SYN-EXIT",
+      name: "Synthetic exit reason",
+      active: true,
+    },
+    {
+      kind: "contract_type",
+      id: "contract-master",
+      revision_id: "33333333-2222-4333-8444-555555555555",
+      code: "SYN-CONTRACT",
+      name: "Synthetic contract type",
+      active: true,
+    },
+  ];
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        return new Response(
+          JSON.stringify({ error: "conflict", message: "Staff changed. Reload before saving." }),
+          { status: 409 },
+        );
+      }
+      const body = url.includes("permissions")
+        ? { data: ["workforce.enrollment.manage"] }
+        : url.endsWith("/hospitals")
+          ? {
+              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+              page: { has_more: false },
+            }
+          : url.includes("/hr/masters")
+            ? { data: rows, page: { has_more: false } }
+            : { data: [], page: { has_more: false } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Add staff" }));
+  await user.type(screen.getByLabelText("Full name"), "Synthetic classified staff");
+  await user.type(screen.getByLabelText("Employee code"), "SYN-CLASSIFIED-UI");
+  await chooseOption(
+    user,
+    await screen.findByRole("combobox", { name: /^Preferred language$/ }),
+    "Synthetic language · SYN-LANG",
+  );
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: /^Exit reason$/ }),
+    "Synthetic exit reason · SYN-EXIT",
+  );
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: /^Contract type$/ }),
+    "Synthetic contract type · SYN-CONTRACT",
+  );
+  await user.click(screen.getByRole("button", { name: /^Save staff$/ }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    profile: {
+      preferred_language: "Synthetic language",
+      preferred_language_revision_id: rows[0]!.revision_id,
+      exit_reason: "Synthetic exit reason",
+      exit_reason_revision_id: rows[1]!.revision_id,
+      contract_type: "Synthetic contract type",
+      contract_type_revision_id: rows[2]!.revision_id,
+    },
+  });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Staff changed");
+  expect(screen.getByRole("combobox", { name: /^Preferred language$/ })).toHaveTextContent(
+    "Synthetic language",
+  );
+  expect(screen.getByRole("combobox", { name: /^Exit reason$/ })).toHaveTextContent(
+    "Synthetic exit reason",
+  );
+  expect(screen.getByRole("combobox", { name: /^Contract type$/ })).toHaveTextContent(
+    "Synthetic contract type",
+  );
+});
+
+it("preserves historical profile master pins through an unrelated edit", async () => {
+  const old = {
+    language: "11111111-3333-4333-8444-555555555555",
+    exit: "22222222-3333-4333-8444-555555555555",
+    contract: "33333333-3333-4333-8444-555555555555",
+  };
+  const staff = {
+    id: "44444444-3333-4333-8444-555555555555",
+    display_name: "Synthetic pinned staff",
+    employee_code: "SYN-PINNED",
+    job_category: "other",
+    employment_status: "active",
+  };
+  const profile = {
+    ...EMPTY_PROFILE,
+    preferred_language: "Recorded language",
+    preferred_language_revision_id: old.language,
+    exit_reason: "Recorded exit reason",
+    exit_reason_revision_id: old.exit,
+    contract_type: "Recorded contract type",
+    contract_type_revision_id: old.contract,
+  };
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ message: "Staff changed. Reload before saving." }), {
+          status: 409,
+        });
+      }
+      const body = url.includes("permissions")
+        ? { data: ["workforce.enrollment.manage"] }
+        : url.endsWith("/hospitals")
+          ? {
+              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+              page: { has_more: false },
+            }
+          : url.endsWith("/enrollment?profile_masters=v1")
+            ? {
+                staff,
+                profile_masters_version: "v1",
+                version: 7,
+                profile,
+                addresses: [],
+                emergency_contacts: [],
+                credentials: [],
+                qualifications: [],
+                experiences: [],
+              }
+            : url.includes("/hr/masters")
+              ? { data: [], page: { has_more: false } }
+              : { data: [staff], page: { has_more: false } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic pinned staff" }));
+  expect(await screen.findByRole("combobox", { name: /^Preferred language$/ })).toHaveTextContent(
+    "Recorded language · recorded revision",
+  );
+  expect(screen.getByRole("combobox", { name: /^Exit reason$/ })).toHaveTextContent(
+    "Recorded exit reason · recorded revision",
+  );
+  expect(screen.getByRole("combobox", { name: /^Contract type$/ })).toHaveTextContent(
+    "Recorded contract type · recorded revision",
+  );
+  await user.type(screen.getByLabelText("Preferred name"), "Unrelated name edit");
+  await user.click(screen.getByRole("button", { name: /^Save staff$/ }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    expected_version: 7,
+    profile: { ...profile, preferred_name: "Unrelated name edit" },
+  });
+});
+
+it("keeps a legacy language available after explicitly selecting a current revision", async () => {
+  const staff = {
+    id: "55555555-3333-4333-8444-555555555555",
+    display_name: "Synthetic legacy staff",
+    employee_code: "SYN-LEGACY",
+    job_category: "other",
+    employment_status: "active",
+  };
+  const revision = "66666666-3333-4333-8444-555555555555";
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ message: "Staff changed. Reload before saving." }), {
+          status: 409,
+        });
+      }
+      const body = url.includes("permissions")
+        ? { data: ["workforce.enrollment.manage"] }
+        : url.endsWith("/hospitals")
+          ? {
+              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+              page: { has_more: false },
+            }
+          : url.endsWith("/enrollment?profile_masters=v1")
+            ? {
+                staff,
+                profile_masters_version: "v1",
+                version: 2,
+                profile: { ...EMPTY_PROFILE, preferred_language: "en" },
+                addresses: [],
+                emergency_contacts: [],
+                credentials: [],
+                qualifications: [],
+                experiences: [],
+              }
+            : url.includes("/hr/masters")
+              ? {
+                  data: [
+                    {
+                      id: "language-master",
+                      revision_id: revision,
+                      kind: "language",
+                      code: "SYN-LANG",
+                      name: "Synthetic English",
+                      active: true,
+                    },
+                  ],
+                  page: { has_more: false },
+                }
+              : { data: [staff], page: { has_more: false } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic legacy staff" }));
+  const language = await screen.findByRole("combobox", { name: /^Preferred language$/ });
+  expect(language).toHaveTextContent("Recorded text: en");
+  await chooseOption(user, language, "Synthetic English · SYN-LANG");
+  await chooseOption(user, language, "Recorded text: en");
+  await user.click(screen.getByRole("button", { name: /^Save staff$/ }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    profile: { preferred_language: "en", preferred_language_revision_id: "" },
+  });
 });

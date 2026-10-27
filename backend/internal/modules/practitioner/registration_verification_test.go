@@ -26,9 +26,17 @@ type registrationAttestationScenario struct {
 
 func newRegistrationAttestationScenario(t *testing.T) registrationAttestationScenario {
 	t.Helper()
+	return newRegistrationAttestationScenarioWithClock(t, time.Time{})
+}
+
+func newRegistrationAttestationScenarioWithClock(t *testing.T, at time.Time) registrationAttestationScenario {
+	t.Helper()
 	s := newProfessionalEvidenceScenario(t)
 	_, err := cleanProfessionalEvidenceProcessor(t, s).Process(t.Context(), s.input)
 	require.NoError(t, err)
+	if !at.IsZero() {
+		require.NoError(t, s.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_attestation_setup_clock", SQL: fmt.Sprintf(`CREATE OR REPLACE FUNCTION practitioner_registry_now() RETURNS timestamptz LANGUAGE sql STABLE AS $$ SELECT '%s'::timestamptz $$`, at.UTC().Format(time.RFC3339Nano))}}))
+	}
 	appointment := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", "/v1/practitioners/steward-appointments/"+appointment, "steward", fmt.Sprintf(`{"subject":"user-reviewer","review_reference":"%s","valid_until":"2098-01-01T00:00:00Z"}`, uuid.Must(uuid.NewV7()))).Code)
 	require.Equal(t, 200, testutil.Do(s.router, "POST", "/v1/practitioners/my/steward-appointments/"+appointment+"/accept", "reviewer", `{"expected_version":1}`).Code)
@@ -37,13 +45,37 @@ func newRegistrationAttestationScenario(t *testing.T) registrationAttestationSce
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", "/v1/practitioners/registration-policies/"+policy, "reviewer", config).Code)
 	review := uuid.Must(uuid.NewV7()).String()
 	base := strings.Split(s.path, "/evidence/")[0]
-	observed := time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)
+	observed := registrationSourceTime(t, s.db).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)
 	source := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), observed, s.input.FileID)
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", base+"/reviews/"+review, "reviewer", source).Code)
 	body := fmt.Sprintf(`{"expected_version":0,"policy_id":"%s","policy_version":1,"review_id":"%s","identity_review_reference":"%s","undated_attestation_reference":"%s"}`, policy, review, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 	path := base + "/verifications/" + uuid.Must(uuid.NewV7()).String()
 	return registrationAttestationScenario{s, path, body, base, policy, review, appointment}
 }
+func registrationSourceTime(t *testing.T, db *tenantdb.DB) time.Time {
+	t.Helper()
+	var at time.Time
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw("SELECT practitioner_registry_now()").Scan(&at).Error
+	}))
+	return at
+}
+
+func TestRegistrationSourceReviewRecordsOwnerClock(t *testing.T) {
+	at := time.Date(2030, time.January, 2, 12, 0, 0, 0, time.UTC)
+	s := newRegistrationAttestationScenarioWithClock(t, at)
+	w := testutil.Do(s.router, "GET", s.base+"/reviews", "reviewer", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var result struct {
+		Data []struct {
+			SourceCheckedAt time.Time `json:"source_checked_at"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &result))
+	require.Len(t, result.Data, 1)
+	require.True(t, result.Data[0].SourceCheckedAt.Equal(at), w.Body.String())
+}
+
 func TestRegistrationAttestationRetainsCanonicalIdentityWithoutClinicalGrant(t *testing.T) {
 	s := newRegistrationAttestationScenario(t)
 	path, body := s.path, s.body
@@ -153,7 +185,7 @@ func TestRegistrationAttestationCurrentProjectionInvalidatesOnEvidenceOrPolicyCh
 			case "revision":
 				require.Equal(t, 201, testutil.Do(s.router, "PUT", root+"/revisions/"+uuid.Must(uuid.NewV7()).String(), "steward", `{"expected_version":1}`).Code)
 			case "observation":
-				finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+				finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
 				require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+uuid.Must(uuid.NewV7()).String(), "reviewer", finding).Code)
 			}
 			projected := testutil.Do(s.router, "GET", root+"/verification", "operator", "")
@@ -186,7 +218,7 @@ func TestRegistrationAttestationConflictingCanonicalIdentityDoesNotMergePeople(t
 	require.NoError(t, err)
 	require.Equal(t, "available", status)
 	review := uuid.Must(uuid.NewV7()).String()
-	source := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), file)
+	source := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), file)
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", base+"/reviews/"+review, "reviewer", source).Code)
 	body := strings.Replace(s.body, s.review, review, 1)
 	conflict := testutil.Do(s.router, "PUT", base+"/verifications/"+uuid.Must(uuid.NewV7()).String(), "reviewer", body)
@@ -411,10 +443,10 @@ func TestRegistrationAttestationUsesConfiguredIssuerCalendarBoundary(t *testing.
 func TestRegistrationSourceReconciliationRetainsExplicitAdverseHistory(t *testing.T) {
 	s := newRegistrationAttestationScenario(t)
 	adverse := uuid.Must(uuid.NewV7()).String()
-	finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+	finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+adverse, "reviewer", finding).Code)
 	active := uuid.Must(uuid.NewV7()).String()
-	finding = fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+	finding = fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"active","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+active, "reviewer", finding).Code)
 	attestation := strings.Replace(s.body, s.review, active, 1)
 	blocked := testutil.Do(s.router, "PUT", s.path, "reviewer", attestation)
@@ -494,7 +526,7 @@ func TestRegistrationSourceReconciliationRetainsExplicitAdverseHistory(t *testin
 	require.Equal(t, 200, current.Code, current.Body.String())
 	require.Contains(t, current.Body.String(), `"state":"stale"`)
 	later := uuid.Must(uuid.NewV7()).String()
-	finding = fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"suspended","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+	finding = fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"suspended","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
 	require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+later, "reviewer", finding).Code)
 	current = testutil.Do(s.router, "GET", root+"/verification", "operator", "")
 	require.Equal(t, 200, current.Code, current.Body.String())
@@ -518,7 +550,7 @@ func TestRegistrationSourceReconciliationDependencyFailureRetainsNoPartialDecisi
 		t.Run(dependency, func(t *testing.T) {
 			s := newRegistrationAttestationScenario(t)
 			adverse := uuid.Must(uuid.NewV7()).String()
-			finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+			finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Add(-time.Hour).Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
 			require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+adverse, "reviewer", finding).Code)
 			root := strings.Split(s.base, "/revisions/")[0]
 			path := root + "/source-reconciliations/" + uuid.Must(uuid.NewV7()).String()
@@ -576,7 +608,7 @@ func TestRegistrationReconciliationWithdrawalDependencyFailureAndRenewal(t *test
 		t.Run(dependency, func(t *testing.T) {
 			s := newRegistrationAttestationScenario(t)
 			adverse := uuid.Must(uuid.NewV7()).String()
-			finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
+			finding := fmt.Sprintf(`{"appointment_id":"%s","appointment_version":2,"review_reference":"%s","source_reference":"%s","source_checked_at":"%s","finding":"unavailable","evidence_ids":["%s"]}`, s.appointment, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), registrationSourceTime(t, s.db).UTC().Add(-time.Hour).Truncate(time.Microsecond).Format(time.RFC3339Nano), s.input.FileID)
 			require.Equal(t, 201, testutil.Do(s.router, "PUT", s.base+"/reviews/"+adverse, "reviewer", finding).Code)
 			root := strings.Split(s.base, "/revisions/")[0]
 			reconciliation := root + "/source-reconciliations/" + uuid.Must(uuid.NewV7()).String()

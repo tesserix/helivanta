@@ -189,9 +189,10 @@ the decision path and audits each returned scope. Migration `0037` builds the
 subject/status/keyset index through the existing concurrent-index mechanism; no
 live application is established. The actual signed-session gateway test covers
 link-without-assignment, active scope, link revocation, credential cutoff,
-assignment withdrawal and expiry discovery. Pending queue/detail and UI remain
-unimplemented. Larger retained-history query-plan measurements remain a release
-gate; current synthetic tests do not establish the provisional latency target.
+assignment withdrawal and expiry discovery. Queue/detail and UI implementation
+and local browser evidence are recorded below and in the Staff acceptance ledger.
+Retained-history measurements are recorded below; they do not establish the
+provisional production latency target.
 
 
 ## Queue/detail and UI implementation update
@@ -218,3 +219,40 @@ hospital/status/keyset index. Migrations `0036`–`0038` are not deployed. Curre
 main must still be integrated and the resulting release revalidated. No broad
 Staff, identity/background/card or employment lifecycle story is complete from
 this consumer alone.
+
+## Retained-history owner-query measurement — 2026-10-28
+
+`TestLeaveReviewRetainedHistoryPlans` captures the actual discovery and queue SQL
+from the owner endpoints, then runs `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` with
+the corresponding application read contexts. The disposable PostgreSQL 16 fixture
+retains RLS, constraints, request days/events and attributed command transitions:
+100 staff, 100,000 cancelled requests, 100,000 day rows, 200,000 request events,
+1,000 withdrawn login-link proposals, one current reviewed link and 52 pending
+requests. The endpoint returns 50 queue items plus a two-item tail.
+
+| Query | SQL rows | Planning ms | Execution ms | Shared hits | Shared reads |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hospital discovery | 1 | 0.241 | 0.220 | 6 | 0 |
+| Queue first page, including probe | 51 | 4.535 | 6.443 | 1,284 | 0 |
+| Queue continuation | 2 | 4.490 | 3.522 | 1,454 | 0 |
+
+Discovery used `workforce_login_links_review_discovery`; both queue pages used
+`workforce_leave_requests_review_queue`. The test checks these plans, returned
+row bounds and fewer than 5,000 shared hit/read blocks per query. Retained
+cancelled history was not scanned by the queue index. The race-enabled test
+passed in 397.88 seconds; fixture construction dominates that duration.
+
+Run explicitly from `backend/` with a reachable Docker engine:
+
+```sh
+go test -tags workforce_perf -race ./internal/modules/workforce \
+  -run '^TestLeaveReviewRetainedHistoryPlans$' -count=1 -v -timeout 15m
+```
+
+The separate build tag keeps this large fixture outside routine unit-test runs.
+This is a single local warm-cache owner-query measurement, not a p95/p99 result,
+concurrent throughput test or production SLA. The fixture uses the existing test
+scoped-authority implementation and real OpenFGA membership; it does not measure
+the full IAM guard or graph under load. Real signed-session authority integration
+and browser acceptance have separate evidence. Production migration rollout and
+fresh deployed browser verification remain open.

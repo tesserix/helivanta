@@ -360,6 +360,21 @@ The initial public-form regression failed before the route-aware correction;
 restored-history private content likewise failed before the pageshow guard.
 The root-layout CSP test now mocks the application-owned client provider boundary
 and retains its nonce assertions. No business API, migration or OpenFGA model
-changed in this privacy fix. The last pushed head's Go CI did fail the existing
-Practitioner concurrent policy-replay test (one 409 where replay requires 200);
-that is a separate unresolved release blocker, not a passed backend check.
+changed in this privacy fix. An earlier Go CI run failed a Practitioner concurrent
+policy-replay test (one 409 where replay requires 200). The subsequent diagnostic
+test preserves that replay contract, synchronizes concurrent starts and includes
+response bodies in failures; no speculative production fix was made. Pushed head
+`fb24806` passed CI run `40524062964`, including Go, web, E2E and secret scanning.
+This green run does not establish the cause of the earlier intermittent failure.
+
+### Retained-history query gate — 2026-10-28
+
+The explicit `workforce_perf` probe passed against 100,000 retained cancelled
+requests and 1,000 withdrawn account-link proposals with RLS and constraints
+active. Actual endpoint SQL used the discovery and pending-queue indexes;
+first/tail queue execution measured 6.443/3.522 ms and discovery 0.220 ms locally.
+See the [consumer specification](../superpowers/specs/2026-10-27-scoped-leave-consumer.md#retained-history-owner-query-measurement--2026-10-28)
+for fixture, command, row/buffer bounds and measurement limits. This completes
+the local retained-history query-plan gate, not a production performance claim.
+Current-main integration, release review, named migration/rollout approval and
+deployed UI QA remain open, along with the wider Staff acceptance matrix.

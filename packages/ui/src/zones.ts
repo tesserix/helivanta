@@ -32,6 +32,7 @@ import {
   Scale,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   SlidersHorizontal,
   Stethoscope,
   Store,
@@ -262,6 +263,12 @@ export const ZONES: Zone[] = [
     group: "operations",
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
+      {
+        label: "Staff access",
+        href: "/workforce/access",
+        icon: ShieldCheck,
+        permission: "iam.assignment.manage",
+      },
       {
         label: "HR setup",
         href: "/workforce/setup",

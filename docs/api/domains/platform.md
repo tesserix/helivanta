@@ -27,7 +27,18 @@ File workflows require GCS, exact-content ClamAV verdicts and a matching durable
 
 ## Future external/service boundaries
 
-### Assignment proposals and independent decisions (worktree; grants no access)
+### Assignment proposals and independent decisions
+
+The Staff access page at `/workforce/access` uses the existing contracts below for
+bounded proposal, history and decision reads, proposals, independent review and
+proposer withdrawal. Requests carry the expected-tenant precondition and private
+responses are not cached. Unknown command outcomes retain the original command
+for an identical retry; stale versions require refreshing. The page distinguishes
+hospital verification, review, activation and expiry. It does not expose legacy
+hospital grant mutations. The only supported template is leave reviewer; hospital
+administration, clinical authority and payroll access are not granted by it.
+Product-route enforcement and the live independent-review journey remain separate
+acceptance gates.
 
 IAM owns `iam_assignment_proposals` and its append-only history, migration
 `0008_iam_assignment_proposals`. Migration `0009_iam_assignment_decisions` adds

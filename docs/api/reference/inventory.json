@@ -2292,6 +2292,15 @@
         },
         {
           "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id",
+          "permission": "pharmacy.stock.release",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id",
           "permission": "pharmacy.stock.quarantine",
           "authentication_required": true,
@@ -2505,6 +2514,12 @@
           ]
         },
         {
+          "permission": "pharmacy.stock.release",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2641,6 +2656,13 @@
           "creates_tables": [
             "pharmacy_product_schedule_declarations",
             "pharmacy_product_schedule_reviews"
+          ]
+        },
+        {
+          "id": "0014_pharmacy",
+          "sql_sha256": "842f06213a2915b6b33bb86b434ebbb8f6d81b518713081cd467d51d1c3ebc3f",
+          "creates_tables": [
+            "pharmacy_stock_releases"
           ]
         }
       ]

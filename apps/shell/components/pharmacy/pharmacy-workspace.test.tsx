@@ -578,9 +578,9 @@ it("captures optional physical location labels and retries the same immutable id
   await user.type(screen.getByLabelText("Location name"), "TEST quarantine");
   await user.type(screen.getByLabelText("Zone code (optional)"), " test-z1 ");
   await user.type(screen.getByLabelText("Shelf code (optional)"), " test-s1 ");
-  await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
+  await user.click(screen.getByRole("button", { name: "Add location" }));
   expect(await screen.findByText("TEST retryable failure")).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
+  await user.click(screen.getByRole("button", { name: "Add location" }));
   await waitFor(() => expect(screen.getByLabelText("Location code")).toHaveValue(""));
   const writes = fetcher.mock.calls.filter(
     ([url, init]) => url.includes("/stock/locations/") && init?.method === "PUT",
@@ -591,6 +591,7 @@ it("captures optional physical location labels and retries the same immutable id
     code: "TEST-BIN",
     name: "TEST quarantine",
     storage_address: { zone_code: "TEST-Z1", aisle_code: "", rack_code: "", shelf_code: "TEST-S1" },
+    stock_status: "quarantine",
   });
   expect(screen.getByLabelText("Shelf code (optional)")).toHaveValue("");
 });
@@ -601,7 +602,7 @@ it("shows malformed storage labels inline before sending a location", async () =
   await user.type(await screen.findByLabelText("Location code"), "TEST-BIN");
   await user.type(screen.getByLabelText("Location name"), "TEST quarantine");
   await user.type(screen.getByLabelText("Rack code (optional)"), "TEST/R1");
-  await user.click(screen.getByRole("button", { name: "Add quarantine location" }));
+  await user.click(screen.getByRole("button", { name: "Add location" }));
   expect(await screen.findByText("Use the required format.")).toBeVisible();
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
 });

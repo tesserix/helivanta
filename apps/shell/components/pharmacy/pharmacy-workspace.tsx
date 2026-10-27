@@ -351,6 +351,7 @@ function OutletPharmacy({
           timeZone={outlet.timezone}
           writable={access.data?.level === "editor" && can("pharmacy.stock.receive")}
           correctable={access.data?.level === "editor" && can("pharmacy.stock.correct")}
+          releasable={access.data?.level === "editor" && can("pharmacy.stock.release")}
         />
       )}
     </>

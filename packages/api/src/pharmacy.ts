@@ -94,10 +94,13 @@ export function formatRatePercent(ratePPM: number): string {
 export type PharmacyLocation = z.infer<typeof pharmacyLocationInputSchema> & {
   id: string;
   outlet_id: string;
-  stock_status: "quarantine";
+  stock_status: "quarantine" | "sellable";
   created_at: string;
 };
-export type PharmacyBatch = z.infer<typeof pharmacyBatchInputSchema> & {
+export type PharmacyBatch = Omit<z.infer<typeof pharmacyBatchInputSchema>, "mrp_minor"> & {
+  // Batches received before batch pricing (#1386 A3) have no MRP and can
+  // never be released.
+  mrp_minor: number | null;
   id: string;
   outlet_id: string;
   product_version: number;

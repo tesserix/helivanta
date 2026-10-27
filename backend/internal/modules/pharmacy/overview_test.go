@@ -130,7 +130,7 @@ func TestOverviewCountsEqualTheirLists(t *testing.T) {
 	product, location, fixtureBatch := stockFixture(t, r)
 	stockLine := func(expires string, qty int, emptied bool) {
 		batch := uuid.Must(uuid.NewV7()).String()
-		w := do(r, "PUT", outletPath("/stock/batches/"+batch), "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-%s","expires_on":%q}`, product, batch[24:], expires))
+		w := do(r, "PUT", outletPath("/stock/batches/"+batch), "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-%s","expires_on":%q,"mrp_minor":12500}`, product, batch[24:], expires))
 		require.Equal(t, 200, w.Code, w.Body.String())
 		w = do(r, "PUT", outletPath("/stock/movements/"+uuid.Must(uuid.NewV7()).String()), "editor", stockBody(location, batch, "receipt", "TEST-RECEIPT-"+batch[24:], qty))
 		require.Equal(t, 200, w.Code, w.Body.String())
@@ -279,7 +279,7 @@ func TestOverviewIncludesTheLatestCommittedStockMovement(t *testing.T) {
 	r, _ := overviewHarness(t)
 	product, location, _ := stockFixture(t, r)
 	batch := uuid.Must(uuid.NewV7()).String()
-	created := do(r, "PUT", outletPath("/stock/batches/"+batch), "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LATEST-OVERVIEW","expires_on":"2020-01-01"}`, product))
+	created := do(r, "PUT", outletPath("/stock/batches/"+batch), "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LATEST-OVERVIEW","expires_on":"2020-01-01","mrp_minor":12500}`, product))
 	require.Equal(t, 200, created.Code, created.Body.String())
 	received := do(r, "PUT", outletPath("/stock/movements/"+uuid.Must(uuid.NewV7()).String()), "editor", stockBody(location, batch, "receipt", "TEST-LATEST-OVERVIEW", 5))
 	require.Equal(t, 200, received.Code, received.Body.String())

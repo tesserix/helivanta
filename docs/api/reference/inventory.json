@@ -2057,6 +2057,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review",
+          "permission": "pharmacy.schedule.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration",
+          "permission": "pharmacy.schedule.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
           "permission": "pharmacy.catalogue.read",
@@ -2111,12 +2138,111 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review",
+          "permission": "pharmacy.licence.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id",
+          "permission": "pharmacy.licence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -2222,6 +2348,15 @@
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation",
           "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id",
+          "permission": "pharmacy.stock.release",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -2416,6 +2551,51 @@
           ]
         },
         {
+          "permission": "pharmacy.licence.manage",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.licence.review",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.schedule.declare",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.schedule.review",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.stock.release",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.create",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.read",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2447,7 +2627,8 @@
         "helivanta.in.pharmacy.stock_movement_recorded.v1",
         "helivanta.in.pharmacy.payable_recorded.v1",
         "helivanta.in.pharmacy.settlement_recorded.v1",
-        "helivanta.in.pharmacy.batch_safety_recorded.v1"
+        "helivanta.in.pharmacy.batch_safety_recorded.v1",
+        "helivanta.in.pharmacy.sale_posted.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -2537,6 +2718,40 @@
           "id": "0011_pharmacy",
           "sql_sha256": "fe1a3a2f4c1c24600ecaad5ad4e104d5ae30b9bc7865963fdc56076dc0fb0f34",
           "creates_tables": []
+        },
+        {
+          "id": "0012_pharmacy",
+          "sql_sha256": "f7a7a23e32acccbd2dd92257df9659da65f7cb77eba171c4cfc62a93ca526d9d",
+          "creates_tables": [
+            "pharmacy_outlet_licences",
+            "pharmacy_outlet_licence_reviews"
+          ]
+        },
+        {
+          "id": "0013_pharmacy",
+          "sql_sha256": "5bdf2ed4e5323096a6faf79514e3cb3867dc93cd1303c4c52266baa30ed9d7ab",
+          "creates_tables": [
+            "pharmacy_product_schedule_declarations",
+            "pharmacy_product_schedule_reviews"
+          ]
+        },
+        {
+          "id": "0014_pharmacy",
+          "sql_sha256": "842f06213a2915b6b33bb86b434ebbb8f6d81b518713081cd467d51d1c3ebc3f",
+          "creates_tables": [
+            "pharmacy_stock_releases"
+          ]
+        },
+        {
+          "id": "0015_pharmacy",
+          "sql_sha256": "b58ac2d188125ad46ca99fc1fa375206d8c64d1833dc6c6b93dfec4cf5e0ff5e",
+          "creates_tables": [
+            "pharmacy_outlet_invoice_profiles",
+            "pharmacy_invoice_series",
+            "pharmacy_sales",
+            "pharmacy_sale_lines",
+            "pharmacy_sale_tenders"
+          ]
         }
       ]
     },

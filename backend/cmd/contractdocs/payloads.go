@@ -162,6 +162,15 @@ func fieldSchema(expr ast.Expr, types map[string]*ast.StructType, active map[str
 			return nil, err
 		}
 		return map[string]any{"anyOf": []any{schema, map[string]any{"type": "null"}}}, nil
+	case *ast.ArrayType:
+		// A slice only: a fixed-length array has no use on the wire yet.
+		if value.Len == nil {
+			items, err := fieldSchema(value.Elt, types, active)
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"type": "array", "items": items}, nil
+		}
 	case *ast.SelectorExpr:
 		pkg, ok := value.X.(*ast.Ident)
 		if ok && pkg.Name == "time" && value.Sel.Name == "Time" {

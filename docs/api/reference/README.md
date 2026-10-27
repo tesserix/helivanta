@@ -348,13 +348,27 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review` | `pharmacy.schedule.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration` | `pharmacy.schedule.declare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule` | `pharmacy.catalogue.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.catalogue.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id` | `pharmacy.tax.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile` | `pharmacy.sale.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status` | `pharmacy.catalogue.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review` | `pharmacy.licence.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability` | `pharmacy.sale.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales` | `pharmacy.sale.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.receive` | false | false |
@@ -367,6 +381,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions` | `pharmacy.stock.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id` | `pharmacy.stock.release` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent` | `pharmacy.stock.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true | false |
@@ -387,6 +402,7 @@ Published subjects:
 - `helivanta.in.pharmacy.payable_recorded.v1`
 - `helivanta.in.pharmacy.settlement_recorded.v1`
 - `helivanta.in.pharmacy.batch_safety_recorded.v1`
+- `helivanta.in.pharmacy.sale_posted.v1`
 
 Subscriptions:
 
@@ -400,6 +416,10 @@ Migration table declarations:
 - `0006_pharmacy`: `pharmacy_payables`, `pharmacy_payable_lines`, `pharmacy_settlements`.
 - `0007_pharmacy`: `pharmacy_batch_safety_incidents`.
 - `0009_pharmacy`: `pharmacy_outlet_tax_registrations`, `pharmacy_product_tax_classifications`.
+- `0012_pharmacy`: `pharmacy_outlet_licences`, `pharmacy_outlet_licence_reviews`.
+- `0013_pharmacy`: `pharmacy_product_schedule_declarations`, `pharmacy_product_schedule_reviews`.
+- `0014_pharmacy`: `pharmacy_stock_releases`.
+- `0015_pharmacy`: `pharmacy_outlet_invoice_profiles`, `pharmacy_invoice_series`, `pharmacy_sales`, `pharmacy_sale_lines`, `pharmacy_sale_tenders`.
 
 ## supply
 

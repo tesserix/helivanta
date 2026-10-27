@@ -133,3 +133,34 @@ rupee/Indian names, long tables and multi-page offers; verify extracted amounts
 against the approved calculation and all totals. HTML preview alone is not PDF QA.
 Electronic signatures, mandatory retention, legal wording and jurisdictional wage
 slip requirements remain explicit qualified-review decisions before activation.
+
+## Follow-up source and issue review — 2026-10-28
+
+Rechecked open stories #1040 (payroll preparation/locking/processing/correction),
+#1041 (versioned salary/tax/payslip policy) and #1107 (employment letters/exits).
+The registered Workforce routes in `backend/internal/modules/workforce/module.go`
+provide salary-head/structure revisions, statutory rules and independent review,
+staff salary assignments, protected identifiers/tax evidence and calculation
+previews. Attendance finalisation is a separate owner operation. No registered
+payroll-run finalisation, payslip issue, offer issue or exit-letter issue route
+was found in that route registry. `payroll_calc.go` and the private evidence
+processor are existing foundations, not evidence that these missing workflows
+are complete.
+
+Implementation must preserve this dependency order:
+
+1. Prove versioned payroll inputs and attendance lock/exception evidence, then
+   implement reproducible preparation, independent finalisation and attributed
+   correction/arrears with period-level duplicate protection (#1040/#1041).
+2. Evaluate the Go renderer against synthetic immutable results, hospital branding
+   and the typography/pagination/amount assertions above. Define protected
+   generated-PDF persistence and release separately from image-evidence upload.
+3. Connect payslip approval/issue/reissue and employee disclosure to finalized
+   result revisions. Prove HR maker, independent approver and employee browser
+   journeys, including revoked and foreign-scope downloads.
+4. Add versioned offer/exit templates and distinct milestone/clearance handoffs
+   under #1107, with the same protected generation and revision model. Letter
+   issuance must not stand in for access revocation or payroll settlement.
+
+This sequence records implementation dependencies; it activates no statutory
+policy, grants no access and does not close any of these three stories.

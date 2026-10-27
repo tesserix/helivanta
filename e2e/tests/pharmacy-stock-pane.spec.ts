@@ -35,6 +35,7 @@ async function stocked(page: Page, lots = 3) {
       product_id: product,
       lot_number: `TEST-LOT-${stamp}-${n}`,
       expires_on: `2031-0${n}-28`,
+      mrp_minor: 12500,
     });
     await api(page, "PUT", `${outlet}/stock/movements/${uuidv7()}`, {
       location_id: location,

@@ -345,9 +345,14 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
-	"GET /medicore/hospitals/:hospital/patients/:patient/allergies":             "one patient's allergy status and active entries; audited read",
-	"GET /medicore/hospitals/:hospital/patients/:patient/allergies/:id/history": "one allergy entry's versions; ended by its first correction",
-	"GET /medicore/hospitals/:hospital/patients/:patient/weights/latest":        "one weight observation",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule": "one product's class in force with its last 50 declarations",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile":                 "the one invoice profile in force at an outlet",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability":              "one product's sellable units and nearest expiry",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id":                       "one invoice: at most 200 batch lines and 5 tenders; the sales list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status":                  "one outlet's licence state for today; licences themselves use cursor pagination",
+	"GET /medicore/hospitals/:hospital/patients/:patient/allergies":                      "one patient's allergy status and active entries; audited read",
+	"GET /medicore/hospitals/:hospital/patients/:patient/allergies/:id/history":          "one allergy entry's versions; ended by its first correction",
+	"GET /medicore/hospitals/:hospital/patients/:patient/weights/latest":                 "one weight observation",
 	"GET /drugmaster/search":                                                    "typeahead pick list capped at 20 best matches of shared reference data; no tenant or patient rows",
 	"GET /drugmaster/formulations/:id":                                          "one formulation version in force on one date",
 	"GET /drugmaster/products/:id":                                              "one product version in force today",

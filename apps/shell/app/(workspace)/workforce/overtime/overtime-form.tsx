@@ -53,7 +53,9 @@ export function OvertimeForm({
     },
   );
   const section = useRef<HTMLFormElement>(null);
-  useEffect(() => section.current?.scrollIntoView?.({ block: "start", behavior: "instant" }), []);
+  useEffect(() => {
+    section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
+  }, []);
   const [person, start, end] = form.watch(["staff_id", "start_time", "end_time"]);
   const span = overtimeMinutes(start, end);
   const errors = form.formState.errors;

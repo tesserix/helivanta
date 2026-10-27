@@ -45,6 +45,25 @@ const entry = {
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
+
+it("closes the assignment editor when browser scrolling returns a promise", async () => {
+  mock();
+  const scroll = vi
+    .spyOn(HTMLElement.prototype, "scrollIntoView")
+    .mockImplementation(() => Promise.resolve() as never);
+  try {
+    const { user } = renderWithProviders(<LeaveBalances />);
+    await user.click(await screen.findByRole("button", { name: "Assign leave structure" }));
+    const editor = await screen.findByRole("form", { name: "Assign leave structure" });
+    await user.click(within(editor).getByRole("button", { name: "Cancel changes" }));
+    expect(screen.queryByRole("form", { name: "Assign leave structure" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Leave structure assignments" }),
+    ).toBeInTheDocument();
+  } finally {
+    scroll.mockRestore();
+  }
+});
 function mock({
   permissions = [
     "workforce.leave.configure",

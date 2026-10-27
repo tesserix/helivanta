@@ -199,6 +199,10 @@ func imageError(c *gin.Context, err error) bool {
 		respond.Error(c, http.StatusServiceUnavailable, "evidence_unavailable", "Prescription image processing is unavailable. Retry the same request.")
 		return true
 	}
+	if errors.Is(err, errStockIdentity) {
+		respond.Conflict(c, "this page changed or is no longer waiting for that step; choose the image again")
+		return true
+	}
 	stockError(c, err)
 	return true
 }

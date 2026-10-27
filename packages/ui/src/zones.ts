@@ -15,6 +15,7 @@ import {
   ClipboardCheck,
   Contact,
   FileText,
+  FileScan,
   Fingerprint,
   FlaskConical,
   HeartHandshake,
@@ -155,6 +156,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/counter",
         icon: ShoppingCart,
         permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Prescriptions",
+        href: "/pharmacy/prescriptions",
+        icon: FileScan,
+        permission: "pharmacy.prescription.read",
       },
       {
         section: "Dispensing",

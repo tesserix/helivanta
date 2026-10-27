@@ -150,7 +150,7 @@ The outlet's record of a prescription, and its scanned pages. Nothing sells agai
 
 **The pharmacy evidence worker** (`cmd/pharmacy-evidence-worker`) consumes the scan request through Temporal (`pharmacy-prescription-image-v1`) and connects as `helivanta_pharmacy_evidence_worker` with `PHARMACY_EVIDENCE_WORKER_DATABASE_URL`; it never falls back to another module's credential. Its session names one file, and row security shows it that file only. It holds no privilege on prescriptions, can change only the lifecycle columns, and can write only its own audit rows and a `prescription_image_changed.v1` whose status the row holds. No page can be revoked yet. Once a sale can cite a prescription (B-2b), revoking a cited page would remove a posted sale's evidence, so that rule is decided there.
 
-Until the worker is deployed, uploaded pages stay `scan_pending` and are never downloadable.
+Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and are never downloadable.
 
 ## Integration requirements
 

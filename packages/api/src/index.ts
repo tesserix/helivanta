@@ -72,6 +72,8 @@ export * from "./workforce-evidence-query";
 export * from "./payroll-evidence";
 export * from "./supply-evidence";
 export * from "./supply-evidence-query";
+export * from "./pharmacy-prescriptions";
+export * from "./pharmacy-prescriptions-query";
 
 export * from "./supply-review";
 export * from "./supply-review-query";

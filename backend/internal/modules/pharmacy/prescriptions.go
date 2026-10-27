@@ -138,6 +138,8 @@ func (h *catalogueHandlers) putPrescription(c *gin.Context) {
 	switch {
 	case errors.Is(err, errFuturePrescription):
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a prescription cannot be dated after today at this outlet")
+	case errors.Is(err, errStockIdentity):
+		respond.Conflict(c, "this prescription was already recorded with different details; record a new prescription")
 	case err != nil:
 		stockError(c, err)
 	case created:

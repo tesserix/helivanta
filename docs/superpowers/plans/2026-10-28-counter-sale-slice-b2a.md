@@ -305,15 +305,23 @@ The handler holds `files *attachments.GCS` from `deps.Documents`. A nil value is
 - [ ] **Step 3: Implement.**
 - [ ] **Step 4: Run the full frontend gate.** Expected: green. Commit.
 
-### Task 8: Deployment (tesserix-k8s, a separate PR)
+### Task 8: The database role in tesserix-k8s (a separate PR), and the rollout issue
 
-Mirror the supply worker:
+`0016_pharmacy` grants to `helivanta_pharmacy_evidence_worker`, so the role must exist in
+production before this release migrates. Following #1612:
 
-- `supply-evidence-worker.yaml`;
-- `supply-evidence-alerts.yaml`;
-- its network policy entries;
-- the `helivanta-postgres` credential, giving `pharmacy-evidence-worker`, its secret and the
-  role.
+- register it in `charts/apps/helivanta-postgres/templates/cluster.yaml`, with no login,
+  inheritance or membership;
+- add a rendered-chart test and bump the chart version.
 
-Bump the chart version. Until it is deployed, uploaded pages stay `scan_pending` and are never
-downloadable. That fails closed, and the PR body says so.
+That PR merges first.
+
+The rest of the supply worker's release sequence needs its own approvals, so it is tracked in
+#1406 rather than done here:
+
+- the GCS bindings, a Terraform change;
+- the OpenBao credential, and activating the login;
+- the worker Deployment with its alerts and network policy;
+- synthetic acceptance.
+
+Until then uploaded pages stay `scan_pending` and are never downloadable. That fails closed.

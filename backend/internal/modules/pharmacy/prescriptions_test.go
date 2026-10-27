@@ -93,7 +93,9 @@ func TestAPrescriptionIsRecordedOnceAndReadOnlyByThePharmacist(t *testing.T) {
 	require.Nil(t, rx.PatientAddress)
 
 	require.Equal(t, http.StatusOK, do(w.r, "PUT", prescriptionPath("/"+id), "pharmacist", body).Code, "the same intent replays")
-	require.Equal(t, http.StatusConflict, do(w.r, "PUT", prescriptionPath("/"+id), "pharmacist", prescriptionBody("2026-10-29", "")).Code)
+	conflict := do(w.r, "PUT", prescriptionPath("/"+id), "pharmacist", prescriptionBody("2026-10-29", ""))
+	require.Equal(t, http.StatusConflict, conflict.Code)
+	require.Contains(t, conflict.Body.String(), "already recorded with different details")
 	require.Equal(t, http.StatusConflict, do(w.r, "PUT", prescriptionPath("/"+id), "editor", body).Code, "another recorder is another intent")
 
 	// Today is 1 Nov in the outlet's timezone, though it is still 1 Nov in UTC too:

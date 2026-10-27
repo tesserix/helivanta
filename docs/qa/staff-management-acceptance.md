@@ -334,3 +334,32 @@ The requested branded payslip/offer/exit-letter research is in
 [Staff generated documents R&D](../superpowers/specs/2026-10-28-staff-generated-documents-rnd.md).
 It specifies renderer evaluation, required sources, versioned approval/correction
 and protected PDF delivery. These document-generation workflows are proposals.
+
+### Cross-tab privacy and reactivation follow-up
+
+The cross-tab rendered-directory finding above is fixed in development. With two
+real local browser tabs, an administrator's enrollment form and staff rows were
+open in one tab; signing out in the other removed both and returned the first to
+sign-in. A separate successful reviewer login also cleared the old administrator
+view, while the new login remained usable. Counts of old enrollment fields and
+staff rows were zero. A public signup page stayed open during Staff sign-out;
+component regressions additionally prove synthetic public draft preservation.
+Private browser-history restoration has a separate regression. See the lifecycle
+research's cross-tab update for transport limits and the unchanged server boundary.
+
+Administrator editing also reactivated the synthetic reviewer. Read-only SQL
+verified active employment with the historical link still revoked at version 3;
+the earlier leave remained approved at version 2. Ordinary reviewer login still
+showed no hospitals for leave review. This proves reactivation alone does not
+restore the link; it does not prove full rehire/incarnation or exit-clearance
+implementation. Fresh binding/assignment policy and the other open gates remain.
+
+Validation for the cross-tab follow-up: `pnpm turbo lint type-check test build
+format:check` passed all 30 tasks using the local Global API/OIDC build variables.
+The initial public-form regression failed before the route-aware correction;
+restored-history private content likewise failed before the pageshow guard.
+The root-layout CSP test now mocks the application-owned client provider boundary
+and retains its nonce assertions. No business API, migration or OpenFGA model
+changed in this privacy fix. The last pushed head's Go CI did fail the existing
+Practitioner concurrent policy-replay test (one 409 where replay requires 200);
+that is a separate unresolved release blocker, not a passed backend check.

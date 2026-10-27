@@ -23,6 +23,7 @@ import {
   useApiMutation,
   clearPermissionsCache,
   clearRenewAt,
+  notifySessionChanged,
 } from "@helivanta/api";
 import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
 import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
@@ -431,6 +432,7 @@ export function HmsShell({
     // the leak #848's idle timeout exists to prevent.
     clearPermissionsCache();
     clearRenewAt();
+    notifySessionChanged();
     void (async () => {
       try {
         await fetch("/logout", { method: "POST" });
@@ -603,6 +605,7 @@ export function HmsShell({
     // vulnerability. It is dropped so "the browser keeps nothing from the
     // previous session" stays a statement with no exceptions.
     clearRenewAt();
+    notifySessionChanged();
     if (onSignOut) {
       await onSignOut();
       return;

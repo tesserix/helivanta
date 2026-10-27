@@ -82,6 +82,27 @@ function grantPharmacyPages() {
 }
 
 describe("HmsShell", () => {
+  it("notifies other tabs before waiting for remote logout", async () => {
+    let complete: () => void = () => {};
+    const pending = new Promise<Response>((resolve) => {
+      complete = () => resolve(new Response(null, { status: 200 }));
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/logout" ? pending : Promise.resolve(new Response(JSON.stringify({ data: [] }))),
+      ),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    try {
+      await user.click(screen.getByRole("button", { name: "Sign out" }));
+      expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
+      expect(endZitadelSession).not.toHaveBeenCalled();
+    } finally {
+      complete();
+    }
+    await waitFor(() => expect(endZitadelSession).toHaveBeenCalledOnce());
+  });
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -179,6 +200,7 @@ describe("HmsShell", () => {
     // can end up set).
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(SIGNED_OUT_MARK));
     expect(endZitadelSession).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
   });
 
   // #781's rule is that a signed-out session must not be reconstructable

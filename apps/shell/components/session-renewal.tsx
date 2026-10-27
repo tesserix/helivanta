@@ -11,29 +11,13 @@ import {
 import {
   clearPermissionsCache,
   clearRenewAt,
+  notifySessionChanged,
   loadExpiresAt,
   loadRenewAt,
   storeExpiresAt,
   storeRenewAt,
 } from "@helivanta/api";
-import { AUTH_CALLBACK_PATH } from "@/lib/oidc";
-
-// PUBLIC_PATHS mirrors middleware.ts's own list, minus "/login" (which
-// this component also skips, for the same "no session yet" reason) — kept
-// as a literal here rather than imported, since middleware.ts runs in the
-// Edge runtime and this component runs in the browser; sharing a
-// constant across that boundary is not worth the coupling for a short
-// path prefix.
-function isPublicPath(pathname: string): boolean {
-  return (
-    pathname === "/" ||
-    pathname === "/workspace" ||
-    pathname === "/signup" ||
-    pathname === "/ambulance" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith(AUTH_CALLBACK_PATH)
-  );
-}
+import { isPublicPath } from "@/lib/session-routes";
 
 // SessionRenewal runs the server-side renewal loop (design spec D1/D5,
 // #916) for every page the shell app itself serves. It is a component,
@@ -48,7 +32,7 @@ function isPublicPath(pathname: string): boolean {
 // next API call. Since they became routes of this app, this one root-layout
 // mount covers them.
 //
-// No cross-tab coordination (BroadcastChannel debounce, single-tab
+// No cross-tab renewal coordination (BroadcastChannel debounce, single-tab
 // election, etc.) is added here, and that is a load-bearing choice, not
 // an oversight: RenewRateLimitRule's Burst=10
 // (backend/internal/bootstrap/ratelimit.go) is sized explicitly on the
@@ -178,6 +162,7 @@ export function SessionRenewal() {
           // renew-schedule.ts was simply untrue of this path.
           clearPermissionsCache();
           clearRenewAt();
+          notifySessionChanged();
           // What this path deliberately does NOT do, and why — stated so
           // the difference from HmsShell's teardown is a decision rather
           // than an omission:

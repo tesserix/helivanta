@@ -72,6 +72,15 @@ func (r *Router) WithScopedAuthorizer(authority authz.ScopedAuthorizer) *Router 
 
 // POSTScopedHospital declares a command with legacy or hospital-scoped authority.
 func (r *Router) POSTScopedHospital(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScope(http.MethodPost, path, permission, hospitalParam, false, handlers...)
+}
+
+// GETScopedHospital declares a purpose-bound hospital-scoped read.
+func (r *Router) GETScopedHospital(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)
+}
+
+func (r *Router) handleHospitalScope(method, path string, permission authz.Permission, hospitalParam string, paginated bool, handlers ...gin.HandlerFunc) {
 	fullPath := r.group.BasePath() + path
 	found := false
 	for _, segment := range strings.Split(fullPath, "/") {
@@ -83,9 +92,9 @@ func (r *Router) POSTScopedHospital(path string, permission authz.Permission, ho
 	if !found || permission == "" || permission == authz.Public || permission == authz.NoTenantMembership {
 		panic("platform: scoped route requires a permission and declared hospital parameter")
 	}
-	*r.declared = append(*r.declared, DeclaredRoute{Method: http.MethodPost, Path: fullPath, Permission: permission, ScopeKind: "hospital", ScopeParameter: hospitalParam})
+	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: "hospital", ScopeParameter: hospitalParam})
 	chain := []gin.HandlerFunc{authz.RequireMembership(r.membership), authz.RequireHospitalScope(permission, hospitalParam, r.scopedAuthorizer)}
-	r.group.POST(path, append(chain, handlers...)...)
+	r.group.Handle(method, path, append(chain, handlers...)...)
 }
 
 func (r *Router) GET(path string, perm authz.Permission, h ...gin.HandlerFunc) {

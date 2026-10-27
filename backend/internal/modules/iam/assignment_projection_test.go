@@ -202,6 +202,56 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 	require.Equal(t, first, grant.AssignmentID)
 	require.Equal(t, int64(4), grant.Version, "authority binds the reviewed immutable snapshot, not the activation history version")
 	require.Equal(t, int64(1), grant.ScopeEpoch)
+	guard, supportsCommandGuard := authority.(authz.ScopedCommandGuard)
+	require.True(t, supportsCommandGuard, "the IAM provider must guard the real product transaction")
+	guardCtx := tenantdb.WithActor(t.Context(), request.Subject)
+	guardFailure := errors.New("synthetic failure after guarded product write")
+	writeGuardAudit := func(ctx context.Context) error {
+		return db.WithTenantCommand(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'scope_guard_test_write','iam_assignment_snapshots',?)`, testutil.TenantA, request.Subject, first).Error
+		})
+	}
+	err = guard.WithScopeGrant(guardCtx, request, grant, time.Now().UTC(), func(ctx context.Context) error {
+		if err := writeGuardAudit(ctx); err != nil {
+			return err
+		}
+		return guardFailure
+	})
+	require.ErrorIs(t, err, guardFailure)
+	var guardedWrites int64
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Table("audit_events").Where("action='scope_guard_test_write'").Count(&guardedWrites).Error
+	}))
+	require.Zero(t, guardedWrites, "an unsuccessful guard must roll back the product write")
+	require.NoError(t, guard.WithScopeGrant(guardCtx, request, grant, time.Now().UTC(), writeGuardAudit))
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Table("audit_events").Where("action='scope_guard_test_write'").Count(&guardedWrites).Error
+	}))
+	require.EqualValues(t, 1, guardedWrites)
+	currentReceipt := grant
+	require.NoError(t, guard.WithScopeGrant(guardCtx, request, currentReceipt, time.Now().UTC(), func(ctx context.Context) error {
+		revocationCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+		defer cancel()
+		err := db.WithSystem(revocationCtx, func(tx *gorm.DB) error {
+			return iam.NewRevocationChecker(db).RevokeTx(tx, request.Subject, time.Now().UTC(), "admin_revoke", "user-admin")
+		})
+		require.ErrorIs(t, err, context.DeadlineExceeded, "security revocation must serialize with an in-flight guarded command")
+		return nil
+	}))
+	authenticatedAt := time.Now().Add(-time.Minute).UTC()
+	revokedAt := time.Now().UTC()
+	revocations := iam.NewRevocationChecker(db)
+	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return revocations.RevokeTx(tx, request.Subject, revokedAt, "admin_revoke", "user-admin")
+	}))
+	calledAfterRevocation := false
+	err = guard.WithScopeGrant(guardCtx, request, grant, authenticatedAt, func(context.Context) error {
+		calledAfterRevocation = true
+		return nil
+	})
+	require.ErrorIs(t, err, authz.ErrScopedCredentialRevoked)
+	require.False(t, calledAfterRevocation, "a current assignment cannot authorize an old revoked credential")
+	require.NoError(t, guard.WithScopeGrant(guardCtx, request, grant, revokedAt.Add(time.Second), func(context.Context) error { return nil }))
 	verified := call("POST", probe, "target", "", 200)
 	require.Contains(t, verified.Body.String(), first)
 	require.Contains(t, verified.Body.String(), `"other_action":false`)
@@ -322,6 +372,13 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 	pendingBeforeRemoval := propose()
 	call("DELETE", "/v1/iam/members/user-target/doctor", "admin", "", 202)
 	assertMembership(2, 0)
+	calledAfterRemoval := false
+	err = guard.WithScopeGrant(guardCtx, request, currentReceipt, time.Now().UTC(), func(context.Context) error {
+		calledAfterRemoval = true
+		return nil
+	})
+	require.ErrorIs(t, err, authz.ErrScopedCommandDenied)
+	require.False(t, calledAfterRemoval, "membership removal invalidates the old receipt before any product work")
 	grant, err = authority.AuthorizeScope(t.Context(), request)
 	require.NoError(t, err)
 	require.Empty(t, grant.AssignmentID)

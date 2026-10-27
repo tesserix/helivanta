@@ -80,9 +80,9 @@ function Assignments({ identity }: { identity: Identity }) {
   return (
     <Panel className="space-y-4">
       <p>
-        These reviewed assignments do not yet enable leave approval in Staff. Existing hospital
-        access is still required. Enrolment and account linking do not grant access, and the
-        leave-review template grants no hospital administration, payroll or clinical authority.
+        Active leave-review assignments enable the Review leave page when the account also has an
+        independently approved staff link. Both must remain current. These assignments grant no
+        hospital administration, payroll or clinical authority.
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital

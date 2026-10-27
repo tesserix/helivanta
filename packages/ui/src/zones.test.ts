@@ -274,3 +274,8 @@ it("hides Staff access from callers without membership or assignment administrat
   const pages = visibleZones((p) => p === "public").flatMap((z) => z.pages);
   expect(pages.some((p) => p.href === "/workforce/access")).toBe(false);
 });
+
+it("shows the scoped leave review entry without tenant-wide business grants", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/leave-review")).toBe(true);
+});

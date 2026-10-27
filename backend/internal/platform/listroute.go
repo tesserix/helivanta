@@ -55,7 +55,16 @@ func SearchRoute[T Keyed](r *Router, path string, perm authz.Permission, h ListH
 }
 
 func listRoute[T Keyed](r *Router, method, path string, perm authz.Permission, h ListHandler[T]) {
-	r.handle(method, path, perm, true, []gin.HandlerFunc{func(c *gin.Context) {
+	r.handle(method, path, perm, true, listHandlers(path, h))
+}
+
+// ScopedHospitalListRoute retains list envelopes under the shared hospital-scope gate.
+func ScopedHospitalListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, h ListHandler[T]) {
+	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlers(path, h)...)
+}
+
+func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
+	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
 			respond.Unauthenticated(c, "missing principal")
@@ -105,7 +114,7 @@ func listRoute[T Keyed](r *Router, method, path string, perm authz.Permission, h
 			"data": rows,
 			"page": gin.H{"next_cursor": next, "has_more": hasMore},
 		})
-	}})
+	}}
 }
 
 // Scope applies a counted list's filter to a query.

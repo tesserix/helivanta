@@ -103,6 +103,9 @@ func (r *RevocationChecker) RevokedAfter(ctx context.Context, subject string) (t
 // committed without its event would propagate only at TTL, and an event
 // published without its watermark would be a lie.
 func (r *RevocationChecker) RevokeTx(tx *gorm.DB, subject string, at time.Time, reason, actor string) error {
+	if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, "iam.credential:"+subject).Error; err != nil {
+		return err
+	}
 	return tx.Exec(`
 		INSERT INTO iam_credential_revocations (subject, revoked_at, reason, actor, updated_at)
 		VALUES (?, ?, ?, ?, now())

@@ -384,7 +384,9 @@ func run() error {
 	if err != nil {
 		return errors.New("invalid MediConnect current claim owner configuration")
 	}
+	scopedAuthorizer := iam.NewScopedAuthorizer(db, fga)
 	deps := platform.Deps{
+		ScopedAuthorizer:            scopedAuthorizer,
 		ProxyClinicalCaptureEnabled: cfg.ProxyClinicalCaptureEnabled,
 		CurrentClaims:               currentClaims,
 		EmergencyDispatchEnabled:    cfg.EmergencyDispatchEnabled,
@@ -476,7 +478,7 @@ func run() error {
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
 		fga,
-	).WithScopedAuthorizer(iam.NewScopedAuthorizer(db, fga))
+	).WithScopedAuthorizer(scopedAuthorizer)
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint

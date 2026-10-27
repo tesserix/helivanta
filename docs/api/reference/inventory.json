@@ -5383,6 +5383,17 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/leave-review-requests",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/attendance",
           "permission": "public",
@@ -5689,6 +5700,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision",
           "permission": "workforce.leave.approve",
@@ -5728,6 +5741,17 @@
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request",
           "permission": "workforce.leave.request",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request",
+          "permission": "workforce.leave.approve",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -5826,6 +5850,15 @@
         {
           "method": "GET",
           "path": "/v1/workforce/hospitals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/leave-review-scopes",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -6334,6 +6367,77 @@
           "creates_tables": [
             "workforce_login_links",
             "workforce_login_link_history"
+          ]
+        },
+        {
+          "id": "0036_workforce_scoped_leave",
+          "sql_sha256": "f9278ced45438c6f102cf445b2053ab266e14ca778db61dd3efb6e57534e02d1",
+          "creates_tables": []
+        },
+        {
+          "id": "0037_workforce_leave_review_discovery_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_login_links_review_discovery",
+              "table": "workforce_login_links",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "subject",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0038_workforce_leave_review_queue_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_leave_requests_review_queue",
+              "table": "workforce_leave_requests",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]

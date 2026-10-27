@@ -44,6 +44,7 @@ var (
 // caller within data they can already read. It exists to turn a
 // confusing wrong-position result into a clear error.
 type Cursor struct {
+	Scope     string
 	TenantID  string
 	CreatedAt time.Time
 	ID        uuid.UUID
@@ -70,6 +71,7 @@ const (
 // The fixed ".000000000" form keeps the encoding canonical, and Postgres
 // microsecond values survive it exactly.
 type wireCursor struct {
+	S string `json:"s,omitempty"`
 	T string `json:"t"`
 	C string `json:"c"`
 	I string `json:"i"`
@@ -82,6 +84,7 @@ const cursorTimeFormat = "2006-01-02T15:04:05.000000000Z07:00"
 
 func (c Cursor) Encode() string {
 	raw, err := json.Marshal(wireCursor{
+		S: c.Scope,
 		T: c.TenantID,
 		C: c.CreatedAt.UTC().Format(cursorTimeFormat),
 		I: c.ID.String(),
@@ -136,7 +139,7 @@ func Decode(raw, tenantID string) (Cursor, error) {
 	default:
 		return Cursor{}, fmt.Errorf("%w: bad direction", ErrInvalidCursor)
 	}
-	return Cursor{TenantID: w.T, CreatedAt: at, ID: id, Direction: dir}, nil
+	return Cursor{TenantID: w.T, CreatedAt: at, ID: id, Direction: dir, Scope: w.S}, nil
 }
 
 // Params is one page request: how many rows, and where to start.

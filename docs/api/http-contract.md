@@ -65,3 +65,12 @@ Issue [#4](https://github.com/tesserix/helivanta/issues/4) requests OpenAPI-firs
 Likewise, older issues name GIP/Keycloak and Redis while later ADRs select Zitadel and the target uses Valkey. Follow current source and accepted ADRs; update backlog wording during implementation review. Proposed OpenAPI authority must reconcile the existing JSON→Go/Zod generators rather than create parallel handwritten model definitions.
 
 For an additive v1 change, assess requiredness, enum additions, nullability, validation tightening, permissions, ordering, event semantics and status codes—not just field removal. A stricter permission or a new required input can break consumers. A breaking contract requires a reviewed new version or explicit coordinated migration with consumer evidence and a sunset plan.
+
+
+Collection endpoints may declare a stricter bounded candidate scan. Workforce
+review-scope discovery defaults to twenty candidates and caps `limit` at twenty.
+Authorization filtering happens after the bounded scan; an empty `data` page may
+therefore carry `has_more:true`. Its opaque continuation cursor binds the verified
+tenant, caller and route. This does not change existing collection defaults or
+turn a cursor into authority. Clients follow `page.next_cursor` instead of deriving
+completion from the number of visible results.

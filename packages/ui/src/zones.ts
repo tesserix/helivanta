@@ -12,6 +12,7 @@ import {
   CalendarDays,
   CalendarX,
   Clock,
+  ClipboardCheck,
   Contact,
   FileText,
   Fingerprint,
@@ -307,6 +308,12 @@ export const ZONES: Zone[] = [
         label: "Leave requests",
         href: "/workforce/leave-requests",
         icon: CalendarX,
+        permission: "public",
+      },
+      {
+        label: "Review leave",
+        href: "/workforce/leave-review",
+        icon: ClipboardCheck,
         permission: "public",
       },
       {

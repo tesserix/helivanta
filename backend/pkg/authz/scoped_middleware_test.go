@@ -55,3 +55,31 @@ func TestScopedRouteFailsClosedWithoutAuthority(t *testing.T) {
 		})
 	}
 }
+
+func TestScopedRoutesRejectChangedWorkspaceBeforeAuthorityLookup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, method := range []string{"GET", "POST"} {
+		for _, headers := range [][]string{{"00000000-0000-0000-0000-000000000003"}, {"invalid"}, {"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000001"}} {
+			e := gin.New()
+			e.Use(func(c *gin.Context) {
+				c.Set("authn.principal", authn.Principal{Subject: "synthetic-reviewer", TenantID: "00000000-0000-0000-0000-000000000001"})
+				c.Set("authz.permissions", authz.NewPermissionSet())
+			})
+			authority := &withdrawingScopeAuthority{}
+			r := platform.NewRouter(e.Group("/v1"), scopeMembership(true)).WithScopedAuthorizer(authority)
+			called := false
+			handler := func(c *gin.Context) { called = true; c.Status(200) }
+			r.GETScopedHospital("/hospitals/:hospital/requests", "workforce.leave.approve", "hospital", handler)
+			r.POSTScopedHospital("/hospitals/:hospital/requests", "workforce.leave.approve", "hospital", handler)
+			req := httptest.NewRequest(method, "/v1/hospitals/00000000-0000-0000-0000-000000000002/requests", nil)
+			for _, header := range headers {
+				req.Header.Add("X-Helivanta-Expected-Tenant", header)
+			}
+			w := httptest.NewRecorder()
+			e.ServeHTTP(w, req)
+			require.Equal(t, 409, w.Code, w.Body.String())
+			require.Zero(t, authority.calls)
+			require.False(t, called)
+		}
+	}
+}

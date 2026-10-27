@@ -33,13 +33,15 @@ import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
+import { CounterSale } from "./counter-sale";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
 type PharmacyView =
-  "overview" | "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
+  "overview" | "counter" | "stock" | "receiving" | "safety" | "catalogue" | "accounts" | "setup";
 const DESCRIPTIONS: Record<PharmacyView, string> = {
   overview: "What needs attention at this outlet, most urgent first.",
+  counter: "Sell OTC medicines from sellable stock and print the GST invoice.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
@@ -325,6 +327,12 @@ function OutletPharmacy({
         />
       ) : view === "setup" ? null : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />
+      ) : view === "counter" ? (
+        <CounterSale
+          scope={scope}
+          canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
+          canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
+        />
       ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}

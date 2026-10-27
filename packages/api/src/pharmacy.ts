@@ -134,7 +134,7 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   unit_of_issue: string;
   lot_number: string;
   expires_on: string;
-  stock_status: "quarantine";
+  stock_status: "quarantine" | "sellable";
   expiry_status: "expired" | "unexpired";
   product_status: PharmacyProduct["status"];
   regulatory_status: "pending_review";
@@ -153,6 +153,71 @@ export type PharmacyStockReconciliation = {
   correction_units: string;
   closing_units: number;
   movement_count: number;
+};
+// Counter sale (#1386 B-1).
+export type PharmacyInvoiceProfile = {
+  id: string;
+  legal_name: string;
+  address: string;
+  invoice_prefix: string;
+  recorded_by: string;
+  created_at: string;
+};
+export type PharmacySaleLine = {
+  line_number: number;
+  product_id: string;
+  batch_id: string;
+  location_id: string;
+  lot_number: string;
+  expires_on: string;
+  regulatory_class: string;
+  classification_code: string;
+  supply_nature: "taxable" | "nil_rated" | "exempt";
+  rate_ppm: number;
+  mrp_minor: number;
+  pack_size: number;
+  quantity_units: number;
+  amount_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+};
+export type PharmacySaleQuote = {
+  currency: string;
+  total_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  lines: PharmacySaleLine[];
+  nppa_ceiling_checked: false;
+};
+export type PharmacySaleTender = {
+  tender_number: number;
+  kind: "cash" | "upi" | "card";
+  amount_minor: number;
+  tendered_minor: number | null;
+  change_minor: number | null;
+  reference: string | null;
+};
+export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
+  id: string;
+  invoice_number: string;
+  financial_year: string;
+  sale_date: string;
+  seller_legal_name: string;
+  seller_address: string;
+  seller_gstin: string;
+  place_of_supply: string;
+  actor_subject: string;
+  created_at: string;
+  class_origin: "declared_by_outlet";
+  lines: PharmacySaleLine[];
+  tenders: PharmacySaleTender[];
+};
+export type PharmacySaleAvailability = {
+  product_id: string;
+  sellable_units: number;
+  nearest_expiry: string | null;
 };
 export type PharmacyScope = { tenantId: string; pharmacyId: string; outletId: string };
 export function pharmacyRoot(scope: PharmacyScope) {

@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   Gauge,
   ListChecks,
+  ShoppingCart,
   PackagePlus,
   Palette,
   Pill,
@@ -146,6 +147,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy",
         icon: Gauge,
         permission: "pharmacy.catalogue.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Counter sale",
+        href: "/pharmacy/counter",
+        icon: ShoppingCart,
+        permission: "pharmacy.sale.read",
       },
       {
         section: "Dispensing",

@@ -12,3 +12,9 @@ func SetClock(t testing.TB, now func() time.Time) {
 	clock = now
 	t.Cleanup(func() { clock = prev })
 }
+
+// PriceLine and FinancialYear expose the sale arithmetic (#1386 B-1).
+var (
+	PriceLine     = priceLine
+	FinancialYear = financialYear
+)

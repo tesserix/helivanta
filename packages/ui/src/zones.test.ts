@@ -240,6 +240,7 @@ describe("zone icons and sections", () => {
     const pharmacy = ZONES.find((zone) => zone.key === "pharmacy")!;
     expect(pharmacy.pages.map((page) => [page.section, page.label, page.href])).toEqual([
       [undefined, "Overview", "/pharmacy"],
+      ["Dispensing", "Counter sale", "/pharmacy/counter"],
       ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],

@@ -51,3 +51,21 @@ func PractitionerEvidenceWorkerDSN(t *testing.T, database string) string {
 	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
 	return u.String()
 }
+
+// DrugStagerDSN connects only the drug master release-staging identity (#476 D3).
+func DrugStagerDSN(t *testing.T, database string) string {
+	t.Helper()
+	host, port := sharedPostgres(t)
+	u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, port), Path: "/" + database, User: url.UserPassword("helivanta_drug_stager", "helivanta_drug_stager")}
+	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
+	return u.String()
+}
+
+// DrugApproverDSN connects only the drug master release-decision identity (#476 D3).
+func DrugApproverDSN(t *testing.T, database string) string {
+	t.Helper()
+	host, port := sharedPostgres(t)
+	u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, port), Path: "/" + database, User: url.UserPassword("helivanta_drug_approver", "helivanta_drug_approver")}
+	u.RawQuery = url.Values{"sslmode": {"disable"}}.Encode()
+	return u.String()
+}

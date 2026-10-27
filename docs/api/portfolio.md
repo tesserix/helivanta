@@ -30,6 +30,7 @@ Current route coverage is exhaustive for the registry, not a claim of complete p
 
 - `tenant_id` is verified session context. Hospital, outlet, premise, base and receiving-facility IDs select narrower scopes and require current grants.
 - Patient identity owns patient registrations and local MRNs. A matching name or phone is not a permission grant, unique person identifier or automatic merge instruction.
+- The drug master owns coded drug identity, schedule class and pack facts for every tenant (#476). Consumers store the formulation or product **version** id they acted under; they never copy or edit the catalogue.
 - MediCore owns encounters and prescriptions; PharmaConnect owns dispensing and pharmacy stock; LabConnect owns released diagnostic result versions. Each publishes facts for authorized consumers.
 - SupplyConnect owns central-store inventory; PharmaConnect owns outlet inventory. Transfer is linked source and destination postings with reconciliation, not shared writes.
 - Hospital billing and pharmacy operational payables are different ledgers. A statement or dashboard cannot create a second financial source of truth.

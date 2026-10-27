@@ -115,6 +115,13 @@ jobs:
               sleep 0.2
             done' > /dev/null 2>&1 &
       - run: ./scripts/coverage-gate.sh
+      # The drug master's latency target (#476 spec D8), measured alone: the
+      # gate above runs every package in parallel under -race, where a
+      # wall-clock budget measures the runner, not the search.
+      - name: Drug master search latency
+        env:
+          HELIVANTA_LATENCY_CHECK: "1"
+        run: go test -count=1 -run TestSearchStaysUnder120msAcross60000Products -v ./internal/modules/drugmaster/
       # Forensics for #963, on failure only (same `!success() || cancelled()`
       # condition and reasoning as the e2e job's dumps). The two causes on
       # the table leave different evidence, and this prints exactly the

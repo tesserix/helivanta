@@ -103,6 +103,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/emergency-retention \
     ./cmd/emergency-retention
 
+# Drug master release staging and approval (#476), run by operators.
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/drugmaster-release ./cmd/drugmaster-release
+
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/global-api ./cmd/global-api
 
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/privacy-worker ./cmd/privacy-worker
@@ -129,6 +132,7 @@ COPY --from=builder /out/document-worker /app/document-worker
 COPY --from=builder /out/emergency-worker /app/emergency-worker
 COPY --from=builder /out/supply-evidence-worker /app/supply-evidence-worker
 COPY --from=builder /out/emergency-retention /app/emergency-retention
+COPY --from=builder /out/drugmaster-release /app/drugmaster-release
 
 # The base image's own USER directive already runs the container as
 # 65532:65532 ("nonroot") — nothing to set here. Left unset deliberately

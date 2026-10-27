@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
@@ -274,6 +275,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	iam.PermMemberManage:                   {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:               {authz.RoleTenantAdmin},
 
+	drugmaster.PermCatalogueRead: {authz.RoleDoctor, authz.RoleNurse, authz.RolePharmacist, authz.RoleTenantAdmin},
 	medicore.PermVisitCreate:     {authz.RoleDoctor, authz.RoleTenantAdmin},
 	medicore.PermVisitRead:       {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
 	medicore.PermVisitUpdate:     {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},

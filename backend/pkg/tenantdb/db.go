@@ -327,6 +327,17 @@ var lintAllowlist = map[string]bool{
 	// iam_credential_revocations makes above. See
 	// backend/internal/modules/iam/loginattempt.go.
 	"login_attempt": true,
+	// The drug master (#476 spec D1) is one catalogue every tenant reads,
+	// not tenant data: no PHI, no tenant to scope on. Each table is still
+	// FORCE ROW LEVEL SECURITY, hms_app holds SELECT only and sees only
+	// published releases; TestTheCatalogueIsReadOnlyToTheApp pins all three.
+	"drugmaster_releases":                true,
+	"drugmaster_molecules":               true,
+	"drugmaster_formulations":            true,
+	"drugmaster_formulation_versions":    true,
+	"drugmaster_formulation_ingredients": true,
+	"drugmaster_products":                true,
+	"drugmaster_product_versions":        true,
 }
 
 // LintRLS returns every table that is not properly tenant-isolated, each

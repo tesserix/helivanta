@@ -261,3 +261,16 @@ describe("zone width", () => {
     ]);
   });
 });
+
+it.each(["iam.member.manage", "iam.assignment.manage", "iam.assignment.review"])(
+  "shows Staff access to a caller holding %s",
+  (permission) => {
+    const pages = visibleZones((p) => p === "public" || p === permission).flatMap((z) => z.pages);
+    expect(pages.some((p) => p.href === "/workforce/access")).toBe(true);
+  },
+);
+
+it("hides Staff access from callers without membership or assignment administration", () => {
+  const pages = visibleZones((p) => p === "public").flatMap((z) => z.pages);
+  expect(pages.some((p) => p.href === "/workforce/access")).toBe(false);
+});

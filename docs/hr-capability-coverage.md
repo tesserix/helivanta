@@ -834,3 +834,13 @@ flowchart TB
 - UI uses shared dropdown/forms, keyboard labels/errors, automatic form reveal/focus, hospital switching that clears stale records, visible loading/empty/retry states and accurate paged/filter scope. Browser session controls retain the configured renewal/12-hour behavior without weakening sensitive-operation rechecks.
 
 Editable diagram: [full-hr-workflows.drawio](diagrams/full-hr-workflows.drawio). Implementation decisions: [ADR-0016](adr/0016-versioned-hr-masters.md), [ADR-0017](adr/0017-versioned-shift-definitions.md), [ADR-0018](adr/0018-versioned-roster-configuration.md), [ADR-0019](adr/0019-roster-settings-and-staff-assignments.md), [ADR-0020](adr/0020-dated-rosters.md).
+
+### Staff membership enrollment implementation — 2026-10-27
+
+The Staff access page now includes a permission-gated existing-account enrollment
+form fixed to IAM `staff_member`. The existing command checks the expected tenant
+before writing and supports identical-request repair. This establishes membership
+only. Identity-provider existence, reviewed account links, hospital authority,
+scoped leave enforcement and live independent-review QA remain separate gates.
+See [the enrollment design](superpowers/specs/2026-10-27-staff-membership-ui.md).
+Issues #417/#1053 remain open for their complete acceptance scope.

@@ -216,6 +216,28 @@
         "name": "proposal_id",
         "type": "uuid"
       }
+    ],
+    "MemberGrantInput": [
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "role_key",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      }
+    ],
+    "MemberGrantResult": [
+      {
+        "name": "id",
+        "type": "uuid"
+      }
     ]
   }
 }

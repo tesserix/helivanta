@@ -279,10 +279,7 @@ func (member) TableName() string { return "iam_members" }
 // PageKey is the keyset position of this row, satisfying platform.Keyed.
 func (m member) PageKey() (time.Time, uuid.UUID) { return m.CreatedAt, m.ID }
 
-type grantRequest struct {
-	Subject string `json:"subject" binding:"required,max=200"`
-	RoleKey string `json:"role_key" binding:"required,max=100"`
-}
+type grantRequest = MemberGrantInput
 
 // knownRole reports whether key is a system role. Custom roles are
 // supported by the model but not yet creatable, so anything else is a
@@ -303,7 +300,7 @@ type memberHandlers struct {
 // re-publishing member_granted for a grant that already exists at the
 // row level.
 func (h *memberHandlers) grant(c *gin.Context) {
-	p, tenantUUID, ok := authn.TenantPrincipal(c)
+	p, tenantUUID, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -362,7 +359,7 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		respond.InternalErr(c, err, "could not grant role")
 		return
 	}
-	respond.Accepted(c, gin.H{"id": row.ID.String()})
+	respond.Accepted(c, MemberGrantResult{ID: row.ID})
 }
 
 // revoke removes a subject's role, publishing member_revoked

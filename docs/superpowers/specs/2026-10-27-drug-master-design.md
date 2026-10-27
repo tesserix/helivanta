@@ -158,6 +158,13 @@ diverges, and a divergent schedule or dose is a patient-safety fault.
 - **A future version does not block today.** Only "starts before today" is refused for
   something already published. A later release supersedes an earlier one for the same
   date.
+- **Read policies cost what they return (`0002_drugmaster`).** `0001` called
+  `drugmaster_published()` per row and reached an ingredient's release through its
+  version, so every search checked every formulation version: 40 ms at 6,000 versions, and
+  145 ms on the CI runner, above the 120 ms budget. Ingredients now carry their release,
+  tied to the version by a foreign key, and each `hms_app` policy is one uncorrelated
+  lookup in the releases table. Search p95 at 60,000 products fell from about 50 ms to
+  6 ms locally.
 - **Staging is batched.** It loads the published catalogue once and inserts in batches. A
   60,000-product release stages in about 8 s and verifies and publishes in about 2 s
   (local, 2026-10-27).

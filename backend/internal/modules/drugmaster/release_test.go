@@ -167,6 +167,22 @@ func (s stack) quiet(t *testing.T) {
 	require.Empty(t, s.events.seen)
 }
 
+// appVisible counts, as hms_app, the rows of every drug master table
+// that it can see; tables it sees nothing of are absent.
+func (s stack) appVisible(t *testing.T) map[string]int64 {
+	t.Helper()
+	out := map[string]int64{}
+	for _, table := range []string{"drugmaster_releases", "drugmaster_molecules", "drugmaster_formulations",
+		"drugmaster_formulation_versions", "drugmaster_formulation_ingredients", "drugmaster_products", "drugmaster_product_versions"} {
+		var n int64
+		require.NoError(t, s.db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Table(table).Count(&n).Error }))
+		if n > 0 {
+			out[table] = n
+		}
+	}
+	return out
+}
+
 func (s stack) releaseStatus(t *testing.T, id uuid.UUID) string {
 	var status string
 	require.NoError(t, s.stager.WithSystem(t.Context(), func(tx *gorm.DB) error {
@@ -186,6 +202,16 @@ func TestStagedReleaseIsInvisibleUntilApproved(t *testing.T) {
 	require.Empty(t, s.searchLabels(t, "amox"))
 	code, _ := s.get(t, "/products/by-gtin/8901234567890")
 	require.Equal(t, http.StatusNotFound, code)
+	var staged struct{ Formulation, Product string }
+	require.NoError(t, s.stager.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT (SELECT id::text FROM drugmaster_formulations WHERE release_id=? AND code='TEST-AMOX-500-CAP') AS formulation,
+			(SELECT id::text FROM drugmaster_products WHERE release_id=?) AS product`, id, id).Scan(&staged).Error
+	}))
+	code, _ = s.get(t, "/formulations/"+staged.Formulation+"?at=2021-01-01")
+	require.Equal(t, http.StatusNotFound, code, "a staged formulation is not readable by id")
+	code, _ = s.get(t, "/products/"+staged.Product)
+	require.Equal(t, http.StatusNotFound, code, "a staged product is not readable by id")
+	require.Equal(t, map[string]int64{}, s.appVisible(t), "the app sees no row of a staged release, in any table")
 	s.quiet(t)
 
 	require.NoError(t, drugmaster.Decide(t.Context(), s.approver, id, file, "Ravi Approver", true, "reviewed against source"))
@@ -202,6 +228,9 @@ func TestStagedReleaseIsInvisibleUntilApproved(t *testing.T) {
 	require.Equal(t, []any{map[string]any{"molecule_id": first["ingredients"].([]any)[0].(map[string]any)["molecule_id"],
 		"inn_name": "Amoxicillin", "strength_value": "250", "strength_unit": "mg", "per_value": nil, "per_unit": nil}}, first["ingredients"])
 
+	require.Equal(t, map[string]int64{"drugmaster_releases": 1, "drugmaster_molecules": 1, "drugmaster_formulations": 2,
+		"drugmaster_formulation_versions": 2, "drugmaster_formulation_ingredients": 2, "drugmaster_products": 1,
+		"drugmaster_product_versions": 1}, s.appVisible(t))
 	events := s.await(t, contract.SubjectCataloguePublished, 1)
 	require.Empty(t, events[0].TenantID, "catalogue events belong to no tenant")
 	require.Empty(t, s.events.of(contract.SubjectFormulationReclassified), "a first version reclassifies nothing")
@@ -436,7 +465,7 @@ func TestAReleaseIsPublishedOnlyAsItsFileSays(t *testing.T) {
 			{`INSERT INTO drugmaster_molecules (id,release_id,inn_name,atc_code) VALUES (?,?,'Amoxicillin','J01CA04')`, []any{molecule, release}},
 			{`INSERT INTO drugmaster_formulations (id,release_id,code) VALUES (?,?,'TEST-AMOX-500-CAP')`, []any{formulation, release}},
 			{`INSERT INTO drugmaster_formulation_versions (id,formulation_id,release_id,valid_from,label,dose_form,route,regulatory_class,ndps,teleconsult_prescribable) VALUES (?,?,?,'2020-01-01','Amoxicillin 500 mg capsule','capsule','oral',?,false,true)`, []any{version, formulation, release, forged.Formulations[0].RegulatoryClass}},
-			{`INSERT INTO drugmaster_formulation_ingredients (version_id,position,molecule_id,strength_value,strength_unit) VALUES (?,1,?,500,'mg')`, []any{version, molecule}},
+			{`INSERT INTO drugmaster_formulation_ingredients (version_id,release_id,position,molecule_id,strength_value,strength_unit) VALUES (?,?,1,?,500,'mg')`, []any{version, release, molecule}},
 		} {
 			if err := tx.Exec(q.sql, q.args...).Error; err != nil {
 				return err

@@ -21,6 +21,9 @@ const PermCatalogueRead authz.Permission = "drugmaster.catalogue.read"
 //go:embed drugmaster.sql
 var schema string
 
+//go:embed read_policies.sql
+var readPolicies string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -32,7 +35,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_drugmaster", SQL: schema}}
+	return []tenantdb.Migration{{ID: "0001_drugmaster", SQL: schema}, {ID: "0002_drugmaster", SQL: readPolicies}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

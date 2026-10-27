@@ -17,6 +17,9 @@ import (
 //go:embed india_only.sql
 var indiaOnlySchema string
 
+//go:embed licences.sql
+var licencesSchema string
+
 //go:embed catalogue.sql
 var catalogueSchema string
 
@@ -52,7 +55,10 @@ const (
 	PermAccessManage    authz.Permission = "pharmacy.access.manage"
 	// PermTaxManage sets outlet registrations and product rates. It is apart
 	// from catalogue.write: a wrong rate taxes every sale of the product.
-	PermTaxManage       authz.Permission = "pharmacy.tax.manage"
+	PermTaxManage authz.Permission = "pharmacy.tax.manage"
+	// Outlet drug licences (#1386 A1): entered by one owner, reviewed by another.
+	PermLicenceManage   authz.Permission = "pharmacy.licence.manage"
+	PermLicenceReview   authz.Permission = "pharmacy.licence.review"
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
 	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
 	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
@@ -79,6 +85,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermCatalogueWrite, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}},
 		{Permission: PermAccessManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermTaxManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermLicenceManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermLicenceReview, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
 		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
@@ -141,7 +149,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

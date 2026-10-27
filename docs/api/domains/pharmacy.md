@@ -28,6 +28,19 @@ Canonical request fields and constraints live in [contracts/pharmacy.json](../..
 
 Use client resource IDs and exact `expected_version` semantics of each handler; supplying a valid-looking UUID does not make every PUT replaceable or every POST retry-safe. The optional expected-tenant header returns `409 session_changed` if session context drifted. Never retry an in-flight action under a newly selected tenant.
 
+### Outlet drug licences (#1386 A1)
+
+An outlet may sell only while it holds an approved licence that is valid on the outlet's own date ([counter sale design](../../superpowers/specs/2026-10-27-counter-sale-design.md)).
+
+| Route                                      | Behaviour                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/outlets/{outlet}/licences/{uuidv7}` | Records a licence. Requires `pharmacy.licence.manage` and the outlet editor grant. Fields: `licence_kind retail\|wholesale`, `form_label` as printed, number, issuing authority, `valid_from`/`valid_until`, and the pharmacist in charge with their registration. Idempotent; reusing an id with different details is 409 |
+| `POST …/licences/{id}/review`              | Records `{decision: approved\|rejected, reason}`. Requires `pharmacy.licence.review`. The reviewer must not be the person who entered the licence: the database refuses it, and the API returns 409 `four_eyes`. A licence gets one decision; correct a mistake by entering a new licence                                  |
+| `GET …/licences`                           | Cursor page of licences with their decision                                                                                                                                                                                                                                                                                |
+| `GET …/licence-status`                     | `{in_force, today, licence, reason}`, judged on the outlet's date                                                                                                                                                                                                                                                          |
+
+Later slices call `pharmacy_outlet_licence_in_force(tenant, outlet, day)` inside their own transactions. Not covered yet: uploading the licence document (the reviewer checks the original) and renewal notices.
+
 ## Integration requirements
 
 Published catalogue, stock, payable, settlement and safety events mostly carry scoped references only. `dispense_recorded.v1` carries dispense/visit IDs. The current visit-intake consumer still receives patient name from MediCore and opens a pending task automatically; it is not a prescription order.

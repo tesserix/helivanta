@@ -86,7 +86,9 @@ func (h *clinicalHandlers) recordWeight(c *gin.Context) {
 		return
 	}
 	measured, err := time.Parse(time.RFC3339, req.MeasuredAt)
-	if err != nil || measured.After(time.Now().Add(5*time.Minute)) || measured.Year() < 1900 {
+	// Up to a minute ahead is clock skew between devices, not a future
+	// measurement; the table refuses more than five, so this is stricter.
+	if err != nil || measured.After(time.Now().Add(time.Minute)) || measured.Year() < 1900 {
 		respond.BadRequest(c, errors.New("measured_at must be an RFC 3339 time, not in the future"))
 		return
 	}
@@ -110,9 +112,20 @@ func (h *clinicalHandlers) recordWeight(c *gin.Context) {
 				return errIntentConflict
 			}
 		} else {
-			if err := tx.Exec(`INSERT INTO medicore_weight_observations (tenant_id, id, hospital_id, patient_id, weight_kg, measured_at, method, encounter_id, intent_sha256, recorded_by)
-				VALUES (?, ?, ?, ?, ?::numeric, ?, ?, ?, ?, ?)`, p.TenantID, id, hospital, patient, kg, measured, req.Method, encounter, intent, p.Subject).Error; err != nil {
-				return err
+			insert := tx.Exec(`INSERT INTO medicore_weight_observations (tenant_id, id, hospital_id, patient_id, weight_kg, measured_at, method, encounter_id, intent_sha256, recorded_by)
+				VALUES (?, ?, ?, ?, ?::numeric, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, p.TenantID, id, hospital, patient, kg, measured, req.Method, encounter, intent, p.Subject)
+			if insert.Error != nil {
+				return insert.Error
+			}
+			if insert.RowsAffected == 0 {
+				var won []struct{ IntentSHA256, RecordedBy string }
+				if err := tx.Raw(`SELECT intent_sha256, recorded_by FROM medicore_weight_observations WHERE tenant_id = ? AND id = ?`, p.TenantID, id).Scan(&won).Error; err != nil {
+					return err
+				}
+				if len(won) != 1 || won[0].IntentSHA256 != intent || won[0].RecordedBy != p.Subject {
+					return errIntentConflict
+				}
+				return tx.Raw(weightQuery+` WHERE w.tenant_id = ? AND w.hospital_id = ? AND w.patient_id = ? AND w.id = ?`, p.TenantID, hospital, patient, id).Scan(&row).Error
 			}
 			created = true
 			if err := publish(tx, p.TenantID, medicorecontract.SubjectWeightRecorded, "WeightRecorded", medicorecontract.WeightRecordedData{
@@ -173,9 +186,15 @@ func (h *clinicalHandlers) weightEnteredInError(c *gin.Context) {
 		if rows[0].EnteredInError {
 			return errIllegalMove
 		}
-		if err := tx.Exec(`INSERT INTO medicore_weight_errors (tenant_id, observation_id, reason, recorded_by) VALUES (?, ?, ?, ?)`,
-			p.TenantID, id, reason, p.Subject).Error; err != nil {
-			return err
+		// The lock serialises two markings, but the second still read the row
+		// before the first committed, so the insert decides who won.
+		insert := tx.Exec(`INSERT INTO medicore_weight_errors (tenant_id, observation_id, reason, recorded_by) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+			p.TenantID, id, reason, p.Subject)
+		if insert.Error != nil {
+			return insert.Error
+		}
+		if insert.RowsAffected == 0 {
+			return errIllegalMove
 		}
 		if err := publish(tx, p.TenantID, medicorecontract.SubjectWeightRecorded, "WeightRecorded", medicorecontract.WeightRecordedData{
 			PatientID: patient.String(), HospitalID: hospital.String(), ObservationID: id.String(), EnteredInError: true,

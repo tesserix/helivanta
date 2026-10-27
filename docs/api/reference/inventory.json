@@ -1247,6 +1247,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id/withdrawal",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id",
           "permission": "medicore.allergy.record",
@@ -1429,11 +1438,12 @@
         },
         {
           "id": "0006_medicore",
-          "sql_sha256": "0480c6ad64c3110b20289f52d0c48872923842945766831fcb3e82ccb0ee1173",
+          "sql_sha256": "1d1140d34fd801e60c4d53d565cacd11025e00f66d4d796607a90083ea4dcfcf",
           "creates_tables": [
             "medicore_drug_molecules",
             "medicore_allergy_entries",
             "medicore_no_known_allergy",
+            "medicore_no_known_allergy_withdrawals",
             "medicore_weight_observations",
             "medicore_weight_errors",
             "medicore_clinical_read_audit"

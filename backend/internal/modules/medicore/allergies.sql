@@ -3,9 +3,13 @@ SET LOCAL statement_timeout='60s';
 
 -- Molecules the drug master has published (#1373 A4): global reference
 -- data, so no tenant_id (tenantdb lintAllowlist). Only the
--- medicore-molecule-published consumer adds a row. The bus names every
--- consumer transaction's actor 'system:<consumer>', and no request path can
--- take a 'system:' actor, because authn subjects never carry that prefix.
+-- medicore-molecule-published consumer adds a row: the bus names every
+-- consumer transaction's actor 'system:<consumer>', and authn refuses any
+-- credential claiming a 'system:' or 'service:' subject, so no request can
+-- take that actor. Consumers run on the request role (hms_app), so a
+-- database role cannot tell them apart; this is the strongest control the
+-- runtime offers, and TestTheBusProjectsAPublishedMolecule and
+-- TestOnlyTheMoleculeConsumerProjectsMolecules pin both halves.
 CREATE TABLE medicore_drug_molecules (
  id uuid PRIMARY KEY,
  inn_name text NOT NULL CHECK (length(inn_name) BETWEEN 1 AND 200),
@@ -79,10 +83,9 @@ BEGIN
     AND v.id=NEW.encounter_id AND v.hospital_id=NEW.hospital_id AND v.patient_id=NEW.patient_id) THEN
   RAISE EXCEPTION 'the encounter is not this patient''s at this hospital' USING ERRCODE='23514';
  END IF;
+ -- A first version needs no predecessor; the primary key refuses a second
+ -- version 1, which lets the handler's ON CONFLICT replay a concurrent write.
  IF NEW.version=1 THEN
-  IF EXISTS (SELECT 1 FROM medicore_allergy_entries e WHERE e.tenant_id=NEW.tenant_id AND e.id=NEW.id) THEN
-   RAISE EXCEPTION 'allergy entry already exists' USING ERRCODE='23505';
-  END IF;
   RETURN NEW;
  END IF;
  SELECT * INTO prev FROM medicore_allergy_entries e WHERE e.tenant_id=NEW.tenant_id AND e.id=NEW.id ORDER BY e.version DESC LIMIT 1 FOR UPDATE;
@@ -136,6 +139,29 @@ BEGIN
 END $$;
 CREATE TRIGGER medicore_no_known_allergy_guard BEFORE INSERT ON medicore_no_known_allergy
  FOR EACH ROW EXECUTE FUNCTION medicore_no_known_allergy_guard();
+
+-- A "no known allergy" recorded in error is withdrawn by a row naming it,
+-- with a reason; the status then reads unknown again (review I1).
+CREATE TABLE medicore_no_known_allergy_withdrawals (
+ tenant_id uuid NOT NULL,
+ id uuid NOT NULL DEFAULT gen_random_uuid(),
+ statement_id uuid NOT NULL,
+ reason text NOT NULL CHECK (length(btrim(reason)) BETWEEN 1 AND 500),
+ recorded_by text NOT NULL CHECK (length(recorded_by) BETWEEN 1 AND 512),
+ recorded_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY (tenant_id,statement_id),
+ UNIQUE (tenant_id,id),
+ FOREIGN KEY (tenant_id,statement_id) REFERENCES medicore_no_known_allergy(tenant_id,id)
+);
+ALTER TABLE medicore_no_known_allergy_withdrawals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE medicore_no_known_allergy_withdrawals FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON medicore_no_known_allergy_withdrawals
+ USING (hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid)
+ WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND recorded_by=NULLIF(current_setting('app.actor_subject',true),''));
+CREATE TRIGGER medicore_no_known_allergy_withdrawals_retained BEFORE UPDATE OR DELETE ON medicore_no_known_allergy_withdrawals
+ FOR EACH ROW EXECUTE FUNCTION medicore_clinical_record_retained();
+CREATE TRIGGER medicore_no_known_allergy_withdrawals_audit AFTER INSERT ON medicore_no_known_allergy_withdrawals
+ FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 
 -- Weight observations (#1373 A7), in kilograms, insert-only; an error is
 -- marked by a later row naming it.

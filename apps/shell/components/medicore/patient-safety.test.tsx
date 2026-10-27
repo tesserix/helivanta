@@ -66,6 +66,10 @@ function server(
             "medicore.observation.record",
           ],
         });
+      if (url.includes("/withdrawal")) {
+        allergies = unknown;
+        return json(200, { id: "x", withdrawn: true });
+      }
       if (url.includes(`${base}/no-known-allergy/`)) {
         allergies = {
           ...unknown,
@@ -86,7 +90,10 @@ function server(
       if (url.includes(`${base}/weights/`) && init?.method === "PUT")
         return json(201, { id: "w", weight_kg: "13.100" });
       if (url.endsWith(`${base}/weights/latest`))
-        return json(opts.weight?.status ?? 404, opts.weight?.body ?? { error: "not_found" });
+        return json(
+          opts.weight?.status ?? 404,
+          opts.weight?.body ?? { error: "not_found", message: "weight not found" },
+        );
       if (url.includes("/drugmaster/search"))
         return json(200, {
           data: [
@@ -124,11 +131,22 @@ describe("PatientSafety", () => {
     const calls = server();
     render();
     await userEvent.click(await screen.findByRole("button", { name: "No known allergies" }));
+    expect(calls.some((c) => c.url.includes("/no-known-allergy/"))).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Confirm no known allergies" }));
     expect(
       await screen.findByText(/No known allergies, recorded by user-nurse/),
     ).toBeInTheDocument();
     const put = calls.find((c) => c.url.includes("/no-known-allergy/"));
     expect(JSON.parse(String(put?.init?.body))).toEqual({ encounter_id: encounterId });
+
+    await userEvent.click(screen.getByRole("button", { name: "Withdraw" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
+    expect(await screen.findByText("Give a reason")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Reason for withdrawing"), "wrong patient");
+    await userEvent.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
+    expect(await screen.findByText("Allergies unknown: not yet asked")).toBeInTheDocument();
+    const post = calls.find((c) => c.url.includes("/withdrawal"));
+    expect(JSON.parse(String(post?.init?.body))).toEqual({ reason: "wrong patient" });
   });
 
   it("lists active allergies with their severity and offers no 'no known allergies'", async () => {
@@ -211,11 +229,9 @@ describe("PatientSafety", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save weight" }));
     await waitFor(() => expect(calls.some((c) => c.init?.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.init?.method === "PUT");
-    expect(JSON.parse(String(put?.init?.body))).toMatchObject({
-      value: "13.1",
-      unit: "kg",
-      method: "measured",
-    });
+    const body = JSON.parse(String(put?.init?.body));
+    expect(body).toMatchObject({ value: "13.1", unit: "kg", method: "measured" });
+    expect(Math.abs(Date.parse(body.measured_at) - Date.now())).toBeLessThan(5 * 60_000);
   });
 
   it("hides what the caller may not read", async () => {
@@ -223,5 +239,61 @@ describe("PatientSafety", () => {
     render();
     expect(await screen.findByText("No weight recorded.")).toBeInTheDocument();
     expect(screen.queryByText(/Allergies/)).not.toBeInTheDocument();
+  });
+});
+
+describe("PatientSafety edge cases", () => {
+  it("does not call a missing grant an empty weight history", async () => {
+    server({ weight: { status: 404, body: { error: "not_found", message: "patient not found" } } });
+    render();
+    expect(await screen.findByText("Could not load weight.")).toBeInTheDocument();
+    expect(screen.queryByText("No weight recorded.")).not.toBeInTheDocument();
+  });
+
+  it("sends a past measurement time as entered and refuses a future one", async () => {
+    const calls = server();
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: "Record weight" }));
+    const at = screen.getByLabelText("Measured at");
+    await userEvent.clear(at);
+    await userEvent.type(at, "2099-01-01T10:00");
+    await userEvent.type(screen.getByRole("textbox", { name: "Weight" }), "13");
+    await userEvent.click(screen.getByRole("button", { name: "Save weight" }));
+    expect(await screen.findByText("Cannot be in the future")).toBeInTheDocument();
+    await userEvent.clear(at);
+    await userEvent.type(at, "2026-10-20T09:30");
+    await userEvent.click(screen.getByRole("button", { name: "Save weight" }));
+    await waitFor(() => expect(calls.some((c) => c.init?.method === "PUT")).toBe(true));
+    const body = JSON.parse(String(calls.find((c) => c.init?.method === "PUT")?.init?.body));
+    expect(body.measured_at).toBe(
+      new Date("2026-10-20T09:30").toISOString().replace(/\.\d{3}Z$/, "Z"),
+    );
+  });
+
+  it("retries the same weight under the same id", async () => {
+    let fail = 1;
+    const calls = server();
+    type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
+    const fetchMock = vi.mocked(globalThis.fetch as unknown as Fetch);
+    const inner = fetchMock.getMockImplementation() as Fetch;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === "PUT" && fail-- > 0
+        ? json(502, { error: "bad_gateway", message: "timed out" })
+        : inner(url, init),
+    );
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: "Record weight" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Weight" }), "13");
+    await userEvent.click(screen.getByRole("button", { name: "Save weight" }));
+    const puts = () =>
+      fetchMock.mock.calls.filter(
+        ([, init]) => (init as RequestInit | undefined)?.method === "PUT",
+      );
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    await userEvent.click(screen.getByRole("button", { name: "Save weight" }));
+    await waitFor(() => expect(puts()).toHaveLength(2));
+    const [first, second] = puts();
+    expect(second[0]).toBe(first[0]);
+    expect(calls.filter((c) => c.init?.method === "PUT")).toHaveLength(1);
   });
 });

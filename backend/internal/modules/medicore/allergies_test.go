@@ -367,3 +367,95 @@ func TestOnlyTheMoleculeConsumerProjectsMolecules(t *testing.T) {
 	}))
 	require.Equal(t, int64(1), n, "redelivery added nothing")
 }
+
+// Review I1: a "no known allergy" recorded in error can be withdrawn, with a
+// reason, and the status returns to unknown; it is never permanent.
+func TestNoKnownAllergyCanBeWithdrawn(t *testing.T) {
+	r, db, ctx := clinicalSetup(t, false)
+	patient := registered(t, db, ctx, testutil.TenantA, hospitalA)
+	base := patientURL(hospitalA, patient)
+	nka := uuid.Must(uuid.NewV7())
+	require.Equal(t, http.StatusCreated, do(r, "PUT", base+"/no-known-allergy/"+nka.String(), "nurse", `{}`).Code)
+	require.Equal(t, "no_known_allergy", allergyStatus(t, r, "doc", patient).Status)
+
+	withdraw := func(body string) int {
+		return do(r, "POST", base+"/no-known-allergy/"+nka.String()+"/withdrawal", "doc", body).Code
+	}
+	require.Equal(t, http.StatusBadRequest, withdraw(`{"reason":" "}`))
+	require.Equal(t, http.StatusOK, withdraw(`{"reason":"recorded on the wrong patient"}`))
+	require.Equal(t, http.StatusConflict, withdraw(`{"reason":"again"}`), "a withdrawn statement is not withdrawn twice")
+	require.Equal(t, "unknown", allergyStatus(t, r, "doc", patient).Status, "withdrawn means not asked, never none")
+	require.Equal(t, http.StatusNotFound, do(r, "POST", patientURL(hospitalA, registered(t, db, ctx, testutil.TenantA, hospitalA))+
+		"/no-known-allergy/"+nka.String()+"/withdrawal", "doc", `{"reason":"x"}`).Code, "another patient's statement is not found")
+}
+
+// Review I3: two identical writes racing get a replay or a conflict, never
+// a server error, and leave one row.
+func TestConcurrentDuplicateWritesAreNotServerErrors(t *testing.T) {
+	r, db, ctx := clinicalSetup(t, true)
+	patient := registered(t, db, ctx, testutil.TenantA, hospitalA)
+	amox := molecule(t, db, ctx, "Amoxicillin", "J01CA04")
+	base := patientURL(hospitalA, patient)
+	at := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339)
+	entry, nka, weightID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	race := func(method, path, body string) []int {
+		codes := make([]int, 8)
+		done := make(chan struct{})
+		for i := range codes {
+			go func() { codes[i] = do(r, method, path, "doc", body).Code; done <- struct{}{} }()
+		}
+		for range codes {
+			<-done
+		}
+		return codes
+	}
+	for _, c := range race("PUT", base+"/allergies/"+entry.String(), codedAllergy(amox)) {
+		require.Contains(t, []int{http.StatusCreated, http.StatusOK}, c)
+	}
+	for _, c := range race("POST", base+"/allergies/"+entry.String()+"/corrections", `{"expected_version":1,"status":"resolved","reason":"tolerated"}`) {
+		require.Contains(t, []int{http.StatusOK, http.StatusConflict}, c)
+	}
+	for _, c := range race("PUT", base+"/no-known-allergy/"+nka.String(), `{}`) {
+		require.Contains(t, []int{http.StatusCreated, http.StatusOK}, c)
+	}
+	for _, c := range race("PUT", base+"/weights/"+weightID.String(), fmt.Sprintf(`{"value":"20","unit":"kg","measured_at":%q,"method":"measured"}`, at)) {
+		require.Contains(t, []int{http.StatusCreated, http.StatusOK}, c)
+	}
+	for _, c := range race("POST", base+"/weights/"+weightID.String()+"/entered-in-error", `{"reason":"wrong scale"}`) {
+		require.Contains(t, []int{http.StatusOK, http.StatusConflict}, c)
+	}
+	var rows struct{ Entries, Statements, Weights, Errors int64 }
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT (SELECT count(*) FROM medicore_allergy_entries) AS entries, (SELECT count(*) FROM medicore_no_known_allergy) AS statements,
+			(SELECT count(*) FROM medicore_weight_observations) AS weights, (SELECT count(*) FROM medicore_weight_errors) AS errors`).Scan(&rows).Error
+	}))
+	require.Equal(t, struct{ Entries, Statements, Weights, Errors int64 }{2, 1, 1, 1}, rows)
+}
+
+// Review M9: the bus itself names this consumer's actor, which is what the
+// projection's policy admits; a published event reaches the table.
+func TestTheBusProjectsAPublishedMolecule(t *testing.T) {
+	_, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{medicore.New()}})
+	id := uuid.Must(uuid.NewV7())
+	data, err := json.Marshal(drugmastercontract.MoleculePublishedData{MoleculeID: id.String(), INNName: "Amoxicillin", ATCCode: "J01CA04", ReleaseID: uuid.Must(uuid.NewV7()).String()})
+	require.NoError(t, err)
+	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+		return bus.Publish(tx, drugmastercontract.SubjectMoleculePublished, events.Event{Type: drugmastercontract.SubjectMoleculePublished, Version: 1, Data: data})
+	}))
+	require.Eventually(t, func() bool {
+		var n int64
+		_ = db.WithSystem(ctx, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM medicore_drug_molecules WHERE id = ?`, id).Scan(&n).Error
+		})
+		return n == 1
+	}, 15*time.Second, 50*time.Millisecond)
+}
+
+// Review M3: a coded allergy with an empty molecule is the caller's error.
+func TestACodedAllergyNeedsAMolecule(t *testing.T) {
+	r, db, ctx := clinicalSetup(t, true)
+	patient := registered(t, db, ctx, testutil.TenantA, hospitalA)
+	w := do(r, "PUT", patientURL(hospitalA, patient)+"/allergies/"+uuid.Must(uuid.NewV7()).String(), "doc",
+		`{"substance_kind":"drug_molecule","molecule_id":"","reaction":"rash","severity":"mild","source":"patient_reported"}`)
+	require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+}

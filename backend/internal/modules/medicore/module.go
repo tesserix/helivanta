@@ -130,6 +130,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST(patient+"/allergies/:id/corrections", PermAllergyRecord, clinical.correctAllergy)
 	g.GET(patient+"/allergies/:id/history", PermAllergyRead, clinical.allergyHistory)
 	g.PUT(patient+"/no-known-allergy/:id", PermAllergyRecord, clinical.recordNoKnownAllergy)
+	g.POST(patient+"/no-known-allergy/:id/withdrawal", PermAllergyRecord, clinical.withdrawNoKnownAllergy)
 	g.PUT(patient+"/weights/:id", PermObservationRecord, clinical.recordWeight)
 	g.POST(patient+"/weights/:id/entered-in-error", PermObservationRecord, clinical.weightEnteredInError)
 	platform.ListRoute(g, patient+"/weights", PermObservationRead, clinical.weights)

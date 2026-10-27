@@ -279,9 +279,10 @@ func statusChanges(tx *gorm.DB, release uuid.UUID) ([]contract.ProductStatusChan
 func ReplayMolecules(ctx context.Context, db *tenantdb.DB) (int, error) {
 	var molecules []contract.MoleculePublishedData
 	err := db.WithSystem(ctx, func(tx *gorm.DB) error {
-		if err := tx.Raw(`SELECT DISTINCT m.id::text AS molecule_id, m.inn_name, COALESCE(m.atc_code,'') AS atc_code, m.release_id::text AS release_id
-			FROM drugmaster_molecules m JOIN drugmaster_formulation_ingredients i ON i.molecule_id=m.id
-			JOIN drugmaster_releases r ON r.id=i.release_id WHERE r.status='published' ORDER BY m.inn_name`).Scan(&molecules).Error; err != nil {
+		// The same set publication announced: every molecule a published
+		// release introduced (review M8).
+		if err := tx.Raw(`SELECT m.id::text AS molecule_id, m.inn_name, COALESCE(m.atc_code,'') AS atc_code, m.release_id::text AS release_id
+			FROM drugmaster_molecules m JOIN drugmaster_releases r ON r.id=m.release_id WHERE r.status='published' ORDER BY m.inn_name`).Scan(&molecules).Error; err != nil {
 			return err
 		}
 		for _, m := range molecules {

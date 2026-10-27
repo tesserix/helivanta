@@ -155,8 +155,11 @@ func currentAllergies(tx *gorm.DB, tenant string, hospital, patient uuid.UUID) (
 		}
 	}
 	var nka []noKnownRecord
-	if err := tx.Raw(`SELECT id, recorded_by, recorded_at FROM medicore_no_known_allergy WHERE tenant_id = ? AND hospital_id = ? AND patient_id = ?
-		ORDER BY recorded_at DESC LIMIT 1`, tenant, hospital, patient).Scan(&nka).Error; err != nil {
+	// A withdrawn statement never counts (review I1).
+	if err := tx.Raw(`SELECT n.id, n.recorded_by, n.recorded_at FROM medicore_no_known_allergy n
+		WHERE n.tenant_id = ? AND n.hospital_id = ? AND n.patient_id = ? AND NOT EXISTS (SELECT 1 FROM medicore_no_known_allergy_withdrawals w
+		 WHERE w.tenant_id = n.tenant_id AND w.statement_id = n.id)
+		ORDER BY n.recorded_at DESC LIMIT 1`, tenant, hospital, patient).Scan(&nka).Error; err != nil {
 		return out, err
 	}
 	switch {
@@ -242,7 +245,7 @@ func (r *recordAllergyRequest) validate(today string) error {
 	r.SubstanceLabel, r.ReactionNote = trim(r.SubstanceLabel), trim(r.ReactionNote)
 	switch r.SubstanceKind {
 	case "drug_molecule":
-		if r.MoleculeID == nil || r.SubstanceLabel != nil || r.NonDrugCategory != nil {
+		if r.MoleculeID == nil || strings.TrimSpace(*r.MoleculeID) == "" || r.SubstanceLabel != nil || r.NonDrugCategory != nil {
 			return errors.New("a coded drug allergy names molecule_id only")
 		}
 	case "drug_unlisted":
@@ -335,11 +338,24 @@ func (h *clinicalHandlers) recordAllergy(c *gin.Context) {
 			}
 			label = names[0]
 		}
-		if err := tx.Exec(`INSERT INTO medicore_allergy_entries (tenant_id, id, version, hospital_id, patient_id, status, substance_kind, molecule_id,
+		// A concurrent record of the same id may commit first: this one then
+		// waits for it, inserts nothing, and replays it under the same checks.
+		insert := tx.Exec(`INSERT INTO medicore_allergy_entries (tenant_id, id, version, hospital_id, patient_id, status, substance_kind, molecule_id,
 			substance_label, non_drug_category, reaction, reaction_note, severity, source, onset_date, encounter_id, intent_sha256, recorded_by)
-			VALUES (?, ?, 1, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, p.TenantID, id, hospital, patient, req.SubstanceKind, molecule,
-			label, req.NonDrugCategory, req.Reaction, req.ReactionNote, req.Severity, req.Source, req.OnsetDate, encounter, intent, p.Subject).Error; err != nil {
-			return err
+			VALUES (?, ?, 1, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, p.TenantID, id, hospital, patient, req.SubstanceKind, molecule,
+			label, req.NonDrugCategory, req.Reaction, req.ReactionNote, req.Severity, req.Source, req.OnsetDate, encounter, intent, p.Subject)
+		if insert.Error != nil {
+			return insert.Error
+		}
+		if insert.RowsAffected == 0 {
+			var won []struct{ IntentSHA256, RecordedBy string }
+			if err := tx.Raw(`SELECT intent_sha256, recorded_by FROM medicore_allergy_entries WHERE tenant_id = ? AND id = ? AND version = 1`, p.TenantID, id).Scan(&won).Error; err != nil {
+				return err
+			}
+			if len(won) != 1 || won[0].IntentSHA256 != intent || won[0].RecordedBy != p.Subject {
+				return errIntentConflict
+			}
+			return tx.Raw(`SELECT `+entryColumns+` FROM medicore_allergy_entries WHERE tenant_id = ? AND id = ? AND version = 1`, p.TenantID, id).Scan(&row).Error
 		}
 		created = true
 		if err := tx.Raw(`SELECT `+entryColumns+` FROM medicore_allergy_entries WHERE tenant_id = ? AND id = ? AND version = 1`, p.TenantID, id).Scan(&row).Error; err != nil {
@@ -466,13 +482,24 @@ func (h *clinicalHandlers) recordNoKnownAllergy(c *gin.Context) {
 			if status.Status == "allergies_recorded" {
 				return errActiveAllergy
 			}
-			if err := tx.Exec(`INSERT INTO medicore_no_known_allergy (tenant_id, id, hospital_id, patient_id, encounter_id, intent_sha256, recorded_by)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`, p.TenantID, id, hospital, patient, encounter, intent, p.Subject).Error; err != nil {
-				return err
+			insert := tx.Exec(`INSERT INTO medicore_no_known_allergy (tenant_id, id, hospital_id, patient_id, encounter_id, intent_sha256, recorded_by)
+				VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, p.TenantID, id, hospital, patient, encounter, intent, p.Subject)
+			if insert.Error != nil {
+				return insert.Error
 			}
-			created = true
-			if err := publishAllergy(tx, p.TenantID, hospital, patient, id, 1, "no_known_allergy"); err != nil {
-				return err
+			if insert.RowsAffected == 0 {
+				var won []struct{ IntentSHA256, RecordedBy string }
+				if err := tx.Raw(`SELECT intent_sha256, recorded_by FROM medicore_no_known_allergy WHERE tenant_id = ? AND id = ?`, p.TenantID, id).Scan(&won).Error; err != nil {
+					return err
+				}
+				if len(won) != 1 || won[0].IntentSHA256 != intent || won[0].RecordedBy != p.Subject {
+					return errIntentConflict
+				}
+			} else {
+				created = true
+				if err := publishAllergy(tx, p.TenantID, hospital, patient, id, 1, "no_known_allergy"); err != nil {
+					return err
+				}
 			}
 		}
 		return tx.Raw(`SELECT id, recorded_by, recorded_at FROM medicore_no_known_allergy WHERE tenant_id = ? AND id = ?`, p.TenantID, id).Scan(&row).Error
@@ -488,6 +515,56 @@ func (h *clinicalHandlers) recordNoKnownAllergy(c *gin.Context) {
 	respond.OK(c, row)
 }
 
+type withdrawRequest struct {
+	Reason string `json:"reason" binding:"required,max=500"`
+}
+
+// withdrawNoKnownAllergy withdraws a "no known allergy" recorded in error
+// (review I1). The statement stays; the status reads unknown again.
+func (h *clinicalHandlers) withdrawNoKnownAllergy(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		respond.NotFound(c, "no known allergy statement")
+		return
+	}
+	var req withdrawRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respond.BadRequest(c, err)
+		return
+	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		respond.BadRequest(c, errReasonRequired)
+		return
+	}
+	err = h.inPatient(c, func(tx *gorm.DB, p authn.Principal, hospital, patient uuid.UUID) error {
+		var found int64
+		if err := tx.Raw(`SELECT count(*) FROM medicore_no_known_allergy WHERE tenant_id = ? AND hospital_id = ? AND patient_id = ? AND id = ?`,
+			p.TenantID, hospital, patient, id).Scan(&found).Error; err != nil {
+			return err
+		}
+		if found == 0 {
+			return errNoStatement
+		}
+		insert := tx.Exec(`INSERT INTO medicore_no_known_allergy_withdrawals (tenant_id, statement_id, reason, recorded_by) VALUES (?, ?, ?, ?)
+			ON CONFLICT DO NOTHING`, p.TenantID, id, reason, p.Subject)
+		if insert.Error != nil {
+			return insert.Error
+		}
+		if insert.RowsAffected == 0 {
+			return errIllegalMove
+		}
+		return publishAllergy(tx, p.TenantID, hospital, patient, id, 2, "no_known_allergy")
+	})
+	if err != nil {
+		clinicalFailure(c, err)
+		return
+	}
+	respond.OK(c, gin.H{"id": id, "withdrawn": true})
+}
+
+var errNoStatement = errors.New("no known allergy statement not found")
+
 func publishAllergy(tx *gorm.DB, tenant string, hospital, patient, id uuid.UUID, version int, kind string) error {
 	return publish(tx, tenant, medicorecontract.SubjectAllergyChanged, "AllergyChanged", medicorecontract.AllergyChangedData{
 		PatientID: patient.String(), HospitalID: hospital.String(), RecordID: id.String(), Version: version, Kind: kind,
@@ -500,6 +577,8 @@ func clinicalFailure(c *gin.Context, err error) {
 		respond.NotFound(c, "allergy")
 	case errors.Is(err, errNoWeight):
 		respond.NotFound(c, "weight")
+	case errors.Is(err, errNoStatement):
+		respond.NotFound(c, "no known allergy statement")
 	case errors.Is(err, errUnknownMolecule):
 		respond.Error(c, http.StatusUnprocessableEntity, "unknown_molecule", err.Error())
 	case errors.Is(err, errActiveAllergy):
@@ -508,6 +587,9 @@ func clinicalFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusUnprocessableEntity, "encounter_mismatch", "the encounter is not this patient's at this hospital")
 	case isCheckViolation(err, "the patient has an active allergy"):
 		respond.Conflict(c, errActiveAllergy.Error())
+	case isCheckViolation(err, "an allergy correction continues its active entry unchanged"):
+		// A concurrent correction won; this one acted on a stale version.
+		respond.Conflict(c, errStaleEncounter.Error())
 	default:
 		encounterFailure(c, err)
 	}

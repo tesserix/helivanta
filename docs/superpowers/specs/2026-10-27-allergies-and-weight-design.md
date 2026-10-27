@@ -77,10 +77,14 @@ never as "no allergies" (IN-CL-08).
     reason) and `entered_in_error` (with a reason). Weights have only `entered_in_error`.
   - Each row's version is checked with an expected version: a stale write is 409.
   - Guard triggers refuse UPDATE and DELETE, as the encounter tables do.
+- **A6a "No known allergy" is an attestation.** The UI asks for a second, explicit
+  confirmation. A statement recorded in error is withdrawn with a reason, as a new row; the
+  status then reads `unknown` again, never "none".
 - **A7 Weight is an observation.**
   - **Values:** kilograms (0.2–500, three decimals). Input in kg or g is converted on the
     server.
-  - **Timing and method:** measured-at (not in the future); method `measured | estimated
+  - **Timing and method:** measured-at, entered on the form (default: when the form opened)
+    and sent unchanged on retry; at most one minute ahead, for clock skew; method `measured | estimated
 | reported`.
   - **Attribution:** the optional encounter, who recorded it and when.
   - **Reads:** "latest weight" returns the newest by measured-at that was not entered in

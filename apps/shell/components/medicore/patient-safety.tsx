@@ -47,6 +47,21 @@ const labels: Record<string, string> = {
   environmental: "Environmental",
   contrast_media: "Contrast media",
 };
+// One id per thing being recorded: a retry of the same values reuses it, so
+// a lost response replays; changed values are a new record, never a 409.
+function useIntentIds() {
+  const [ids] = useState(() => new Map<string, string>());
+  return (values: unknown) => {
+    const key = JSON.stringify(values);
+    let id = ids.get(key);
+    if (!id) {
+      id = newEncounterId();
+      ids.set(key, id);
+    }
+    return id;
+  };
+}
+
 const options = (values: readonly string[]) =>
   values.map((value) => ({ value, label: labels[value] ?? value }));
 
@@ -99,6 +114,10 @@ function Allergies({
     refetchOnWindowFocus: false,
   });
   const [recording, setRecording] = useState(false);
+  // "No known allergies" is a clinical attestation: it takes a second,
+  // explicit confirmation, and can be withdrawn with a reason.
+  const [confirming, setConfirming] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   // One id per statement, kept across retries so a lost response replays.
   const [nkaId, setNkaId] = useState(() => newEncounterId());
   const noKnown = useApiMutation(
@@ -111,34 +130,152 @@ function Allergies({
       successToast: "No known allergies recorded",
       invalidate: [key],
       invalidateOnError: true,
-      onSuccess: () => setNkaId(newEncounterId()),
+      onSuccess: () => {
+        setNkaId(newEncounterId());
+        setConfirming(false);
+      },
     },
   );
-  if (status.isPending) return <p role="status">Loading allergies…</p>;
-  if (status.isError)
-    return (
-      <RequestFailure message="Could not load allergies." retry={() => void status.refetch()} />
-    );
-  const s = status.data;
+  const withdrawForm = useZodForm(reasonOnly, { reason: "" });
+  const withdraw = useApiMutation(
+    ({ id, reason }: { id: string; reason: string }) =>
+      apiFetch(`${base}/no-known-allergy/${id}/withdrawal`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    {
+      successToast: "No known allergies withdrawn",
+      invalidate: [key],
+      invalidateOnError: true,
+      onSuccess: () => {
+        setWithdrawing(false);
+        withdrawForm.reset({ reason: "" });
+      },
+    },
+  );
+  // One live region, mounted from the first render, so the status that
+  // replaces "Loading" is announced (spec A12).
+  return (
+    <div aria-live="polite">
+      {status.isPending ? (
+        <p>Loading allergies…</p>
+      ) : status.isError ? (
+        <RequestFailure message="Could not load allergies." retry={() => void status.refetch()} />
+      ) : (
+        <AllergyBody
+          s={status.data}
+          base={base}
+          encounterId={encounterId}
+          canRecord={canRecord}
+          invalidate={key}
+          recording={recording}
+          setRecording={setRecording}
+          confirming={confirming}
+          setConfirming={setConfirming}
+          noKnown={() => noKnown.mutate()}
+          noKnownPending={noKnown.isPending}
+          withdrawing={withdrawing}
+          setWithdrawing={setWithdrawing}
+          withdrawForm={withdrawForm}
+          withdraw={(id, reason) => withdraw.mutate({ id, reason })}
+          withdrawPending={withdraw.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+const reasonOnly = z.object({
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});
+
+function AllergyBody({
+  s,
+  base,
+  encounterId,
+  canRecord,
+  invalidate,
+  recording,
+  setRecording,
+  confirming,
+  setConfirming,
+  noKnown,
+  noKnownPending,
+  withdrawing,
+  setWithdrawing,
+  withdrawForm,
+  withdraw,
+  withdrawPending,
+}: {
+  s: AllergyStatus;
+  base: string;
+  encounterId: string;
+  canRecord: boolean;
+  invalidate: string[];
+  recording: boolean;
+  setRecording: (v: boolean) => void;
+  confirming: boolean;
+  setConfirming: (v: boolean) => void;
+  noKnown: () => void;
+  noKnownPending: boolean;
+  withdrawing: boolean;
+  setWithdrawing: (v: boolean) => void;
+  withdrawForm: ReturnType<typeof useZodForm<typeof reasonOnly>>;
+  withdraw: (id: string, reason: string) => void;
+  withdrawPending: boolean;
+}) {
   return (
     <section aria-labelledby={`allergies-${base}`} className="space-y-2">
       <h4 id={`allergies-${base}`} className="text-sm font-semibold">
         Allergies
       </h4>
       {s.status === "unknown" && (
-        <p
-          role="status"
-          className="flex items-center gap-2 rounded-md border border-(--hms-warn) bg-(--hms-amber-tint) px-3 py-2 text-sm font-medium"
-        >
+        <p className="flex items-center gap-2 rounded-md border border-(--hms-warn) bg-(--hms-amber-tint) px-3 py-2 text-sm font-medium">
           <AlertTriangle aria-hidden className="size-4" />
           Allergies unknown: not yet asked
         </p>
       )}
       {s.status === "no_known_allergy" && s.no_known_allergy && (
-        <p className="text-sm">
-          No known allergies, recorded by {s.no_known_allergy.recorded_by} on{" "}
-          {formatTime(s.no_known_allergy.recorded_at)}
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm">
+            No known allergies, recorded by {s.no_known_allergy.recorded_by} on{" "}
+            {formatTime(s.no_known_allergy.recorded_at)}
+          </p>
+          {canRecord && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={withdrawing}
+              onClick={() => setWithdrawing(!withdrawing)}
+            >
+              Withdraw
+            </Button>
+          )}
+          {withdrawing && (
+            <form
+              noValidate
+              className="flex flex-wrap items-end gap-2"
+              onSubmit={withdrawForm.handleSubmit(({ reason }) =>
+                withdraw(s.no_known_allergy!.id, reason),
+              )}
+            >
+              <Field
+                id={`nka-withdraw-${base}`}
+                label="Reason for withdrawing"
+                error={withdrawForm.formState.errors.reason?.message}
+              >
+                <input
+                  id={`nka-withdraw-${base}`}
+                  className={inputClass}
+                  {...withdrawForm.register("reason")}
+                />
+              </Field>
+              <Button type="submit" size="sm" disabled={withdrawPending}>
+                Confirm withdrawal
+              </Button>
+            </form>
+          )}
+        </div>
       )}
       {s.needs_coding && (
         <p role="alert" className="text-sm font-medium text-destructive">
@@ -169,23 +306,31 @@ function Allergies({
               Recording allergies opens once a clinician approves the reaction and severity lists.
             </p>
           )}
-          {s.status !== "allergies_recorded" && (
+          {s.status === "unknown" && (
             <Button
               variant="outline"
               size="sm"
-              disabled={noKnown.isPending}
-              onClick={() => noKnown.mutate()}
+              aria-expanded={confirming}
+              onClick={() => setConfirming(!confirming)}
             >
               No known allergies
             </Button>
           )}
         </div>
       )}
+      {confirming && s.status === "unknown" && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
+          <p className="text-sm">The patient was asked and reports no known allergies.</p>
+          <Button size="sm" disabled={noKnownPending} onClick={noKnown}>
+            Confirm no known allergies
+          </Button>
+        </div>
+      )}
       {recording && s.recording_enabled && (
         <RecordAllergy
           base={base}
           encounterId={encounterId}
-          invalidate={key}
+          invalidate={invalidate}
           onDone={() => setRecording(false)}
         />
       )}
@@ -313,7 +458,8 @@ function RecordAllergy({
   invalidate: string[];
   onDone: () => void;
 }) {
-  const [entryId, setEntryId] = useState(() => newEncounterId());
+  const idFor = useIntentIds();
+  const [formId] = useState(() => newEncounterId());
   const search = useZodForm(drugSearchSchema, { q: "" });
   const [query, setQuery] = useState("");
   const drugs = useApiQuery<{ data: DrugSearchResult[] }>(
@@ -336,7 +482,7 @@ function RecordAllergy({
   const kind = form.watch("substance_kind");
   const record = useApiMutation(
     (v: z.infer<typeof allergySchema>) =>
-      apiFetch<AllergyEntry>(`${base}/allergies/${entryId}`, {
+      apiFetch<AllergyEntry>(`${base}/allergies/${idFor(v)}`, {
         method: "PUT",
         body: JSON.stringify({
           substance_kind: v.substance_kind,
@@ -354,10 +500,7 @@ function RecordAllergy({
       successToast: "Allergy recorded",
       invalidate: [invalidate],
       invalidateOnError: true,
-      onSuccess: () => {
-        setEntryId(newEncounterId());
-        onDone();
-      },
+      onSuccess: onDone,
     },
   );
   return (
@@ -370,7 +513,7 @@ function RecordAllergy({
         <FormSelectField
           control={form.control}
           name="substance_kind"
-          id={`allergy-kind-${entryId}`}
+          id={`allergy-kind-${formId}`}
           label="Substance"
           options={[
             { value: "drug_molecule", label: "Drug in the catalogue" },
@@ -382,19 +525,19 @@ function RecordAllergy({
           <FormSelectField
             control={form.control}
             name="molecule_id"
-            id={`allergy-molecule-${entryId}`}
+            id={`allergy-molecule-${formId}`}
             label="Drug"
             disabled={molecules.size === 0}
             options={[...molecules].map(([value, label]) => ({ value, label }))}
           />
         ) : (
           <Field
-            id={`allergy-label-${entryId}`}
+            id={`allergy-label-${formId}`}
             label={kind === "non_drug" ? "Substance name" : "Drug name as given"}
             error={form.formState.errors.substance_label?.message}
           >
             <input
-              id={`allergy-label-${entryId}`}
+              id={`allergy-label-${formId}`}
               className={inputClass}
               {...form.register("substance_label")}
             />
@@ -404,7 +547,7 @@ function RecordAllergy({
           <FormSelectField
             control={form.control}
             name="non_drug_category"
-            id={`allergy-category-${entryId}`}
+            id={`allergy-category-${formId}`}
             label="Category"
             options={options(nonDrugCategories)}
           />
@@ -412,21 +555,21 @@ function RecordAllergy({
         <FormSelectField
           control={form.control}
           name="reaction"
-          id={`allergy-reaction-${entryId}`}
+          id={`allergy-reaction-${formId}`}
           label="Reaction"
           options={options(allergyReactions)}
         />
         <FormSelectField
           control={form.control}
           name="severity"
-          id={`allergy-severity-${entryId}`}
+          id={`allergy-severity-${formId}`}
           label="Severity"
           options={options(allergySeverities)}
         />
         <FormSelectField
           control={form.control}
           name="source"
-          id={`allergy-source-${entryId}`}
+          id={`allergy-source-${formId}`}
           label="Source"
           options={options(allergySources)}
         />
@@ -444,12 +587,12 @@ function RecordAllergy({
           onSubmit={search.handleSubmit(({ q }) => setQuery(q))}
         >
           <Field
-            id={`allergy-drug-search-${entryId}`}
+            id={`allergy-drug-search-${formId}`}
             label="Find the drug"
             error={search.formState.errors.q?.message}
           >
             <input
-              id={`allergy-drug-search-${entryId}`}
+              id={`allergy-drug-search-${formId}`}
               className={`${inputClass} w-64`}
               placeholder="Generic or brand name"
               {...search.register("q")}
@@ -479,7 +622,19 @@ const drugSearchSchema = z.object({
   q: z.string().trim().min(2, "At least two letters").max(100),
 });
 
+// A local date-time, as <input type="datetime-local"> gives it.
+function localNow() {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 const weightSchema = z.object({
+  measured_at: z
+    .string()
+    .min(1, "When was it measured?")
+    .refine((v) => !Number.isNaN(Date.parse(v)), "Not a date and time")
+    .refine((v) => Date.parse(v) <= Date.now() + 60_000, "Cannot be in the future"),
   value: z
     .string()
     .trim()
@@ -502,31 +657,46 @@ function Weight({
   const latest = useApiQuery<WeightObservation>(key, `${base}/weights/latest`, {
     refetchOnWindowFocus: false,
   });
-  const [id, setId] = useState(() => newEncounterId());
+  const idFor = useIntentIds();
+  const [id] = useState(() => newEncounterId());
   const [open, setOpen] = useState(false);
-  const form = useZodForm(weightSchema, { value: "", unit: "kg", method: "measured" });
+  const blank = () => ({
+    value: "",
+    unit: "kg" as const,
+    method: "measured" as const,
+    measured_at: localNow(),
+  });
+  const form = useZodForm(weightSchema, blank());
+  // The time is the one entered (default: when the form opened), so a retry
+  // sends the same intent and a reported weight keeps its real date.
   const record = useApiMutation(
-    (v: z.infer<typeof weightSchema>) =>
-      apiFetch<WeightObservation>(`${base}/weights/${id}`, {
+    (v: z.infer<typeof weightSchema>) => {
+      const body = {
+        ...v,
+        measured_at: new Date(v.measured_at).toISOString().replace(/\.\d{3}Z$/, "Z"),
+        encounter_id: encounterId,
+      };
+      return apiFetch<WeightObservation>(`${base}/weights/${idFor(body)}`, {
         method: "PUT",
-        body: JSON.stringify({
-          ...v,
-          measured_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-          encounter_id: encounterId,
-        }),
-      }),
+        body: JSON.stringify(body),
+      });
+    },
     {
       successToast: "Weight recorded",
       invalidate: [key],
       invalidateOnError: true,
       onSuccess: () => {
-        setId(newEncounterId());
         setOpen(false);
-        form.reset({ value: "", unit: "kg", method: "measured" });
+        form.reset(blank());
       },
     },
   );
-  const none = latest.error instanceof ApiError && latest.error.status === 404;
+  // Only "weight not found" means none recorded; a missing grant or patient
+  // is a failure to show, not an empty history.
+  const none =
+    latest.error instanceof ApiError &&
+    latest.error.status === 404 &&
+    latest.error.message === "weight not found";
   return (
     <section className="space-y-2" aria-labelledby={`weight-${base}`}>
       <h4 id={`weight-${base}`} className="text-sm font-semibold">
@@ -552,9 +722,21 @@ function Weight({
       {open && (
         <form
           noValidate
-          className="grid gap-3 sm:grid-cols-4"
+          className="grid gap-3 sm:grid-cols-5"
           onSubmit={form.handleSubmit((v) => record.mutate(v))}
         >
+          <Field
+            id={`weight-at-${id}`}
+            label="Measured at"
+            error={form.formState.errors.measured_at?.message}
+          >
+            <input
+              id={`weight-at-${id}`}
+              type="datetime-local"
+              className={inputClass}
+              {...form.register("measured_at")}
+            />
+          </Field>
           <Field
             id={`weight-value-${id}`}
             label="Weight"

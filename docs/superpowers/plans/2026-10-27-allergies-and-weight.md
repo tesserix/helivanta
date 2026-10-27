@@ -57,16 +57,16 @@
    - **Tests:** publication emits one event per new molecule; a re-used molecule emits none;
      replay emits all.
 2. **MediCore molecule projection.**
-   - `medicore_drug_molecules` (global, `lintAllowlist`, written only by the consumer
-     `medicore-molecule-published` under `WithSystem`).
-   - It is a trusted platform event, so the consumer writes as a dedicated function:
-     `SECURITY DEFINER`, owned by the schema owner, `search_path` pinned, insert-only,
-     idempotent. `hms_app` holds SELECT only.
-   - **Test:** redelivery is a no-op, and `hms_app` cannot insert directly.
+   - `medicore_drug_molecules` is global (`lintAllowlist`). Only the consumer `medicore-molecule-published` writes it, under `WithSystem`.
+   - **Ruling, changed from the first draft:** the draft's `SECURITY DEFINER` function would not separate anything. Consumers and requests both run as `hms_app`, so either can call it.
+     - The control is an RLS insert policy that admits only the actor `system:medicore-molecule-published`, which the bus sets.
+     - `authn` refuses any credential whose subject starts with `system:` or `service:`, so no request can take that actor.
+     - Tests prove both halves: `TestTheBusProjectsAPublishedMolecule` and `TestOnlyTheMoleculeConsumerProjectsMolecules`.
+     - A role-level separation would need a dedicated consumer pool; that is out of scope here.
+   - **Test:** redelivery is a no-op, and a request cannot insert.
 3. **Allergies.**
    - **Tables:**
-     - `medicore_allergy_statements` (`no_known_allergy` assertions with
-       `retracted_by_entry`);
+     - `medicore_no_known_allergy` (statements) and `medicore_no_known_allergy_withdrawals` (a statement withdrawn with a reason; the status returns to unknown);
      - `medicore_allergy_entries` (identity: `id`, `version`, insert-only rows; current =
        highest version).
    - **Routes:**

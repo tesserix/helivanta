@@ -204,6 +204,36 @@ and guard on application rollback. No existing free text is bulk matched.
 
 Enrollment profiles can select `department_revision_id`, `designation_revision_id`, `grade_revision_id`. Foreign-key scope includes tenant, hospital and category. The server derives the assignment name from the immutable revision; supplied label text cannot forge a snapshot. New assignments must select the active current revision. An existing assignment may retain its older/retired revision. Explicit empty reference clears it; omitted reference fields from older clients preserve an existing assignment. Free-text legacy assignments remain supported without silently matching names. A database guard refuses older API writers attempting to remove a pinned profile during rolling deployment.
 
+Qualification rows can select optional `qualification_revision_id`, restricted to
+the same tenant, hospital and `qualification` category. The server derives the
+qualification label from that immutable revision. New selections require the
+active current revision; existing historical pins remain valid. Omitting the
+field preserves the stored reference **by the existing qualification row ID**;
+an explicit empty string clears it and permits historical free text. Null and
+malformed UUIDs return 400. Changing/removing a row ID is a row replacement/removal,
+not an instruction to copy another row's reference. Qualification row IDs and
+their existing private-evidence anchors are retained on ordinary amendments.
+Duplicate qualification/institution/year combinations are checked again after
+canonical labels resolve, before any staff write or audit/outbox publication.
+
+Default enrollment responses, including `?profile_masters=v1` alone, retain the
+original qualification shape for older strict editors. Request
+`?qualification_masters=v1` on GET/PUT to receive `qualification_revision_id` and
+top-level `qualification_masters_version: "v1"`. The two selectors are independent
+and may be combined. Empty, unsupported or repeated selectors return 400 before
+writes. Updated editors require both response markers and version their query
+cache; a profile-aware API without qualification support cannot open a writable
+existing record. Neither selector grants enrollment/hospital authority.
+
+Migrations `0042_workforce_qualification_masters` and
+`0043_workforce_qualification_master_index` add a typed composite foreign key,
+constant category check, concurrent reference index and a distinct older-writer
+guard. Intermediate profile-aware binaries cannot delete or update pinned
+qualification rows using their existing profile support marker. Deploy schema
+and updated API fleet before exposing these controls; preserve the columns and
+guard on application rollback. This is source behavior, not evidence of
+production deployment. No new route, permission or event field is introduced.
+
 `helivanta.in.workforce.master_changed.v1` contains hospital/master/revision UUIDs, category and revision number only. Audit, master head, immutable revision and outbox intent commit together. Neither employee attributes nor master labels are broadcast. The existing JetStream relay publishes; no Valkey caching or Temporal workflow is required for this transaction.
 
 Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.

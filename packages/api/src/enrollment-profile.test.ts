@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROFILE, enrollmentProfileSchema } from "./enrollment-fields";
+import {
+  EMPTY_PROFILE,
+  enrollmentProfileSchema,
+  EMPTY_QUALIFICATIONS,
+  enrollmentQualificationSchema,
+} from "./enrollment-fields";
 import { hrMasterSchema } from "./hr-masters";
 
 const revision = "11111111-2222-4333-8444-555555555555";
@@ -61,5 +66,35 @@ describe("profile master contract", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) throw new Error("Older profile input was rejected");
     expect(JSON.parse(JSON.stringify(parsed.data))).toEqual(legacy);
+  });
+});
+
+describe("qualification master contract", () => {
+  const qualification = {
+    ...EMPTY_QUALIFICATIONS,
+    id: revision,
+    qualification: "Synthetic qualification",
+    institution: "Synthetic University",
+  };
+  it("preserves older input omission rather than manufacturing an explicit clear", () => {
+    const legacy: Record<string, unknown> = { ...qualification };
+    delete legacy.qualification_revision_id;
+    expect(enrollmentQualificationSchema.parse(legacy)).toEqual(legacy);
+  });
+  it("accepts an explicit UUID or clear and rejects null and malformed references", () => {
+    for (const value of [revision, ""])
+      expect(
+        enrollmentQualificationSchema.safeParse({
+          ...qualification,
+          qualification_revision_id: value,
+        }).success,
+      ).toBe(true);
+    for (const value of [null, "invalid"])
+      expect(
+        enrollmentQualificationSchema.safeParse({
+          ...qualification,
+          qualification_revision_id: value,
+        }).success,
+      ).toBe(false);
   });
 });

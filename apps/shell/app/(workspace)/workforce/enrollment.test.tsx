@@ -8,49 +8,53 @@ import Workforce from "./page";
 const hospital = "11111111-1111-4111-8111-111111111111";
 afterEach(() => vi.unstubAllGlobals());
 
-it("keeps the editor closed when the API cannot confirm the profile projection", async () => {
-  const staff = {
-    id: "44444444-3333-4333-8444-555555555555",
-    display_name: "Synthetic older service staff",
-    employee_code: "SYN-OLDER-SERVICE",
-    job_category: "other",
-    employment_status: "active",
-  };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
-        : url.endsWith("/hospitals")
-          ? {
-              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
-              page: { has_more: false },
-            }
-          : url.includes("/enrollment")
+it.each([{}, { profile_masters_version: "v1" }])(
+  "keeps the editor closed when the API cannot confirm both master projections: %j",
+  async (projection) => {
+    const staff = {
+      id: "44444444-3333-4333-8444-555555555555",
+      display_name: "Synthetic older service staff",
+      employee_code: "SYN-OLDER-SERVICE",
+      job_category: "other",
+      employment_status: "active",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const body = url.includes("permissions")
+          ? { data: ["workforce.enrollment.manage"] }
+          : url.endsWith("/hospitals")
             ? {
-                staff,
-                version: 1,
-                profile: EMPTY_PROFILE,
-                addresses: [],
-                emergency_contacts: [],
-                credentials: [],
-                qualifications: [],
-                experiences: [],
+                data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+                page: { has_more: false },
               }
-            : { data: [staff], page: { has_more: false } };
-      return new Response(JSON.stringify(body), { status: 200 });
-    }),
-  );
-  const { user } = renderWithProviders(<Workforce />);
-  await user.click(
-    await screen.findByRole("button", { name: "Edit Synthetic older service staff" }),
-  );
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "This enrollment view is not available yet",
-  );
-  expect(screen.queryByRole("button", { name: /^Save staff$/ })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /^Try again$/ })).toBeEnabled();
-});
+            : url.includes("/enrollment")
+              ? {
+                  staff,
+                  version: 1,
+                  profile: EMPTY_PROFILE,
+                  ...projection,
+                  addresses: [],
+                  emergency_contacts: [],
+                  credentials: [],
+                  qualifications: [],
+                  experiences: [],
+                }
+              : { data: [staff], page: { has_more: false } };
+        return new Response(JSON.stringify(body), { status: 200 });
+      }),
+    );
+    const { user } = renderWithProviders(<Workforce />);
+    await user.click(
+      await screen.findByRole("button", { name: "Edit Synthetic older service staff" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This enrollment view is not available yet",
+    );
+    expect(screen.queryByRole("button", { name: /^Save staff$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Try again$/ })).toBeEnabled();
+  },
+);
 
 it("keeps typed text visible when HR choices arrive after the user starts editing", async () => {
   let resolveChoices!: (value: Response) => void;
@@ -141,7 +145,7 @@ it("pins an active department revision and preserves the selection on save failu
   await user.click(screen.getByRole("button", { name: "Save staff" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(fetch).toHaveBeenCalledWith(
-    expect.stringMatching(/\/enrollment\?profile_masters=v1$/),
+    expect.stringMatching(/\/enrollment\?profile_masters=v1&qualification_masters=v1$/),
     expect.objectContaining({ method: "PUT" }),
   );
   expect(writes[0]).toMatchObject({
@@ -165,7 +169,7 @@ function mockEnrollment(
         { status: options.status ?? 409 },
       );
     }
-    if (url.endsWith("/enrollment?profile_masters=v1"))
+    if (url.includes("/enrollment?"))
       return new Response(JSON.stringify({ error: { message: "Unavailable" } }), { status: 503 });
     const body = url.includes("permissions")
       ? { data: options.permitted === false ? [] : ["workforce.enrollment.manage"] }
@@ -193,6 +197,64 @@ function mockEnrollment(
   vi.stubGlobal("fetch", fetcher);
   return { writes, fetcher };
 }
+
+it("selects a qualification revision without replacing its row after a failed save", async () => {
+  const revision = "33333333-3333-4333-8333-333333333333";
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
+      }
+      const body = url.includes("permissions")
+        ? { data: ["workforce.enrollment.manage"] }
+        : url.endsWith("/hospitals")
+          ? {
+              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+              page: { has_more: false },
+            }
+          : url.includes("/hr/masters")
+            ? {
+                data: [
+                  {
+                    id: "synthetic-master",
+                    revision_id: revision,
+                    kind: "qualification",
+                    code: "SYN-QUAL",
+                    name: "Synthetic qualification",
+                    active: true,
+                  },
+                ],
+                page: { has_more: false },
+              }
+            : { data: [], page: { has_more: false } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Add staff" }));
+  await user.type(screen.getByLabelText("Full name"), "Synthetic Qualification Staff");
+  await user.type(screen.getByLabelText("Employee code"), "SYN-QUAL-UI");
+  await user.click(screen.getByRole("button", { name: "Add qualification" }));
+  await chooseOption(
+    user,
+    await screen.findByRole("combobox", { name: "Qualification" }),
+    "Synthetic qualification · SYN-QUAL",
+  );
+  await user.type(screen.getByLabelText("Institution"), "Synthetic University");
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    qualifications: [
+      { qualification: "Synthetic qualification", qualification_revision_id: revision },
+    ],
+  });
+  await user.click(screen.getByRole("button", { name: "Save staff" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual(writes[0]);
+});
 
 it("reveals and focuses enrollment with separate personal, contact and professional details", async () => {
   mockEnrollment();
@@ -399,10 +461,11 @@ it("preserves historical profile master pins through an unrelated edit", async (
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
               page: { has_more: false },
             }
-          : url.endsWith("/enrollment?profile_masters=v1")
+          : url.includes("/enrollment?")
             ? {
                 staff,
                 profile_masters_version: "v1",
+                qualification_masters_version: "v1",
                 version: 7,
                 profile,
                 addresses: [],
@@ -463,10 +526,11 @@ it("keeps a legacy language available after explicitly selecting a current revis
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
               page: { has_more: false },
             }
-          : url.endsWith("/enrollment?profile_masters=v1")
+          : url.includes("/enrollment?")
             ? {
                 staff,
                 profile_masters_version: "v1",
+                qualification_masters_version: "v1",
                 version: 2,
                 profile: { ...EMPTY_PROFILE, preferred_language: "en" },
                 addresses: [],

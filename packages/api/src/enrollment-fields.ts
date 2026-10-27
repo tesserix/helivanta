@@ -200,6 +200,7 @@ export const enrollmentQualificationSchema = z
       .trim()
       .max(150)
       .refine((value) => value !== "", "Complete this field."),
+    qualification_revision_id: z.union([z.literal(""), identifier]).optional(),
     institution: z
       .string()
       .trim()
@@ -218,6 +219,7 @@ export const enrollmentQualificationSchema = z
 export type EnrollmentQualification = z.infer<typeof enrollmentQualificationSchema>;
 export const EMPTY_QUALIFICATIONS = {
   qualification: "",
+  qualification_revision_id: "",
   institution: "",
   country: "",
   completion_year: 0,
@@ -258,4 +260,12 @@ export const ENROLLMENT_PROFILE_MASTERS_PROJECTION = {
 } as const;
 export type EnrollmentProfileMastersProjection = {
   profile_masters_version: typeof ENROLLMENT_PROFILE_MASTERS_PROJECTION.version;
+};
+export const ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION = {
+  query: "qualification_masters",
+  version: "v1",
+  response_field: "qualification_masters_version",
+} as const;
+export type EnrollmentQualificationMastersProjection = {
+  qualification_masters_version: typeof ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version;
 };

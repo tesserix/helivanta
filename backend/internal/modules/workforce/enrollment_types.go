@@ -64,11 +64,12 @@ type enrollmentCredential struct {
 }
 
 type enrollmentQualification struct {
-	ID             string `json:"id" binding:"required,uuid"`
-	Qualification  string `json:"qualification" binding:"max=150"`
-	Institution    string `json:"institution" binding:"max=150"`
-	Country        string `json:"country" binding:"max=2"`
-	CompletionYear int    `json:"completion_year" binding:"gte=0,lte=2200"`
+	ID                      string `json:"id" binding:"required,uuid"`
+	Qualification           string `json:"qualification" binding:"max=150"`
+	QualificationRevisionID string `json:"qualification_revision_id" binding:"omitempty,uuid"`
+	Institution             string `json:"institution" binding:"max=150"`
+	Country                 string `json:"country" binding:"max=2"`
+	CompletionYear          int    `json:"completion_year" binding:"gte=0,lte=2200"`
 }
 
 type enrollmentExperience struct {
@@ -131,4 +132,38 @@ func legacyEnrollmentProfile(in enrollmentProfile) map[string]any {
 		"confirmation_date":       in.ConfirmationDate,
 		"exit_reason":             in.ExitReason,
 	}
+}
+
+const enrollmentQualificationMastersQuery = "qualification_masters"
+const enrollmentQualificationMastersVersion = "v1"
+
+func enrollmentResponse(in enrollment, profileMasters, qualificationMasters bool) map[string]any {
+	result := map[string]any{"staff": in.Staff, "version": in.Version,
+		"profile":            in.Profile,
+		"addresses":          in.Addresses,
+		"emergency_contacts": in.EmergencyContacts,
+		"credentials":        in.Credentials,
+		"qualifications":     in.Qualifications,
+		"experiences":        in.Experiences,
+	}
+	if profileMasters {
+		result["profile_masters_version"] = enrollmentProfileMastersVersion
+	} else {
+		result["profile"] = legacyEnrollmentProfile(in.Profile)
+	}
+	if qualificationMasters {
+		result["qualification_masters_version"] = enrollmentQualificationMastersVersion
+	} else {
+		rows := make([]map[string]any, 0, len(in.Qualifications))
+		for _, row := range in.Qualifications {
+			rows = append(rows, map[string]any{"id": row.ID,
+				"qualification":   row.Qualification,
+				"institution":     row.Institution,
+				"country":         row.Country,
+				"completion_year": row.CompletionYear,
+			})
+		}
+		result["qualifications"] = rows
+	}
+	return result
 }

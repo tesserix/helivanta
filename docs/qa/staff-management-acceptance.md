@@ -691,3 +691,60 @@ visibility was verified PUBLIC immediately before merge. Main CI and published
 images for this merge remain release gates. The earlier pending-check entries
 retain their checkpoint context. No production schema/application change or
 full Staff completion follows from the merge.
+
+## Qualification master connection — local acceptance
+
+The qualification candidate adds optional `qualification_revision_id` through the
+canonical enrollment generator. Existing hospital-manager/enrollment permissions
+remain authoritative. Labels resolve on the server within the same verified
+tenant, hospital and category; new assignments require the active current master.
+Historical pins remain usable. Omission preserves a pin by existing child ID,
+explicit empty clears it, and null/malformed references fail. Duplicate
+qualification/institution/year combinations are revalidated after canonical
+resolution, before writes, audit or event publication.
+
+The default response retains the old qualification shape. Independent
+`qualification_masters=v1` negotiation returns the reference and its response
+marker; it may be combined with `profile_masters=v1`. The editor requires both
+markers and keeps a distinct cache identity. Migrations `0042_workforce_qualification_masters` /
+`0043_workforce_qualification_master_index` add the typed
+reference, constant category, concurrent index and separate intermediate-writer
+guard. The local migration runner applied both; read-only inspection confirmed
+the validated foreign key, ready/valid index and enabled guard. They have **not**
+been applied to production and are excluded from the `9d1d6d3` rollout request.
+
+Actual local browser evidence through Global API:
+
+- Admin selected the existing synthetic qualification's active revision 3, added
+  institution/country/year, saved the employee and reloaded the page.
+- Admin retired that master to revision 4, retained recorded revision 3 and saved
+  an unrelated employee amendment. Read-only SQL confirmed the same qualification
+  row ID/revision and all prior profile pins, with a single staff-version advance.
+- The feature UI against the actual previous profile-aware API showed an
+  unavailable view and zero Save controls. Restoring the API and using Try again
+  recovered the recorded pin without a write.
+- The actual previous editor loaded its compatible response and saved an
+  amendment against the feature API. Final feature UI reload and read-only SQL
+  confirmed the same row ID, qualification revision and prior profile pins at
+  staff version 16.
+- Independent reviewer sign-in had no hospital access, no Add/Edit controls in
+  the staff directory and no HR setup controls. This account retains its existing
+  pharmacist membership; this is a negative scope test, not a pure employee-persona
+  acceptance or evidence of an approval stage for profile/master edits.
+
+Red-to-green tests exposed unsupported input, noncanonical retry comparison,
+omission clearing, null clearing, an intermediate writer erasing a pinned row,
+canonical duplicate acceptance, missing reference index and a missing UI selector.
+Final gates passed: full backend race/coverage (55 tested packages; Workforce
+393.498s/83.6%, Practitioner 130.723s/84.6%, Global API 44.395s/86.7%), Go vet,
+golangci-lint and builds; all 30 web tasks (1040 shell, 391 API, 236 UI, 62 config,
+9 emergency-access tests); 16 Node tests; canonical generation/check and
+contractdocs generation/check. The first broad web run lacked its required
+Global API URL; the configured run passed. Private logs, schema/database snapshots
+and browser screenshots are in the restricted evidence directory.
+
+This connects a qualification classification. It does not verify a real academic
+award, grant clinical privileges, implement identity/background review or prove
+private-file upload/scanning/release. Those workflows and the other nineteen-area
+gates remain open. Emergency relationships and configurable document
+classification retain their recorded contract/security decisions.

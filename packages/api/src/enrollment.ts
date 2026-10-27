@@ -9,6 +9,7 @@ import {
   enrollmentExperienceSchema,
   EMPTY_PROFILE,
   type EnrollmentProfileMastersProjection,
+  type EnrollmentQualificationMastersProjection,
 } from "./enrollment-fields";
 export * from "./enrollment-fields";
 
@@ -73,7 +74,7 @@ export const enrollmentSchema = z
 
 export type EnrollmentInput = z.infer<typeof enrollmentSchema>;
 export type StaffEnrollment = Omit<EnrollmentInput, "expected_version" | "staff"> &
-  Partial<EnrollmentProfileMastersProjection> & {
+  Partial<EnrollmentProfileMastersProjection & EnrollmentQualificationMastersProjection> & {
     staff: Staff;
     version: number;
   };

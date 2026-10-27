@@ -6725,6 +6725,36 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0042_workforce_qualification_masters",
+          "sql_sha256": "f052760387ea483f5b85c269db4806948e39f87f72f24826607655328d7127a0",
+          "creates_tables": []
+        },
+        {
+          "id": "0043_workforce_qualification_master_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_qualification_master_ref_idx",
+              "table": "workforce_enrollment_qualifications",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "qualification_revision_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

@@ -52,6 +52,7 @@ export * from "./medicore";
 export * from "./pharmacy";
 export * from "./pharmacy-stock-export";
 export * from "./customer-time";
+export * from "./staff-assignments";
 
 export * from "./country-profiles";
 export * from "./tax-registration";

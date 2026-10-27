@@ -1,5 +1,35 @@
 # Full workforce / HR coverage
 
+## Active completion audit — 2026-10-27
+
+The merged foundation at `527e343` is deployed, but full Staff Management is
+not complete. The live tenant administrator created a synthetic staff login-link
+proposal through the UI. A separate reviewer authenticated successfully but saw
+“No hospital access yet”; independent approval has not passed. Deployment health,
+schema application and an OpenFGA projection do not close this acceptance gap.
+
+The current implementation sequence follows the organization research and
+ADR-0044. Preserve the separation between employment, login membership,
+hospital access, management supervision and clinical supervision. None of these
+may be inferred from a job title. Department and sub-unit ownership belongs to
+the platform organization owner, with workforce owning effective-dated postings.
+
+| Sequence                             | Issues                            | Required acceptance before completion                                                                                                                                                                          |
+| ------------------------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reviewed access administration       | #1053, #417, #434                 | Proposal, independent review, withdrawal, immutable history, pending/failure recovery and live Admin → reviewer acceptance. The Staff access UI is merged; live verification is pending. Legacy grant commands remain unexposed. |
+| Product enforcement and self-service | #1132, #426–#428                  | Current membership/assignment/link/staff checks, target-bound forced RLS, own leave/balance/ledger, no self-approval; stale/revoked/cross-hospital/foreign-tenant denial.                                      |
+| Organization and supervision         | #22, #287, #616, #429             | One department/sub-unit owner, effective-dated postings and explicit managerial/clinical supervision; no implied clinical authority or payroll disclosure.                                                     |
+| Employment and confidential files    | #1035, #1105, #1107               | Synthetic enrollment, scan/release denial paths, immutable employment revisions and recoverable effective-date offboarding.                                                                                    |
+| Operational workflows and payroll    | #118 and its existing HR children | Coverage-checked rosters, leave, exchanges, overtime, attendance and separately authorized payroll; configuration is not payroll execution or payment.                                                         |
+| Imports, dashboards and reporting    | #617, #558, #1018, #589, #1261    | Preview/row errors/duplicate handling, scoped reports, reconciled measures, accessible complete UI and sensitive-export audit.                                                                                 |
+
+Each change must link its issue, list the contracts consulted, pass the applicable
+tests and CI, merge, deploy through the established release path, and pass the
+actual authenticated synthetic UI workflow. Only then may the issue receive an
+end-to-end verification label. Existing closed stories still need their relevant
+integration behavior checked; a closed issue is not proof of current live behavior.
+No issue has been relabelled or closed by this audit.
+
 Root tracker: [#979](https://github.com/tesserix/helivanta/issues/979). Owner: Samyak Rout (`Sam123ben`). The existing eight exploration stories cover the legacy HR module. Five focused implementation children refine the remaining staff-registry acceptance. GitHub limits #979 to 100 direct children; the registry stories are genuine sub-issues of #1035 and the shift-definition story is under #1036; both parents are children of #979. None is closed merely because its menu/schema exists.
 
 ## Verified scope and delivery state
@@ -605,7 +635,7 @@ backend owner remains `workforce`, with `/v1/workforce/hospitals/...` routes.
 | Appraisals (#1042) | Open: objectives, reviewer scope, assessment, normalization, acknowledgment and protected history. Appraisal approval must not directly alter payroll. |
 | Private files (#1105), benefits (#1106), credentials (#1108) | #1105 remains open. #1106 and #1108 are closed, with merged implementation evidence; their runtime integrations must still be verified in the target environment. |
 | Letters and exit (#1107) | Open: versioned letters, effective milestones and recoverable identity/payroll/clinical handoffs. Setting the existing staff status to inactive is not access revocation. |
-| Identity and self-service (#1053, #1132, #417) | No staff-to-login binding exists in the current workforce schema. Reviewed linking, revocation, self-only leave/balance access and independent approval remain required. |
+| Identity and self-service (#1053, #1132, #417) | Reviewed staff-to-login links are deployed with history and independent-review checks. The live approval journey is blocked by reviewer hospital access; self-only leave/balance enforcement remains unfinished. |
 | Structure and access (#22, #287, #616, #429) | ADR-0044 assigns the department master to platform organization structure and postings to workforce. Department-scoped approved assignments are not implemented by the current tenant-level FGA model. |
 | Reports and UI (#1018, #589, #1261) | Purpose-scoped analytics, protected exports, accessible failure/empty states and complete synthetic browser walkthroughs remain acceptance gates. |
 | Global API and consumers (#118) | The worktree gateway maps `workforce` to an explicit owner destination and passes credentials to product authorization. Live authenticated routing, downstream handover/drill/facility consumers and reconciliation need their own proof. |

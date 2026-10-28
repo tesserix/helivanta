@@ -1071,3 +1071,71 @@ coverage. After updating the isolated branch to merged main, all 30 tasks in
 1,091 shell tests and 236 shared UI tests. No API, schema or permission contract
 was changed. Full payroll execution and the remaining Staff acceptance areas stay
 open.
+
+### Approved production releases — 2026-10-29
+
+PR #1426 merged as `bb59caa3bdf362f13cde5a20fe6e04fabd967ba4` and was
+promoted through Kargo successfully. The published
+[workspace layout release](https://github.com/tesserix/helivanta/releases/tag/2026-10-28-workspace-layout)
+also contains the approved Pharmacy daily sales report from #1424. Production
+browser QA confirmed the expanded Staff width and unauthorized identity-source
+denial; no production identity grant was created.
+
+PR #1427 merged as `2fede3e55470b25576e19f800fc3f95eb6b97dda` and was
+promoted successfully. The published
+[payroll access release](https://github.com/tesserix/helivanta/releases/tag/2026-10-28-staff-payroll-access)
+was verified with a fresh restricted-reviewer login and direct payroll setup
+navigation: explicit denial, no payroll records or retry controls. API, Global
+API, shell and three Go workers reported two updated/ready/available replicas.
+Both owning repositories remained public.
+
+One production browser reload returned Cloudflare 520 at
+`2026-10-28T12:17:54Z`. The next controlled reload recovered; shell was
+Healthy/Synced with zero pod restarts and subsequent fresh-login QA passed.
+The underlying cause was not established. This observation does not justify a
+claim that its cause was fixed. Private rollout/preflight evidence retains it.
+
+### Identity draft preparation — 2026-10-29 (local)
+
+The bounded draft slice adds create/edit/current/list/history for identity,
+background and photograph preparations. Current hospital manager authority is
+required to write; managers or reviewers may read, with current independently
+reviewed actor binding and fail-closed IAM transaction guard. Every new case
+request pins both verified tenant and account through mandatory precondition
+headers forwarded by Global API. Drafts are explicitly unreviewed.
+
+Canonical input/receipt and source-projection contracts, migration
+`0049_workforce_identity_cases`, immutable snapshots, forced RLS, scoped indexes,
+metadata-only event/audit records and exact replay receipts are implemented.
+Migration 0049 is applied only to the synthetic local QA database. No production
+rollout or migration approval is implied by this checkpoint.
+
+Local browser QA through the Global API verified reviewer-only empty drafts
+without prepare/edit controls. An existing owner proposed a two-hour manager
+assignment for the linked synthetic actor in the synthetic QA hospital; a
+separate existing approver reviewed it and activation reached version 5. The
+manager UI rejected blank policy/check/validity fields, saved a synthetic identity
+draft, edited it to version 2, displayed both immutable revisions and retained
+version 2 after a full page reload. The proposer then withdrew the temporary manager grant (version 6). After a fresh
+reviewer login, the UI retained version 2 and both history snapshots without
+Prepare or Edit controls.
+No real identity evidence, government identifier, verification decision, card,
+production role or credential was created.
+
+Validation completed: `pnpm turbo lint format:check type-check test build` on Node
+24 (30 tasks; 1,095 shell, 404 API and 236 UI tests); `go test -race -cover` for
+Workforce (83.7%), Global API (86.7%) and bootstrap (93.8%). The initial architecture
+run correctly required a documented pagination exemption for a singular case GET;
+after adding the bounded single-record rationale, its complete race suite passed.
+`golangci-lint run` for Workforce/Global API/architecture reported zero issues;
+`go vet` for affected packages, `go build ./...`, identity generator check,
+contractdocs generation/check, document formatting and diff whitespace checks
+also passed. Earlier red/green regressions cover command replay, scope and current
+authority, guard rollback, source/epoch changes, required fields, UTC dates,
+immutable history, pagination, header forwarding and private-cache removal.
+
+Evidence binding/upload, immutable submissions, independent check decisions and
+revocation, protected photograph processing/self-service, identity cards and
+employment lifecycle remain open. Payroll execution, branded payslips and
+offer/exit documents also remain open. Neither this draft slice nor the approved
+layout/access releases complete Staff Management or issue #1399.

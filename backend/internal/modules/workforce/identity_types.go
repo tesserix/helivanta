@@ -4,21 +4,57 @@ package workforce
 import (
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"time"
 )
 
 const PermIdentityChecksManage authz.Permission = "workforce.identity_checks.manage"
 const PermIdentityChecksReview authz.Permission = "workforce.identity_checks.review"
+const IdentitySourceProjectionQuery = "projection"
+const IdentitySourceDraftProjection = "identity_drafts"
 
 type IdentitySource struct {
-	HospitalID       uuid.UUID `json:"hospital_id"`
-	StaffID          uuid.UUID `json:"staff_id"`
-	EmployeeCode     string    `json:"employee_code"`
-	DisplayName      string    `json:"display_name"`
-	GivenName        string    `json:"given_name"`
-	FamilyName       string    `json:"family_name"`
-	DateOfBirth      string    `json:"date_of_birth"`
-	EmploymentStatus string    `json:"employment_status"`
-	EmploymentEpoch  int64     `json:"employment_epoch"`
-	StaffVersion     int64     `json:"staff_version"`
-	IdentityHash     string    `json:"identity_hash"`
+	HospitalID          uuid.UUID `json:"hospital_id"`
+	StaffID             uuid.UUID `json:"staff_id"`
+	EmployeeCode        string    `json:"employee_code"`
+	DisplayName         string    `json:"display_name"`
+	GivenName           string    `json:"given_name"`
+	FamilyName          string    `json:"family_name"`
+	DateOfBirth         string    `json:"date_of_birth"`
+	EmploymentStatus    string    `json:"employment_status"`
+	EmploymentEpoch     int64     `json:"employment_epoch"`
+	StaffVersion        int64     `json:"staff_version"`
+	IdentityHash        string    `json:"identity_hash"`
+	ManageChecksAllowed *bool     `json:"manage_checks_allowed,omitempty"`
+}
+
+type IdentityCaseDraftInput struct {
+	CommandID       uuid.UUID `json:"command_id"`
+	ExpectedVersion *int64    `json:"expected_version"`
+	Kind            string    `json:"kind"`
+	PolicyReference string    `json:"policy_reference"`
+	CheckReference  string    `json:"check_reference"`
+	ObservedOn      string    `json:"observed_on"`
+	ValidUntil      time.Time `json:"valid_until"`
+	IdentityHash    string    `json:"identity_hash"`
+	EmploymentEpoch int64     `json:"employment_epoch"`
+}
+
+type IdentityCase struct {
+	ID                uuid.UUID `json:"id"`
+	RevisionID        uuid.UUID `json:"revision_id"`
+	HospitalID        uuid.UUID `json:"hospital_id"`
+	StaffID           uuid.UUID `json:"staff_id"`
+	Version           int64     `json:"version"`
+	Status            string    `json:"status"`
+	Kind              string    `json:"kind"`
+	PolicyReference   string    `json:"policy_reference"`
+	CheckReference    string    `json:"check_reference"`
+	ObservedOn        string    `json:"observed_on"`
+	ValidUntil        time.Time `json:"valid_until"`
+	IdentityHash      string    `json:"identity_hash"`
+	EmploymentEpoch   int64     `json:"employment_epoch"`
+	ProposedBySubject string    `json:"proposed_by_subject"`
+	ActorSubject      string    `json:"actor_subject"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }

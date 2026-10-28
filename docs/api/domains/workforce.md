@@ -34,6 +34,16 @@ Qualification, relationship and private-document category consumers remain
 separate work; neither a master choice nor an exit reason completes employment
 approval, offboarding or payroll.
 
+## Identity draft boundary
+
+Workforce owns hospital/staff-scoped identity, background and photograph drafts
+and immutable history (`workforce-identity-checks.json`). IAM owns current scoped
+manager/reviewer authority and reviewed actor bindings. The opt-in source
+projection exposes preparation capability; mandatory tenant/account request
+preconditions survive the Global API. Drafts are unreviewed and convey neither
+employment authority nor identity-card eligibility. Evidence binding, independent
+check decisions and card issuance remain open; see the detailed Workforce API.
+
 ## Event and projection boundary
 
 Workforce publishes metadata-oriented change events for staff enrollment, HR definitions, rosters, leave, exchanges, overtime, attendance, payroll configuration, documents, credentials and benefits. Read exact subjects and consumers from the [registry inventory](../reference/inventory.json) and payload types from `backend/internal/modules/workforce/contract/events.go`; avoid copying their many definitions into another service.

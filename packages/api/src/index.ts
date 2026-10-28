@@ -98,3 +98,5 @@ export { notifySessionChanged, SESSION_CHANGE_KEY } from "./session-change";
 
 export * from "./staff-access-templates";
 export * from "./identity-checks-contract";
+
+export * from "./identity-checks";

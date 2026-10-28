@@ -123,7 +123,7 @@ type PrescriptionImageChangedData struct {
 }
 
 // SubjectCreditNoteIssued identifies a counter credit note for goods returned (#1386 C-1).
-const SubjectCreditNoteIssued = "helivanta.in.pharmacy.credit_note_issued.v1"
+const SubjectCreditNoteIssued = "helivanta.in.pharmacy.credit_note_issued.v1" //nolint:gosec // an event subject name, not a credential value
 
 // CreditNoteIssuedData carries ids and totals, never the recipient.
 type CreditNoteIssuedData struct {

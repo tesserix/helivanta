@@ -119,7 +119,8 @@ func (r creditNote) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID 
 
 // creditNoteColumns joins the sale for the invoice reference Rule 53(1A)(g)
 // requires and the seller the credit note names.
-const creditNoteColumns = `n.id, n.sale_id, n.credit_note_number, n.financial_year, to_char(n.credit_note_date,'YYYY-MM-DD') AS credit_note_date,
+const creditNoteColumns = //nolint:gosec // SQL column names, not a credential value
+`n.id, n.sale_id, n.credit_note_number, n.financial_year, to_char(n.credit_note_date,'YYYY-MM-DD') AS credit_note_date,
  s.invoice_number, to_char(s.sale_date,'YYYY-MM-DD') AS invoice_date, s.seller_legal_name, s.seller_address, s.seller_gstin, s.place_of_supply,
  n.currency, n.total_minor, n.taxable_minor, n.cgst_minor, n.sgst_minor, n.reason, n.recipient_name, n.recipient_address, n.actor_subject, n.created_at`
 

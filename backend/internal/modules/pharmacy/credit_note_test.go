@@ -268,6 +268,25 @@ func TestTheDatabaseKeepsCreditNotesHonest(t *testing.T) {
 	require.Error(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE pharmacy_credit_notes SET total_minor=1 WHERE id=?`, cn.ID).Error
 	}), "a credit note is immutable")
+	// A forged return of more units than are left, at amounts that are the
+	// exact pro-rata step for those units, is refused on units alone.
+	var line struct{ AmountMinor, CGSTMinor int64 }
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT amount_minor, cgst_minor FROM pharmacy_sale_lines WHERE sale_id=? AND line_number=1`, sale).Scan(&line).Error
+	}))
+	step := func(v int64) int64 { return v*11/10 - v*2/10 }
+	require.ErrorContains(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		id := uuid.Must(uuid.NewV7())
+		amount, half := step(line.AmountMinor), step(line.CGSTMinor)
+		if err := tx.Exec(`INSERT INTO pharmacy_credit_notes (id,tenant_id,outlet_id,sale_id,financial_year,sequence_number,credit_note_number,credit_note_date,currency,
+			total_minor,taxable_minor,cgst_minor,sgst_minor,reason,recipient_name,recipient_address,intent_sha256,actor_subject)
+			VALUES (?,?,?,?,'2627',98,'TS/2627/C98','2026-11-01','INR',?,?,?,?,'TEST forged','TEST','TEST',repeat('a',64),'user-editor')`,
+			id, testutil.TenantA, pharmaOutlet, sale, amount, amount-2*half, half, half).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO pharmacy_credit_note_lines (tenant_id,outlet_id,credit_note_id,line_number,sale_id,sale_line,location_id,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor)
+			VALUES (?,?,?,1,?,1,?,9,?,?,?,?)`, testutil.TenantA, pharmaOutlet, id, sale, w.quarantine, amount, amount-2*half, half, half).Error
+	}), "a credit line returns at most what was sold", "9 more units after 2 of 10 is beyond what was sold")
 	// A forged credit note over-crediting a line is refused by the line guard.
 	require.ErrorContains(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
 		id := uuid.Must(uuid.NewV7())

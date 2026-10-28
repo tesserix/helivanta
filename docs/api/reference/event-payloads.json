@@ -943,6 +943,69 @@
       "type": "object"
     }
   },
+  "helivanta.in.pharmacy.credit_note_issued.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:129",
+    "go_type": "CreditNoteIssuedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "credit_note_id": {
+          "type": "string"
+        },
+        "credit_note_number": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "properties": {
+              "batch_id": {
+                "type": "string"
+              },
+              "product_id": {
+                "type": "string"
+              },
+              "quantity_units": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "product_id",
+              "batch_id",
+              "quantity_units"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "pharmacy_id": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        },
+        "total_minor": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pharmacy_id",
+        "outlet_id",
+        "credit_note_id",
+        "sale_id",
+        "credit_note_number",
+        "currency",
+        "total_minor",
+        "lines"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.pharmacy.dispense_recorded.v1": {
     "source": "backend/internal/modules/pharmacy/contract/events.go:23",
     "go_type": "DispenseRecordedData",

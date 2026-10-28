@@ -148,6 +148,19 @@ Drugs Rules 1945, Rule 65(3)(h): an H1 supply is recorded in a separate register
 - **Audited.** Every page read writes an `audit_events` row (`register_read`) naming the period. Every export writes one (`register_export`) and logs the row count and digest. The pharmacy owner cannot read the register: it shows patient and prescriber details.
 - **Not covered.** Schedule X and NDPS registers (#165, #171), and printing as a bound register.
 
+### The daily sales report (#1386 C-3, #1060)
+
+| Route                           | Behaviour                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET …/reports/daily?from=&to=` | One row per outlet date and currency with a sale or credit note, oldest first, for a period of at most 366 days. Each row has the sales' count, total, taxable value, CGST, SGST, discount and units; the credit notes' count, total, taxable value, CGST, SGST and units; the net; tenders and refunds by kind. Requires `pharmacy.sale.read` (pharmacist, owner) |
+
+- **A read of posted records.** Sales and credit notes are insert-only, so the report is summed afresh and cannot drift. A credit note counts on its own date, not its sale's.
+- **Never across currencies.** A row is one day and one currency.
+- **Cash is what was applied to the sale.** Change handed back is not income.
+- **No row for a quiet day.** A day with no sale or credit note is absent, not shown as zeros.
+- **Not audited.** It holds totals only, with no patient, prescriber or buyer detail.
+- **Not covered.** Shift or till close, purchase cost and margin, item-wise and patient-wise reports, and a CSV export.
+
 ### Returns as credit notes (#1386 C-1)
 
 A return is a GST credit note against one posted invoice. The rules followed are CGST Act 2017, s.34, and CGST Rules 2017, Rule 53(1A), as published by CBIC. Returned medicine goes to quarantine and is sold again only after a pharmacist releases it (A3).

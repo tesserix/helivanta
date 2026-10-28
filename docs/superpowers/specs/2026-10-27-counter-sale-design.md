@@ -430,6 +430,43 @@ Not covered: Schedule X and NDPS registers (#165, #171); registers for drugs oth
 (Rule 65(3)(1)'s general prescription register is the invoice and credit note record);
 printing as a bound register.
 
+#### C-3 decisions (2026-10-28)
+
+**Source.** #1060's legacy screens: the sales invoice summary (449, 731), giving the date, invoice
+total and total discount, and the receipts and refunds report (450, 725), giving the date, the
+mode and the receipt and refund amounts.
+
+1. **A read of posted records, never a second copy.** The report sums sales and credit notes,
+   which are insert-only, so it cannot drift from them. Nothing is cached or closed.
+2. **A day is the outlet's own date.** It is the `sale_date` and `credit_note_date` stamped when
+   each document posted (B-1, C-1). A credit note counts on its own date, not its sale's.
+3. **One row per day and currency with any activity.** Amounts in different currencies are never
+   added together. A day with no sale and no credit note has no row; the UI says so instead of
+   showing zeros.
+4. **Each row shows:**
+   - the sales: count, total, taxable value, CGST, SGST, discount and units sold;
+   - the credit notes: count, total, taxable value, CGST, SGST and units returned;
+   - the tenders taken, by kind (cash, UPI, card);
+   - the refunds paid, by kind;
+   - the net: sales total less credit note total.
+
+   Cash is the amount applied to the sale, not the notes handed over; change is not income.
+
+5. **Who may see it.** `pharmacy.sale.read` (pharmacist, owner) with an outlet grant. It holds
+   totals only, no patient, prescriber or buyer detail, so the owner sees it and reads are not
+   audited.
+6. **Bounds.** A period is at most 366 outlet dates, which bounds the rows; the response is not
+   paged.
+
+**Not covered:**
+
+- deleted amounts: nothing is deleted, so legacy's "deleted amount" column has no counterpart;
+- shift or till close, and cash counts (a cash-up feature of its own);
+- purchase cost and margin (449's sibling reports 452, 719, 749, 444) — #1060 needs approved
+  margin formulas first;
+- item-wise, patient-wise and wholesale reports;
+- a CSV export.
+
 ## Not covered by A–C
 
 Admission and bed billing (#1387), service charges (#1388), e-prescription dispensing (#170),

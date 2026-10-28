@@ -37,6 +37,7 @@ import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
 import { Prescriptions } from "./prescriptions";
 import { Returns } from "./returns";
+import { DailyReport } from "./daily-report";
 import { H1Register } from "./h1-register";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
@@ -46,6 +47,7 @@ type PharmacyView =
   | "counter"
   | "prescriptions"
   | "returns"
+  | "daily-report"
   | "h1-register"
   | "stock"
   | "receiving"
@@ -58,6 +60,7 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
   counter: "Sell OTC medicines from sellable stock and print the GST invoice.",
   prescriptions: "Record prescriptions and their scanned pages, kept private and virus-scanned.",
   returns: "Take medicine back against its invoice: a GST credit note, a refund, and quarantine.",
+  "daily-report": "Each day's sales, credit notes, payments and refunds at this outlet.",
   "h1-register":
     "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
@@ -363,6 +366,11 @@ function OutletPharmacy({
         <H1Register
           scope={scope}
           // The outlet's own date (en-CA formats as YYYY-MM-DD).
+          today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
+        />
+      ) : view === "daily-report" ? (
+        <DailyReport
+          scope={scope}
           today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
         />
       ) : view === "returns" ? (

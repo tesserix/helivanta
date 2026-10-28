@@ -12,6 +12,7 @@ import {
   useApiMutation,
   useApiPagedQuery,
   useApiQuery,
+  type PharmacyDiscountCeiling,
   type PharmacyInvoiceProfile,
   type PharmacyOpenPrescriptionLine,
   type PharmacyProduct,
@@ -34,10 +35,16 @@ export function CounterSale({
   scope,
   canSell,
   canManageProfile,
+  canDiscount = false,
+  canManageDiscount = false,
 }: {
   scope: PharmacyScope;
   canSell: boolean;
   canManageProfile: boolean;
+  /** Holds pharmacy.sale.discount, which a tenant administrator assigns (#1386 B-3). */
+  canDiscount?: boolean;
+  /** Records the outlet's discount ceiling. */
+  canManageDiscount?: boolean;
 }) {
   const profile = useApiQuery<{ profile: PharmacyInvoiceProfile | null }>(
     pharmacyKey(scope, "invoice-profile"),
@@ -69,8 +76,9 @@ export function CounterSale({
           </p>
         </Panel>
       )}
+      {canManageDiscount && <DiscountCeilingForm scope={scope} />}
       {canSell ? (
-        current && <Counter scope={scope} />
+        current && <Counter scope={scope} canDiscount={canDiscount} />
       ) : (
         <p className="text-sm text-muted-foreground">
           Selling here needs the pharmacist role; you can record the outlet&apos;s invoice details.
@@ -140,13 +148,19 @@ function InvoiceProfileForm({ scope }: { scope: PharmacyScope }) {
 }
 
 type Citation = { prescription_id: string; line_number: number };
-type BasketLine = { product: PharmacyProduct; quantity_units: number; prescription?: Citation };
+type BasketLine = {
+  product: PharmacyProduct;
+  quantity_units: number;
+  prescription?: Citation;
+  discount_bps?: number;
+};
 
 // The basket line as the quote and the sale send it.
 const lineBody = (l: BasketLine) => ({
   product_id: l.product.id,
   quantity_units: l.quantity_units,
   ...(l.prescription ? { prescription: l.prescription } : {}),
+  ...(l.discount_bps ? { discount_bps: l.discount_bps } : {}),
 });
 
 const lineSchema = z.object({
@@ -158,9 +172,23 @@ const lineSchema = z.object({
     .max(1000000, "At most 1,000,000 units"),
   // "prescription_id:line_number", or empty for an OTC product.
   prescription: z.string(),
+  // Percent off, as typed; empty is no discount (#1386 B-3).
+  discount: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === "" || /^(100|[0-9]{1,2})(\.[0-9]{1,2})?$/.test(v),
+      "Enter a percentage from 0 to 100, at most two decimals",
+    ),
 });
 
-function Counter({ scope }: { scope: PharmacyScope }) {
+function Counter({ scope, canDiscount }: { scope: PharmacyScope; canDiscount: boolean }) {
+  const ceiling = useApiQuery<{ ceiling: PharmacyDiscountCeiling | null }>(
+    pharmacyKey(scope, "counter", "discount-ceiling"),
+    `${pharmacyRoot(scope)}/discount-ceiling`,
+    { enabled: canDiscount },
+  );
+  const maxBps = ceiling.data?.ceiling?.max_bps ?? 0;
   const products = useApiPagedQuery<PharmacyProduct>(
     pharmacyKey(scope, "counter", "products"),
     `${pharmacyRoot(scope)}/catalogue/products?limit=100`,
@@ -168,7 +196,12 @@ function Counter({ scope }: { scope: PharmacyScope }) {
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const [posted, setPosted] = useState<PharmacySale | null>(null);
-  const form = useZodForm(lineSchema, { product_id: "", quantity_units: 1, prescription: "" });
+  const form = useZodForm(lineSchema, {
+    product_id: "",
+    quantity_units: 1,
+    prescription: "",
+    discount: "",
+  });
   const chosen = form.watch("product_id");
   const availability = useApiQuery<PharmacySaleAvailability>(
     pharmacyKey(scope, "counter", "availability", chosen),
@@ -243,12 +276,21 @@ function Counter({ scope }: { scope: PharmacyScope }) {
             });
             return;
           }
+          const discountBps =
+            values.discount === "" ? 0 : Math.round(Number(values.discount) * 100);
+          if (discountBps > maxBps) {
+            form.setError("discount", {
+              message: `This outlet's ceiling is ${maxBps / 100}%`,
+            });
+            return;
+          }
           const [prescriptionID, lineNumber] = values.prescription.split(":");
           changeBasket([
             ...basket,
             {
               product,
               quantity_units: values.quantity_units,
+              ...(discountBps > 0 ? { discount_bps: discountBps } : {}),
               ...(needsPrescription
                 ? {
                     prescription: {
@@ -259,7 +301,7 @@ function Counter({ scope }: { scope: PharmacyScope }) {
                 : {}),
             },
           ]);
-          form.reset({ product_id: "", quantity_units: 1, prescription: "" });
+          form.reset({ product_id: "", quantity_units: 1, prescription: "", discount: "" });
         })}
       >
         <FormSelectField
@@ -281,6 +323,15 @@ function Counter({ scope }: { scope: PharmacyScope }) {
             {...form.register("quantity_units", { valueAsNumber: true })}
           />
         </Field>
+        {canDiscount && (
+          <Field
+            id="counter-discount"
+            label={`Discount % (up to ${maxBps / 100}%)`}
+            error={form.formState.errors.discount?.message}
+          >
+            <Input id="counter-discount" inputMode="decimal" {...form.register("discount")} />
+          </Field>
+        )}
         <div className="flex items-end">
           <Button type="submit" variant="outline" disabled={!classKnown}>
             Add to basket
@@ -328,6 +379,7 @@ function Counter({ scope }: { scope: PharmacyScope }) {
               <span>
                 {line.product.sku} · {line.product.brand_name} × {line.quantity_units}
                 {line.prescription ? " · on prescription" : ""}
+                {line.discount_bps ? ` · ${line.discount_bps / 100}% off` : ""}
               </span>
               <Button
                 type="button"
@@ -437,6 +489,8 @@ const tenderSchema = z
     tendered_minor: z.number(),
     reference: z.string().trim().max(64, "At most 64 characters"),
     total: z.number(),
+    discounted: z.boolean(),
+    discount_reason: z.string().trim().max(200, "At most 200 characters"),
     // The walk-in buyer is optional on every sale (#1386 B-2b decision 7).
     buyer_name: z.string().trim().max(200, "At most 200 characters"),
     buyer_phone: z
@@ -455,6 +509,12 @@ const tenderSchema = z
       ctx.addIssue({ code: "custom", path: ["tendered_minor"], message: "At least the total" });
     if (v.kind !== "cash" && v.reference === "")
       ctx.addIssue({ code: "custom", path: ["reference"], message: "Enter the payment reference" });
+    if (v.discounted && v.discount_reason.length < 5)
+      ctx.addIssue({
+        code: "custom",
+        path: ["discount_reason"],
+        message: "Give the reason for the discount, at least 5 characters",
+      });
   });
 
 function TenderForm({
@@ -478,6 +538,8 @@ function TenderForm({
     total: quote.total_minor,
     buyer_name: "",
     buyer_phone: "",
+    discounted: basket.some((l) => l.discount_bps),
+    discount_reason: "",
   });
   const kind = form.watch("kind");
 
@@ -496,6 +558,7 @@ function TenderForm({
                 }
               : { kind: values.kind, amount_minor: quote.total_minor, reference: values.reference },
           ],
+          ...(values.discounted ? { discount_reason: values.discount_reason } : {}),
           ...(values.buyer_name || values.buyer_phone
             ? {
                 buyer: {
@@ -565,6 +628,15 @@ function TenderForm({
           </Field>
         )}
       </div>
+      {form.getValues("discounted") && (
+        <Field
+          id="discount-reason"
+          label="Reason for the discount"
+          error={form.formState.errors.discount_reason?.message}
+        >
+          <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
+        </Field>
+      )}
       <div className="grid gap-4 sm:grid-cols-3">
         <Field
           id="buyer-name"
@@ -632,6 +704,12 @@ function Invoice({
               : ` · reference ${t.reference}`}
           </p>
         ))}
+        {sale.discount_minor > 0 && (
+          <p className="mt-2 text-sm">
+            Discount {money(sale.discount_minor)}
+            {sale.discount_reason ? ` · ${sale.discount_reason}` : ""}
+          </p>
+        )}
         {(sale.buyer_name || sale.buyer_phone) && (
           <p className="mt-2 text-sm">
             Buyer {[sale.buyer_name, sale.buyer_phone].filter(Boolean).join(" · ")}
@@ -655,6 +733,78 @@ function Invoice({
           New sale
         </Button>
       </div>
+    </Panel>
+  );
+}
+
+const ceilingSchema = z.object({
+  percent: z
+    .string()
+    .trim()
+    .regex(
+      /^(100|[0-9]{1,2})(\.[0-9]{1,2})?$/,
+      "Enter a percentage from 0 to 100, at most two decimals",
+    ),
+  reason: z
+    .string()
+    .trim()
+    .min(5, "Give the reason, at least 5 characters")
+    .max(200, "At most 200 characters"),
+});
+
+/** The owner records the outlet's discount ceiling (#1386 B-3, decision 3). */
+function DiscountCeilingForm({ scope }: { scope: PharmacyScope }) {
+  const [id, setId] = useState(() => newPharmacyId());
+  const current = useApiQuery<{ ceiling: PharmacyDiscountCeiling | null }>(
+    pharmacyKey(scope, "counter", "discount-ceiling"),
+    `${pharmacyRoot(scope)}/discount-ceiling`,
+  );
+  const form = useZodForm(ceilingSchema, { percent: "", reason: "" });
+  const save = useApiMutation(
+    (values: z.infer<typeof ceilingSchema>) =>
+      apiFetch<PharmacyDiscountCeiling>(`${pharmacyRoot(scope)}/discount-ceiling/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          max_bps: Math.round(Number(values.percent) * 100),
+          reason: values.reason,
+        }),
+      }),
+    {
+      successToast: "Discount ceiling recorded",
+      invalidate: [pharmacyKey(scope, "counter", "discount-ceiling")],
+      onSuccess: () => {
+        setId(newPharmacyId());
+        form.reset({ percent: "", reason: "" });
+      },
+    },
+  );
+  const inForce = current.data?.ceiling;
+  return (
+    <Panel>
+      <form noValidate className="space-y-4" onSubmit={form.handleSubmit((v) => save.mutate(v))}>
+        <h3 className="font-semibold">Discount ceiling</h3>
+        <p className="text-sm text-muted-foreground">
+          {inForce
+            ? `In force: up to ${inForce.max_bps / 100}% off a line (${inForce.reason}).`
+            : "None recorded, so no discount can be given at this outlet."}{" "}
+          Only people a tenant administrator allows to discount can give one, always with a reason.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            id="ceiling-percent"
+            label="Ceiling %"
+            error={form.formState.errors.percent?.message}
+          >
+            <Input id="ceiling-percent" inputMode="decimal" {...form.register("percent")} />
+          </Field>
+          <Field id="ceiling-reason" label="Reason" error={form.formState.errors.reason?.message}>
+            <Input id="ceiling-reason" maxLength={200} {...form.register("reason")} />
+          </Field>
+        </div>
+        <Button type="submit" disabled={save.isPending}>
+          {save.isPending ? "Recording…" : "Record discount ceiling"}
+        </Button>
+      </form>
     </Panel>
   );
 }

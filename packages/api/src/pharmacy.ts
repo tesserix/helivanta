@@ -184,6 +184,10 @@ export type PharmacySaleLine = {
   /** The prescription line a G, H or H1 line dispenses (#1386 B-2b); null for OTC. */
   prescription_id: string | null;
   prescription_line: number | null;
+  /** Before discount; amount_minor is what is charged (#1386 B-3). */
+  list_amount_minor: number;
+  discount_bps: number;
+  discount_minor: number;
 };
 export type PharmacySaleQuote = {
   currency: string;
@@ -214,6 +218,8 @@ export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
   actor_subject: string;
   buyer_name: string | null;
   buyer_phone: string | null;
+  discount_reason: string | null;
+  discount_minor: number;
   created_at: string;
   class_origin: "declared_by_outlet";
   lines: PharmacySaleLine[];
@@ -225,6 +231,14 @@ export type PharmacySaleAvailability = {
   nearest_expiry: string | null;
   /** The approved schedule class in force; null when none is approved. */
   regulatory_class: "none" | "G" | "H" | "H1" | "X" | null;
+};
+/** The outlet's discount ceiling in force (#1386 B-3). */
+export type PharmacyDiscountCeiling = {
+  id: string;
+  max_bps: number;
+  reason: string;
+  recorded_by: string;
+  created_at: string;
 };
 export type PharmacyScope = { tenantId: string; pharmacyId: string; outletId: string };
 export function pharmacyRoot(scope: PharmacyScope) {

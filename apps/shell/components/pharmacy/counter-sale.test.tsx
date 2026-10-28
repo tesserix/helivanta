@@ -63,6 +63,8 @@ function fixture(
     sale?: (init: RequestInit) => Response;
     saveProfile?: (init: RequestInit) => Response;
     rxClass?: string;
+    ceilingBps?: number;
+    saveCeiling?: (init: RequestInit) => Response;
     saleLine?: typeof line & { prescription_id?: string; prescription_line?: number };
   } = {},
 ) {
@@ -99,6 +101,23 @@ function fixture(
           sellable_units: 105,
           nearest_expiry: "2027-03-31",
           regulatory_class: options.rxClass ?? "none",
+        }),
+      );
+    if (url.includes("/discount-ceiling/") && init.method === "PUT")
+      return options.saveCeiling?.(init) ?? new Response(JSON.stringify({}), { status: 201 });
+    if (url.endsWith("/discount-ceiling"))
+      return new Response(
+        JSON.stringify({
+          ceiling:
+            options.ceilingBps === undefined
+              ? null
+              : {
+                  id: "0199e000-0000-7000-8000-000000000060",
+                  max_bps: options.ceilingBps,
+                  reason: "TEST owner decision",
+                  recorded_by: "user-owner",
+                  created_at: "2026-11-01T06:30:00Z",
+                },
         }),
       );
     if (url.includes("/prescriptions/open-lines"))
@@ -422,5 +441,122 @@ describe("CounterSale", () => {
     releaseAvailability();
     expect(await screen.findByLabelText("Prescription (Schedule H)")).toBeVisible();
     expect(screen.getByRole("button", { name: "Add to basket" })).toBeEnabled();
+  });
+
+  it("gives a holder's discount within the ceiling, with a reason, and shows it on the invoice", async () => {
+    const discounted = {
+      ...line,
+      list_amount_minor: 10000,
+      discount_bps: 1000,
+      discount_minor: 1000,
+      amount_minor: 9000,
+    };
+    const fetcher = fixture({
+      ceilingBps: 1000,
+      quote: () =>
+        new Response(JSON.stringify({ ...totals, total_minor: 9000, lines: [discounted] })),
+      sale: () =>
+        new Response(
+          JSON.stringify({
+            ...totals,
+            total_minor: 9000,
+            id: "0199e000-0000-7000-8000-000000000030",
+            invoice_number: "TS/2627/1",
+            financial_year: "2627",
+            sale_date: "2026-11-01",
+            seller_legal_name: profile.legal_name,
+            seller_address: profile.address,
+            seller_gstin: "27PQRST5678K2Z1",
+            place_of_supply: "27",
+            actor_subject: "user-manager",
+            created_at: "2026-11-01T06:30:00Z",
+            class_origin: "declared_by_outlet",
+            buyer_name: null,
+            buyer_phone: null,
+            discount_reason: "TEST senior citizen",
+            discount_minor: 1000,
+            lines: [discounted],
+            tenders: [
+              {
+                tender_number: 1,
+                kind: "upi",
+                amount_minor: 9000,
+                tendered_minor: null,
+                change_minor: null,
+                reference: "TEST-UPI",
+              },
+            ],
+          }),
+          { status: 201 },
+        ),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} canDiscount />,
+    );
+    await chooseOption(user, await screen.findByLabelText("Product"), /TEST-PCM-500/);
+    await screen.findByText("105 units sellable, nearest expiry 2027-03-31");
+    const units = screen.getByLabelText("Units");
+    await user.clear(units);
+    await user.type(units, "8");
+    const discount = await screen.findByLabelText("Discount % (up to 10%)");
+    await user.type(discount, "12");
+    await user.click(screen.getByRole("button", { name: "Add to basket" }));
+    expect(await screen.findByText("This outlet's ceiling is 10%")).toBeVisible();
+    await user.clear(discount);
+    await user.type(discount, "10");
+    await user.click(screen.getByRole("button", { name: "Add to basket" }));
+    expect(await screen.findByText(/× 8 · 10% off/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI");
+    await user.type(screen.getByLabelText("Payment reference"), "TEST-UPI");
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(
+      await screen.findByText("Give the reason for the discount, at least 5 characters"),
+    ).toBeVisible();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+    await user.type(screen.getByLabelText("Reason for the discount"), "TEST senior citizen");
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText(/Discount INR 10.00 · TEST senior citizen/)).toBeVisible();
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    const body = JSON.parse(String(put?.[1]?.body));
+    expect(body.lines).toEqual([{ product_id: productId, quantity_units: 8, discount_bps: 1000 }]);
+    expect(body.discount_reason).toBe("TEST senior citizen");
+  });
+
+  it("offers no discount without the permission", async () => {
+    fixture({ ceilingBps: 1000 });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    expect(screen.queryByLabelText(/Discount %/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await screen.findByLabelText("Paid by");
+    expect(screen.queryByLabelText("Reason for the discount")).toBeNull();
+  });
+
+  it("lets the owner record the ceiling, with a reason", async () => {
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell={false} canManageProfile={false} canManageDiscount />,
+    );
+    expect(
+      await screen.findByText(/None recorded, so no discount can be given at this outlet./),
+    ).toBeVisible();
+    await user.type(screen.getByLabelText("Ceiling %"), "7.5");
+    await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
+    expect(await screen.findByText("Give the reason, at least 5 characters")).toBeVisible();
+    await user.type(screen.getByLabelText("Reason"), "TEST loyalty scheme");
+    await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
+    expect(await screen.findByText("Discount ceiling recorded")).toBeVisible();
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => String(url).includes("/discount-ceiling/") && init?.method === "PUT",
+    );
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      max_bps: 750,
+      reason: "TEST loyalty scheme",
+    });
   });
 });

@@ -18,11 +18,11 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
-  --shadow-xs: 0 1px 2px 0 rgb(23 61 58 / 0.05);
-  --shadow-sm: 0 1px 2px 0 rgb(23 61 58 / 0.05), 0 1px 3px 0 rgb(23 61 58 / 0.04);
-  --shadow-md: 0 4px 12px -2px rgb(23 61 58 / 0.08);
-  --shadow-lg: 0 12px 32px -12px rgb(23 61 58 / 0.18);
-  --shadow-xl: 0 20px 48px -16px rgb(23 61 58 / 0.22);
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 1px 3px 0 rgb(15 23 42 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 12px 32px -12px rgb(15 23 42 / 0.18);
+  --shadow-xl: 0 20px 48px -16px rgb(15 23 42 / 0.22);
 }
 
 .branding-preview > div {
@@ -48,31 +48,31 @@
   color-scheme: light;
 }
 
-/* Night-shift home page palette (#1354): signal colours mark the kind of exchange on the care board. */
-.home-night {
-  --night-canvas: #0c2a32;
-  --night-board: #0e2f38;
-  --night-surface: #11353f;
-  --night-hub: #0f323b;
-  --night-line: #285461;
-  --night-ink: #eef5f1;
-  --night-muted: #a3c0bc;
-  --night-care: #5ad1bd;
-  --night-care-hover: #7fdccb;
-  --night-stock: #f2b35e;
-  --night-oversight: #a9b6ff;
+/* Slate home page palette: signal colours mark the kind of exchange on the care board. */
+.home-slate {
+  --night-canvas: #f8fafc;
+  --night-board: #ffffff;
+  --night-surface: #f1f5f9;
+  --night-hub: #e2e8f0;
+  --night-line: #cbd5e1;
+  --night-ink: #0f172a;
+  --night-muted: #475569;
+  --night-care: #334155;
+  --night-care-hover: #1e293b;
+  --night-stock: #92400e;
+  --night-oversight: #4f46e5;
   --foreground: var(--night-ink);
   --muted-foreground: var(--night-muted);
   --border: var(--night-line);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 /* @tesserix/web's unlayered `* { border-color }` beats layered utilities; revert-layer restores them here. */
 @layer base {
-  :is(.public-site, .home-night) * {
+  :is(.public-site, .home-slate) * {
     border-color: var(--border);
   }
 }
-:is(.public-site, .home-night) * {
+:is(.public-site, .home-slate) * {
   border-color: revert-layer;
 }

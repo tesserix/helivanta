@@ -100,7 +100,7 @@ const sectionHeading =
 export default function LandingPage() {
   return (
     <div
-      className={`${anek.className} home-night min-h-screen bg-(--night-canvas) text-(--night-ink) selection:bg-(--night-care)/30`}
+      className={`${anek.className} home-slate min-h-screen bg-(--night-canvas) text-(--night-ink) selection:bg-(--night-care)/30`}
     >
       <a
         href="#main"

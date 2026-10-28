@@ -4,7 +4,7 @@
 
 ## Identity and scope
 
-IAM owns membership grants/revocation, session activity/renewal/sign-out, current permission/membership queries and tenant switching. The verified Helivanta session selects tenant; IDs in request data or headers cannot override it. `GET /v1/iam/me/tenants` returns caller memberships; readable tenant names remain tracked in #1264. Switching re-mints the session and clients must invalidate/rekey scoped state.
+IAM owns membership grants/revocation, session activity/renewal/sign-out, current permission/membership queries and tenant switching. The verified Helivanta session selects tenant; IDs in request data or headers cannot override it. `GET /v1/iam/me/tenants` returns caller memberships; readable tenant names remain tracked in #1264. `GET /v1/iam/me/profile` returns the caller's Zitadel display name and email plus their role labels in the session tenant, failing closed with 503 (`authz_unavailable`, `identity_unavailable`) rather than a partial answer (#1428). Switching re-mints the session and clients must invalidate/rekey scoped state.
 
 The current login boundary uses Zitadel and Helivanta session minting. Earlier README/backlog descriptions of hosted login/GIP/Keycloak may be historical. Current wiring in `backend/internal/bootstrap/unauthenticated.go`, IAM login handlers and `apps/shell` owns what is served. Session renewal/activity, absolute/idle lifetime, revocation watermarks and sign-out are security contracts, not optional frontend conventions. See [session lifetime](../../architecture/session-lifetime-and-remembered-login.md).
 
@@ -14,8 +14,7 @@ Tenant, hospital, pharmacy outlet, supply premise, emergency base and receiving 
 
 The production V1 middleware constructor requires IAM's current-identity guard
 after rate limiting and before permission resolution. A known non-active or
-deleted Zitadel identity durably revokes its observed credential before returning
-401. Reactivation does not restore that credential; a fresh authentication is
+deleted Zitadel identity durably revokes its observed credential before returning 401. Reactivation does not restore that credential; a fresh authentication is
 required. A fresh, indexed IAM watermark read also denies a request whose replica
 missed invalidation, including revocation during the upstream state read.
 

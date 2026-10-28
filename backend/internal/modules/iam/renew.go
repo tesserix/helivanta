@@ -25,6 +25,17 @@ type UserStateChecker interface {
 	UserState(ctx context.Context, id string) (loginclient.UserState, error)
 }
 
+// UserProfileReader reads the presentation identity Zitadel holds for a subject.
+type UserProfileReader interface {
+	UserProfile(ctx context.Context, id string) (loginclient.UserProfile, error)
+}
+
+// IdentityProvider is the one Zitadel login client both reads are wired from.
+type IdentityProvider interface {
+	UserStateChecker
+	UserProfileReader
+}
+
 // renewalFraction renews short sessions after a third of their lifetime.
 // Longer sessions are capped at five minutes by renewAtFor.
 const renewalFraction = 3

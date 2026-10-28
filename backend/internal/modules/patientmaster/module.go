@@ -1,13 +1,11 @@
-// Package patientmaster owns the platform's single patient registry:
-// one row per human being, shared by every clinical module that needs
-// to know who a visit, order or dispense is for. Registration logic and
-// routes land in Task 5 (#70); this file is the module skeleton, its
-// four tables, and their tenant isolation.
+// Package patientmaster owns hospital-scoped registration, identity reviews
+// and separately reviewed authority to declare clinical consent.
 package patientmaster
 
 import (
 	_ "embed"
 
+	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -16,16 +14,44 @@ import (
 )
 
 const (
-	PermPatientAccessManage authz.Permission = "patient.access.manage"
-	PermPatientRead         authz.Permission = "patient.read"
-	PermPatientRegister     authz.Permission = "patient.register"
+	PermSharingRecipientReview authz.Permission = "patient.sharing-recipient.review"
+	PermSharingNoticeReview    authz.Permission = "patient.sharing-notice.review"
+	PermProxyAuthorityReview   authz.Permission = "patient.proxy-authority.review"
+	PermConsentAuthorityReview authz.Permission = "patient.consent-authority.review"
+	PermPatientAccessManage    authz.Permission = "patient.access.manage"
+	PermPatientRead            authz.Permission = "patient.read"
+	PermPatientRegister        authz.Permission = "patient.register"
+	// PermRegistrationReplay re-announces existing registrations to
+	// consumers that started after them (#1377); tenant admins only.
+	PermRegistrationReplay authz.Permission = "patient.registration.replay"
 )
 
 //go:embed hospital.sql
 var hospitalSchema string
 
+//go:embed registration_replay.sql
+var registrationReplaySchema string
+
 //go:embed blood_group.sql
 var bloodGroupSchema string
+
+//go:embed link_reviews.sql
+var linkReviewSchema string
+
+//go:embed sharing_consent.sql
+var sharingConsentSchema string
+
+//go:embed sharing_notices.sql
+var sharingNoticeSchema string
+
+//go:embed consent_authority.sql
+var consentAuthoritySchema string
+
+//go:embed proxy_authority.sql
+var proxyAuthoritySchema string
+
+//go:embed proxy_clinical_consent.sql
+var proxyClinicalConsentSchema string
 
 type Module struct{}
 
@@ -38,10 +64,15 @@ func (m *Module) Name() string { return "patientmaster" }
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermPatientAccessManage},
+		{Permission: PermConsentAuthorityReview},
+		{Permission: PermProxyAuthorityReview},
+		{Permission: PermSharingNoticeReview},
+		{Permission: PermSharingRecipientReview},
 		{Permission: PermPatientRead, Roles: []authz.Role{
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
 		{Permission: PermPatientRegister, Roles: []authz.Role{authz.RoleReceptionist}},
+		{Permission: PermRegistrationReplay},
 	}
 }
 
@@ -200,19 +231,61 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  AFTER INSERT ON patients
 			  DEFERRABLE INITIALLY DEFERRED
 			  FOR EACH ROW EXECUTE FUNCTION patients_require_consent();`,
-	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}}
+	}, {ID: "0003_patientmaster", SQL: hospitalSchema}, {ID: "0004_patientmaster", SQL: bloodGroupSchema}, {ID: "0005_patientmaster", SQL: linkReviewSchema}, {ID: "0006_patientmaster", SQL: consentAuthoritySchema}, {ID: "0007_patientmaster", SQL: sharingNoticeSchema}, {ID: "0008_patientmaster", SQL: sharingConsentSchema}, {ID: "0009_patientmaster", SQL: proxyAuthoritySchema},
+		{ID: "0010_patientmaster", SQL: proxyClinicalConsentSchema},
+		{ID: "0011_patientmaster", ConcurrentIndexes: []tenantdb.ConcurrentIndex{
+			{Name: "patient_clinical_consent_proxy_authority", Table: "patient_clinical_consents", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "proxy_authority_id"}}},
+			{Name: "patient_sharing_notice_capacity_page", Table: "patient_sharing_notices", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "authority_kind"}, {Name: "status"}, {Name: "purpose"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
+		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
 // tenant's paginated patient list.
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/patients")
-	patients := &patientHandlers{db: deps.DB, bus: deps.Bus}
+	patients := &patientHandlers{proxyClinicalCaptureEnabled: deps.ProxyClinicalCaptureEnabled, db: deps.DB, bus: deps.Bus, transit: deps.Transit, claims: deps.CurrentClaims}
 	g.POST("", PermPatientRegister, patients.register)
+	g.PUT("/my/proxy-clinical-consents/:consent", authz.Public, patients.putProxyClinicalConsent)
+	g.PUT("/proxy-authorities/:authority", PermProxyAuthorityReview, patients.proposeProxyAuthority)
+	g.GET("/proxy-authorities/:authority", PermProxyAuthorityReview, patients.getReviewedProxyAuthority)
+	g.POST("/proxy-authorities/:authority/revoke", PermProxyAuthorityReview, patients.revokeReviewedProxyAuthority)
+	platform.ListRoute(g, "/my/proxy-authorities", authz.Public, patients.listMyProxyAuthorities)
+	g.GET("/my/proxy-authorities/:authority", authz.Public, patients.getMyProxyAuthority)
+	g.POST("/my/proxy-authorities/:authority/accept", authz.Public, patients.acceptProxyAuthority)
+	g.POST("/my/proxy-authorities/:authority/revoke", authz.Public, patients.revokeMyProxyAuthority)
+	platform.ListRoute(g, "/my/consent-authorities/:authority/sharing-notices", authz.Public, patients.listClinicalNotices)
+	platform.ListRoute(g, "/my/consent-authorities/:authority/sharing-recipients", authz.Public, patients.listClinicalRecipients)
+	platform.ListRoute(g, "/my/proxy-authorities/:authority/sharing-notices", authz.Public, patients.listProxyClinicalNotices)
+	platform.ListRoute(g, "/my/proxy-authorities/:authority/sharing-recipients", authz.Public, patients.listProxyClinicalRecipients)
+	platform.ListRoute(g, "/my/clinical-consents", authz.Public, patients.listMyClinicalConsents)
+	g.PUT("/my/clinical-consents/:consent", authz.Public, patients.putClinicalConsent)
+	g.GET("/my/clinical-consents/:consent", authz.Public, patients.getClinicalConsent)
+	g.POST("/my/clinical-consents/:consent/withdraw", authz.Public, patients.withdrawClinicalConsent)
+	g.POST("/clinical-consents/:consent/decide", authz.Public, patients.decideClinicalConsent)
+	g.PUT("/sharing-recipients/:recipient", PermSharingRecipientReview, patients.putSharingRecipient)
+	g.GET("/sharing-recipients/:recipient", PermSharingRecipientReview, patients.getSharingRecipient)
+	g.POST("/sharing-recipients/:recipient/approve", PermSharingRecipientReview, patients.approveSharingRecipient)
+	g.POST("/sharing-recipients/:recipient/revoke", PermSharingRecipientReview, patients.revokeSharingRecipient)
+	g.PUT("/sharing-notices/:notice", PermSharingNoticeReview, patients.putSharingNotice)
+	g.GET("/sharing-notices/:notice", PermSharingNoticeReview, patients.getSharingNotice)
+	g.POST("/sharing-notices/:notice/approve", PermSharingNoticeReview, patients.approveSharingNotice)
+	g.POST("/sharing-notices/:notice/retire", PermSharingNoticeReview, patients.retireSharingNotice)
+	g.PUT("/consent-authorities/:authority", PermConsentAuthorityReview, patients.proposeConsentAuthority)
+	g.GET("/consent-authorities/:authority", PermConsentAuthorityReview, patients.getReviewedConsentAuthority)
+	g.POST("/consent-authorities/:authority/revoke", PermConsentAuthorityReview, patients.revokeReviewedConsentAuthority)
+	platform.ListRoute(g, "/my/consent-authorities", authz.Public, patients.listMyConsentAuthorities)
+	g.GET("/my/consent-authorities/:authority", authz.Public, patients.getMyConsentAuthority)
+	g.POST("/my/consent-authorities/:authority/accept", authz.Public, patients.acceptConsentAuthority)
+	g.POST("/my/consent-authorities/:authority/revoke", authz.Public, patients.revokeMyConsentAuthority)
 	platform.SearchRoute(g, "/search", PermPatientRead, patients.search)
 	g.PUT("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.putAccess)
 	g.DELETE("/hospitals/:hospital/access/:subject", PermPatientAccessManage, patients.deleteAccess)
 	g.GET("/hospitals/:hospital/access", PermPatientRead, patients.getAccess)
+	platform.SearchRoute(g, "/hospitals/:hospital/registration-replays", PermRegistrationReplay, patients.replayRegistrations)
+	platform.ListRoute(g, "/link-reviews", PermPatientRegister, patients.listLinkReviews)
+	g.PUT("/link-reviews/:request/decision/:decision", PermPatientRegister, patients.decideLinkReview)
+	g.GET("/link-reviews/:request", PermPatientRegister, patients.getLinkReview)
+	g.GET("/:id/registration-reference", PermPatientRead, patients.registrationReference)
 	g.GET("/:id", PermPatientRead, patients.get)
 	platform.ListRoute(g, "", PermPatientRead, patients.list)
 }
@@ -220,7 +293,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectPatientRegistered}
+	return []string{patientmastercontract.SubjectProxyAuthorityChanged, patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that
@@ -231,9 +304,10 @@ func (m *Module) DirectedSubjects() []string { return nil }
 // behalf of another tenant.
 func (m *Module) DirectedWriteTables() []string { return nil }
 
-// Consumers declares none: patientmaster does not react to other
-// modules' events.
-func (m *Module) Consumers(deps platform.Deps) []events.Consumer { return nil }
+// Consumers ingests account review submissions and terminal withdrawals.
+func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
+	return []events.Consumer{reviewConsumer(mediconnectcontract.SubjectReviewRequested, "patient-registration-review"), reviewConsumer(mediconnectcontract.SubjectReviewWithdrawn, "patient-registration-review-withdrawal")}
+}
 
 // Broadcasts declares none: patientmaster has no per-replica cache to
 // invalidate. See platform.Module.Broadcasts's doc comment (iam's

@@ -19,6 +19,7 @@ import {
   type TaxScheme,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, QueryState, useZodForm } from "@helivanta/ui";
+import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 export function taxLabel(tax: PharmacyProductTax | null | undefined, name = "HSN"): string {
   if (!tax) return "Not classified";
@@ -97,12 +98,15 @@ export function ProductTaxSection({
   scheme,
   canManage,
   today,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   product: PharmacyProduct;
   scheme: TaxScheme | null;
   canManage: boolean;
   today: string;
+  /** An unsaved classification holds the record open (#1303 D5). */
+  onStateChange?: FormState;
 }) {
   const key = pharmacyKey(scope, "tax-classifications", product.id);
   const history = useApiPagedQuery<PharmacyTaxClassification>(
@@ -138,6 +142,7 @@ export function ProductTaxSection({
             scheme={scheme}
             history={history.items}
             today={today}
+            onStateChange={onStateChange}
             submit={(values) =>
               apiFetch<PharmacyTaxClassification>(
                 `${pharmacyRoot(scope)}/catalogue/products/${product.id}/tax-classifications`,
@@ -189,6 +194,7 @@ export function ProductTaxSection({
         )}
       </QueryState>
       <LoadMore
+        label="Load more classifications"
         hasMore={history.hasMore}
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}
@@ -203,12 +209,14 @@ function ClassificationForm({
   today,
   submit,
   invalidate,
+  onStateChange,
 }: {
   scheme: TaxScheme;
   history: PharmacyTaxClassification[];
   today: string;
   submit: (values: Record<string, string>) => Promise<PharmacyTaxClassification>;
   invalidate: unknown[][];
+  onStateChange?: FormState;
 }) {
   const form = useZodForm(classificationForm(scheme, history), {
     classification_code: "",
@@ -223,6 +231,7 @@ function ClassificationForm({
     invalidate,
     suppressErrorToast: true,
   });
+  useReportState(onStateChange, form.formState.isDirty, record.isPending);
   const nature = form.watch("supply_nature");
   const errors = form.formState.errors;
   const onSubmit = ({ exemption_basis, reason, ...rest }: ClassificationValues) =>

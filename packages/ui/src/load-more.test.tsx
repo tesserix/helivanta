@@ -24,6 +24,13 @@ describe("LoadMore", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("names what it loads", () => {
+    // A page with several lists must say which one each button extends (#1303 E7).
+    render(<LoadMore hasMore isLoading={false} onClick={vi.fn()} label="Load more outlets" />);
+
+    expect(screen.getByRole("button", { name: "Load more outlets" })).toBeInTheDocument();
+  });
+
   it("disables itself and says so while a page is in flight", async () => {
     // Without this, a clinician on hospital wifi clicks Load more, sees
     // nothing change for a second, and clicks again. The hook drops the

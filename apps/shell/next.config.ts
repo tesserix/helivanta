@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 import { SECURITY_HEADERS } from "./lib/security-headers";
 
-const API_URL = process.env.API_URL ?? "http://localhost:8080";
+import { globalApiURL } from "./lib/global-api-url";
+
+const API_URL = globalApiURL(process.env.API_URL, process.env.NODE_ENV === "production");
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -19,7 +21,7 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
-      // Same-origin API (spec D6): browser calls /api/*, backend serves /v1/*.
+      // Same-origin API (spec D6): browser calls /api/*, Global API routes /v1/* to its owner.
       { source: "/api/:path*", destination: `${API_URL}/:path*` },
     ];
   },

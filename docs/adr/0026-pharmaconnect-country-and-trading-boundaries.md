@@ -1,6 +1,6 @@
-# ADR 0026: India/Pakistan country and trading boundaries
+# ADR 0026: India country and trading boundaries
 
-> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
 Date: 2026-10-16. Status: accepted design direction; staged implementation. Epic #1133.
 
@@ -16,7 +16,7 @@ Preserve ADR 0007's target product APIs and the current modular runtime until ex
 
 Access scope is verified tenant -> explicit organisation -> legal registration / country -> operating location. A tenant can administer several owned pharmacies or hospitals, but a separate trading party is never readable because it shares a group, owner, hospital affiliation, territory or country. Manufacturer/importer -> super stockist -> regional distributor -> wholesaler -> pharmacy relationships are separately approved bilateral links. Disclosures use minimized destination-owned projections, declared directed event contracts and origin/source provenance, not RLS widening. Historical contractual obligations survive relationship revocation; new commitments recheck current eligibility.
 
-Maintain independent country/jurisdiction/premises/category/operation/effective-version policy. The first country implementation exposes shared, generated IN/PK metadata and validates new outlet country/timezone pairs. Canonical source is `contracts/country-profiles.json`; generated Go/TypeScript output must agree. India defaults INR / Asia/Kolkata; Pakistan PKR / Asia/Karachi, with English/Urdu locale directions represented. This metadata has `review_required` regulatory status. It does not implement tax rules, approve a licence, activate trading, assert data residency or decide controlled-medicine eligibility. Existing statutory sources and reviewers are recorded by the subsequent policy/licence stories; unknown rules deny restricted transitions.
+Maintain independent country/jurisdiction/premises/category/operation/effective-version policy. The first country implementation exposes shared, generated India metadata and validates new outlet country/timezone pairs. Canonical source is `contracts/country-profiles.json`; generated Go/TypeScript output must agree. India defaults INR / Asia/Kolkata. This metadata has `review_required` regulatory status. It does not implement tax rules, approve a licence, activate trading, assert data residency or decide controlled-medicine eligibility. Existing statutory sources and reviewers are recorded by the subsequent policy/licence stories; unknown rules deny restricted transitions.
 
 Price/quote/order/invoice snapshots retain the approved profile/policy version, source identities, units, currency and contracting/invoice/payment responsibility. Switching an optional commercial model must not change an accepted order. No cross-country currency netting or automatic cross-border trade. Patient-level information is absent from B2B purchasing unless a separately approved workflow needs it.
 
@@ -32,6 +32,6 @@ When PostgreSQL or current authorization/policy is unavailable, commitments fail
 
 All new organisation/country/trade records require additive, forward-only migrations and explicit tenant/location composite references. No destructive rewrite of existing pharmacy outlet ownership or historical financial records. Local metadata/configuration changes require no production schema action. Production migration/rollout uses the owning GitOps repository, a named approved target, backups and tested forward recovery; reverting application code retains immutable records. A country release is not legal sign-off or a claim of SOC 2/HIPAA certification.
 
-Reject one global India policy with Pakistan flags: it cannot preserve independent approval/version history. Reject a new service per actor: it creates coordination without a new data owner. Reject direct access to another party's inventory/finance tables: a trading relationship is not tenancy delegation. The modular runtime plus explicit contracts is the simplest initial implementation at these assumptions.
+Reject one global policy with per-country flags: it cannot preserve independent approval/version history. Reject a new service per actor: it creates coordination without a new data owner. Reject direct access to another party's inventory/finance tables: a trading relationship is not tenancy delegation. The modular runtime plus explicit contracts is the simplest initial implementation at these assumptions.
 
 Open activation gates: approved legal/licence/product/tax/retention/residency sources in each jurisdiction; provider/vendor credentials and exact first-release ERP/POS/courier/finance adapters; optional marketplace/payment-provider responsibilities; measured capacity and recovery tests. These do not block metadata, schemas, synthetic acceptance or safe local development.

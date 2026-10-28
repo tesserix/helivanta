@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNow } from "@/lib/use-now";
+import { DocumentClassificationEditor } from "./document-classification-editor";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
 import { FileCheck2, FileText, Loader2, ShieldCheck, X } from "lucide-react";
@@ -19,6 +20,7 @@ import {
   prepareDocumentUpload,
   submitDocumentUpload,
   retryDocumentScan,
+  canRetryDocument,
   revokeStaffDocument,
   downloadStaffDocument,
   staffDocumentSchema,
@@ -29,7 +31,7 @@ import {
   type Staff,
   type Hospital,
 } from "@helivanta/api";
-import { Field, SelectControl, ConfirmDialog, useZodForm } from "@helivanta/ui";
+import { Field, SelectControl, ConfirmDialog, useZodForm, Panel } from "@helivanta/ui";
 
 const fileMetadataSchema = staffDocumentSchema.pick({
   filename: true,
@@ -98,10 +100,7 @@ export function StaffDocumentPanel({
   const tenant = memberships.data?.data.find((item) => item.current)?.tenant_id;
   const allowed = hospital.access_level === "manager" && can("workforce.documents.manage");
   return (
-    <section
-      aria-labelledby="staff-documents-heading"
-      className="mt-6 scroll-mt-24 overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-labelledby="staff-documents-heading" className="mt-6 scroll-mt-24">
       <header className="flex items-start justify-between gap-4 border-b px-6 py-5">
         <div>
           <h3
@@ -145,7 +144,7 @@ export function StaffDocumentPanel({
           scope={{ tenantId: tenant, hospitalId: hospital.id, staffId: staff.id }}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -163,6 +162,17 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
   const [notice, setNotice] = useState("");
   const [resume, setResume] = useState<StaffDocument | null>(null);
   const [revoking, setRevoking] = useState<StaffDocument | null>(null);
+  const [classifying, setClassifying] = useState<StaffDocument | null>(null);
+  const classificationAnchor = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (classifying)
+      classificationAnchor.current?.scrollIntoView?.({
+        block: "start",
+        behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+  }, [classifying]);
   const prepared = useRef<DocumentUpload | null>(null);
   const controller = useRef<AbortController | null>(null);
   const retryAttempts = useRef(new Map<string, number>());
@@ -472,6 +482,16 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
           {notice}
         </p>
       )}
+      {classifying && (
+        <div ref={classificationAnchor} className="mt-6 scroll-mt-6">
+          <DocumentClassificationEditor
+            key={classifying.id}
+            scope={scope}
+            file={classifying}
+            onClose={() => setClassifying(null)}
+          />
+        </div>
+      )}
       <div className="mt-7 flex items-center justify-between gap-3">
         <h4 className="font-semibold">Saved documents</h4>
         <Button
@@ -529,12 +549,22 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
                     upload.
                   </p>
                 )}
-                {document.status === "scan_error" && (
+                {canRetryDocument(document, now) && (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Processing could not finish. Try scanning again once the service is available.
+                    Processing has not completed. Try scanning again once the service is available.
                   </p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={action.isPending}
+                    aria-label={`Classify ${document.filename}`}
+                    onClick={() => setClassifying(document)}
+                  >
+                    Classify
+                  </Button>
+
                   {document.status === "available" && (
                     <>
                       <Button
@@ -555,7 +585,8 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
                       </Button>
                     </>
                   )}
-                  {document.status === "scan_error" && (
+                  {(canRetryDocument(document, now) ||
+                    (document.status === "scan_pending" && pendingRetries.has(document.id))) && (
                     <Button
                       size="sm"
                       variant="outline"

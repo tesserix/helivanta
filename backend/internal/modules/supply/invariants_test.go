@@ -59,7 +59,7 @@ func TestPartyRejectsInvalidPrivateFieldsWithoutCreatingARecord(t *testing.T) {
 			}
 			v["contacts"] = contacts
 		},
-		"foreign registered address": func(v map[string]any) { v["addresses"].([]any)[0].(map[string]any)["country_code"] = "PK" },
+		"foreign registered address": func(v map[string]any) { v["addresses"].([]any)[0].(map[string]any)["country_code"] = "US" },
 		"foreign tax kind":           func(v map[string]any) { v["tax_registrations"].([]any)[0].(map[string]any)["kind"] = "ntn" },
 	}
 	for name, change := range cases {
@@ -231,7 +231,7 @@ func TestPartyDatabaseDeniesImplicitVisibilityAndImmutableHistoryChanges(t *test
 		`UPDATE supply_party_revisions SET version=99`,
 		`DELETE FROM supply_party_revisions`,
 		`DELETE FROM supply_parties`,
-		fmt.Sprintf(`UPDATE supply_parties SET country_code='PK',version=version+1 WHERE id='%s'`, id),
+		fmt.Sprintf(`UPDATE supply_parties SET country_code='US',version=version+1 WHERE id='%s'`, id),
 	} {
 		require.Error(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT set_config('app.supply_subject','user-owner',true),set_config('app.supply_party',?,true)`, id).Error; err != nil {

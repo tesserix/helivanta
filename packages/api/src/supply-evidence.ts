@@ -13,7 +13,7 @@ const filename = generatedEvidenceInputSchema.shape.filename.refine(
 export const supplyEvidenceFormSchema = generatedEvidenceInputSchema.extend({ filename }).strict();
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000");
 const version = z.number().int().safe().min(1);
 export const supplyEvidenceSchema = supplyEvidenceFormSchema

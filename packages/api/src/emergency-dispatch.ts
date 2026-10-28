@@ -11,7 +11,7 @@ import {
 export { EMERGENCY_DISPATCH_OPERATIONS, EMERGENCY_DISPATCH_STATES };
 const id = z
   .string()
-  .uuid()
+  .guid()
   .refine((value) => value[14] === "7", "A current resource identifier is required");
 const reference = z
   .string()

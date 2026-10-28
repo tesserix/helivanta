@@ -15,7 +15,7 @@ func (h *patientHandlers) putAccess(c *gin.Context)    { h.changeAccess(c, false
 func (h *patientHandlers) deleteAccess(c *gin.Context) { h.changeAccess(c, true) }
 
 func (h *patientHandlers) changeAccess(c *gin.Context, revoke bool) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -59,7 +59,7 @@ func (h *patientHandlers) changeAccess(c *gin.Context, revoke bool) {
 }
 
 func (h *patientHandlers) getAccess(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

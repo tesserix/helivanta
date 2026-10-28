@@ -20,7 +20,7 @@ The UI shows the date warning, saved zone, observation date and the existing edi
 
 ## Acceptance and release
 
-- Frozen-clock tests cover IN/PK midnight differences, exact 0/30/90/180 boundaries, future issue, invalid input and DST calendar-day arithmetic.
+- Frozen-clock tests cover local-midnight differences, exact 0/30/90/180 boundaries, future issue, invalid input and DST calendar-day arithmetic.
 - Real PostgreSQL API tests cover list/detail, private roles, tenant denial, immediate revocation, bounded reads, inaccessible premises and no changes to immutable histories/outbox. Pure tests cover both saved country zones.
 - UI tests cover readable status text, server-zone display, refresh/error/stale suppression and edit-form focus.
 - Run affected full Go/UI/API suites, race, vet, lint, typecheck, generation checks and production build; exercise genuine local API and UI with synthetic records.

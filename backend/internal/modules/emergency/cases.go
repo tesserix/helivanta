@@ -184,7 +184,7 @@ func (h *handlers) putCase(c *gin.Context) {
 		}
 		result := tx.Exec(`INSERT INTO emergency_cases(tenant_id,base_id,id,case_number,channel,requested_service,processing_basis,policy_reference,request_fingerprint,contact_ciphertext,incident_ciphertext,contact_retain_until)
  SELECT ?,?,?,?,?,?,?,b.policy_reference,?,?,?,now()+b.contact_retention_days*interval '1 day' FROM emergency_bases b WHERE b.tenant_id=? AND b.id=?
- ON CONFLICT(tenant_id,base_id,id) DO NOTHING`, p.TenantID, b, id, "EC-"+base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(id[:]), in.Channel, in.RequestedService, in.ProcessingBasis, fingerprint, sealedContact, sealedIncident, p.TenantID, b)
+ ON CONFLICT DO NOTHING`, p.TenantID, b, id, "EC-"+base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(id[:]), in.Channel, in.RequestedService, in.ProcessingBasis, fingerprint, sealedContact, sealedIncident, p.TenantID, b)
 		if result.Error != nil {
 			return result.Error
 		}

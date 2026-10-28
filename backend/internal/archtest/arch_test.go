@@ -26,13 +26,16 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
@@ -51,7 +54,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), emergency.New(), medicore.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -307,8 +310,10 @@ func allDeclaredRoutes(t *testing.T) []platform.DeclaredRoute {
 var noTenantMembershipAllowlist = map[string]string{
 	"GET /iam/me/permissions": "reports what the caller resolved to; reveals nothing they did not already hold",
 	"GET /iam/me/tenants":     "answers 'where do I belong'; unusable if it required belonging",
-	"POST /iam/me/tenant":     "gates on membership itself before minting (iam/me.go switchTenant)",
-	"POST /iam/me/sign-out":   "a revoked member must still be able to end their own session (iam/signout.go signOut)",
+	"GET /iam/me/profile": "names the caller and their roles in the session tenant; a revoked member " +
+		"gets roles: [] rather than a refusal (#1428, iam/me.go profile)",
+	"POST /iam/me/tenant":   "gates on membership itself before minting (iam/me.go switchTenant)",
+	"POST /iam/me/sign-out": "a revoked member must still be able to end their own session (iam/signout.go signOut)",
 	"POST /auth/session/activity": "extends idle_deadline for a caller who is genuinely still present; " +
 		"has nothing to do with what they are a member of (#848 Task 4, iam/activity.go)",
 	"POST /auth/renew": "runs its OWN ListRoles/hasBindingForTenant membership re-check, the exact " +
@@ -342,6 +347,33 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/staff-access-templates":                                                            "finite canonical catalogue of three versioned templates, no tenant record collection",
+	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                      "one current identity review source for an authorized staff UUID",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule":         "one product's class in force with its last 50 declarations",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id":                        "one credit note: its lines, at most the 200 batch lines of one sale; the list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily":                           "one row per outlet day and currency with activity, in a period of at most 366 days",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export":                     "an audited CSV bounded to 1000 entries and 366 days; larger periods are refused, never truncated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling":                        "the one discount ceiling in force at an outlet",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile":                         "the one invoice profile in force at an outlet",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability":                      "one product's sellable units and nearest expiry",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id":                               "one invoice: at most 200 batch lines and 5 tenders; the sales list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines":                "a counter lookup bounded to the 50 newest dispensable lines of one product",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id":                       "one prescription record; the prescriptions list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download": "the bytes of one released page, not a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status":                          "one outlet's licence state for today; licences themselves use cursor pagination",
+	"GET /medicore/hospitals/:hospital/patients/:patient/allergies":                              "one patient's allergy status and active entries; audited read",
+	"GET /medicore/hospitals/:hospital/patients/:patient/allergies/:id/history":                  "one allergy entry's versions; ended by its first correction",
+	"GET /medicore/hospitals/:hospital/patients/:patient/weights/latest":                         "one weight observation",
+	"GET /drugmaster/search":                                                    "typeahead pick list capped at 20 best matches of shared reference data; no tenant or patient rows",
+	"GET /drugmaster/formulations/:id":                                          "one formulation version in force on one date",
+	"GET /drugmaster/products/:id":                                              "one product version in force today",
+	"GET /drugmaster/products/by-gtin/:gtin":                                    "one product resolved by barcode",
+	"GET /iam/assignment-proposals/:id":                                         "one tenant-scoped proposal by stable ID; lists and history are separately paginated",
+	"GET /patients/:id/registration-reference":                                  "one exact patient registration reference; not a collection; the HTTP projection test asserts its complete three-field object",
+	"GET /patients/proxy-authorities/:authority":                                "one reviewed hospital-scoped proxy authority receipt",
+	"GET /patients/my/proxy-authorities/:authority":                             "one subject-owned proxy authority receipt; collection uses ListRoute",
+	"GET /patients/my/clinical-consents/:consent":                               "one subject-owned retained declaration receipt",
+	"GET /patients/sharing-recipients/:recipient":                               "one reviewed hospital recipient binding; no collection",
 	"GET /emergency/receiving/facilities/:facility":                             "one current campus revision; campus history/inbox collections are separately paginated",
 	"GET /emergency/receiving/facilities/:facility/requests/:provider/:request": "one explicitly addressed pre-alert and current decision, not a request collection",
 	"GET /emergency/receiving/facilities/:facility/links/:provider/:link":       "one explicitly addressed bilateral service link and current decision",
@@ -358,6 +390,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /emergency/bases/:base/access":                                         "one current-subject base grant; no other subject or clinical information",
 	"GET /emergency/bases/:base/cases/:case":                                    "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
 	"GET /workforce/hospitals/:hospital/insights":                               "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
+	"GET /medicore/hospitals/:hospital/access":                                  "the caller's own grant at one hospital; no other subject or patient data",
+	"GET /medicore/hospitals/:hospital/encounters/:id":                          "one grant-checked encounter; the hospital's encounters use cursor pagination",
 	"GET /medicore/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
 	"GET /pharmacy/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",
 	"GET /lab/insights":                                                         "one aggregate response, maximum 366 calendar buckets and two order statuses; no patient rows",
@@ -391,10 +425,25 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation":       "one explicitly scoped location/batch period aggregate; positions and movement history are cursor-paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv":        "explicit file export; refuses more than 1000 rows or 8 MiB before sending any attachment; normal JSON positions remain cursor-paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id":     "one outlet-private product, with at most twenty composition ingredients",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id":          "one outlet-private manufacturer lot, no child records",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet":                            "one outlet the subject may see, no child records",
 	"GET /workforce/hospitals/:hospital/staff/:id/document-records":                 "one staff enrollment's bounded evidence choices: enrollment plus at most 20 credentials and 20 qualifications",
+	"GET /workforce/hospitals/:hospital/staff/:id/documents/:file/classification":   "one grant-checked file's current optional classification; immutable history is separately cursor-paginated; ADR 0045",
 	"GET /workforce/hospitals/:hospital/staff/:id/documents/:file/content":          "one authorized generation-pinned binary object, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/credentials":                      "one staff member's credential validity, bounded by enrollment's 20 credentials",
 	"GET /workforce/hospitals/:hospital/staff/:id/enrollment":                       "single protected staff profile, with bounded child records",
+	"GET /mediconnect/account/link-requests/:request":                               "one current-subject unverified request; the collection uses ListRoute",
+	"GET /mediconnect/account/link-requests/:request/review":                        "one account-owned review projection; collection is the existing request list",
+	"GET /patients/sharing-notices/:notice":                                         "one immutable hospital-scoped notice receipt; not a collection",
+	"GET /patients/consent-authorities/:authority":                                  "one reviewed hospital-scoped authority receipt",
+	"GET /patients/my/consent-authorities/:authority":                               "one subject-owned authority receipt; collection uses ListRoute",
+	"GET /patients/link-reviews/:request":                                           "one hospital-scoped review; collection uses ListRoute",
+	"GET /mediconnect/notices/:notice":                                              "one retained notice; collection uses ListRoute",
+	"GET /mediconnect/account/consents/:consent":                                    "one account-owned receipt; collection uses ListRoute",
+	"GET /privacy/requests/:request/deadline":                                       "one case clock with at most two schema-unique escalation receipts; not a collection",
+	"GET /privacy/officer":                                                          "one current accepted tenant officer",
+	"GET /privacy/requests/:request":                                                "one principal-owned or current-officer case; collections use ListRoute",
+	"GET /mediconnect/account":                                                      "one current-subject account, with tenant membership and subject RLS",
 	"GET /workspace/branding":                                                       "single current-tenant branding document",
 	"GET /workforce/hospitals/:hospital/staff/:id":                                  "single hospital-local staff entry",
 	"GET /reference/pings/:id":                                                      "single item, not a collection",
@@ -403,12 +452,14 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/roles":          "bounded: the fixed system role set",
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
+	"GET /iam/me/profile":     "one person's profile with their roles in one tenant",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                                                                   "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/credential-reminder-policy":                                                        "single current hospital credential reminder policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                                                                    "single fixed hospital leave-year start",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-balances":                                                             "one staff member's balances, bounded by the hospital's leave types",
 	"GET /workforce/hospitals/:hospital/hr/rosters/:id":                                                                       "single roster head; allocations are paginated separately",
 	"GET /workforce/hospitals/:hospital/staff/:id/leave-requests/:request":                                                    "one request with its days in a single leave year and its bounded roster clashes",
+	"GET /workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request":                                             "one pending review target, counted days within one leave year, and roster clashes capped at 1000; scoped read authorization and audits apply",
 	"GET /workforce/hospitals/:hospital/hr/duty-exchanges/:exchange":                                                          "one exchange with at most its six original, replacement and restored allocations",
 	"GET /workforce/hospitals/:hospital/hr/overtime/:request":                                                                 "one overtime request",
 	"GET /workforce/hospitals/:hospital/hr/overtime-settings":                                                                 "the hospital's single current overtime policy revision",

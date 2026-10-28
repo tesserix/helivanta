@@ -115,6 +115,13 @@ jobs:
               sleep 0.2
             done' > /dev/null 2>&1 &
       - run: ./scripts/coverage-gate.sh
+      # The drug master's latency target (#476 spec D8), measured alone: the
+      # gate above runs every package in parallel under -race, where a
+      # wall-clock budget measures the runner, not the search.
+      - name: Drug master search latency
+        env:
+          HELIVANTA_LATENCY_CHECK: "1"
+        run: go test -count=1 -run TestSearchStaysUnder120msAcross60000Products -v ./internal/modules/drugmaster/
       # Forensics for #963, on failure only (same `!success() || cancelled()`
       # condition and reasoning as the e2e job's dumps). The two causes on
       # the table leave different evidence, and this prints exactly the
@@ -203,9 +210,11 @@ jobs:
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
       # Ignores live in package.json pnpm.auditConfig; reasons in docs/runbooks/vulnerability-management.md.
+      - run: node --test scripts/zod-tooling.test.mjs
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm turbo lint format:check type-check && pnpm turbo test && pnpm turbo build
         env:
+          API_URL: http://127.0.0.1:8081
           # Zitadel's client id and issuer are client-visible by design, so a
           # placeholder is fine here. Replaces NEXT_PUBLIC_GIP_* which #838
           # deleted along with Firebase.
@@ -231,7 +240,7 @@ jobs:
           NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
           HOSTNAME: 127.0.0.1
           PORT: "4344"
-          API_URL: http://127.0.0.1:1
+          API_URL: http://127.0.0.1:8081
           HELIVANTA_BROWSER_ORIGIN: http://127.0.0.1:4344
         run: |
           set -euo pipefail

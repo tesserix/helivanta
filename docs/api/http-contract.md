@@ -10,9 +10,17 @@ Authentication accepts a Helivanta session bearer token or `helivanta_session` c
 
 Authorization resolves tenant permissions and then checks current tenant membership and declared route permission. `authz.Public` means no specific permission, **not** unauthenticated access. `authz.NoTenantMembership` still requires a valid session. Domain handlers additionally enforce hospital/outlet/premise/base/facility grants and object state. A tenant administrator is not automatically a patient registrar, pharmacy outlet operator or clinical reviewer.
 
-`X-Request-ID` is returned for correlation. Accepted incoming values match `[A-Za-z0-9_-]{1,128}`; otherwise a new ID is generated. The error body does not currently include this ID. Sensitive responses default to `Cache-Control: no-store`.
+`X-Request-ID` is returned for correlation. Accepted incoming values match `[A-Za-z0-9_-]{1,128}`; otherwise a new ID is generated. The error body does not currently include this ID. Global API retains one validated response ID instead of appending an upstream copy. An edge proxy can replace the supplied ID; use the returned ID for log correlation. Sensitive responses default to `Cache-Control: no-store`.
 
-Pharmacy and supply support the optional `X-Helivanta-Expected-Tenant` precondition. If supplied, it must be a single nonzero UUID matching the verified session tenant; otherwise the request returns `409 session_changed`. It detects an unintended workspace switch; it never selects or authorizes a tenant. Check the owning handler for adoption elsewhere.
+Pharmacy, supply, MediConnect, patientmaster and privacy support the optional
+`X-Helivanta-Expected-Tenant` precondition. If supplied, it must be a single
+nonzero UUID matching the verified session tenant; otherwise the request returns
+`409 session_changed`. MediConnect, patientmaster and privacy also reject empty, repeated
+and comma-joined values before domain reads/writes. Omitting the header preserves
+existing behavior. It detects an unintended workspace switch; it never selects
+or authorizes a tenant, replaces membership checks or grants hospital access.
+Workload-only current-claim checks retain their separate contract. Check the
+owning handler for adoption elsewhere.
 
 ## Success, errors and pagination
 
@@ -57,3 +65,12 @@ Issue [#4](https://github.com/tesserix/helivanta/issues/4) requests OpenAPI-firs
 Likewise, older issues name GIP/Keycloak and Redis while later ADRs select Zitadel and the target uses Valkey. Follow current source and accepted ADRs; update backlog wording during implementation review. Proposed OpenAPI authority must reconcile the existing JSON→Go/Zod generators rather than create parallel handwritten model definitions.
 
 For an additive v1 change, assess requiredness, enum additions, nullability, validation tightening, permissions, ordering, event semantics and status codes—not just field removal. A stricter permission or a new required input can break consumers. A breaking contract requires a reviewed new version or explicit coordinated migration with consumer evidence and a sunset plan.
+
+
+Collection endpoints may declare a stricter bounded candidate scan. Workforce
+review-scope discovery defaults to twenty candidates and caps `limit` at twenty.
+Authorization filtering happens after the bounded scan; an empty `data` page may
+therefore carry `has_more:true`. Its opaque continuation cursor binds the verified
+tenant, caller and route. This does not change existing collection defaults or
+turn a cursor into authority. Clients follow `page.next_cursor` instead of deriving
+completion from the number of visible results.

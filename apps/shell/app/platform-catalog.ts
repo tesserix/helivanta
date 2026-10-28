@@ -51,7 +51,7 @@ export const platformGroups = [
         product: "PharmaConnect",
         status: "Foundation available",
         description:
-          "Medication references and dispensing workflows. Batch and expiry control, pharmacy stock, sales and returns are planned.",
+          "Medication references, dispensing, batch and expiry control, a stock register, and supplier payables and settlements. Quarantine release, sales and returns are planned.",
       },
       {
         name: "Laboratory management",
@@ -186,4 +186,20 @@ export const platformGroups = [
       },
     ],
   },
-];
+] as const;
+
+type CatalogueModule = (typeof platformGroups)[number]["modules"][number];
+export type ModuleName = CatalogueModule["name"];
+export type ModuleStatus = CatalogueModule["status"];
+
+const statuses = new Map<string, ModuleStatus>(
+  platformGroups.flatMap((group) =>
+    group.modules.map((module) => [module.name, module.status] as const),
+  ),
+);
+
+export function moduleStatus(name: ModuleName): ModuleStatus {
+  const status = statuses.get(name);
+  if (!status) throw new Error(`module missing from the platform catalogue: ${name}`);
+  return status;
+}

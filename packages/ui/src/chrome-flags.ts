@@ -19,4 +19,14 @@ export function flagAttributeValue(open: boolean) {
 // no user input. A missing key is left unset, so the server-rendered default
 // stands; storage that throws (private browsing, disabled storage) does the
 // same.
-export const CHROME_INIT_SCRIPT = `(function(){try{var d=document.documentElement.dataset;var f=${JSON.stringify(CHROME_FLAG_ATTRIBUTES)};for(var k in f){var s=localStorage.getItem(k);if(s!==null)d[f[k]]=s==="1"?"open":"closed";}}catch(e){}})();`;
+/**
+ * The unsaved-edits Back guard's listener (#1303 D5). On window, popstate
+ * listeners run in the order they were added, and the App Router adds its own
+ * as the app shell mounts, which can be before the workspace code loads. The
+ * guard must run first to stop it, so its listener is added here, before any
+ * app script; navigation-guard.tsx switches what it does.
+ */
+export const BACK_GUARD_KEY = "__hmsBackGuard";
+const BACK_GUARD_INIT = `window.${BACK_GUARD_KEY}={on:null};window.addEventListener("popstate",function(e){var g=window.${BACK_GUARD_KEY}.on;if(g)g(e);},true);`;
+
+export const CHROME_INIT_SCRIPT = `(function(){try{var d=document.documentElement.dataset;var f=${JSON.stringify(CHROME_FLAG_ATTRIBUTES)};for(var k in f){var s=localStorage.getItem(k);if(s!==null)d[f[k]]=s==="1"?"open":"closed";}}catch(e){}})();${BACK_GUARD_INIT}`;

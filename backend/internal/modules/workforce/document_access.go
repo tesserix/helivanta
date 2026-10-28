@@ -93,7 +93,7 @@ func (h *handlers) retryDocument(c *gin.Context) {
 	h.requeueDocument(c, staffDocuments{}, p, hospital, staffID, fileID)
 }
 
-// requeueDocument starts the next processing attempt of a file whose scan ended in error.
+// requeueDocument starts the next attempt after a processing error or expired queue window.
 func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
 	attempt, err := strconv.ParseInt(c.Param("attempt"), 10, 64)
 	if err != nil || attempt < 2 || strconv.FormatInt(attempt, 10) != c.Param("attempt") {
@@ -115,10 +115,10 @@ func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Pr
 		if saved.ScanAttempt == attempt {
 			return nil
 		}
-		if saved.Status != "scan_error" || saved.ScanAttempt+1 != attempt {
+		if (saved.Status != "scan_error" && saved.Status != "scan_pending") || saved.ScanAttempt+1 != attempt {
 			return errDocumentConflict
 		}
-		res := tx.Raw(`UPDATE workforce_documents SET status='scan_pending',scan_attempt=?,failure_code=NULL,updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND status='scan_error' AND scan_attempt=? RETURNING `+documentColumns, attempt, p.TenantID, hospital, staffID, fileID, attempt-1).Scan(&saved)
+		res := tx.Raw(`UPDATE workforce_documents SET status='scan_pending',scan_attempt=?,failure_code=NULL,updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND (status='scan_error' OR (status='scan_pending' AND updated_at<=clock_timestamp()-?*interval '1 second')) AND scan_attempt=? RETURNING `+documentColumns, attempt, p.TenantID, hospital, staffID, fileID, documentProcessingTimeoutSeconds, attempt-1).Scan(&saved)
 		if res.Error != nil {
 			return res.Error
 		}
@@ -136,7 +136,7 @@ func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Pr
 		return nil
 	})
 	if errors.Is(err, errDocumentConflict) {
-		respond.Conflict(c, "Retry requires the next attempt of a document with a processing error. Refresh its status.")
+		respond.Conflict(c, "Retry requires the next attempt after a processing error or a 45-minute processing timeout. Refresh its status.")
 		return
 	}
 	if documentUploadError(c, err) {

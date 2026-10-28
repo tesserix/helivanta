@@ -34,7 +34,7 @@ func (h *catalogueHandlers) exportStockPositions(c *gin.Context) {
 	}
 	for key, values := range filters {
 		switch key {
-		case "as_of", "location_id", "product_id", "expiry", "balance":
+		case "as_of", "location_id", "product_id", "batch_id", "expiry", "balance":
 		default:
 			respond.Error(c, http.StatusBadRequest, "invalid_request", "unsupported stock export filter")
 			return

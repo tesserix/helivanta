@@ -7,12 +7,12 @@ import type { z } from "zod";
 
 // Helivanta forms are react-hook-form + zod with inline errors (spec D3).
 // Always set noValidate on the <form> — native validation is banned.
-export function useZodForm<S extends z.ZodType<FieldValues>>(
-  schema: S,
-  defaultValues?: DefaultValues<z.infer<S>>,
+export function useZodForm<S extends z.ZodType<FieldValues, FieldValues>>(
+  schema: S & z.ZodType<z.output<S>, z.input<S>>,
+  defaultValues?: DefaultValues<z.input<S>>,
 ) {
-  return useForm<z.infer<S>>({
-    resolver: zodResolver(schema),
+  return useForm<z.input<S>, unknown, z.output<S>>({
+    resolver: zodResolver<z.input<S>, unknown, z.output<S>>(schema),
     defaultValues,
     mode: "onTouched",
   });

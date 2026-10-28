@@ -29,20 +29,22 @@ credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 
     pnpm install
-    make up             # infra + migrations + seed + API (8080) + the web app (4301)
+    make up             # infra + migrations + seed + API (8080) + Global API (8081) + web (4301)
     make verify-local   # asserts every process is healthy (separate terminal)
     make down           # stops everything
 
-`make up` runs in the foreground. Ctrl-C stops the API and web servers;
+`make up` runs in the foreground. Ctrl-C stops the API, Global API and web servers;
 `make down` then stops the containers **and** any app processes still
-holding ports 4301 or 8080 — `docker compose down` on its own leaves
+holding ports 4301, 8080 or 8081 — `docker compose down` on its own leaves
 those running against infrastructure that no longer exists. `make down`
 only ever stops processes whose working directory is inside this repo, so
 an unrelated service of yours on 8080 is reported and left alone.
 
 Seeding is idempotent, so re-running `make up` is safe. The individual
 steps are still available if you want them: `make dev-infra`, `make
-migrate`, `make seed`, `make dev-api`, `make dev-web`.
+migrate`, `make seed`, `make dev-api`, `make dev-global-api`, `make dev-web`.
+The UI connects through the [Global API](docs/delivery/global-api.md) on port
+8081, which routes to the product owners in the backend on port 8080.
 
 `make up` runs `scripts/preflight.sh` first. It checks Docker, Compose v2,
 Go, Node, pnpm, the Zitadel dev masterkey's length, `lsof`, and

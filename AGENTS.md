@@ -16,6 +16,7 @@ Before proposing a design or changing application code:
    applicable backend/frontend standards. For API, event, schema or integration
    work, also read [HTTP contracts](docs/api/http-contract.md),
    [integration contracts](docs/api/integration-contracts.md),
+   [Global API rules](docs/api/global-connector.md),
    [schema ownership](docs/api/schemas.md) and the relevant findings and review
    gates in the [delivery plan](docs/api/review-plan.md).
 3. Identify the data owner, consumers, verified tenant and narrower resource
@@ -29,6 +30,10 @@ Before proposing a design or changing application code:
    clinical, tax, drug-schedule and payer rules against current primary sources,
    actual state/service scope and qualified review; do not invent them from model
    memory or mistake a research note for an activated production policy.
+5. For roles, permissions, staff access, departments, approvals, tenant-configured
+   workflows or public/private sector differences, read the
+   [organization knowledge index](docs/domain/organization/README.md) and use the
+   [organization access skill](.agents/skills/hms-organization-access/SKILL.md).
 
 Proposed architecture and draft contracts are not implemented or approved APIs.
 Do not infer a deployed service, FHIR compliance, clinical authority or a working
@@ -39,6 +44,10 @@ before consumers rely on them.
 
 ## Enterprise acceptance criteria
 
+- Route UI/app business API traffic through the Global API, with explicit product
+  destinations and no direct client-to-product bypass. Product APIs retain data
+  ownership and authorization. Apply the [onboarding and end-to-end gates](docs/api/global-connector.md)
+  before exposing a new API or service; routing alone does not prove completion.
 - Enforce verified tenant and hospital/outlet/premise/base/facility scope on the
   server, including object-level authorization. UI gating, shared ownership,
   affiliations, supplied IDs and client headers are not authority. Identity,

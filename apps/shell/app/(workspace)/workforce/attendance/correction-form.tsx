@@ -71,7 +71,9 @@ export function CorrectionForm({
     },
   );
   const section = useRef<HTMLFormElement>(null);
-  useEffect(() => section.current?.scrollIntoView?.({ block: "start", behavior: "instant" }), []);
+  useEffect(() => {
+    section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
+  }, []);
   const [person, kind, direction] = form.watch(["staff_id", "kind", "direction"]);
   const errors = form.formState.errors;
   const set = (name: "staff_id" | "kind" | "direction", value: string) =>

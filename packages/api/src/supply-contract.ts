@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
@@ -478,7 +478,7 @@ export const supplyAccessLimitsInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(9007199254740990),
     max_grant_hours: z.number().int().min(1).max(8784),
-    max_support_hours: z.number().int().min(1).max(24),
+    max_support_hours: z.number().int().min(1).max(24, "Must be less than or equal to 24."),
     reason: z.string().trim().min(5).max(500),
   })
   .strict();

@@ -31,7 +31,7 @@ export function MedicationsPanel() {
   );
 
   return (
-    <Panel flush className="max-w-2xl">
+    <Panel flush>
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Formulary</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -78,6 +78,7 @@ export function MedicationsPanel() {
         )}
       </QueryState>
       <LoadMore
+        label="Load more medications"
         hasMore={medications.hasMore}
         isLoading={medications.isFetchingMore}
         onClick={medications.loadMore}

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
@@ -56,6 +56,8 @@ export const pharmacyBatchInputSchema = z
     lot_number: z.string().trim().toUpperCase().min(1).max(100),
     expires_on: z.string().date("Use a full valid date."),
     manufactured_on: z.string().date("Use a full valid date.").nullable().optional(),
+    mrp_minor: z.number().int().min(1).max(1000000000000),
+    purchase_cost_minor: z.number().int().min(0).max(1000000000000).nullable().optional(),
   })
   .strict();
 
@@ -111,6 +113,7 @@ export const pharmacyLocationInputSchema = z
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
     storage_address: pharmacyStorageAddressSchema.nullable().optional(),
+    stock_status: z.enum(["quarantine", "sellable"]).nullable().optional(),
   })
   .strict();
 
@@ -147,7 +150,7 @@ export const pharmacyAffiliationInputSchema = z
   .object({
     hospital_id: z
       .string()
-      .uuid()
+      .guid()
       .refine(
         (value) => value !== "00000000-0000-0000-0000-000000000000",
         "Choose a valid hospital reference.",
@@ -213,7 +216,7 @@ export const pharmacySafetyIncidentFieldsSchema = z
       "packaging_damage",
       "suspected_recall",
     ]),
-    reason: z.string().trim().min(10).max(500),
+    reason: z.string().trim().min(10, "Enter at least 10 characters.").max(500),
     occurred_at: z
       .string()
       .min(1)

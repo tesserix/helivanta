@@ -17,7 +17,7 @@ export const overtimeStatusSchema = z.enum([
 ]);
 const identifier = z
   .string()
-  .uuid("Choose a valid record.")
+  .guid("Choose a valid record.")
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const overtimeSettingsInputContract = z
   .object({

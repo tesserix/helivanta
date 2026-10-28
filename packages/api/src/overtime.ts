@@ -9,7 +9,7 @@ export * from "./overtime-contract";
 
 const minutes = (label: string, max: number) =>
   z
-    .number({ invalid_type_error: `Enter the ${label} in minutes.` })
+    .number({ error: `Enter the ${label} in minutes.` })
     .int(`Enter the ${label} in whole minutes.`)
     .min(1, `Allow at least 1 minute ${label}.`)
     .max(max, `Keep the ${label} within ${max} minutes.`);
@@ -21,7 +21,7 @@ export const overtimeSettingsSchema = overtimeSettingsInputContract
     weekly_limit_minutes: minutes("weekly limit", 10080),
     monthly_limit_minutes: minutes("monthly limit", 44640),
     filing_window_days: z
-      .number({ invalid_type_error: "Enter the filing window in days." })
+      .number({ error: "Enter the filing window in days." })
       .int("Enter the filing window in whole days.")
       .min(0, "Use a filing window of 0 days or more.")
       .max(92, "Keep the filing window within 92 days."),
@@ -83,7 +83,7 @@ export const overtimeDecisionFormSchema = (requested: number) =>
   z
     .object({
       approved_minutes: z
-        .number({ invalid_type_error: "Enter the approved minutes." })
+        .number({ error: "Enter the approved minutes." })
         .int("Enter whole minutes.")
         .min(1, "Approve at least 1 minute, or reject the request.")
         .max(requested, `Approve no more than the ${requested} minutes requested.`),

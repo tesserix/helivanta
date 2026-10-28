@@ -34,6 +34,10 @@ SHELL_PORT=4301
 # the run and restores it afterwards (restore_web).
 ZONE_PORTS=(4301)
 API_PORT=${HELIVANTA_API_PORT:-8080}
+GLOBAL_API_PORT=${HELIVANTA_GLOBAL_API_PORT:-8081}
+IDLE_GLOBAL_API_PORT=${HELIVANTA_IDLE_GLOBAL_API_PORT:-8199}
+RENEWAL_GLOBAL_API_PORT=${HELIVANTA_RENEWAL_GLOBAL_API_PORT:-8198}
+main_global_started=0
 IDLE_API_PORT=${HELIVANTA_IDLE_API_PORT:-8099}
 IDLE_WEB_PORT=${HELIVANTA_IDLE_WEB_PORT:-4399}
 RENEWAL_API_PORT=${HELIVANTA_RENEWAL_API_PORT:-8098}
@@ -257,6 +261,10 @@ start_main_web() {
 restore_web() {
   [ "$web_restored" = 1 ] && return 0
   web_restored=1
+  if [ "$main_global_started" = 1 ]; then
+    stop_port_if_ours "$GLOBAL_API_PORT" "Global API" || return 1
+    main_global_started=0
+  fi
   stop_ingress || return 1
   stop_ports_if_ours "e2e web app" "${MAIN_WEB_PORTS[@]}"
   local port
@@ -284,6 +292,8 @@ restore_web() {
 }
 
 teardown_fixture() {
+  stop_port_if_ours "$IDLE_GLOBAL_API_PORT" "idle Global API"
+  stop_port_if_ours "$RENEWAL_GLOBAL_API_PORT" "renewal Global API"
   stop_port_if_ours "$IDLE_SHELL_INTERNAL_PORT" "e2e-web-shell-idle-timeout"
   stop_port_if_ours "$IDLE_API_PORT" "dev-api-idle-timeout"
   stop_port_if_ours "$RENEWAL_SHELL_INTERNAL_PORT" "e2e-web-shell-renewal"
@@ -393,6 +403,12 @@ bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-instance-domain
 bash "$REPO_ROOT/scripts/preflight.sh" --only zitadel-login-health
 
 require_port_up "$API_PORT" "http://localhost:$API_PORT/healthz" "main API"
+if [ -z "$(port_holders "$GLOBAL_API_PORT")" ]; then
+  main_global_pid=$(start_bg global-api make dev-global-api)
+  main_global_started=1
+  wait_for_port "http://localhost:$GLOBAL_API_PORT/healthz" "Global API" "$main_global_pid"
+fi
+require_port_up "$GLOBAL_API_PORT" "http://localhost:$GLOBAL_API_PORT/healthz" "Global API"
 
 # The web tier is this script's own (spec D4/D5): production builds, never
 # `next dev`, behind an ingress that routes like production (#976). A
@@ -423,6 +439,8 @@ echo "Phase 2/3 — idle-timeout against its own API + shell…"
 
 echo "Starting idle-timeout fixture…"
 idle_api_pid=$(start_bg dev-api-idle-timeout make dev-api-idle-timeout)
+idle_global_pid=$(start_bg idle-global-api make dev-global-api HELIVANTA_GLOBAL_API_PORT="$IDLE_GLOBAL_API_PORT" HELIVANTA_API_PORT="$IDLE_API_PORT")
+wait_for_port "http://localhost:$IDLE_GLOBAL_API_PORT/healthz" "idle Global API" "$idle_global_pid"
 idle_web_pid=$(start_bg e2e-web-shell-idle-timeout scripts/e2e-web.sh start shell-idle-timeout "$IDLE_SHELL_INTERNAL_PORT")
 wait_for_port "http://localhost:$IDLE_API_PORT/healthz" "dev-api-idle-timeout" "$idle_api_pid"
 # Through the ingress, the way the specs reach it.
@@ -440,6 +458,8 @@ teardown_fixture
 echo "Phase 3/3 — session-renewal against its own API + shell…"
 echo "Starting session-renewal fixture…"
 renewal_api_pid=$(start_bg dev-api-renewal make dev-api-renewal)
+renewal_global_pid=$(start_bg renewal-global-api make dev-global-api HELIVANTA_GLOBAL_API_PORT="$RENEWAL_GLOBAL_API_PORT" HELIVANTA_API_PORT="$RENEWAL_API_PORT")
+wait_for_port "http://localhost:$RENEWAL_GLOBAL_API_PORT/healthz" "renewal Global API" "$renewal_global_pid"
 renewal_web_pid=$(start_bg e2e-web-shell-renewal scripts/e2e-web.sh start shell-renewal "$RENEWAL_SHELL_INTERNAL_PORT")
 wait_for_port "http://localhost:$RENEWAL_API_PORT/healthz" "dev-api-renewal" "$renewal_api_pid"
 wait_for_port "http://$WEB_HOST:$RENEWAL_WEB_PORT/login" "shell-renewal (production build) via the ingress" "$renewal_web_pid"

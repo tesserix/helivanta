@@ -157,11 +157,12 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
-  const authRequestId = useSearchParams().get("authRequest");
+  const params = useSearchParams();
+  const authRequestId = params.get("authRequest");
   if (authRequestId) {
     return <ValidatedCredentialForm authRequestId={authRequestId} />;
   }
-  return <RedirectLanding />;
+  return <RedirectLanding autoStart={params.get("start") === "1"} />;
 }
 
 // The shared auth chrome with nothing but a neutral "Loading…" line —
@@ -1054,9 +1055,24 @@ function PasswordChangeStep({
 // valid, so the next person never reaches this page at all. That is #848
 // (idle timeout), and it is the control that actually covers the ward
 // terminal.
-function RedirectLanding({ message }: { message?: string }) {
+//
+// The one exception is opt-in per link (#1431 D1): a "Sign in" link the user
+// has just clicked carries `?start=1`, and asking them a second time is the
+// defect. `autoStart` starts the redirect on mount, but only when no session
+// has just ended (neither mark present) and storage could be read. Sign-out
+// never carries `start`, so the race above cannot come back through it; any
+// doubt falls back to the button.
+function RedirectLanding({
+  message,
+  autoStart = false,
+}: {
+  message?: string;
+  autoStart?: boolean;
+}) {
   const [error, setError] = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [starting, setStarting] = useState(autoStart);
+  // React's development double-mount must not start two redirects.
+  const autoStarted = useRef(false);
   // Whether the user actually signed out, as opposed to landing here
   // because middleware.ts redirects an unauthenticated request. Telling
   // someone who was never signed in that they are "signed out" is simply
@@ -1082,8 +1098,12 @@ function RedirectLanding({ message }: { message?: string }) {
     // An explicit message (the expired-request state) always wins — see
     // this function's doc comment on why the states must never be mixed.
     if (message) return;
+    // Every branch below that finds a just-ended session, or cannot read
+    // storage, shows the button instead.
+    const showLanding = () => setStarting(false);
     try {
       if (window.sessionStorage.getItem(IDLE_ENDED_MARK)) {
+        showLanding();
         // Consuming a one-shot storage mark after hydration is the external sync effects exist for.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIdleEnded(true);
@@ -1098,15 +1118,28 @@ function RedirectLanding({ message }: { message?: string }) {
         return;
       }
       if (window.sessionStorage.getItem(SIGNED_OUT_MARK)) {
+        showLanding();
         setSignedOut(true);
         // Consumed: a reload, or coming back here later in the same tab,
         // is no longer "you just signed out".
         window.sessionStorage.removeItem(SIGNED_OUT_MARK);
+        return;
       }
     } catch {
-      // Blocked storage — fall back to the neutral wording.
+      // Blocked storage — fall back to the neutral wording and the button.
+      showLanding();
+      return;
     }
-  }, [message]);
+    if (!autoStart || autoStarted.current) return;
+    autoStarted.current = true;
+    // Back from the credential form returns to the landing, not to another start.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("start");
+    window.history.replaceState(window.history.state, "", url);
+    void signIn();
+    // signIn is recreated each render; this runs once per arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message, autoStart]);
 
   async function signIn() {
     setError(null);
@@ -1131,7 +1164,8 @@ function RedirectLanding({ message }: { message?: string }) {
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="font-semibold">Welcome back</h1>
+          {/* One heading for every state of this page (#1431 D3). */}
+          <TenantLoginHeading />
           <p className="text-sm text-muted-foreground">
             {message ??
               (idleEnded

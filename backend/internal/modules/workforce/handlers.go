@@ -14,11 +14,13 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/tesserix/helivanta/internal/platform"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -26,10 +28,12 @@ import (
 )
 
 type handlers struct {
-	db        *tenantdb.DB
-	bus       *events.Bus
-	documents *attachments.GCS
-	transit   *transit.Client
+	scopeAuthority authz.ScopedAuthorizer
+	roles          platform.RoleLister
+	db             *tenantdb.DB
+	bus            *events.Bus
+	documents      *attachments.GCS
+	transit        *transit.Client
 }
 
 type hospital struct {
@@ -126,7 +130,7 @@ func scope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 }
 
 func (h *handlers) transaction(ctx context.Context, p authn.Principal, hospital uuid.UUID, fn func(*gorm.DB) error) error {
-	return h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+	return h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.workforce_subject', ?, true), set_config('app.workforce_hospital', ?, true)`, p.Subject, hospital.String()).Error; err != nil {
 			return err
 		}
@@ -280,6 +284,11 @@ func (h *handlers) putStaff(c *gin.Context) {
 		 IS DISTINCT FROM (EXCLUDED.employee_code, EXCLUDED.display_name, EXCLUDED.job_category, EXCLUDED.employment_status)`,
 			p.TenantID, hospital, id, in.EmployeeCode, in.DisplayName, in.JobCategory, in.EmploymentStatus).Error; err != nil {
 			return err
+		}
+		if in.EmploymentStatus == "inactive" {
+			if err := h.revokeInactiveStaffLinks(tx, p, hospital, id); err != nil {
+				return err
+			}
 		}
 		return tx.Select(staffColumns).Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
 	})

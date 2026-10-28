@@ -1,13 +1,17 @@
 package emergency_test
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestCaseBaseIsolationAndRevocationAreStructural(t *testing.T) {
@@ -44,16 +48,32 @@ func TestConcurrentIntakeRetriesCommitOnlyOneTimelineAndEvent(t *testing.T) {
 	createBase(t, f)
 	id := uuid.Must(uuid.NewV7()).String()
 	path := f.path() + "/cases/" + id
+	require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_hold_concurrent_intake", SQL: fmt.Sprintf(`CREATE FUNCTION hold_concurrent_intake() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(hashtext(TG_ARGV[0])); RETURN NEW; END $$; CREATE TRIGGER hold_concurrent_intake AFTER INSERT ON emergency_cases FOR EACH ROW EXECUTE FUNCTION hold_concurrent_intake('%s');`, id)}}))
 	const n = 8
-	results := make(chan int, n)
+	results := make(chan *httptest.ResponseRecorder, n)
 	var wg sync.WaitGroup
-	for range n {
-		wg.Go(func() { results <- testutil.Do(f.r, "PUT", path, "dispatcher", intakeBody()).Code })
-	}
+	defer wg.Wait()
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtext(?))`, id).Error; err != nil {
+			return err
+		}
+		for range n {
+			wg.Go(func() { results <- testutil.Do(f.r, "PUT", path, "dispatcher", intakeBody()) })
+		}
+		require.Eventually(t, func() bool {
+			if err := tx.Exec(`SELECT pg_stat_clear_snapshot()`).Error; err != nil {
+				return false
+			}
+			var count int64
+			err := tx.Raw(`SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'INSERT INTO emergency_cases%'`).Scan(&count).Error
+			return err == nil && count >= 2
+		}, 2*time.Second, 10*time.Millisecond, "a retry must overlap the first uncommitted insert")
+		return nil
+	}))
 	wg.Wait()
 	close(results)
-	for code := range results {
-		require.Equal(t, 202, code)
+	for response := range results {
+		require.Equal(t, 202, response.Code, response.Body.String())
 	}
 	var cases, history, outbox int64
 	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {

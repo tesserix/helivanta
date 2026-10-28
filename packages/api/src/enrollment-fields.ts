@@ -22,7 +22,7 @@ const country = z
 const email = z.union([z.literal(""), z.string().max(254).email("Enter a valid email address.")]);
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const enrollmentProfileSchema = z
   .object({
@@ -36,6 +36,7 @@ export const enrollmentProfileSchema = z
     mobile_phone: internationalPhone,
     work_phone: internationalPhone,
     preferred_language: z.string().trim().max(80),
+    preferred_language_revision_id: z.union([z.literal(""), identifier]).optional(),
     blood_group: z.enum(["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]),
     engagement_type: z.enum([
       "employee",
@@ -45,6 +46,8 @@ export const enrollmentProfileSchema = z
       "trainee",
       "volunteer",
     ]),
+    contract_type: z.string().trim().max(80).optional(),
+    contract_type_revision_id: z.union([z.literal(""), identifier]).optional(),
     department: z.string().trim().max(100),
     designation: z.string().trim().max(100),
     grade: z.string().trim().max(80),
@@ -57,8 +60,17 @@ export const enrollmentProfileSchema = z
     probation_end_date: dateOnly,
     confirmation_date: dateOnly,
     exit_reason: z.string().trim().max(500),
+    exit_reason_revision_id: z.union([z.literal(""), identifier]).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.contract_type && !value.contract_type_revision_id)
+      ctx.addIssue({
+        code: "custom",
+        path: ["contract_type_revision_id"],
+        message: "Choose an HR setup record.",
+      });
+  });
 export type EnrollmentProfile = z.infer<typeof enrollmentProfileSchema>;
 export const EMPTY_PROFILE = {
   given_name: "",
@@ -71,8 +83,11 @@ export const EMPTY_PROFILE = {
   mobile_phone: "",
   work_phone: "",
   preferred_language: "",
+  preferred_language_revision_id: "",
   blood_group: "",
   engagement_type: "employee",
+  contract_type: "",
+  contract_type_revision_id: "",
   department: "",
   designation: "",
   grade: "",
@@ -85,6 +100,7 @@ export const EMPTY_PROFILE = {
   probation_end_date: "",
   confirmation_date: "",
   exit_reason: "",
+  exit_reason_revision_id: "",
 } as const;
 
 export const enrollmentAddressSchema = z
@@ -127,6 +143,7 @@ export const enrollmentContactSchema = z
       .trim()
       .max(60)
       .refine((value) => value !== "", "Complete this field."),
+    relationship_revision_id: z.union([z.literal(""), identifier]).optional(),
     phone: internationalPhone.refine((value) => value !== "", "Complete this field."),
     email: email,
     priority: z.number().int().min(1).max(5),
@@ -136,6 +153,7 @@ export type EnrollmentContact = z.infer<typeof enrollmentContactSchema>;
 export const EMPTY_EMERGENCY_CONTACTS = {
   name: "",
   relationship: "",
+  relationship_revision_id: "",
   phone: "",
   email: "",
   priority: 1,
@@ -184,6 +202,7 @@ export const enrollmentQualificationSchema = z
       .trim()
       .max(150)
       .refine((value) => value !== "", "Complete this field."),
+    qualification_revision_id: z.union([z.literal(""), identifier]).optional(),
     institution: z
       .string()
       .trim()
@@ -202,6 +221,7 @@ export const enrollmentQualificationSchema = z
 export type EnrollmentQualification = z.infer<typeof enrollmentQualificationSchema>;
 export const EMPTY_QUALIFICATIONS = {
   qualification: "",
+  qualification_revision_id: "",
   institution: "",
   country: "",
   completion_year: 0,
@@ -226,3 +246,37 @@ export const enrollmentExperienceSchema = z
   .strict();
 export type EnrollmentExperience = z.infer<typeof enrollmentExperienceSchema>;
 export const EMPTY_EXPERIENCES = { employer: "", role: "", start_date: "", end_date: "" } as const;
+
+export const ENROLLMENT_PROFILE_MASTERS = {
+  department: { field: "department", selectionOnly: false },
+  designation: { field: "designation", selectionOnly: false },
+  grade: { field: "grade", selectionOnly: false },
+  language: { field: "preferred_language", selectionOnly: false },
+  exit_reason: { field: "exit_reason", selectionOnly: false },
+  contract_type: { field: "contract_type", selectionOnly: true },
+} as const;
+export const ENROLLMENT_PROFILE_MASTERS_PROJECTION = {
+  query: "profile_masters",
+  version: "v1",
+  response_field: "profile_masters_version",
+} as const;
+export type EnrollmentProfileMastersProjection = {
+  profile_masters_version: typeof ENROLLMENT_PROFILE_MASTERS_PROJECTION.version;
+};
+export const ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION = {
+  query: "qualification_masters",
+  version: "v1",
+  response_field: "qualification_masters_version",
+} as const;
+export type EnrollmentQualificationMastersProjection = {
+  qualification_masters_version: typeof ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version;
+};
+export const ENROLLMENT_CONTACT_MASTERS_PROJECTION = {
+  query: "contact_masters",
+  version: "v1",
+  response_field: "contact_masters_version",
+} as const;
+export type EnrollmentContactMastersProjection = {
+  contact_masters_version: typeof ENROLLMENT_CONTACT_MASTERS_PROJECTION.version;
+};
+export const ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH = 60;

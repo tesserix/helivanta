@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   pharmacyKey,
   pharmacyRoot,
@@ -9,7 +8,13 @@ import {
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Panel, RequestFailure, formatDateTime, formatTime } from "@helivanta/ui";
+import {
+  GuardedLink as Link,
+  Panel,
+  RequestFailure,
+  formatDateTime,
+  formatTime,
+} from "@helivanta/ui";
 
 type OutletOverview = {
   as_of: string;

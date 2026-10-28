@@ -27,7 +27,7 @@ export type EvidenceKind = {
   key: string;
   recordKind: string;
   category: string;
-  input: z.ZodType<EvidenceInput, z.ZodTypeDef, unknown> & {
+  input: z.ZodType<EvidenceInput, unknown> & {
     shape: { content_type: z.ZodTypeAny; size: z.ZodTypeAny };
   };
   // Tax names its revision in the query and body; other kinds carry the record in the path.

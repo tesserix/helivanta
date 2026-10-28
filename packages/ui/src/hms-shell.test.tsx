@@ -32,7 +32,10 @@ const noteDeadlineSpy = vi.hoisted(() => vi.fn());
 // BroadcastChannel delivery itself (already covered in idle-timer.test.ts).
 // HmsShell reads the path itself (#1091); each test sets it before rendering.
 const pathname = vi.hoisted(() => ({ current: "/" }));
-vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathname.current,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 const createdTrackers = vi.hoisted(() => [] as IdleTracker[]);
 vi.mock("./idle-timer", async (importOriginal) => {
@@ -78,7 +81,34 @@ function grantPharmacyPages() {
   );
 }
 
+// Sign out lives in the account menu (#1428).
+async function signOut(user: ReturnType<typeof renderWithProviders>["user"]) {
+  await user.click(screen.getByRole("button", { name: /^Account/ }));
+  await user.click(await screen.findByRole("button", { name: "Sign out" }));
+}
+
 describe("HmsShell", () => {
+  it("notifies other tabs before waiting for remote logout", async () => {
+    let complete: () => void = () => {};
+    const pending = new Promise<Response>((resolve) => {
+      complete = () => resolve(new Response(null, { status: 200 }));
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/logout" ? pending : Promise.resolve(new Response(JSON.stringify({ data: [] }))),
+      ),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    try {
+      await signOut(user);
+      expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
+      expect(endZitadelSession).not.toHaveBeenCalled();
+    } finally {
+      complete();
+    }
+    await waitFor(() => expect(endZitadelSession).toHaveBeenCalledOnce());
+  });
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -149,7 +179,7 @@ describe("HmsShell", () => {
     seedCache(["lab.order.read"]);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
   });
@@ -167,7 +197,7 @@ describe("HmsShell", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
     // A deliberate sign-out asks for SIGNED_OUT_MARK specifically — never
@@ -176,6 +206,7 @@ describe("HmsShell", () => {
     // can end up set).
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(SIGNED_OUT_MARK));
     expect(endZitadelSession).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
   });
 
   // #781's rule is that a signed-out session must not be reconstructable
@@ -192,7 +223,7 @@ describe("HmsShell", () => {
     expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
 
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     await waitFor(() => expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull());
   });
@@ -206,7 +237,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockResolvedValue(false);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
     expect(window.location.href).toBe("");
@@ -235,7 +266,7 @@ describe("HmsShell", () => {
     );
     const { user } = renderWithProviders(<HmsShell onSignOut={onSignOut}>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     expect(onSignOut).toHaveBeenCalledTimes(1);
     expect(window.location.href).toBe("");
@@ -869,6 +900,35 @@ describe("expandable navigation", () => {
     expect(current[0]).toHaveAccessibleName("Operating bases & reports");
   });
 
+  // #1366: a zone that declares full width drops the cap on every page,
+  // the Overview too; other zones keep it. main is a size container, so
+  // lists lay out by the space they have.
+  it("drops the content cap on every page of a full-width zone, and only there", () => {
+    seedCache(["pharmacy.catalogue.read", "pharmacy.accounts.read", "patient.read"]);
+    for (const path of [
+      "/pharmacy/accounts",
+      "/pharmacy",
+      "/dashboard",
+      "/workforce",
+      "/workforce/setup",
+      "/workforce/access",
+      "/workforce/payroll-setup",
+    ]) {
+      pathname.current = path;
+      const { unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
+      const wrapper = screen.getByText("content");
+      expect(wrapper).toHaveAttribute("data-width", "full");
+      expect(wrapper.className).not.toContain("max-w-6xl");
+      expect(wrapper.closest("main")?.className).toContain("@container/main");
+      unmount();
+    }
+
+    pathname.current = "/patients";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getByText("content")).toHaveAttribute("data-width", "capped");
+    expect(screen.getByText("content").className).toContain("max-w-6xl");
+  });
+
   // #1091: one layout owns the shell, so a navigation is a re-render with a
   // new path, never a remount. The open idle warning and its tracker must
   // survive it.
@@ -998,10 +1058,55 @@ describe("expandable navigation", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Dashboard");
   });
 
-  it("offers one Sign out", () => {
+  it("offers one Sign out, inside the account menu", async () => {
     pathname.current = "/dashboard";
-    renderWithProviders(<HmsShell>content</HmsShell>);
-    expect(screen.getAllByRole("button", { name: "Sign out" })).toHaveLength(1);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^Account/ }));
+    const menu = screen.getByRole("dialog", { name: "Account" });
+    expect(screen.getAllByRole("button", { name: "Sign out" })).toEqual([
+      within(menu).getByRole("button", { name: "Sign out" }),
+    ]);
+  });
+
+  it("names the signed-in person and their role at the hospital in the header", async () => {
+    pathname.current = "/dashboard";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/v1/iam/me/profile") {
+          return new Response(
+            JSON.stringify({
+              subject: "doc",
+              tenant_id: "tenant-a",
+              display_name: "Asha Rao",
+              email: "asha@example.test",
+              roles: [{ key: "pharmacist", label: "Pharmacist" }],
+            }),
+          );
+        }
+        if (url === "/api/v1/workspace/branding") {
+          return new Response(
+            JSON.stringify({
+              display_name: "Yes Hospital",
+              welcome_text: "",
+              logo_url: "",
+              theme: "teal",
+              login_layout: "centered",
+            }),
+          );
+        }
+        return new Response(JSON.stringify({ data: [] }));
+      }),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+
+    await user.click(await screen.findByRole("button", { name: "Account: Asha Rao" }));
+
+    const menu = screen.getByRole("dialog", { name: "Account" });
+    expect(
+      await within(menu).findByRole("list", { name: "Role at Yes Hospital" }),
+    ).toHaveTextContent("Pharmacist");
   });
 
   // Light only (#1255 spec D1).
@@ -1054,7 +1159,7 @@ describe("zone rail", () => {
       "Patients",
       "MediCore",
       "Lab",
-      "PharmaConnect",
+      "Pharmacy (PharmaConnect)",
       "EmergencyConnect",
       "Supply Connect",
       "Staff",
@@ -1064,13 +1169,14 @@ describe("zone rail", () => {
     expect(zones.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  // #1286 D2: the short label is visible text; the link keeps the full name.
+  // #1286 D2: the short label is visible text; the link keeps the full name,
+  // after the words it shows (#1369).
   it("labels each collapsed rail icon with its short name", () => {
     grant(everyZone);
     pathname.current = "/dashboard";
     renderWithProviders(<HmsShell>content</HmsShell>);
 
-    const pharmacy = screen.getByRole("link", { name: "PharmaConnect" });
+    const pharmacy = screen.getByRole("link", { name: "Pharmacy (PharmaConnect)" });
     expect(pharmacy).toHaveTextContent("Pharmacy");
     expect(screen.getByRole("link", { name: "EmergencyConnect" })).toHaveTextContent("Emergency");
   });
@@ -1080,7 +1186,7 @@ describe("zone rail", () => {
     grant(everyZone);
     pathname.current = "/pharmacy";
     renderWithProviders(<HmsShell>content</HmsShell>);
-    const active = screen.getByRole("link", { name: "PharmaConnect" });
+    const active = screen.getByRole("link", { name: "Pharmacy (PharmaConnect)" });
     expect(active).toHaveAttribute("aria-current", "page");
     expect(active.querySelector("span[aria-hidden='true']")).toBeNull();
   });

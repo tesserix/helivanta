@@ -2944,7 +2944,7 @@
         },
         {
           "id": "0019_pharmacy",
-          "sql_sha256": "61ad379fd1daeeb6b6e5265484d6871973baa3dfb0a5b964444477be221a2ca2",
+          "sql_sha256": "303ca0c43bc8753c54a3e42db50fbc2d5aa86c3994255173e5730f32c9cd5ce6",
           "creates_tables": [
             "pharmacy_credit_note_series",
             "pharmacy_credit_notes",

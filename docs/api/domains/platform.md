@@ -10,6 +10,28 @@ The current login boundary uses Zitadel and Helivanta session minting. Earlier R
 
 Tenant, hospital, pharmacy outlet, supply premise, emergency base and receiving facility have different scopes. A tenant can contain multiple hospitals; a standalone pharmacy is not a hospital. Forced RLS and handler object grants implement narrower boundaries in the existing domains, but the legacy visit/lab/dispense slice remains tenant-scoped. Do not claim universal hospital isolation until that slice is migrated and tested. Group-sharing architecture is proposed and does not make all same-tenant records mutually visible.
 
+### Current identity on protected requests
+
+The production V1 middleware constructor requires IAM's current-identity guard
+after rate limiting and before permission resolution. A known non-active or
+deleted Zitadel identity durably revokes its observed credential before returning
+401. Reactivation does not restore that credential; a fresh authentication is
+required. A fresh, indexed IAM watermark read also denies a request whose replica
+missed invalidation, including revocation during the upstream state read.
+
+Provider errors, unknown state and persistence failures return the existing
+`503 identity_unavailable` envelope, without executing the business handler or
+turning an unavailable answer into a permanent revocation. Only the registered
+POST self sign-out command skips the upstream lookup, while retaining fresh IAM
+and its existing authentication. Administrative revocation must verify current
+identity because it changes another user's access.
+An identity outage now blocks ordinary protected requests, not only renewal.
+No active-state cache or new role/endpoint is introduced. The complete check has
+a ten-second budget. See [ADR-0047](../../adr/0047-current-identity-on-protected-requests.md).
+Migration `0013_iam_identity_guard` admits the new `identity_inactive` watermark
+reason; the invalidation event payload is unchanged. This is distinct from
+hospital employment inactivation, suspension and cross-owner offboarding.
+
 ## Shared capability contracts
 
 | Capability                    | Current source                                                             | Contract/review requirement                                                                                                              |

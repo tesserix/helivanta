@@ -289,6 +289,11 @@
           "id": "0012_iam_assignment_activation",
           "sql_sha256": "3b544879f7925534d014bafd9803d66c42ad7ea1a650f3b122298ef92e6d41a0",
           "creates_tables": []
+        },
+        {
+          "id": "0013_iam_identity_guard",
+          "sql_sha256": "1ffcd82cf2fa686843791b179d5b3cd8790ae7fdcdae596d32646ccbfe6d9040",
+          "creates_tables": []
         }
       ]
     },

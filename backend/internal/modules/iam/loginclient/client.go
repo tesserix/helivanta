@@ -801,12 +801,13 @@ const (
 	// UserStateActive is USER_STATE_ACTIVE, verified live against dev
 	// Zitadel v4.15.3 on 2026-08-20 as the state a normal user reads.
 	UserStateActive
-	// UserStateInactive covers both USER_STATE_INACTIVE (verified live:
+	// UserStateInactive covers known non-active states (ADR-0047), including
+	// USER_STATE_INACTIVE (verified live:
 	// deactivating a user via POST /v2/users/{id}/deactivate flips the
 	// same GET this method makes from USER_STATE_ACTIVE to this value)
 	// and a 404 from the same GET (the user was deleted upstream, not
 	// merely deactivated) — see the UserState method's doc comment for
-	// why those two upstream conditions are deliberately collapsed into
+	// why known non-active upstream conditions are deliberately collapsed into
 	// one caller-visible answer rather than kept apart.
 	UserStateInactive
 )
@@ -831,11 +832,9 @@ func (s UserState) IsActive() bool {
 // user (POST /v2/users/{id}/deactivate) flips the SAME read to
 // "USER_STATE_INACTIVE" — the live proof that this check can actually
 // fail, which is what makes it a control and not decoration. This is the
-// one new Zitadel read server-side renewal needs (design spec D1/D3,
-// docs/superpowers/specs/2026-08-20-server-side-session-renewal-design.md):
-// today's browser-driven renewal never re-checks this at all, because
-// Zitadel's session cookie is SameSite=Lax and the hidden iframe that was
-// supposed to carry it never sends it (spec D2).
+// read used by server-side renewal and ordinary protected request admission
+// (ADR-0047). Known locked, suspended, deleted and initial states are also
+// definite non-active answers in the versioned UserState protocol.
 //
 // id is escaped with url.PathEscape before being placed in the URL, same
 // as every other id-in-path call in this file (see AuthRequest's doc
@@ -866,6 +865,9 @@ func (s UserState) IsActive() bool {
 // default for the one call standing between a deactivated clinician and a
 // live session.
 func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
+	if c == nil {
+		return userStateUnset, fmt.Errorf("identity state client missing: %w", ErrUnavailable)
+	}
 	var wire struct {
 		User struct {
 			State string `json:"state"`
@@ -880,7 +882,7 @@ func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
 	switch wire.User.State {
 	case "USER_STATE_ACTIVE":
 		return UserStateActive, nil
-	case "USER_STATE_INACTIVE":
+	case "USER_STATE_INACTIVE", "USER_STATE_LOCKED", "USER_STATE_SUSPEND", "USER_STATE_DELETED", "USER_STATE_INITIAL":
 		return UserStateInactive, nil
 	case "":
 		return userStateUnset, fmt.Errorf("GET /v2/users/%s: 200 response with no recognizable state field: %w", id, ErrUnavailable)

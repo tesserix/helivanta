@@ -68,10 +68,14 @@ export default function AmbulancePage() {
                   {service.number}
                 </p>
                 {/* The emergency dial is the one place a larger target is warranted (#1434 D2). */}
-                <Button asChild size="xl" className="mt-5 w-full gap-3 font-semibold">
+                <Button
+                  asChild
+                  size="xl"
+                  className="mt-5 h-auto min-h-14 w-full gap-3 py-3 text-center font-semibold whitespace-normal"
+                >
                   <a href={service.dialUrl}>
                     <Phone aria-hidden="true" className="size-5 shrink-0" />
-                    {copy.callLabel}
+                    <span className="min-w-0">{copy.callLabel}</span>
                   </a>
                 </Button>
                 <p className="mt-4 text-sm leading-relaxed text-muted-foreground">

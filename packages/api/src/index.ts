@@ -1,5 +1,6 @@
 export { ApiError, POLL_INTERVAL_MS, apiFetch } from "./client";
 export * from "./enrollment";
+export * from "./account";
 export * from "./documents";
 export * from "./document-classification";
 export * from "./document-queries";
@@ -54,6 +55,7 @@ export * from "./medicore";
 export * from "./pharmacy";
 export * from "./pharmacy-stock-export";
 export * from "./pharmacy-daily-report";
+export * from "./payments";
 export * from "./pharmacy-h1-register";
 export * from "./customer-time";
 export * from "./staff-assignments";
@@ -96,3 +98,5 @@ export { notifySessionChanged, SESSION_CHANGE_KEY } from "./session-change";
 
 export * from "./staff-access-templates";
 export * from "./identity-checks-contract";
+
+export * from "./identity-checks";

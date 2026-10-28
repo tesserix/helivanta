@@ -407,3 +407,13 @@ type DocumentClassificationChangedData struct {
 	RevisionID string `json:"revision_id"`
 	Version    int64  `json:"version"`
 }
+
+const SubjectIdentityCaseChanged = "helivanta.in.workforce.identity_case_changed.v1"
+
+type IdentityCaseChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	CaseID     string `json:"case_id"`
+	Version    int64  `json:"version"`
+	Status     string `json:"status"`
+}

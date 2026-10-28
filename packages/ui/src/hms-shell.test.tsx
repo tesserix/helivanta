@@ -81,6 +81,12 @@ function grantPharmacyPages() {
   );
 }
 
+// Sign out lives in the account menu (#1428).
+async function signOut(user: ReturnType<typeof renderWithProviders>["user"]) {
+  await user.click(screen.getByRole("button", { name: /^Account/ }));
+  await user.click(await screen.findByRole("button", { name: "Sign out" }));
+}
+
 describe("HmsShell", () => {
   it("notifies other tabs before waiting for remote logout", async () => {
     let complete: () => void = () => {};
@@ -95,7 +101,7 @@ describe("HmsShell", () => {
     );
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
     try {
-      await user.click(screen.getByRole("button", { name: "Sign out" }));
+      await signOut(user);
       expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
       expect(endZitadelSession).not.toHaveBeenCalled();
     } finally {
@@ -173,7 +179,7 @@ describe("HmsShell", () => {
     seedCache(["lab.order.read"]);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
   });
@@ -191,7 +197,7 @@ describe("HmsShell", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
     // A deliberate sign-out asks for SIGNED_OUT_MARK specifically — never
@@ -217,7 +223,7 @@ describe("HmsShell", () => {
     expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
 
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     await waitFor(() => expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull());
   });
@@ -231,7 +237,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockResolvedValue(false);
     const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
     expect(window.location.href).toBe("");
@@ -260,7 +266,7 @@ describe("HmsShell", () => {
     );
     const { user } = renderWithProviders(<HmsShell onSignOut={onSignOut}>content</HmsShell>);
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await signOut(user);
 
     expect(onSignOut).toHaveBeenCalledTimes(1);
     expect(window.location.href).toBe("");
@@ -1052,10 +1058,55 @@ describe("expandable navigation", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Dashboard");
   });
 
-  it("offers one Sign out", () => {
+  it("offers one Sign out, inside the account menu", async () => {
     pathname.current = "/dashboard";
-    renderWithProviders(<HmsShell>content</HmsShell>);
-    expect(screen.getAllByRole("button", { name: "Sign out" })).toHaveLength(1);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^Account/ }));
+    const menu = screen.getByRole("dialog", { name: "Account" });
+    expect(screen.getAllByRole("button", { name: "Sign out" })).toEqual([
+      within(menu).getByRole("button", { name: "Sign out" }),
+    ]);
+  });
+
+  it("names the signed-in person and their role at the hospital in the header", async () => {
+    pathname.current = "/dashboard";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/v1/iam/me/profile") {
+          return new Response(
+            JSON.stringify({
+              subject: "doc",
+              tenant_id: "tenant-a",
+              display_name: "Asha Rao",
+              email: "asha@example.test",
+              roles: [{ key: "pharmacist", label: "Pharmacist" }],
+            }),
+          );
+        }
+        if (url === "/api/v1/workspace/branding") {
+          return new Response(
+            JSON.stringify({
+              display_name: "Yes Hospital",
+              welcome_text: "",
+              logo_url: "",
+              theme: "teal",
+              login_layout: "centered",
+            }),
+          );
+        }
+        return new Response(JSON.stringify({ data: [] }));
+      }),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+
+    await user.click(await screen.findByRole("button", { name: "Account: Asha Rao" }));
+
+    const menu = screen.getByRole("dialog", { name: "Account" });
+    expect(
+      await within(menu).findByRole("list", { name: "Role at Yes Hospital" }),
+    ).toHaveTextContent("Pharmacist");
   });
 
   // Light only (#1255 spec D1).

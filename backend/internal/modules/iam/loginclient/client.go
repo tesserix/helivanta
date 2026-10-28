@@ -891,6 +891,40 @@ func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
 	}
 }
 
+// UserProfile is the presentation identity Zitadel holds for a human user.
+type UserProfile struct {
+	DisplayName string
+	Email       string
+}
+
+// UserProfile reads the same GET /v2/users/{id} UserState does. It does not
+// judge state — the identity guard has already admitted the caller — and a
+// body without a human profile is unavailable, never an empty identity.
+func (c *Client) UserProfile(ctx context.Context, id string) (UserProfile, error) {
+	if c == nil {
+		return UserProfile{}, fmt.Errorf("identity profile client missing: %w", ErrUnavailable)
+	}
+	var wire struct {
+		User struct {
+			Human *struct {
+				Profile struct {
+					DisplayName string `json:"displayName"`
+				} `json:"profile"`
+				Email struct {
+					Email string `json:"email"`
+				} `json:"email"`
+			} `json:"human"`
+		} `json:"user"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/users/"+url.PathEscape(id), nil, &wire, ErrUserNotFound); err != nil {
+		return UserProfile{}, err
+	}
+	if wire.User.Human == nil {
+		return UserProfile{}, fmt.Errorf("GET /v2/users/%s: no human profile: %w", id, ErrUnavailable)
+	}
+	return UserProfile{DisplayName: wire.User.Human.Profile.DisplayName, Email: wire.User.Human.Email.Email}, nil
+}
+
 // mfaPolicyKeys is every wire key loginPolicy reads to decide ForceMFA —
 // forceMfa and forceMfaLocalOnly today. loginPolicy's single loop over
 // this list does BOTH the rename guard (refuseIfKeyRenamedOrRecased) and

@@ -96,6 +96,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/iam/me/profile",
+          "permission": "no_tenant_membership",
+          "authentication_required": true,
+          "membership_required": false,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/iam/me/sign-out",
           "permission": "no_tenant_membership",
@@ -2166,6 +2175,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
           "permission": "pharmacy.sale.read",
@@ -2840,7 +2876,9 @@
         "helivanta.in.pharmacy.sale_posted.v1",
         "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
         "helivanta.in.pharmacy.prescription_image_changed.v1",
-        "helivanta.in.pharmacy.credit_note_issued.v1"
+        "helivanta.in.pharmacy.credit_note_issued.v1",
+        "helivanta.in.pharmacy.payment_requested.v1",
+        "helivanta.in.pharmacy.payment_cancelled.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -2854,6 +2892,31 @@
           "name": "pharmacy-prescription-image-scan",
           "subject": "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
           "after_commit": true
+        },
+        {
+          "name": "pharmacy-payment-opened",
+          "subject": "helivanta.in.payments.intent_opened.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-payment-failed",
+          "subject": "helivanta.in.payments.intent_failed.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-payment-paid",
+          "subject": "helivanta.in.payments.intent_paid.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-payment-expired",
+          "subject": "helivanta.in.payments.intent_expired.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-payment-cancelled",
+          "subject": "helivanta.in.payments.intent_cancelled.v1",
+          "after_commit": false
         }
       ],
       "broadcasts": [],
@@ -3006,6 +3069,78 @@
           "id": "0020_pharmacy",
           "sql_sha256": "6abbb6dfb983d3df0b7286bf08c9e914c8ac66c348a2611e0be6eb090b1d59ee",
           "creates_tables": []
+        },
+        {
+          "id": "0021_pharmacy",
+          "sql_sha256": "abfde4f76dfd7b2098b7f157b0c93bb11b85bfff4d284447f48498b9ad99d252",
+          "creates_tables": [
+            "pharmacy_payment_requests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "payments",
+      "source": "backend/internal/modules/payments/module.go",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/payments/razorpay-account",
+          "permission": "payments.account.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/payments/razorpay-account",
+          "permission": "payments.account.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "payments.account.manage",
+          "roles": []
+        }
+      ],
+      "publishes": [
+        "helivanta.in.payments.intent_opened.v1",
+        "helivanta.in.payments.intent_failed.v1",
+        "helivanta.in.payments.intent_paid.v1",
+        "helivanta.in.payments.intent_expired.v1",
+        "helivanta.in.payments.intent_cancelled.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [
+        {
+          "name": "payments-pharmacy-request",
+          "subject": "helivanta.in.pharmacy.payment_requested.v1",
+          "after_commit": true
+        },
+        {
+          "name": "payments-pharmacy-cancel",
+          "subject": "helivanta.in.pharmacy.payment_cancelled.v1",
+          "after_commit": true
+        }
+      ],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_payments",
+          "sql_sha256": "997bc43fbd7459d24129e811b7dc71c61bb1b929461acb30e101e342e4d5fe92",
+          "creates_tables": [
+            "payment_accounts",
+            "payment_intents",
+            "payment_intent_transitions",
+            "payment_provider_payments",
+            "payment_webhook_deliveries"
+          ]
         }
       ]
     },
@@ -5844,6 +5979,42 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id",
           "permission": "public",
           "authentication_required": true,
@@ -6510,6 +6681,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.identity_case_changed.v1",
         "helivanta.in.workforce.document_classification_changed.v1",
         "helivanta.in.workforce.assignment_scope_verified.v1",
         "helivanta.in.workforce.login_link_changed.v1",
@@ -7102,6 +7274,14 @@
           "id": "0048_workforce_identity_source",
           "sql_sha256": "6864f0d7f3de70f5d9f30dc22b2c9c46991f24eb5986afc42050d5bfa6ef02cc",
           "creates_tables": []
+        },
+        {
+          "id": "0049_workforce_identity_cases",
+          "sql_sha256": "55b37187bc629a775b7a3eeadcfba0ae3057f16884f008887f540c22c086efb0",
+          "creates_tables": [
+            "workforce_identity_cases",
+            "workforce_identity_case_history"
+          ]
         }
       ]
     },
@@ -7269,7 +7449,8 @@
     "POST /v1/auth/login/enroll": "confirms the newly enrolled second factor that creates the session, so it cannot require one",
     "POST /v1/auth/login/factor": "checks the second factor that creates the session, so it cannot require one",
     "POST /v1/auth/login/password": "checks the credential that creates the session, so it cannot require one",
-    "POST /v1/auth/login/password-change": "completes a sign-in whose password must change first, so it cannot require a session"
+    "POST /v1/auth/login/password-change": "completes a sign-in whose password must change first, so it cannot require a session",
+    "POST /v1/payments/webhooks/razorpay/:tenant/:account": "provider callback authenticated by its HMAC signature, not a session"
   },
   "platform_migrations": [
     {

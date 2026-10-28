@@ -34,6 +34,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
+	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
@@ -54,7 +55,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -310,8 +311,10 @@ func allDeclaredRoutes(t *testing.T) []platform.DeclaredRoute {
 var noTenantMembershipAllowlist = map[string]string{
 	"GET /iam/me/permissions": "reports what the caller resolved to; reveals nothing they did not already hold",
 	"GET /iam/me/tenants":     "answers 'where do I belong'; unusable if it required belonging",
-	"POST /iam/me/tenant":     "gates on membership itself before minting (iam/me.go switchTenant)",
-	"POST /iam/me/sign-out":   "a revoked member must still be able to end their own session (iam/signout.go signOut)",
+	"GET /iam/me/profile": "names the caller and their roles in the session tenant; a revoked member " +
+		"gets roles: [] rather than a refusal (#1428, iam/me.go profile)",
+	"POST /iam/me/tenant":   "gates on membership itself before minting (iam/me.go switchTenant)",
+	"POST /iam/me/sign-out": "a revoked member must still be able to end their own session (iam/signout.go signOut)",
 	"POST /auth/session/activity": "extends idle_deadline for a caller who is genuinely still present; " +
 		"has nothing to do with what they are a member of (#848 Task 4, iam/activity.go)",
 	"POST /auth/renew": "runs its OWN ListRoles/hasBindingForTenant membership re-check, the exact " +
@@ -345,10 +348,13 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/identity-staff/:id/checks/:check":                        "one hospital/staff-scoped identity case; case list and revision history are cursor-paginated",
 	"GET /iam/staff-access-templates":                                                            "finite canonical catalogue of three versioned templates, no tenant record collection",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                      "one current identity review source for an authorized staff UUID",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule":         "one product's class in force with its last 50 declarations",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id":                        "one credit note: its lines, at most the 200 batch lines of one sale; the list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id":                    "one payment request by id, not a collection",
+	"GET /payments/razorpay-account":                                                             "the tenant's one provider account, not a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily":                           "one row per outlet day and currency with activity, in a period of at most 366 days",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export":                     "an audited CSV bounded to 1000 entries and 366 days; larger periods are refused, never truncated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling":                        "the one discount ceiling in force at an outlet",
@@ -450,6 +456,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/roles":          "bounded: the fixed system role set",
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
+	"GET /iam/me/profile":     "one person's profile with their roles in one tenant",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                                                                   "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/credential-reminder-policy":                                                        "single current hospital credential reminder policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                                                                    "single fixed hospital leave-year start",
@@ -556,6 +563,10 @@ var withAllTenantsAllowlist = map[string]bool{
 	// #1227: bounded contact expiry maintenance, invoked only by the retention binary; never a request handler.
 	"internal/modules/emergency/retention.go": true,
 	"internal/platform/reconcile.go":          true,
+	// #1386 C-4a: the payments poller finds due intents across tenants. It
+	// reads only (tenant_id, id) — the system role holds SELECT on just
+	// those columns and next_check_at — and checks each under WithTenant.
+	"internal/modules/payments/reconciler.go": true,
 	"pkg/events/bus.go":                       true,
 	"pkg/events/retention.go":                 true,
 	// The one _test.go entry, here because the ASSERTIONS need the bypass

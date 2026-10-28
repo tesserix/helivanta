@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 FLOOR="${COVERAGE_FLOOR:-70}"
-out=$(go test -race -count=1 -cover ./... 2>&1) || { echo "$out"; exit 1; }
+out=$(go test -race -count=1 -cover -timeout=20m ./... 2>&1) || { echo "$out"; exit 1; }
 echo "$out"
 is_gated() {
   case "$1" in

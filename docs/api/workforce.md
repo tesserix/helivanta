@@ -884,3 +884,69 @@ membership, scope epochs and immutable permission snapshots. The Staff access UI
 selects the appropriate assignment family. Both HR templates can read the current
 identity source; neither read performs a review decision. Identity/background/photo cases,
 evidence review and card issue remain separate unfinished workflows (#1399).
+
+### Identity review drafts
+
+The additive `?projection=identity_drafts` source projection includes
+`manage_checks_allowed`, derived from the current owner transaction guard. The
+bare source response omits it for older strict consumers. Unknown, duplicate or
+additional source query keys return 400. This capability is UI guidance; every
+case operation independently checks current authority.
+
+Authenticated routes below use the Global API Workforce destination. Workforce
+owns both case heads and immutable revision snapshots, scoped to the verified
+tenant, hospital and existing staff UUID:
+
+| Method | Path suffix under `/workforce/hospitals/:hospital/identity-staff/:id` | Result                                        |
+| ------ | --------------------------------------------------------------------- | --------------------------------------------- |
+| PUT    | `/checks/:check`                                                      | Create or edit a draft using a UUIDv7 case ID |
+| GET    | `/checks/:check`                                                      | Current case                                  |
+| GET    | `/checks`                                                             | Bounded cursor-paginated current cases        |
+| GET    | `/checks/:check/history`                                              | Bounded cursor-paginated immutable revisions  |
+
+Every case request requires exactly one `X-Helivanta-Expected-Tenant` and one
+`X-Helivanta-Expected-Subject` header, matching the verified principal. Missing,
+duplicate, malformed or mismatched preconditions return 409 before disclosure or
+mutation. These values are preconditions, never identity or authorization. Global
+API forwards both headers without collapsing duplicates. An older gateway that
+strips the subject precondition fails closed. Private responses are `no-store`;
+the UI pins both values and removes case pages after their last viewer unmounts.
+
+PUT requires the current hospital identity-manager assignment and an active,
+independently reviewed actor staff/login binding. Reads permit either the current
+manager or reviewer assignment; only an authoritative denial permits trying the
+other role, while dependency outage returns 503. Legacy tenant-admin permissions
+alone are insufficient. Inactive target employment retains readable history but
+cannot accept new draft edits.
+
+Canonical `IdentityCaseDraftInput` and `IdentityCase` are generated from
+`contracts/workforce-identity-checks.json`. A command supplies kind (`identity`,
+`background` or `photograph`), mandatory policy/check references, an observed UTC
+calendar date, explicit validity instant, current source fingerprint/employment
+generation, expected version and UUIDv7 command ID. Commands reject unknown fields
+and bodies over 16 KiB. New cases expect version 0; edits advance exactly one
+version. Original kind, case ID and proposer are immutable. Output timestamps are
+UTC and observation dates are `YYYY-MM-DD`.
+
+Within the existing IAM transaction guard, Workforce locks the case, verifies
+current source/employment, and commits head, history, sensitive-access audit and
+outbox together. Exact command replay reauthorizes and returns the original
+immutable receipt even after a later edit. Conflicting command reuse or stale
+versions return 409 `identity_case_conflict`; changed source returns 409
+`identity_source_changed`; inactive target returns 409 `staff_inactive`. A receipt
+is evidence of that command, not a current verification decision.
+
+Migration `0049_workforce_identity_cases` adds forced-RLS heads/history, immutable
+snapshot triggers, scoped indexes and draft-only write constraints. Direct SQL
+cannot fabricate an approved status, rewrite history or use a stale employment
+generation. No physical deletion is allowed. The event
+`helivanta.in.workforce.identity_case_changed.v1` contains only hospital, staff,
+case, version and status; policy/check text, names, birth dates, identifiers,
+subjects and file locations are excluded. Audit metadata also excludes policy and
+check text. There is no new event consumer or service.
+
+This slice does not bind or upload evidence, submit or decide checks, revoke a
+verification, issue a card, or implement employment exits. Migration 0049 has only
+been applied to the synthetic local QA database; production rollout needs its
+own named migration approval. Reverting the UI must preserve accepted drafts,
+history and audit data.

@@ -14,9 +14,9 @@ const HEIGHT = 660;
 const HUB = { x: 500, y: 300 };
 
 const flowColour: Record<Flow, string> = {
-  care: "var(--home-care)",
-  stock: "var(--home-stock)",
-  oversight: "var(--home-oversight)",
+  care: "var(--hms-accent)",
+  stock: "var(--hms-amber)",
+  oversight: "var(--hms-violet)",
 };
 
 const flowName: Record<Flow, string> = {
@@ -108,7 +108,7 @@ export function CareBoard() {
           <div className="mt-4 flex items-center justify-between gap-6">
             <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
               {(Object.keys(flowName) as Flow[]).map((flow) => (
-                <li key={flow} className="flex items-center gap-2 text-(--home-muted)">
+                <li key={flow} className="flex items-center gap-2 text-muted-foreground">
                   <span
                     className="h-0.5 w-6 rounded-full"
                     style={{ backgroundColor: flowColour[flow] }}
@@ -138,7 +138,7 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
   return (
     <div
       aria-hidden="true"
-      className="relative aspect-[1000/660] rounded-2xl border border-(--home-line) bg-(--home-board) bg-[radial-gradient(var(--home-line)_1px,transparent_1px)] bg-size-[28px_28px]"
+      className="relative aspect-[1000/660] rounded-2xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px]"
     >
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} fill="none" className="absolute inset-0 size-full">
         <defs>
@@ -147,7 +147,7 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
           </filter>
         </defs>
         {teamIds.map((id) => (
-          <path key={id} d={route(id, true)} stroke="var(--home-line)" strokeWidth={1.5} />
+          <path key={id} d={route(id, true)} stroke="var(--border)" strokeWidth={1.5} />
         ))}
         {trail.map((step, index) => (
           <g
@@ -200,8 +200,8 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
           cx={HUB.x}
           cy={HUB.y}
           r={64}
-          fill="var(--home-hub)"
-          stroke="var(--home-line)"
+          fill="var(--accent)"
+          stroke="var(--border)"
           strokeWidth={1.5}
         />
         <circle
@@ -219,15 +219,15 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
         className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center"
       >
         <HeartPulse className="size-5 text-(--flow)" />
-        <p className="mt-1 text-sm font-semibold text-(--home-ink)">Helivanta</p>
-        <p className="text-xs leading-tight text-(--home-muted)">Shared records</p>
+        <p className="mt-1 text-sm font-semibold text-foreground">Helivanta</p>
+        <p className="text-xs leading-tight text-muted-foreground">Shared records</p>
       </div>
 
       {laneLabels.map((lane) => (
         <p
           key={lane.label}
           style={at(lane.x, lane.y)}
-          className="absolute -translate-y-1/2 text-xs font-medium text-(--home-muted)"
+          className="absolute -translate-y-1/2 text-xs font-medium text-muted-foreground"
         >
           {lane.label}
         </p>
@@ -241,16 +241,16 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
             key={id}
             style={at(places[id].x, places[id].y)}
             className={cn(
-              "absolute w-[17%] -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-(--home-surface) px-3 py-2 transition-[border-color,box-shadow] duration-500",
+              "absolute w-[17%] -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-muted px-3 py-2 transition-[border-color,box-shadow] duration-500",
               sending && "border-(--flow) shadow-[0_0_28px_-8px_var(--flow)]",
               !sending && visited.has(id) && (animated ? "border-(--flow)/45" : "border-(--flow)"),
-              !sending && !visited.has(id) && "border-(--home-line)",
+              !sending && !visited.has(id) && "border-border",
             )}
           >
-            <p className="text-[13px] leading-tight font-semibold text-(--home-ink)">
+            <p className="text-[13px] leading-tight font-semibold text-foreground">
               {teams[id].label}
             </p>
-            <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">{teams[id].detail}</p>
+            <p className="mt-0.5 text-xs leading-tight text-muted-foreground">{teams[id].detail}</p>
             {receiving && (
               <motion.span
                 key={motionKey}
@@ -273,10 +273,10 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4 }}
         >
-          <p className="text-xs text-(--home-muted)">
+          <p className="text-xs text-muted-foreground">
             Step {stepIndex + 1} of {story.steps.length}
           </p>
-          <p className="mt-1 text-[13px] leading-snug text-(--home-ink)">{current.text}</p>
+          <p className="mt-1 text-[13px] leading-snug text-foreground">{current.text}</p>
         </motion.div>
       )}
     </div>
@@ -286,10 +286,10 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
 function Narration({ story, currentStep }: { story: Story; currentStep: number | undefined }) {
   return (
     <div>
-      <h3 className="text-2xl leading-tight font-semibold font-stretch-[85%] text-(--home-ink)">
+      <h3 className="text-2xl leading-tight font-semibold font-stretch-[85%] text-foreground">
         {story.title}
       </h3>
-      <p className="mt-2 text-(--home-muted)">{story.summary}</p>
+      <p className="mt-2 text-muted-foreground">{story.summary}</p>
       <ol aria-label="Steps in this story" className="mt-6 space-y-1">
         {story.steps.map((step, index) => (
           <li
@@ -297,20 +297,20 @@ function Narration({ story, currentStep }: { story: Story; currentStep: number |
             aria-current={index === currentStep ? "step" : undefined}
             className={cn(
               "grid grid-cols-[1.5rem_1fr] gap-x-2 rounded-r-lg border-l-2 py-2.5 pr-3 pl-3 transition-colors duration-300",
-              index === currentStep ? "border-(--flow) bg-(--home-surface)" : "border-transparent",
+              index === currentStep ? "border-(--flow) bg-muted" : "border-transparent",
             )}
           >
-            <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
+            <span aria-hidden="true" className="text-base text-muted-foreground tabular-nums">
               {index + 1}
             </span>
             <div>
-              <p className="flex flex-wrap items-center gap-x-1.5 text-base font-semibold text-(--home-ink)">
+              <p className="flex flex-wrap items-center gap-x-1.5 text-base font-semibold text-foreground">
                 <span>{teams[step.from].label}</span>
                 <ArrowRight aria-hidden="true" className="size-3.5 text-(--flow)" />
                 <span className="sr-only">to</span>
                 <span>{teams[step.to].label}</span>
               </p>
-              <p className="mt-1 text-base leading-relaxed text-(--home-muted)">{step.text}</p>
+              <p className="mt-1 text-base leading-relaxed text-muted-foreground">{step.text}</p>
             </div>
           </li>
         ))}

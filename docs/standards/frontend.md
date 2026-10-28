@@ -366,6 +366,13 @@ everything comes from the CSS custom properties `@tesserix/web` and
 `--sidebar`, `--border`, etc.) via Tailwind's token-backed utility
 classes (`bg-background`, `border-sidebar-border`, and so on).
 
+Colour tokens are declared only in `packages/ui/styles.css`, where
+`contrast.test.ts` asserts every pair against WCAG 2.2 AA. The public pages
+read the same tokens as the app; no page declares a palette of its own.
+`packages/ui/src/token-source.test.ts` enforces both halves: a stylesheet
+elsewhere that declares a colour-valued custom property fails CI, and so does
+source that reads a custom property nothing declares (#542).
+
 `packages/ui/styles.css` documents two pitfalls in `@tesserix/web`'s CSS
 that aren't obvious from the class names alone. Quoted verbatim, because
 paraphrasing loses the specific mechanism:

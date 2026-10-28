@@ -27,8 +27,8 @@ import {
 import { PlayToggle, StoryPicker, useStoryPlayer } from "./story-player";
 
 const DRAW_S = 0.8;
-const AI = "var(--home-oversight)";
-const CARE = "var(--home-care)";
+const AI = "var(--hms-violet)";
+const CARE = "var(--hms-accent)";
 const COLUMNS =
   "grid grid-cols-[minmax(0,1fr)_1.5rem_6.5rem_1.5rem_minmax(0,1.15fr)_1.5rem_minmax(0,1fr)]";
 
@@ -81,16 +81,16 @@ export function AiBoard() {
           </figure>
           <div className="mt-4 flex items-center justify-between gap-6">
             <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
-              <li className="flex items-center gap-2 text-(--home-muted)">
-                <span className="h-3 w-5 rounded border border-dashed border-(--home-oversight)" />
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-3 w-5 rounded border border-dashed border-(--hms-violet)" />
                 Agents draft
               </li>
-              <li className="flex items-center gap-2 text-(--home-muted)">
-                <span className="h-3 w-5 rounded border border-(--home-care)" />
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-3 w-5 rounded border border-(--hms-accent)" />
                 People decide
               </li>
-              <li className="flex items-center gap-2 text-(--home-muted)">
-                <FileCheck2 className="size-3.5 text-(--home-ink)" />
+              <li className="flex items-center gap-2 text-muted-foreground">
+                <FileCheck2 className="size-3.5 text-foreground" />
                 Every action recorded
               </li>
             </ul>
@@ -113,9 +113,9 @@ function Board({ active, reached, animated, playing }: BoardProps) {
   return (
     <div
       aria-hidden="true"
-      className="rounded-2xl border border-(--home-line) bg-(--home-board) bg-[radial-gradient(var(--home-line)_1px,transparent_1px)] bg-size-[28px_28px] p-5 lg:p-6"
+      className="rounded-2xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px] p-5 lg:p-6"
     >
-      <div className={cn(COLUMNS, "pb-3 text-xs text-(--home-muted)")}>
+      <div className={cn(COLUMNS, "pb-3 text-xs text-muted-foreground")}>
         <p>Hospital event</p>
         <p className="col-start-5">Specialist agent drafts</p>
         <p className="col-start-7">Named person approves</p>
@@ -124,23 +124,23 @@ function Board({ active, reached, animated, playing }: BoardProps) {
         <BoardCard
           style={{ gridRow: "1 / span 5", gridColumn: 3 }}
           ring={routing ? AI : undefined}
-          surface="bg-(--home-hub)"
+          surface="bg-accent"
         >
           <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
             <span className="relative flex size-12 items-center justify-center">
               <motion.span
-                className="absolute inset-0 rounded-full border border-dashed border-(--home-oversight)/80"
+                className="absolute inset-0 rounded-full border border-dashed border-(--hms-violet)/80"
                 animate={playing ? { rotate: 360 } : { rotate: 0 }}
                 transition={
                   playing ? { duration: 24, ease: "linear", repeat: Infinity } : { duration: 0 }
                 }
               />
-              <Waypoints className="size-5 text-(--home-oversight)" />
+              <Waypoints className="size-5 text-(--hms-violet)" />
             </span>
-            <p className="mt-2 text-[13px] leading-tight font-semibold text-(--home-ink)">
+            <p className="mt-2 text-[13px] leading-tight font-semibold text-foreground">
               Supervisor agent
             </p>
-            <p className="mt-1 text-xs leading-tight text-(--home-muted)">Routes every task</p>
+            <p className="mt-1 text-xs leading-tight text-muted-foreground">Routes every task</p>
           </div>
         </BoardCard>
         {scenarios.map((scenario, lane) => (
@@ -197,7 +197,7 @@ function Lane({ scenario, row, reached, animated }: LaneProps) {
         column={7}
         title={scenario.approver.name}
         detail={scenario.approver.role}
-        icon={<UserCheck className="size-3.5 shrink-0 text-(--home-care)" />}
+        icon={<UserCheck className="size-3.5 shrink-0 text-(--hms-accent)" />}
         ring={reviewing || approved ? CARE : undefined}
       >
         <motion.div
@@ -269,7 +269,7 @@ function Wire({ row, column, state, motionKey }: WireProps) {
   return (
     <div
       style={{ gridRow: row, gridColumn: column }}
-      className="relative mr-1 h-px self-center bg-(--home-line)"
+      className="relative mr-1 h-px self-center bg-border"
     >
       {state === "drawing" && (
         <motion.span
@@ -281,8 +281,8 @@ function Wire({ row, column, state, motionKey }: WireProps) {
           transition={{ duration: DRAW_S, ease: "easeInOut" }}
         />
       )}
-      {state === "done" && <span className="absolute inset-0 bg-(--home-oversight)/60" />}
-      <Arrowhead colour={state === "done" ? AI : "var(--home-line)"} />
+      {state === "done" && <span className="absolute inset-0 bg-(--hms-violet)/60" />}
+      <Arrowhead colour={state === "done" ? AI : "var(--border)"} />
     </div>
   );
 }
@@ -290,10 +290,10 @@ function Wire({ row, column, state, motionKey }: WireProps) {
 function Narration({ scenario, currentStep }: { scenario: Scenario; currentStep?: number }) {
   return (
     <div>
-      <h3 className="text-2xl leading-tight font-semibold font-stretch-[85%] text-(--home-ink)">
+      <h3 className="text-2xl leading-tight font-semibold font-stretch-[85%] text-foreground">
         {scenario.title}
       </h3>
-      <p className="mt-2 text-(--home-muted)">{scenario.summary}</p>
+      <p className="mt-2 text-muted-foreground">{scenario.summary}</p>
       <ol aria-label="Steps in this scenario" className="mt-6 space-y-1">
         {scenarioSteps(scenario).map((step, index) => (
           <li
@@ -303,22 +303,22 @@ function Narration({ scenario, currentStep }: { scenario: Scenario; currentStep?
               "grid grid-cols-[1.5rem_1fr] gap-x-2 rounded-r-lg border-l-2 py-2.5 pr-3 pl-3 transition-colors duration-300",
               index === currentStep
                 ? index === 3
-                  ? "border-(--home-care) bg-(--home-surface)"
-                  : "border-(--home-oversight) bg-(--home-surface)"
+                  ? "border-(--hms-accent) bg-muted"
+                  : "border-(--hms-violet) bg-muted"
                 : "border-transparent",
             )}
           >
-            <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
+            <span aria-hidden="true" className="text-base text-muted-foreground tabular-nums">
               {index + 1}
             </span>
             <div>
-              <p className="flex flex-wrap items-center gap-x-1.5 text-base font-semibold text-(--home-ink)">
+              <p className="flex flex-wrap items-center gap-x-1.5 text-base font-semibold text-foreground">
                 <span>{nodeLabel(step.from, scenario)}</span>
-                <ArrowRight aria-hidden="true" className="size-3.5 text-(--home-oversight)" />
+                <ArrowRight aria-hidden="true" className="size-3.5 text-(--hms-violet)" />
                 <span className="sr-only">to</span>
                 <span>{nodeLabel(step.to, scenario)}</span>
               </p>
-              <p className="mt-1 text-base leading-relaxed text-(--home-muted)">{step.text}</p>
+              <p className="mt-1 text-base leading-relaxed text-muted-foreground">{step.text}</p>
             </div>
           </li>
         ))}

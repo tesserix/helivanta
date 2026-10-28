@@ -42,7 +42,7 @@ const findingStyle: Record<Finding, ChipStyle> = {
   out: {
     colour: FOUND,
     icon: PackageX,
-    className: "border-(--chip) bg-(--chip) text-(--home-canvas)",
+    className: "border-(--chip) bg-(--chip) text-background",
   },
   expiring: {
     colour: FOUND,
@@ -78,10 +78,7 @@ export function StockWatch() {
       <div className="hidden min-w-0 md:block">
         <figure aria-label="A pharmacy shelf of six medicines is checked automatically, and each medicine is marked in stock, running low, out of stock, expiring within 30 days or in quarantine. Medicines to order and a short-dated batch go to a stock forecasting agent, whose draft a named person approves. A batch in quarantine goes straight to a pharmacist.">
           <div ref={boardRef}>
-            <div
-              aria-hidden="true"
-              className="rounded-2xl border border-(--home-line) bg-(--home-board) p-5 lg:p-6"
-            >
+            <div aria-hidden="true" className="rounded-2xl border border-border bg-card p-5 lg:p-6">
               <Shelf
                 checked={reached >= 1}
                 scanning={animated && step.phase === "check"}
@@ -136,10 +133,10 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
 
   return (
     <div>
-      <p className="flex items-center gap-2 text-sm font-semibold text-(--home-ink)">
-        <Package className="size-4 text-(--home-stock)" />
+      <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Package className="size-4 text-(--hms-amber)" />
         {outlet}
-        <span className="font-normal text-(--home-muted)">stock register</span>
+        <span className="font-normal text-muted-foreground">stock register</span>
       </p>
       <div className="mt-3 flex h-6 items-center">
         {checked ? (
@@ -160,12 +157,10 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-(--home-muted)">Not checked yet</p>
+          <p className="text-xs text-muted-foreground">Not checked yet</p>
         )}
       </div>
-      <div
-        className={cn(SHELF, "mt-4 border-b border-(--home-line) pb-2 text-xs text-(--home-muted)")}
-      >
+      <div className={cn(SHELF, "mt-4 border-b border-border pb-2 text-xs text-muted-foreground")}>
         <p>Medicine</p>
         <p className="text-right">Can dispense</p>
         <p className="text-right">Reorder at</p>
@@ -173,7 +168,7 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
         <p>Check</p>
       </div>
       <div className="relative overflow-hidden">
-        <ol aria-label="Shelf" className="divide-y divide-(--home-line)/60">
+        <ol aria-label="Shelf" className="divide-y divide-border/60">
           {shelf.map((item, index) => {
             const finding = findingOf(item);
             return (
@@ -185,22 +180,24 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
                   focused && !focused.findings.includes(finding) && "opacity-35",
                 )}
               >
-                <p className="min-w-0 text-[13px] leading-tight font-semibold text-(--home-ink)">
+                <p className="min-w-0 text-[13px] leading-tight font-semibold text-foreground">
                   {item.medicine}
-                  <span className="block text-xs font-normal text-(--home-muted)">{item.unit}</span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {item.unit}
+                  </span>
                 </p>
-                <p className="text-right text-[13px] leading-tight text-(--home-ink) tabular-nums">
+                <p className="text-right text-[13px] leading-tight text-foreground tabular-nums">
                   {units.format(item.dispensable)}
                   {item.quarantined > 0 && (
-                    <span className="block text-xs text-(--home-oversight)">
+                    <span className="block text-xs text-(--hms-violet)">
                       +{units.format(item.quarantined)} held
                     </span>
                   )}
                 </p>
-                <p className="text-right text-[13px] text-(--home-muted) tabular-nums">
+                <p className="text-right text-[13px] text-muted-foreground tabular-nums">
                   {units.format(item.reorderAt)}
                 </p>
-                <p className="text-right text-[13px] text-(--home-muted) tabular-nums">
+                <p className="text-right text-[13px] text-muted-foreground tabular-nums">
                   {expiryText(item.expiresInDays)}
                 </p>
                 <div>
@@ -217,7 +214,7 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
                       <FindingChip style={findingStyle[finding]} label={findingLabel[finding]} />
                     </motion.span>
                   ) : (
-                    <span className="inline-block h-5 w-24 rounded-full border border-dashed border-(--home-line)" />
+                    <span className="inline-block h-5 w-24 rounded-full border border-dashed border-border" />
                   )}
                 </div>
               </li>
@@ -227,7 +224,7 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
         {scanning && (
           <motion.div
             key="shelf-scan"
-            className="pointer-events-none absolute inset-x-0 h-12 border-b border-(--home-stock) bg-linear-to-b from-transparent to-(--home-stock)/15"
+            className="pointer-events-none absolute inset-x-0 h-12 border-b border-(--hms-amber) bg-linear-to-b from-transparent to-(--hms-amber)/15"
             initial={{ top: "-18%" }}
             animate={{ top: "82%" }}
             transition={{ duration: SCAN_S, ease: "linear" }}

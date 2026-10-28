@@ -25,7 +25,7 @@ it("sends every workspace call to action to the workspace page and keeps sign-in
   const starts = screen.getAllByRole("link", { name: /start your workspace/i });
   expect(starts).toHaveLength(3);
   for (const start of starts) expect(start).toHaveAttribute("href", "/workspace");
-  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login?start=1");
   expect(screen.getByText("SOC 2 Type II")).toBeInTheDocument();
   expect(screen.getAllByText("Not yet certified")).toHaveLength(2);
   expect(

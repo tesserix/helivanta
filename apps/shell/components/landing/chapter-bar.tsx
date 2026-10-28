@@ -30,7 +30,7 @@ export function ChapterBar({ groups }: { groups: readonly ChapterGroup[] }) {
   return (
     <nav
       aria-label="Story chapters"
-      className="sticky top-0 z-20 border-b border-(--home-line) bg-(--home-board)/90 backdrop-blur-md"
+      className="sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur-md"
     >
       <div className={cn(homeWidth, "flex items-center overflow-x-auto")}>
         {groups.map((group, index) => (
@@ -38,10 +38,10 @@ export function ChapterBar({ groups }: { groups: readonly ChapterGroup[] }) {
             key={group.label}
             className={cn(
               "flex shrink-0 items-center",
-              index > 0 && "ml-4 border-l border-(--home-line) pl-4",
+              index > 0 && "ml-4 border-l border-border pl-4",
             )}
           >
-            <p className="pr-2 text-[13px] font-semibold whitespace-nowrap text-(--home-muted)">
+            <p className="pr-2 text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
               {group.label}
             </p>
             <ul className="flex">
@@ -53,10 +53,10 @@ export function ChapterBar({ groups }: { groups: readonly ChapterGroup[] }) {
                       href={`#${chapter.id}`}
                       aria-current={active ? "true" : undefined}
                       className={cn(
-                        "flex min-h-12 items-center gap-2 border-b-2 px-3 text-sm whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--home-ink)",
+                        "flex min-h-12 items-center gap-2 border-b-2 px-3 text-sm whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground",
                         active
-                          ? "border-(--home-ink) font-semibold text-(--home-ink)"
-                          : "border-transparent text-(--home-muted) hover:text-(--home-ink)",
+                          ? "border-foreground font-semibold text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <span
@@ -64,8 +64,8 @@ export function ChapterBar({ groups }: { groups: readonly ChapterGroup[] }) {
                         className={cn(
                           "flex size-5 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
                           active
-                            ? "bg-(--home-ink) text-(--home-canvas)"
-                            : "border border-(--home-muted)",
+                            ? "bg-foreground text-background"
+                            : "border border-muted-foreground",
                         )}
                       >
                         {chapter.number}

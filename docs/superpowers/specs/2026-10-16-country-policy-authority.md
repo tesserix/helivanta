@@ -4,7 +4,7 @@ Child #1182; parent #1134; epic #1133. Owner Sam123ben. Status: configuration/AP
 
 ## Scope and boundaries
 
-Implement independently reviewed IN/PK policy configuration through workspace,
+Implement independently reviewed India policy configuration through workspace,
 with a platform-owned transaction guard available for subsequent trading-module integration. This release connects the guard to the configuration preview only.
 Country metadata remains generated from the existing shared country profiles.
 Tenant, jurisdiction, category, operation and currency are an exact scope; there
@@ -76,7 +76,7 @@ migration needs separate specific approval after the artifact is reviewable.
 No live migration is performed during local development.
 
 Prove real PostgreSQL tenant isolation, explicit scope access, self-approval
-denial, replay/conflict/concurrency, IN/PK independence, expiry boundaries,
+denial, replay/conflict/concurrency, expiry boundaries,
 revocation-versus-commit locking, audit/outbox exact counts, PKR precision,
 English/Urdu layout and actual UI/API journeys with synthetic data. Test
 restricted listing/order/dispatch/dispense transitions before closing #1134.

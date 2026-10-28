@@ -60,10 +60,10 @@ describe("reviewed country policy contract", () => {
       requirements: expect.any(Array),
     });
   });
-  // #1287: Pakistan is not a supported country.
-  it("refuses a Pakistan policy", () => {
+  // #1287: only India is supported; any other country is refused.
+  it("refuses an unsupported country", () => {
     expect(
-      countryPolicySubmissionSchema.safeParse({ ...policy(), country: "PK", currency: "PKR" })
+      countryPolicySubmissionSchema.safeParse({ ...policy(), country: "US", currency: "USD" })
         .success,
     ).toBe(false);
   });

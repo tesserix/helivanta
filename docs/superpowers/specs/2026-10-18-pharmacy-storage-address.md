@@ -12,5 +12,5 @@ independent shelf; malformed input handling; exact/concurrent replay without
 extra audit; changed identity conflict; tenant/outlet read/write isolation;
 stock-position projection and frozen snapshot/cursor behavior; accessible
 inline validation; stable retry IDs and scope clearing. Verify PostgreSQL
-and genuine local browser/API flows with fictional IN/PK fixtures. Keep
+and genuine local browser/API flows with fictional India fixtures. Keep
 #1229 open until release verification.

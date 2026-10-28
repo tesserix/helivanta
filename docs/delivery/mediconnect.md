@@ -462,7 +462,7 @@ and post-merge CI passed for `30efb51`, including Go coverage and browser E2E.
 Production API/connector/shell reached two ready replicas each; public probes
 verified authentication rejection, Via forwarding, unknown-route 404 and the
 shell-to-owner mesh boundary. These probes do not certify authenticated patient
-workflows. The user-approved confirmed Pakistan test cleanup cleared all 12
+workflows. The user-approved confirmed test-fixture cleanup cleared all 12
 country preflight checks; [PR #1319](https://github.com/tesserix/helivanta/pull/1319)
 records protected recovery and audit evidence. Automatic promotion stays disabled.
 

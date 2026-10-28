@@ -349,6 +349,8 @@ function OutletPharmacy({
           scope={scope}
           canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
           canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
+          canDiscount={can("pharmacy.sale.discount")}
+          canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
         />
       ) : view === "prescriptions" ? (
         <Prescriptions

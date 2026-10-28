@@ -22,6 +22,7 @@ import (
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
@@ -64,6 +65,8 @@ type saleLineInput struct {
 	QuantityUnits int64     `json:"quantity_units" binding:"required,min=1,max=1000000"`
 	// The prescription line a G, H or H1 line dispenses (B-2b decision 2).
 	Prescription *saleCitation `json:"prescription" binding:"omitempty"`
+	// A percentage off the line in basis points (B-3 decision 1).
+	DiscountBps int64 `json:"discount_bps" binding:"min=0,max=10000"`
 }
 
 type saleCitation struct {
@@ -98,6 +101,8 @@ type saleInput struct {
 	Lines   []saleLineInput   `json:"lines" binding:"required,min=1,max=50,dive"`
 	Tenders []saleTenderInput `json:"tenders" binding:"required,min=1,max=5,dive"`
 	Buyer   *saleBuyer        `json:"buyer"`
+	// Required exactly when a line is discounted (B-3 decision 2).
+	DiscountReason *string `json:"discount_reason"`
 }
 
 type saleQuoteInput struct {
@@ -122,6 +127,12 @@ func (in saleInput) digest() string {
 		if l.Prescription != nil {
 			parts = append(parts, "rx", l.Prescription.PrescriptionID.String(), strconv.Itoa(l.Prescription.LineNumber))
 		}
+		if l.DiscountBps > 0 {
+			parts = append(parts, "d", strconv.FormatInt(l.DiscountBps, 10))
+		}
+	}
+	if in.DiscountReason != nil {
+		parts = append(parts, "dr", *in.DiscountReason)
 	}
 	if in.Buyer != nil {
 		name, phone := "", ""
@@ -189,6 +200,8 @@ type saleRecord struct {
 	ActorSubject    string       `gorm:"column:actor_subject" json:"actor_subject"`
 	BuyerName       *string      `gorm:"column:buyer_name" json:"buyer_name"`
 	BuyerPhone      *string      `gorm:"column:buyer_phone" json:"buyer_phone"`
+	DiscountReason  *string      `gorm:"column:discount_reason" json:"discount_reason"`
+	DiscountMinor   int64        `gorm:"-" json:"discount_minor"`
 	CreatedAt       time.Time    `gorm:"column:created_at" json:"created_at"`
 	Lines           []saleLine   `gorm:"-" json:"lines,omitempty"`
 	Tenders         []saleTender `gorm:"-" json:"tenders,omitempty"`
@@ -199,7 +212,7 @@ type saleRecord struct {
 func (saleRecord) TableName() string                 { return "pharmacy_sales" }
 func (r saleRecord) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,created_at"
+const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,discount_reason,created_at"
 
 type saleLine struct {
 	LineNumber         int        `gorm:"column:line_number" json:"line_number"`
@@ -221,6 +234,9 @@ type saleLine struct {
 	SGSTMinor          int64      `gorm:"column:sgst_minor" json:"sgst_minor"`
 	PrescriptionID     *uuid.UUID `gorm:"column:prescription_id" json:"prescription_id"`
 	PrescriptionLine   *int       `gorm:"column:prescription_line" json:"prescription_line"`
+	ListAmountMinor    int64      `gorm:"column:list_amount_minor" json:"list_amount_minor"`
+	DiscountBps        int64      `gorm:"column:discount_bps" json:"discount_bps"`
+	DiscountMinor      int64      `gorm:"column:discount_minor" json:"discount_minor"`
 	declaration        uuid.UUID
 }
 
@@ -239,6 +255,22 @@ type saleTender struct {
 func priceLine(mrp, pack, qty int64, nature string, ratePPM int64) (amount, taxable, half int64) {
 	// big.Int: amount × rate can pass int64 at the schema's bounds.
 	amount = new(big.Int).Quo(new(big.Int).Mul(big.NewInt(mrp), big.NewInt(qty)), big.NewInt(pack)).Int64()
+	return taxInside(amount, nature, ratePPM)
+}
+
+// discountLine takes bps of a list amount off, rounded down so the discount
+// stays within its percentage, and returns the discount and what is charged
+// (B-3 decision 1; the schema checks the same rounding).
+func discountLine(list, bps int64) (discount, amount int64) {
+	discount = new(big.Int).Quo(new(big.Int).Mul(big.NewInt(list), big.NewInt(bps)), big.NewInt(10000)).Int64()
+	return discount, list - discount
+}
+
+// taxInside splits a tax-inclusive amount into taxable value and equal CGST
+// and SGST halves (spec B4). A discount recorded on the invoice is outside
+// the value of supply (CGST Act s.15(3)(a)), so it runs on the discounted amount.
+func taxInside(amount int64, nature string, ratePPM int64) (int64, int64, int64) {
+	var half int64
 	if nature == "taxable" {
 		den := big.NewInt(2 * (1_000_000 + ratePPM))
 		num := new(big.Int).Mul(big.NewInt(2*ratePPM), big.NewInt(amount))
@@ -268,6 +300,7 @@ func saleRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/sales/:id", PermSaleCreate, h.putSale)
 	s.GET("/sales/:id", PermSaleRead, h.getSale)
 	platform.ListRoute(s, "/sales", PermSaleRead, h.listSales)
+	discountRoutes(s, h)
 }
 
 func (h *catalogueHandlers) putInvoiceProfile(c *gin.Context) {
@@ -592,14 +625,20 @@ func allocate(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, in []s
 			}
 			take := min(need, b.OnHand)
 			need -= take
-			amount, taxable, half := priceLine(b.MRPMinor, pr.PackSize, take, pr.tax.SupplyNature, pr.tax.RatePPM)
-			if amount == 0 {
+			list, _, _ := priceLine(b.MRPMinor, pr.PackSize, take, pr.tax.SupplyNature, pr.tax.RatePPM)
+			if list == 0 {
 				return nil, errNotSellable{fmt.Sprintf("%s: %d units of a pack of %d price to nothing; sell more units", pr.SKU, take, pr.PackSize)}
 			}
+			discount, charged := discountLine(list, l.DiscountBps)
+			if charged == 0 {
+				return nil, errNotSellable{pr.SKU + ": the discount leaves nothing to charge"}
+			}
+			amount, taxable, half := taxInside(charged, pr.tax.SupplyNature, pr.tax.RatePPM)
 			lines = append(lines, saleLine{LineNumber: len(lines) + 1, ProductID: l.ProductID, BatchID: b.BatchID, LocationID: b.LocationID,
 				LotNumber: b.LotNumber, ExpiresOn: b.ExpiresOn, RegulatoryClass: pr.class.RegulatoryClass, ClassificationCode: pr.tax.ClassificationCode,
 				SupplyNature: pr.tax.SupplyNature, RatePPM: pr.tax.RatePPM, MRPMinor: b.MRPMinor, PackSize: pr.PackSize, QuantityUnits: take,
-				AmountMinor: amount, TaxableMinor: taxable, CGSTMinor: half, SGSTMinor: half, declaration: pr.class.DeclarationID})
+				AmountMinor: amount, TaxableMinor: taxable, CGSTMinor: half, SGSTMinor: half, declaration: pr.class.DeclarationID,
+				ListAmountMinor: list, DiscountBps: l.DiscountBps, DiscountMinor: discount})
 		}
 		if need > 0 {
 			short = append(short, fmt.Sprintf("%s (%d more units needed)", pr.SKU, need))
@@ -630,6 +669,9 @@ func priceSale(tx *gorm.DB, tenant string, outlet uuid.UUID, in []saleLineInput)
 		return seller, nil, err
 	}
 	if err := checkCitations(tx, tenant, outlet, seller.today, in, products); err != nil {
+		return seller, nil, err
+	}
+	if err := checkDiscounts(tx, tenant, outlet, in, products); err != nil {
 		return seller, nil, err
 	}
 	lines, err := allocate(tx, tenant, outlet, seller.today, in, products)
@@ -744,6 +786,9 @@ func (h *catalogueHandlers) postSaleQuote(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "each product appears on one line")
 		return
 	}
+	if !mayDiscount(c, in.Lines) {
+		return
+	}
 	var quote struct {
 		Currency       string     `json:"currency"`
 		TotalMinor     int64      `json:"total_minor"`
@@ -799,6 +844,14 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a buyer has a name of up to 200 characters, a phone of 6 to 15 digits, or both")
 		return
 	}
+	if !mayDiscount(c, in.Lines) {
+		return
+	}
+	if in.DiscountReason != nil && !prescriptionText(*in.DiscountReason, 200) || in.DiscountReason != nil && len([]rune(*in.DiscountReason)) < 5 ||
+		discounted(in.Lines) != (in.DiscountReason != nil) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a discounted sale gives a reason of 5 to 200 characters, and only a discounted sale gives one")
+		return
+	}
 	var buyerName, buyerPhone *string
 	if in.Buyer != nil {
 		buyerName, buyerPhone = in.Buyer.Name, in.Buyer.Phone
@@ -850,18 +903,18 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return errNotSellable{"this year's invoice series is full; record a shorter invoice prefix"}
 		}
 		if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,
-			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone)
-			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
-			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone).Error; err != nil {
+			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,discount_reason)
+			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
+			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone, in.DiscountReason).Error; err != nil {
 			return err
 		}
 		for _, l := range lines {
 			if err := tx.Exec(`INSERT INTO pharmacy_sale_lines (tenant_id,outlet_id,sale_id,line_number,product_id,batch_id,location_id,lot_number,expires_on,
 				regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,
-				prescription_id,prescription_line)
-				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
+				prescription_id,prescription_line,discount_bps,discount_minor)
+				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
 				l.RegulatoryClass, l.declaration, l.ClassificationCode, l.SupplyNature, l.RatePPM, l.MRPMinor, l.PackSize, l.QuantityUnits, l.AmountMinor,
-				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.PrescriptionID, l.PrescriptionLine).Error; err != nil {
+				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.PrescriptionID, l.PrescriptionLine, l.DiscountBps, l.DiscountMinor).Error; err != nil {
 				return err
 			}
 			movement := stockMovement{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ActorSubject: p.Subject,
@@ -910,6 +963,8 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
 	case prescriptionLimitError(err):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
+	case violated(err, "pharmacy_sale_line_discount_ceiling"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the outlet's discount ceiling changed; price the basket again")
 	case err != nil:
 		stockError(c, err)
 	case created:
@@ -929,7 +984,7 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	}
 	*out = rows[0]
 	if err := tx.Raw(`SELECT line_number,product_id,batch_id,location_id,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,regulatory_class,
-		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,prescription_id,prescription_line
+		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,prescription_id,prescription_line,list_amount_minor,discount_bps,discount_minor
 		FROM pharmacy_sale_lines WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
 		return err
 	}
@@ -939,6 +994,9 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	}
 	// Decision 2: the class on the invoice is the outlet's declaration, and
 	// NPPA ceiling prices (#1371) are not checked; the invoice says both.
+	for _, l := range out.Lines {
+		out.DiscountMinor += l.DiscountMinor
+	}
 	out.ClassOrigin = "declared_by_outlet"
 	out.CeilingChecked = false
 	return nil
@@ -982,6 +1040,64 @@ func (h *catalogueHandlers) listSales(c *gin.Context, params pagination.Params) 
 // prescriptionLimitError is the sale guard refusing a line its handler check
 // passed, so a refusal the database makes still reaches the cashier as one.
 func prescriptionLimitError(err error) bool {
+	return violated(err, "pharmacy_sale_line_prescription_limit")
+}
+
+// violated reports whether err is the named constraint refusing a write.
+func violated(err error, constraint string) bool {
 	var pg *pgconn.PgError
-	return errors.As(err, &pg) && pg.ConstraintName == "pharmacy_sale_line_prescription_limit"
+	return errors.As(err, &pg) && pg.ConstraintName == constraint
+}
+
+// checkDiscounts holds every discount to the outlet's ceiling in force, with
+// a reason the cashier can act on; the sale-line guard checks it again.
+func checkDiscounts(tx *gorm.DB, tenant string, outlet uuid.UUID, in []saleLineInput, products map[uuid.UUID]*saleProduct) error {
+	var ceiling int64
+	if err := tx.Raw(`SELECT pharmacy_outlet_discount_ceiling_in_force(?, ?)`, tenant, outlet).Scan(&ceiling).Error; err != nil {
+		return err
+	}
+	for _, l := range in {
+		if l.DiscountBps > ceiling {
+			return errNotSellable{fmt.Sprintf("the discount on %s is above this outlet's ceiling of %s%%", products[l.ProductID].SKU, percent(ceiling))}
+		}
+	}
+	return nil
+}
+
+// percent writes basis points as a percentage without trailing zeros.
+func percent(bps int64) string {
+	whole, frac := bps/100, bps%100
+	switch {
+	case frac == 0:
+		return strconv.FormatInt(whole, 10)
+	case frac%10 == 0:
+		return fmt.Sprintf("%d.%d", whole, frac/10)
+	default:
+		return fmt.Sprintf("%d.%02d", whole, frac)
+	}
+}
+
+// discounted reports whether any line asks for a discount.
+func discounted(lines []saleLineInput) bool {
+	for _, l := range lines {
+		if l.DiscountBps > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// mayDiscount is the permission a discount needs beyond the route's own
+// (decision 3): checked before any pricing, so a quote cannot show a
+// discount its caller cannot give. A missing permission set fails closed.
+func mayDiscount(c *gin.Context, lines []saleLineInput) bool {
+	if !discounted(lines) {
+		return true
+	}
+	set, ok := authz.PermissionsFrom(c)
+	if !ok || !set.Has(PermSaleDiscount) {
+		respond.Forbidden(c, "a discount needs the pharmacy.sale.discount permission")
+		return false
+	}
+	return true
 }

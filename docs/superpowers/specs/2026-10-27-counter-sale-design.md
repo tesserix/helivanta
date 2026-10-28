@@ -274,6 +274,42 @@ S09), read for this slice:
 Not covered: Schedule X and NDPS (#165, #171), the H1 register report (#1062, slice C), and
 registered patients (B-2c). The data the register needs is captured from this slice on.
 
+#### B-2c is blocked (2026-10-28)
+
+A registered patient is referenced "under the outlet's affiliation" (B6). No affiliation can be
+verified today: `pharmacy_hospital_affiliations.verification_status` is constrained to
+`pending_validation` and no verification flow exists. An unverified affiliation is not
+authority to read or cite a hospital's patients, so B-2c waits for affiliation verification
+(tracked in its own issue) rather than accepting a supplied patient id.
+
+#### B-3 decisions (2026-10-28)
+
+**Source.** CGST Act 2017, s.15(3)(a), as published on CBIC's tax information portal: the
+value of a supply does not include a discount given before or at the time of supply and
+recorded in its invoice. CBIC Circular 92/11/2019-GST applies the same rule. So the GST on a
+discounted line is computed inside the discounted amount.
+
+1. **A discount is a percentage of the line**, in basis points (1–10000). It applies to each
+   batch line the product is allocated to: `discount = floor(list amount × bps ÷ 10000)`,
+   with `amount = list amount − discount` and tax inside `amount` as before. Rounding down
+   keeps the discount within the ceiling. Fixed-amount discounts are not in this slice: an
+   amount cannot be split across batch lines without a rounding rule nobody has decided.
+2. **Who may discount.** `pharmacy.sale.discount` has no system role. A tenant administrator
+   assigns it, as decision 3 says ("pharmacy manager, tenant-assigned"). The person posting or
+   quoting a discounted sale must hold it. A sale needs a reason (5–200 characters) whenever
+   any line is discounted.
+3. **The ceiling** is recorded per outlet as a percentage in basis points (0–10000), with a
+   reason. The latest record is in force, and the record history is kept. An outlet with no
+   record has a ceiling of 0, so discounts are refused until one is recorded. The pharmacy
+   owner records it (`pharmacy.discount.manage`). No value is set by us: the ceiling is a
+   commercial decision.
+4. **The database checks it.** A line's discount must be the rounded percentage of its list
+   amount, within the ceiling in force when the line is written. A discounted sale must carry
+   its reason. A discount that brings a line to nothing is refused, like any line that prices
+   to nothing.
+5. **The invoice** shows each line's list amount and discount, and the sale's total discount.
+   `sale_posted.v1` is unchanged; its total is the net amount charged.
+
 ### Slice C: after the sale
 
 Returns as credit notes against the original invoice line and batch, with stock back to

@@ -50,7 +50,13 @@ type Deps struct {
 	Bus                  *events.Bus
 	Documents            *attachments.GCS
 	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
-	Transit                     *transit.Client
+	Transit *transit.Client
+	// PaymentsProviderURL is the Razorpay API base (RAZORPAY_API_URL); tests
+	// point it at a fake provider (#1386 C-4a).
+	PaymentsProviderURL string
+	// PaymentsWebhookBaseURL is the public Global API origin Razorpay
+	// delivers to (PAYMENTS_WEBHOOK_BASE_URL); empty where none is exposed.
+	PaymentsWebhookBaseURL      string
 	CurrentClaims               *mediconnectclaims.Client
 	Workflows                   client.Client
 	ProxyClinicalCaptureEnabled bool

@@ -12,7 +12,7 @@ import (
 )
 
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
-	return []events.Consumer{{
+	return append([]events.Consumer{{
 		Name:    "pharmacy-visit-intake",
 		Subject: medicorecontract.SubjectVisitCreated,
 		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
@@ -25,7 +25,7 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			return tx.Exec(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name)
 				VALUES (?, ?, ?)`, evt.TenantID, d.VisitID, d.PatientName).Error
 		},
-	}, PrescriptionImageScanConsumer(deps.Workflows)}
+	}, PrescriptionImageScanConsumer(deps.Workflows)}, paymentOutcomeConsumers()...)
 }
 
 // Broadcasts declares none: pharmacy has no per-replica cache to

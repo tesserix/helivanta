@@ -169,3 +169,9 @@ code warning. These diagnostics preserve owner status, headers and body and
 never retry a submitted command. Request paths, queries, bodies, cookies, tokens,
 upstream addresses and response content are excluded from these warnings.
 This supports correlation; it does not identify the cause of incident #1338.
+
+Identity draft requests forward both `X-Helivanta-Expected-Tenant` and
+`X-Helivanta-Expected-Subject`, preserving duplicate values so the owner can reject
+ambiguous preconditions. They do not establish identity: Workforce compares them
+to the verified principal and requires exactly one of each on case routes.
+Caller-supplied identity headers remain stripped.

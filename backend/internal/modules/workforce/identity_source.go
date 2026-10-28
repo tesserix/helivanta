@@ -50,38 +50,40 @@ func (h *handlers) getIdentitySource(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !identityWorkspaceMatches(c, p) {
+		return
+	}
+	projected := false
+	if c.Request.URL.RawQuery != "" {
+		query := c.Request.URL.Query()
+		values := query[IdentitySourceProjectionQuery]
+		if len(query) != 1 || len(values) != 1 || values[0] != IdentitySourceDraftProjection {
+			respond.Error(c, 400, "invalid_request", "Unsupported identity-source projection.")
+			return
+		}
+		projected = true
+	}
 	staffID, err := uuid.Parse(c.Param("id"))
 	if err != nil || staffID == uuid.Nil {
 		respond.NotFound(c, "staff")
 		return
 	}
 	var result IdentitySource
+	canManage := true
 	read := func(tx *gorm.DB, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
-		if err := tx.Exec(`SELECT set_config('app.workforce_identity_source','authorized',true),set_config('app.workforce_identity_staff',?,true)`, staffID.String()).Error; err != nil {
+		var err error
+		result, err = loadIdentitySource(tx, p, hospital, staffID)
+		if err != nil {
 			return err
 		}
-		result.HospitalID = hospital
-		result.StaffID = staffID
-		if err := tx.Table("workforce_staff").Select("employee_code,display_name,employment_status,employment_epoch,version AS staff_version").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID).Take(&result).Error; err != nil {
-			return err
+		if projected {
+			result.ManageChecksAllowed = &canManage
 		}
-		var profile struct {
-			GivenName   string
-			FamilyName  string
-			DateOfBirth string
-		}
-		err := tx.Table("workforce_enrollment_profile").Select("given_name,family_name,COALESCE(to_char(date_of_birth,'YYYY-MM-DD'),'') AS date_of_birth").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=?", p.TenantID, hospital, staffID).Take(&profile).Error
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		result.GivenName, result.FamilyName, result.DateOfBirth = profile.GivenName, profile.FamilyName, profile.DateOfBirth
-		material, _ := json.Marshal([]string{p.TenantID, hospital.String(), staffID.String(), result.EmployeeCode, result.DisplayName, result.GivenName, result.FamilyName, result.DateOfBirth})
-		digest := sha256.Sum256(material)
-		result.IdentityHash = hex.EncodeToString(digest[:])
 		return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,'workforce.identity_source.read',?,jsonb_build_object('assignment_id',?::text,'assignment_version',?::bigint,'scope_epoch',?::bigint,'membership_epoch',?::bigint,'actor_link_id',?::text,'actor_link_version',?::bigint))`, p.TenantID, hospital, p.Subject, staffID, grant.AssignmentID, grant.Version, grant.ScopeEpoch, grant.MembershipEpoch, actor.ID.String(), actor.Version).Error
 	}
 	err = h.identityScopeTransaction(c, p, hospital, PermIdentityChecksManage, read)
 	if errors.Is(err, authz.ErrScopedCommandDenied) {
+		canManage = false
 		err = h.identityScopeTransaction(c, p, hospital, PermIdentityChecksReview, read)
 	}
 	if err != nil {
@@ -89,6 +91,17 @@ func (h *handlers) getIdentitySource(c *gin.Context) {
 		return
 	}
 	respond.OK(c, result)
+}
+
+func identityWorkspaceMatches(c *gin.Context, p authn.Principal) bool {
+	if _, _, ok := authn.ExpectedTenantPrincipal(c); !ok {
+		return false
+	}
+	if expected := c.Request.Header.Values("X-Helivanta-Expected-Subject"); len(expected) > 0 && (len(expected) != 1 || expected[0] != p.Subject) {
+		respond.Error(c, 409, "session_changed", "Your signed-in account changed. Refresh before continuing.")
+		return false
+	}
+	return true
 }
 
 func respondIdentityError(c *gin.Context, err error) {
@@ -102,4 +115,31 @@ func respondIdentityError(c *gin.Context, err error) {
 	default:
 		respondError(c, err)
 	}
+}
+
+func loadIdentitySource(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID) (IdentitySource, error) {
+	result := IdentitySource{HospitalID: hospital, StaffID: staffID}
+	if err := tx.Exec(`SELECT set_config('app.workforce_identity_source','authorized',true),set_config('app.workforce_identity_staff',?,true)`, staffID.String()).Error; err != nil {
+		return result, err
+	}
+	if err := tx.Table("workforce_staff").Select("employee_code,display_name,employment_status,employment_epoch,version AS staff_version").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID).Take(&result).Error; err != nil {
+		return result, err
+	}
+	var profile struct {
+		GivenName   string
+		FamilyName  string
+		DateOfBirth string
+	}
+	err := tx.Table("workforce_enrollment_profile").Select("given_name,family_name,COALESCE(to_char(date_of_birth,'YYYY-MM-DD'),'') AS date_of_birth").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=?", p.TenantID, hospital, staffID).Take(&profile).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return result, err
+	}
+	result.GivenName, result.FamilyName, result.DateOfBirth = profile.GivenName, profile.FamilyName, profile.DateOfBirth
+	material, err := json.Marshal([]string{p.TenantID, hospital.String(), staffID.String(), result.EmployeeCode, result.DisplayName, result.GivenName, result.FamilyName, result.DateOfBirth})
+	if err != nil {
+		return result, err
+	}
+	digest := sha256.Sum256(material)
+	result.IdentityHash = hex.EncodeToString(digest[:])
+	return result, nil
 }

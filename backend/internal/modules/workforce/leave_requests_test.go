@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,7 +38,8 @@ type leaveTypes struct {
 
 type requestHarness struct {
 	*ledgerHarness
-	header func(path, user, name string) string
+	header  func(path, user, name string) string
+	handler http.Handler
 }
 
 func newRequestHarness(t *testing.T, configure ...func(*testutil.HarnessOptions)) *requestHarness {
@@ -60,7 +63,15 @@ func newRequestHarness(t *testing.T, configure ...func(*testutil.HarnessOptions)
 	r, db, _, _ := testutil.NewHarness(t, opts)
 	hospital := uuid.NewString()
 	h := &leaveHarness{t: t, base: "/v1/workforce/hospitals/" + hospital, do: func(method, path, user, body string) (int, string) {
-		w := testutil.Do(r, method, path, user, body)
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		request.Header.Set("Authorization", "Bearer "+user)
+		request.Header.Set("Content-Type", "application/json")
+		if strings.Contains(request.URL.Path, "/identity-staff/") && strings.Contains(request.URL.Path, "/checks") {
+			request.Header.Set("X-Helivanta-Expected-Tenant", opts.Tokens[user])
+			request.Header.Set("X-Helivanta-Expected-Subject", "user-"+user)
+		}
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, request)
 		return w.Code, w.Body.String()
 	}}
 	code, out := h.do("PUT", h.base, "admin", `{"name":"Synthetic Request Hospital"}`)
@@ -72,7 +83,7 @@ func newRequestHarness(t *testing.T, configure ...func(*testutil.HarnessOptions)
 	header := func(path, user, name string) string {
 		return testutil.Do(r, "GET", h.base+path, user, "").Header().Get(name)
 	}
-	return &requestHarness{ledgerHarness: &ledgerHarness{leaveHarness: h, db: db, hospital: hospital}, header: header}
+	return &requestHarness{ledgerHarness: &ledgerHarness{leaveHarness: h, db: db, hospital: hospital}, header: header, handler: r}
 }
 
 // openLeaveYears opens each calendar-aligned year, optionally with a holiday calendar.

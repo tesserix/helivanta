@@ -134,6 +134,36 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 - `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
 - `sale_posted.v1` carries no buyer or prescription data. Prescription records and their scanned pages are B-2a; selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3 (below).
 
+### Returns as credit notes (#1386 C-1)
+
+A return is a GST credit note against one posted invoice. The rules followed are CGST Act 2017, s.34, and CGST Rules 2017, Rule 53(1A), as published by CBIC. Returned medicine goes to quarantine and is sold again only after a pharmacist releases it (A3).
+
+| Route                                                    | Behaviour                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/credit-notes/{uuidv7}`                            | Takes `{sale_id, lines: [{sale_line, quantity_units, quarantine_location_id}], refunds: [{kind, amount_minor, reference?}], reason, recipient: {name, address}}`. Requires `pharmacy.sale.return`, held by the pharmacist, with the outlet `editor` grant. Returns 201, or 200 for a replay; a different intent is 409. Every refusal is 409 `not_returnable` with its reason |
+| `GET …/credit-notes/{id}`, `GET …/credit-notes?sale_id=` | The credit note (and the paged list). It carries the original invoice's number and date, the seller, the recipient, and each line's HSN, batch, units, rate, taxable value and tax credited. Requires `pharmacy.sale.read`                                                                                                                                                    |
+| `GET …/sales/{id}`                                       | Each line now reports `returned_units`                                                                                                                                                                                                                                                                                                                                        |
+
+- **Amounts reverse the sale line.** A credit uses the line's charged amount and tax, net of any discount, and the sale's own rate. Credits are the cumulative pro-rata step, `floor(v × (k+r) ÷ q) − floor(v × k ÷ q)` for the amount and each tax half. So all the returns of a line together credit exactly what it charged.
+- **Limits.**
+  - The units returned on a line, across all credit notes, never exceed the units sold.
+  - Every line goes to a quarantine location.
+  - The refunds must equal the total.
+  - The credit note is refused after 30 November following the end of the sale's financial year (s.34(2)). The other limit in s.34(2), the date the annual return is filed, is not known to the system and is the outlet's to observe.
+- **The number** is `PREFIX/FY/Cn`. It comes from its own gap-free series per outlet and per financial year of the credit note's date.
+- **Database guarantees.**
+  - Each credit line locks its sale line and checks the units and the pro-rata amounts.
+  - A credit note is sealed to its own transaction.
+  - At commit, the note must equal its lines, be refunded in full, and have one `return` movement per line.
+  - A `return` movement is accepted only as its credit line's units of that line's batch, into its quarantine location.
+- **Events.** `credit_note_issued.v1` carries ids, the number, currency, total and each line's product, batch and units. It carries no recipient details.
+- **Not covered.**
+  - Destruction and disposal, and a recorded condition or cold-chain judgement: every return goes to quarantine.
+  - Returns from wards and failed deliveries.
+  - Credit notes without goods, and debit notes.
+  - E-invoicing (#539).
+  - A digital signature: the credit note records who issued it.
+
 ### Discounts (#1386 B-3)
 
 A discount recorded on the invoice at the time of supply is outside the value of supply (CGST Act 2017, s.15(3)(a), as published by CBIC; CBIC Circular 92/11/2019-GST), so GST is computed inside the discounted amount.

@@ -188,6 +188,8 @@ export type PharmacySaleLine = {
   list_amount_minor: number;
   discount_bps: number;
   discount_minor: number;
+  /** Units returned on credit notes so far (#1386 C-1); 0 on a quote. */
+  returned_units?: number;
 };
 export type PharmacySaleQuote = {
   currency: string;
@@ -231,6 +233,52 @@ export type PharmacySaleAvailability = {
   nearest_expiry: string | null;
   /** The approved schedule class in force; null when none is approved. */
   regulatory_class: "none" | "G" | "H" | "H1" | "X" | null;
+};
+/** A counter return as a GST credit note (#1386 C-1). */
+export type PharmacyCreditNoteLine = {
+  line_number: number;
+  sale_line: number;
+  product_id: string;
+  batch_id: string;
+  lot_number: string;
+  location_id: string;
+  classification_code: string;
+  rate_ppm: number;
+  quantity_units: number;
+  amount_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+};
+export type PharmacyCreditNote = {
+  id: string;
+  sale_id: string;
+  credit_note_number: string;
+  financial_year: string;
+  credit_note_date: string;
+  invoice_number: string;
+  invoice_date: string;
+  seller_legal_name: string;
+  seller_address: string;
+  seller_gstin: string;
+  place_of_supply: string;
+  currency: string;
+  total_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  reason: string;
+  recipient_name: string;
+  recipient_address: string;
+  actor_subject: string;
+  created_at: string;
+  lines: PharmacyCreditNoteLine[];
+  refunds: {
+    refund_number: number;
+    kind: "cash" | "upi" | "card";
+    amount_minor: number;
+    reference: string | null;
+  }[];
 };
 /** The outlet's discount ceiling in force (#1386 B-3). */
 export type PharmacyDiscountCeiling = {

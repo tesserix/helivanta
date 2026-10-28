@@ -241,6 +241,7 @@ describe("zone icons and sections", () => {
     expect(pharmacy.pages.map((page) => [page.section, page.label, page.href])).toEqual([
       [undefined, "Overview", "/pharmacy"],
       ["Dispensing", "Counter sale", "/pharmacy/counter"],
+      ["Dispensing", "Returns", "/pharmacy/returns"],
       ["Dispensing", "Prescriptions", "/pharmacy/prescriptions"],
       ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],

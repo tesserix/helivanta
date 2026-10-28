@@ -40,6 +40,7 @@ import {
   Stethoscope,
   Store,
   Tablets,
+  Undo2,
   Timer,
   Users,
   Wallet,
@@ -155,6 +156,13 @@ export const ZONES: Zone[] = [
         label: "Counter sale",
         href: "/pharmacy/counter",
         icon: ShoppingCart,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Returns",
+        href: "/pharmacy/returns",
+        icon: Undo2,
         permission: "pharmacy.sale.read",
       },
       {

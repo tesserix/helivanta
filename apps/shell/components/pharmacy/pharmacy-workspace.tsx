@@ -36,6 +36,7 @@ import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
 import { Prescriptions } from "./prescriptions";
+import { Returns } from "./returns";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
@@ -43,6 +44,7 @@ type PharmacyView =
   | "overview"
   | "counter"
   | "prescriptions"
+  | "returns"
   | "stock"
   | "receiving"
   | "safety"
@@ -53,6 +55,7 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
   overview: "What needs attention at this outlet, most urgent first.",
   counter: "Sell OTC medicines from sellable stock and print the GST invoice.",
   prescriptions: "Record prescriptions and their scanned pages, kept private and virus-scanned.",
+  returns: "Take medicine back against its invoice: a GST credit note, a refund, and quarantine.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
@@ -351,6 +354,11 @@ function OutletPharmacy({
           canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
           canDiscount={can("pharmacy.sale.discount")}
           canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
+        />
+      ) : view === "returns" ? (
+        <Returns
+          scope={scope}
+          canReturn={access.data?.level === "editor" && can("pharmacy.sale.return")}
         />
       ) : view === "prescriptions" ? (
         <Prescriptions

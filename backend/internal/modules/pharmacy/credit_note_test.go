@@ -95,6 +95,8 @@ func TestAReturnIssuesACreditNoteAndQuarantinesTheStock(t *testing.T) {
 	require.Contains(t, out, `"recipient_name":"TEST Ravi Kumar"`)
 	require.Equal(t, before+4, w.onHand(t, w.quarantine), "returned units are in quarantine")
 
+	again := do(w.r, "GET", salePath("/"+sale), "clerk", "")
+	require.Contains(t, again.Body.String(), `"returned_units":4`, "the sale shows what has come back")
 	got := do(w.r, "GET", licencePath("/credit-notes/"+cn.ID), "clerk", "")
 	require.Equal(t, http.StatusOK, got.Code, got.Body.String())
 	list := do(w.r, "GET", licencePath("/credit-notes?sale_id="+sale), "clerk", "")

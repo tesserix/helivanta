@@ -237,7 +237,9 @@ type saleLine struct {
 	ListAmountMinor    int64      `gorm:"column:list_amount_minor" json:"list_amount_minor"`
 	DiscountBps        int64      `gorm:"column:discount_bps" json:"discount_bps"`
 	DiscountMinor      int64      `gorm:"column:discount_minor" json:"discount_minor"`
-	declaration        uuid.UUID
+	// Units returned on credit notes so far (#1386 C-1); zero on a quote.
+	ReturnedUnits int64 `gorm:"column:returned_units" json:"returned_units"`
+	declaration   uuid.UUID
 }
 
 type saleTender struct {
@@ -984,8 +986,10 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	}
 	*out = rows[0]
 	if err := tx.Raw(`SELECT line_number,product_id,batch_id,location_id,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,regulatory_class,
-		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,prescription_id,prescription_line,list_amount_minor,discount_bps,discount_minor
-		FROM pharmacy_sale_lines WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
+		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,prescription_id,prescription_line,list_amount_minor,discount_bps,discount_minor,
+		(SELECT COALESCE(sum(c.quantity_units),0) FROM pharmacy_credit_note_lines c WHERE c.tenant_id=l.tenant_id AND c.outlet_id=l.outlet_id
+		 AND c.sale_id=l.sale_id AND c.sale_line=l.line_number) AS returned_units
+		FROM pharmacy_sale_lines l WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
 		return err
 	}
 	if err := tx.Raw(`SELECT tender_number,kind,amount_minor,tendered_minor,change_minor,reference FROM pharmacy_sale_tenders

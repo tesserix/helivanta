@@ -46,6 +46,7 @@ type enrollmentInput struct {
 	Experiences                     []enrollmentExperience    `json:"experiences" binding:"max=20,dive"`
 	providedReferences              map[string]bool
 	providedQualificationReferences map[string]bool
+	providedContactReferences       map[string]bool
 }
 
 func (in *enrollmentInput) UnmarshalJSON(data []byte) error {
@@ -60,6 +61,7 @@ func (in *enrollmentInput) UnmarshalJSON(data []byte) error {
 	var fields struct {
 		Profile        map[string]json.RawMessage   `json:"profile"`
 		Qualifications []map[string]json.RawMessage `json:"qualifications"`
+		Contacts       []map[string]json.RawMessage `json:"emergency_contacts"`
 	}
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
@@ -75,20 +77,32 @@ func (in *enrollmentInput) UnmarshalJSON(data []byte) error {
 			return errors.New("null controlled HR field")
 		}
 	}
-	in.providedQualificationReferences = map[string]bool{}
-	for i, row := range in.Qualifications {
-		key := row.ID
+	var err error
+	in.providedQualificationReferences, err = providedChildReferences(fields.Qualifications, "qualification_revision_id")
+	if err != nil {
+		return err
+	}
+	in.providedContactReferences, err = providedChildReferences(fields.Contacts, "relationship_revision_id")
+	return err
+}
+
+func providedChildReferences(rows []map[string]json.RawMessage, field string) (map[string]bool, error) {
+	provided := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		var key string
+		if err := json.Unmarshal(row["id"], &key); err != nil {
+			return nil, err
+		}
 		if id, err := uuid.Parse(strings.TrimSpace(key)); err == nil {
 			key = id.String()
 		}
-		raw, present := fields.Qualifications[i]["qualification_revision_id"]
+		raw, present := row[field]
 		if present && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-			return errors.New("null qualification reference")
+			return nil, errors.New("null child master reference")
 		}
-		in.providedQualificationReferences[key] = present
+		provided[key] = present
 	}
-
-	return nil
+	return provided, nil
 }
 
 var internationalPhone = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
@@ -254,8 +268,8 @@ func includeEnrollmentMasters(c *gin.Context, query, version string) (bool, bool
 	return true, true
 }
 
-func respondEnrollment(c *gin.Context, result enrollment, profileMasters, qualificationMasters bool) {
-	respond.OK(c, enrollmentResponse(result, profileMasters, qualificationMasters))
+func respondEnrollment(c *gin.Context, result enrollment, profileMasters, qualificationMasters, contactMasters bool) {
+	respond.OK(c, enrollmentResponse(result, profileMasters, qualificationMasters, contactMasters))
 }
 
 func (h *handlers) getEnrollment(c *gin.Context) {
@@ -268,6 +282,10 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		return
 	}
 	qualificationProjection, ok := includeEnrollmentMasters(c, enrollmentQualificationMastersQuery, enrollmentQualificationMastersVersion)
+	if !ok {
+		return
+	}
+	contactProjection, ok := includeEnrollmentMasters(c, enrollmentContactMastersQuery, enrollmentContactMastersVersion)
 	if !ok {
 		return
 	}
@@ -296,7 +314,7 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	respondEnrollment(c, result, projection, qualificationProjection)
+	respondEnrollment(c, result, projection, qualificationProjection, contactProjection)
 }
 
 func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string]any, error) {
@@ -359,6 +377,10 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 	if !ok {
 		return
 	}
+	contactProjection, ok := includeEnrollmentMasters(c, enrollmentContactMastersQuery, enrollmentContactMastersVersion)
+	if !ok {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {
 		respond.NotFound(c, "staff")
@@ -402,6 +424,9 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 			return err
 		}
 		if err := validateQualificationReferences(tx, p, hospital, in.Qualifications, existing.Qualifications, in.providedQualificationReferences); err != nil {
+			return err
+		}
+		if err := validateContactReferences(tx, p, hospital, in.EmergencyContacts, existing.EmergencyContacts, in.providedContactReferences); err != nil {
 			return err
 		}
 		if !in.normalizeAndValidate(id) {
@@ -483,5 +508,5 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	respondEnrollment(c, result, projection, qualificationProjection)
+	respondEnrollment(c, result, projection, qualificationProjection, contactProjection)
 }

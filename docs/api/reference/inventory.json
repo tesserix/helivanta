@@ -6755,6 +6755,36 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0044_workforce_contact_masters",
+          "sql_sha256": "6dea10e771491af936b0c043102c9f4e9ae79aae36f14279e30043b30f7fe151",
+          "creates_tables": []
+        },
+        {
+          "id": "0045_workforce_contact_master_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_contact_master_ref_idx",
+              "table": "workforce_enrollment_emergency_contacts",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "relationship_revision_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

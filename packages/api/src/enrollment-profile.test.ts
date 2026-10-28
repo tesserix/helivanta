@@ -4,6 +4,9 @@ import {
   enrollmentProfileSchema,
   EMPTY_QUALIFICATIONS,
   enrollmentQualificationSchema,
+  EMPTY_EMERGENCY_CONTACTS,
+  enrollmentContactSchema,
+  ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH,
 } from "./enrollment-fields";
 import { hrMasterSchema } from "./hr-masters";
 
@@ -95,6 +98,40 @@ describe("qualification master contract", () => {
           ...qualification,
           qualification_revision_id: value,
         }).success,
+      ).toBe(false);
+  });
+});
+
+describe("contact master contract", () => {
+  const contact = {
+    ...EMPTY_EMERGENCY_CONTACTS,
+    id: revision,
+    name: "Synthetic contact",
+    relationship: "Synthetic support",
+    phone: "+61400000001",
+  };
+  it("preserves legacy omission instead of manufacturing an explicit clear", () => {
+    const legacy: Record<string, unknown> = { ...contact };
+    delete legacy.relationship_revision_id;
+    expect(enrollmentContactSchema.parse(legacy)).toEqual(legacy);
+  });
+  it("keeps the existing sixty-code-point relationship bound", () => {
+    expect(ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH).toBe(60);
+    expect(
+      enrollmentContactSchema.safeParse({ ...contact, relationship: "𑀓".repeat(60) }).success,
+    ).toBe(true);
+    expect(
+      enrollmentContactSchema.safeParse({ ...contact, relationship: "𑀓".repeat(61) }).success,
+    ).toBe(false);
+  });
+  it("accepts UUID or explicit clear and rejects null or malformed references", () => {
+    for (const value of [revision, ""])
+      expect(
+        enrollmentContactSchema.safeParse({ ...contact, relationship_revision_id: value }).success,
+      ).toBe(true);
+    for (const value of [null, "invalid"])
+      expect(
+        enrollmentContactSchema.safeParse({ ...contact, relationship_revision_id: value }).success,
       ).toBe(false);
   });
 });

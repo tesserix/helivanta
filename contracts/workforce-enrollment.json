@@ -41,6 +41,7 @@
   "emergency_contacts": [
     ["name", 150],
     ["relationship", 60],
+    ["relationship_revision_id", "uuid", true],
     ["phone", "phone"],
     ["email", "email"],
     ["priority", "int"]
@@ -84,5 +85,10 @@
     "query": "qualification_masters",
     "version": "v1",
     "response_field": "qualification_masters_version"
+  },
+  "contact_masters_projection": {
+    "query": "contact_masters",
+    "version": "v1",
+    "response_field": "contact_masters_version"
   }
 }

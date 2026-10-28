@@ -8,6 +8,7 @@ const {
   profile_masters: profileMasters,
   profile_masters_projection: profileMastersProjection,
   qualification_masters_projection: qualificationMastersProjection,
+  contact_masters_projection: contactMastersProjection,
   ...groups
 } = JSON.parse(await readFile(path.join(root, "contracts/workforce-enrollment.json"), "utf8"));
 if (
@@ -20,14 +21,26 @@ if (
   !/^v[1-9][0-9]*$/.test(profileMastersProjection.version)
 )
   throw new Error("Invalid enrollment profile master projection");
-if (
-  !qualificationMastersProjection ||
-  Object.keys(qualificationMastersProjection).sort().join(",") !== "query,response_field,version" ||
-  qualificationMastersProjection.query !== "qualification_masters" ||
-  qualificationMastersProjection.version !== "v1" ||
-  qualificationMastersProjection.response_field !== "qualification_masters_version"
-)
-  throw new Error("Invalid enrollment qualification master projection");
+const childProjections = [
+  ["Qualification", "qualifications", qualificationMastersProjection],
+  ["Contact", "emergency_contacts", contactMastersProjection],
+];
+for (const [name, , projection] of childProjections) {
+  const query = `${name.toLowerCase()}_masters`;
+  if (
+    !projection ||
+    Object.keys(projection).sort().join(",") !== "query,response_field,version" ||
+    projection.query !== query ||
+    projection.version !== "v1" ||
+    projection.response_field !== `${query}_version`
+  )
+    throw new Error(`Invalid enrollment ${name.toLowerCase()} master projection`);
+}
+const relationshipLimit = groups.emergency_contacts.find(
+  ([field]) => field === "relationship",
+)?.[1];
+if (!Number.isInteger(relationshipLimit) || relationshipLimit <= 0)
+  throw new Error("Invalid emergency contact relationship limit");
 const referenceFields = groups.profile.filter(([name]) => name.endsWith("_revision_id"));
 if (
   !Array.isArray(profileMasters) ||
@@ -187,9 +200,15 @@ ${groups.profile
 `;
 ts += `export const ENROLLMENT_PROFILE_MASTERS_PROJECTION = ${JSON.stringify(profileMastersProjection)} as const;\n`;
 ts += `export type EnrollmentProfileMastersProjection = { ${JSON.stringify(profileMastersProjection.response_field)}: typeof ENROLLMENT_PROFILE_MASTERS_PROJECTION.version };\n`;
-go += `const enrollmentQualificationMastersQuery = ${JSON.stringify(qualificationMastersProjection.query)}
-const enrollmentQualificationMastersVersion = ${JSON.stringify(qualificationMastersProjection.version)}
-func enrollmentResponse(in enrollment, profileMasters, qualificationMasters bool) map[string]any {
+for (const [name, , projection] of childProjections) {
+  go += `const enrollment${name}MastersQuery = ${JSON.stringify(projection.query)}
+const enrollment${name}MastersVersion = ${JSON.stringify(projection.version)}\n`;
+  ts += `export const ENROLLMENT_${name.toUpperCase()}_MASTERS_PROJECTION = ${JSON.stringify(projection)} as const;\n`;
+  ts += `export type Enrollment${name}MastersProjection = { ${JSON.stringify(projection.response_field)}: typeof ENROLLMENT_${name.toUpperCase()}_MASTERS_PROJECTION.version };\n`;
+}
+go += `const enrollmentContactRelationshipMaxLength = ${relationshipLimit}\n`;
+ts += `export const ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH = ${relationshipLimit};\n`;
+go += `func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, contactMasters bool) map[string]any {
  result := map[string]any{"staff":in.Staff,"version":in.Version,
 ${Object.keys(groups)
   .map(
@@ -199,21 +218,22 @@ ${Object.keys(groups)
   .join("\n")}
  }
  if profileMasters { result[${JSON.stringify(profileMastersProjection.response_field)}] = enrollmentProfileMastersVersion } else { result["profile"] = legacyEnrollmentProfile(in.Profile) }
- if qualificationMasters { result[${JSON.stringify(qualificationMastersProjection.response_field)}] = enrollmentQualificationMastersVersion } else {
- rows := make([]map[string]any,0,len(in.Qualifications))
- for _, row := range in.Qualifications { rows = append(rows,map[string]any{"id":row.ID,
-${groups.qualifications
+`;
+for (const [name, group, projection] of childProjections) {
+  const field = group === "emergency_contacts" ? "EmergencyContacts" : pascal(group);
+  go += `if ${name.toLowerCase()}Masters { result[${JSON.stringify(projection.response_field)}] = enrollment${name}MastersVersion } else {
+ rows := make([]map[string]any,0,len(in.${field}))
+ for _, row := range in.${field} { rows = append(rows,map[string]any{"id":row.ID,
+${groups[group]
   .filter(([, , optional]) => !optional)
   .map(([field]) => `${JSON.stringify(field)}:row.${pascal(field)},`)
   .join("\n")}
  }) }
- result["qualifications"] = rows
+ result[${JSON.stringify(group)}] = rows
  }
- return result
-}
 `;
-ts += `export const ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION = ${JSON.stringify(qualificationMastersProjection)} as const;\n`;
-ts += `export type EnrollmentQualificationMastersProjection = { ${JSON.stringify(qualificationMastersProjection.response_field)}: typeof ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version };\n`;
+}
+go += "return result\n}\n";
 
 const outputs = {
   "backend/internal/modules/workforce/enrollment_types.go": execFileSync("gofmt", [], {

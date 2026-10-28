@@ -56,6 +56,43 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("identifies missing emergency and birth reporting without inventing counts or endpoints", async () => {
+  const reads = mockApi();
+  renderWithProviders(<OperationalDashboard />);
+  const coverage = await screen.findByRole("region", { name: "Clinical reporting coverage" });
+  expect(
+    within(coverage).getByRole("heading", { name: "Emergency department" }),
+  ).toBeInTheDocument();
+  expect(within(coverage).getByRole("heading", { name: "Maternity & births" })).toBeInTheDocument();
+  expect(within(coverage).getByText(/Live births/)).toHaveTextContent("stillbirths");
+  expect(within(coverage).getAllByText("Not yet reported")).toHaveLength(6);
+  expect(within(coverage).queryByText(/^0(?:\.0|%)?$/)).not.toBeInTheDocument();
+  expect(within(coverage).queryByRole("img")).not.toBeInTheDocument();
+  expect(reads.some((url) => /emergency|birth|maternity|occupancy/.test(url))).toBe(false);
+});
+
+it("keeps clinical reporting coverage in the clinical view and out of service and team views", async () => {
+  mockApi();
+  const { user } = renderWithProviders(<OperationalDashboard />);
+  await user.click(await screen.findByRole("tab", { name: "Patient activity" }));
+  const coverage = screen.getByRole("region", { name: "Clinical reporting coverage" });
+  for (const title of [
+    "Admissions & discharges",
+    "Beds & occupancy",
+    "Procedures & theatre",
+    "Deaths",
+  ])
+    expect(within(coverage).getByRole("heading", { name: title })).toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "Diagnostics & pharmacy" }));
+  expect(
+    screen.queryByRole("region", { name: "Clinical reporting coverage" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "Care teams" }));
+  expect(
+    screen.queryByRole("region", { name: "Clinical reporting coverage" }),
+  ).not.toBeInTheDocument();
+});
+
 type User = ReturnType<typeof renderWithProviders>["user"];
 
 // The custom range lives in a popover behind the period control (#1255 spec D5).
@@ -163,6 +200,9 @@ it("does not resolve clinical or lab data for a pharmacy-only user", async () =>
   renderWithProviders(<OperationalDashboard />);
   await screen.findByRole("region", { name: "Pharmacy" });
   expect(screen.queryByRole("region", { name: "Patient activity" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Clinical reporting coverage" }),
+  ).not.toBeInTheDocument();
   expect(reads.some((url) => /\/(medicore|lab)\/insights/.test(url))).toBe(false);
 });
 

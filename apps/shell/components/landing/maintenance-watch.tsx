@@ -43,7 +43,7 @@ const findingStyle: Record<Finding, ChipStyle> = {
   overdue: {
     colour: FOUND,
     icon: TriangleAlert,
-    className: "border-(--chip) bg-(--chip) text-(--night-canvas)",
+    className: "border-(--chip) bg-(--chip) text-(--home-canvas)",
   },
   expiring: {
     colour: FOUND,
@@ -53,7 +53,7 @@ const findingStyle: Record<Finding, ChipStyle> = {
   failed: {
     colour: AI,
     icon: ShieldX,
-    className: "border-(--chip) bg-(--chip) text-(--night-canvas)",
+    className: "border-(--chip) bg-(--chip) text-(--home-canvas)",
   },
 };
 
@@ -88,7 +88,7 @@ export function MaintenanceWatch() {
           <div ref={boardRef}>
             <div
               aria-hidden="true"
-              className="rounded-2xl border border-(--night-line) bg-(--night-board) p-5 lg:p-6"
+              className="rounded-2xl border border-(--home-line) bg-(--home-board) p-5 lg:p-6"
             >
               <Register
                 checked={reached >= 1}
@@ -144,10 +144,10 @@ function Register({ checked, scanning, focus }: RegisterProps) {
 
   return (
     <div>
-      <p className="flex items-center gap-2 text-sm font-semibold text-(--night-ink)">
-        <Wrench className="size-4 text-(--night-stock)" />
+      <p className="flex items-center gap-2 text-sm font-semibold text-(--home-ink)">
+        <Wrench className="size-4 text-(--home-stock)" />
         {site}
-        <span className="font-normal text-(--night-muted)">maintenance register</span>
+        <span className="font-normal text-(--home-muted)">maintenance register</span>
       </p>
       <div className="mt-3 flex h-6 items-center">
         {checked ? (
@@ -168,13 +168,13 @@ function Register({ checked, scanning, focus }: RegisterProps) {
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-(--night-muted)">Not checked yet</p>
+          <p className="text-xs text-(--home-muted)">Not checked yet</p>
         )}
       </div>
       <div
         className={cn(
           REGISTER,
-          "mt-4 border-b border-(--night-line) pb-2 text-[11px] text-(--night-muted)",
+          "mt-4 border-b border-(--home-line) pb-2 text-[11px] text-(--home-muted)",
         )}
       >
         <p>Item and check</p>
@@ -183,7 +183,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
         <p>Finding</p>
       </div>
       <div className="relative overflow-hidden">
-        <ol aria-label="Register" className="divide-y divide-(--night-line)/60">
+        <ol aria-label="Register" className="divide-y divide-(--home-line)/60">
           {register.map((item, index) => {
             const finding = findingOf(item);
             return (
@@ -195,17 +195,17 @@ function Register({ checked, scanning, focus }: RegisterProps) {
                   focused && !focused.findings.includes(finding) && "opacity-35",
                 )}
               >
-                <p className="min-w-0 text-[13px] leading-tight font-semibold text-(--night-ink)">
+                <p className="min-w-0 text-[13px] leading-tight font-semibold text-(--home-ink)">
                   {item.asset}
-                  <span className="block text-[11px] font-normal text-(--night-muted)">
+                  <span className="block text-[11px] font-normal text-(--home-muted)">
                     {item.check}
                   </span>
                 </p>
-                <p className="text-[13px] leading-tight text-(--night-muted)">{item.area}</p>
-                <p className="text-[13px] leading-tight text-(--night-ink) tabular-nums">
+                <p className="text-[13px] leading-tight text-(--home-muted)">{item.area}</p>
+                <p className="text-[13px] leading-tight text-(--home-ink) tabular-nums">
                   {dueText(item)}
                   {item.lastResult === "fail" && (
-                    <span className="block text-[11px] text-(--night-oversight)">
+                    <span className="block text-[11px] text-(--home-oversight)">
                       Failed last test
                     </span>
                   )}
@@ -224,7 +224,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
                       <FindingChip style={findingStyle[finding]} label={findingLabel[finding]} />
                     </motion.span>
                   ) : (
-                    <span className="inline-block h-5 w-24 rounded-full border border-dashed border-(--night-line)" />
+                    <span className="inline-block h-5 w-24 rounded-full border border-dashed border-(--home-line)" />
                   )}
                 </div>
               </li>
@@ -234,7 +234,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
         {scanning && (
           <motion.div
             key="register-scan"
-            className="pointer-events-none absolute inset-x-0 h-12 border-b border-(--night-stock) bg-linear-to-b from-transparent to-(--night-stock)/15"
+            className="pointer-events-none absolute inset-x-0 h-12 border-b border-(--home-stock) bg-linear-to-b from-transparent to-(--home-stock)/15"
             initial={{ top: "-18%" }}
             animate={{ top: "82%" }}
             transition={{ duration: SCAN_S, ease: "linear" }}

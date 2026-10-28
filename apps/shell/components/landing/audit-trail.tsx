@@ -15,9 +15,9 @@ import {
 import { PlayToggle, useStoryPlayer } from "./story-player";
 
 const laneColour: Record<TrailLane, string> = {
-  stock: "var(--night-stock)",
-  money: "var(--night-oversight)",
-  audit: "var(--night-ink)",
+  stock: "var(--home-stock)",
+  money: "var(--home-oversight)",
+  audit: "var(--home-ink)",
 };
 
 const laneName: Record<TrailLane, string> = {
@@ -48,7 +48,7 @@ export function AuditTrail() {
         <div className="mt-4 flex items-center justify-between gap-6">
           <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
             {(Object.keys(laneName) as TrailLane[]).map((lane) => (
-              <li key={lane} className="flex items-center gap-2 text-(--night-muted)">
+              <li key={lane} className="flex items-center gap-2 text-(--home-muted)">
                 <span
                   className="size-2 rounded-full"
                   style={{ backgroundColor: laneColour[lane] }}
@@ -69,18 +69,18 @@ export function AuditTrail() {
               style={{ "--lane": laneColour[entry.lane] } as CSSProperties}
               className={cn(
                 "grid grid-cols-[1.5rem_1fr] gap-x-2 rounded-r-lg border-l-2 py-2.5 pr-3 pl-3 transition-colors duration-300",
-                index === current ? "border-(--lane) bg-(--night-surface)" : "border-transparent",
+                index === current ? "border-(--lane) bg-(--home-surface)" : "border-transparent",
               )}
             >
-              <span aria-hidden="true" className="text-sm text-(--night-muted) tabular-nums">
+              <span aria-hidden="true" className="text-sm text-(--home-muted) tabular-nums">
                 {index + 1}
               </span>
               <div>
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-(--night-ink)">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-(--home-ink)">
                   {entry.actor}: {entry.title}
                   {entry.readOnly && <ReadOnlyTag />}
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-(--night-muted)">{entry.text}</p>
+                <p className="mt-1 text-sm leading-relaxed text-(--home-muted)">{entry.text}</p>
               </div>
             </li>
           ))}
@@ -95,7 +95,7 @@ export function AuditTrail() {
 
 function ReadOnlyTag() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-(--night-line) px-2 py-0.5 text-[11px] font-medium text-(--night-ink)">
+    <span className="inline-flex items-center gap-1 rounded-full border border-(--home-line) px-2 py-0.5 text-[11px] font-medium text-(--home-ink)">
       <Lock aria-hidden="true" className="size-3" />
       Read only
     </span>
@@ -110,21 +110,21 @@ function Ledger({ reached, animated }: { reached: number; animated: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="relative overflow-hidden rounded-2xl border border-(--night-line) bg-(--night-board) px-6 pt-5 pb-6"
+      className="relative overflow-hidden rounded-2xl border border-(--home-line) bg-(--home-board) px-6 pt-5 pb-6"
     >
-      <div className={cn(ROW, "text-xs font-medium text-(--night-muted)")}>
+      <div className={cn(ROW, "text-xs font-medium text-(--home-muted)")}>
         <p className="flex items-center gap-2">
-          <Package className="size-4 text-(--night-stock)" />
+          <Package className="size-4 text-(--home-stock)" />
           Stock
         </p>
         <p className="text-center">Trail</p>
         <p className="flex items-center justify-end gap-2">
           Money
-          <Banknote className="size-4 text-(--night-oversight)" />
+          <Banknote className="size-4 text-(--home-oversight)" />
         </p>
       </div>
       <div className="relative mt-4">
-        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-(--night-line)" />
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-(--home-line)" />
         <ol aria-label="Append-only trail" className="relative space-y-2">
           {shown.map((entry, index) => (
             <Row
@@ -141,14 +141,14 @@ function Ledger({ reached, animated }: { reached: number; animated: boolean }) {
         <div className="mt-2 space-y-2">
           {trail.slice(shown.length).map((entry) => (
             <div key={entry.id} className={cn(ROW, "h-13")}>
-              <span className="col-start-2 mx-auto size-7 rounded-full border border-dashed border-(--night-line) bg-(--night-board)" />
+              <span className="col-start-2 mx-auto size-7 rounded-full border border-dashed border-(--home-line) bg-(--home-board)" />
             </div>
           ))}
         </div>
         {latest?.readOnly && (
           <motion.div
             key="audit-scan"
-            className="pointer-events-none absolute inset-x-0 h-24 bg-linear-to-b from-transparent via-(--night-oversight)/20 to-transparent"
+            className="pointer-events-none absolute inset-x-0 h-24 bg-linear-to-b from-transparent via-(--home-oversight)/20 to-transparent"
             initial={{ top: "-25%" }}
             animate={{ top: "100%" }}
             transition={{ duration: 2.6, ease: "linear" }}
@@ -173,28 +173,28 @@ function Row({ entry, index, fresh, animated, kept, highlighted }: RowProps) {
   const card = (
     <div
       className={cn(
-        "w-full max-w-md rounded-lg border bg-(--night-surface) px-3 py-2 transition-[border-color,box-shadow] duration-500",
+        "w-full max-w-md rounded-lg border bg-(--home-surface) px-3 py-2 transition-[border-color,box-shadow] duration-500",
         fresh && "border-(--lane) shadow-[0_0_24px_-10px_var(--lane)]",
         !fresh && highlighted && "border-dashed border-(--lane)",
-        !fresh && !highlighted && "border-(--night-line)",
+        !fresh && !highlighted && "border-(--home-line)",
       )}
     >
-      <p className="flex items-center justify-between gap-2 text-[11px] text-(--night-muted)">
+      <p className="flex items-center justify-between gap-2 text-[11px] text-(--home-muted)">
         {entry.actor}
         {entry.readOnly && <ReadOnlyTag />}
       </p>
       <p className="mt-0.5 flex items-baseline justify-between gap-3 text-[13px]">
-        <span className="font-semibold text-(--night-ink)">{entry.title}</span>
+        <span className="font-semibold text-(--home-ink)">{entry.title}</span>
         <span className="text-(--lane) tabular-nums">{entry.figure}</span>
       </p>
       {entry.corrects && (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-(--night-muted)">
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-(--home-muted)">
           <Undo2 className="size-3" />
           Reverses part of entry {entryNumber(entry.corrects)}
         </p>
       )}
       {kept && (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-(--night-muted)">
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-(--home-muted)">
           <Lock className="size-3" />
           Kept as recorded
         </p>
@@ -202,7 +202,7 @@ function Row({ entry, index, fresh, animated, kept, highlighted }: RowProps) {
     </div>
   );
   const node = (
-    <span className="col-start-2 mx-auto flex size-7 items-center justify-center rounded-full border border-(--lane) bg-(--night-board) text-[11px] text-(--lane) tabular-nums">
+    <span className="col-start-2 mx-auto flex size-7 items-center justify-center rounded-full border border-(--lane) bg-(--home-board) text-[11px] text-(--lane) tabular-nums">
       {entry.readOnly ? <Eye className="size-3.5" /> : index + 1}
     </span>
   );

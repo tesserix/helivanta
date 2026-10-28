@@ -18,9 +18,9 @@ import { Availability } from "./module-status";
 import { PlayToggle } from "./story-player";
 
 export const DRAW_S = 0.7;
-export const AI = "var(--night-oversight)";
-export const CARE = "var(--night-care)";
-export const FOUND = "var(--night-stock)";
+export const AI = "var(--home-oversight)";
+export const CARE = "var(--home-care)";
+export const FOUND = "var(--home-stock)";
 const WAITING = "Waiting";
 const REVIEWING = "Reviewing the draft";
 const FLOW =
@@ -88,17 +88,17 @@ export function Narration<S extends FlowStep>({
             style={{ "--lane": stepColour(step) } as CSSProperties}
             className={cn(
               "grid grid-cols-[1.5rem_1fr] gap-x-2 rounded-r-lg border-l-2 py-2.5 pr-3 pl-3 transition-colors duration-300",
-              index === current ? "border-(--lane) bg-(--night-surface)" : "border-transparent",
+              index === current ? "border-(--lane) bg-(--home-surface)" : "border-transparent",
             )}
           >
-            <span aria-hidden="true" className="text-sm text-(--night-muted) tabular-nums">
+            <span aria-hidden="true" className="text-sm text-(--home-muted) tabular-nums">
               {index + 1}
             </span>
             <div>
-              <p className="text-sm font-semibold text-(--night-ink)">{titleOf(step)}</p>
-              <p className="mt-1 text-sm leading-relaxed text-(--night-muted)">{step.text}</p>
+              <p className="text-sm font-semibold text-(--home-ink)">{titleOf(step)}</p>
+              <p className="mt-1 text-sm leading-relaxed text-(--home-muted)">{step.text}</p>
               {step.phase === "check" && (
-                <p className="mt-1 text-sm leading-relaxed text-(--night-ink)">{summary}</p>
+                <p className="mt-1 text-sm leading-relaxed text-(--home-ink)">{summary}</p>
               )}
             </div>
           </li>
@@ -117,16 +117,16 @@ export function Legend({ animated, paused, onToggle }: LegendProps) {
   return (
     <div className="mt-4 flex items-center justify-between gap-6">
       <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
-        <li className="flex items-center gap-2 text-(--night-muted)">
-          <ScanSearch className="size-3.5 text-(--night-stock)" />
+        <li className="flex items-center gap-2 text-(--home-muted)">
+          <ScanSearch className="size-3.5 text-(--home-stock)" />
           Checks run by themselves
         </li>
-        <li className="flex items-center gap-2 text-(--night-muted)">
-          <span className="h-3 w-5 border border-dashed border-(--night-oversight)" />
+        <li className="flex items-center gap-2 text-(--home-muted)">
+          <span className="h-3 w-5 border border-dashed border-(--home-oversight)" />
           Agents draft
         </li>
-        <li className="flex items-center gap-2 text-(--night-muted)">
-          <span className="h-3 w-5 rounded border border-(--night-care)" />
+        <li className="flex items-center gap-2 text-(--home-muted)">
+          <span className="h-3 w-5 rounded border border-(--home-care)" />
           People decide
         </li>
       </ul>
@@ -160,8 +160,8 @@ export function CheckFlow<R extends FlowRoute>({
 }: FlowProps<R>) {
   const checking = animated && steps[reached].phase === "check";
   return (
-    <div className="mt-6 border-t border-(--night-line) pt-5">
-      <div className={cn(FLOW, "pb-3 text-xs text-(--night-muted)")}>
+    <div className="mt-6 border-t border-(--home-line) pt-5">
+      <div className={cn(FLOW, "pb-3 text-xs text-(--home-muted)")}>
         <p className="col-start-3">Finding</p>
         <p className="col-start-5">Agent drafts</p>
         <p className="col-start-7">Named person decides</p>
@@ -170,12 +170,12 @@ export function CheckFlow<R extends FlowRoute>({
         <BoardCard
           style={{ gridRow: `1 / span ${routes.length}`, gridColumn: 1 }}
           ring={checking ? FOUND : undefined}
-          surface="bg-(--night-hub)"
+          surface="bg-(--home-hub)"
         >
           <div className="flex flex-1 flex-col items-center justify-center px-3 py-4 text-center">
             <span className="relative flex size-12 items-center justify-center">
               <motion.span
-                className="absolute inset-0 rounded-full border border-dashed border-(--night-stock)/80"
+                className="absolute inset-0 rounded-full border border-dashed border-(--home-stock)/80"
                 animate={playing && reached >= 1 ? { rotate: 360 } : { rotate: 0 }}
                 transition={
                   playing && reached >= 1
@@ -183,12 +183,12 @@ export function CheckFlow<R extends FlowRoute>({
                     : { duration: 0 }
                 }
               />
-              <ScanSearch className="size-5 text-(--night-stock)" />
+              <ScanSearch className="size-5 text-(--home-stock)" />
             </span>
-            <p className="mt-2.5 text-[13px] leading-tight font-semibold text-(--night-ink)">
+            <p className="mt-2.5 text-[13px] leading-tight font-semibold text-(--home-ink)">
               Automatic check
             </p>
-            <p className="mt-1 text-[11px] leading-snug text-(--night-muted)">{cadence}</p>
+            <p className="mt-1 text-[11px] leading-snug text-(--home-muted)">{cadence}</p>
           </div>
         </BoardCard>
         {routes.map((route, lane) => (
@@ -280,7 +280,7 @@ function Lane({ steps, route, finding, row, reached, animated, dimmed }: LanePro
         ring={reviewing || approved ? CARE : undefined}
       >
         <CardHeader
-          icon={<UserCheck className="size-3.5 shrink-0 text-(--night-care)" />}
+          icon={<UserCheck className="size-3.5 shrink-0 text-(--home-care)" />}
           title={route.approver.name}
         />
         <CardBody>
@@ -318,7 +318,7 @@ function Wire({ row, column, state, colour, delay = 0, motionKey }: WireProps) {
   return (
     <div
       style={{ gridRow: row, gridColumn: column }}
-      className="relative mr-1 h-px self-center bg-(--night-line)"
+      className="relative mr-1 h-px self-center bg-(--home-line)"
     >
       {state === "drawing" && (
         <motion.span
@@ -333,7 +333,7 @@ function Wire({ row, column, state, colour, delay = 0, motionKey }: WireProps) {
       {state === "done" && (
         <span className="absolute inset-0 opacity-70" style={{ backgroundColor: colour }} />
       )}
-      <Arrowhead colour={state === "done" ? colour : "var(--night-line)"} />
+      <Arrowhead colour={state === "done" ? colour : "var(--home-line)"} />
     </div>
   );
 }

@@ -111,10 +111,10 @@ export function StoryPicker({ label, items, selected, onSelect, progress }: Stor
           onClick={() => onSelect(index)}
           style={{ "--story": item.colour } as CSSProperties}
           className={cn(
-            "relative inline-flex min-h-11 shrink-0 items-center gap-2 overflow-hidden rounded-full border px-4 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--night-ink)",
+            "relative inline-flex min-h-11 shrink-0 items-center gap-2 overflow-hidden rounded-full border px-4 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--home-ink)",
             index === selected
-              ? "border-(--story) bg-(--story)/15 text-(--night-ink)"
-              : "border-(--night-line) text-(--night-muted) hover:border-(--night-muted) hover:text-(--night-ink)",
+              ? "border-(--story) bg-(--story)/15 text-(--home-ink)"
+              : "border-(--home-line) text-(--home-muted) hover:border-(--home-muted) hover:text-(--home-ink)",
           )}
         >
           <span aria-hidden="true" className="size-2 rounded-full bg-(--story)" />
@@ -154,7 +154,7 @@ export function PlayToggle({ paused, onToggle }: PlayToggleProps) {
       aria-label={label}
       title={label}
       onClick={onToggle}
-      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-(--night-line) text-(--night-muted) transition-colors hover:border-(--night-muted) hover:text-(--night-ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--night-ink)"
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-(--home-line) text-(--home-muted) transition-colors hover:border-(--home-muted) hover:text-(--home-ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--home-ink)"
     >
       {paused ? (
         <Play aria-hidden="true" className="size-3.5 fill-current" />

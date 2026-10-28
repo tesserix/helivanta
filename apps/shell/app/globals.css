@@ -50,20 +50,20 @@
 
 /* Slate home page palette: signal colours mark the kind of exchange on the care board. */
 .home-slate {
-  --night-canvas: #f8fafc;
-  --night-board: #ffffff;
-  --night-surface: #f1f5f9;
-  --night-hub: #e2e8f0;
-  --night-line: #cbd5e1;
-  --night-ink: #0f172a;
-  --night-muted: #475569;
-  --night-care: #334155;
-  --night-care-hover: #1e293b;
-  --night-stock: #92400e;
-  --night-oversight: #4f46e5;
-  --foreground: var(--night-ink);
-  --muted-foreground: var(--night-muted);
-  --border: var(--night-line);
+  --home-canvas: #f8fafc;
+  --home-board: #ffffff;
+  --home-surface: #f1f5f9;
+  --home-hub: #e2e8f0;
+  --home-line: #cbd5e1;
+  --home-ink: #0f172a;
+  --home-muted: #475569;
+  --home-care: #334155;
+  --home-care-hover: #1e293b;
+  --home-stock: #92400e;
+  --home-oversight: #4f46e5;
+  --foreground: var(--home-ink);
+  --muted-foreground: var(--home-muted);
+  --border: var(--home-line);
   color-scheme: light;
 }
 

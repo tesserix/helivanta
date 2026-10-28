@@ -1,11 +1,13 @@
 package patientmaster
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -20,7 +22,12 @@ import (
 
 func decodePatientInput(c *gin.Context, value any) bool {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8192)
-	decoder := json.NewDecoder(c.Request.Body)
+	raw, err := io.ReadAll(c.Request.Body)
+	if err != nil || !utf8.Valid(raw) {
+		respond.BadRequest(c, errors.New("invalid request body"))
+		return false
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(value); err != nil {
 		respond.BadRequest(c, errors.New("invalid request body"))
@@ -43,7 +50,7 @@ func (h *patientHandlers) search(c *gin.Context, params pagination.Params) ([]pa
 	if !ok {
 		return nil, nil
 	}
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

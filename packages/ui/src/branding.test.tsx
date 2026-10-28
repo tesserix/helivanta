@@ -30,7 +30,7 @@ it("keeps Tesserix attribution in a centered tenant login", () => {
   );
   expect(screen.getByText(/All rights reserved/)).toBeInTheDocument();
 });
-it("provides a public home exit and preserves tenant welcome content in the split layout", () => {
+it("preserves tenant welcome content in the split layout", () => {
   render(
     <LoginSurface
       branding={{
@@ -40,11 +40,42 @@ it("provides a public home exit and preserves tenant welcome content in the spli
         login_layout: "split",
       }}
     >
-      <h1>Welcome back</h1>
+      <h1>Sign in</h1>
     </LoginSurface>,
   );
-  expect(screen.getByRole("link", { name: "Back to Helivanta" })).toHaveAttribute("href", "/");
   expect(screen.getByText("Welcome to our care team.")).toBeInTheDocument();
   expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+});
+
+// #1431 D2: the brand mark is the way home on the platform's own login; a
+// hospital's logo never links to Helivanta's marketing page.
+it("links the brand mark home only when given a home", () => {
+  const { unmount } = render(
+    <LoginSurface branding={DEFAULT_BRANDING} homeHref="/">
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  expect(screen.getByRole("link", { name: "Helivanta home" })).toHaveAttribute("href", "/");
+  expect(screen.queryByRole("link", { name: /back to/i })).not.toBeInTheDocument();
+  unmount();
+
+  render(
+    <LoginSurface branding={{ ...DEFAULT_BRANDING, display_name: "YES HOSPITAL" }}>
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  expect(screen.queryByRole("link", { name: /home|back to/i })).not.toBeInTheDocument();
+});
+
+// #1431 D3: the first screen of the app follows the app's restraint (#1255 D3).
+it("draws no eyebrow, accent headline or decorative icon tile", () => {
+  const { container } = render(
+    <LoginSurface branding={{ ...DEFAULT_BRANDING, login_layout: "split" }}>
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  expect(container.querySelector(".uppercase")).toBeNull();
+  expect(container.querySelector("h2 [class*='hms-accent']")).toBeNull();
+  expect(container.querySelector(".login-content > span")).toBeNull();
 });

@@ -10,15 +10,19 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 )
 
-// fakeUserStateChecker is a minimal iam.UserStateChecker for
+// fakeUserStateChecker is a minimal iam.IdentityProvider for
 // TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn below — this
 // test is only about instance identity (require.Same), never about what
-// UserState actually answers, so a zero-value stub with no behaviour is
+// either read actually answers, so a zero-value stub with no behaviour is
 // enough.
 type fakeUserStateChecker struct{}
 
 func (*fakeUserStateChecker) UserState(context.Context, string) (loginclient.UserState, error) {
 	return loginclient.UserStateActive, nil
+}
+
+func (*fakeUserStateChecker) UserProfile(context.Context, string) (loginclient.UserProfile, error) {
+	return loginclient.UserProfile{}, nil
 }
 
 func TestModulesReturnsIAMFirst(t *testing.T) {
@@ -102,4 +106,7 @@ func TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn(t *testing.T) {
 	require.NotNil(t, found, "iam module must be registered")
 	require.Same(t, userState, found.UserStateCheckerForTest(),
 		"bootstrap.NewRegistry must hand the iam module the exact userState checker instance the caller passed in")
+	// Same login client for GET /me/profile (#1428): dropped, the account menu 503s for everyone.
+	require.Same(t, userState, found.UserProfileReaderForTest(),
+		"bootstrap.NewRegistry must hand the iam module the same identity provider as its profile reader")
 }

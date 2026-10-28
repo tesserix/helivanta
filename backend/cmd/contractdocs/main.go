@@ -24,6 +24,8 @@ import (
 )
 
 type route struct {
+	ScopeKind      string           `json:"scope_kind,omitempty"`
+	ScopeParameter string           `json:"scope_parameter,omitempty"`
 	Method         string           `json:"method"`
 	Path           string           `json:"path"`
 	Permission     authz.Permission `json:"permission"`
@@ -40,9 +42,10 @@ type subscription struct {
 }
 
 type migration struct {
-	ID     string   `json:"id"`
-	SHA256 string   `json:"sql_sha256"`
-	Tables []string `json:"creates_tables"`
+	ID                string                     `json:"id"`
+	SHA256            string                     `json:"sql_sha256"`
+	Tables            []string                   `json:"creates_tables"`
+	ConcurrentIndexes []tenantdb.ConcurrentIndex `json:"concurrent_indexes,omitempty"`
 }
 
 type grant struct {
@@ -88,7 +91,7 @@ func migrations(items []tenantdb.Migration) []migration {
 		for _, match := range createTable.FindAllStringSubmatch(item.SQL, -1) {
 			tables = append(tables, match[1])
 		}
-		out = append(out, migration{ID: item.ID, SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(item.SQL))), Tables: tables})
+		out = append(out, migration{ID: item.ID, SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(item.SQL))), Tables: tables, ConcurrentIndexes: item.ConcurrentIndexes})
 	}
 	return out
 }
@@ -97,7 +100,7 @@ func inventory() reference {
 	gin.SetMode(gin.ReleaseMode)
 	doc := reference{FormatVersion: 1, Unauthenticated: bootstrap.UnauthenticatedRoutes,
 		PlatformMigrations: migrations(bootstrap.PlatformMigrations())}
-	deps := platform.Deps{Workflows: registrationClient{}, EmergencyWorkflowsEnabled: true, EmergencyDispatchEnabled: true}
+	deps := platform.Deps{Workflows: registrationClient{}, EmergencyWorkflowsEnabled: true, EmergencyDispatchEnabled: true, PrivacyDeadlinesEnabled: true}
 	for _, m := range bootstrap.Modules(nil, nil) {
 		r := platform.NewRouter(gin.New().Group("/v1"), noRequests{})
 		m.Routes(r, deps)
@@ -106,7 +109,7 @@ func inventory() reference {
 			DirectedTables: append([]string{}, m.DirectedWriteTables()...), Migrations: migrations(m.Migrations()),
 			Routes: []route{}, Grants: []grant{}, Consumers: []subscription{}, Broadcasts: []string{}}
 		for _, d := range r.Declared() {
-			item.Routes = append(item.Routes, route{d.Method, d.Path, d.Permission, true, d.Permission != authz.NoTenantMembership, d.Paginated, d.Counted})
+			item.Routes = append(item.Routes, route{Method: d.Method, Path: d.Path, Permission: d.Permission, Authentication: true, Membership: d.Permission != authz.NoTenantMembership, Paginated: d.Paginated, Counted: d.Counted, ScopeKind: d.ScopeKind, ScopeParameter: d.ScopeParameter})
 		}
 		sort.Slice(item.Routes, func(i, j int) bool {
 			return item.Routes[i].Path+item.Routes[i].Method < item.Routes[j].Path+item.Routes[j].Method
@@ -181,6 +184,17 @@ func writeTables(b *strings.Builder, items []migration) {
 	for _, m := range items {
 		if len(m.Tables) > 0 {
 			fmt.Fprintf(b, "- `%s`: `%s`.\n", m.ID, strings.Join(m.Tables, "`, `"))
+		}
+		for _, index := range m.ConcurrentIndexes {
+			keys := make([]string, 0, len(index.Columns))
+			for _, column := range index.Columns {
+				key := column.Name
+				if column.Descending {
+					key += " DESC"
+				}
+				keys = append(keys, key)
+			}
+			fmt.Fprintf(b, "- `%s`: concurrent index `%s` on `%s (%s)`.\n", m.ID, index.Name, index.Table, strings.Join(keys, ", "))
 		}
 	}
 }

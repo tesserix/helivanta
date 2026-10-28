@@ -18,6 +18,8 @@ import { Field, FormSelectField, PageHeading, SelectControl, useZodForm } from "
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
+import { StaffIdentitySourcePanel } from "./identity-source-panel";
+import { StaffLoginLinkPanel } from "./login-link-panel";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -108,6 +110,8 @@ function Directory({ hospital }: { hospital: Hospital }) {
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
   const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
   const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
+  const [identityStaff, setIdentityStaff] = useState<Staff | null>(null);
+  const [linkStaff, setLinkStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
   }, [editing]);
@@ -138,6 +142,8 @@ function Directory({ hospital }: { hospital: Hospital }) {
                 opener.current = event.currentTarget;
                 setDocumentStaff(null);
                 setCredentialStaff(null);
+                setLinkStaff(null);
+                setIdentityStaff(null);
                 setEditing("new");
               }}
             >
@@ -189,17 +195,13 @@ function Directory({ hospital }: { hospital: Hospital }) {
               <caption className="sr-only">Staff at {hospital.name}</caption>
               <thead className="bg-muted/40 text-xs text-muted-foreground">
                 <tr>
-                  {[
-                    "Staff member",
-                    "Employee code",
-                    "Job category",
-                    "Status",
-                    ...(writable ? ["Actions"] : []),
-                  ].map((label) => (
-                    <th key={label} scope="col" className="px-5 py-3 font-medium">
-                      {label}
-                    </th>
-                  ))}
+                  {["Staff member", "Employee code", "Job category", "Status", "Actions"].map(
+                    (label) => (
+                      <th key={label} scope="col" className="px-5 py-3 font-medium">
+                        {label}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -223,51 +225,91 @@ function Directory({ hospital }: { hospital: Hospital }) {
                         {row.employment_status === "active" ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    {writable && (
-                      <td className="px-5 py-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(event) => {
-                            opener.current = event.currentTarget;
-                            setDocumentStaff(null);
-                            setCredentialStaff(null);
-                            setEditing(row);
-                          }}
-                          aria-label={`Edit ${row.display_name}`}
-                        >
-                          Edit
-                        </Button>
-                        {can("workforce.documents.manage") && (
+                    <td className="px-5 py-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Identity details for ${row.display_name}`}
+                        onClick={(event) => {
+                          opener.current = event.currentTarget;
+                          setEditing(null);
+                          setDocumentStaff(null);
+                          setCredentialStaff(null);
+                          setLinkStaff(null);
+                          setIdentityStaff(row);
+                        }}
+                      >
+                        Identity details
+                      </Button>
+                      {writable && (
+                        <>
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={`Documents for ${row.display_name}`}
-                            onClick={() => {
-                              setEditing(null);
-                              setCredentialStaff(null);
-                              setDocumentStaff(row);
-                            }}
-                          >
-                            Documents
-                          </Button>
-                        )}
-                        {can("workforce.enrollment.manage") && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Credentials for ${row.display_name}`}
-                            onClick={() => {
-                              setEditing(null);
+                            onClick={(event) => {
+                              opener.current = event.currentTarget;
                               setDocumentStaff(null);
-                              setCredentialStaff(row);
+                              setCredentialStaff(null);
+                              setLinkStaff(null);
+                              setIdentityStaff(null);
+                              setEditing(row);
                             }}
+                            aria-label={`Edit ${row.display_name}`}
                           >
-                            Credentials
+                            Edit
                           </Button>
-                        )}
-                      </td>
-                    )}
+                          {can("workforce.documents.manage") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Documents for ${row.display_name}`}
+                              onClick={() => {
+                                setEditing(null);
+                                setCredentialStaff(null);
+                                setLinkStaff(null);
+                                setIdentityStaff(null);
+                                setDocumentStaff(row);
+                              }}
+                            >
+                              Documents
+                            </Button>
+                          )}
+                          {(can("workforce.login_links.manage") ||
+                            can("workforce.login_links.review")) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Account link for ${row.display_name}`}
+                              onClick={() => {
+                                setEditing(null);
+                                setDocumentStaff(null);
+                                setCredentialStaff(null);
+                                setIdentityStaff(null);
+                                setLinkStaff(row);
+                              }}
+                            >
+                              Account link
+                            </Button>
+                          )}
+                          {can("workforce.enrollment.manage") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Credentials for ${row.display_name}`}
+                              onClick={() => {
+                                setEditing(null);
+                                setDocumentStaff(null);
+                                setIdentityStaff(null);
+                                setCredentialStaff(row);
+                                setLinkStaff(null);
+                              }}
+                            >
+                              Credentials
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -296,6 +338,25 @@ function Directory({ hospital }: { hospital: Hospital }) {
           </div>
         </div>
       </section>
+      {identityStaff && (
+        <StaffIdentitySourcePanel
+          hospitalId={hospital.id}
+          staffId={identityStaff.id}
+          onClose={() => {
+            setIdentityStaff(null);
+            opener.current?.focus();
+          }}
+        />
+      )}
+      {linkStaff &&
+        writable &&
+        (can("workforce.login_links.manage") || can("workforce.login_links.review")) && (
+          <StaffLoginLinkPanel
+            hospital={hospital}
+            staff={linkStaff}
+            onClose={() => setLinkStaff(null)}
+          />
+        )}
       {documentStaff && writable && can("workforce.documents.manage") && (
         <StaffDocumentPanel
           key={documentStaff.id}
@@ -442,7 +503,7 @@ function StaffEditor({
 
 const hospitalSchema = z.object({
   name: z.string().trim().min(1, "Enter a hospital name.").max(150),
-  grant: z.literal(true, { errorMap: () => ({ message: "Confirm your hospital access grant." }) }),
+  grant: z.literal(true, { error: "Confirm your hospital access grant." }),
 });
 function HospitalSetup() {
   const [id, setId] = useState(() => crypto.randomUUID());

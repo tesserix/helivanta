@@ -27,8 +27,9 @@ entitlement decides what a tenant sees at runtime, not which apps exist.
 deploys as one self-contained server, `Dockerfile.shell`) and
 `transpilePackages: ["@helivanta/ui", "@helivanta/api"]` (these are
 TypeScript source packages, not pre-built libraries, so Next compiles them).
-Its one rewrite sends `/api/:path*` to the Go backend for `next dev`;
-production routes `/api/v1/*` at the ingress instead.
+Its rewrite sends `/api/:path*` to the Global API for `next dev`;
+production ingress must route `/api/v1/*` to the same Global API boundary.
+See [Global API rules](../api/global-connector.md) for onboarding and release gates.
 
 Adding a zone is a route segment under
 `apps/shell/app/(workspace)/<name>/`, its
@@ -304,6 +305,38 @@ theme script) stamps them on `<html>` before paint, and `packages/ui/styles.css`
 sizes the chrome from those attributes, so a collapsed panel is never painted
 open on a hard load.
 
+### List pages: width, the detail pane and unsaved edits (#1303)
+
+- **Width is a zone's declared choice (#1366).** A `Zone` in `packages/ui/src/zones.ts` may
+  set `width: "full"`; a `ZonePage` cannot, so a zone's pages never jump in width as you move
+  between them. The shell then drops the `max-w-6xl` cap on every page of that zone and stops
+  at 1760px. Other zones keep the cap. Inside a full-width zone, lists and panels fill the
+  width; only prose (about 70ch) and forms (about 640px) keep a reading limit.
+  `e2e/tests/navigation.spec.ts` checks every PharmaConnect page. `main` is a size container
+  (`@container/main`), so a page lays out by the space it actually has: expanding the rail
+  changes that without changing the viewport.
+- **An open record sits beside its list.** Use `ListDetail` from `@helivanta/ui`. It splits
+  when main is at least 840px wide, and shows the record alone, with a back link, below
+  that. It is one tree open or closed, so neither the list nor a half-typed form is
+  remounted. Below 840px, opening a record scrolls the content area (`[data-hms-scroll]`) to
+  its top.
+- **One mechanism per list page:** `useListDetail` (`apps/shell/lib`) for the open record's
+  address (`?open=` and `?new=1` through `useDetail`), Previous / Next over the rows as they
+  were when it was opened, the leave guard, Escape and focus; `DetailHeader` from
+  `@helivanta/ui` for its title, Previous / Next and Close. Each form in the record reports
+  through `formState(key)` and `useReportState`. Do not copy this behaviour into a page.
+- **Outlet pages carry their scope.** `pharmacy=` and `outlet=` are in the address of every
+  outlet-scoped pharmacy page (#1303 E8), and `useUrlPage` keeps them in every link it
+  builds, so a shared link opens the outlet it was copied from. An outlet asked for and not
+  loaded is never replaced by another.
+- **Unsaved edits are never lost silently.** A detail with forms registers through
+  `useListDetail`, or `useLeaveGuard(dirty, name)` directly. Shell links (`GuardedLink`),
+  Back and reload then ask "Discard changes to {name}?"; a Cmd, Ctrl, Shift or middle click
+  opens another tab and is not held. A page's own moves that are not links (a picker, a
+  search) ask through `useConfirmLeave`. Both throw without the shell's
+  `NavigationGuardProvider`, so a page rendered outside the shell fails rather than dropping
+  edits. Component tests wrap it in that provider.
+
 ### Idle session tracking
 
 Interaction tracking for the idle-timeout feature (#848, design spec D2/
@@ -332,6 +365,13 @@ everything comes from the CSS custom properties `@tesserix/web` and
 `packages/ui/styles.css` define (`--background`, `--foreground`,
 `--sidebar`, `--border`, etc.) via Tailwind's token-backed utility
 classes (`bg-background`, `border-sidebar-border`, and so on).
+
+Colour tokens are declared only in `packages/ui/styles.css`, where
+`contrast.test.ts` asserts every pair against WCAG 2.2 AA. The public pages
+read the same tokens as the app; no page declares a palette of its own.
+`packages/ui/src/token-source.test.ts` enforces both halves: a stylesheet
+elsewhere that declares a colour-valued custom property fails CI, and so does
+source that reads a custom property nothing declares (#542).
 
 `packages/ui/styles.css` documents two pitfalls in `@tesserix/web`'s CSS
 that aren't obvious from the class names alone. Quoted verbatim, because
@@ -367,13 +407,13 @@ an unlayered class with `!important` — rather than reaching for a
 `!important` inline style or a one-off Tailwind arbitrary value, which
 won't win against the unlayered base rule either.
 
-### One look: light, sage, modern enterprise (#1255)
+### One look: light, slate, modern enterprise (#1255)
 
 Design spec: `docs/superpowers/specs/2026-10-22-one-look-design.md`.
 
 - **Light only.** There is no dark theme, theme toggle or `dark:` utility.
   `packages/ui/src/light-only.test.ts` fails on any `data-theme="dark"` rule.
-- **One palette.** The public pages and the app read the same sage tokens in
+- **One palette.** The public pages and the app read the same slate tokens in
   `packages/ui/styles.css`. `packages/ui/src/contrast.test.ts` holds the
   pairs it lists to WCAG 2.2 AA: text on each surface, status and destructive
   text on cards and tinted tiles, each category tint, each brand theme, and

@@ -69,3 +69,77 @@ type SettlementRecordedData struct {
 	PayableID    string `json:"payable_id"`
 	SettlementID string `json:"settlement_id"`
 }
+
+// SubjectSalePosted identifies a posted counter sale invoice.
+const SubjectSalePosted = "helivanta.in.pharmacy.sale_posted.v1"
+
+// SalePostedData carries ids and totals, never the buyer or a prescription.
+type SalePostedData struct {
+	PharmacyID    string           `json:"pharmacy_id"`
+	OutletID      string           `json:"outlet_id"`
+	SaleID        string           `json:"sale_id"`
+	InvoiceNumber string           `json:"invoice_number"`
+	Currency      string           `json:"currency"`
+	TotalMinor    int64            `json:"total_minor"`
+	Lines         []SalePostedLine `json:"lines"`
+}
+
+// SalePostedLine is one allocated batch of a sale.
+type SalePostedLine struct {
+	ProductID     string `json:"product_id"`
+	BatchID       string `json:"batch_id"`
+	QuantityUnits int64  `json:"quantity_units"`
+}
+
+// SubjectPrescriptionImageScanRequested asks the pharmacy evidence worker to scan
+// one uploaded prescription page (#1386 B-2a).
+const SubjectPrescriptionImageScanRequested = "helivanta.in.pharmacy.prescription_image_scan_requested.v1"
+
+// SubjectPrescriptionImageChanged records a page's scan outcome.
+const SubjectPrescriptionImageChanged = "helivanta.in.pharmacy.prescription_image_changed.v1"
+
+// PrescriptionImageScanRequestedData carries ids only, never prescriber or
+// patient details.
+type PrescriptionImageScanRequestedData struct {
+	OutletID       string `json:"outlet_id"`
+	PrescriptionID string `json:"prescription_id"`
+	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
+}
+
+// PrescriptionImageScanInput is the worker's whole input, including the tenant.
+type PrescriptionImageScanInput struct {
+	TenantID       string `json:"tenant_id"`
+	OutletID       string `json:"outlet_id"`
+	PrescriptionID string `json:"prescription_id"`
+	FileID         string `json:"file_id"`
+	ScanAttempt    int64  `json:"scan_attempt"`
+}
+
+// PrescriptionImageChangedData adds the bounded lifecycle status.
+type PrescriptionImageChangedData struct {
+	PrescriptionImageScanRequestedData
+	Status string `json:"status"`
+}
+
+// SubjectCreditNoteIssued identifies a counter credit note for goods returned (#1386 C-1).
+const SubjectCreditNoteIssued = "helivanta.in.pharmacy.credit_note_issued.v1" //nolint:gosec // an event subject name, not a credential value
+
+// CreditNoteIssuedData carries ids and totals, never the recipient.
+type CreditNoteIssuedData struct {
+	PharmacyID       string                 `json:"pharmacy_id"`
+	OutletID         string                 `json:"outlet_id"`
+	CreditNoteID     string                 `json:"credit_note_id"`
+	SaleID           string                 `json:"sale_id"`
+	CreditNoteNumber string                 `json:"credit_note_number"`
+	Currency         string                 `json:"currency"`
+	TotalMinor       int64                  `json:"total_minor"`
+	Lines            []CreditNoteIssuedLine `json:"lines"`
+}
+
+// CreditNoteIssuedLine is one batch returned to quarantine.
+type CreditNoteIssuedLine struct {
+	ProductID     string `json:"product_id"`
+	BatchID       string `json:"batch_id"`
+	QuantityUnits int64  `json:"quantity_units"`
+}

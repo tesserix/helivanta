@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./"),
+      "next/navigation": resolve(__dirname, "node_modules/next/navigation.js"),
     },
   },
   ...config,

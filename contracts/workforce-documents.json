@@ -62,5 +62,30 @@
     ["record_id", "uuid"],
     ["label", "label"],
     ["categories", "categories"]
-  ]
+  ],
+  "classification_input": [
+    ["expected_version", "nonnegative"],
+    ["classification_revision_id", "reference"]
+  ],
+  "classification": [
+    ["file_id", "uuid"],
+    ["hospital_id", "uuid"],
+    ["staff_id", "uuid"],
+    ["version", "nonnegative"],
+    ["classification_revision_id", "reference"],
+    ["classification_name", "classification_label"],
+    ["updated_at", "timestamp?"]
+  ],
+  "classification_revision": [
+    ["id", "uuid"],
+    ["file_id", "uuid"],
+    ["hospital_id", "uuid"],
+    ["staff_id", "uuid"],
+    ["version", "positive"],
+    ["classification_revision_id", "reference"],
+    ["classification_name", "classification_label"],
+    ["actor_subject", "actor"],
+    ["created_at", "timestamp"]
+  ],
+  "processing_timeout_seconds": 2700
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
+	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
@@ -35,7 +36,8 @@ import (
 //  2. requestid  — attaches the principal to the request-scoped logger so
 //     a rate-limit denial is attributable.
 //  3. ratelimit  — refuses over-budget requests BEFORE the expensive step.
-//  4. authz      — calls OpenFGA on every request. It is both the most
+//  4. identity   — checks current upstream identity and IAM credential state.
+//  5. authz      — calls OpenFGA on every request. It is both the most
 //     expensive step in the chain and itself a shared resource, so
 //     limiting after it would let a flood exhaust OpenFGA before anything
 //     was refused.
@@ -45,11 +47,18 @@ func V1Chain(
 	limiter ratelimit.Limiter,
 	cfg config.Config,
 	resolver authz.Resolver,
+	identity gin.HandlerFunc,
 ) []gin.HandlerFunc {
+	if identity == nil {
+		identity = func(c *gin.Context) {
+			respond.Error(c, 503, "identity_unavailable", "could not verify account status")
+		}
+	}
 	return []gin.HandlerFunc{
 		authn.Middleware(verifier, revocations),
 		requestid.PrincipalMiddleware(),
 		ratelimit.Middleware(limiter, RateLimitConfig(cfg)),
+		identity,
 		authz.Middleware(resolver),
 	}
 }

@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-infra dev-down dev-api dev-web dev-api-renewal dev-web-renewal migrate seed secret-session-key test test-go coverage-go test-web test-scripts lint-shell e2e lint-go new-module verify-local preflight reset image-api image-shell
+.PHONY: dev-global-api up down dev dev-infra dev-down dev-api dev-web dev-api-renewal dev-web-renewal migrate seed secret-session-key test test-go coverage-go test-web test-scripts lint-shell e2e lint-go new-module verify-local preflight reset image-api image-shell
 
 # Docker Compose reads .env in the project directory automatically for
 # ${VAR} substitution in docker-compose.dev.yml; Make does not read it on
@@ -32,6 +32,7 @@ HELIVANTA_OPENFGA_PORT ?= 8090
 HELIVANTA_ZITADEL_PORT ?= 20080
 HELIVANTA_ZITADEL_PG_PORT ?= 5433
 HELIVANTA_API_PORT ?= 8080
+HELIVANTA_GLOBAL_API_PORT ?= 8081
 
 # Hostnames, not ports — and unlike the ports above these are NOT a
 # convenience knob (#916 Task 4, design spec D6). The app and the IdP must
@@ -90,7 +91,7 @@ ZITADEL_ISSUER_URL ?= http://$(HELIVANTA_ZITADEL_HOST):$(HELIVANTA_ZITADEL_PORT)
 # longer reads either variable, and neither is set here any more.
 
 # API_URL is what each app's next.config.ts rewrites /api to (server side).
-API_URL ?= http://localhost:$(HELIVANTA_API_PORT)
+API_URL ?= http://localhost:$(HELIVANTA_GLOBAL_API_PORT)
 
 # apps/shell's browser-side OIDC client (apps/shell/lib/oidc.ts) needs the
 # SAME issuer/client-id the backend verifies against, just under
@@ -112,7 +113,7 @@ export HELIVANTA_PG_PORT HELIVANTA_NATS_PORT HELIVANTA_NATS_MONITOR_PORT HELIVAN
 # resolves to the same value every recipe here uses.
 export HELIVANTA_WEB_HOST HELIVANTA_ZITADEL_HOST
 export APP_DATABASE_URL ADMIN_DATABASE_URL SYSTEM_DATABASE_URL NATS_URL OPENFGA_URL ZITADEL_ISSUER_URL
-export API_URL
+export API_URL HELIVANTA_GLOBAL_API_PORT
 export ZITADEL_CLIENT_ID
 export NEXT_PUBLIC_ZITADEL_ISSUER_URL NEXT_PUBLIC_ZITADEL_CLIENT_ID
 
@@ -318,6 +319,9 @@ dev-api:
 	fi
 	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} ZITADEL_ISSUER_URL=$${ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} ZITADEL_CLIENT_ID=$${ZITADEL_CLIENT_ID:-$(ZITADEL_CLIENT_ID)} ZITADEL_LOGIN_CLIENT_TOKEN=$${ZITADEL_LOGIN_CLIENT_TOKEN:-$$(cat ../$(ZITADEL_LOGIN_CLIENT_PAT_FILE))} SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-$(HELIVANTA_DEV_SESSION_SIGNING_KEY)} PORT=$${PORT:-$(HELIVANTA_API_PORT)} RATE_LIMIT_TENANT_PER_MIN=$(RATE_LIMIT_TENANT_PER_MIN) RATE_LIMIT_PRINCIPAL_PER_MIN=$(RATE_LIMIT_PRINCIPAL_PER_MIN) go run ./cmd/api
 
+dev-global-api:
+	cd backend && HELIVANTA_ENV=$${HELIVANTA_ENV:-dev} GLOBAL_API_PORT=$(HELIVANTA_GLOBAL_API_PORT) GLOBAL_API_UPSTREAM_URL=http://localhost:$(HELIVANTA_API_PORT) go run ./cmd/global-api
+
 dev-web:
 	@# Source dev/zitadel/secrets/zitadel.env at RECIPE RUN TIME, not via
 	@# make's -include. On a fresh clone the -include is parsed before
@@ -389,7 +393,7 @@ dev-web-idle-timeout:
 		exit 1; \
 	fi
 	set -a; . ./$(ZITADEL_IDLE_TIMEOUT_ENV_FILE); set +a; \
-	cd apps/shell && API_URL=http://localhost:$(HELIVANTA_IDLE_API_PORT) NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HELIVANTA_IDLE_WEB_PORT)
+	cd apps/shell && API_URL=http://localhost:$${HELIVANTA_IDLE_GLOBAL_API_PORT:-8199} NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HELIVANTA_IDLE_WEB_PORT)
 
 # --- Session-renewal e2e fixture (#916 Task 4) ----------------------------
 # e2e/tests/session-renewal.spec.ts has to observe a session SURVIVING past
@@ -462,13 +466,13 @@ dev-web-renewal:
 		exit 1; \
 	fi
 	set -a; . ./$(ZITADEL_RENEWAL_ENV_FILE); set +a; \
-	cd apps/shell && API_URL=http://localhost:$(HELIVANTA_RENEWAL_API_PORT) NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HELIVANTA_RENEWAL_WEB_PORT)
+	cd apps/shell && API_URL=http://localhost:$${HELIVANTA_RENEWAL_GLOBAL_API_PORT:-8198} NEXT_PUBLIC_ZITADEL_CLIENT_ID=$$ZITADEL_CLIENT_ID NEXT_PUBLIC_ZITADEL_ISSUER_URL=$${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-$(ZITADEL_ISSUER_URL)} npx next dev -p $(HELIVANTA_RENEWAL_WEB_PORT)
 
 # `make up` is the one command: infra, migrations, seed, then API + web in
 # the foreground. seed is idempotent, so re-running up is safe.
 up: dev-infra seed
-	@echo "Infra seeded. Starting API + web — Ctrl-C stops them, then run 'make down'."
-	@$(MAKE) -j2 dev-api dev-web
+	@echo "Infra seeded. Starting API + Global API + web — Ctrl-C stops them, then run 'make down'."
+	@$(MAKE) -j3 dev-api dev-global-api dev-web
 
 # `make down` stops infra AND the app processes. `docker compose down`
 # alone leaves the API and the next dev server holding ports 4301 and 8080
@@ -584,7 +588,7 @@ image-api:
 IMAGE_SHELL_TAG ?= helivanta-shell:local
 IMAGE_SHELL_ZITADEL_ISSUER_URL ?= https://auth.tesserix.app
 IMAGE_SHELL_ZITADEL_CLIENT_ID ?= 386782591925092979
-IMAGE_SHELL_API_URL ?= http://helivanta-api.helivanta.svc.cluster.local:8080
+IMAGE_SHELL_API_URL ?= http://helivanta-global-api.helivanta.svc.cluster.local:8081
 
 image-shell:
 	docker build -f Dockerfile.shell \

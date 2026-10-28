@@ -116,7 +116,8 @@ func TestInventoryAuditLinksAcquisitionCostAndFlagsUnvaluedStock(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	_, location, batch := stockFixture(t, r)
 	stock := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
-	receipt := uuid.Must(uuid.NewV7()).String()
+	// Keep amount digits in the UUID to catch request-wide replacements.
+	receipt := "019a1800-0000-7000-8000-000000010000"
 	w := do(r, "PUT", stock+"/movements/"+receipt, "editor", stockBody(location, batch, "receipt", "TEST-COST-RECEIPT", 25))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	audit := func(costed bool, qty int64, status string) {
@@ -155,8 +156,9 @@ func TestInventoryAuditLinksAcquisitionCostAndFlagsUnvaluedStock(t *testing.T) {
 	}
 	audit(false, 25, "cost_missing")
 	body := strings.Replace(expenseBody("TEST-ACQUISITION"), `"category":"utilities"`, `"receipt_id":"`+receipt+`","category":"inventory"`, 1)
-	body = strings.ReplaceAll(body, "10000", "25000")
-	body = strings.ReplaceAll(body, "1800", "2500")
+	body = strings.Replace(body, `"net_minor":10000`, `"net_minor":25000`, 1)
+	body = strings.Replace(body, `"tax_minor":1800`, `"tax_minor":2500`, 1)
+	body = strings.Replace(body, `"recoverable_tax_minor":1800`, `"recoverable_tax_minor":2500`, 1)
 	w = do(r, "PUT", payableRoot()+"/payables/"+uuid.Must(uuid.NewV7()).String(), "editor", body)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	audit(true, 25, "complete")

@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "manage": "workforce.identity_checks.manage",
+    "review": "workforce.identity_checks.review"
+  },
+  "models": {
+    "IdentitySource": [
+      { "name": "hospital_id", "type": "uuid" },
+      { "name": "staff_id", "type": "uuid" },
+      { "name": "employee_code", "type": "string", "min": 1, "max": 40 },
+      { "name": "display_name", "type": "string", "min": 1, "max": 150 },
+      { "name": "given_name", "type": "string", "max": 100 },
+      { "name": "family_name", "type": "string", "max": 100 },
+      { "name": "date_of_birth", "type": "string", "max": 10 },
+      {
+        "name": "employment_status",
+        "type": "string",
+        "enum": ["active", "inactive"]
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    ]
+  }
+}

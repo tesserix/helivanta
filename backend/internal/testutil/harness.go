@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"crypto/ed25519"
+	"go.temporal.io/sdk/client"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -59,8 +61,8 @@ func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal
 }
 
 // harnessResolver resolves from a static token→permissions map, so module
-// tests need no OpenFGA container. Tests that must exercise real tuple
-// resolution use the matrix suite instead.
+// tests need no OpenFGA container. Tests that exercise real tuple
+// resolution supply HarnessOptions.Resolver.
 type harnessResolver struct {
 	tokens map[string]string
 	perms  map[string][]authz.Permission
@@ -163,16 +165,24 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
-	ProductionOwner          bool
-	EmergencyDispatchEnabled bool
-	OrganizationIdentity     *organizationidentity.Client
-	Documents                *attachments.GCS
-	Transit                  *transit.Client
-	Tokens                   map[string]string
-	Perms                    map[string][]authz.Permission
-	Writer                   platform.TupleWriter
-	Roles                    platform.RoleLister
-	Membership               authz.MembershipChecker
+	ProxyClinicalCaptureEnabled bool
+	PrivacyDeadlinesEnabled     bool
+	Workflows                   client.Client
+	ProductionOwner             bool
+	EmergencyDispatchEnabled    bool
+	AllergyRecordingEnabled     bool
+	PharmacyEvidenceEnabled     bool
+	OrganizationIdentity        *organizationidentity.Client
+	Documents                   *attachments.GCS
+	Transit                     *transit.Client
+	CurrentClaims               *mediconnectclaims.Client
+	Tokens                      map[string]string
+	Perms                       map[string][]authz.Permission
+	Writer                      platform.TupleWriter
+	Roles                       platform.RoleLister
+	Membership                  authz.MembershipChecker
+	ScopedAuthorizer            func(*tenantdb.DB) authz.ScopedAuthorizer
+	Resolver                    authz.Resolver
 	// Revocation defaults to a checker that answers "never revoked" for
 	// every subject — see neverRevoked's doc comment. Set it explicitly
 	// to exercise the credential-revocation gate in authn.Middleware
@@ -290,12 +300,23 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	require.NoError(t, err)
 	t.Cleanup(bus.Close)
 
+	var scopedAuthorizer authz.ScopedAuthorizer
+	if opts.ScopedAuthorizer != nil {
+		scopedAuthorizer = opts.ScopedAuthorizer(db)
+	}
 	deps := platform.Deps{
-		EmergencyDispatchEnabled: opts.EmergencyDispatchEnabled,
-		OrganizationIdentity:     opts.OrganizationIdentity,
-		Documents:                opts.Documents,
-		Transit:                  opts.Transit,
-		DB:                       db, Bus: bus, Authz: writer, Roles: roles,
+		ScopedAuthorizer:            scopedAuthorizer,
+		ProxyClinicalCaptureEnabled: opts.ProxyClinicalCaptureEnabled,
+		PrivacyDeadlinesEnabled:     opts.PrivacyDeadlinesEnabled,
+		Workflows:                   opts.Workflows,
+		EmergencyDispatchEnabled:    opts.EmergencyDispatchEnabled,
+		AllergyRecordingEnabled:     opts.AllergyRecordingEnabled,
+		PharmacyEvidenceEnabled:     opts.PharmacyEvidenceEnabled,
+		OrganizationIdentity:        opts.OrganizationIdentity,
+		Documents:                   opts.Documents,
+		Transit:                     opts.Transit,
+		CurrentClaims:               opts.CurrentClaims,
+		DB:                          db, Bus: bus, Authz: writer, Roles: roles,
 		SessionSigner:       opts.SessionSigner,
 		SessionTTL:          opts.SessionTTL,
 		SessionSecureCookie: opts.SessionSecureCookie,
@@ -319,12 +340,15 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	// TestRequestScopedLoggerCarriesCorrelationFields and
 	// internal/modules/reference's membership tests below.
 	r.Use(requestid.Middleware())
-	resolver := harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
+	resolver := opts.Resolver
+	if resolver == nil {
+		resolver = harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
+	}
 	api := platform.NewRouter(r.Group("/v1",
 		authn.Middleware(verifier, revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
-		membership)
+		membership).WithScopedAuthorizer(scopedAuthorizer)
 	for _, m := range opts.Modules {
 		m.Routes(api, deps)
 		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))

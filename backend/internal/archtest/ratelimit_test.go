@@ -93,9 +93,22 @@ func chainHarness(t *testing.T, resolver authz.Resolver, cfg config.Config) *gin
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	e.Use(bootstrap.V1Chain(rlChainVerifier{}, rlChainNeverRevoked{}, ratelimit.NewMemory(1000), cfg, resolver)...)
+	e.Use(bootstrap.V1Chain(rlChainVerifier{}, rlChainNeverRevoked{}, ratelimit.NewMemory(1000), cfg, resolver, func(c *gin.Context) { c.Next() })...)
 	e.GET("/v1/things", func(c *gin.Context) { c.Status(http.StatusOK) })
 	return e
+}
+
+func TestRateLimitPrecedesCurrentIdentity(t *testing.T) {
+	var calls atomic.Int64
+	guard := func(c *gin.Context) { calls.Add(1); c.Next() }
+	e := gin.New()
+	e.Use(bootstrap.V1Chain(rlChainVerifier{}, rlChainNeverRevoked{}, ratelimit.NewMemory(1000), config.Config{
+		RateLimitTenantPerMin: 600, RateLimitPrincipalPerMin: 6,
+	}, allowAllResolver{}, guard)...)
+	e.GET("/v1/things", func(c *gin.Context) { c.Status(http.StatusOK) })
+	require.Equal(t, http.StatusOK, doChain(e, "staff-user").Code)
+	require.Equal(t, http.StatusTooManyRequests, doChain(e, "staff-user").Code)
+	require.Equal(t, int64(1), calls.Load(), "throttled requests must not reach the external identity service")
 }
 
 // doChain fires one request as subject. Every principal this harness

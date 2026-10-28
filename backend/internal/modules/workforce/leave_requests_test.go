@@ -1,6 +1,7 @@
 package workforce_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -14,11 +15,19 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // module under test
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 type caller func(method, path, user string, body any) (int, map[string]any)
+
+type noReviewedLeaveAuthority struct{}
+
+func (noReviewedLeaveAuthority) AuthorizeScope(context.Context, authz.ScopeRequest) (authz.ScopeGrant, error) {
+	return authz.ScopeGrant{}, nil
+}
 
 // leaveTypes are the configured type ids plus the structure revision that offers them.
 type leaveTypes struct {
@@ -30,9 +39,10 @@ type requestHarness struct {
 	header func(path, user, name string) string
 }
 
-func newRequestHarness(t *testing.T) *requestHarness {
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "profiler": testutil.TenantA, "foreign": testutil.TenantB},
+func newRequestHarness(t *testing.T, configure ...func(*testutil.HarnessOptions)) *requestHarness {
+	opts := testutil.HarnessOptions{
+		ScopedAuthorizer: func(*tenantdb.DB) authz.ScopedAuthorizer { return noReviewedLeaveAuthority{} },
+		Tokens:           map[string]string{"admin": testutil.TenantA, "approver": testutil.TenantA, "clerk": testutil.TenantA, "viewer": testutil.TenantA, "reader": testutil.TenantA, "profiler": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"admin":    {workforce.PermHospitalManage, workforce.PermLeaveConfigure, workforce.PermLeaveAllocate, workforce.PermLeaveCorrect, workforce.PermLeaveRequest, workforce.PermEnrollmentManage, workforce.PermMasterManage},
 			"approver": {workforce.PermLeaveApprove, workforce.PermLeaveRequest, workforce.PermEnrollmentManage},
@@ -43,7 +53,11 @@ func newRequestHarness(t *testing.T) *requestHarness {
 			"foreign":  {workforce.PermLeaveRequest, workforce.PermLeaveApprove, workforce.PermEnrollmentManage},
 		},
 		Modules: []platform.Module{workforce.New()},
-	})
+	}
+	for _, change := range configure {
+		change(&opts)
+	}
+	r, db, _, _ := testutil.NewHarness(t, opts)
 	hospital := uuid.NewString()
 	h := &leaveHarness{t: t, base: "/v1/workforce/hospitals/" + hospital, do: func(method, path, user, body string) (int, string) {
 		w := testutil.Do(r, method, path, user, body)
@@ -161,6 +175,52 @@ func (h *ledgerHarness) count(table, where string, args ...any) int64 {
 	var n int64
 	require.NoError(h.t, h.scoped(false, func(tx *gorm.DB) error { return tx.Table(table).Where(where, args...).Count(&n).Error }))
 	return n
+}
+
+func TestLinkedStaffCannotDecideOwnLeaveFiledBySomeoneElse(t *testing.T) {
+	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
+	require.NoError(t, err)
+	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
+	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-approver", authz.RoleStaffMember))
+	h := newRequestHarness(t, func(opts *testutil.HarnessOptions) {
+		opts.Roles = fga
+		opts.Perms["admin"] = append(opts.Perms["admin"], workforce.PermLoginLinkManage)
+		opts.Perms["profiler"] = append(opts.Perms["profiler"], workforce.PermLoginLinkReview)
+		opts.Perms["viewer"] = append(opts.Perms["viewer"], workforce.PermLeaveApprove)
+	})
+	code, out := h.call("PUT", "/access/user-profiler", "admin", map[string]any{"level": "manager"})
+	require.Equal(t, 200, code, out)
+	types := configureLeave(t, h.call, 2026)
+	staff := h.enrolled("SYN-LINKED-SELF", types, "2026-01-01")
+	link := "/staff/" + staff + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+	code, out = h.call("PUT", link, "admin", map[string]any{"subject": "user-approver", "reason": "Synthetic verified identity"})
+	require.Equal(t, 200, code, out)
+	code, out = h.call("POST", link+"/decision", "profiler", map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic verification"})
+	require.Equal(t, 200, code, out)
+	for i, decision := range []string{"approve", "reject"} {
+		t.Run(decision, func(t *testing.T) {
+			id := uuid.NewString()
+			date := fmt.Sprintf("2026-10-%02d", 5+i)
+			status, result := h.file(staff, id, "clerk", full(types.duty, date, date))
+			require.Equal(t, 200, status, result)
+			command := map[string]any{"expected_version": 1, "decision": decision, "note": "Synthetic review"}
+			status, result = h.act(staff, id, "decision", "approver", command)
+			require.Equal(t, 403, status, result)
+			status, result = h.call("GET", "/staff/"+staff+"/leave-requests/"+id, "clerk", nil)
+			require.Equal(t, 200, status, result)
+			require.Equal(t, "pending", request(result)["status"])
+			require.EqualValues(t, 1, request(result)["version"])
+			status, result = h.act(staff, id, "decision", "viewer", command)
+			require.Equal(t, 200, status, result)
+			if decision == "approve" {
+				revocation := map[string]any{"expected_version": 2, "note": "Synthetic independent correction"}
+				status, result = h.act(staff, id, "revocation", "approver", revocation)
+				require.Equal(t, 403, status, result)
+				status, result = h.act(staff, id, "revocation", "viewer", revocation)
+				require.Equal(t, 200, status, result)
+			}
+		})
+	}
 }
 
 func TestLeaveRequestsFileDecideAndReverseExactlyOnce(t *testing.T) {

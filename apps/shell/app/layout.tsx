@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { AppProviders } from "@helivanta/api";
+import { ApplicationProviders } from "@/components/application-providers";
 import { CHROME_INIT_SCRIPT } from "@helivanta/ui";
 import { SessionRenewal } from "@/components/session-renewal";
 import { StyleNonce } from "@/components/style-nonce";
@@ -27,11 +27,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             so no theme script runs. */}
         {/* eslint-disable-next-line no-restricted-syntax */}
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: CHROME_INIT_SCRIPT }} />
-        <AppProviders>
+        <ApplicationProviders>
           <StyleNonce nonce={nonce} />
           <SessionRenewal />
           {children}
-        </AppProviders>
+        </ApplicationProviders>
       </body>
     </html>
   );

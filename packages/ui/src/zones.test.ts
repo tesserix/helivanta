@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ZONES, activePage, visibleZones, type Zone } from "./zones";
+import { ZONES, activePage, railName, visibleZones, type Zone } from "./zones";
 
 // Mirrors the real can() semantics (packages/api/src/permissions.tsx):
 // "public" always resolves true, everything else must be explicitly
@@ -175,6 +175,18 @@ it("gives every zone a short rail label", () => {
   for (const zone of ZONES) expect(zone.railLabel, zone.key).toMatch(/^.{1,9}$/);
 });
 
+// #1369 (WCAG 2.5.3): a rail link's name holds the words it shows, the short
+// label collapsed and the full one expanded.
+it("names every rail link with both of its labels", () => {
+  for (const zone of ZONES) {
+    const name = railName(zone).toLowerCase();
+    expect(name, zone.key).toContain(zone.railLabel.toLowerCase());
+    expect(name, zone.key).toContain(zone.label.toLowerCase());
+  }
+  expect(railName(ZONES.find((zone) => zone.key === "pharmacy")!)).toBe("Pharmacy (PharmaConnect)");
+  expect(railName(ZONES.find((zone) => zone.key === "lab")!)).toBe("Lab");
+});
+
 describe("zone order", () => {
   it("lists zones grouped by use, settings last", () => {
     expect(ZONES.map((zone) => zone.key)).toEqual([
@@ -228,6 +240,11 @@ describe("zone icons and sections", () => {
     const pharmacy = ZONES.find((zone) => zone.key === "pharmacy")!;
     expect(pharmacy.pages.map((page) => [page.section, page.label, page.href])).toEqual([
       [undefined, "Overview", "/pharmacy"],
+      ["Dispensing", "Counter sale", "/pharmacy/counter"],
+      ["Dispensing", "Returns", "/pharmacy/returns"],
+      ["Dispensing", "Daily sales", "/pharmacy/daily-report"],
+      ["Dispensing", "H1 register", "/pharmacy/h1-register"],
+      ["Dispensing", "Prescriptions", "/pharmacy/prescriptions"],
       ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],
@@ -238,4 +255,34 @@ describe("zone icons and sections", () => {
       ["Setup", "Outlets & access", "/pharmacy/setup"],
     ]);
   });
+});
+
+// #1366: width is a zone's declared choice, so its pages never jump in width
+// as you move between them. A page cannot set its own (ZonePage has no width).
+describe("zone width", () => {
+  it("declares full width only for the zones that have chosen it", () => {
+    expect(ZONES.filter((zone) => zone.width === "full").map((zone) => zone.key)).toEqual([
+      "dashboard",
+      "pharmacy",
+      "workforce",
+    ]);
+  });
+});
+
+it.each(["iam.member.manage", "iam.assignment.manage", "iam.assignment.review"])(
+  "shows Staff access to a caller holding %s",
+  (permission) => {
+    const pages = visibleZones((p) => p === "public" || p === permission).flatMap((z) => z.pages);
+    expect(pages.some((p) => p.href === "/workforce/access")).toBe(true);
+  },
+);
+
+it("hides Staff access from callers without membership or assignment administration", () => {
+  const pages = visibleZones((p) => p === "public").flatMap((z) => z.pages);
+  expect(pages.some((p) => p.href === "/workforce/access")).toBe(false);
+});
+
+it("shows the scoped leave review entry without tenant-wide business grants", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/leave-review")).toBe(true);
 });

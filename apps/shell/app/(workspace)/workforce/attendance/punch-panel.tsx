@@ -78,7 +78,9 @@ export function PunchForm({
     },
   );
   const section = useRef<HTMLFormElement>(null);
-  useEffect(() => section.current?.scrollIntoView?.({ block: "start", behavior: "instant" }), []);
+  useEffect(() => {
+    section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
+  }, []);
   const [person, direction] = form.watch(["staff_id", "direction"]);
   const errors = form.formState.errors;
   return (

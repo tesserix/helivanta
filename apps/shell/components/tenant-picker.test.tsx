@@ -168,5 +168,6 @@ describe("TenantPicker", () => {
     await chooseOption(user, screen.getByTitle("Tenant"), /^t2 —/);
 
     await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
+    expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
   });
 });

@@ -14,8 +14,8 @@
 # Tesserix rebuilds and Trivy-gates this company-owned builder every week.
 # `latest` is the last green weekly build for shared OS maintenance. The
 # application selects its exact Go toolchain below to match backend/go.mod.
-ARG GO_BUILDER_IMAGE=ghcr.io/tesserix/base-go-builder@sha256:f9214aed0fe09af409811bd4581bbd4af586d1a72bb667a67d03a446857dd47c
-ARG GO_RUNTIME_IMAGE=ghcr.io/tesserix/base-distroless-static@sha256:7c885c37cb2f61400256bef39b9221b48a4860f8080101765da1c262b994cdf1
+ARG GO_BUILDER_IMAGE=ghcr.io/tesserix/base-go-builder@sha256:3e00161f419a8fd7abe3144ad46d08ef809126294d785bcdd6b4b16137070a70
+ARG GO_RUNTIME_IMAGE=ghcr.io/tesserix/base-distroless-static@sha256:a0ada4bf3d50447e7bbc3bf95f872ade97dd85feba81e7b4facf8e9fab665594
 FROM ${GO_BUILDER_IMAGE} AS builder
 
 ENV GOTOOLCHAIN=go1.27.3
@@ -99,9 +99,22 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/pharmacy-evidence-worker \
+    ./cmd/pharmacy-evidence-worker
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
     -ldflags "-s -w" \
     -o /out/emergency-retention \
     ./cmd/emergency-retention
+
+# Drug master release staging and approval (#476), run by operators.
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/drugmaster-release ./cmd/drugmaster-release
+
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/global-api ./cmd/global-api
+
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/privacy-worker ./cmd/privacy-worker
 
 # The company-owned distroless image is a Trivy-gated passthrough of
 # distroless/static:nonroot. It has no shell, package manager, or libc and
@@ -113,6 +126,8 @@ ENV GIN_MODE=release
 
 WORKDIR /app
 COPY --from=builder /out/api /app/api
+COPY --from=builder /out/global-api /app/global-api
+COPY --from=builder /out/privacy-worker /app/privacy-worker
 
 # The migration runner. The API pod never executes this; the chart's
 # pre-upgrade hook Job runs it with command: ["/app/migrate"].
@@ -122,7 +137,9 @@ COPY --from=builder /out/migrate /app/migrate
 COPY --from=builder /out/document-worker /app/document-worker
 COPY --from=builder /out/emergency-worker /app/emergency-worker
 COPY --from=builder /out/supply-evidence-worker /app/supply-evidence-worker
+COPY --from=builder /out/pharmacy-evidence-worker /app/pharmacy-evidence-worker
 COPY --from=builder /out/emergency-retention /app/emergency-retention
+COPY --from=builder /out/drugmaster-release /app/drugmaster-release
 
 # The base image's own USER directive already runs the container as
 # 65532:65532 ("nonroot") — nothing to set here. Left unset deliberately

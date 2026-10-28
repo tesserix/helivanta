@@ -232,6 +232,21 @@ function mock({
 const headsPanel = () => screen.findByRole("region", { name: "Salary heads" });
 const structuresPanel = () => screen.findByRole("region", { name: "Salary structures" });
 
+it.each([{ permissions: [] }, { permissions: ["workforce.payroll.configure"] }])(
+  "does not load hospital or payroll data without view permission ($permissions)",
+  async ({ permissions }) => {
+    mock({ permissions });
+    renderWithProviders(<PayrollSetup />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You do not have access to payroll.",
+    );
+    expect(screen.queryByRole("region", { name: "Salary heads" })).toBeNull();
+    expect(
+      vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("/workforce/hospitals")),
+    ).toBe(false);
+  },
+);
+
 it("explains an empty setup and filters heads by kind", async () => {
   const { reads } = mock({ empty: true });
   const { user } = renderWithProviders(<PayrollSetup />);

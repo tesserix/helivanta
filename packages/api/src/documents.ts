@@ -4,6 +4,7 @@ import {
   documentInputSchema,
   staffDocumentSchema,
   MAX_DOCUMENT_BYTES,
+  DOCUMENT_PROCESSING_TIMEOUT_MS,
   type DocumentInput,
   type DocumentRecordChoice,
   type StaffDocument,
@@ -12,6 +13,18 @@ export * from "./documents-fields";
 
 export type DocumentScope = { tenantId: string; hospitalId: string; staffId: string };
 export type DocumentUpload = { id: string; input: DocumentInput; file: File };
+
+export function canRetryDocument(
+  file: Pick<StaffDocument, "status" | "updated_at">,
+  nowMs: number,
+): boolean {
+  return (
+    file.status === "scan_error" ||
+    (file.status === "scan_pending" &&
+      Number.isFinite(nowMs) &&
+      nowMs - Date.parse(file.updated_at) >= DOCUMENT_PROCESSING_TIMEOUT_MS)
+  );
+}
 
 export function documentPath(scope: DocumentScope): string {
   const identifier = staffDocumentSchema.shape.id;

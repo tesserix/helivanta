@@ -159,6 +159,19 @@
           "type": "string",
           "format": "date",
           "optional": true
+        },
+        {
+          "name": "mrp_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "purchase_cost_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000,
+          "optional": true
         }
       ]
     },
@@ -261,6 +274,12 @@
           "type": "StorageAddressFields",
           "optional": true,
           "gorm": "embedded"
+        },
+        {
+          "name": "stock_status",
+          "type": "string",
+          "enum": ["quarantine", "sellable"],
+          "optional": true
         }
       ]
     },
@@ -534,7 +553,8 @@
           "type": "string",
           "trim": true,
           "min": 10,
-          "max": 500
+          "max": 500,
+          "min_message": "Enter at least 10 characters."
         },
         {
           "name": "occurred_at",

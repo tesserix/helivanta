@@ -17,6 +17,11 @@ import {
   useApiMutation,
   enrollmentSchema,
   EMPTY_ENROLLMENT,
+  ENROLLMENT_PROFILE_MASTERS,
+  ENROLLMENT_PROFILE_MASTERS_PROJECTION,
+  ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION,
+  ENROLLMENT_CONTACT_MASTERS_PROJECTION,
+  ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH,
   EMPTY_ADDRESSES,
   EMPTY_EMERGENCY_CONTACTS,
   EMPTY_CREDENTIALS,
@@ -61,9 +66,20 @@ export function EnrollmentEditor({
 }) {
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
-  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment`;
+  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}&${ENROLLMENT_CONTACT_MASTERS_PROJECTION.query}=${ENROLLMENT_CONTACT_MASTERS_PROJECTION.version}`;
   const query = useApiQuery<StaffEnrollment>(
-    ["workforce", "enrollment", hospital.id, id, reload],
+    [
+      "workforce",
+      "enrollment",
+      hospital.id,
+      id,
+      reload,
+      ENROLLMENT_PROFILE_MASTERS_PROJECTION.version,
+      ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query,
+      ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version,
+      ENROLLMENT_CONTACT_MASTERS_PROJECTION.query,
+      ENROLLMENT_CONTACT_MASTERS_PROJECTION.version,
+    ],
     path,
     {
       enabled: !!staff,
@@ -81,6 +97,26 @@ export function EnrollmentEditor({
     return (
       <section className="mt-6 rounded-2xl border bg-card p-8">
         <p role="alert">Could not load enrollment. Your existing record has not been changed.</p>
+        <div className="mt-4 flex gap-3">
+          <Button variant="outline" onClick={() => void query.refetch()}>
+            Try again
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </section>
+    );
+  if (
+    staff &&
+    (query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version ||
+      query.data?.qualification_masters_version !==
+        ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version ||
+      query.data?.contact_masters_version !== ENROLLMENT_CONTACT_MASTERS_PROJECTION.version)
+  )
+    return (
+      <section className="mt-6 rounded-2xl border bg-card p-8">
+        <p role="alert">This enrollment view is not available yet. Refresh and try again.</p>
         <div className="mt-4 flex gap-3">
           <Button variant="outline" onClick={() => void query.refetch()}>
             Try again
@@ -193,20 +229,88 @@ function EnrollmentForm({
     form.setFocus("staff.display_name");
   }, [form]);
 
-  const masterField = (kind: "department" | "designation" | "grade", label: string) => {
-    const revisionKey = `profile.${kind}_revision_id` as const;
-    const nameKey = `profile.${kind}` as const;
-    const revision = form.watch(revisionKey);
+  const childMasterField = (kind: "qualification" | "relationship", index: number) => {
+    const isContact = kind === "relationship";
+    const label = isContact ? "Relationship" : "Qualification";
+    const nameKey = isContact
+      ? (`emergency_contacts.${index}.relationship` as const)
+      : (`qualifications.${index}.qualification` as const);
+    const revisionKey = isContact
+      ? (`emergency_contacts.${index}.relationship_revision_id` as const)
+      : (`qualifications.${index}.qualification_revision_id` as const);
+    const rowID = form.watch(
+      isContact
+        ? (`emergency_contacts.${index}.id` as const)
+        : (`qualifications.${index}.id` as const),
+    );
+    const revision = form.watch(revisionKey) ?? "";
     const name = form.watch(nameKey);
     const choices = masters.items.filter((row) => row.kind === kind && row.active);
+    const tooLong = (row: HRMaster) =>
+      isContact && Array.from(row.name).length > ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH;
     if (!choices.length && !revision) return field(nameKey, label);
-    const recorded = revision ? value.profile[kind] : name;
-    const id = `enrollment-${kind}-choice`;
+    const recorded =
+      (isContact
+        ? value.emergency_contacts.find((row) => row.id === rowID)?.relationship
+        : value.qualifications.find((row) => row.id === rowID)?.qualification) ?? name;
+    const id = `enrollment-${kind}-${rowID}-choice`;
     return (
-      <Field id={id} label={label}>
+      <>
+        <Field
+          id={id}
+          label={label}
+          error={form.getFieldState(revisionKey, form.formState).error?.message}
+        >
+          <SelectControl
+            id={id}
+            value={revision}
+            onValueChange={(selected) => {
+              const row = choices.find((choice) => choice.revision_id === selected);
+              if (row && tooLong(row)) return;
+              form.setValue(revisionKey, row?.revision_id ?? "", { shouldDirty: true });
+              form.setValue(nameKey, row?.name ?? name, { shouldDirty: true });
+            }}
+            options={[
+              { value: "", label: `Enter ${label.toLowerCase()} text` },
+              ...choices.map((row) => ({
+                value: row.revision_id,
+                label: `${row.name} · ${row.code}`,
+                disabled: tooLong(row),
+              })),
+              ...(revision && !choices.some((row) => row.revision_id === revision)
+                ? [{ value: revision, label: `Recorded: ${recorded}` }]
+                : []),
+            ]}
+          />
+        </Field>
+        {!revision && field(nameKey, `${label} text`)}
+        {choices.some(tooLong) && (
+          <p className="text-sm text-muted-foreground">
+            Names longer than {ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH} characters are
+            unavailable for emergency contacts.
+          </p>
+        )}
+      </>
+    );
+  };
+
+  const masterField = (kind: keyof typeof ENROLLMENT_PROFILE_MASTERS, label: string) => {
+    const spec = ENROLLMENT_PROFILE_MASTERS[kind];
+    const key = spec.field;
+    const revisionKey = `profile.${key}_revision_id` as const;
+    const nameKey = `profile.${key}` as const;
+    const revision = form.watch(revisionKey) ?? "";
+    const name = form.watch(nameKey) ?? "";
+    const choices = masters.items.filter((row) => row.kind === kind && row.active);
+    if (!choices.length && !revision && !spec.selectionOnly) return field(nameKey, label);
+    const recorded = revision ? (value.profile[key] ?? "") : name;
+    const id = `enrollment-${key}-choice`;
+    const error = form.getFieldState(revisionKey, form.formState).error?.message;
+    return (
+      <Field id={id} label={label} error={error}>
         <SelectControl
           id={id}
-          value={revision || (name ? "__recorded" : "")}
+          value={revision || (!spec.selectionOnly && name ? "__recorded" : "")}
           onValueChange={(selected) => {
             if (selected === "__recorded") {
               form.setValue(revisionKey, "", { shouldDirty: true });
@@ -219,7 +323,7 @@ function EnrollmentForm({
           }}
           options={[
             { value: "", label: "Not assigned" },
-            ...(!value.profile[`${kind}_revision_id`] && recorded
+            ...(!spec.selectionOnly && !value.profile[`${key}_revision_id`] && recorded
               ? [{ value: "__recorded", label: `Recorded text: ${recorded}` }]
               : []),
             ...choices.map((row) => ({
@@ -353,7 +457,7 @@ function EnrollmentForm({
               {field("profile.personal_email", "Personal email", "email")}
               {field("profile.mobile_phone", "Mobile number", "tel")}
               {field("profile.work_phone", "Work phone", "tel")}
-              {field("profile.preferred_language", "Preferred language")}
+              {masterField("language", "Preferred language")}
               {select("profile.blood_group", "Reported blood group", [
                 { value: "", label: "Not known / not recorded" },
                 ...["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((value) => ({
@@ -389,6 +493,7 @@ function EnrollmentForm({
                   (value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }),
                 ),
               )}
+              {masterField("contract_type", "Contract type")}
               {masterField("department", "Department")}
               {masterField("designation", "Designation")}
               {select("profile.supervisor_id", "Supervisor", [
@@ -414,7 +519,7 @@ function EnrollmentForm({
               {field("profile.end_date", "End date", "date")}
               {field("profile.probation_end_date", "Probation end date", "date")}
               {field("profile.confirmation_date", "Confirmation date", "date")}
-              {field("profile.exit_reason", "Exit reason")}
+              {masterField("exit_reason", "Exit reason")}
             </div>
           </section>
           {masters.hasMore && (
@@ -523,7 +628,7 @@ function EnrollmentForm({
               {contacts.fields.map((row, i) => (
                 <div key={row.fieldKey} className={rowClass}>
                   {field(`emergency_contacts.${i}.name`, "Contact name")}
-                  {field(`emergency_contacts.${i}.relationship`, "Relationship")}
+                  {childMasterField("relationship", i)}
                   {field(`emergency_contacts.${i}.phone`, "Emergency phone", "tel")}
                   {field(`emergency_contacts.${i}.email`, "Emergency email", "email")}
                   {field(`emergency_contacts.${i}.priority`, "Contact priority", "number")}
@@ -594,7 +699,7 @@ function EnrollmentForm({
             <div className="space-y-4">
               {qualifications.fields.map((row, i) => (
                 <div key={row.fieldKey} className={rowClass}>
-                  {field(`qualifications.${i}.qualification`, "Qualification")}
+                  {childMasterField("qualification", i)}
                   {field(`qualifications.${i}.institution`, "Institution")}
                   {field(`qualifications.${i}.country`, "Qualification country")}
                   {field(`qualifications.${i}.completion_year`, "Completion year", "number")}

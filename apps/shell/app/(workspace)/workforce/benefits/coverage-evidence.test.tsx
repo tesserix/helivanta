@@ -208,3 +208,35 @@ it("holds a withdrawal with the reason while a file is still scanning", async ()
   expect(within(form).getByRole("button", { name: "Close" })).toBeEnabled();
   expect(writes).toHaveLength(0);
 });
+
+it("offers expired scan recovery only for editable proposal evidence", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-28T00:46:00Z"));
+  mockBenefits({
+    enrollments: [waiting],
+    evidence: [
+      { ...approvedFile, status: "scan_pending", updated_at: "2026-10-28T00:00:00Z" },
+      { ...scanning, updated_at: "2026-10-28T00:00:00Z" },
+      {
+        ...scanning,
+        id: "ffffffff-ffff-4fff-8fff-fffffffffff2",
+        filename: "recent-synthetic-evidence.png",
+        updated_at: "2026-10-28T00:45:00Z",
+      },
+    ],
+  });
+  const { user } = renderWithProviders(<Benefits />);
+  const section = await openCoverage(user);
+  await user.click(
+    await within(section).findByRole("button", { name: `Evidence for ${partnerHealth}` }),
+  );
+  const proposed = within(section).getByRole("region", {
+    name: "Evidence for the proposed coverage",
+  });
+  await within(proposed).findByText("recent-synthetic-evidence.png");
+  expect(within(proposed).getAllByRole("button", { name: /Retry scan of/ })).toHaveLength(1);
+  const inForce = within(section).getByRole("region", {
+    name: "Evidence for the coverage in force",
+  });
+  await within(inForce).findByText(approvedFile.filename);
+  expect(within(inForce).queryByRole("button", { name: /Retry scan of/ })).toBeNull();
+});

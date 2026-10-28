@@ -6,6 +6,7 @@ import { readStoredIdToken } from "./support/stored-session";
 
 import { SHELL_PORT, ZITADEL_ORIGIN, webOrigin } from "./support/hosts";
 import { login } from "./support/login";
+import { signOut } from "./support/sign-out";
 
 // The IdP's origin and the app's, read from tests/support/hosts.ts — which
 // reads HELIVANTA_ZITADEL_HOST / HELIVANTA_WEB_HOST, the same variables the
@@ -40,12 +41,7 @@ test("a signed-out session cannot be reconstructed from the browser", async ({ p
   await login(page);
   await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
 
-  // Both the rail icon and the header text trigger the identical
-  // sign-out sequence (packages/ui/src/hms-shell.tsx). The header one
-  // (last in DOM order) is used here — the icon-only rail button sits at
-  // the bottom-left, where Next.js's dev-mode tooling indicator also
-  // renders, and can intercept the click in local/dev-server runs.
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await signOut(page);
 
   // handleSignOut's OWN awaited `fetch("/logout")` (which writes the
   // #781 watermark) resolves BEFORE any navigation starts — the heading
@@ -212,7 +208,7 @@ test("a token captured before sign-out is refused afterwards", async ({ page }) 
   }, captured);
   expect(before, "the captured token must be accepted before sign-out").toBe("accepted");
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await signOut(page);
   await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).not.toBeVisible();
 
   // The same token, still cryptographically valid and unexpired, replayed

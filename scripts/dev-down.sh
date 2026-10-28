@@ -19,7 +19,7 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # 8080 is HELIVANTA_API_PORT (see .env.example) — 4301 is the one Next.js
 # dev-server port (apps/shell; the zones are its routes since #933), fixed
 # and out of scope for the port variables.
-APP_PORTS=(4301 "${HELIVANTA_API_PORT:-8080}")
+APP_PORTS=(4301 "${HELIVANTA_API_PORT:-8080}" "${HELIVANTA_GLOBAL_API_PORT:-8081}")
 
 echo "Stopping infrastructure…"
 docker compose -f "$REPO_ROOT/docker-compose.dev.yml" down

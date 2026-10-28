@@ -146,9 +146,14 @@ func sharedPostgres(t *testing.T) (host, port string) {
 			CREATE ROLE hms_owner LOGIN PASSWORD 'hms_owner' NOSUPERUSER NOBYPASSRLS;
  CREATE ROLE helivanta LOGIN NOSUPERUSER NOBYPASSRLS;
 			CREATE ROLE hms_app LOGIN PASSWORD 'hms_app' NOSUPERUSER NOBYPASSRLS;
-			CREATE ROLE helivanta_emergency_worker LOGIN PASSWORD 'helivanta_emergency_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+			CREATE ROLE helivanta_privacy_worker LOGIN PASSWORD 'helivanta_privacy_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+ CREATE ROLE helivanta_emergency_worker LOGIN PASSWORD 'helivanta_emergency_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
  CREATE ROLE helivanta_document_worker LOGIN PASSWORD 'helivanta_document_worker' NOSUPERUSER NOBYPASSRLS;
+ CREATE ROLE helivanta_practitioner_evidence_worker LOGIN PASSWORD 'helivanta_practitioner_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
  CREATE ROLE helivanta_supply_evidence_worker LOGIN PASSWORD 'helivanta_supply_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+ CREATE ROLE helivanta_pharmacy_evidence_worker LOGIN PASSWORD 'helivanta_pharmacy_evidence_worker' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+ CREATE ROLE helivanta_drug_stager LOGIN PASSWORD 'helivanta_drug_stager' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+ CREATE ROLE helivanta_drug_approver LOGIN PASSWORD 'helivanta_drug_approver' NOSUPERUSER NOBYPASSRLS NOINHERIT;
 			CREATE ROLE helivanta_system LOGIN PASSWORD 'helivanta_system' NOSUPERUSER BYPASSRLS;
 			GRANT hms_owner TO hms;`); err != nil {
 			pgErr = fmt.Errorf("create roles: %w", err)

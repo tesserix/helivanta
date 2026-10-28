@@ -86,7 +86,10 @@ export default function Dashboard() {
         <h2 className="text-sm font-semibold text-muted-foreground">Jump into a department</h2>
         <p className="text-xs text-muted-foreground">Manage visits, dispensing and lab work.</p>
       </div>
-      <nav aria-label="Department shortcuts" className="grid gap-4 sm:grid-cols-2">
+      <nav
+        aria-label="Department shortcuts"
+        className="grid gap-4 @3xl/main:grid-cols-2 @6xl/main:grid-cols-3"
+      >
         {cards.map((z) => (
           <PanelLink key={z.href} href={z.href} className="group flex items-start gap-4">
             <span

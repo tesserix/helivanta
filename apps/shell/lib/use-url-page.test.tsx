@@ -15,6 +15,19 @@ afterEach(() => {
 });
 
 describe("useUrlPage", () => {
+  // #1303 E8: a list's links stay at the pharmacy and outlet in the address.
+  it("keeps the pharmacy and outlet in every link", () => {
+    nav.search = "tab=all&pharmacy=P1&outlet=O1&page=2&cursor=c2";
+    const { result } = renderHook(() => useUrlPage({ tab: "all" }));
+    expect(result.current.hrefFor({ tab: "overdue" })).toBe(
+      "/pharmacy/accounts?tab=overdue&pharmacy=P1&outlet=O1",
+    );
+    expect(result.current.first).toBe("/pharmacy/accounts?tab=all&pharmacy=P1&outlet=O1");
+    expect(result.current.nextHref("c3")).toBe(
+      "/pharmacy/accounts?tab=all&pharmacy=P1&outlet=O1&page=3&cursor=c3",
+    );
+  });
+
   it("reads page 1 with no cursor by default", () => {
     const { result } = renderHook(() => useUrlPage({ tab: "all" }));
     expect(result.current.page).toBe(1);

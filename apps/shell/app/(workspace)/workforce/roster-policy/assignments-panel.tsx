@@ -181,7 +181,9 @@ function AssignmentEditor({
     },
   );
   const section = useRef<HTMLFormElement>(null);
-  useEffect(() => section.current?.scrollIntoView?.({ block: "start", behavior: "instant" }), []);
+  useEffect(() => {
+    section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
+  }, []);
   const options = templates.items
     .filter((t) => t.active)
     .map((t) => ({

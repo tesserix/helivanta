@@ -13,6 +13,10 @@ operations, pharmacy/supply, diagnostics, revenue/insurance and facility quality
 Its reusable agent skills route to the relevant `IN-*` acceptance criteria and
 primary-source register; they do not turn proposals into deployed APIs.
 
+All UI/app business APIs must enter the [Global API](global-connector.md). Product
+APIs retain data ownership and authorization. New services must satisfy its
+onboarding and end-to-end acceptance rules before exposure.
+
 ## Reference material
 
 | Artifact                                                                 | Purpose                                                                                           | Authority                                                                               |
@@ -21,9 +25,17 @@ primary-source register; they do not turn proposals into deployed APIs.
 | [Machine-readable inventory](reference/inventory.json)                   | Tooling input with routes, grants, migrations, tables and directed-event metadata                 | Same registry; a route entry is not a complete request/response specification           |
 | [Clinical OpenAPI](../../contracts/api/clinical.openapi.json)            | Typed current visit, lab and legacy dispense HTTP interfaces                                      | Reviewed description of existing handlers; limited coverage is intentional and explicit |
 | [Current event envelope](../../contracts/api/event-envelope.schema.json) | JSON Schema for the existing event wire shape                                                     | Mirrors `backend/pkg/events/types.go`; not evidence of runtime schema enforcement       |
-| [Generated event payload schemas](reference/event-payloads.json)         | All 69 published subjects with exact Go wire fields and source locations                          | Structural serialization schemas; semantic validation remains with producers/consumers  |
+| [Generated event payload schemas](reference/event-payloads.json)         | Registered published subjects with exact Go wire fields and source locations                          | Structural serialization schemas; semantic validation remains with producers/consumers  |
 | [Contract source index](../../contracts/README.md)                       | Existing Go/TypeScript contract generators and canonical model sources                            | Keep editing the existing source, not a copied model                                    |
 | [Architecture](../architecture/README.md)                                | Proposed independent product APIs, deployment and sizing                                          | Target architecture; not current runtime evidence                                       |
+
+MediConnect owns the scoped [account and link-request API](mediconnect.md).
+Patientmaster owns implemented identity review, self/guardian authority and the
+canonical clinical-sharing ledger; see [verified release evidence](../delivery/mediconnect.md).
+Owner-authorized clinical record release, adult/family projections and booking/reminder
+integrations remain unfinished. A consent gate does not authorize clinical disclosure.
+
+The [privacy casework API](privacy.md) owns authenticated tenant-local rights/grievance review; a case response does not execute disclosure or erasure.
 
 ## Domain specifications
 

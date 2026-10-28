@@ -35,9 +35,7 @@ func revocationHarness(t *testing.T) (*tenantdb.DB, context.Context) {
 	require.NotNil(t, revocationMig, "precondition: 0003_iam is the revocation table migration")
 	require.NoError(t, db.Migrate(context.Background(), []tenantdb.Migration{*revocationMig}))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	t.Cleanup(cancel)
-	return db, ctx
+	return db, t.Context()
 }
 
 // revokeNow is the test's wrapper around RevokeTx, which takes a tx

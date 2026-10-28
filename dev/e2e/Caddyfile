@@ -8,7 +8,7 @@
 # #976's resets happened. Narrowest first, as there:
 #
 #   /api/auth/*  -> shell   (reservedPrefixes: Next route handlers)
-#   /api/v1/*    -> API, rewritten to /v1/*   (matchPrefix / rewritePrefix)
+#   /api/v1/*    -> Global API, rewritten to /v1/*   (matchPrefix / rewritePrefix)
 #   everything else -> shell  (MediCore, Pharmacy and Lab are its routes
 #                              since #933 — there is no zone hop)
 #
@@ -55,17 +55,17 @@
 	}
 }
 
-# main stack: shell-main, API :8080
+# main stack: shell-main, Global API :8081
 :4301 {
-	import stack 4311 8080
+	import stack 4311 {$HELIVANTA_GLOBAL_API_PORT:8081}
 }
 
-# idle-timeout stack: shell-idle-timeout, API :8099
+# idle-timeout stack: shell-idle-timeout, Global API :8199
 :4399 {
-	import stack 4409 8099
+	import stack 4409 {$HELIVANTA_IDLE_GLOBAL_API_PORT:8199}
 }
 
-# renewal stack: shell-renewal, API :8098
+# renewal stack: shell-renewal, Global API :8198
 :4398 {
-	import stack 4408 8098
+	import stack 4408 {$HELIVANTA_RENEWAL_GLOBAL_API_PORT:8198}
 }

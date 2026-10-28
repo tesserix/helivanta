@@ -23,6 +23,7 @@ type SystemRole struct {
 // (authz.SystemRoles) and this map only answers "what do we call it"
 // for each one that already exists there.
 var systemRoleLabels = map[authz.Role]string{
+	authz.RoleStaffMember:         "Staff member (membership only)",
 	authz.RoleEmergencyReceiver:   "Emergency hospital receiver",
 	authz.RoleEmergencyDispatcher: "Emergency dispatcher",
 	authz.RoleEmergencySupervisor: "Emergency supervisor",

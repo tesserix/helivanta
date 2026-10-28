@@ -18,11 +18,11 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
-  --shadow-xs: 0 1px 2px 0 rgb(23 61 58 / 0.05);
-  --shadow-sm: 0 1px 2px 0 rgb(23 61 58 / 0.05), 0 1px 3px 0 rgb(23 61 58 / 0.04);
-  --shadow-md: 0 4px 12px -2px rgb(23 61 58 / 0.08);
-  --shadow-lg: 0 12px 32px -12px rgb(23 61 58 / 0.18);
-  --shadow-xl: 0 20px 48px -16px rgb(23 61 58 / 0.22);
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 1px 3px 0 rgb(15 23 42 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 12px 32px -12px rgb(15 23 42 / 0.18);
+  --shadow-xl: 0 20px 48px -16px rgb(15 23 42 / 0.22);
 }
 
 .branding-preview > div {
@@ -46,4 +46,19 @@
 
 .public-site {
   color-scheme: light;
+}
+
+/* The home page reads the shared tokens in packages/ui/styles.css; it declares no palette of its own (#542). */
+.home-slate {
+  color-scheme: light;
+}
+
+/* @tesserix/web's unlayered `* { border-color }` beats layered utilities; revert-layer restores them here. */
+@layer base {
+  :is(.public-site, .home-slate) * {
+    border-color: var(--border);
+  }
+}
+:is(.public-site, .home-slate) * {
+  border-color: revert-layer;
 }

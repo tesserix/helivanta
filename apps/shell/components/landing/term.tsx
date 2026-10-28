@@ -9,7 +9,7 @@ import type { ModuleStatus } from "@/app/platform-catalog";
 export function Term({ children, definition }: { children: ReactNode; definition: ReactNode }) {
   return (
     <Popover>
-      <PopoverTrigger className="cursor-help rounded-sm text-inherit underline decoration-(--home-muted) decoration-dotted underline-offset-4 hover:decoration-(--home-ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--home-ink)">
+      <PopoverTrigger className="cursor-help rounded-sm text-inherit underline decoration-muted-foreground decoration-dotted underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
         {children}
       </PopoverTrigger>
       <PopoverContent className="w-72 text-sm leading-relaxed">{definition}</PopoverContent>
@@ -31,7 +31,7 @@ export function StatusGuide() {
     <Popover>
       <PopoverTrigger
         aria-label="What the availability labels mean"
-        className="-my-3 inline-flex size-11 items-center justify-center rounded-full text-(--home-muted) hover:text-(--home-ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--home-ink)"
+        className="-my-3 inline-flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
       >
         <Info aria-hidden="true" className="size-4" />
       </PopoverTrigger>

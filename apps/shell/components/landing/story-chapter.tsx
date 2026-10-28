@@ -32,7 +32,7 @@ export function StoryChapter({
       aria-labelledby={headingId}
       className={classes(
         "scroll-mt-28 py-16 sm:py-20",
-        tone === "band" && "border-y border-(--home-line) bg-(--home-surface)",
+        tone === "band" && "border-y border-border bg-muted",
       )}
     >
       <div className={homeWidth}>
@@ -42,8 +42,8 @@ export function StoryChapter({
             className={classes(
               "flex size-10 items-center justify-center rounded-lg text-base font-semibold tabular-nums",
               upcoming
-                ? "border border-dashed border-(--home-muted) text-(--home-ink)"
-                : "bg-(--home-ink) text-(--home-canvas)",
+                ? "border border-dashed border-muted-foreground text-foreground"
+                : "bg-foreground text-background",
             )}
           >
             {number}
@@ -55,7 +55,7 @@ export function StoryChapter({
             >
               {title}
             </h2>
-            <p className="mt-3 max-w-2xl leading-relaxed text-(--home-muted)">{lede}</p>
+            <p className="mt-3 max-w-2xl leading-relaxed text-muted-foreground">{lede}</p>
           </div>
         </div>
         <div className="mt-10">{children}</div>
@@ -73,11 +73,11 @@ export function StoryAct({ title, summary, upcoming = false }: StoryActProps) {
       <div
         className={classes(
           "flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t-2 pt-4",
-          upcoming ? "border-dashed border-(--home-muted)" : "border-(--home-ink)",
+          upcoming ? "border-dashed border-muted-foreground" : "border-foreground",
         )}
       >
-        <p className="text-base font-semibold text-(--home-ink)">{title}</p>
-        <p className="text-base text-(--home-muted)">{summary}</p>
+        <p className="text-base font-semibold text-foreground">{title}</p>
+        <p className="text-base text-muted-foreground">{summary}</p>
       </div>
     </div>
   );

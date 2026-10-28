@@ -21,15 +21,15 @@ export function BoardCard({ style, className, ring, dashed, surface, children }:
         boxShadow: ring ? `0 0 26px -10px ${ring}` : undefined,
       }}
       className={cn(
-        "rounded-[14px] border border-(--home-line)/60 p-[3px] transition-[opacity,border-color,box-shadow] duration-500",
+        "rounded-[14px] border border-border/60 p-[3px] transition-[opacity,border-color,box-shadow] duration-500",
         className,
       )}
     >
       <div
         className={cn(
-          "flex h-full flex-col overflow-hidden rounded-[11px] border border-(--home-line)",
+          "flex h-full flex-col overflow-hidden rounded-[11px] border border-border",
           dashed && "border-dashed",
-          surface ?? "bg-(--home-surface)",
+          surface ?? "bg-muted",
         )}
       >
         {children}
@@ -44,11 +44,11 @@ export function CardHeader({ title, icon, count }: CardHeaderProps) {
   return (
     <div className="flex items-start gap-2 px-3.5 py-2.5">
       {icon && <span className="flex h-[1.125rem] items-center">{icon}</span>}
-      <p className="min-w-0 text-[13px] leading-[1.125rem] font-semibold text-(--home-ink)">
+      <p className="min-w-0 text-[13px] leading-[1.125rem] font-semibold text-foreground">
         {title}
       </p>
       {count !== undefined && (
-        <span className="ml-auto rounded-md bg-(--home-line) px-1.5 text-xs leading-[1.125rem] font-medium text-(--home-ink) tabular-nums">
+        <span className="ml-auto rounded-md bg-border px-1.5 text-xs leading-[1.125rem] font-medium text-foreground tabular-nums">
           {count}
         </span>
       )}
@@ -58,7 +58,7 @@ export function CardHeader({ title, icon, count }: CardHeaderProps) {
 
 export function CardBody({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 border-t border-(--home-line) px-3.5 py-2.5 text-xs leading-snug text-(--home-muted)">
+    <div className="flex-1 border-t border-border px-3.5 py-2.5 text-xs leading-snug text-muted-foreground">
       {children}
     </div>
   );
@@ -90,14 +90,14 @@ export function StatusPill({ tone, label, reserve }: StatusPillProps) {
       <span
         className={cn(
           PILL,
-          tone === "done" && "border-(--home-care)/60 text-(--home-care)",
-          tone === "reviewing" && "border-(--home-oversight)/60 text-(--home-ink)",
-          tone === "waiting" && "border-(--home-line) text-(--home-muted)",
+          tone === "done" && "border-(--hms-accent)/60 text-(--hms-accent)",
+          tone === "reviewing" && "border-(--hms-violet)/60 text-foreground",
+          tone === "waiting" && "border-border text-muted-foreground",
         )}
       >
         {tone === "done" && <Check className="size-3 shrink-0" />}
         {tone === "reviewing" && (
-          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-(--home-oversight)" />
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-(--hms-violet)" />
         )}
         {label}
       </span>
@@ -117,7 +117,7 @@ export function Arrowhead({ colour }: { colour: string }) {
 // The line is held empty until approval so the board keeps its height as the story plays.
 export function AiAssistedMark({ shown }: { shown: boolean }) {
   return (
-    <span className="mt-1.5 block min-h-[1lh] text-xs text-(--home-muted)">
+    <span className="mt-1.5 block min-h-[1lh] text-xs text-muted-foreground">
       {shown && "Marked AI-assisted"}
     </span>
   );

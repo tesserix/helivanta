@@ -1,4 +1,4 @@
-> Palette superseded on 2026-10-28: the approved theme-only change uses light slate (canvas `#f8fafc`, ink `#0f172a`, primary `#334155`) in the shared UI and homepage. The original layout, copy and animations remain unchanged. Historical sage values below describe the earlier decision.
+> Palette superseded on 2026-10-28: the approved theme-only change uses light slate (canvas `#f8fafc`, ink `#0f172a`, primary `#334155`) in the shared UI and homepage. The original layout, copy and animations remain unchanged. Historical sage values below describe the earlier decision. The home page's own `--home-*` tokens were removed later the same day; it reads the shared tokens (#542, `2026-10-28-shared-web-token-roles.md`).
 
 # One look: the signed-in app takes the home page's design — design
 

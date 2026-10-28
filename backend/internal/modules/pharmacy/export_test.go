@@ -18,3 +18,6 @@ var (
 	PriceLine     = priceLine
 	FinancialYear = financialYear
 )
+
+// DiscountLine exposes the B-3 discount rounding.
+var DiscountLine = discountLine

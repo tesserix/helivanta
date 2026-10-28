@@ -2139,6 +2139,24 @@
         },
         {
           "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id",
+          "permission": "pharmacy.discount.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id",
           "permission": "pharmacy.tax.manage",
           "authentication_required": true,
@@ -2689,6 +2707,16 @@
           ]
         },
         {
+          "permission": "pharmacy.sale.discount",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.discount.manage",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2866,6 +2894,13 @@
           "sql_sha256": "28745d8350ea61cd0f5a7ce581c3c535808994e5520512a90ff41f46c0945bdc",
           "creates_tables": [
             "pharmacy_prescription_lines"
+          ]
+        },
+        {
+          "id": "0018_pharmacy",
+          "sql_sha256": "c8fee8c37465b2fdd0cac78f007f969eb479145d2b5a67ddb992648396006694",
+          "creates_tables": [
+            "pharmacy_outlet_discount_ceilings"
           ]
         }
       ]

@@ -40,9 +40,12 @@ The bare Sign out link in `HmsShell`'s header is replaced by an account menu
 (`@helivanta/ui` `Popover`, which portals, flips, labels itself a dialog and
 returns focus). Every app renders `HmsShell`, so every zone gets the menu.
 
-- **Trigger:** the person's initials and name. Its accessible name is
-  `Account: <name>`, which contains the visible text (WCAG 2.5.3). While the
-  profile is loading or unavailable, it reads `Account`.
+- **Trigger:** the person's initials and name. It is named by its content, a
+  visually hidden `Account:` before the visible name, so the name holds every
+  visible word (WCAG 2.5.3) and the initials avatar is decorative. It carries no
+  `aria-label`, so a field-label lookup such as `getByLabel("Tenant")` can never
+  match a person's name. While the profile is loading or unavailable, it reads
+  `Account`.
 - **Panel:** name, email, then "Role at <hospital>" (the branding display name
   the header already shows) listing role labels. With no role it says "No role
   at this hospital". If the profile is unavailable it says so plainly, with no

@@ -29,10 +29,8 @@ export function AccountMenu({
 
   return (
     <Popover>
-      <PopoverTrigger
-        aria-label={name ? `Account: ${name}` : "Account"}
-        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-      >
+      {/* Named by its content, not aria-label: see the label-in-name test. */}
+      <PopoverTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
         {name ? (
           <span
             aria-hidden="true"
@@ -43,6 +41,7 @@ export function AccountMenu({
         ) : (
           <CircleUser className="h-7 w-7" aria-hidden="true" />
         )}
+        {name ? <span className="sr-only">Account: </span> : null}
         <span className="max-w-40 truncate">{name || "Account"}</span>
       </PopoverTrigger>
       <PopoverContent align="end" aria-label="Account" className="w-72 p-0">

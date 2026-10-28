@@ -40,6 +40,10 @@ describe("AccountMenu", () => {
 
     const trigger = await screen.findByRole("button", { name: "Account: Jane Doctor" });
     expect(trigger).toHaveTextContent("JD");
+    // Named by its content, so the name holds every visible word (WCAG 2.5.3) and a
+    // field label lookup such as getByLabel("Tenant") never lands on a person's name.
+    expect(trigger).not.toHaveAttribute("aria-label");
+    expect(screen.queryByLabelText(/doctor/i)).toBeNull();
     await user.click(trigger);
 
     const panel = screen.getByRole("dialog", { name: "Account" });

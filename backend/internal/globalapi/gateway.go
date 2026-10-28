@@ -31,8 +31,8 @@ type Config struct {
 }
 
 var owners = map[string]string{
-	"auth": "platform", "iam": "platform", "workspace": "platform", "patients": "platform", "reference": "platform",
-	"medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "emergency": "emergency",
+	"privacy": "platform", "auth": "platform", "iam": "platform", "workspace": "platform", "patients": "platform", "reference": "platform", "drugmaster": "platform",
+	"mediconnect": "mediconnect", "medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "emergency": "emergency",
 }
 
 // New keeps the owner's authentication, authorization and wire response intact.
@@ -123,7 +123,15 @@ func New(cfg Config) (http.Handler, error) {
 				p.Out.Header = headers
 				p.Out.GetBody = nil
 			},
-			ModifyResponse: func(r *http.Response) error { r.Header.Set("Cache-Control", "no-store"); return nil },
+			ModifyResponse: func(r *http.Response) error {
+				// Middleware owns the response ID; ReverseProxy appends copied headers.
+				r.Header.Del("X-Request-ID")
+				r.Header.Set("Cache-Control", "no-store")
+				if r.StatusCode >= http.StatusInternalServerError {
+					slog.WarnContext(r.Request.Context(), "global API upstream response failed", "product", product, "request_id", r.Request.Header.Get("X-Request-ID"), "status", r.StatusCode)
+				}
+				return nil
+			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				status, code := http.StatusBadGateway, "upstream_unavailable"
 				if errors.Is(err, context.DeadlineExceeded) {

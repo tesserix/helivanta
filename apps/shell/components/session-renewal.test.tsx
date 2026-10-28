@@ -62,8 +62,8 @@ describe("SessionRenewal", () => {
     setTimeoutSpy.mockRestore();
   });
 
-  // "/" and "/signup" are public pages a signed-out visitor reaches; renewing there would 401.
-  it.each(["/", "/signup", "/ambulance"])(
+  // Public pages a signed-out visitor reaches; renewing there would 401.
+  it.each(["/", "/workspace", "/signup", "/ambulance"])(
     "does not schedule a renewal on the public page %s",
     async (path) => {
       usePathname.mockReturnValue(path);
@@ -221,6 +221,7 @@ describe("SessionRenewal", () => {
         window.localStorage.getItem(PERMISSIONS_CACHE_KEY),
         "the cached permission set must not survive into the next user on this browser",
       ).toBeNull();
+      expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
     });
     setTimeoutSpy.mockRestore();
   });

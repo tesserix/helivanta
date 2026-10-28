@@ -17,7 +17,7 @@ const PERMISSIONS_KEY = ["iam", "me", "permissions"];
 // need to special-case the string "public" themselves.
 const PUBLIC_PERMISSION = "public";
 
-type PermissionsResponse = { data: string[]; subject?: string; tenant_id?: string };
+export type PermissionsResponse = { data: string[]; subject?: string; tenant_id?: string };
 
 // Zone apps prerender this tree on the server, where localStorage does not
 // exist. Reading the cache during render would make the hydration render

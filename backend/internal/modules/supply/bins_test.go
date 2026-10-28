@@ -124,7 +124,7 @@ func TestBinInputCountryAndPremiseBoundaries(t *testing.T) {
 	require.Contains(t, w.Body.String(), `"country_code":"IN"`)
 	for name, change := range map[string]func(map[string]any){
 		"tenant spoof":     func(v map[string]any) { v["tenant_id"] = testutil.TenantB },
-		"country spoof":    func(v map[string]any) { v["country_code"] = "PK" },
+		"country spoof":    func(v map[string]any) { v["country_code"] = "US" },
 		"premise spoof":    func(v map[string]any) { v["premise_id"] = strings.TrimPrefix(second, root+"/premises/") },
 		"role spoof":       func(v map[string]any) { v["role"] = "administrator" },
 		"missing version":  func(v map[string]any) { delete(v, "expected_version") },

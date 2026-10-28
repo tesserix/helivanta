@@ -56,17 +56,17 @@ func TestSupplyMigrationPassesAndTightens(t *testing.T) {
 	require.Error(t, insertLegacyParty(t, db, "PK"))
 }
 
-// #1287: the API refuses a Pakistan party and Pakistan's identifier kinds.
-func TestSupplyRefusesPakistan(t *testing.T) {
+// The API refuses an unsupported country and any identifier kind but India's.
+func TestSupplyRefusesUnsupportedCountriesAndIdentifierKinds(t *testing.T) {
 	r, _ := partyHarness(t)
 	root := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
-	pakistan := strings.Replace(partyBody(0, "TEST Pakistan Distributor"), `"country_code":"IN"`, `"country_code":"PK"`, 1)
-	w := testutil.Do(r, "PUT", root, "owner", pakistan)
+	foreign := strings.Replace(partyBody(0, "TEST Foreign Distributor"), `"country_code":"IN"`, `"country_code":"US"`, 1)
+	w := testutil.Do(r, "PUT", root, "owner", foreign)
 	require.Equal(t, 400, w.Code, w.Body.String())
-	ntn := strings.Replace(partyBody(0, "TEST NTN Distributor"), `"tax_registrations":[]`,
-		fmt.Sprintf(`"tax_registrations":[{"id":%q,"kind":"ntn","number":"TEST-TAX-001","jurisdiction":"TEST-MH"}]`, uuid.Must(uuid.NewV7()).String()), 1)
-	gstin := strings.Replace(ntn, `"kind":"ntn"`, `"kind":"gstin"`, 1)
-	w = testutil.Do(r, "PUT", root, "owner", ntn)
+	other := strings.Replace(partyBody(0, "TEST Other Tax Distributor"), `"tax_registrations":[]`,
+		fmt.Sprintf(`"tax_registrations":[{"id":%q,"kind":"ein","number":"TEST-TAX-001","jurisdiction":"TEST-MH"}]`, uuid.Must(uuid.NewV7()).String()), 1)
+	gstin := strings.Replace(other, `"kind":"ein"`, `"kind":"gstin"`, 1)
+	w = testutil.Do(r, "PUT", root, "owner", other)
 	require.Equal(t, 400, w.Code, w.Body.String())
 	// The same body with an Indian identifier is accepted: only the kind differs.
 	w = testutil.Do(r, "PUT", root, "owner", gstin)

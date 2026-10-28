@@ -201,34 +201,6 @@ func (d *DB) PingContext(ctx context.Context) error {
 	return sqlDB.PingContext(ctx)
 }
 
-// Migrate applies migrations in order, once each, on the admin pool.
-func (d *DB) Migrate(ctx context.Context, migs []Migration) error {
-	if d.admin == nil {
-		return errNoSchemaPool
-	}
-	if err := d.admin.WithContext(ctx).Exec(
-		`CREATE TABLE IF NOT EXISTS schema_migrations (id text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`,
-	).Error; err != nil {
-		return err
-	}
-	for _, m := range migs {
-		err := d.admin.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			res := tx.Exec(`INSERT INTO schema_migrations (id) VALUES (?) ON CONFLICT DO NOTHING`, m.ID)
-			if res.Error != nil {
-				return res.Error
-			}
-			if res.RowsAffected == 0 {
-				return nil // already applied
-			}
-			return tx.Exec(m.SQL).Error
-		})
-		if err != nil {
-			return fmt.Errorf("migration %s: %w", m.ID, err)
-		}
-	}
-	return nil
-}
-
 // WithTenant is the single runtime data path. The tenant GUC is set
 // with set_config(..., true) so it is transaction-local; an unset GUC
 // makes every RLS policy evaluate NULL → zero rows (issue #2).
@@ -355,6 +327,21 @@ var lintAllowlist = map[string]bool{
 	// iam_credential_revocations makes above. See
 	// backend/internal/modules/iam/loginattempt.go.
 	"login_attempt": true,
+	// The drug master (#476 spec D1) is one catalogue every tenant reads,
+	// not tenant data: no PHI, no tenant to scope on. Each table is still
+	// FORCE ROW LEVEL SECURITY, hms_app holds SELECT only and sees only
+	// published releases; TestTheCatalogueIsReadOnlyToTheApp pins all three.
+	"drugmaster_releases":                true,
+	"drugmaster_molecules":               true,
+	"drugmaster_formulations":            true,
+	"drugmaster_formulation_versions":    true,
+	"drugmaster_formulation_ingredients": true,
+	"drugmaster_products":                true,
+	"drugmaster_product_versions":        true,
+	// MediCore's projection of the drug master's published molecules
+	// (#1373 A4): the same global reference data, read-only to requests;
+	// only the medicore-molecule-published consumer inserts.
+	"medicore_drug_molecules": true,
 }
 
 // LintRLS returns every table that is not properly tenant-isolated, each

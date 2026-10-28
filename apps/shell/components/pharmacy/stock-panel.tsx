@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
-import Link from "next/link";
 import { Button, Input } from "@tesserix/web";
 import { PackageCheck, Warehouse, Layers3 } from "lucide-react";
 import {
@@ -25,15 +25,22 @@ import {
   type PharmacyMovement,
 } from "@helivanta/api";
 import {
+  GuardedLink as Link,
   ConfirmDialog,
+  DetailHeader,
   Field,
   FormSelectField,
+  ListDetail,
   LoadMore,
   Panel,
   RequestFailure,
   SelectControl,
+  useConfirmLeave,
   useZodForm,
 } from "@helivanta/ui";
+import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
+import { useUrlPage } from "@/lib/use-url-page";
+import { CurrencyAmountField } from "./currency-amount-field";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -42,16 +49,23 @@ export function StockPanel({
   scope,
   writable,
   correctable,
+  releasable = false,
   timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   writable: boolean;
   correctable: boolean;
+  /** May move this lot from quarantine to a sellable location (#1386 A3). */
+  releasable?: boolean;
   timeZone?: string;
 }) {
-  const [locationId, setLocation] = useState("");
-  const [productId, setProduct] = useState("");
-  const [batchId, setBatch] = useState("");
+  const router = useRouter();
+  const params = useSearchParams();
+  // The chooser is the URL (#1303 E4): a reload keeps the location, the
+  // product and the lot, which `open` names.
+  const locationId = guidOr(params.get("location"));
+  const productId = guidOr(params.get("product"));
+  const url = useUrlPage({ location: locationId, product: productId });
   const locations = useApiPagedQuery<PharmacyLocation>(
     pharmacyKey(scope, "stock", "locations"),
     `${pharmacyRoot(scope)}/stock/locations`,
@@ -65,104 +79,47 @@ export function StockPanel({
     `${pharmacyRoot(scope)}/stock/batches?product_id=${productId}`,
     { enabled: !!productId },
   );
-  return (
-    <div className="space-y-6">
-      <Panel>
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="flex items-center gap-2 font-semibold">
-              <Warehouse className="size-5 text-(--hms-accent)" />
-              Quarantine receiving
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Select a location, product and exact manufacturer lot before recording stock.
-            </p>
-          </div>
-          <Link
-            href="/pharmacy/catalogue"
-            className="text-sm font-medium text-(--hms-accent) underline-offset-4 hover:underline"
-          >
-            Open product catalogue
-          </Link>
-        </div>
-        {locations.isError || products.isError ? (
-          <RequestFailure
-            message="Could not load stock locations or products."
-            retry={() => {
-              locations.retry();
-              products.retry();
-            }}
-          />
-        ) : (
-          <>
-            <div className="grid gap-5 lg:grid-cols-3">
-              <Field id="stock-location" label="Quarantine location">
-                <SelectControl
-                  id="stock-location"
-                  value={locationId}
-                  onValueChange={setLocation}
-                  placeholder="Select a location"
-                  options={locations.items.map((row) => ({
-                    value: row.id,
-                    label: `${row.code} · ${row.name} · ${formatPharmacyStorageAddress(row.storage_address)}`,
-                  }))}
-                  disabled={locations.isPending}
-                />
-              </Field>
-              <Field id="stock-product" label="Product">
-                <SelectControl
-                  id="stock-product"
-                  value={productId}
-                  onValueChange={(value) => {
-                    setProduct(value);
-                    setBatch("");
-                  }}
-                  placeholder="Select a product"
-                  options={products.items.map((row) => ({
-                    value: row.id,
-                    label: `${row.sku} · ${row.brand_name}`,
-                  }))}
-                  disabled={products.isPending}
-                />
-              </Field>
-              <Field id="stock-batch" label="Manufacturer lot">
-                <SelectControl
-                  id="stock-batch"
-                  value={batchId}
-                  onValueChange={setBatch}
-                  placeholder={productId ? "Select an exact lot" : "Choose a product first"}
-                  options={batches.items.map((row) => ({
-                    value: row.id,
-                    label: `${row.lot_number} · Expires ${row.expires_on}`,
-                  }))}
-                  disabled={!productId || batches.isPending || batches.isError}
-                />
-              </Field>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-3">
-              <LoadMore
-                hasMore={locations.hasMore}
-                isLoading={locations.isFetchingMore}
-                onClick={locations.loadMore}
-              />
-              <LoadMore
-                hasMore={products.hasMore}
-                isLoading={products.isFetchingMore}
-                onClick={products.loadMore}
-              />
-              <LoadMore
-                hasMore={batches.hasMore}
-                isLoading={batches.isFetchingMore}
-                onClick={batches.loadMore}
-              />
-            </div>
-            {batches.isError && productId && (
-              <RequestFailure message="Could not load manufacturer lots." retry={batches.retry} />
-            )}
-          </>
-        )}
-      </Panel>
-      {locationId && batchId && (
+  const location = locations.items.find((row) => row.id === locationId);
+  // No rows to step through: the lot is chosen, not listed (E4).
+  const pane = useListDetail({
+    rows: [],
+    name: () => "",
+    fallbackName: "this lot",
+    newName: "this lot",
+    headingId: "receiving-heading",
+  });
+  const { detail, paneRef } = pane;
+  const batchId = detail.openId ?? "";
+  const batch = batches.items.find((row) => row.id === batchId);
+  const leave = useConfirmLeave();
+  // Changing the chooser leaves an unsaved movement: ask first (D5).
+  const choose = (next: { location?: string; product?: string; lot?: string }) =>
+    leave(() => {
+      const search = new URLSearchParams(
+        url
+          .hrefFor({
+            location: next.location ?? locationId,
+            product: next.product ?? productId,
+          })
+          .split("?")[1],
+      );
+      // Another product has other lots: its choice starts again.
+      const lot = next.product !== undefined ? "" : (next.lot ?? batchId);
+      if (lot) search.set("open", lot);
+      const href = `${url.first.split("?")[0]}?${search}`;
+      if (lot && !batchId) router.push(href);
+      else router.replace(href);
+    });
+  const title = batch
+    ? `${batch.lot_number} at ${location?.code ?? "this location"}`
+    : "Selected lot";
+  // Fail closed: a movement names only the location and the lot, so the form
+  // opens only for one of the chosen product's own lots. A link naming any
+  // other lot, or no product, records nothing (review, #1303 E4).
+  const lotOfProduct = !!batch && !!productId && batch.product_id === productId;
+  const record =
+    locationId && batchId ? (
+      lotOfProduct ? (
         <StockBucket
           key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${locationId}:${batchId}:${timeZone}`}
           scope={scope}
@@ -171,35 +128,202 @@ export function StockPanel({
           timeZone={timeZone}
           writable={writable}
           correctable={correctable}
+          releasable={releasable}
+          locations={locations.items}
+          header={
+            <DetailHeader
+              title={title}
+              noun="lot"
+              stepping={false}
+              previous={{ disabled: true, onClick: () => {} }}
+              next={{ disabled: true, onClick: () => {} }}
+              closeLabel="Close lot"
+              onClose={pane.close}
+            />
+          }
+          onStateChange={pane.formState("movement")}
         />
-      )}
-      {writable && (
-        <div className="grid items-start gap-6 xl:grid-cols-2">
-          <LocationForm scope={scope} />
-          {productId ? (
-            <BatchForm key={productId} scope={scope} productId={productId} />
+      ) : (
+        <Panel className="space-y-4">
+          <DetailHeader
+            title={title}
+            noun="lot"
+            stepping={false}
+            previous={{ disabled: true, onClick: () => {} }}
+            next={{ disabled: true, onClick: () => {} }}
+            closeLabel="Close lot"
+            onClose={pane.close}
+          />
+          {productId && (batches.isPending || batches.hasMore) ? (
+            <p role="status" className="text-sm">
+              {batches.isPending
+                ? "Loading manufacturer lots…"
+                : "This lot is not among the loaded lots. Load more lots to find it."}
+            </p>
           ) : (
-            <Panel>
-              <Layers3 className="mb-3 size-5 text-muted-foreground" />
-              <h3 className="font-semibold">Register a manufacturer lot</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Choose a product above to record its lot and expiry. Lot identity cannot be edited
-                after registration.
-              </p>
-            </Panel>
+            <p role="alert" className="text-sm">
+              This record was not found, or you do not have access.
+            </p>
           )}
-        </div>
-      )}
+        </Panel>
+      )
+    ) : null;
+  return (
+    <div onClickCapture={pane.holdLinks}>
+      <ListDetail
+        label={batch ? `Lot ${title}` : "Selected lot"}
+        backHref={detail.closeHref}
+        backLabel="Back to receiving"
+        detail={record && <div ref={paneRef}>{record}</div>}
+        list={
+          <div className="space-y-6">
+            <Panel>
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3
+                    id="receiving-heading"
+                    tabIndex={-1}
+                    className="flex items-center gap-2 font-semibold outline-none"
+                  >
+                    <Warehouse className="size-5 text-(--hms-accent)" />
+                    Quarantine receiving
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Select a location, product and exact manufacturer lot before recording stock.
+                  </p>
+                </div>
+                <Link
+                  href="/pharmacy/catalogue"
+                  className="text-sm font-medium text-(--hms-accent) underline-offset-4 hover:underline"
+                >
+                  Open product catalogue
+                </Link>
+              </div>
+              {locations.isError || products.isError ? (
+                <RequestFailure
+                  message="Could not load stock locations or products."
+                  retry={() => {
+                    locations.retry();
+                    products.retry();
+                  }}
+                />
+              ) : (
+                <>
+                  <div className="grid gap-5 @[560px]/main:grid-cols-3">
+                    <Field id="stock-location" label="Quarantine location">
+                      <SelectControl
+                        id="stock-location"
+                        value={locationId}
+                        onValueChange={(value) => choose({ location: value })}
+                        placeholder="Select a location"
+                        options={locations.items.map((row) => ({
+                          value: row.id,
+                          label: `${row.code} · ${row.name} · ${formatPharmacyStorageAddress(row.storage_address)}`,
+                        }))}
+                        disabled={locations.isPending}
+                      />
+                    </Field>
+                    <Field id="stock-product" label="Product">
+                      <SelectControl
+                        id="stock-product"
+                        value={productId}
+                        onValueChange={(value) => choose({ product: value })}
+                        placeholder="Select a product"
+                        options={products.items.map((row) => ({
+                          value: row.id,
+                          label: `${row.sku} · ${row.brand_name}`,
+                        }))}
+                        disabled={products.isPending}
+                      />
+                    </Field>
+                    <Field id="stock-batch" label="Manufacturer lot">
+                      <SelectControl
+                        id="stock-batch"
+                        value={batchId}
+                        onValueChange={(value) => choose({ lot: value })}
+                        placeholder={productId ? "Select an exact lot" : "Choose a product first"}
+                        options={batches.items.map((row) => ({
+                          value: row.id,
+                          label: `${row.lot_number} · Expires ${row.expires_on}`,
+                        }))}
+                        disabled={!productId || batches.isPending || batches.isError}
+                      />
+                    </Field>
+                  </div>
+                  <div className="mt-4 grid gap-3 @[560px]/main:grid-cols-3">
+                    <LoadMore
+                      label="Load more locations"
+                      hasMore={locations.hasMore}
+                      isLoading={locations.isFetchingMore}
+                      onClick={locations.loadMore}
+                    />
+                    <LoadMore
+                      label="Load more products"
+                      hasMore={products.hasMore}
+                      isLoading={products.isFetchingMore}
+                      onClick={products.loadMore}
+                    />
+                    <LoadMore
+                      label="Load more lots"
+                      hasMore={batches.hasMore}
+                      isLoading={batches.isFetchingMore}
+                      onClick={batches.loadMore}
+                    />
+                  </div>
+                  {batches.isError && productId && (
+                    <RequestFailure
+                      message="Could not load manufacturer lots."
+                      retry={batches.retry}
+                    />
+                  )}
+                </>
+              )}
+            </Panel>
+            {writable && (
+              <div className="grid items-start gap-6 @[1200px]/main:grid-cols-2">
+                <LocationForm scope={scope} onStateChange={pane.formState("location")} />
+                {productId ? (
+                  <BatchForm
+                    key={productId}
+                    scope={scope}
+                    productId={productId}
+                    onStateChange={pane.formState("lot")}
+                  />
+                ) : (
+                  <Panel>
+                    <Layers3 className="mb-3 size-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Register a manufacturer lot</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Choose a product above to record its lot and expiry. Lot identity cannot be
+                      edited after registration.
+                    </p>
+                  </Panel>
+                )}
+              </div>
+            )}
+          </div>
+        }
+      />
     </div>
   );
 }
 
-function LocationForm({ scope }: { scope: PharmacyScope }) {
+const guid = z.string().guid();
+const guidOr = (value: string | null) => (value && guid.safeParse(value).success ? value : "");
+
+function LocationForm({
+  scope,
+  onStateChange,
+}: {
+  scope: PharmacyScope;
+  onStateChange?: FormState;
+}) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(pharmacyLocationInputSchema, {
     code: "",
     name: "",
     storage_address: { zone_code: "", aisle_code: "", rack_code: "", shelf_code: "" },
+    stock_status: "quarantine",
   });
   const save = useApiMutation(
     (values: z.infer<typeof pharmacyLocationInputSchema>) =>
@@ -208,7 +332,7 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
         body: JSON.stringify(values),
       }),
     {
-      successToast: "Quarantine location added",
+      successToast: "Location added",
       invalidate: [pharmacyKey(scope, "stock", "locations")],
       onSuccess: () => {
         setId(newPharmacyId());
@@ -217,11 +341,13 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
       suppressErrorToast: true,
     },
   );
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   return (
     <Panel>
-      <h3 className="mb-2 font-semibold">Add quarantine location</h3>
+      <h3 className="mb-2 font-semibold">Add stock location</h3>
       <p className="mb-5 text-sm text-muted-foreground">
-        Use a unique code. Stock in this location is unavailable for dispensing.
+        Use a unique code. Stock is received into quarantine and reaches a sellable location only
+        when a pharmacist releases it. A location&apos;s status cannot change later.
       </p>
       <form
         noValidate
@@ -234,6 +360,16 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
         <Field id="location-name" label="Location name" error={form.formState.errors.name?.message}>
           <Input id="location-name" {...form.register("name")} />
         </Field>
+        <FormSelectField
+          control={form.control}
+          name="stock_status"
+          id="location-status"
+          label="Stock status"
+          options={[
+            { value: "quarantine", label: "Quarantine (receiving)" },
+            { value: "sellable", label: "Sellable (released stock)" },
+          ]}
+        />
         <fieldset className="space-y-4">
           <legend className="text-sm font-medium">Physical storage address (optional)</legend>
           <p className="text-sm text-muted-foreground">
@@ -270,7 +406,7 @@ function LocationForm({ scope }: { scope: PharmacyScope }) {
           </p>
         )}
         <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Adding…" : "Add quarantine location"}
+          {save.isPending ? "Adding…" : "Add location"}
         </Button>
       </form>
     </Panel>
@@ -284,13 +420,23 @@ const batchSchema = pharmacyBatchInputSchema.superRefine((value, ctx) => {
       message: "Manufacturing date cannot follow expiry.",
     });
 });
-function BatchForm({ scope, productId }: { scope: PharmacyScope; productId: string }) {
+function BatchForm({
+  scope,
+  productId,
+  onStateChange,
+}: {
+  scope: PharmacyScope;
+  productId: string;
+  onStateChange?: FormState;
+}) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(batchSchema, {
     product_id: productId,
     lot_number: "",
     expires_on: "",
     manufactured_on: null,
+    mrp_minor: 0,
+    purchase_cost_minor: null,
   });
   const save = useApiMutation(
     (values: z.infer<typeof batchSchema>) =>
@@ -308,6 +454,7 @@ function BatchForm({ scope, productId }: { scope: PharmacyScope; productId: stri
       suppressErrorToast: true,
     },
   );
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   return (
     <Panel>
       <h3 className="mb-2 font-semibold">Register manufacturer lot</h3>
@@ -353,6 +500,28 @@ function BatchForm({ scope, productId }: { scope: PharmacyScope; productId: stri
             />
           </Field>
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CurrencyAmountField
+            id="lot-mrp"
+            label="MRP printed on this lot (per pack)"
+            currency="INR"
+            initialMinor={0}
+            error={form.formState.errors.mrp_minor ? "Enter the printed MRP." : undefined}
+            onChange={(minor) =>
+              form.setValue("mrp_minor", minor, { shouldValidate: true, shouldDirty: true })
+            }
+          />
+          <CurrencyAmountField
+            id="lot-cost"
+            label="Purchase cost per pack (optional)"
+            currency="INR"
+            initialMinor={0}
+            error={form.formState.errors.purchase_cost_minor ? "Enter a valid amount." : undefined}
+            onChange={(minor) =>
+              form.setValue("purchase_cost_minor", minor > 0 ? minor : null, { shouldDirty: true })
+            }
+          />
+        </div>
         {save.isError && (
           <p role="alert" className="text-sm text-destructive">
             {save.error.message}
@@ -372,14 +541,23 @@ function StockBucket({
   batchId,
   writable,
   correctable,
+  releasable,
+  locations,
   timeZone,
+  header,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   locationId: string;
   batchId: string;
   writable: boolean;
   correctable: boolean;
+  releasable: boolean;
+  locations: PharmacyLocation[];
   timeZone: string;
+  /** The lot's title and Close (#1303 E4). */
+  header: React.ReactNode;
+  onStateChange?: FormState;
 }) {
   const balance = useApiQuery<{
     on_hand_units: number;
@@ -397,10 +575,11 @@ function StockBucket({
   return (
     <Panel flush>
       <div className="border-b p-6">
-        <h3 className="mb-5 flex items-center gap-2 font-semibold">
+        <div className="mb-5">{header}</div>
+        <h4 className="mb-5 flex items-center gap-2 font-medium">
           <PackageCheck className="size-5 text-(--hms-accent)" />
           Selected lot balance
-        </h3>
+        </h4>
         {balance.isError ? (
           <RequestFailure message="Could not load this stock balance." retry={balance.refetch} />
         ) : balance.isPending ? (
@@ -421,20 +600,35 @@ function StockBucket({
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Stock status</dt>
-              <dd className="mt-2 inline-flex rounded-full bg-(--hms-amber-tint) px-3 py-1 text-sm font-medium text-(--hms-amber)">
-                Quarantine
-              </dd>
+              {balance.data?.stock_status === "sellable" ? (
+                <dd className="mt-2 inline-flex rounded-full bg-(--hms-sky-tint) px-3 py-1 text-sm font-medium text-(--hms-sky)">
+                  Sellable
+                </dd>
+              ) : (
+                <dd className="mt-2 inline-flex rounded-full bg-(--hms-amber-tint) px-3 py-1 text-sm font-medium text-(--hms-amber)">
+                  Quarantine
+                </dd>
+              )}
             </div>
           </dl>
         )}
       </div>
-      {(writable || correctable) && (
+      {releasable && balance.data?.stock_status === "quarantine" && (
+        <ReleaseForm
+          scope={scope}
+          batchId={batchId}
+          fromLocationId={locationId}
+          sellable={locations.filter((l) => l.stock_status === "sellable")}
+        />
+      )}
+      {(writable || correctable) && balance.data?.stock_status !== "sellable" && (
         <MovementForm
           scope={scope}
           locationId={locationId}
           batchId={batchId}
           writable={writable}
           correctable={correctable}
+          onStateChange={onStateChange}
         />
       )}
       <div className="border-t p-6">
@@ -468,6 +662,7 @@ function StockBucket({
           </ol>
         )}
         <LoadMore
+          label="Load more movements"
           hasMore={movements.hasMore}
           isLoading={movements.isFetchingMore}
           onClick={movements.loadMore}
@@ -490,12 +685,14 @@ function MovementForm({
   batchId,
   writable,
   correctable,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   locationId: string;
   batchId: string;
   writable: boolean;
   correctable: boolean;
+  onStateChange?: FormState;
 }) {
   const [id, setId] = useState(() => newPharmacyId());
   const [confirm, setConfirm] = useState(false);
@@ -529,6 +726,7 @@ function MovementForm({
     ...(writable ? [{ value: "receipt", label: "Receipt" }] : []),
     ...(correctable ? [{ value: "correction", label: "Correction" }] : []),
   ];
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   return (
     <>
       <form
@@ -593,5 +791,103 @@ function MovementForm({
         onConfirm={() => save.mutate(form.getValues())}
       />
     </>
+  );
+}
+
+const releaseSchema = z.object({
+  to_location_id: z.string().min(1, "Choose a sellable location"),
+  quantity_units: z
+    .number({ message: "Enter a whole number of units" })
+    .int("Enter a whole number of units")
+    .min(1, "Release at least one unit"),
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});
+
+/**
+ * Moves units of this lot from quarantine to a sellable location (#1386 A3).
+ * The server checks expiry, MRP, safety, tax and schedule class and says
+ * which one refuses the lot.
+ */
+function ReleaseForm({
+  scope,
+  batchId,
+  fromLocationId,
+  sellable,
+}: {
+  scope: PharmacyScope;
+  batchId: string;
+  fromLocationId: string;
+  sellable: PharmacyLocation[];
+}) {
+  const [id, setId] = useState(() => newPharmacyId());
+  const form = useZodForm(releaseSchema, { to_location_id: "", quantity_units: 0, reason: "" });
+  const release = useApiMutation(
+    (values: z.infer<typeof releaseSchema>) =>
+      apiFetch(`${pharmacyRoot(scope)}/stock/releases/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...values, batch_id: batchId, from_location_id: fromLocationId }),
+      }),
+    {
+      successToast: "Stock released",
+      invalidate: [pharmacyKey(scope, "stock")],
+      onSuccess: () => {
+        setId(newPharmacyId());
+        form.reset({ to_location_id: "", quantity_units: 0, reason: "" });
+      },
+      suppressErrorToast: true,
+    },
+  );
+  return (
+    <form
+      noValidate
+      className="space-y-4 border-b p-6"
+      onSubmit={form.handleSubmit((values) => release.mutate(values))}
+    >
+      <h4 className="font-medium">Release for sale</h4>
+      {sellable.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Add a sellable location first; released stock moves there.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormSelectField
+            control={form.control}
+            name="to_location_id"
+            id="release-to"
+            label="Sellable location"
+            options={sellable.map((l) => ({ value: l.id, label: `${l.code} · ${l.name}` }))}
+          />
+          <Field
+            id="release-quantity"
+            label="Units to release"
+            error={form.formState.errors.quantity_units?.message}
+          >
+            <Input
+              id="release-quantity"
+              type="number"
+              step="1"
+              {...form.register("quantity_units", { valueAsNumber: true })}
+            />
+          </Field>
+          <Field
+            id="release-reason"
+            label="Release reason"
+            error={form.formState.errors.reason?.message}
+          >
+            <Input id="release-reason" {...form.register("reason")} />
+          </Field>
+        </div>
+      )}
+      {release.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {release.error.message}
+        </p>
+      )}
+      {sellable.length > 0 && (
+        <Button type="submit" disabled={release.isPending}>
+          {release.isPending ? "Releasing…" : "Release for sale"}
+        </Button>
+      )}
+    </form>
   );
 }

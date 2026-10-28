@@ -1,12 +1,12 @@
 # Reviewed country policy configuration — #1182
 
-> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
 Parent [#1134](https://github.com/tesserix/helivanta/issues/1134), epic [#1133](https://github.com/tesserix/helivanta/issues/1133). Owner: Sam123ben. Verified locally on 2026-10-17; production migration and rollout pending specific approval.
 
 ## Delivered scope
 
-Settings → Country policies supports immutable source-backed submissions, explicit scope access, independent approval/rejection, suspension, paginated versions/history and authoritative current-policy preview. Exact tenant/country/jurisdiction/category/operation/currency matching prevents India approval from activating Pakistan. All eleven requirement domains must be cited and reviewed. Configuration approval does not represent legal or licence verification.
+Settings → Country policies supports immutable source-backed submissions, explicit scope access, independent approval/rejection, suspension, paginated versions/history and authoritative current-policy preview. Exact tenant/country/jurisdiction/category/operation/currency matching prevents an approval from activating another scope. All eleven requirement domains must be cited and reviewed. Configuration approval does not represent legal or licence verification.
 
 A generated JSON contract feeds Go and TypeScript. Shared query hooks forward tenant headers and cancellation. Policy queries are keyed by verified tenant and subject; commands abort on tenant change, retain stable UUIDv7 identities on unchanged retries and reject changed-payload replay or stale revisions. Native date fields retain user input and convert from explicitly labelled UTC only at submission; display dates name the browser timezone. Focused headings have scroll spacing below the sticky header; the browser reproduced a hidden title at y=0 before the fix and verified y=96 afterwards.
 

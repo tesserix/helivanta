@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -584,4 +585,108 @@ func TestSelfServiceRoutesServeACallerWithNoMembership(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code,
 			"%s must answer a caller with no membership — it is the endpoint that tells them where they do belong", path)
 	}
+}
+
+type fakeProfileReader struct {
+	profile loginclient.UserProfile
+	err     error
+	asked   []string
+}
+
+func (f *fakeProfileReader) UserProfile(_ context.Context, id string) (loginclient.UserProfile, error) {
+	f.asked = append(f.asked, id)
+	return f.profile, f.err
+}
+
+func profileHarness(t *testing.T, roles platform.RoleLister, profiles iam.UserProfileReader) *gin.Engine {
+	t.Helper()
+	m := iam.New(nil)
+	if profiles != nil {
+		m.SetUserProfileReader(profiles)
+	}
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"jane": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"jane": {}},
+		Writer:  &recordingWriter{},
+		Roles:   roles,
+		Modules: []platform.Module{m},
+	})
+	return r
+}
+
+func TestMeProfileReturnsIdentityAndRolesInTheSessionTenantOnly(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{"user-jane": {
+		{TenantID: testutil.TenantA, Role: authz.RoleDoctor},
+		{TenantID: testutil.TenantA, Role: authz.RoleTenantAdmin},
+		{TenantID: testutil.TenantB, Role: authz.RoleNurse},
+	}}}
+	profiles := &fakeProfileReader{profile: loginclient.UserProfile{DisplayName: "Jane Doe", Email: "jane@helivanta.dev"}}
+
+	res := testutil.Do(profileHarness(t, roles, profiles), "GET", "/v1/iam/me/profile", "jane", "")
+
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	require.JSONEq(t, `{
+		"subject":"user-jane","tenant_id":"`+testutil.TenantA+`",
+		"display_name":"Jane Doe","email":"jane@helivanta.dev",
+		"roles":[{"key":"doctor","label":"Doctor"},{"key":"tenant_admin","label":"Tenant Admin"}]
+	}`, res.Body.String())
+	require.Equal(t, []string{"user-jane"}, profiles.asked, "the profile must be read for the session's subject")
+}
+
+func TestMeProfileLabelsAnUncataloguedRoleByItsKey(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{"user-jane": {
+		{TenantID: testutil.TenantA, Role: authz.Role("ward_lead")},
+	}}}
+	profiles := &fakeProfileReader{profile: loginclient.UserProfile{DisplayName: "Jane Doe"}}
+
+	res := testutil.Do(profileHarness(t, roles, profiles), "GET", "/v1/iam/me/profile", "jane", "")
+
+	require.Equal(t, http.StatusOK, res.Code)
+	var body struct {
+		Roles []struct{ Key, Label string } `json:"roles"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.Equal(t, []struct{ Key, Label string }{{Key: "ward_lead", Label: "ward_lead"}}, body.Roles)
+}
+
+func TestMeProfileReportsNoRolesAsAnEmptyArray(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{"user-jane": {
+		{TenantID: testutil.TenantB, Role: authz.RoleNurse},
+	}}}
+	profiles := &fakeProfileReader{profile: loginclient.UserProfile{DisplayName: "Jane Doe"}}
+
+	res := testutil.Do(profileHarness(t, roles, profiles), "GET", "/v1/iam/me/profile", "jane", "")
+
+	require.Equal(t, http.StatusOK, res.Code)
+	var body map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.JSONEq(t, `[]`, string(body["roles"]))
+}
+
+func TestMeProfileFailsClosedWhenRolesAreUnavailable(t *testing.T) {
+	profiles := &fakeProfileReader{profile: loginclient.UserProfile{DisplayName: "Jane Doe"}}
+
+	res := testutil.Do(profileHarness(t, &fakeRoleLister{err: errors.New("fga down")}, profiles), "GET", "/v1/iam/me/profile", "jane", "")
+
+	require.Equal(t, http.StatusServiceUnavailable, res.Code)
+	require.JSONEq(t, `{"error":"authz_unavailable","message":"authorization is temporarily unavailable"}`, res.Body.String())
+}
+
+func TestMeProfileFailsClosedWhenTheIdentityProviderIsUnavailable(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{"user-jane": {{TenantID: testutil.TenantA, Role: authz.RoleDoctor}}}}
+	profiles := &fakeProfileReader{err: loginclient.ErrUnavailable}
+
+	res := testutil.Do(profileHarness(t, roles, profiles), "GET", "/v1/iam/me/profile", "jane", "")
+
+	require.Equal(t, http.StatusServiceUnavailable, res.Code)
+	require.JSONEq(t, `{"error":"identity_unavailable","message":"account details are temporarily unavailable"}`, res.Body.String())
+}
+
+func TestMeProfileFailsClosedWithoutAProfileReader(t *testing.T) {
+	roles := &fakeRoleLister{bindings: map[string][]authz.RoleBinding{"user-jane": {{TenantID: testutil.TenantA, Role: authz.RoleDoctor}}}}
+
+	res := testutil.Do(profileHarness(t, roles, nil), "GET", "/v1/iam/me/profile", "jane", "")
+
+	require.Equal(t, http.StatusServiceUnavailable, res.Code)
+	require.JSONEq(t, `{"error":"identity_unavailable","message":"account details are temporarily unavailable"}`, res.Body.String())
 }

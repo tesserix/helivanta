@@ -56,6 +56,8 @@ export const pharmacyBatchInputSchema = z
     lot_number: z.string().trim().toUpperCase().min(1).max(100),
     expires_on: z.string().date("Use a full valid date."),
     manufactured_on: z.string().date("Use a full valid date.").nullable().optional(),
+    mrp_minor: z.number().int().min(1).max(1000000000000),
+    purchase_cost_minor: z.number().int().min(0).max(1000000000000).nullable().optional(),
   })
   .strict();
 
@@ -111,6 +113,7 @@ export const pharmacyLocationInputSchema = z
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
     storage_address: pharmacyStorageAddressSchema.nullable().optional(),
+    stock_status: z.enum(["quarantine", "sellable"]).nullable().optional(),
   })
   .strict();
 

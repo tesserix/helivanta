@@ -14,7 +14,7 @@ func TestPharmacyOperationalRolesHaveSeparateCapabilities(t *testing.T) {
 		role    authz.Role
 		allowed []authz.Permission
 	}{
-		{authz.RolePharmacyOwner, []authz.Permission{pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermAccountsPayment, pharmacy.PermAccountsAdjust, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermStockQuarantine, pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermTaxManage}},
+		{authz.RolePharmacyOwner, []authz.Permission{pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermAccountsPayment, pharmacy.PermAccountsAdjust, pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermStockQuarantine, pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite, pharmacy.PermAccessManage, pharmacy.PermTaxManage, pharmacy.PermLicenceManage, pharmacy.PermLicenceReview, pharmacy.PermScheduleDeclare, pharmacy.PermScheduleReview, pharmacy.PermSaleRead, pharmacy.PermDiscountManage}},
 		{authz.RolePharmacyPurchasing, []authz.Permission{pharmacy.PermAccountsRead, pharmacy.PermAccountsWrite, pharmacy.PermStockRead, pharmacy.PermCatalogueRead, pharmacy.PermCatalogueWrite}},
 		{authz.RolePharmacyInventory, []authz.Permission{pharmacy.PermStockRead, pharmacy.PermStockReceive, pharmacy.PermStockCorrect, pharmacy.PermStockQuarantine, pharmacy.PermCatalogueRead}},
 		{authz.RoleSupplyFinance, nil},

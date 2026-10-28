@@ -14,7 +14,15 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | --- | --- | --- | --- | --- |
 | POST | `/v1/auth/renew` | `no_tenant_membership` | false | false |
 | POST | `/v1/auth/session/activity` | `no_tenant_membership` | false | false |
+| POST | `/v1/iam/assignment-proposals/:id/decision` | `public` | false | false |
+| GET | `/v1/iam/assignment-proposals/:id/decisions` | `public` | true | false |
+| GET | `/v1/iam/assignment-proposals/:id/history` | `public` | true | false |
+| GET | `/v1/iam/assignment-proposals/:id` | `public` | false | false |
+| PUT | `/v1/iam/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
+| GET | `/v1/iam/assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
+| GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/tenants` | `no_tenant_membership` | false | false |
@@ -22,16 +30,21 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/members` | `iam.member.manage` | true | false |
 | POST | `/v1/iam/members` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
 
 Published subjects:
 
+- `helivanta.in.iam.assignment_scope_requested.v1`
+- `helivanta.in.iam.assignment_projection_requested.v1`
 - `helivanta.in.iam.member_granted.v1`
 - `helivanta.in.iam.member_revoked.v1`
 - `helivanta.in.iam.credential_revoked.v1`
 
 Subscriptions:
 
+- `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
+- `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
 - `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: false.
 - `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: false.
 - Fanout broadcast ← `helivanta.in.iam.credential_revoked.v1`.
@@ -41,6 +54,10 @@ Migration table declarations:
 - `0001_iam`: `iam_roles`, `iam_members`.
 - `0003_iam`: `iam_credential_revocations`.
 - `0004_iam`: `login_attempt`.
+- `0008_iam_assignment_proposals`: `iam_assignment_proposals`, `iam_assignment_proposal_history`.
+- `0009_iam_assignment_decisions`: `iam_assignment_decisions`.
+- `0010_iam_assignment_projection`: `iam_assignment_scope_epochs`, `iam_assignment_snapshots`.
+- `0011_iam_assignment_membership`: `iam_subject_membership_epochs`, `iam_membership_revocations`.
 
 ## reference
 
@@ -157,19 +174,23 @@ Migration table declarations:
 - `0004_emergency`: `emergency_dispatches`, `emergency_dispatch_members`, `emergency_dispatch_commands`, `emergency_crew_commitments`.
 - `0006_emergency`: `emergency_receiving_facilities`, `emergency_receiving_facility_revisions`, `emergency_receiving_access`, `emergency_receiving_links`, `emergency_receiving_link_commands`, `emergency_receiving_requests`, `emergency_receiving_commands`, `emergency_receiving_timeouts`.
 
-## medicore
+## drugmaster
 
-Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/modules/medicore/module.go). Payloads: `backend/internal/modules/medicore/contract/`, owning handlers, and [schema index](../schemas.md).
+Source: [backend/internal/modules/drugmaster/module.go](../../../backend/internal/modules/drugmaster/module.go). Payloads: `backend/internal/modules/drugmaster/contract/`, owning handlers, and [schema index](../schemas.md).
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
-| GET | `/v1/medicore/insights` | `medicore.visit.read` | false | false |
-| GET | `/v1/medicore/visits` | `medicore.visit.read` | true | false |
-| POST | `/v1/medicore/visits` | `medicore.visit.create` | false | false |
+| GET | `/v1/drugmaster/formulations/:id` | `drugmaster.catalogue.read` | false | false |
+| GET | `/v1/drugmaster/products/:id` | `drugmaster.catalogue.read` | false | false |
+| GET | `/v1/drugmaster/products/by-gtin/:gtin` | `drugmaster.catalogue.read` | false | false |
+| GET | `/v1/drugmaster/search` | `drugmaster.catalogue.read` | false | false |
 
 Published subjects:
 
-- `helivanta.in.medicore.visit_created.v1`
+- `helivanta.in.drugmaster.catalogue_published.v1`
+- `helivanta.in.drugmaster.molecule_published.v1`
+- `helivanta.in.drugmaster.formulation_reclassified.v1`
+- `helivanta.in.drugmaster.product_status_changed.v1`
 
 Subscriptions:
 
@@ -177,7 +198,129 @@ None.
 
 Migration table declarations:
 
+- `0001_drugmaster`: `drugmaster_releases`, `drugmaster_molecules`, `drugmaster_formulations`, `drugmaster_formulation_versions`, `drugmaster_formulation_ingredients`, `drugmaster_products`, `drugmaster_product_versions`.
+
+## medicore
+
+Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/modules/medicore/module.go). Payloads: `backend/internal/modules/medicore/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| DELETE | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/access` | `medicore.visit.read` | false | false |
+| POST | `/v1/medicore/hospitals/:hospital/encounters/:id/transitions` | `medicore.visit.update` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.create` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/encounters` | `medicore.visit.read` | true | false |
+| POST | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/corrections` | `medicore.allergy.record` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/history` | `medicore.allergy.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id` | `medicore.allergy.record` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/allergies` | `medicore.allergy.read` | false | false |
+| POST | `/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id/withdrawal` | `medicore.allergy.record` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id` | `medicore.allergy.record` | false | false |
+| POST | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id/entered-in-error` | `medicore.observation.record` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id` | `medicore.observation.record` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/latest` | `medicore.observation.read` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/patients/:patient/weights` | `medicore.observation.read` | true | false |
+| GET | `/v1/medicore/insights` | `medicore.visit.read` | false | false |
+| GET | `/v1/medicore/visits` | `medicore.visit.read` | true | false |
+| POST | `/v1/medicore/visits` | `medicore.visit.create` | false | false |
+
+Published subjects:
+
+- `helivanta.in.medicore.visit_created.v1`
+- `helivanta.in.medicore.encounter_opened.v1`
+- `helivanta.in.medicore.encounter_status_changed.v1`
+- `helivanta.in.medicore.allergy_changed.v1`
+- `helivanta.in.medicore.weight_recorded.v1`
+
+Subscriptions:
+
+- `medicore-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
+- `medicore-molecule-published` ← `helivanta.in.drugmaster.molecule_published.v1`; after-commit hook: false.
+
+Migration table declarations:
+
 - `0001_medicore`: `medicore_visits`.
+- `0005_medicore`: `medicore_patients`, `medicore_hospital_access`, `medicore_encounter_transitions`.
+- `0006_medicore`: `medicore_drug_molecules`, `medicore_allergy_entries`, `medicore_no_known_allergy`, `medicore_no_known_allergy_withdrawals`, `medicore_weight_observations`, `medicore_weight_errors`, `medicore_clinical_read_audit`.
+
+## mediconnect
+
+Source: [backend/internal/modules/mediconnect/module.go](../../../backend/internal/modules/mediconnect/module.go). Payloads: `backend/internal/modules/mediconnect/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/mediconnect/account/consents/:consent/withdraw` | `public` | false | false |
+| GET | `/v1/mediconnect/account/consents/:consent` | `public` | false | false |
+| PUT | `/v1/mediconnect/account/consents/:consent` | `public` | false | false |
+| GET | `/v1/mediconnect/account/consents` | `public` | true | false |
+| GET | `/v1/mediconnect/account/link-requests/:request/review` | `public` | false | false |
+| POST | `/v1/mediconnect/account/link-requests/:request/review` | `public` | false | false |
+| POST | `/v1/mediconnect/account/link-requests/:request/withdraw` | `public` | false | false |
+| GET | `/v1/mediconnect/account/link-requests/:request` | `public` | false | false |
+| PUT | `/v1/mediconnect/account/link-requests/:request` | `public` | false | false |
+| GET | `/v1/mediconnect/account/link-requests` | `public` | true | false |
+| PATCH | `/v1/mediconnect/account/preferences` | `public` | false | false |
+| GET | `/v1/mediconnect/account` | `public` | false | false |
+| POST | `/v1/mediconnect/account` | `public` | false | false |
+| POST | `/v1/mediconnect/notices/:notice/retire` | `mediconnect.notice.manage` | false | false |
+| GET | `/v1/mediconnect/notices/:notice` | `public` | false | false |
+| PUT | `/v1/mediconnect/notices/:notice` | `mediconnect.notice.manage` | false | false |
+| GET | `/v1/mediconnect/notices` | `public` | true | false |
+
+Published subjects:
+
+- `helivanta.in.mediconnect.account_created.v1`
+- `helivanta.in.mediconnect.registration_review_requested.v1`
+- `helivanta.in.mediconnect.registration_review_withdrawn.v1`
+- `helivanta.in.mediconnect.account_consent_recorded.v1`
+- `helivanta.in.mediconnect.account_consent_withdrawn.v1`
+
+Subscriptions:
+
+- `mediconnect-registration-reviewed` ← `helivanta.in.patientmaster.registration_reviewed.v1`; after-commit hook: false.
+
+Migration table declarations:
+
+- `0001_mediconnect`: `mediconnect_accounts`.
+- `0002_mediconnect`: `mediconnect_link_requests`.
+- `0004_mediconnect`: `mediconnect_review_submissions`.
+- `0006_mediconnect`: `mediconnect_notices`, `mediconnect_account_consents`.
+
+## privacy
+
+Source: [backend/internal/modules/privacy/module.go](../../../backend/internal/modules/privacy/module.go). Payloads: `backend/internal/modules/privacy/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/privacy/deadline-policies/:policy/approve` | `public` | false | false |
+| PUT | `/v1/privacy/deadline-policies/:policy` | `privacy.deadline.manage` | false | false |
+| GET | `/v1/privacy/officer` | `public` | false | false |
+| POST | `/v1/privacy/officers/:officer/accept` | `public` | false | false |
+| POST | `/v1/privacy/officers/:officer/revoke` | `privacy.officer.manage` | false | false |
+| PUT | `/v1/privacy/officers/:officer` | `privacy.officer.manage` | false | false |
+| GET | `/v1/privacy/queue` | `public` | true | false |
+| PUT | `/v1/privacy/requests/:request/commands/:command` | `public` | false | false |
+| GET | `/v1/privacy/requests/:request/commands` | `public` | true | false |
+| GET | `/v1/privacy/requests/:request/deadline` | `public` | false | false |
+| GET | `/v1/privacy/requests/:request` | `public` | false | false |
+| PUT | `/v1/privacy/requests/:request` | `public` | false | false |
+| GET | `/v1/privacy/requests` | `public` | true | false |
+
+Published subjects:
+
+- `helivanta.in.privacy.deadline_changed.v1`
+
+Subscriptions:
+
+- `privacy-deadline` ← `helivanta.in.privacy.deadline_changed.v1`; after-commit hook: true.
+
+Migration table declarations:
+
+- `0001_privacy`: `privacy_officers`, `privacy_requests`, `privacy_commands`.
+- `0002_privacy`: `privacy_deadline_policies`, `privacy_case_deadlines`, `privacy_deadline_escalations`.
 
 ## pharmacy
 
@@ -208,14 +351,46 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review` | `pharmacy.schedule.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration` | `pharmacy.schedule.declare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule` | `pharmacy.catalogue.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.catalogue.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id` | `pharmacy.sale.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id` | `pharmacy.sale.return` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes` | `pharmacy.sale.read` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id` | `pharmacy.discount.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling` | `pharmacy.sale.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id` | `pharmacy.tax.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile` | `pharmacy.sale.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status` | `pharmacy.catalogue.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review` | `pharmacy.licence.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download` | `pharmacy.prescription.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt` | `pharmacy.prescription.record` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images` | `pharmacy.prescription.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines` | `pharmacy.prescription.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions` | `pharmacy.prescription.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export` | `pharmacy.prescription.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1` | `pharmacy.prescription.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily` | `pharmacy.sale.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability` | `pharmacy.sale.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales` | `pharmacy.sale.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance` | `pharmacy.stock.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.receive` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches` | `pharmacy.stock.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/corrections/:id` | `pharmacy.stock.correct` | false | false |
@@ -226,12 +401,14 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions` | `pharmacy.stock.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation` | `pharmacy.stock.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id` | `pharmacy.stock.release` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id` | `pharmacy.stock.quarantine` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/recent` | `pharmacy.stock.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents` | `pharmacy.stock.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations/in-force` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations` | `pharmacy.tax.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy` | `pharmacy.access.manage` | false | false |
@@ -245,10 +422,15 @@ Published subjects:
 - `helivanta.in.pharmacy.payable_recorded.v1`
 - `helivanta.in.pharmacy.settlement_recorded.v1`
 - `helivanta.in.pharmacy.batch_safety_recorded.v1`
+- `helivanta.in.pharmacy.sale_posted.v1`
+- `helivanta.in.pharmacy.prescription_image_scan_requested.v1`
+- `helivanta.in.pharmacy.prescription_image_changed.v1`
+- `helivanta.in.pharmacy.credit_note_issued.v1`
 
 Subscriptions:
 
 - `pharmacy-visit-intake` ← `helivanta.in.medicore.visit_created.v1`; after-commit hook: false.
+- `pharmacy-prescription-image-scan` ← `helivanta.in.pharmacy.prescription_image_scan_requested.v1`; after-commit hook: true.
 
 Migration table declarations:
 
@@ -258,6 +440,14 @@ Migration table declarations:
 - `0006_pharmacy`: `pharmacy_payables`, `pharmacy_payable_lines`, `pharmacy_settlements`.
 - `0007_pharmacy`: `pharmacy_batch_safety_incidents`.
 - `0009_pharmacy`: `pharmacy_outlet_tax_registrations`, `pharmacy_product_tax_classifications`.
+- `0012_pharmacy`: `pharmacy_outlet_licences`, `pharmacy_outlet_licence_reviews`.
+- `0013_pharmacy`: `pharmacy_product_schedule_declarations`, `pharmacy_product_schedule_reviews`.
+- `0014_pharmacy`: `pharmacy_stock_releases`.
+- `0015_pharmacy`: `pharmacy_outlet_invoice_profiles`, `pharmacy_invoice_series`, `pharmacy_sales`, `pharmacy_sale_lines`, `pharmacy_sale_tenders`.
+- `0016_pharmacy`: `pharmacy_prescriptions`, `pharmacy_prescription_images`.
+- `0017_pharmacy`: `pharmacy_prescription_lines`.
+- `0018_pharmacy`: `pharmacy_outlet_discount_ceilings`.
+- `0019_pharmacy`: `pharmacy_credit_note_series`, `pharmacy_credit_notes`, `pharmacy_credit_note_lines`, `pharmacy_credit_note_refunds`.
 
 ## supply
 
@@ -388,27 +578,78 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/patients/:id/registration-reference` | `patient.read` | false | false |
 | GET | `/v1/patients/:id` | `patient.read` | false | false |
+| POST | `/v1/patients/clinical-consents/:consent/decide` | `public` | false | false |
+| POST | `/v1/patients/consent-authorities/:authority/revoke` | `patient.consent-authority.review` | false | false |
+| GET | `/v1/patients/consent-authorities/:authority` | `patient.consent-authority.review` | false | false |
+| PUT | `/v1/patients/consent-authorities/:authority` | `patient.consent-authority.review` | false | false |
 | DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false | false |
+| POST | `/v1/patients/hospitals/:hospital/registration-replays` | `patient.registration.replay` | true | false |
+| PUT | `/v1/patients/link-reviews/:request/decision/:decision` | `patient.register` | false | false |
+| GET | `/v1/patients/link-reviews/:request` | `patient.register` | false | false |
+| GET | `/v1/patients/link-reviews` | `patient.register` | true | false |
+| POST | `/v1/patients/my/clinical-consents/:consent/withdraw` | `public` | false | false |
+| GET | `/v1/patients/my/clinical-consents/:consent` | `public` | false | false |
+| PUT | `/v1/patients/my/clinical-consents/:consent` | `public` | false | false |
+| GET | `/v1/patients/my/clinical-consents` | `public` | true | false |
+| POST | `/v1/patients/my/consent-authorities/:authority/accept` | `public` | false | false |
+| POST | `/v1/patients/my/consent-authorities/:authority/revoke` | `public` | false | false |
+| GET | `/v1/patients/my/consent-authorities/:authority/sharing-notices` | `public` | true | false |
+| GET | `/v1/patients/my/consent-authorities/:authority/sharing-recipients` | `public` | true | false |
+| GET | `/v1/patients/my/consent-authorities/:authority` | `public` | false | false |
+| GET | `/v1/patients/my/consent-authorities` | `public` | true | false |
+| POST | `/v1/patients/my/proxy-authorities/:authority/accept` | `public` | false | false |
+| POST | `/v1/patients/my/proxy-authorities/:authority/revoke` | `public` | false | false |
+| GET | `/v1/patients/my/proxy-authorities/:authority/sharing-notices` | `public` | true | false |
+| GET | `/v1/patients/my/proxy-authorities/:authority/sharing-recipients` | `public` | true | false |
+| GET | `/v1/patients/my/proxy-authorities/:authority` | `public` | false | false |
+| GET | `/v1/patients/my/proxy-authorities` | `public` | true | false |
+| PUT | `/v1/patients/my/proxy-clinical-consents/:consent` | `public` | false | false |
+| POST | `/v1/patients/proxy-authorities/:authority/revoke` | `patient.proxy-authority.review` | false | false |
+| GET | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
+| PUT | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
 | POST | `/v1/patients/search` | `patient.read` | true | false |
+| POST | `/v1/patients/sharing-notices/:notice/approve` | `patient.sharing-notice.review` | false | false |
+| POST | `/v1/patients/sharing-notices/:notice/retire` | `patient.sharing-notice.review` | false | false |
+| GET | `/v1/patients/sharing-notices/:notice` | `patient.sharing-notice.review` | false | false |
+| PUT | `/v1/patients/sharing-notices/:notice` | `patient.sharing-notice.review` | false | false |
+| POST | `/v1/patients/sharing-recipients/:recipient/approve` | `patient.sharing-recipient.review` | false | false |
+| POST | `/v1/patients/sharing-recipients/:recipient/revoke` | `patient.sharing-recipient.review` | false | false |
+| GET | `/v1/patients/sharing-recipients/:recipient` | `patient.sharing-recipient.review` | false | false |
+| PUT | `/v1/patients/sharing-recipients/:recipient` | `patient.sharing-recipient.review` | false | false |
 | GET | `/v1/patients` | `patient.read` | true | false |
 | POST | `/v1/patients` | `patient.register` | false | false |
 
 Published subjects:
 
+- `helivanta.in.patientmaster.proxy_authority_changed.v1`
 - `helivanta.in.patientmaster.registered.v1`
+- `helivanta.in.patientmaster.registration_reviewed.v1`
+- `helivanta.in.patientmaster.consent_authority_changed.v1`
+- `helivanta.in.patientmaster.sharing_notice_changed.v1`
+- `helivanta.in.patientmaster.sharing_recipient_changed.v1`
+- `helivanta.in.patientmaster.clinical_consent_changed.v1`
 
 Subscriptions:
 
-None.
+- `patient-registration-review` ← `helivanta.in.mediconnect.registration_review_requested.v1`; after-commit hook: false.
+- `patient-registration-review-withdrawal` ← `helivanta.in.mediconnect.registration_review_withdrawn.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_patientmaster`: `patients`, `patient_identifiers`, `patient_consents`, `patient_duplicate_overrides`.
 - `0003_patientmaster`: `patient_hospital_access`, `patient_access_audit`, `patient_registration_requests`.
 - `0004_patientmaster`: `patient_reported_blood_groups`.
+- `0005_patientmaster`: `patient_link_reviews`.
+- `0006_patientmaster`: `patient_consent_authorities`.
+- `0007_patientmaster`: `patient_sharing_notices`.
+- `0008_patientmaster`: `patient_sharing_recipients`, `patient_clinical_consents`, `patient_clinical_consent_decisions`, `patient_clinical_integrity_incidents`.
+- `0009_patientmaster`: `patient_proxy_authorities`.
+- `0011_patientmaster`: concurrent index `patient_clinical_consent_proxy_authority` on `patient_clinical_consents (tenant_id, proxy_authority_id)`.
+- `0011_patientmaster`: concurrent index `patient_sharing_notice_capacity_page` on `patient_sharing_notices (tenant_id, hospital_id, authority_kind, status, purpose, created_at DESC, id DESC)`.
 
 ## workforce
 
@@ -550,7 +791,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts/:id/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/shifts/:id` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision` | `workforce.benefits.approve` | false | false |
@@ -571,6 +814,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent` | `workforce.benefits.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents` | `workforce.benefits.view` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/document-records` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification/history` | `workforce.documents.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification` | `workforce.documents.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/retries/:attempt` | `workforce.documents.manage` | false | false |
@@ -590,6 +836,11 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `workforce.leave.request` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request` | `workforce.leave.approve` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/decision` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history` | `public` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false | false |
@@ -597,9 +848,13 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals` | `public` | true | false |
+| GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 
 Published subjects:
 
+- `helivanta.in.workforce.document_classification_changed.v1`
+- `helivanta.in.workforce.assignment_scope_verified.v1`
+- `helivanta.in.workforce.login_link_changed.v1`
 - `helivanta.in.workforce.enrollment_changed.v1`
 - `helivanta.in.workforce.master_changed.v1`
 - `helivanta.in.workforce.shift_changed.v1`
@@ -638,6 +893,7 @@ Published subjects:
 
 Subscriptions:
 
+- `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
 - `workforce-document-scan` ← `helivanta.in.workforce.document_scan_requested.v1`; after-commit hook: true.
 - `workforce-credential-reminders` ← `helivanta.in.workforce.credential_validity_changed.v1`; after-commit hook: true.
 
@@ -671,6 +927,15 @@ Migration table declarations:
 - `0031_workforce_credential_reminders`: `workforce_credential_reminder_policies`, `workforce_credential_reminders`.
 - `0032_workforce_roster_credential_clashes`: `workforce_roster_credential_standing`, `workforce_roster_credential_acknowledgements`.
 - `0033_workforce_benefits`: `workforce_benefit_plans`, `workforce_benefit_plan_revisions`, `workforce_staff_dependents`, `workforce_staff_dependent_revisions`, `workforce_benefit_enrollment_proposals`, `workforce_benefit_enrollments`.
+- `0035_workforce_login_links`: `workforce_login_links`, `workforce_login_link_history`.
+- `0037_workforce_leave_review_discovery_index`: concurrent index `workforce_login_links_review_discovery` on `workforce_login_links (tenant_id, subject, status, created_at DESC, id DESC)`.
+- `0038_workforce_leave_review_queue_index`: concurrent index `workforce_leave_requests_review_queue` on `workforce_leave_requests (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
+- `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_language_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, preferred_language_revision_id)`.
+- `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_exit_reason_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, exit_reason_revision_id)`.
+- `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_contract_type_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, contract_type_revision_id)`.
+- `0043_workforce_qualification_master_index`: concurrent index `workforce_qualification_master_ref_idx` on `workforce_enrollment_qualifications (tenant_id, hospital_id, qualification_revision_id)`.
+- `0045_workforce_contact_master_index`: concurrent index `workforce_contact_master_ref_idx` on `workforce_enrollment_emergency_contacts (tenant_id, hospital_id, relationship_revision_id)`.
+- `0046_workforce_document_classification`: `workforce_document_classification_revisions`, `workforce_document_classifications`.
 
 ## workspace
 

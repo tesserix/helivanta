@@ -100,3 +100,36 @@ func TestRegistryRejectsDuplicateIdentityInvalidTimezoneAndImplicitSharing(t *te
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Equal(t, 404, do(r, "GET", "/v1/pharmacy/pharmacies/"+uuid.Must(uuid.NewV7()).String()+"/outlets", "editor", "").Code)
 }
+
+// #1303 E6: Outlets & access opens one outlet by its id. Its visibility is the
+// outlets list's: an outlet the list hides for this subject is 404 here too.
+func TestReadOneOutletMatchesTheOutletsList(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-reader", "reader")
+	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/"
+	hidden := uuid.Must(uuid.NewV7()).String()
+	w := do(r, "PUT", root+hidden, "editor", `{"code":"TEST-HIDDEN","name":"TEST Hidden","country_code":"IN","timezone":"Asia/Kolkata"}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+
+	w = do(r, "GET", root+pharmaOutlet, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), pharmaOutlet)
+	require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+	require.Equal(t, 200, do(r, "GET", root+hidden, "editor", "").Code)
+
+	// A reader's list holds only the outlets granted to them; so does the read.
+	list := do(r, "GET", strings.TrimSuffix(root, "/"), "reader", "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	require.Contains(t, list.Body.String(), pharmaOutlet)
+	require.NotContains(t, list.Body.String(), hidden)
+	require.Equal(t, 200, do(r, "GET", root+pharmaOutlet, "reader", "").Code)
+	require.Equal(t, 404, do(r, "GET", root+hidden, "reader", "").Code)
+
+	otherPharmacy := "/v1/pharmacy/pharmacies/" + uuid.Must(uuid.NewV7()).String() + "/outlets/" + pharmaOutlet
+	require.Equal(t, 404, do(r, "GET", otherPharmacy, "editor", "").Code)
+	require.Equal(t, 404, do(r, "GET", root+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
+	require.Equal(t, 404, do(r, "GET", root+"not-an-outlet", "editor", "").Code)
+	require.Equal(t, 404, do(r, "GET", root+pharmaOutlet, "foreign", "").Code)
+	require.Equal(t, 403, do(r, "GET", root+pharmaOutlet, "denied", "").Code)
+	require.Equal(t, 401, do(r, "GET", root+pharmaOutlet, "unknown", "").Code)
+}

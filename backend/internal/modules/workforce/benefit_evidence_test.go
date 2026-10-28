@@ -397,3 +397,22 @@ func TestBenefitEvidenceDatabaseGuards(t *testing.T) {
 	requireGuard(t, f.scoped(`,set_config('app.workforce_benefits','read',true)`, insert(f.hospital, f.employee, proposal.id, 1)), "row-level security", "the benefits read scope cannot write evidence")
 	requireGuard(t, f.scoped(`,set_config('app.workforce_enrollment','authorized',true)`, insert(f.hospital, f.employee, proposal.id, 1)), "binding is invalid", "the enrollment scope cannot see the proposal, so cannot attach to it")
 }
+
+func TestFrozenPendingBenefitEvidenceCannotRestartAfterProcessingDeadline(t *testing.T) {
+	f := newBenefitEvidenceFixture(t)
+	proposal := f.propose(f.employee)
+	file := f.attach(proposal)
+	require.NoError(t, f.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_frozen_pending_document_clock", SQL: `
+ SELECT set_config('app.tenant_id','` + testutil.TenantA + `',true),set_config('app.workforce_subject','user-hr',true),set_config('app.actor_subject','user-hr',true),set_config('app.workforce_hospital','` + f.hospital + `',true),set_config('app.workforce_benefits','write',true);
+ ALTER TABLE workforce_documents DISABLE TRIGGER workforce_document_identity;
+ DO $$ DECLARE changed bigint; BEGIN
+ UPDATE workforce_documents SET frozen=true,updated_at=clock_timestamp()-interval '46 minutes' WHERE id='` + file + `';
+ GET DIAGNOSTICS changed=ROW_COUNT;
+ IF changed<>1 THEN RAISE EXCEPTION 'fixture must freeze exactly one file'; END IF;
+ END $$;
+ ALTER TABLE workforce_documents ENABLE TRIGGER workforce_document_identity;`}}))
+	err := f.benefitsWrite(`UPDATE workforce_documents SET status='scan_pending',scan_attempt=2,updated_at=clock_timestamp() WHERE id='` + file + `'`)
+	require.Error(t, err, "even an owner-scoped database connection cannot restart frozen pending evidence")
+	code, out := f.call("PUT", f.evidencePath(proposal, "/"+file+"/retries/2"), "hr", nil)
+	require.Equal(t, 409, code, out)
+}

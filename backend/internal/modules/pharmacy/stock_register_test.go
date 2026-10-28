@@ -95,7 +95,8 @@ func TestStockRegisterRejectsInvalidForeignAndRevokedScopes(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	_, location, batch := stockFixture(t, r)
 	root := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
-	cutoff := url.QueryEscape(time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano))
+	// Scope checks must not depend on host/container clock synchronization.
+	cutoff := url.QueryEscape("2020-01-01T00:00:00Z")
 	for _, suffix := range []string{"/positions?as_of=" + cutoff, "/reconciliation?location_id=" + location + "&batch_id=" + batch + "&as_of=" + cutoff} {
 		require.Equal(t, 403, do(r, "GET", root+suffix, "denied", "").Code)
 		for _, token := range []string{"sibling", "foreign"} {
@@ -106,7 +107,8 @@ func TestStockRegisterRejectsInvalidForeignAndRevokedScopes(t *testing.T) {
 	for _, query := range []string{"as_of=bad", "as_of=2020-01-01T00%3A00%3A00.000000001Z", "as_of=2099-01-01T00%3A00%3A00Z", "", "as_of=" + cutoff + "&from=2099-01-01T00%3A00%3A00Z", "as_of=" + cutoff + "&expiry=unknown", "as_of=" + cutoff + "&location_id=no"} {
 		require.Equal(t, 400, do(r, "GET", root+"/positions?"+query, "editor", "").Code, query)
 	}
-	require.Equal(t, 404, do(r, "GET", root+"/positions?as_of="+cutoff+"&location_id="+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
+	missingLocation := do(r, "GET", root+"/positions?as_of="+cutoff+"&location_id="+uuid.Must(uuid.NewV7()).String(), "editor", "")
+	require.Equal(t, 404, missingLocation.Code, missingLocation.Body.String())
 	require.Equal(t, 404, do(r, "GET", root+"/reconciliation?as_of="+cutoff+"&location_id="+location+"&batch_id="+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
 	grantCatalogue(t, r, "user-editor", "reader")
 	require.Equal(t, 200, do(r, "GET", root+"/positions?as_of="+cutoff, "editor", "").Code)
@@ -126,7 +128,7 @@ func TestStockRegisterPaginatesZeroPositionsAndUsesOutletLocalExpiry(t *testing.
 	cutoff := "2026-10-01T19:00:00Z"
 	for i, expiry := range []string{"2026-10-01", "2026-10-02"} {
 		batch := uuid.Must(uuid.NewV7()).String()
-		w = do(r, "PUT", root+"/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":%q}`, product, fmt.Sprintf("TEST-LOCAL-%d", i), expiry))
+		w = do(r, "PUT", root+"/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":%q,"mrp_minor":12500}`, product, fmt.Sprintf("TEST-LOCAL-%d", i), expiry))
 		require.Equal(t, 200, w.Code, w.Body.String())
 		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT set_config('app.actor_subject','user-editor',true),set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
@@ -198,4 +200,50 @@ func TestStockRegisterPaginatesZeroPositionsAndUsesOutletLocalExpiry(t *testing.
 		require.Len(t, result.Data, 1)
 		require.Equal(t, filter, result.Data[0].Expiry)
 	}
+}
+
+// #1303 E3: a stock position is a lot at a location, and a reload reopens
+// it by both, with no other filter.
+func TestStockRegisterFiltersOnePositionByLot(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	product, location, batch := stockFixture(t, r)
+	root := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
+	other := uuid.Must(uuid.NewV7()).String()
+	w := do(r, "PUT", root+"/batches/"+other, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-OTHER","expires_on":"2031-01-31","mrp_minor":12500}`, product))
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var last struct {
+		CreatedAt time.Time `json:"created_at"`
+	}
+	for _, lot := range []string{batch, other} {
+		w = do(r, "PUT", root+"/movements/"+uuid.Must(uuid.NewV7()).String(), "editor", stockBody(location, lot, "receipt", "TEST-LOT-FILTER-"+lot[len(lot)-4:], 3))
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &last))
+	}
+	window := "as_of=" + url.QueryEscape(last.CreatedAt.Format(time.RFC3339Nano))
+	var both, one struct {
+		Data []map[string]any `json:"data"`
+	}
+	w = do(r, "GET", root+"/positions?"+window, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &both))
+	require.Len(t, both.Data, 2)
+
+	w = do(r, "GET", root+"/positions?"+window+"&batch_id="+batch+"&location_id="+location, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &one))
+	require.Len(t, one.Data, 1)
+	require.Equal(t, batch, one.Data[0]["batch_id"])
+	require.Equal(t, location, one.Data[0]["location_id"])
+	require.Equal(t, "TEST-LOT", one.Data[0]["lot_number"])
+
+	// Unknown to this outlet is the same answer as an unknown location.
+	missing := do(r, "GET", root+"/positions?"+window+"&batch_id="+uuid.Must(uuid.NewV7()).String(), "editor", "")
+	require.Equal(t, 404, missing.Code, missing.Body.String())
+	require.Equal(t, 400, do(r, "GET", root+"/positions?"+window+"&batch_id=no", "editor", "").Code)
+	// The export answers for the same rows as the list.
+	w = do(r, "GET", root+"/positions.csv?"+window+"&batch_id="+batch, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "TEST-LOT")
+	require.NotContains(t, w.Body.String(), "TEST-LOT-OTHER")
 }

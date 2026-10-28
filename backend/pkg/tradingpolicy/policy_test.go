@@ -32,11 +32,10 @@ func TestApprovedExactScopeIncludesPolicyProvenance(t *testing.T) {
 	require.Equal(t, p.ID, result.PolicyVersion)
 }
 
-// #1287: Pakistan is not a supported country, so even an approved policy
-// for it authorises nothing.
-func TestPakistanPolicyAuthorisesNothing(t *testing.T) {
+// An unsupported country authorises nothing, even under an approved policy.
+func TestAnUnsupportedCountryPolicyAuthorisesNothing(t *testing.T) {
 	p := approvedPolicy("IN")
-	p.Scope.Country, p.Scope.Currency = "PK", "PKR"
+	p.Scope.Country, p.Scope.Currency = "US", "USD"
 	require.False(t, tradingpolicy.Evaluate(p.Scope, &p, testNow).Allowed)
 }
 
@@ -47,7 +46,7 @@ func TestOneApprovalCannotAuthorizeAnotherScope(t *testing.T) {
 		edit func(*tradingpolicy.Scope)
 	}{
 		{"tenant", func(s *tradingpolicy.Scope) { s.Tenant = "22222222-2222-2222-2222-222222222222" }},
-		{"country", func(s *tradingpolicy.Scope) { s.Country, s.Currency = "PK", "PKR" }},
+		{"country", func(s *tradingpolicy.Scope) { s.Country, s.Currency = "US", "USD" }},
 		{"jurisdiction", func(s *tradingpolicy.Scope) { s.Jurisdiction = "OTHER-JURISDICTION" }},
 		{"category", func(s *tradingpolicy.Scope) { s.Category = "controlled" }},
 		{"operation", func(s *tradingpolicy.Scope) { s.Operation = "dispatch" }},

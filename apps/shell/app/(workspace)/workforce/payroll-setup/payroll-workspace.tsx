@@ -10,6 +10,20 @@ import { StatutoryPanel } from "./statutory-panel";
 import { StructuresPanel } from "./structures-panel";
 
 export function PayrollWorkspace() {
+  const { can, isLoading } = usePermissions();
+  if (isLoading) return <p role="status">Checking payroll access…</p>;
+  if (!can("workforce.payroll.view")) {
+    return (
+      <p role="alert" className="rounded-2xl border bg-card p-8">
+        You do not have access to payroll. Ask your administrator to review your payroll
+        permissions.
+      </p>
+    );
+  }
+  return <PayrollHospitalWorkspace />;
+}
+
+function PayrollHospitalWorkspace() {
   const hospitals = useApiPagedQuery<Hospital>(
     ["workforce", "planning-hospitals"],
     "/workforce/hospitals",

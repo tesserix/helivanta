@@ -21,6 +21,19 @@ The existing API document describes fields and operations; [generated reference]
 
 These JSON files use the repository's custom generation dialect. They are not OpenAPI or directly valid JSON Schema. See [schema index](../schemas.md) before selecting a validator. Generated Go/Zod definitions share wire names, while handler/database rules add cross-record and effective-date invariants.
 
+Staff profile master connections use canonical enrollment metadata for department,
+designation, grade, preferred language, exit reason and contract type. References
+pin immutable revisions in the verified tenant and hospital; contract type is a
+separate classification from engagement type. Language and exit-reason legacy
+text stays readable. Older-client omission preserves pins; explicit empty
+reference values clear them. See the [profile connection design](../../superpowers/specs/2026-10-28-staff-profile-master-connections.md)
+and detailed owner contract for null compatibility and mixed-version writers.
+Use the versioned opt-in profile projection for the new metadata; the updated
+editor requires response confirmation instead of treating unknown pins as blank.
+Qualification, relationship and private-document category consumers remain
+separate work; neither a master choice nor an exit reason completes employment
+approval, offboarding or payroll.
+
 ## Event and projection boundary
 
 Workforce publishes metadata-oriented change events for staff enrollment, HR definitions, rosters, leave, exchanges, overtime, attendance, payroll configuration, documents, credentials and benefits. Read exact subjects and consumers from the [registry inventory](../reference/inventory.json) and payload types from `backend/internal/modules/workforce/contract/events.go`; avoid copying their many definitions into another service.

@@ -1,10 +1,12 @@
 package globalapi
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -127,4 +129,50 @@ func TestCrossSiteMutationIsNotForwarded(t *testing.T) {
 	gateway.ServeHTTP(res, req)
 	require.Equal(t, 403, res.Code)
 	require.Zero(t, calls)
+}
+
+func TestMediConnectHasAnExplicitOwner(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/mediconnect/account", r.URL.Path)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(upstream.Close)
+	handler, err := New(Config{Upstreams: map[string]string{"mediconnect": upstream.URL}, Development: true, Timeout: time.Second})
+	require.NoError(t, err)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest("POST", "/v1/mediconnect/account", strings.NewReader("{}")))
+	require.Equal(t, http.StatusCreated, response.Code)
+}
+
+func TestResponseKeepsOneGatewayRequestIDAndPreservesOwnerCookies(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusConflict, http.StatusServiceUnavailable} {
+		for _, ownerID := range []string{"gateway-correlation-id", "different-owner-id"} {
+			t.Run(fmt.Sprintf("%d/%s", status, ownerID), func(t *testing.T) {
+				var calls atomic.Int32
+				upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls.Add(1)
+					require.Equal(t, "gateway-correlation-id", r.Header.Get("X-Request-ID"))
+					w.Header().Set("X-Request-ID", ownerID)
+					w.Header().Add("Set-Cookie", "owner_a=one; HttpOnly")
+					w.Header().Add("Set-Cookie", "owner_b=two; HttpOnly")
+					w.Header().Set("Content-Type", "text/plain")
+					w.WriteHeader(status)
+					_, err := io.WriteString(w, "owner response")
+					require.NoError(t, err)
+				}))
+				t.Cleanup(upstream.Close)
+				handler, err := New(Config{Upstreams: map[string]string{"mediconnect": upstream.URL}, Development: true, Timeout: time.Second})
+				require.NoError(t, err)
+				req := httptest.NewRequest(http.MethodGet, "/v1/mediconnect/account", nil)
+				req.Header.Set("X-Request-ID", "gateway-correlation-id")
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, req)
+				require.Equal(t, status, response.Code)
+				require.Equal(t, "owner response", response.Body.String())
+				require.Equal(t, []string{"gateway-correlation-id"}, response.Header().Values("X-Request-ID"))
+				require.Equal(t, []string{"owner_a=one; HttpOnly", "owner_b=two; HttpOnly"}, response.Header().Values("Set-Cookie"))
+				require.EqualValues(t, 1, calls.Load())
+			})
+		}
+	}
 }

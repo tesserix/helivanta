@@ -103,7 +103,9 @@ func (h *visitHandlers) list(c *gin.Context, p pagination.Params) ([]visit, erro
 	}
 	var rows []visit
 	err := h.db.WithTenant(c.Request.Context(), principal.TenantID, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, p).Find(&rows).Error
+		// Legacy visits only: an encounter belongs to its hospital's
+		// grant-checked routes (#80 E1).
+		return tenantdb.ApplyKeyset(tx, p).Where("hospital_id IS NULL").Find(&rows).Error
 	})
 	return rows, err
 }

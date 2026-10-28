@@ -31,10 +31,12 @@ type productInput struct {
 }
 
 type batchInput struct {
-	ProductID      uuid.UUID `json:"product_id" binding:"required"`
-	LotNumber      string    `json:"lot_number" binding:"required,min=1,max=100"`
-	ExpiresOn      string    `json:"expires_on"`
-	ManufacturedOn *string   `json:"manufactured_on" binding:"omitempty"`
+	ProductID         uuid.UUID `json:"product_id" binding:"required"`
+	LotNumber         string    `json:"lot_number" binding:"required,min=1,max=100"`
+	ExpiresOn         string    `json:"expires_on"`
+	ManufacturedOn    *string   `json:"manufactured_on" binding:"omitempty"`
+	MRPMinor          int64     `json:"mrp_minor" binding:"min=1,max=1000000000000"`
+	PurchaseCostMinor *int64    `json:"purchase_cost_minor" binding:"omitempty,min=0,max=1000000000000"`
 }
 
 type movementInput struct {
@@ -57,6 +59,7 @@ type locationInput struct {
 	Code           string                `json:"code" binding:"required,min=1,max=40"`
 	Name           string                `json:"name" binding:"required,min=1,max=200"`
 	StorageAddress *StorageAddressFields `json:"storage_address" binding:"omitempty" gorm:"embedded"`
+	StockStatus    *string               `json:"stock_status" binding:"omitempty,required,oneof=quarantine sellable"`
 }
 
 type OrganizationFields struct {

@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
-import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
+import { OutletForm } from "./pharmacy-registry-setup";
 const pharmacy = {
   id: "0199e000-0000-7000-8000-000000000010",
   code: "TEST",
@@ -33,7 +33,8 @@ it("registers an Indian outlet, the only country offered, with unapproved regula
     }),
   );
   const { user } = renderWithProviders(
-    <PharmacyRegistrySetup tenantId="TEST-tenant" pharmacy={pharmacy} />,
+    // Outlets register in the Outlets & access pane (#1303 E6).
+    <OutletForm tenantId="TEST-tenant" pharmacy={pharmacy} />,
   );
   // #1287: India is the only country offered.
   await user.click(screen.getByLabelText("Country"));

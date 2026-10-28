@@ -35,7 +35,7 @@ write credentials, arbitrary URL proxy or client-selected upstream is permitted.
 `backend/cmd/global-api` is the separate entry point. Its explicit route-owner
 map is in `backend/internal/globalapi`; current destinations may all be the
 existing monolith. This does not extract modules into independent services.
-Supported owner keys are `platform`, `medicore`, `workforce`, `pharmacy`, `supply`,
+Supported owner keys are `platform`, `mediconnect`, `medicore`, `workforce`, `pharmacy`, `supply`,
 `lab` and `emergency`. Platform covers `/v1/auth`, `/v1/iam`, `/v1/workspace`,
 `/v1/patients` and `/v1/reference`. The other keys match existing path segments.
 The exact `POST /internal/v1/hospital-enrolments` route also goes to platform,
@@ -43,8 +43,8 @@ which verifies its existing workload token. Other internal routes are denied.
 Paths, methods, response bodies and domain error meanings remain unchanged.
 
 Unknown paths return 404; a known but unconfigured product returns 503. Neither
-falls back to another owner. MediConnect has no registered backend API yet;
-adding a route label must not invent its behavior. The [coverage matrix](portfolio.md)
+falls back to another owner. MediConnect exposes only the [account foundation](mediconnect.md);
+patient linkage, booking and report APIs remain unimplemented. The [coverage matrix](portfolio.md)
 and [review findings](review-plan.md) still govern domain readiness.
 
 This implementation passes credentials to the owning API, whose existing session
@@ -158,3 +158,14 @@ to it, restrict product ingress and verify proxy trust/TLS. This repository does
 not own that cluster configuration. No production rollout is authorized by these
 rules. A routing rollback is safe only if it preserves API versions and single
 writers; data ownership changes need separately approved reconciliation.
+
+The `privacy` route prefix uses the existing explicit `platform` upstream. The
+privacy owner verifies current officer or subject authority and records sensitive
+reads. Gateway routing grants no access and introduces no clinical disclosure.
+
+Upstream HTTP 5xx responses emit a warning with configured product, validated
+request ID and status only. Transport failures retain their separate failure
+code warning. These diagnostics preserve owner status, headers and body and
+never retry a submitted command. Request paths, queries, bodies, cookies, tokens,
+upstream addresses and response content are excluded from these warnings.
+This supports correlation; it does not identify the cause of incident #1338.

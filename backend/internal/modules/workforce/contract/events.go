@@ -3,6 +3,16 @@ package contract
 
 import "time"
 
+const SubjectLoginLinkChanged = "helivanta.in.workforce.login_link_changed.v1"
+
+type LoginLinkChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	LinkID     string `json:"link_id"`
+	Version    int64  `json:"version"`
+	Status     string `json:"status"`
+}
+
 // SubjectStaffEnrollmentChanged carries no personal enrollment data.
 const SubjectStaffEnrollmentChanged = "helivanta.in.workforce.enrollment_changed.v1"
 
@@ -384,4 +394,16 @@ type BenefitEnrollmentChangedData struct {
 	ProposalID   string `json:"proposal_id"`
 	Status       string `json:"status"`
 	Version      int64  `json:"version"`
+}
+
+const SubjectAssignmentScopeVerified = "helivanta.in.workforce.assignment_scope_verified.v1"
+
+const SubjectDocumentClassificationChanged = "helivanta.in.workforce.document_classification_changed.v1"
+
+type DocumentClassificationChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	FileID     string `json:"file_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
 }

@@ -13,6 +13,12 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// ErrRejected means the credential did not identify the configured caller.
+var ErrRejected = errors.New("workload credential rejected")
+
+// ErrUnavailable means Kubernetes could not evaluate the credential.
+var ErrUnavailable = errors.New("workload identity unavailable")
+
 type Verifier struct {
 	client            authclient.AuthenticationV1Interface
 	audience, account string
@@ -33,24 +39,29 @@ func New(config *rest.Config, audience, account string) (*Verifier, error) {
 	return &Verifier{client: client, audience: audience, account: account}, nil
 }
 func (v *Verifier) Verify(ctx context.Context, authorization string) error {
-	denied := errors.New("workload credential rejected")
 	if len(authorization) > 8192 || !strings.HasPrefix(authorization, "Bearer ") {
-		return denied
+		return ErrRejected
 	}
 	token := strings.TrimPrefix(authorization, "Bearer ")
 	if token == "" || strings.ContainsAny(token, " \r\n\t") {
-		return denied
+		return ErrRejected
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	review, err := v.client.TokenReviews().Create(ctx, &authentication.TokenReview{Spec: authentication.TokenReviewSpec{Token: token, Audiences: []string{v.audience}}}, metav1.CreateOptions{})
-	if err != nil || !review.Status.Authenticated || review.Status.Error != "" || review.Status.User.Username != v.account || review.Status.User.UID == "" {
-		return denied
+	if err != nil {
+		return ErrUnavailable
+	}
+	if review == nil || !review.Status.Authenticated || review.Status.Error != "" || review.Status.User.Username != v.account || review.Status.User.UID == "" {
+		return ErrRejected
 	}
 	for _, audience := range review.Status.Audiences {
 		if audience == v.audience {
 			return nil
 		}
 	}
-	return denied
+	return ErrRejected
 }
+
+// Subject identifies the exact configured caller accepted by Verify.
+func (v *Verifier) Subject() string { return v.account }

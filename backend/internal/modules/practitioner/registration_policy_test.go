@@ -144,14 +144,21 @@ func TestRegistrationPolicyConcurrentReplayAndRevokedAppointment(t *testing.T) {
 	wg.Wait()
 	close(codes)
 	created := 0
+	var receipt string
+	var replayBodies []string
 	for got := range codes {
 		if got.code == 201 {
 			created++
+			receipt = got.body
 		} else {
 			require.Equal(t, 200, got.code, got.body)
+			replayBodies = append(replayBodies, got.body)
 		}
 	}
 	require.Equal(t, 1, created)
+	for _, body := range replayBodies {
+		require.JSONEq(t, receipt, body, "exact concurrent replays retain the original immutable receipt")
+	}
 
 	revoke := fmt.Sprintf(`{"expected_version":2,"review_reference":"%s"}`, uuid.Must(uuid.NewV7()))
 	require.Equal(t, 200, testutil.Do(s.router, "POST", "/v1/practitioners/steward-appointments/"+s.appointment+"/revoke", "steward", revoke).Code)

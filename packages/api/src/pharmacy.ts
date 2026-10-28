@@ -181,6 +181,9 @@ export type PharmacySaleLine = {
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  /** The prescription line a G, H or H1 line dispenses (#1386 B-2b); null for OTC. */
+  prescription_id: string | null;
+  prescription_line: number | null;
 };
 export type PharmacySaleQuote = {
   currency: string;
@@ -209,6 +212,8 @@ export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
   seller_gstin: string;
   place_of_supply: string;
   actor_subject: string;
+  buyer_name: string | null;
+  buyer_phone: string | null;
   created_at: string;
   class_origin: "declared_by_outlet";
   lines: PharmacySaleLine[];
@@ -218,6 +223,8 @@ export type PharmacySaleAvailability = {
   product_id: string;
   sellable_units: number;
   nearest_expiry: string | null;
+  /** The approved schedule class in force; null when none is approved. */
+  regulatory_class: "none" | "G" | "H" | "H1" | "X" | null;
 };
 export type PharmacyScope = { tenantId: string; pharmacyId: string; outletId: string };
 export function pharmacyRoot(scope: PharmacyScope) {

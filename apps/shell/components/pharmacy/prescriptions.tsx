@@ -22,10 +22,20 @@ import {
   usePrescriptionImages,
   type PharmacyPrescription,
   type PharmacyPrescriptionImage,
+  type PharmacyProduct,
   type PharmacyScope,
   type PrescriptionImageUpload,
 } from "@helivanta/api";
-import { Field, LoadMore, Panel, RequestFailure, formatDateTime, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  Panel,
+  RequestFailure,
+  formatDateTime,
+  useFieldArray,
+  useZodForm,
+} from "@helivanta/ui";
 
 /**
  * Prescription evidence (#1386 B-2a): the pharmacist records what the
@@ -92,10 +102,13 @@ export function Prescriptions({ scope, canRecord }: { scope: PharmacyScope; canR
   );
 }
 
-// The form keeps the optional address as text; empty means the prescription gives none.
+// The form keeps the optional addresses as text; empty means the prescription gives none.
 const formSchema = prescriptionInputSchema
-  .omit({ patient_address: true })
-  .extend({ patient_address: z.string().trim().max(500, "Use at most 500 characters") });
+  .omit({ patient_address: true, prescriber_address: true })
+  .extend({
+    patient_address: z.string().trim().max(500, "Use at most 500 characters"),
+    prescriber_address: z.string().trim().max(500, "Use at most 500 characters"),
+  });
 type FormValues = z.infer<typeof formSchema>;
 const empty: FormValues = {
   prescriber_name: "",
@@ -104,6 +117,8 @@ const empty: FormValues = {
   prescribed_on: "",
   patient_name: "",
   patient_address: "",
+  prescriber_address: "",
+  lines: [{ prescribed_as: "", product_id: "", quantity_units: 1, dispensings_allowed: 1 }],
 };
 
 function RecordPrescription({
@@ -116,14 +131,20 @@ function RecordPrescription({
   // One id per prescription being entered, so a retry after a lost response replays it.
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(formSchema, empty);
+  const lines = useFieldArray({ control: form.control, name: "lines", keyName: "fieldKey" });
+  const products = useApiPagedQuery<PharmacyProduct>(
+    pharmacyKey(scope, "prescriptions", "products"),
+    `${pharmacyRoot(scope)}/catalogue/products?limit=100&status=active`,
+  );
   const save = useApiMutation(
-    ({ patient_address, ...values }: FormValues) =>
+    ({ patient_address, prescriber_address, ...values }: FormValues) =>
       apiFetch<PharmacyPrescription>(`${pharmacyRoot(scope)}/prescriptions/${id}`, {
         method: "PUT",
         body: JSON.stringify(
           prescriptionInputSchema.parse({
             ...values,
             ...(patient_address ? { patient_address } : {}),
+            ...(prescriber_address ? { prescriber_address } : {}),
           }),
         ),
       }),
@@ -144,7 +165,8 @@ function RecordPrescription({
         <h3 className="font-semibold">Record a prescription</h3>
         <p className="text-sm text-muted-foreground">
           Copy the details exactly as the prescription shows them. A recorded prescription cannot be
-          changed; record a new one to correct it.
+          changed; record a new one to correct it. Schedule H and H1 medicines are dispensed only
+          when both addresses are recorded.
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field id="rx-prescriber" label="Prescriber" error={errors.prescriber_name?.message}>
@@ -173,7 +195,97 @@ function RecordPrescription({
           >
             <Input id="rx-address" {...form.register("patient_address")} />
           </Field>
+          <Field
+            id="rx-prescriber-address"
+            label="Prescriber address (if written)"
+            error={errors.prescriber_address?.message}
+          >
+            <Input id="rx-prescriber-address" {...form.register("prescriber_address")} />
+          </Field>
         </div>
+        <fieldset className="space-y-3">
+          <legend className="font-medium">Prescribed</legend>
+          {lines.fields.map((line, i) => (
+            <div key={line.fieldKey} className="grid gap-3 rounded-md border p-3 sm:grid-cols-4">
+              <Field
+                id={`rx-line-${i}-as`}
+                label="As written"
+                error={errors.lines?.[i]?.prescribed_as?.message}
+              >
+                <Input id={`rx-line-${i}-as`} {...form.register(`lines.${i}.prescribed_as`)} />
+              </Field>
+              <FormSelectField
+                control={form.control}
+                name={`lines.${i}.product_id`}
+                id={`rx-line-${i}-product`}
+                label="Dispensed as"
+                options={products.items.map((p) => ({
+                  value: p.id,
+                  label: `${p.sku} · ${p.brand_name}`,
+                }))}
+              />
+              <Field
+                id={`rx-line-${i}-units`}
+                label="Total units"
+                error={errors.lines?.[i]?.quantity_units?.message}
+              >
+                <Input
+                  id={`rx-line-${i}-units`}
+                  type="number"
+                  step="1"
+                  {...form.register(`lines.${i}.quantity_units`, { valueAsNumber: true })}
+                />
+              </Field>
+              <Field
+                id={`rx-line-${i}-dispensings`}
+                label="Times it may be dispensed"
+                error={errors.lines?.[i]?.dispensings_allowed?.message}
+              >
+                <Input
+                  id={`rx-line-${i}-dispensings`}
+                  type="number"
+                  step="1"
+                  {...form.register(`lines.${i}.dispensings_allowed`, { valueAsNumber: true })}
+                />
+              </Field>
+              {lines.fields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="sm:col-span-4 justify-self-start"
+                  onClick={() => lines.remove(i)}
+                >
+                  Remove line {i + 1}
+                </Button>
+              )}
+            </div>
+          ))}
+          {errors.lines?.message && (
+            <p role="alert" className="text-sm text-destructive">
+              {errors.lines.message}
+            </p>
+          )}
+          {lines.fields.length < 20 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                lines.append({
+                  prescribed_as: "",
+                  product_id: "",
+                  quantity_units: 1,
+                  dispensings_allowed: 1,
+                })
+              }
+            >
+              Add a prescribed line
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground">
+            A prescription is dispensed once unless the prescriber states it may be dispensed more
+            often.
+          </p>
+        </fieldset>
         <Button type="submit" disabled={save.isPending}>
           {save.isPending ? "Recording…" : "Record prescription"}
         </Button>

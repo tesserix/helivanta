@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { chooseOption } from "../../test/select";
 import { Prescriptions } from "./prescriptions";
 
 const scope = {
@@ -9,6 +10,7 @@ const scope = {
   outletId: "0199e000-0000-7000-8000-000000000001",
 };
 const rxId = "0199e000-0000-7000-8000-000000000040";
+const productId = "0199e000-0000-7000-8000-000000000003";
 const page = (data: unknown[]) => ({
   data,
   page: { has_more: false, next_cursor: null, total: data.length, offset: 0 },
@@ -22,6 +24,8 @@ const prescription = {
   prescribed_on: "2026-10-30",
   patient_name: "TEST Ravi Kumar",
   patient_address: null,
+  prescriber_address: null,
+  lines: [],
   recorded_by: "user-pharmacist",
   created_at: "2026-11-01T06:30:00Z",
 };
@@ -58,6 +62,19 @@ function fixture(options: { record?: (init: RequestInit) => Response; images?: u
         })
       );
     if (url.includes("/prescriptions?")) return new Response(JSON.stringify(page([prescription])));
+    if (url.includes("/catalogue/products"))
+      return new Response(
+        JSON.stringify(
+          page([
+            {
+              id: productId,
+              sku: "TEST-AMOX-500",
+              brand_name: "TEST Amoxicillin",
+              status: "active",
+            },
+          ]),
+        ),
+      );
     if (url.includes(`/prescriptions/${rxId}/images/`) && url.endsWith("/retry/2"))
       return new Response(
         JSON.stringify({
@@ -80,10 +97,19 @@ async function fillPrescription(user: ReturnType<typeof renderWithProviders>["us
   await user.type(screen.getByLabelText("Council"), "Maharashtra Medical Council");
   await user.type(screen.getByLabelText("Prescription date"), "2026-10-30");
   await user.type(screen.getByLabelText("Patient"), "TEST Ravi Kumar");
+  await user.type(screen.getByLabelText("Prescriber address (if written)"), "TEST 12 Clinic Lane");
+  await user.type(screen.getByLabelText("As written"), "Amoxicillin 500 mg");
+  await chooseOption(user, screen.getByLabelText("Dispensed as"), /TEST-AMOX-500/);
+  const units = screen.getByLabelText("Total units");
+  await user.clear(units);
+  await user.type(units, "20");
+  const times = screen.getByLabelText("Times it may be dispensed");
+  await user.clear(times);
+  await user.type(times, "2");
 }
 
 describe("Prescriptions", () => {
-  it("records a prescription without an empty address and opens its pages", async () => {
+  it("records what was prescribed, without an empty patient address, and opens its pages", async () => {
     const fetcher = fixture();
     const { user } = renderWithProviders(<Prescriptions scope={scope} canRecord />);
     expect(await screen.findByText("TEST Ravi Kumar")).toBeVisible();
@@ -97,6 +123,15 @@ describe("Prescriptions", () => {
       prescriber_council: "Maharashtra Medical Council",
       prescribed_on: "2026-10-30",
       patient_name: "TEST Ravi Kumar",
+      prescriber_address: "TEST 12 Clinic Lane",
+      lines: [
+        {
+          prescribed_as: "Amoxicillin 500 mg",
+          product_id: productId,
+          quantity_units: 20,
+          dispensings_allowed: 2,
+        },
+      ],
     });
     expect(await screen.findByRole("heading", { name: "Pages for TEST Ravi Kumar" })).toBeVisible();
     expect(screen.getByText("No pages attached yet.")).toBeVisible();

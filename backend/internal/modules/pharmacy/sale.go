@@ -378,7 +378,7 @@ func (h *catalogueHandlers) getSaleAvailability(c *gin.Context) {
 		return
 	}
 	var units int64
-	var nearest *string
+	var nearest, class *string
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		var found int64
 		if err := tx.Raw(`SELECT count(*) FROM pharmacy_catalogue_products WHERE tenant_id=? AND outlet_id=? AND id=?`, p.TenantID, outlet, product).Scan(&found).Error; err != nil {
@@ -401,13 +401,22 @@ func (h *catalogueHandlers) getSaleAvailability(c *gin.Context) {
 				nearest = &buckets[0].ExpiresOn
 			}
 		}
+		// The class in force tells the counter whether a line needs a
+		// prescription; the sale checks it again (B-2b).
+		var declared []struct{ RegulatoryClass string }
+		if err := tx.Raw(`SELECT regulatory_class FROM pharmacy_product_schedule_in_force(?, ?, ?)`, p.TenantID, outlet, product).Scan(&declared).Error; err != nil {
+			return err
+		}
+		if len(declared) == 1 {
+			class = &declared[0].RegulatoryClass
+		}
 		return nil
 	})
 	if err != nil {
 		stockError(c, err)
 		return
 	}
-	respond.OK(c, gin.H{"product_id": product, "sellable_units": units, "nearest_expiry": nearest})
+	respond.OK(c, gin.H{"product_id": product, "sellable_units": units, "nearest_expiry": nearest, "regulatory_class": class})
 }
 
 // saleSeller is everything the invoice says about the outlet, checked

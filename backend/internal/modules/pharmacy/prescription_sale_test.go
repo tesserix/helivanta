@@ -73,6 +73,8 @@ func TestAScheduleHSaleDispensesAgainstItsPrescription(t *testing.T) {
 	w.shelve(t, h, "2028-06-30", 12500, 30)
 	rx := w.prescribe(t, h, 20, 1, false)
 
+	avail := do(w.r, "GET", salePath("/availability?product_id="+h), "pharmacist", "")
+	require.Contains(t, avail.Body.String(), `"regulatory_class":"H"`, "the counter learns the line needs a prescription")
 	open := do(w.r, "GET", licencePath("/prescriptions/open-lines?product_id="+h), "pharmacist", "")
 	require.Equal(t, http.StatusOK, open.Code, open.Body.String())
 	require.Contains(t, open.Body.String(), rx)

@@ -10,6 +10,7 @@ const scope = {
   outletId: "0199e000-0000-7000-8000-000000000001",
 };
 const productId = "0199e000-0000-7000-8000-000000000003";
+const rxId = "0199e000-0000-7000-8000-000000000040";
 const page = (data: unknown[]) => ({
   data,
   page: { has_more: false, next_cursor: null, total: data.length, offset: 0 },
@@ -61,6 +62,8 @@ function fixture(
     quote?: () => Response;
     sale?: (init: RequestInit) => Response;
     saveProfile?: (init: RequestInit) => Response;
+    rxClass?: string;
+    saleLine?: typeof line & { prescription_id?: string; prescription_line?: number };
   } = {},
 ) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -95,6 +98,28 @@ function fixture(
           product_id: productId,
           sellable_units: 105,
           nearest_expiry: "2027-03-31",
+          regulatory_class: options.rxClass ?? "none",
+        }),
+      );
+    if (url.includes("/prescriptions/open-lines"))
+      return new Response(
+        JSON.stringify({
+          lines: [
+            {
+              prescription_id: rxId,
+              line_number: 1,
+              prescribed_as: "Amoxicillin 500 mg",
+              product_id: productId,
+              quantity_units: 20,
+              dispensings_allowed: 2,
+              units_remaining: 20,
+              dispensings_remaining: 2,
+              prescribed_on: "2026-10-30",
+              prescriber_name: "TEST Dr Asha Rao",
+              patient_name: "TEST Ravi Kumar",
+              addresses_on_file: true,
+            },
+          ],
         }),
       );
     if (url.endsWith("/sales/quote"))
@@ -116,7 +141,7 @@ function fixture(
             actor_subject: "user-pharmacist",
             created_at: "2026-11-01T06:30:00Z",
             class_origin: "declared_by_outlet",
-            lines: [line],
+            lines: [options.saleLine ?? line],
             tenders: [
               {
                 tender_number: 1,
@@ -304,5 +329,75 @@ describe("CounterSale", () => {
       .map(([url]) => url);
     expect(ids).toHaveLength(2);
     expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("dispenses a Schedule H line only against a chosen prescription and reminds to endorse it", async () => {
+    const rxLine = { ...line, regulatory_class: "H", prescription_id: rxId, prescription_line: 1 };
+    const fetcher = fixture({
+      rxClass: "H",
+      saleLine: rxLine,
+      quote: () => new Response(JSON.stringify({ ...totals, lines: [rxLine] })),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await chooseOption(user, await screen.findByLabelText("Product"), /TEST-PCM-500/);
+    const units = screen.getByLabelText("Units");
+    await user.clear(units);
+    await user.type(units, "8");
+    await user.click(screen.getByRole("button", { name: "Add to basket" }));
+    expect(
+      await screen.findByText("Schedule H: choose the prescription this is dispensed against"),
+    ).toBeVisible();
+    expect(screen.queryByRole("list", { name: "Basket" })).toBeNull();
+
+    await chooseOption(
+      user,
+      screen.getByLabelText("Prescription (Schedule H)"),
+      /TEST Ravi Kumar · TEST Dr Asha Rao · 2026-10-30 · 20 units, 2 dispensings left/,
+    );
+    await user.click(screen.getByRole("button", { name: "Add to basket" }));
+    expect(await screen.findByText(/× 8 · on prescription/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await user.click(await screen.findByRole("button", { name: "Post sale" }));
+    expect(await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" })).toBeVisible();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Endorse the prescription: note TEST Main Pharmacy LLP, TEST 1 Market Road and 2026-11-01",
+    );
+
+    const cited = {
+      product_id: productId,
+      quantity_units: 8,
+      prescription: { prescription_id: rxId, line_number: 1 },
+    };
+    const quote = fetcher.mock.calls.find(([url]) => String(url).endsWith("/sales/quote"));
+    expect(JSON.parse(String(quote?.[1]?.body))).toEqual({ lines: [cited] });
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    expect(JSON.parse(String(put?.[1]?.body)).lines).toEqual([cited]);
+  });
+
+  it("records a walk-in buyer only when given, and asks no endorsement for OTC", async () => {
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    expect(screen.queryByLabelText(/Prescription/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await screen.findByLabelText("Buyer name (optional)");
+    await user.type(screen.getByLabelText("Buyer phone (optional)"), "12");
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText("Use 6 to 15 digits, with an optional +")).toBeVisible();
+    await user.clear(screen.getByLabelText("Buyer phone (optional)"));
+    await user.type(screen.getByLabelText("Buyer name (optional)"), "TEST Walk In");
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" })).toBeVisible();
+    expect(screen.queryByRole("note")).toBeNull();
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    expect(JSON.parse(String(put?.[1]?.body)).buyer).toEqual({ name: "TEST Walk In" });
   });
 });

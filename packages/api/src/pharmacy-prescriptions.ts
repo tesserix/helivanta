@@ -32,14 +32,50 @@ export const prescriptionInputSchema = z
     prescribed_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the prescription date"),
     patient_name: text(200, "patient's name"),
     patient_address: text(500, "patient's address").optional(),
+    prescriber_address: text(500, "prescriber's address").optional(),
+    // What the prescriber wrote (#1386 B-2b; Drugs Rules 1945, Rule 65(10)–(11)).
+    lines: z
+      .array(
+        z
+          .object({
+            prescribed_as: text(200, "drug as written"),
+            product_id: identifier,
+            quantity_units: z
+              .number({ message: "Enter the total units prescribed" })
+              .int("Enter whole units")
+              .min(1, "At least one unit")
+              .max(100000, "At most 100,000 units"),
+            dispensings_allowed: z
+              .number({ message: "Enter how many times it may be dispensed" })
+              .int("Enter a whole number")
+              .min(1, "At least once")
+              .max(12, "At most 12 times"),
+          })
+          .strict(),
+      )
+      .min(1, "Add what was prescribed")
+      .max(20, "At most 20 lines"),
   })
   .strict();
 export type PrescriptionInput = z.infer<typeof prescriptionInputSchema>;
+
+const prescriptionLineSchema = z.object({
+  line_number: z.number().int().min(1),
+  prescribed_as: z.string(),
+  product_id: identifier,
+  quantity_units: z.number().int(),
+  dispensings_allowed: z.number().int(),
+  units_remaining: z.number().int(),
+  dispensings_remaining: z.number().int(),
+});
+export type PharmacyPrescriptionLine = z.infer<typeof prescriptionLineSchema>;
 
 export const prescriptionSchema = prescriptionInputSchema.extend({
   id: identifier,
   outlet_id: identifier,
   patient_address: z.string().nullable(),
+  prescriber_address: z.string().nullable(),
+  lines: z.array(prescriptionLineSchema),
   recorded_by: z.string(),
   created_at: z.string().datetime({ offset: true }),
 });
@@ -206,3 +242,12 @@ export async function downloadPrescriptionImage(
     throw new Error("The page download could not be verified.");
   return blob;
 }
+
+/** A prescription line the counter can still dispense (#1386 B-2b). */
+export type PharmacyOpenPrescriptionLine = PharmacyPrescriptionLine & {
+  prescription_id: string;
+  prescribed_on: string;
+  prescriber_name: string;
+  patient_name: string;
+  addresses_on_file: boolean;
+};

@@ -43,7 +43,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 }
 
 func serviceFor(deps platform.Deps) *service {
-	return newService(deps.Transit, newRazorpay(deps.PaymentsProviderURL))
+	return newService(deps.DB, deps.Transit, newRazorpay(deps.PaymentsProviderURL))
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -55,28 +55,55 @@ func (m *Module) Publishes() []string {
 		paymentscontract.SubjectIntentExpired, paymentscontract.SubjectIntentCancelled}
 }
 
+// Consumers record each request and cancel in the bus transaction and do
+// the provider calls after it commits (AfterCommit, run on every delivery),
+// so no consumer holds a database connection while Razorpay answers.
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	svc := serviceFor(deps)
+	requested := func(evt events.Event) (openRequest, error) {
+		var d pharmacycontract.PaymentRequestedData
+		err := json.Unmarshal(evt.Data, &d)
+		return openRequest{Requester: paymentscontract.RequesterPharmacy, RequestID: d.RequestID, AmountMinor: d.AmountMinor,
+			Currency: d.Currency, ExpiresInSeconds: d.ExpiresInSeconds}, err
+	}
+	cancelled := func(evt events.Event) (openRequest, error) {
+		var d pharmacycontract.PaymentCancelledData
+		err := json.Unmarshal(evt.Data, &d)
+		return openRequest{Requester: paymentscontract.RequesterPharmacy, RequestID: d.RequestID, AmountMinor: d.AmountMinor, Currency: d.Currency}, err
+	}
 	return []events.Consumer{{
 		Name:    "payments-pharmacy-request",
 		Subject: pharmacycontract.SubjectPaymentRequested,
-		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
-			var d pharmacycontract.PaymentRequestedData
-			if err := json.Unmarshal(evt.Data, &d); err != nil {
+		Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
+			r, err := requested(evt)
+			if err != nil {
 				return err
 			}
-			return svc.open(ctx, tx, evt.TenantID, openRequest{Requester: paymentscontract.RequesterPharmacy, RequestID: d.RequestID,
-				AmountMinor: d.AmountMinor, Currency: d.Currency, ExpiresInSeconds: d.ExpiresInSeconds})
+			return svc.record(tx, evt.TenantID, r)
+		},
+		AfterCommit: func(ctx context.Context, evt events.Event) error {
+			r, err := requested(evt)
+			if err != nil {
+				return err
+			}
+			return svc.open(tenantdb.WithActor(ctx, "system:payments-pharmacy-request"), evt.TenantID, r.Requester, r.RequestID)
 		},
 	}, {
 		Name:    "payments-pharmacy-cancel",
 		Subject: pharmacycontract.SubjectPaymentCancelled,
-		Handle: func(ctx context.Context, tx *gorm.DB, evt events.Event) error {
-			var d pharmacycontract.PaymentCancelledData
-			if err := json.Unmarshal(evt.Data, &d); err != nil {
+		Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
+			r, err := cancelled(evt)
+			if err != nil {
 				return err
 			}
-			return svc.cancel(ctx, tx, paymentscontract.RequesterPharmacy, d.RequestID)
+			return svc.requestCancel(tx, evt.TenantID, r)
+		},
+		AfterCommit: func(ctx context.Context, evt events.Event) error {
+			r, err := cancelled(evt)
+			if err != nil {
+				return err
+			}
+			return svc.cancelNow(tenantdb.WithActor(ctx, "system:payments-pharmacy-cancel"), evt.TenantID, r.Requester, r.RequestID)
 		},
 	}}
 }

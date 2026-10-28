@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,11 @@ func ReconcileOnce(ctx context.Context, deps platform.Deps) error {
 	return reconcileOnce(ctx, deps.DB, serviceFor(deps))
 }
 
+// reconcileWorkers bounds the checks a pass runs at once: a slow provider
+// then delays the pass by its slowest few calls, not by fifty in a row,
+// and no check holds a database connection while it waits.
+const reconcileWorkers = 8
+
 func reconcileOnce(ctx context.Context, db *tenantdb.DB, svc *service) error {
 	var due []struct {
 		TenantID uuid.UUID
@@ -53,30 +59,20 @@ func reconcileOnce(ctx context.Context, db *tenantdb.DB, svc *service) error {
 		return err
 	}
 	ctx = tenantdb.WithActor(ctx, "system:payments-reconciler")
+	slots := make(chan struct{}, reconcileWorkers)
+	var wg sync.WaitGroup
 	for _, d := range due {
-		err := db.WithTenant(ctx, d.TenantID.String(), func(tx *gorm.DB) error {
-			in, found, err := lockIntent(tx, false, "id=? AND next_check_at <= now()", d.ID)
-			if err != nil || !found {
-				return err
+		slots <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer func() { <-slots; wg.Done() }()
+			// check reschedules a failed intent itself (30 s, bounded for
+			// closed intents); the pass only reports it.
+			if err := svc.check(ctx, d.TenantID.String(), d.ID, "poll", false); err != nil {
+				slog.WarnContext(ctx, "payments check failed; retrying later", "tenant_id", d.TenantID, "intent_id", d.ID, "error", err)
 			}
-			closeAs := ""
-			if in.Status == "awaiting_payment" && !svc.now().Before(in.ExpiresAt) {
-				closeAs = "expired"
-			}
-			return svc.check(ctx, tx, in, "poll", closeAs)
-		})
-		if err == nil {
-			continue
-		}
-		// A provider outage must not stall the queue on one intent: push it
-		// back and try again later. The intent keeps its status, so the
-		// expiry decision still happens, just late.
-		slog.WarnContext(ctx, "payments check failed; retrying in 30s", "tenant_id", d.TenantID, "intent_id", d.ID, "error", err)
-		if err := db.WithTenant(ctx, d.TenantID.String(), func(tx *gorm.DB) error {
-			return tx.Exec(`UPDATE payment_intents SET next_check_at=now()+interval '30 seconds' WHERE id=? AND next_check_at IS NOT NULL`, d.ID).Error
-		}); err != nil {
-			return err
-		}
+		}()
 	}
+	wg.Wait()
 	return nil
 }

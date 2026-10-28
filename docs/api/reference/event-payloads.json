@@ -1209,17 +1209,25 @@
     }
   },
   "helivanta.in.pharmacy.payment_cancelled.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:170",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:171",
     "go_type": "PaymentCancelledData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
         "request_id": {
           "type": "string"
         }
       },
       "required": [
-        "request_id"
+        "request_id",
+        "amount_minor",
+        "currency"
       ],
       "type": "object"
     }

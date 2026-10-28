@@ -176,7 +176,7 @@ func (h *catalogueHandlers) cancelCounterPayment(c *gin.Context) {
 		if out, err = loadPaymentRequest(tx, outlet, id); err != nil || !moved {
 			return err
 		}
-		data, err := json.Marshal(pharmacycontract.PaymentCancelledData{RequestID: id.String()})
+		data, err := json.Marshal(pharmacycontract.PaymentCancelledData{RequestID: id.String(), AmountMinor: out.AmountMinor, Currency: out.Currency})
 		if err != nil {
 			return err
 		}

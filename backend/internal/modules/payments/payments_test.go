@@ -41,6 +41,7 @@ type fakeRazorpay struct {
 	opened   int
 	fetches  int
 	down     bool
+	delay    time.Duration
 	qrs      map[string]*fakeQR
 	byIntent map[string]string
 }
@@ -52,6 +53,10 @@ type fakeQR struct {
 }
 
 func (f *fakeRazorpay) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	delay := f.delay
+	f.mu.Unlock()
+	time.Sleep(delay)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, secret, _ := r.BasicAuth(); secret != "good-secret" {
@@ -341,7 +346,7 @@ func TestIntentLifecycle(t *testing.T) {
 }
 
 func cancel(t *testing.T, w *world, request string) {
-	data, _ := json.Marshal(pharmacycontract.PaymentCancelledData{RequestID: request})
+	data, _ := json.Marshal(pharmacycontract.PaymentCancelledData{RequestID: request, AmountMinor: 100, Currency: "INR"})
 	require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return events.Enqueue(tx, pharmacycontract.SubjectPaymentCancelled, events.Event{Type: "PaymentCancelled", Version: 1, TenantID: testutil.TenantA, Data: data})
 	}))
@@ -396,4 +401,83 @@ func TestWebhook(t *testing.T) {
 	w.waitFor(t, req, "intent_opened", "intent_paid")
 	// A verified event that names no QR of ours changes nothing.
 	require.Equal(t, http.StatusOK, w.deliver(path, "evt_2", "hook-secret", `{"event":"qr_code.credited","payload":{"qr_code":{"entity":{"id":"qr_unknown"}}}}`))
+}
+
+func (w *world) intentRow(t *testing.T, request string) (status string, lateLeft int) {
+	var row struct {
+		Status         string
+		LateChecksLeft int
+	}
+	require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT status, late_checks_left FROM payment_intents WHERE request_id=?`, request).Scan(&row).Error
+	}))
+	return row.Status, row.LateChecksLeft
+}
+
+// Reviewer findings I1-I3 and M1 (#1386 C-4a).
+func TestIntentEdges(t *testing.T) {
+	w := newWorld(t, vaultClient(t))
+	path := w.configure(t)
+
+	// A cancel that overtakes its request: cancelled at once, and no QR made.
+	early := uuid.Must(uuid.NewV7()).String()
+	cancel(t, w, early)
+	w.waitFor(t, early, "intent_cancelled")
+	w.publish(t, testutil.TenantA, early, 100)
+	time.Sleep(time.Second)
+	w.waitFor(t, early, "intent_cancelled")
+	opened, _ := w.fake.counts()
+	require.Zero(t, opened, "a cancelled request never opens a QR")
+
+	// Keys cannot change while a QR is open on them.
+	open := w.request(t, testutil.TenantA, 100)
+	w.waitFor(t, open, "intent_opened")
+	res := do(w.r, "PUT", "/v1/payments/razorpay-account", "admA", `{"mode":"test","key_id":"rzp_test_new","key_secret":"good-secret"}`)
+	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
+
+	// Razorpay's webhook for our own close does not spend a late check.
+	w.due(t, open, true)
+	w.waitFor(t, open, "intent_opened", "intent_expired")
+	body := fmt.Sprintf(`{"event":"qr_code.closed","payload":{"qr_code":{"entity":{"id":%q}}}}`, w.qrFor(t, open))
+	require.Equal(t, http.StatusOK, w.deliver(path, "evt_close", "hook-secret", body))
+	status, left := w.intentRow(t, open)
+	require.Equal(t, "expired", status)
+	require.Equal(t, 2, left)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", "/v1/payments/razorpay-account", "admA", `{"mode":"test","key_id":"rzp_test_new","key_secret":"good-secret"}`).Code,
+		"with nothing open the keys can change")
+
+	// An intent whose QR was never made is failed at the deadline.
+	stuck := uuid.Must(uuid.NewV7()).String()
+	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "test"), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO payment_intents (id,tenant_id,requester,request_id,amount_minor,currency,status,account_id,key_id,expires_at,next_check_at,created_at)
+			SELECT ?,?,'pharmacy',?,100,'INR','opening',id,key_id,now()+interval '5 minutes',now()-interval '1 second',now()-interval '1 minute' FROM payment_accounts`,
+			uuid.Must(uuid.NewV7()), testutil.TenantA, stuck).Error
+	}))
+	require.NoError(t, payments.ReconcileOnce(w.ctx, w.deps))
+	w.waitFor(t, stuck, "intent_failed")
+}
+
+// A slow provider must not take the shared connection pool with it.
+func TestSlowProviderHoldsNoConnections(t *testing.T) {
+	w := newWorld(t, vaultClient(t))
+	path := w.configure(t)
+	var bodies []string
+	for i := 0; i < 8; i++ {
+		req := w.request(t, testutil.TenantA, int64(100+i))
+		w.waitFor(t, req, "intent_opened")
+		bodies = append(bodies, fmt.Sprintf(`{"event":"qr_code.credited","payload":{"qr_code":{"entity":{"id":%q}}}}`, w.qrFor(t, req)))
+	}
+	w.fake.mu.Lock()
+	w.fake.delay = 3 * time.Second
+	w.fake.mu.Unlock()
+	var wg sync.WaitGroup
+	for i, body := range bodies {
+		wg.Add(1)
+		go func() { defer wg.Done(); w.deliver(path, fmt.Sprintf("evt_slow_%d", i), "hook-secret", body) }()
+	}
+	time.Sleep(500 * time.Millisecond)
+	start := time.Now()
+	require.Equal(t, http.StatusOK, do(w.r, "GET", "/v1/payments/razorpay-account", "admA", "").Code)
+	require.Less(t, time.Since(start), time.Second, "other routes answer while eight checks wait on the provider")
+	wg.Wait()
 }

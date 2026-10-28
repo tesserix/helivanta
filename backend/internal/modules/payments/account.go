@@ -160,8 +160,24 @@ func (h *accountHandlers) put(c *gin.Context) {
 		respond.Error(c, http.StatusServiceUnavailable, "service_unavailable", "encrypted credential storage is unavailable")
 		return
 	}
-	conflict := false
+	conflict, open := false, false
 	err = h.db.WithTenant(tenantdb.WithActor(ctx, p.Subject), p.TenantID, func(tx *gorm.DB) error {
+		// An open QR is checked with the keys it was made under; new keys
+		// could neither close nor read it, and its counter would wait for
+		// an answer that never comes. Locking the account row first makes a
+		// request recorded concurrently see either the old keys or none.
+		if current.ID != uuid.Nil && current.KeyID != in.KeyID {
+			if err := tx.Exec(`SELECT 1 FROM payment_accounts WHERE id=? FOR UPDATE`, current.ID).Error; err != nil {
+				return err
+			}
+			var n int64
+			if err := tx.Raw(`SELECT count(*) FROM payment_intents WHERE status IN ('opening','awaiting_payment')`).Scan(&n).Error; err != nil {
+				return err
+			}
+			if open = n > 0; open {
+				return nil
+			}
+		}
 		var res *gorm.DB
 		if current.ID == uuid.Nil {
 			// The ciphertexts are bound to next.ID; a concurrent first save
@@ -180,6 +196,10 @@ func (h *accountHandlers) put(c *gin.Context) {
 	})
 	if err != nil {
 		respond.InternalErr(c, err, "could not save the payment account")
+		return
+	}
+	if open {
+		respond.Conflict(c, "payments are still open on the current keys; change the key id once they have closed (at most a few minutes)")
 		return
 	}
 	if conflict {

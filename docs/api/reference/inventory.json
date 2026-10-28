@@ -3112,19 +3112,19 @@
         {
           "name": "payments-pharmacy-request",
           "subject": "helivanta.in.pharmacy.payment_requested.v1",
-          "after_commit": false
+          "after_commit": true
         },
         {
           "name": "payments-pharmacy-cancel",
           "subject": "helivanta.in.pharmacy.payment_cancelled.v1",
-          "after_commit": false
+          "after_commit": true
         }
       ],
       "broadcasts": [],
       "migrations": [
         {
           "id": "0001_payments",
-          "sql_sha256": "5850cabd94ab2961f9cd0c91738c17220ec368bcd6f8365d7131d150be4ab8aa",
+          "sql_sha256": "997bc43fbd7459d24129e811b7dc71c61bb1b929461acb30e101e342e4d5fe92",
           "creates_tables": [
             "payment_accounts",
             "payment_intents",

@@ -268,6 +268,8 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"pharmacy.PaymentRequestedData.Currency":                                   "ISO currency of the amount",
 	"pharmacy.PaymentRequestedData.ExpiresInSeconds":                           "how long the QR stays payable",
 	"pharmacy.PaymentCancelledData.RequestID":                                  "opaque id of the request to close",
+	"pharmacy.PaymentCancelledData.AmountMinor":                                "the request's amount, so a cancel that overtakes its request can stand in for it",
+	"pharmacy.PaymentCancelledData.Currency":                                   "ISO currency of that amount",
 	"pharmacy.CreditNoteIssuedData.PharmacyID":                                 "opaque pharmacy scope; no recipient, prescriber or hospital identity",
 	"pharmacy.CreditNoteIssuedData.OutletID":                                   "opaque outlet scope; protected lookup requires a live grant",
 	"pharmacy.CreditNoteIssuedData.CreditNoteID":                               "opaque credit note reference; the document itself needs a sale.read grant",

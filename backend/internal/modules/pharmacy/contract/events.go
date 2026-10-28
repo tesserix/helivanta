@@ -166,7 +166,10 @@ type PaymentRequestedData struct {
 	ExpiresInSeconds int    `json:"expires_in_seconds"`
 }
 
-// PaymentCancelledData names the request to close.
+// PaymentCancelledData names the request to close, with its amount so a
+// cancel that overtakes its request can stand in for it.
 type PaymentCancelledData struct {
-	RequestID string `json:"request_id"`
+	RequestID   string `json:"request_id"`
+	AmountMinor int64  `json:"amount_minor"`
+	Currency    string `json:"currency"`
 }

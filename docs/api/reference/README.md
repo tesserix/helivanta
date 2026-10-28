@@ -478,8 +478,8 @@ Published subjects:
 
 Subscriptions:
 
-- `payments-pharmacy-request` ← `helivanta.in.pharmacy.payment_requested.v1`; after-commit hook: false.
-- `payments-pharmacy-cancel` ← `helivanta.in.pharmacy.payment_cancelled.v1`; after-commit hook: false.
+- `payments-pharmacy-request` ← `helivanta.in.pharmacy.payment_requested.v1`; after-commit hook: true.
+- `payments-pharmacy-cancel` ← `helivanta.in.pharmacy.payment_cancelled.v1`; after-commit hook: true.
 
 Migration table declarations:
 

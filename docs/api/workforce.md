@@ -847,3 +847,40 @@ Design: [tax declaration evidence spec](../superpowers/specs/2026-10-19-tax-decl
 | `GET …/tax-declarations/{tax_year}/evidence/{file}/content`           | `workforce.payroll.view` and reader/manager grant         | Released bytes of an `available` file. Audited as `workforce.tax_declaration.evidence_downloaded`, `Cache-Control: private, no-store`                                                                                               |
 
 A decision or withdrawal answers 409 `evidence_scanning` while any of the proposal's files is `scan_pending`. A decision freezes the proposal's evidence. Approval keeps available files readable, while rejection and withdrawal revoke them, each with a `document_changed.v1` event. The database refuses to unfreeze a file or scan it again.
+
+### Identity review source (preparation)
+
+`GET /workforce/hospitals/:hospital/identity-staff/:id` returns the canonical
+`IdentitySource` from `contracts/workforce-identity-checks.json`. Workforce owns
+this hospital-scoped Staff/profile projection. It includes recorded names, staff
+code, date of birth, employment status, current Staff version, identity fingerprint
+and employment generation; it excludes contact details and private documents.
+The fingerprint excludes contact changes and binds tenant/hospital/Staff IDs,
+employee code, display/given/family names and DOB. A missing profile returns empty
+profile fields, not fabricated identity evidence.
+
+Every read requires a current IAM `workforce.identity_manager.v1` or
+`workforce.identity_reviewer.v1` assignment,
+active independently reviewed Staff/login binding, live credential/membership and
+current hospital scope. A legacy hospital manager or tenant permission alone is
+insufficient. IAM's transaction guard revalidates authority and holds it through
+Workforce source locks and sensitive-read audit commit. Missing assignment is 403;
+invisible target or inactive actor is 404; unavailable authority is 503. Responses
+use `Cache-Control: no-store` and contain no source data before successful commit.
+
+Migration `0048_workforce_identity_source` initializes the internal employment
+generation to 1 and increments it on every employment-status transition. Clients
+cannot set the counter. This is an observed-state generation, not a hire date or
+employment-period history. It does not implement exit/offboarding or verify an
+identity. Forward-only rollback retains the generation and audit data while
+stopping the consumer. RLS additions retain existing write/delete boundaries.
+
+IAM's canonical template catalogue now includes separate identity manager and
+reviewer templates. The existing assignment list remains leave-only; the additive
+`GET /iam/identity-assignment-proposals` lists identity templates and
+`GET /iam/staff-access-templates` exposes governance metadata. Existing assignment
+proposal/decision/history/activation commands retain independent review, current
+membership, scope epochs and immutable permission snapshots. The Staff access UI
+selects the appropriate assignment family. Both HR templates can read the current
+identity source; neither read performs a review decision. Identity/background/photo cases,
+evidence review and card issue remain separate unfinished workflows (#1399).

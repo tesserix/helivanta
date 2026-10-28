@@ -79,6 +79,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/identity-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/me/permissions",
           "permission": "no_tenant_membership",
           "authentication_required": true,
@@ -144,6 +153,15 @@
           "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/staff-access-templates",
+          "permission": "public",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -293,6 +311,11 @@
         {
           "id": "0013_iam_identity_guard",
           "sql_sha256": "1ffcd82cf2fa686843791b179d5b3cd8790ae7fdcdae596d32646ccbfe6d9040",
+          "creates_tables": []
+        },
+        {
+          "id": "0014_iam_staff_templates",
+          "sql_sha256": "4ef69328d0c9353325b90d5b66feeac5823d4529239b03992da69e6dd9dff1bc",
           "creates_tables": []
         }
       ]
@@ -5807,6 +5830,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/insights",
           "permission": "public",
           "authentication_required": true,
@@ -6326,6 +6358,14 @@
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.identity_checks.manage",
+          "roles": []
+        },
+        {
+          "permission": "workforce.identity_checks.review",
+          "roles": []
+        },
         {
           "permission": "workforce.login_links.manage",
           "roles": []
@@ -7042,6 +7082,11 @@
         {
           "id": "0047_workforce_document_recovery",
           "sql_sha256": "435ce5712f68d07fcef6adbe93e9fc46af8fe97e167bba6794a2f381b7e41b69",
+          "creates_tables": []
+        },
+        {
+          "id": "0048_workforce_identity_source",
+          "sql_sha256": "6864f0d7f3de70f5d9f30dc22b2c9c46991f24eb5986afc42050d5bfa6ef02cc",
           "creates_tables": []
         }
       ]

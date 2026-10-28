@@ -14,7 +14,11 @@ export const ProposalInputContract = z
       .regex(new RegExp("^[^\\s*#:]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
-    template_key: z.enum(["workforce.leave_reviewer.v1"]),
+    template_key: z.enum([
+      "workforce.leave_reviewer.v1",
+      "workforce.identity_manager.v1",
+      "workforce.identity_reviewer.v1",
+    ]),
     reason: z
       .string()
       .min(1)
@@ -163,3 +167,30 @@ export const MemberGrantResultContract = z
   })
   .strict();
 export type MemberGrantResult = z.infer<typeof MemberGrantResultContract>;
+
+export const TemplateDefinitionContract = z
+  .object({
+    key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    description: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    family: z
+      .string()
+      .min(1)
+      .max(30)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    permissions: z.array(z.string()).max(32),
+  })
+  .strict();
+export type TemplateDefinition = z.infer<typeof TemplateDefinitionContract>;

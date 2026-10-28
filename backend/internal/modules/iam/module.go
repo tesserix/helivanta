@@ -261,7 +261,7 @@ ALTER TABLE login_attempt
 			ADD CONSTRAINT iam_credential_revocations_reason_check
 			CHECK (reason IN ('sign_out','admin_revoke','identity_inactive')) NOT VALID;
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
-	}}
+	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}}
 }
 
 type role struct {

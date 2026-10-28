@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
-import { PageHeading, Panel, LoadMore, formatDateTime } from "@helivanta/ui";
+import { PageHeading, Panel, LoadMore, SelectControl, Field, formatDateTime } from "@helivanta/ui";
 import {
   useApiQuery,
   useStaffAssignments,
@@ -11,6 +11,8 @@ import {
   type StaffAssignment,
   type StaffAssignmentDecision,
   type StaffAssignmentScope,
+  type StaffAssignmentFamily,
+  staffAccessTemplates,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
 import { StaffMembershipForm } from "./membership-form";
@@ -67,7 +69,8 @@ export default function StaffAccessPage() {
 
 function Assignments({ identity }: { identity: Identity }) {
   const scope: StaffAssignmentScope = { tenantId: identity.tenant_id, subject: identity.subject };
-  const records = useStaffAssignments(scope);
+  const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
+  const records = useStaffAssignments(scope, family);
   const [proposing, setProposing] = useState(false);
   const [notice, setNotice] = useState("");
   const [now, setNow] = useState(Date.now);
@@ -80,15 +83,30 @@ function Assignments({ identity }: { identity: Identity }) {
   return (
     <Panel className="space-y-4">
       <p>
-        Active leave-review assignments enable the Review leave page when the account also has an
-        independently approved staff link. Both must remain current. These assignments grant no
-        hospital administration, payroll or clinical authority.
+        {family === "leave"
+          ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
+          : "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
         manager grant. The reviewer must be different from the proposer and the account receiving
         access.
       </p>
+      <Field id="assignment-area" label="Assignment area">
+        <SelectControl
+          id="assignment-area"
+          value={family}
+          onValueChange={(value) => {
+            setFamily(value as StaffAssignmentFamily);
+            setProposing(false);
+            setNotice("");
+          }}
+          options={[
+            { value: "leave", label: "Leave review" },
+            { value: "identity", label: "Staff identity checks" },
+          ]}
+        />
+      </Field>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
@@ -111,6 +129,8 @@ function Assignments({ identity }: { identity: Identity }) {
       {notice && <p role="status">{notice}</p>}
       {proposing && (
         <AssignmentProposalForm
+          key={family}
+          family={family}
           scope={scope}
           onClose={() => setProposing(false)}
           onSaved={() => {
@@ -181,10 +201,18 @@ function AssignmentRecord({
       aria-label={`Assignment for ${item.input.subject}`}
       className="space-y-3 border-t border-border py-4"
     >
-      <h2 className="text-lg font-semibold">Leave reviewer · {item.input.subject}</h2>
+      <h2 className="text-lg font-semibold">
+        {staffAccessTemplates.find((template) => template.key === item.input.template_key)?.name ??
+          item.input.template_key}{" "}
+        · {item.input.subject}
+      </h2>
       <p>
         {labels[item.status]} · Version {item.version}
         {expired ? " · Expired" : ""}
+      </p>
+      <p>
+        {staffAccessTemplates.find((template) => template.key === item.input.template_key)?.name ??
+          item.input.template_key}
       </p>
       <p className="break-all">Hospital: {item.input.hospital_id}</p>
       <p>

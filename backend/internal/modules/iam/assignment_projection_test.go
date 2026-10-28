@@ -32,15 +32,18 @@ type pausedAssignmentWriter struct {
 	projected sync.Map
 }
 
-type scopedProbeIAM struct{ *iam.Module }
+type scopedProbeIAM struct {
+	*iam.Module
+	permission authz.Permission
+}
 
 func (m scopedProbeIAM) Routes(r *platform.Router, deps platform.Deps) {
 	m.Module.Routes(r, deps)
-	r.Group("/iam").POSTScopedHospital("/qa/hospitals/:hospital/review", assignmentLeaveApprove, "hospital", func(c *gin.Context) {
-		grant, ok := authz.HospitalScopeGrant(c, assignmentLeaveApprove, c.Param("hospital"))
+	r.Group("/iam").POSTScopedHospital("/qa/hospitals/:hospital/review", m.permission, "hospital", func(c *gin.Context) {
+		grant, ok := authz.HospitalScopeGrant(c, m.permission, c.Param("hospital"))
 		if ok {
 			_, otherAction := authz.HospitalScopeGrant(c, iam.PermMemberManage, c.Param("hospital"))
-			_, otherHospital := authz.HospitalScopeGrant(c, assignmentLeaveApprove, "00000000-0000-0000-0000-000000000001")
+			_, otherHospital := authz.HospitalScopeGrant(c, m.permission, "00000000-0000-0000-0000-000000000001")
 			respond.OK(c, gin.H{"assignment_id": grant.AssignmentID, "other_action": otherAction, "other_hospital": otherHospital})
 			return
 		}
@@ -93,6 +96,23 @@ func (w *pausedAssignmentWriter) ProjectScopedAssignment(ctx context.Context, a 
 }
 
 func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
+	exerciseAssignmentProjection(t, "workforce.leave_reviewer.v1", assignmentLeaveApprove)
+}
+
+func TestIdentityTemplateScope(t *testing.T) {
+	for _, template := range []struct {
+		key        string
+		permission authz.Permission
+	}{
+		{"workforce.identity_manager.v1", "workforce.identity_checks.manage"},
+		{"workforce.identity_reviewer.v1", "workforce.identity_checks.review"},
+	} {
+		t.Run(strings.TrimSuffix(strings.TrimPrefix(template.key, "workforce."), ".v1"), func(t *testing.T) { exerciseAssignmentProjection(t, template.key, template.permission) })
+	}
+}
+
+func exerciseAssignmentProjection(t *testing.T, templateKey string, permission authz.Permission) {
+	t.Helper()
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	writer := &pausedAssignmentWriter{Client: fga, gates: make(chan assignmentWriteGate, 1)}
@@ -101,18 +121,19 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 		Writer: writer, Roles: fga,
 		Tokens: map[string]string{"admin": testutil.TenantA, "reviewer": testutil.TenantA, "target": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {iam.PermMemberManage, assignmentHospitalManage, iam.PermAssignmentManage, assignmentLeaveApprove},
+			"admin":    {iam.PermMemberManage, assignmentHospitalManage, iam.PermAssignmentManage, permission},
 			"reviewer": {iam.PermAssignmentReview},
-		}, Modules: []platform.Module{scopedProbeIAM{iam.New(nil)}, assignmentWorkforceModule()},
+		}, Modules: []platform.Module{scopedProbeIAM{Module: iam.New(nil), permission: permission}, assignmentWorkforceModule()},
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, routeGraph) },
 	})
 	upstream := httptest.NewServer(r)
 	authority := iam.NewScopedAuthorizer(db, fga)
-	request := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: "user-target", Permission: "workforce.leave.approve"}
+	request := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: "user-target", Permission: permission}
 	t.Cleanup(upstream.Close)
 	gateway, err := globalapi.New(globalapi.Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
 	require.NoError(t, err)
 	call := func(method, path, token, body string, status int) *httptest.ResponseRecorder {
+		body = strings.ReplaceAll(body, "workforce.leave_reviewer.v1", templateKey)
 		t.Helper()
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -155,6 +176,18 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 	firstGate := assignmentWriteGate{started: make(chan struct{}), release: make(chan struct{}), fail: true}
 	writer.gates <- firstGate
 	first := approve()
+	familyPath := "/v1/iam/assignment-proposals?limit=50"
+	otherPath := "/v1/iam/identity-assignment-proposals?limit=50"
+	if templateKey != "workforce.leave_reviewer.v1" {
+		familyPath, otherPath = otherPath, familyPath
+	}
+	currentList := call("GET", familyPath, "admin", "", 200)
+	require.Contains(t, currentList.Body.String(), first)
+	otherList := call("GET", otherPath, "admin", "", 200)
+	require.NotContains(t, otherList.Body.String(), first, "legacy leave consumers must not receive identity assignments")
+	catalogue := call("GET", "/v1/iam/staff-access-templates", "admin", "", 200)
+	require.Contains(t, catalogue.Body.String(), templateKey)
+
 	epoch := func(c *assert.CollectT, wantEpoch, wantAck int64) {
 		require.NoError(c, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 			if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
@@ -202,6 +235,17 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 	require.Equal(t, first, grant.AssignmentID)
 	require.Equal(t, int64(4), grant.Version, "authority binds the reviewed immutable snapshot, not the activation history version")
 	require.Equal(t, int64(1), grant.ScopeEpoch)
+	for _, candidate := range []authz.Permission{"workforce.leave.approve", "workforce.identity_checks.manage", "workforce.identity_checks.review"} {
+		if candidate == request.Permission {
+			continue
+		}
+		other := request
+		other.Permission = candidate
+		denied, e := authority.AuthorizeScope(t.Context(), other)
+		require.NoError(t, e)
+		require.Empty(t, denied.AssignmentID, "templates must not confer another family's permission")
+	}
+
 	guard, supportsCommandGuard := authority.(authz.ScopedCommandGuard)
 	require.True(t, supportsCommandGuard, "the IAM provider must guard the real product transaction")
 	guardCtx := tenantdb.WithActor(t.Context(), request.Subject)
@@ -288,9 +332,9 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 		require.NotContains(t, e.Error(), "private")
 		require.Empty(t, denied.AssignmentID)
 	}
-	snapshot := authz.ScopedAssignment{TenantID: testutil.TenantA, HospitalID: hospital, ScopeKind: "hospital", ScopeID: hospital, ID: first, Version: 4, Subject: "user-target", Permissions: []authz.Permission{"workforce.leave.approve"}}
+	snapshot := authz.ScopedAssignment{TenantID: testutil.TenantA, HospitalID: hospital, ScopeKind: "hospital", ScopeID: hospital, ID: first, Version: 4, Subject: "user-target", Permissions: []authz.Permission{permission}}
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		allowed, e := fga.CheckScopedAssignment(t.Context(), snapshot, "user-target", "workforce.leave.approve")
+		allowed, e := fga.CheckScopedAssignment(t.Context(), snapshot, "user-target", permission)
 		require.NoError(c, e)
 		require.True(c, allowed)
 	}, 20*time.Second, 100*time.Millisecond)
@@ -410,7 +454,7 @@ func TestAssignmentProjectionAcknowledgesOnlyCurrentScope(t *testing.T) {
 	call("POST", "/v1/iam/assignment-proposals/"+first+"/decision", "reviewer", `{"expected_version":2,"decision":"approve","reason":"Independent synthetic projection review"}`, 404)
 	// Old graph tuples can become true again after re-enrollment. They are not authority.
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		allowed, e := fga.CheckScopedAssignment(t.Context(), snapshot, "user-target", "workforce.leave.approve")
+		allowed, e := fga.CheckScopedAssignment(t.Context(), snapshot, "user-target", permission)
 		require.NoError(c, e)
 		require.True(c, allowed)
 	}, 20*time.Second, 100*time.Millisecond)

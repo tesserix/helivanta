@@ -20,6 +20,8 @@ import {
   type StaffAssignmentScope,
   type Hospital,
   type Page,
+  type StaffAssignmentFamily,
+  staffAccessTemplates,
 } from "@helivanta/api";
 
 function failure(error: Error) {
@@ -39,6 +41,7 @@ const dateTime = z
 const proposalForm = z
   .object({
     hospital_id: staffAssignmentInputContract.shape.hospital_id,
+    template_key: staffAssignmentInputContract.shape.template_key,
     subject: z
       .string()
       .trim()
@@ -65,7 +68,12 @@ const proposalForm = z
   });
 
 type FormProps = { scope: StaffAssignmentScope; onClose: () => void; onSaved: () => void };
-export function AssignmentProposalForm({ scope, onClose, onSaved }: FormProps) {
+export function AssignmentProposalForm({
+  scope,
+  onClose,
+  onSaved,
+  family = "leave",
+}: FormProps & { family?: StaffAssignmentFamily }) {
   const [id] = useState(() => newStaffAssignmentId());
   const [submitted, setSubmitted] = useState<StaffAssignmentInput | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -79,6 +87,7 @@ export function AssignmentProposalForm({ scope, onClose, onSaved }: FormProps) {
   );
   const [defaults] = useState(() => ({
     hospital_id: "",
+    template_key: staffAccessTemplates.find((template) => template.family === family)!.key,
     subject: "",
     reason: "",
     valid_from: localTime(new Date()),
@@ -102,7 +111,7 @@ export function AssignmentProposalForm({ scope, onClose, onSaved }: FormProps) {
       onSubmit={form.handleSubmit((values) => {
         const command = submitted ?? {
           ...values,
-          template_key: "workforce.leave_reviewer.v1" as const,
+
           valid_from: new Date(values.valid_from).toISOString(),
           expires_at: new Date(values.expires_at).toISOString(),
         };
@@ -110,7 +119,17 @@ export function AssignmentProposalForm({ scope, onClose, onSaved }: FormProps) {
         save.mutate(command);
       })}
     >
-      <h2 className="text-lg font-semibold">Propose leave reviewer</h2>
+      <h2 className="text-lg font-semibold">Propose staff access</h2>
+      <FormSelectField
+        control={form.control}
+        name="template_key"
+        id="assignment-template"
+        label="Access template"
+        disabled={!!submitted}
+        options={staffAccessTemplates
+          .filter((template) => template.family === family)
+          .map((template) => ({ value: template.key, label: template.name }))}
+      />
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (

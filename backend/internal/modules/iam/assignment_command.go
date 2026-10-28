@@ -12,7 +12,7 @@ import (
 )
 
 func (h *assignmentAuthority) WithScopeGrant(ctx context.Context, r authz.ScopeRequest, grant authz.ScopeGrant, authTime time.Time, action func(context.Context) error) error {
-	if h.db == nil || h.graph == nil || action == nil || authTime.IsZero() || r.Subject == "" || r.Permission != "workforce.leave.approve" || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 {
+	if h.db == nil || h.graph == nil || action == nil || authTime.IsZero() || r.Subject == "" || !staffAccessPermissionSupported(r.Permission) || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	for _, value := range []string{r.TenantID, r.HospitalID, grant.AssignmentID} {

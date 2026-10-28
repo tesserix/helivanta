@@ -44,7 +44,7 @@ func (h *assignmentAuthority) AuthorizeScope(ctx context.Context, r authz.ScopeR
 			return empty, nil
 		}
 	}
-	if !proposalSubject(r.Subject) || r.Permission != "workforce.leave.approve" {
+	if !proposalSubject(r.Subject) || !staffAccessPermissionSupported(r.Permission) {
 		return empty, nil
 	}
 	if h.db == nil || h.graph == nil {

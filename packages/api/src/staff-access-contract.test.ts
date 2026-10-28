@@ -10,6 +10,15 @@ const proposalInput = {
   valid_from: "2026-10-27T00:00:00Z",
   expires_at: "2026-10-28T00:00:00Z",
 };
+
+it("accepts the separately reviewed hospital identity-check templates", () => {
+  for (const template_key of ["workforce.identity_manager.v1", "workforce.identity_reviewer.v1"]) {
+    expect(ProposalInputContract.safeParse({ ...proposalInput, template_key }).success).toBe(true);
+  }
+  for (const template_key of ["tenant_admin", "workforce.identity_admin.v1", "iam.member.manage"]) {
+    expect(ProposalInputContract.safeParse({ ...proposalInput, template_key }).success).toBe(false);
+  }
+});
 it("accepts subject identifiers and rejects NUL or authority delimiters", () => {
   expect(ProposalInputContract.safeParse(proposalInput).success).toBe(true);
   for (const subject of [

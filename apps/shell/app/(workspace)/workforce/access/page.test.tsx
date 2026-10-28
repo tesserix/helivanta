@@ -240,3 +240,31 @@ it("marks invalid proposal fields for assistive technology", async () => {
   );
   expect(screen.getByLabelText("Reason", { exact: true })).toHaveAttribute("aria-invalid", "true");
 });
+
+it("offers canonical identity templates separately from leave assignments", async () => {
+  setup();
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(screen.getByRole("option", { name: "Staff identity checks" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Staff identity checks manager");
+  expect(templates).toHaveTextContent("Staff identity checks reviewer");
+  expect(templates).not.toHaveTextContent("Leave reviewer");
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([url]) => String(url).includes("/iam/identity-assignment-proposals?")),
+  ).toBe(true);
+});
+
+it("identifies HR assignment records using the canonical template name", async () => {
+  setup("reviewer", [
+    { ...row, input: { ...row.input, template_key: "workforce.identity_manager.v1" } },
+  ]);
+  renderWithProviders(<AccessPage />);
+  expect(
+    await screen.findByRole("heading", { name: "Staff identity checks manager · candidate" }),
+  ).toBeInTheDocument();
+});

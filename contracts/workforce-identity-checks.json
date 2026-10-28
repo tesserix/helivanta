@@ -5,13 +5,41 @@
   },
   "models": {
     "IdentitySource": [
-      { "name": "hospital_id", "type": "uuid" },
-      { "name": "staff_id", "type": "uuid" },
-      { "name": "employee_code", "type": "string", "min": 1, "max": 40 },
-      { "name": "display_name", "type": "string", "min": 1, "max": 150 },
-      { "name": "given_name", "type": "string", "max": 100 },
-      { "name": "family_name", "type": "string", "max": 100 },
-      { "name": "date_of_birth", "type": "string", "max": 10 },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "min": 1,
+        "max": 150
+      },
+      {
+        "name": "given_name",
+        "type": "string",
+        "max": 100
+      },
+      {
+        "name": "family_name",
+        "type": "string",
+        "max": 100
+      },
+      {
+        "name": "date_of_birth",
+        "type": "string",
+        "max": 10
+      },
       {
         "name": "employment_status",
         "type": "string",
@@ -35,7 +63,167 @@
         "min": 64,
         "max": 64,
         "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "manage_checks_allowed",
+        "type": "bool",
+        "optional": true
+      }
+    ],
+    "IdentityCaseDraftInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["identity", "background", "photograph"]
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 300,
+        "format": "text"
+      },
+      {
+        "name": "check_reference",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "observed_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "valid_until",
+        "type": "time"
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      }
+    ],
+    "IdentityCase": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "draft",
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "revoked"
+        ]
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["identity", "background", "photograph"]
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 300,
+        "format": "text"
+      },
+      {
+        "name": "check_reference",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "observed_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "valid_until",
+        "type": "time"
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
       }
     ]
+  },
+  "source_projection": {
+    "query_key": "projection",
+    "draft_value": "identity_drafts"
   }
 }

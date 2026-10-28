@@ -45,11 +45,12 @@ export type UseApiPagedQueryResult<T> = {
 export function useApiPagedQuery<T>(
   key: unknown[],
   path: string,
-  opts: { poll?: boolean; request?: ApiQueryRequest; enabled?: boolean } = {},
+  opts: { poll?: boolean; request?: ApiQueryRequest; enabled?: boolean; gcTime?: number } = {},
 ): UseApiPagedQueryResult<T> {
   const query = useInfiniteQuery({
     queryKey: [...key, path, opts.request?.body ?? null],
     enabled: opts.enabled,
+    ...(opts.gcTime === undefined ? {} : { gcTime: opts.gcTime }),
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) =>
       apiFetch<Page<T>>(

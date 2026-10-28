@@ -5979,6 +5979,42 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/checks",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id",
           "permission": "public",
           "authentication_required": true,
@@ -6645,6 +6681,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.identity_case_changed.v1",
         "helivanta.in.workforce.document_classification_changed.v1",
         "helivanta.in.workforce.assignment_scope_verified.v1",
         "helivanta.in.workforce.login_link_changed.v1",
@@ -7237,6 +7274,14 @@
           "id": "0048_workforce_identity_source",
           "sql_sha256": "6864f0d7f3de70f5d9f30dc22b2c9c46991f24eb5986afc42050d5bfa6ef02cc",
           "creates_tables": []
+        },
+        {
+          "id": "0049_workforce_identity_cases",
+          "sql_sha256": "55b37187bc629a775b7a3eeadcfba0ae3057f16884f008887f540c22c086efb0",
+          "creates_tables": [
+            "workforce_identity_cases",
+            "workforce_identity_case_history"
+          ]
         }
       ]
     },

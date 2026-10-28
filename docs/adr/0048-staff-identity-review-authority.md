@@ -116,3 +116,14 @@ legacy permission fallback is allowed. Unavailable authority fails closed before
 trying another role; only an authoritative denial permits checking the other
 scoped role. Future case mutation/decision commands keep their separate single
 manager/reviewer authority; source-read eligibility does not approve any check.
+
+## Draft preparation implementation
+
+The draft-only subset now implements create/edit/current/list/history with
+immutable commands and snapshots, forced RLS and metadata-only events. Canonical
+source capability is opt-in (`projection=identity_drafts`); case routes require
+both verified-tenant and account preconditions through Global API. This prevents
+a gateway lacking account-precondition forwarding from silently accepting a
+stale request. Migration 0049 is local only pending named production approval.
+Evidence binding, submission, independent decisions, photograph processing and
+cards above are still design requirements, not implemented APIs.

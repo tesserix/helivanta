@@ -19,6 +19,52 @@ function wrapper({ children }: { children: ReactNode }) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useApiPagedQuery", () => {
+  it("preserves query-client retention defaults when no override is supplied", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ data: [], page: { has_more: false, next_cursor: null } })),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const view = renderHook(() => useApiPagedQuery(["private-default"], "/private-default"), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(view.result.current.isPending).toBe(false));
+    view.unmount();
+    await waitFor(() =>
+      expect(client.getQueryCache().findAll({ queryKey: ["private-default"] })).toEqual([]),
+    );
+  });
+
+  it("removes private pages from the cache when their last viewer closes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          data: [{ id: "synthetic-private-case" }],
+          page: { has_more: false, next_cursor: null },
+        }),
+      ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = renderHook(
+      () => useApiPagedQuery(["private-cases"], "/private-cases", { gcTime: 0 }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    await waitFor(() =>
+      expect(view.result.current.items).toEqual([{ id: "synthetic-private-case" }]),
+    );
+    view.unmount();
+    await waitFor(() =>
+      expect(client.getQueryCache().findAll({ queryKey: ["private-cases"] })).toEqual([]),
+    );
+  });
+
   it("exposes a background refresh separately from loading another page", async () => {
     let finish: (response: Response) => void = () => {};
     const fetcher = vi

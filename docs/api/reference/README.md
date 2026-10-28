@@ -828,6 +828,10 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts/:id/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/shifts/:id` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check/history` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
@@ -889,6 +893,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.identity_case_changed.v1`
 - `helivanta.in.workforce.document_classification_changed.v1`
 - `helivanta.in.workforce.assignment_scope_verified.v1`
 - `helivanta.in.workforce.login_link_changed.v1`
@@ -973,6 +978,7 @@ Migration table declarations:
 - `0043_workforce_qualification_master_index`: concurrent index `workforce_qualification_master_ref_idx` on `workforce_enrollment_qualifications (tenant_id, hospital_id, qualification_revision_id)`.
 - `0045_workforce_contact_master_index`: concurrent index `workforce_contact_master_ref_idx` on `workforce_enrollment_emergency_contacts (tenant_id, hospital_id, relationship_revision_id)`.
 - `0046_workforce_document_classification`: `workforce_document_classification_revisions`, `workforce_document_classifications`.
+- `0049_workforce_identity_cases`: `workforce_identity_cases`, `workforce_identity_case_history`.
 
 ## workspace
 

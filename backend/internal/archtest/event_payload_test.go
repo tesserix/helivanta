@@ -153,6 +153,11 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"workforce.AssignmentScopeVerifiedData.HospitalID": "opaque scope reference; no hospital name",
 	"workforce.AssignmentScopeVerifiedData.Eligible":   "preliminary boolean owner-scope check, never an access grant",
 
+	"workforce.IdentityCaseChangedData.HospitalID":      "opaque hospital scope; protected owner lookup required",
+	"workforce.IdentityCaseChangedData.StaffID":         "opaque staff reference; no name, identity or background evidence",
+	"workforce.IdentityCaseChangedData.CaseID":          "opaque case reference; no policy, check reference or document location",
+	"workforce.IdentityCaseChangedData.Version":         "monotonic case revision for replay and ordering; no private review facts",
+	"workforce.IdentityCaseChangedData.Status":          "closed case lifecycle enum; no private decision reason or evidence",
 	"workforce.LoginLinkChangedData.HospitalID":         "opaque hospital scope; protected lookup required",
 	"workforce.LoginLinkChangedData.StaffID":            "opaque staff reference; no staff name or account subject",
 	"workforce.LoginLinkChangedData.LinkID":             "opaque reviewed binding reference; no account subject or review reason",

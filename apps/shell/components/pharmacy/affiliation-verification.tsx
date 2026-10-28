@@ -39,8 +39,7 @@ export function AffiliationVerification({
   const [confirming, setConfirming] = useState(false);
   const form = useZodForm(affiliationWithdrawSchema, { reason: "" });
   const ask = useApiMutation(
-    () =>
-      apiFetch(`${path}/verification-requests/${requestId}`, { method: "PUT", body: "{}" }),
+    () => apiFetch(`${path}/verification-requests/${requestId}`, { method: "PUT", body: "{}" }),
     {
       successToast: "Verification requested",
       invalidate: [invalidate],

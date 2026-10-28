@@ -23,7 +23,11 @@ const statusLabel: Record<PharmacyAffiliationReview["status"], string> = {
 };
 
 /** Pharmacies asking this hospital to verify their affiliation (#1416). */
-export function PharmacyAffiliationReviews({ hospital }: { hospital: { id: string; name: string } }) {
+export function PharmacyAffiliationReviews({
+  hospital,
+}: {
+  hospital: { id: string; name: string };
+}) {
   const key = ["patients", "pharmacy-affiliations", hospital.id];
   const reviews = useApiPagedQuery<PharmacyAffiliationReview>(
     key,
@@ -93,7 +97,10 @@ function ReviewItem({
     suppressErrorToast: true,
   };
   // One mutation per button, so each toast repeats its button's verb.
-  const mutations: Record<Outcome, ReturnType<typeof useApiMutation<unknown, z.infer<typeof pharmacyAffiliationDecisionSchema>>>> = {
+  const mutations: Record<
+    Outcome,
+    ReturnType<typeof useApiMutation<unknown, z.infer<typeof pharmacyAffiliationDecisionSchema>>>
+  > = {
     accepted: useApiMutation(put, { ...done, successToast: "Pharmacy verified" }),
     declined: useApiMutation(put, { ...done, successToast: "Request declined" }),
     revoked: useApiMutation(put, { ...done, successToast: "Verification revoked" }),

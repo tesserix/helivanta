@@ -2,12 +2,7 @@ import { z } from "zod";
 
 // A pharmacy's link to a hospital is verified by that hospital (#1416).
 export type AffiliationVerificationStatus =
-  | "pending_validation"
-  | "requested"
-  | "verified"
-  | "declined"
-  | "revoked"
-  | "withdrawn";
+  "pending_validation" | "requested" | "verified" | "declined" | "revoked" | "withdrawn";
 
 /** One step of an affiliation's verification history, oldest first by sequence. */
 export type AffiliationVerificationStep = {

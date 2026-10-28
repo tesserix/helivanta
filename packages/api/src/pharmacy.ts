@@ -94,10 +94,13 @@ export function formatRatePercent(ratePPM: number): string {
 export type PharmacyLocation = z.infer<typeof pharmacyLocationInputSchema> & {
   id: string;
   outlet_id: string;
-  stock_status: "quarantine";
+  stock_status: "quarantine" | "sellable";
   created_at: string;
 };
-export type PharmacyBatch = z.infer<typeof pharmacyBatchInputSchema> & {
+export type PharmacyBatch = Omit<z.infer<typeof pharmacyBatchInputSchema>, "mrp_minor"> & {
+  // Batches received before batch pricing (#1386 A3) have no MRP and can
+  // never be released.
+  mrp_minor: number | null;
   id: string;
   outlet_id: string;
   product_version: number;
@@ -131,7 +134,7 @@ export type PharmacyStockPosition = z.infer<typeof pharmacyStockExpiryFieldsSche
   unit_of_issue: string;
   lot_number: string;
   expires_on: string;
-  stock_status: "quarantine";
+  stock_status: "quarantine" | "sellable";
   expiry_status: "expired" | "unexpired";
   product_status: PharmacyProduct["status"];
   regulatory_status: "pending_review";
@@ -150,6 +153,140 @@ export type PharmacyStockReconciliation = {
   correction_units: string;
   closing_units: number;
   movement_count: number;
+};
+// Counter sale (#1386 B-1).
+export type PharmacyInvoiceProfile = {
+  id: string;
+  legal_name: string;
+  address: string;
+  invoice_prefix: string;
+  recorded_by: string;
+  created_at: string;
+};
+export type PharmacySaleLine = {
+  line_number: number;
+  product_id: string;
+  batch_id: string;
+  location_id: string;
+  lot_number: string;
+  expires_on: string;
+  regulatory_class: string;
+  classification_code: string;
+  supply_nature: "taxable" | "nil_rated" | "exempt";
+  rate_ppm: number;
+  mrp_minor: number;
+  pack_size: number;
+  quantity_units: number;
+  amount_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  /** The prescription line a G, H or H1 line dispenses (#1386 B-2b); null for OTC. */
+  prescription_id: string | null;
+  prescription_line: number | null;
+  /** Before discount; amount_minor is what is charged (#1386 B-3). */
+  list_amount_minor: number;
+  discount_bps: number;
+  discount_minor: number;
+  /** Units returned on credit notes so far (#1386 C-1); 0 on a quote. */
+  returned_units?: number;
+};
+export type PharmacySaleQuote = {
+  currency: string;
+  total_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  lines: PharmacySaleLine[];
+  nppa_ceiling_checked: false;
+};
+export type PharmacySaleTender = {
+  tender_number: number;
+  kind: "cash" | "upi" | "card";
+  amount_minor: number;
+  tendered_minor: number | null;
+  change_minor: number | null;
+  reference: string | null;
+};
+export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
+  id: string;
+  invoice_number: string;
+  financial_year: string;
+  sale_date: string;
+  seller_legal_name: string;
+  seller_address: string;
+  seller_gstin: string;
+  place_of_supply: string;
+  actor_subject: string;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  discount_reason: string | null;
+  discount_minor: number;
+  created_at: string;
+  class_origin: "declared_by_outlet";
+  lines: PharmacySaleLine[];
+  tenders: PharmacySaleTender[];
+};
+export type PharmacySaleAvailability = {
+  product_id: string;
+  sellable_units: number;
+  nearest_expiry: string | null;
+  /** The approved schedule class in force; null when none is approved. */
+  regulatory_class: "none" | "G" | "H" | "H1" | "X" | null;
+};
+/** A counter return as a GST credit note (#1386 C-1). */
+export type PharmacyCreditNoteLine = {
+  line_number: number;
+  sale_line: number;
+  product_id: string;
+  batch_id: string;
+  lot_number: string;
+  location_id: string;
+  classification_code: string;
+  rate_ppm: number;
+  quantity_units: number;
+  amount_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+};
+export type PharmacyCreditNote = {
+  id: string;
+  sale_id: string;
+  credit_note_number: string;
+  financial_year: string;
+  credit_note_date: string;
+  invoice_number: string;
+  invoice_date: string;
+  seller_legal_name: string;
+  seller_address: string;
+  seller_gstin: string;
+  place_of_supply: string;
+  currency: string;
+  total_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  reason: string;
+  recipient_name: string;
+  recipient_address: string;
+  actor_subject: string;
+  created_at: string;
+  lines: PharmacyCreditNoteLine[];
+  refunds: {
+    refund_number: number;
+    kind: "cash" | "upi" | "card";
+    amount_minor: number;
+    reference: string | null;
+  }[];
+};
+/** The outlet's discount ceiling in force (#1386 B-3). */
+export type PharmacyDiscountCeiling = {
+  id: string;
+  max_bps: number;
+  reason: string;
+  recorded_by: string;
+  created_at: string;
 };
 export type PharmacyScope = { tenantId: string; pharmacyId: string; outletId: string };
 export function pharmacyRoot(scope: PharmacyScope) {

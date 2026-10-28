@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import {
   taxScheme,
   type PharmacyProduct,
@@ -10,6 +11,10 @@ import {
 import { chooseOption } from "../../test/select";
 import { CataloguePanel } from "./catalogue-panel";
 import { ProductTaxSection, taxLabel } from "./tax-classification";
+
+// The catalogue guards unsaved edits through the shell's provider (#1303).
+const renderCatalogue = (ui: React.ReactElement) =>
+  renderWithProviders(<NavigationGuardProvider>{ui}</NavigationGuardProvider>);
 
 const scope = {
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
@@ -256,7 +261,7 @@ describe("CataloguePanel tax", () => {
         },
       ],
     );
-    const { user } = renderWithProviders(
+    const { user } = renderCatalogue(
       <CataloguePanel
         scope={scope}
         writable
@@ -278,7 +283,7 @@ describe("CataloguePanel tax", () => {
 
   it("offers no tax filter for a country without a scheme", async () => {
     serve(() => []);
-    renderWithProviders(
+    renderCatalogue(
       <CataloguePanel scope={scope} writable defaultCurrency="INR" countryCode="XX" />,
     );
     await screen.findAllByRole("listitem");
@@ -290,7 +295,7 @@ describe("CataloguePanel tax", () => {
   it("ignores a starting Not classified filter without a scheme", async () => {
     nav.search = "tax=unclassified";
     const { urls } = serve(() => []);
-    renderWithProviders(
+    renderCatalogue(
       <CataloguePanel scope={scope} writable defaultCurrency="INR" countryCode="XX" />,
     );
     await screen.findAllByRole("listitem");
@@ -314,7 +319,7 @@ describe("CataloguePanel pages", () => {
   it("requests the tab and search in the URL, counted", async () => {
     nav.search = "tab=active&q=par";
     const { urls } = serve(() => []);
-    renderWithProviders(panel());
+    renderCatalogue(panel());
     await screen.findAllByRole("listitem");
     expect(lists(urls)).toEqual([
       expect.stringMatching(/\/catalogue\/products\/counted\?status=active&q=par&limit=25$/),
@@ -326,7 +331,7 @@ describe("CataloguePanel pages", () => {
   it("starts a new search at page 1, keeping the tab", async () => {
     nav.search = "tab=active&page=2&cursor=c2";
     serve(() => []);
-    const { user } = renderWithProviders(panel());
+    const { user } = renderCatalogue(panel());
     await screen.findAllByRole("listitem");
     await user.type(screen.getByLabelText("Search by brand, generic or SKU"), "amox");
     await user.click(screen.getByRole("button", { name: "Search catalogue" }));
@@ -336,7 +341,7 @@ describe("CataloguePanel pages", () => {
   it("keeps the search when Not classified is pressed, and shows it pressed", async () => {
     nav.search = "q=amox";
     const { urls } = serve(() => []);
-    const { user } = renderWithProviders(panel());
+    const { user } = renderCatalogue(panel());
     await screen.findAllByRole("listitem");
     await user.click(screen.getByRole("button", { name: "Not classified" }));
     await waitFor(() => expect(nav.search).toBe("tab=all&q=amox&tax=unclassified"));
@@ -352,7 +357,7 @@ describe("CataloguePanel pages", () => {
   it("links each tab at page 1 with the filters", async () => {
     nav.search = "q=amox&tax=unclassified&page=2&cursor=c2";
     serve(() => []);
-    renderWithProviders(panel());
+    renderCatalogue(panel());
     await screen.findAllByRole("listitem");
     expect(screen.getByRole("link", { name: "Withdrawn" })).toHaveAttribute(
       "href",

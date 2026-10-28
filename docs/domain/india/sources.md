@@ -12,6 +12,40 @@ These sources support domain discovery and explicit review questions. Access sta
 | S02 | [MeitY DPDP Rules 2025, G.S.R. 846(E)](https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf), notification dated 13 November 2025; Gazette identifier dated 14 November; primary PDF opened                                       | Rule 1 sets phased commencement. Notification is not simultaneous commencement of every substantive obligation. Verify the separate Act commencement instrument, later amendments and relevant exceptions  |
 | S03 | [MeitY rules, corrigendum and Board document index](https://www.meity.gov.in/documents/act-and-policies/digital-personal-data-protection-rules-2025-gDOxUjMtQWa?pageTitle=Digit); indexed results inspected, direct page did not expose readable document content | Discovery point for current instruments, not evidence that every corrigendum was reviewed. Privacy/legal owner must retrieve and assess the applicable texts                                               |
 
+### Consent-source recheck — 2026-10-25
+
+The following primary PDFs were opened through the research browser. This updates
+source availability and review inputs only; it activates no tenant policy.
+
+- **S18:** [Act commencement, G.S.R. 843(E)](https://www.meity.gov.in/static/uploads/2025/11/c56ceae6c383460ca69577428d36828b.pdf),
+  notification 13 November 2025, Gazette identifier CG-DL-E-14112025-267647;
+  English page 2, clauses (a)–(c). The Act has separate immediate, one-year and
+  eighteen-month groups. Sections 7–10 and 11–17 are in the eighteen-month group.
+  Do not infer their commencement from publication of the Rules or Board setup.
+- **S19:** [Rules corrigenda, G.S.R. 892(E)](https://www.meity.gov.in/static/uploads/2025/12/3c7ebbae0e5456f493f486e6845df86b.pdf),
+  dated 10 December 2025; Gazette identifier CG-DL-E-12122025-268455. Read its
+  corrections alongside S02, including commencement-reference wording and Fourth
+  Schedule definition lettering. This is not a standalone consolidated Rules text.
+- **S20:** [Removal of Difficulties Order, S.O. 5458(E)](https://www.meity.gov.in/static/uploads/2026/10/daf495a7b5798a3dfa72a944b51fc176.pdf),
+  dated 5 October 2026; Gazette issue 6 October, identifier
+  CG-DL-E-07102026-276885. English pages 2–3, paragraphs 1–2 correct section 9(1)
+  wording and section 10(2)(c)(ii)'s audit terminology. Its own publication-based
+  commencement must not be treated as acceleration of S18's substantive phases.
+
+S02 was accessible on this recheck. Rule 10 distinguishes parental identity/age
+verification from rule 11's verification of a lawful guardian's appointment.
+Rule 12 and Fourth Schedule Part A include conditional healthcare cases; neither
+is a blanket portal, marketing or proxy-disclosure exemption. S01 still returned
+403, and S03's page yielded no readable text. The February 2026 Hindi corrigendum
+was located in search results but its primary text was not reviewed. This is not
+an exhaustive assurance that no other amendment or applicable law exists.
+
+Required before activation: the hospital's privacy/legal reviewer records the
+actual fiduciary, patient/service context, state, operative provisions/effective
+dates, applicable verification method and exception decision. Clinical governance
+separately reviews treatment/procedure consent. Software must retain policy
+versions and evidence, not infer capacity from a relationship label or diagnosis.
+
 ## Exchange and revenue
 
 | ID  | Primary source and observed status                                                                                                                                                                           | Use and limits                                                                                                                                                                                                                                                      |
@@ -40,6 +74,22 @@ These sources support domain discovery and explicit review questions. Access sta
 | S15 | [NABL ISO 15189:2022 application portal announcement](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2158005&lang=2&reg=48), 19 August 2025, opened                                                                                                                                                                         | Confirms programme context. It does not establish a laboratory's accreditation, test/method scope or Helivanta certification                                                                    |
 | S16 | [AERB diagnostic radiology](https://aerb.gov.in/english/i-am-a-radiographer/diagnostic-radiology), indexed official licence/eLORA text; direct request returned 502                                                                                                                                                            | Relevant ionising-radiation authorization discovery. Verify primary requirements, equipment/site scope and validity; do not apply indiscriminately to every modality                            |
 | S17 | [CPCB biomedical-waste guidance](https://www.cpcb.nic.in/uploads/Projects/Bio-Medical-Waste/Handling_Biomedical_Waste_Utilization.pdf) and [Maharashtra PCB healthcare-waste guidelines](https://www.mpcb.gov.in/sites/default/files/biomedical-waste/ManagementofHealthcareWaste03032020.pdf), indexed primary text inspected | Waste-chain and authority discovery, not a reviewed universal classification/reporting/retention schedule. Check current rules, amendments and the relevant SPCB/PCC                            |
+
+## Organization and public sector
+
+Consulted on 2026-10-26 for the [organization knowledge](../organization/README.md) and [public and private sectors](public-and-private-sectors.md). "Consulted" means read during research without recording clause-level citations. These describe structures and norms; they do not fix any state's current titles, committee powers or financial delegations.
+
+| ID  | Primary source and observed status                                                                                                                                                                                                                                                          | Use and limits                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S18 | [IPHS 2022, sub-district and district hospitals](https://nhm.gov.in/images/pdf/guidelines/iphs/iphs-revised-guidlines-2022/01-SDH_DH_IPHS_Guidelines-2022.pdf), MoHFW, consulted                                                                                                            | Facility levels, services and staffing norms for public hospitals. Norms are benchmarks for planning and assessment, not proof of a facility's sanctioned or filled posts |
+| S19 | [IPHS 2022, community health centres](https://nhsrcindia.org/sites/default/files/CHC%20IPHS%202022%20Guidelines%20pdf.pdf), NHSRC copy, consulted                                                                                                                                           | CHC services, staffing and governance norms. Same limits as S18                                                                                                           |
+| S20 | [IPHS 2022, primary health centres](https://nhm.gov.in/images/pdf/guidelines/iphs/iphs-revised-guidlines-2022/03_PHC_IPHS_Guidelines-2022.pdf), MoHFW, consulted                                                                                                                            | PHC and health and wellness centre norms. Same limits as S18                                                                                                              |
+| S21 | [Rogi Kalyan Samiti handbook](https://nhsrcindia.org/sites/default/files/2021-05/Rogi%20Kalyan%20Samiti%20Handbook-%20English_0.pdf), NHSRC, consulted; [RKS guidelines](https://www.iapsm.org/pdf/Guidelines/RMNCH+A/Guidelines%20for%20Rogi%20Kalyan%20Samiti.pdf), IAPSM-hosted copy     | Facility governance body structure, member roles and fund use. States issue their own RKS orders; composition and powers must come from the customer's current order      |
+| S22 | [NQAS programme overview](https://qps.nhsrcindia.org/sites/default/files/2022-07/Overview%20of%20QA%20programme%20_%20Recent%20Developments-Day%201.pdf), NHSRC, consulted; [Kayakalp guidelines](https://nhm.gov.in/images/pdf/in-focus/Revised_Kayakalp_Guidelines.pdf), MoHFW, consulted | Public-facility quality and cleanliness programmes. Programme scope and checklists change; record the edition a facility is assessed against                              |
+| S23 | [NHM district health society composition](https://nhm.gov.in/index1.php?lang=1&level=3&sublinkid=1136&lid=144), consulted; [Bihar SHS HR policy](https://shs.bihar.gov.in/shs/hr/HR%20POLICY.pdf), consulted                                                                                | District society chair, office-bearers and programme management units; one state's HR manual as an example. Titles and reporting lines vary by state                      |
+| S24 | [NITI Aayog, NHM health systems governance and HR](https://www.niti.gov.in/sites/default/files/2023-03/Impact%20of%20NHM%20on%20Health%20Systems%20Governance%20&%20Human%20Resources.pdf), consulted                                                                                       | Evaluation evidence for dual reporting and contractual staffing. Research findings, not rules                                                                             |
+| S25 | [NMC Compulsory Rotating Medical Internship Regulations 2021](<https://thc.nic.in/Central%20Governmental%20Regulations/National%20Medical%20Commissions%20(Compulsory%20Rotating%20Medical%20Internship)%20Regulations,%202021.pdf>), gazette copy, consulted                               | Internship rotation and supervised practice. Check later amendments and the institution's policy for which acts need supervision or countersignature                      |
+| S26 | [NABH hospital standards, 5th edition](https://dokumen.pub/nabh-accreditation-standards-for-hospitals-5nbsped-9788194487753.html) and [HRM chapter summary](https://hospitalhr.in/nabh/nabh-standards---hrm), secondary reproductions                                                       | Credentialing and privileging context (HRM chapter). Not official text; use S14 to obtain the current edition before citing a clause                                      |
 
 Existing [India payroll research](../../payroll-india-statutory-reference-2026-10-16.md) and [emergency transport research](../../research/2026-10-18-india-emergency-transport.md) remain focused references. Their claims and source-access limitations must also be reviewed before activation; a repository research file is not current law merely because it is committed.
 

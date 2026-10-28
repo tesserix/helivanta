@@ -40,7 +40,8 @@ async function api(page: Page, method: string, path: string, body?: unknown) {
 
 test("an owner registers the outlet's GSTIN and classifies a product", async ({ page }) => {
   await login(page);
-  await page.goto("/pharmacy");
+  // Not a pharmacy page, which would save its own outlet over the one set below.
+  await page.goto("/dashboard");
   const me = await api(page, "GET", "/iam/me/permissions");
   const stamp = Date.now().toString(36).toUpperCase();
   const pharmacyId = uuidv7();
@@ -87,7 +88,8 @@ test("an owner registers the outlet's GSTIN and classifies a product", async ({ 
     value: JSON.stringify({ pharmacyId, outletId }),
   });
 
-  await page.goto("/pharmacy/setup");
+  // Each outlet's tax registration is in its pane on Outlets & access (#1303 E6).
+  await page.goto(`/pharmacy/setup?open=${outletId}`);
   const registration = page.getByRole("region", { name: "Tax registration" });
   await expect(registration).toBeVisible();
   await registration.getByRole("combobox", { name: "State or union territory" }).click();

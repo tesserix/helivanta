@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// One light sage palette for the public site and the app (#1255, spec D2).
+// One light slate palette for the public site and the app (#1255, spec D2).
 // Contrast is a property of colour pairs, so it is asserted here against the
 // tokens themselves (WCAG 2.2 AA) rather than reviewed by eye.
 const css = readFileSync(fileURLToPath(new URL("../styles.css", import.meta.url)), "utf8");
@@ -44,10 +44,10 @@ describe("contrast()", () => {
   });
 });
 
-it("is sage", () => {
-  expect(root["--background"]).toBe("#fbfcfa");
-  expect(root["--foreground"]).toBe("#173d3a");
-  expect(root["--primary"]).toBe("#23685d");
+it("is slate", () => {
+  expect(root["--background"]).toBe("#f8fafc");
+  expect(root["--foreground"]).toBe("#0f172a");
+  expect(root["--primary"]).toBe("#334155");
 });
 
 const PAIRS: [fg: string, bg: string, min: number][] = [
@@ -78,6 +78,16 @@ const PAIRS: [fg: string, bg: string, min: number][] = [
   // Inline form errors and destructive text sit on cards and tinted tiles.
   ["--destructive", "--card", BODY],
   ["--destructive", "--muted", BODY],
+  // Hues that mark a product area, read as text on every slate surface the
+  // home page and the app draw (#542 web slice, spec D3).
+  ...["--hms-accent", "--hms-amber", "--hms-violet"].flatMap((hue) =>
+    ["--background", "--card", "--muted", "--accent"].map((surface): [string, string, number] => [
+      hue,
+      surface,
+      BODY,
+    ]),
+  ),
+  ["--muted-foreground", "--accent", BODY],
 ];
 
 it.each(PAIRS)("%s on %s passes AA", (fg, bg, min) => {
@@ -117,7 +127,43 @@ it.each([
     blend(root["--sidebar-foreground"], 0.7, root["--sidebar"]),
     root["--sidebar"],
   ],
-  ["muted text on a hover fill", root["--muted-foreground"], root["--accent"]],
 ])("%s pass AA", (_name, fg, bg) => {
   expect(contrast(fg, bg)).toBeGreaterThanOrEqual(BODY);
+});
+
+// Every translucent text colour in source (`text-muted-foreground/60`,
+// `text-(--hms-accent)/70`), blended over the surfaces it can sit on. Read from
+// source so a new one is checked when it is written.
+const repo = fileURLToPath(new URL("../../../", import.meta.url));
+const translucentText = [
+  ...new Set(
+    globSync("{apps,packages}/**/*.tsx", {
+      cwd: repo,
+      exclude: (path) => /node_modules|\.next|dist|\.test\./.test(path),
+    }).flatMap((file) =>
+      [
+        ...readFileSync(`${repo}${file}`, "utf8").matchAll(
+          /text-(?:\((--[\w-]+)\)|([a-z]+(?:-[a-z]+)*))\/(\d+)/g,
+        ),
+      ].map((m) => `${m[1] ?? `--${m[2]}`}/${m[3]}`),
+    ),
+  ),
+].flatMap((use) => {
+  const [token] = use.split("/");
+  const surfaces = token.startsWith("--sidebar")
+    ? ["--sidebar"]
+    : ["--background", "--card", "--muted"];
+  return surfaces.map((surface): [string, string, string] => [use, surface, token]);
+});
+
+it("finds the translucent text it checks", () => {
+  expect(translucentText.map(([use]) => use)).toContain("--sidebar-foreground/70");
+});
+
+it.each(translucentText)("%s on %s passes AA", (use, surface, token) => {
+  expect(root[token], `${token} is not a hex token`).toMatch(/^#/);
+  const alpha = Number(use.split("/")[1]) / 100;
+  expect(contrast(blend(root[token], alpha, root[surface]), root[surface])).toBeGreaterThanOrEqual(
+    BODY,
+  );
 });

@@ -14,16 +14,19 @@ export function LoadMore({
   hasMore,
   isLoading,
   onClick,
+  label = "Load more",
 }: {
   hasMore: boolean;
   isLoading: boolean;
   onClick: () => void;
+  /** What it loads, where a page has more than one list: "Load more outlets". */
+  label?: string;
 }) {
   if (!hasMore) return null;
   return (
     <div className="border-t px-5 py-3">
       <Button variant="outline" size="sm" onClick={onClick} disabled={isLoading}>
-        {isLoading ? "Loading…" : "Load more"}
+        {isLoading ? "Loading…" : label}
       </Button>
     </div>
   );

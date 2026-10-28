@@ -11,7 +11,7 @@ import (
 
 func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	migs := iam.New(nil).Migrations()
-	require.Len(t, migs, 7)
+	require.Len(t, migs, 14)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -19,6 +19,13 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.Equal(t, "0005_iam", migs[4].ID)
 	require.Equal(t, "0006_iam", migs[5].ID)
 	require.Equal(t, "0007_iam", migs[6].ID)
+	require.Equal(t, "0008_iam_assignment_proposals", migs[7].ID)
+	require.Equal(t, "0009_iam_assignment_decisions", migs[8].ID)
+	require.Equal(t, "0010_iam_assignment_projection", migs[9].ID)
+	require.Equal(t, "0011_iam_assignment_membership", migs[10].ID)
+	require.Equal(t, "0012_iam_assignment_activation", migs[11].ID)
+	require.Equal(t, "0013_iam_identity_guard", migs[12].ID)
+	require.Equal(t, "0014_iam_staff_templates", migs[13].ID)
 }
 
 // TestSystemRolesMatchesAuthzRegistry pins iam.SystemRoles() to
@@ -59,7 +66,11 @@ func TestEverySystemRoleHasALabel(t *testing.T) {
 
 func TestModuleDeclaresMemberManage(t *testing.T) {
 	grants := iam.New(nil).Permissions()
-	require.Len(t, grants, 1+1) // iam.member.manage, iam.credential.revoke
+	require.Len(t, grants, 4)
+	require.Equal(t, iam.PermAssignmentReview, grants[2].Permission)
+	require.Empty(t, grants[2].Roles)
+	require.Equal(t, iam.PermAssignmentManage, grants[1].Permission)
+	require.Empty(t, grants[1].Roles, "proposals are administered through the explicit tenant-admin baseline")
 	require.Equal(t, iam.PermMemberManage, grants[0].Permission)
 	// tenant_admin is implicit, so the grant lists no roles.
 	require.Empty(t, grants[0].Roles)

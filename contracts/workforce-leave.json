@@ -1159,6 +1159,84 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "leaveReviewScope": [
+      { "name": "hospital_id", "type": "uuid" },
+      { "name": "name", "type": "string", "min": 1, "max": 150 }
+    ],
+    "leaveReviewRequest": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "code",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "leave_year",
+        "type": "int"
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "enum": ["full_day", "half_day", "short_leave"]
+      },
+      {
+        "name": "start_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "end_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "session",
+        "type": "string",
+        "enum": ["first_half", "second_half"],
+        "optional": true
+      },
+      {
+        "name": "minutes",
+        "type": "int",
+        "optional": true
+      },
+      {
+        "name": "half_days",
+        "type": "int"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending"]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   },
   "ledger_kinds": {

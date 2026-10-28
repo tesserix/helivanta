@@ -23,9 +23,10 @@ import {
   useApiMutation,
   clearPermissionsCache,
   clearRenewAt,
+  notifySessionChanged,
 } from "@helivanta/api";
 import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
-import { ZONES, visibleZones, activeZone, activePage, type Zone } from "./zones";
+import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
 import { BrandLogo, TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
 import {
@@ -36,6 +37,7 @@ import {
 } from "./zitadel-session";
 import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
+import { AccountMenu } from "./account-menu";
 import { CHROME_FLAG_ATTRIBUTES, NAVIGATION_KEY, flagAttributeValue } from "./chrome-flags";
 
 // Navigation stays within the unified app. Sign-out remains a POST because
@@ -106,7 +108,7 @@ function ZoneLink({
       href={zone.href}
       onClick={onNavigate}
       title={zone.label}
-      aria-label={zone.label}
+      aria-label={railName(zone)}
       aria-current={active ? "page" : undefined}
       className={`flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
         active
@@ -431,6 +433,7 @@ export function HmsShell({
     // the leak #848's idle timeout exists to prevent.
     clearPermissionsCache();
     clearRenewAt();
+    notifySessionChanged();
     void (async () => {
       try {
         await fetch("/logout", { method: "POST" });
@@ -603,6 +606,7 @@ export function HmsShell({
     // vulnerability. It is dropped so "the browser keeps nothing from the
     // previous session" stays a statement with no exceptions.
     clearRenewAt();
+    notifySessionChanged();
     if (onSignOut) {
       await onSignOut();
       return;
@@ -755,14 +759,7 @@ export function HmsShell({
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {tenantPicker}
-                  <form onSubmit={handleSignOut}>
-                    <button
-                      type="submit"
-                      className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-                    >
-                      Sign out
-                    </button>
-                  </form>
+                  <AccountMenu hospitalName={branding.display_name} onSignOut={handleSignOut} />
                 </div>
               </div>
             </header>
@@ -820,16 +817,19 @@ export function HmsShell({
               {/* relative: the content's absolutely positioned pieces (a select's
                 hidden native <select>) are placed and clipped in here, not
                 against the page, which would scroll the document too (#1313). */}
-              <div className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
+              <div
+                data-hms-scroll
+                className="relative flex min-w-0 flex-1 flex-col overflow-y-auto"
+              >
                 {/* A size container, so a list lays out by the space it has: the
                   rail expanding changes that without the viewport changing (#1303). */}
                 <main className="@container/main flex-1 px-6 pt-6 pb-6 md:pt-0">
                   {/* Left-aligned with the header card, not centred: centring left an
-                    empty band beside the rail on a page with no panel (#1296). A page
+                    empty band beside the rail on a page with no panel (#1296). A zone
                     declares full width in zones.ts; it still stops at 1760px. */}
                   <div
-                    data-width={currentPage?.width === "full" ? "full" : "capped"}
-                    className={`w-full ${currentPage?.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
+                    data-width={zone.width === "full" ? "full" : "capped"}
+                    className={`w-full ${zone.width === "full" ? "max-w-[1760px]" : "max-w-6xl"}`}
                   >
                     {children}
                   </div>

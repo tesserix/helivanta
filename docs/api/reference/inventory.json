@@ -24,8 +24,80 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/iam/assignment-proposals/:id/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals/:id/decisions",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals/:id/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/assignment-proposals/:id",
+          "permission": "iam.assignment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/identity-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/iam/me/permissions",
+          "permission": "no_tenant_membership",
+          "authentication_required": true,
+          "membership_required": false,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/me/profile",
           "permission": "no_tenant_membership",
           "authentication_required": true,
           "membership_required": false,
@@ -96,6 +168,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/iam/staff-access-templates",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/iam/subjects/:subject/revoke",
           "permission": "iam.credential.revoke",
@@ -111,11 +192,21 @@
           "roles": []
         },
         {
+          "permission": "iam.assignment.manage",
+          "roles": []
+        },
+        {
+          "permission": "iam.assignment.review",
+          "roles": []
+        },
+        {
           "permission": "iam.credential.revoke",
           "roles": []
         }
       ],
       "publishes": [
+        "helivanta.in.iam.assignment_scope_requested.v1",
+        "helivanta.in.iam.assignment_projection_requested.v1",
         "helivanta.in.iam.member_granted.v1",
         "helivanta.in.iam.member_revoked.v1",
         "helivanta.in.iam.credential_revoked.v1"
@@ -123,6 +214,16 @@
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
+        {
+          "name": "iam-assignment-scope",
+          "subject": "helivanta.in.workforce.assignment_scope_verified.v1",
+          "after_commit": false
+        },
+        {
+          "name": "iam-assignment-projection",
+          "subject": "helivanta.in.iam.assignment_projection_requested.v1",
+          "after_commit": true
+        },
         {
           "name": "iam-fga-sync",
           "subject": "helivanta.in.iam.member_granted.v1",
@@ -178,6 +279,52 @@
         {
           "id": "0007_iam",
           "sql_sha256": "90fe9a43289656d134cca16438d3a6efe62a90a06f5cd97dca48f2d460174e3d",
+          "creates_tables": []
+        },
+        {
+          "id": "0008_iam_assignment_proposals",
+          "sql_sha256": "016b31ad6453f4be3008dec5ea677ce6eff5c7ef15e66dca845bcaef828ebd01",
+          "creates_tables": [
+            "iam_assignment_proposals",
+            "iam_assignment_proposal_history"
+          ]
+        },
+        {
+          "id": "0009_iam_assignment_decisions",
+          "sql_sha256": "175b9b23aabe093f11ab980a6aeeb771c5b41d03bab4d7844104a78d5c8d027e",
+          "creates_tables": [
+            "iam_assignment_decisions"
+          ]
+        },
+        {
+          "id": "0010_iam_assignment_projection",
+          "sql_sha256": "9c93873bdd6211a20c3b7b0d36f4eb2d7cbf3868aaa450956174400e175ebbfc",
+          "creates_tables": [
+            "iam_assignment_scope_epochs",
+            "iam_assignment_snapshots"
+          ]
+        },
+        {
+          "id": "0011_iam_assignment_membership",
+          "sql_sha256": "d46d066355e596bf47b2fb09e9f723bd1de5763454c3cb85ead0c2017ee7ea7f",
+          "creates_tables": [
+            "iam_subject_membership_epochs",
+            "iam_membership_revocations"
+          ]
+        },
+        {
+          "id": "0012_iam_assignment_activation",
+          "sql_sha256": "3b544879f7925534d014bafd9803d66c42ad7ea1a650f3b122298ef92e6d41a0",
+          "creates_tables": []
+        },
+        {
+          "id": "0013_iam_identity_guard",
+          "sql_sha256": "1ffcd82cf2fa686843791b179d5b3cd8790ae7fdcdae596d32646ccbfe6d9040",
+          "creates_tables": []
+        },
+        {
+          "id": "0014_iam_staff_templates",
+          "sql_sha256": "4ef69328d0c9353325b90d5b66feeac5823d4529239b03992da69e6dd9dff1bc",
           "creates_tables": []
         }
       ]
@@ -947,9 +1094,249 @@
       ]
     },
     {
+      "name": "drugmaster",
+      "source": "backend/internal/modules/drugmaster/module.go",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/formulations/:id",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/products/:id",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/products/by-gtin/:gtin",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/drugmaster/search",
+          "permission": "drugmaster.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "drugmaster.catalogue.read",
+          "roles": [
+            "doctor",
+            "nurse",
+            "pharmacist"
+          ]
+        }
+      ],
+      "publishes": [
+        "helivanta.in.drugmaster.catalogue_published.v1",
+        "helivanta.in.drugmaster.molecule_published.v1",
+        "helivanta.in.drugmaster.formulation_reclassified.v1",
+        "helivanta.in.drugmaster.product_status_changed.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_drugmaster",
+          "sql_sha256": "d019c4aa3c5f67ebd3b9af7a782bddce55d00b9ca98ff3699a39b379a58191b9",
+          "creates_tables": [
+            "drugmaster_releases",
+            "drugmaster_molecules",
+            "drugmaster_formulations",
+            "drugmaster_formulation_versions",
+            "drugmaster_formulation_ingredients",
+            "drugmaster_products",
+            "drugmaster_product_versions"
+          ]
+        },
+        {
+          "id": "0002_drugmaster",
+          "sql_sha256": "74750c8a921ef680aa472c4fbd437590c89b9782c95096ae63ca4759f91373e7",
+          "creates_tables": []
+        },
+        {
+          "id": "0003_drugmaster",
+          "sql_sha256": "aef9911fe57e4217d48f12594b108d34b947cbdb72cb8f6c448454494ff40aa1",
+          "creates_tables": []
+        }
+      ]
+    },
+    {
       "name": "medicore",
       "source": "backend/internal/modules/medicore/module.go",
       "routes": [
+        {
+          "method": "DELETE",
+          "path": "/v1/medicore/hospitals/:hospital/access/:subject",
+          "permission": "medicore.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/access/:subject",
+          "permission": "medicore.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/access",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/encounters/:id/transitions",
+          "permission": "medicore.visit.update",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/encounters/:id",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/encounters/:id",
+          "permission": "medicore.visit.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/encounters",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/corrections",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id/history",
+          "permission": "medicore.allergy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies/:id",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/allergies",
+          "permission": "medicore.allergy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id/withdrawal",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/no-known-allergy/:id",
+          "permission": "medicore.allergy.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id/entered-in-error",
+          "permission": "medicore.observation.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id",
+          "permission": "medicore.observation.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights/latest",
+          "permission": "medicore.observation.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/patients/:patient/weights",
+          "permission": "medicore.observation.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
         {
           "method": "GET",
           "path": "/v1/medicore/insights",
@@ -995,16 +1382,64 @@
         {
           "permission": "medicore.visit.update",
           "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.access.manage",
+          "roles": []
+        },
+        {
+          "permission": "medicore.allergy.read",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.allergy.record",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.observation.read",
+          "roles": [
+            "doctor",
+            "nurse"
+          ]
+        },
+        {
+          "permission": "medicore.observation.record",
+          "roles": [
+            "doctor",
             "nurse"
           ]
         }
       ],
       "publishes": [
-        "helivanta.in.medicore.visit_created.v1"
+        "helivanta.in.medicore.visit_created.v1",
+        "helivanta.in.medicore.encounter_opened.v1",
+        "helivanta.in.medicore.encounter_status_changed.v1",
+        "helivanta.in.medicore.allergy_changed.v1",
+        "helivanta.in.medicore.weight_recorded.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
-      "consumers": [],
+      "consumers": [
+        {
+          "name": "medicore-patient-registered",
+          "subject": "helivanta.in.patientmaster.registered.v1",
+          "after_commit": false
+        },
+        {
+          "name": "medicore-molecule-published",
+          "subject": "helivanta.in.drugmaster.molecule_published.v1",
+          "after_commit": false
+        }
+      ],
       "broadcasts": [],
       "migrations": [
         {
@@ -1028,6 +1463,422 @@
           "id": "0004_medicore",
           "sql_sha256": "4f3b477becb2cb3183e36b15d2f32e02bb0725b63096cae54f2d5454a3619370",
           "creates_tables": []
+        },
+        {
+          "id": "0005_medicore",
+          "sql_sha256": "649cc42b792da0363a1805b6f481fab1994c596362f246dae56ca49650ab3e27",
+          "creates_tables": [
+            "medicore_patients",
+            "medicore_hospital_access",
+            "medicore_encounter_transitions"
+          ]
+        },
+        {
+          "id": "0006_medicore",
+          "sql_sha256": "1d1140d34fd801e60c4d53d565cacd11025e00f66d4d796607a90083ea4dcfcf",
+          "creates_tables": [
+            "medicore_drug_molecules",
+            "medicore_allergy_entries",
+            "medicore_no_known_allergy",
+            "medicore_no_known_allergy_withdrawals",
+            "medicore_weight_observations",
+            "medicore_weight_errors",
+            "medicore_clinical_read_audit"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mediconnect",
+      "source": "backend/internal/modules/mediconnect/module.go",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account/consents/:consent/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/mediconnect/account/consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/consents",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/link-requests/:request/review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account/link-requests/:request/review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account/link-requests/:request/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/link-requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/mediconnect/account/link-requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account/link-requests",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PATCH",
+          "path": "/v1/mediconnect/account/preferences",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/account",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/account",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/mediconnect/notices/:notice/retire",
+          "permission": "mediconnect.notice.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/notices/:notice",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/mediconnect/notices/:notice",
+          "permission": "mediconnect.notice.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/mediconnect/notices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "mediconnect.notice.manage",
+          "roles": []
+        }
+      ],
+      "publishes": [
+        "helivanta.in.mediconnect.account_created.v1",
+        "helivanta.in.mediconnect.registration_review_requested.v1",
+        "helivanta.in.mediconnect.registration_review_withdrawn.v1",
+        "helivanta.in.mediconnect.account_consent_recorded.v1",
+        "helivanta.in.mediconnect.account_consent_withdrawn.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [
+        {
+          "name": "mediconnect-registration-reviewed",
+          "subject": "helivanta.in.patientmaster.registration_reviewed.v1",
+          "after_commit": false
+        }
+      ],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_mediconnect",
+          "sql_sha256": "08db27b6b7f51bafbd3a9e8adb543b514c59cf75e0a735cf8c123a44c151cfdd",
+          "creates_tables": [
+            "mediconnect_accounts"
+          ]
+        },
+        {
+          "id": "0002_mediconnect",
+          "sql_sha256": "f64b12dc508e1e0852cf1cdd0bbe037b630e9a52afee8bb05996e8c5d4afd2da",
+          "creates_tables": [
+            "mediconnect_link_requests"
+          ]
+        },
+        {
+          "id": "0003_mediconnect",
+          "sql_sha256": "c3a1a566de7abcd0c95cc790e4a9f0e28cee748d5e1cf2c73ddbd9bddccb7768",
+          "creates_tables": []
+        },
+        {
+          "id": "0004_mediconnect",
+          "sql_sha256": "80c1492d8ee0af6b7afff94fd424508bb65d6f5ad3640d407512da9ebd6e87e3",
+          "creates_tables": [
+            "mediconnect_review_submissions"
+          ]
+        },
+        {
+          "id": "0005_mediconnect",
+          "sql_sha256": "4d6692f9e63d482c01ded1b044e02132ab5ed7c4be6e4949831550df04e24abc",
+          "creates_tables": []
+        },
+        {
+          "id": "0006_mediconnect",
+          "sql_sha256": "4f016ff72a3d5d047cf4322a8e6ec27d1eccb7e944b1857519cfc270b81e2bda",
+          "creates_tables": [
+            "mediconnect_notices",
+            "mediconnect_account_consents"
+          ]
+        },
+        {
+          "id": "0007_mediconnect",
+          "sql_sha256": "dc0885ac36a0328e76fc94d4960c0bd2c9b325680ea78f1f58ee34b606f426c6",
+          "creates_tables": []
+        }
+      ]
+    },
+    {
+      "name": "privacy",
+      "source": "backend/internal/modules/privacy/module.go",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/v1/privacy/deadline-policies/:policy/approve",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/deadline-policies/:policy",
+          "permission": "privacy.deadline.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/officer",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/privacy/officers/:officer/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/privacy/officers/:officer/revoke",
+          "permission": "privacy.officer.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/officers/:officer",
+          "permission": "privacy.officer.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/queue",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/requests/:request/commands/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests/:request/commands",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests/:request/deadline",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/privacy/requests/:request",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/privacy/requests",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "privacy.officer.manage",
+          "roles": []
+        },
+        {
+          "permission": "privacy.deadline.manage",
+          "roles": []
+        }
+      ],
+      "publishes": [
+        "helivanta.in.privacy.deadline_changed.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [
+        {
+          "name": "privacy-deadline",
+          "subject": "helivanta.in.privacy.deadline_changed.v1",
+          "after_commit": true
+        }
+      ],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_privacy",
+          "sql_sha256": "06eaa7c7d7bd5a74325ec5005afc49a841fb3cedfec712042e42b9a979cef472",
+          "creates_tables": [
+            "privacy_officers",
+            "privacy_requests",
+            "privacy_commands"
+          ]
+        },
+        {
+          "id": "0002_privacy",
+          "sql_sha256": "f49be07e544bf95b21c3ba28fbaee63d585834a187eb7ee5099575dbc700c888",
+          "creates_tables": [
+            "privacy_deadline_policies",
+            "privacy_case_deadlines",
+            "privacy_deadline_escalations"
+          ]
         }
       ]
     },
@@ -1243,6 +2094,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review",
+          "permission": "pharmacy.schedule.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration",
+          "permission": "pharmacy.schedule.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/tax-classifications",
           "permission": "pharmacy.catalogue.read",
@@ -1298,6 +2176,105 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
+          "permission": "pharmacy.sale.return",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id",
+          "permission": "pharmacy.discount.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id",
+          "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review",
+          "permission": "pharmacy.licence.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id",
+          "permission": "pharmacy.licence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -1306,8 +2283,170 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
+          "permission": "pharmacy.prescription.record",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id",
           "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
@@ -1406,6 +2545,15 @@
         },
         {
           "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/releases/:id",
+          "permission": "pharmacy.stock.release",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/safety-incidents/:id",
           "permission": "pharmacy.stock.quarantine",
           "authentication_required": true,
@@ -1453,6 +2601,15 @@
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
           "permission": "pharmacy.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
+          "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -1584,6 +2741,79 @@
           ]
         },
         {
+          "permission": "pharmacy.licence.manage",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.licence.review",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.schedule.declare",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.schedule.review",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.stock.release",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.create",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.read",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.prescription.record",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.prescription.read",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.discount",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.discount.manage",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.sale.return",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -1615,7 +2845,11 @@
         "helivanta.in.pharmacy.stock_movement_recorded.v1",
         "helivanta.in.pharmacy.payable_recorded.v1",
         "helivanta.in.pharmacy.settlement_recorded.v1",
-        "helivanta.in.pharmacy.batch_safety_recorded.v1"
+        "helivanta.in.pharmacy.batch_safety_recorded.v1",
+        "helivanta.in.pharmacy.sale_posted.v1",
+        "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
+        "helivanta.in.pharmacy.prescription_image_changed.v1",
+        "helivanta.in.pharmacy.credit_note_issued.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -1624,6 +2858,11 @@
           "name": "pharmacy-visit-intake",
           "subject": "helivanta.in.medicore.visit_created.v1",
           "after_commit": false
+        },
+        {
+          "name": "pharmacy-prescription-image-scan",
+          "subject": "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
+          "after_commit": true
         }
       ],
       "broadcasts": [],
@@ -1704,6 +2943,77 @@
         {
           "id": "0011_pharmacy",
           "sql_sha256": "fe1a3a2f4c1c24600ecaad5ad4e104d5ae30b9bc7865963fdc56076dc0fb0f34",
+          "creates_tables": []
+        },
+        {
+          "id": "0012_pharmacy",
+          "sql_sha256": "f7a7a23e32acccbd2dd92257df9659da65f7cb77eba171c4cfc62a93ca526d9d",
+          "creates_tables": [
+            "pharmacy_outlet_licences",
+            "pharmacy_outlet_licence_reviews"
+          ]
+        },
+        {
+          "id": "0013_pharmacy",
+          "sql_sha256": "5bdf2ed4e5323096a6faf79514e3cb3867dc93cd1303c4c52266baa30ed9d7ab",
+          "creates_tables": [
+            "pharmacy_product_schedule_declarations",
+            "pharmacy_product_schedule_reviews"
+          ]
+        },
+        {
+          "id": "0014_pharmacy",
+          "sql_sha256": "842f06213a2915b6b33bb86b434ebbb8f6d81b518713081cd467d51d1c3ebc3f",
+          "creates_tables": [
+            "pharmacy_stock_releases"
+          ]
+        },
+        {
+          "id": "0015_pharmacy",
+          "sql_sha256": "b58ac2d188125ad46ca99fc1fa375206d8c64d1833dc6c6b93dfec4cf5e0ff5e",
+          "creates_tables": [
+            "pharmacy_outlet_invoice_profiles",
+            "pharmacy_invoice_series",
+            "pharmacy_sales",
+            "pharmacy_sale_lines",
+            "pharmacy_sale_tenders"
+          ]
+        },
+        {
+          "id": "0016_pharmacy",
+          "sql_sha256": "a1611e73c0d5e3f777e455f28c704d43f474f6200c42f15d7b0e1f1129db3d7d",
+          "creates_tables": [
+            "pharmacy_prescriptions",
+            "pharmacy_prescription_images"
+          ]
+        },
+        {
+          "id": "0017_pharmacy",
+          "sql_sha256": "28745d8350ea61cd0f5a7ce581c3c535808994e5520512a90ff41f46c0945bdc",
+          "creates_tables": [
+            "pharmacy_prescription_lines"
+          ]
+        },
+        {
+          "id": "0018_pharmacy",
+          "sql_sha256": "c8fee8c37465b2fdd0cac78f007f969eb479145d2b5a67ddb992648396006694",
+          "creates_tables": [
+            "pharmacy_outlet_discount_ceilings"
+          ]
+        },
+        {
+          "id": "0019_pharmacy",
+          "sql_sha256": "303ca0c43bc8753c54a3e42db50fbc2d5aa86c3994255173e5730f32c9cd5ce6",
+          "creates_tables": [
+            "pharmacy_credit_note_series",
+            "pharmacy_credit_notes",
+            "pharmacy_credit_note_lines",
+            "pharmacy_credit_note_refunds"
+          ]
+        },
+        {
+          "id": "0020_pharmacy",
+          "sql_sha256": "6abbb6dfb983d3df0b7286bf08c9e914c8ac66c348a2611e0be6eb090b1d59ee",
           "creates_tables": []
         }
       ]
@@ -2733,8 +4043,53 @@
       "routes": [
         {
           "method": "GET",
+          "path": "/v1/patients/:id/registration-reference",
+          "permission": "patient.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/patients/:id",
           "permission": "patient.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/clinical-consents/:consent/decide",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/consent-authorities/:authority/revoke",
+          "permission": "patient.consent-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/consent-authorities/:authority",
+          "permission": "patient.consent-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/consent-authorities/:authority",
+          "permission": "patient.consent-authority.review",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -2769,11 +4124,299 @@
         },
         {
           "method": "POST",
+          "path": "/v1/patients/hospitals/:hospital/registration-replays",
+          "permission": "patient.registration.replay",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/link-reviews/:request/decision/:decision",
+          "permission": "patient.register",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/link-reviews/:request",
+          "permission": "patient.register",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/link-reviews",
+          "permission": "patient.register",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/clinical-consents/:consent/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/clinical-consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/my/clinical-consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/clinical-consents",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/consent-authorities/:authority/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/consent-authorities/:authority/revoke",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities/:authority/sharing-notices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities/:authority/sharing-recipients",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities/:authority",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/consent-authorities",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/proxy-authorities/:authority/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/my/proxy-authorities/:authority/revoke",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities/:authority/sharing-notices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities/:authority/sharing-recipients",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities/:authority",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/my/proxy-authorities",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/my/proxy-clinical-consents/:consent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/proxy-authorities/:authority/revoke",
+          "permission": "patient.proxy-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/proxy-authorities/:authority",
+          "permission": "patient.proxy-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/proxy-authorities/:authority",
+          "permission": "patient.proxy-authority.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/patients/search",
           "permission": "patient.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/sharing-notices/:notice/approve",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/sharing-notices/:notice/retire",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/sharing-notices/:notice",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/sharing-notices/:notice",
+          "permission": "patient.sharing-notice.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/sharing-recipients/:recipient/approve",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/patients/sharing-recipients/:recipient/revoke",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/sharing-recipients/:recipient",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/sharing-recipients/:recipient",
+          "permission": "patient.sharing-recipient.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -2801,6 +4444,22 @@
           "roles": []
         },
         {
+          "permission": "patient.consent-authority.review",
+          "roles": []
+        },
+        {
+          "permission": "patient.proxy-authority.review",
+          "roles": []
+        },
+        {
+          "permission": "patient.sharing-notice.review",
+          "roles": []
+        },
+        {
+          "permission": "patient.sharing-recipient.review",
+          "roles": []
+        },
+        {
           "permission": "patient.read",
           "roles": [
             "receptionist",
@@ -2815,14 +4474,35 @@
           "roles": [
             "receptionist"
           ]
+        },
+        {
+          "permission": "patient.registration.replay",
+          "roles": []
         }
       ],
       "publishes": [
-        "helivanta.in.patientmaster.registered.v1"
+        "helivanta.in.patientmaster.proxy_authority_changed.v1",
+        "helivanta.in.patientmaster.registered.v1",
+        "helivanta.in.patientmaster.registration_reviewed.v1",
+        "helivanta.in.patientmaster.consent_authority_changed.v1",
+        "helivanta.in.patientmaster.sharing_notice_changed.v1",
+        "helivanta.in.patientmaster.sharing_recipient_changed.v1",
+        "helivanta.in.patientmaster.clinical_consent_changed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
-      "consumers": [],
+      "consumers": [
+        {
+          "name": "patient-registration-review",
+          "subject": "helivanta.in.mediconnect.registration_review_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "patient-registration-review-withdrawal",
+          "subject": "helivanta.in.mediconnect.registration_review_withdrawn.v1",
+          "after_commit": false
+        }
+      ],
       "broadcasts": [],
       "migrations": [
         {
@@ -2855,6 +4535,109 @@
           "creates_tables": [
             "patient_reported_blood_groups"
           ]
+        },
+        {
+          "id": "0005_patientmaster",
+          "sql_sha256": "b6c9386fa2e6b3c6de32b8600cc8152ac7eebc95919f9027d0e33fbf711b1c83",
+          "creates_tables": [
+            "patient_link_reviews"
+          ]
+        },
+        {
+          "id": "0006_patientmaster",
+          "sql_sha256": "c5913b414e37fc4e43d9e8ab8479287098f0ee7560549738d31383f1e9264661",
+          "creates_tables": [
+            "patient_consent_authorities"
+          ]
+        },
+        {
+          "id": "0007_patientmaster",
+          "sql_sha256": "270a88fc0d9a509fccaf8d05cea86567c1aa7de0d79427a669873fbc8eb61e2f",
+          "creates_tables": [
+            "patient_sharing_notices"
+          ]
+        },
+        {
+          "id": "0008_patientmaster",
+          "sql_sha256": "39bb1751fc59913ea446eb96c9067ad1c7f94966f0162ab2f3c2827727e92ac8",
+          "creates_tables": [
+            "patient_sharing_recipients",
+            "patient_clinical_consents",
+            "patient_clinical_consent_decisions",
+            "patient_clinical_integrity_incidents"
+          ]
+        },
+        {
+          "id": "0009_patientmaster",
+          "sql_sha256": "a1bec562e0a093f8831cb4aea82198bc68ff614d94f239c838a1be34fb6ccc1f",
+          "creates_tables": [
+            "patient_proxy_authorities"
+          ]
+        },
+        {
+          "id": "0010_patientmaster",
+          "sql_sha256": "62488e5bae60674d4ab89c79f79e9d35d474de071ae515e29a10d8525f6501ab",
+          "creates_tables": []
+        },
+        {
+          "id": "0011_patientmaster",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "patient_clinical_consent_proxy_authority",
+              "table": "patient_clinical_consents",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "proxy_authority_id",
+                  "descending": false
+                }
+              ]
+            },
+            {
+              "name": "patient_sharing_notice_capacity_page",
+              "table": "patient_sharing_notices",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "authority_kind",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "purpose",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0012_patientmaster",
+          "sql_sha256": "fd75d486875bbc6983ef3a6cc811c28eda0cfb670adb47e0ab95811de50bb25c",
+          "creates_tables": []
         }
       ]
     },
@@ -4070,11 +5853,31 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/insights",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/leave-review-requests",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -4259,6 +6062,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification/history",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content",
           "permission": "workforce.documents.manage",
           "authentication_required": true,
@@ -4384,6 +6214,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision",
           "permission": "workforce.leave.approve",
@@ -4426,6 +6258,53 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-review-requests/:request",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link",
+          "permission": "workforce.login_links.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/login-links",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -4490,9 +6369,34 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/leave-review-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.identity_checks.manage",
+          "roles": []
+        },
+        {
+          "permission": "workforce.identity_checks.review",
+          "roles": []
+        },
+        {
+          "permission": "workforce.login_links.manage",
+          "roles": []
+        },
+        {
+          "permission": "workforce.login_links.review",
+          "roles": []
+        },
         {
           "permission": "workforce.hospital.manage",
           "roles": []
@@ -4615,6 +6519,9 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.document_classification_changed.v1",
+        "helivanta.in.workforce.assignment_scope_verified.v1",
+        "helivanta.in.workforce.login_link_changed.v1",
         "helivanta.in.workforce.enrollment_changed.v1",
         "helivanta.in.workforce.master_changed.v1",
         "helivanta.in.workforce.shift_changed.v1",
@@ -4654,6 +6561,11 @@
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
+        {
+          "name": "workforce-assignment-scope",
+          "subject": "helivanta.in.iam.assignment_scope_requested.v1",
+          "after_commit": false
+        },
         {
           "name": "workforce-document-scan",
           "subject": "helivanta.in.workforce.document_scan_requested.v1",
@@ -4970,6 +6882,234 @@
         {
           "id": "0034_workforce_benefit_evidence",
           "sql_sha256": "a1fd8aa56498c81282d482586759190e2d015207a9cd9cebcc5a812849e1d645",
+          "creates_tables": []
+        },
+        {
+          "id": "0035_workforce_login_links",
+          "sql_sha256": "07d7d3eb4acbb4ccedd4a8dc18d5188441adac77357dc6eb5757f3af1f9e5d2c",
+          "creates_tables": [
+            "workforce_login_links",
+            "workforce_login_link_history"
+          ]
+        },
+        {
+          "id": "0036_workforce_scoped_leave",
+          "sql_sha256": "f9278ced45438c6f102cf445b2053ab266e14ca778db61dd3efb6e57534e02d1",
+          "creates_tables": []
+        },
+        {
+          "id": "0037_workforce_leave_review_discovery_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_login_links_review_discovery",
+              "table": "workforce_login_links",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "subject",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0038_workforce_leave_review_queue_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_leave_requests_review_queue",
+              "table": "workforce_leave_requests",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0039_workforce_supervision",
+          "sql_sha256": "513297d11c47da7e97ec4266f51ea3881625601c4e9d710a59d35ede4a196922",
+          "creates_tables": []
+        },
+        {
+          "id": "0040_workforce_profile_masters",
+          "sql_sha256": "1eaea6b3ba02217d4581e246d89ecbc1502e884c84fedee0b944f1cb4538517e",
+          "creates_tables": []
+        },
+        {
+          "id": "0041_workforce_profile_master_indexes",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_profile_language_ref_idx",
+              "table": "workforce_enrollment_profile",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "preferred_language_revision_id",
+                  "descending": false
+                }
+              ]
+            },
+            {
+              "name": "workforce_profile_exit_reason_ref_idx",
+              "table": "workforce_enrollment_profile",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "exit_reason_revision_id",
+                  "descending": false
+                }
+              ]
+            },
+            {
+              "name": "workforce_profile_contract_type_ref_idx",
+              "table": "workforce_enrollment_profile",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "contract_type_revision_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0042_workforce_qualification_masters",
+          "sql_sha256": "f052760387ea483f5b85c269db4806948e39f87f72f24826607655328d7127a0",
+          "creates_tables": []
+        },
+        {
+          "id": "0043_workforce_qualification_master_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_qualification_master_ref_idx",
+              "table": "workforce_enrollment_qualifications",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "qualification_revision_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0044_workforce_contact_masters",
+          "sql_sha256": "6dea10e771491af936b0c043102c9f4e9ae79aae36f14279e30043b30f7fe151",
+          "creates_tables": []
+        },
+        {
+          "id": "0045_workforce_contact_master_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_contact_master_ref_idx",
+              "table": "workforce_enrollment_emergency_contacts",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "relationship_revision_id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0046_workforce_document_classification",
+          "sql_sha256": "ffa0c67399a42d890c399cb00ae8c74f6963c2a51b818eb954f6f78547d364e1",
+          "creates_tables": [
+            "workforce_document_classification_revisions",
+            "workforce_document_classifications"
+          ]
+        },
+        {
+          "id": "0047_workforce_document_recovery",
+          "sql_sha256": "435ce5712f68d07fcef6adbe93e9fc46af8fe97e167bba6794a2f381b7e41b69",
+          "creates_tables": []
+        },
+        {
+          "id": "0048_workforce_identity_source",
+          "sql_sha256": "6864f0d7f3de70f5d9f30dc22b2c9c46991f24eb5986afc42050d5bfa6ef02cc",
           "creates_tables": []
         }
       ]

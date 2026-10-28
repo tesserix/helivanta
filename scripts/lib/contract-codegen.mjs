@@ -53,6 +53,10 @@ export function emitModels(models, kindSchema) {
         if (f.min !== undefined)
           schema += `.min(${f.min}${f.format === "name" ? ', "Enter a name."' : ""})`;
         if (f.max !== undefined) schema += `.max(${f.max})`;
+        if (base === "string" && f.pattern !== undefined)
+          schema += `.regex(new RegExp(${JSON.stringify(f.pattern)}, "u"), "Use a valid identifier.")`;
+        if (base === "string" && f.no_nul)
+          schema += `.refine(value=>!value.includes(String.fromCharCode(0)), "Use a valid identifier.")`;
         if (f.format === "clock")
           schema += '.regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/,"Use a 24-hour time such as 18:30.")';
         if (f.format === "date")

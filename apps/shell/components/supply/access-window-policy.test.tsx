@@ -73,6 +73,8 @@ function fixture(
     return new Response(JSON.stringify(page([])));
   });
   vi.stubGlobal("fetch", fetcher);
+  // Land the editor's focus frame late so typing before it fails every run, not occasionally.
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => setTimeout(cb, 25));
   return {
     writes,
     fetcher,
@@ -292,6 +294,8 @@ it.each([
         name: grant ? "Add time-limited grant" : "Request support access",
       }),
     );
+    const first = screen.getByLabelText(grant ? "Tenant member" : "Support beneficiary");
+    await waitFor(() => expect(first).toHaveFocus());
     const reason = screen.getByLabelText(grant ? "Reason for access" : "Reason for investigation");
     await user.type(reason, "TEST preserve unsaved reason");
     if (grant) {

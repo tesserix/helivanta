@@ -264,6 +264,55 @@ describe("LoginPage", () => {
       // whose only control is dead.
       expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
     });
+
+    // #1431 D2/D3: the platform login's mark goes home, and every state
+    // shares the organisation-name heading.
+    it("links the mark home and headed with the organisation name", () => {
+      renderWithProviders(<LoginPage />);
+      expect(screen.getByRole("link", { name: "Helivanta home" })).toHaveAttribute("href", "/");
+      expect(screen.getByRole("heading", { level: 1, name: "Helivanta" })).toBeInTheDocument();
+    });
+
+    // #1431 D1: a "Sign in" link the user just clicked carries start=1, so
+    // the page goes straight to the credential form instead of asking again.
+    describe("arriving from a Sign in link (start=1)", () => {
+      beforeEach(() => {
+        window.history.pushState({}, "", "/login?start=1&tenant=abc");
+      });
+
+      it("starts sign-in once, forcing re-authentication", async () => {
+        signinRedirect.mockResolvedValue(undefined);
+        renderWithProviders(<LoginPage />);
+        await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1));
+        expect(signinRedirect).toHaveBeenCalledWith(expect.objectContaining({ prompt: "login" }));
+      });
+
+      // Back from the credential form must land on the landing, not start again.
+      it("drops start from its own history entry before leaving", async () => {
+        signinRedirect.mockResolvedValue(undefined);
+        renderWithProviders(<LoginPage />);
+        await waitFor(() => expect(signinRedirect).toHaveBeenCalled());
+        expect(window.location.search).toBe("?tenant=abc");
+      });
+
+      // #847 still wins: right after a session ends, nothing starts on arrival.
+      it.each([
+        ["signed out", SIGNED_OUT_MARK],
+        ["idle-ended", IDLE_ENDED_MARK],
+      ])("shows the landing instead when the session just %s", async (_name, mark) => {
+        window.sessionStorage.setItem(mark, "1");
+        renderWithProviders(<LoginPage />);
+        expect(await screen.findByRole("button", { name: "Sign in" })).toBeEnabled();
+        expect(signinRedirect).not.toHaveBeenCalled();
+      });
+
+      it("shows the error and a working button when the redirect cannot start", async () => {
+        signinRedirect.mockRejectedValue(new Error("Zitadel unreachable"));
+        renderWithProviders(<LoginPage />);
+        expect(await screen.findByRole("alert")).toHaveTextContent("Zitadel unreachable");
+        expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+      });
+    });
   });
 
   describe("with an auth request (credential form)", () => {

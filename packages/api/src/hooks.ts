@@ -26,6 +26,7 @@ export function useApiQuery<T>(
     placeholderData?: PlaceholderValue<T>;
     enabled?: boolean;
     gcTime?: number;
+    staleTime?: number;
     refetchOnWindowFocus?: boolean;
     request?: ApiQueryRequest;
   } = {},
@@ -47,6 +48,7 @@ export function useApiQuery<T>(
     // of Hooks.
     enabled: opts.enabled,
     gcTime: opts.gcTime,
+    staleTime: opts.staleTime,
     refetchOnWindowFocus: opts.refetchOnWindowFocus,
   });
 }
@@ -77,6 +79,10 @@ export function useApiMutation<TData, TVars = void>(
     // falling back to a hand-rolled useMutation that would drift from
     // this hook's shared contract.
     suppressErrorToast?: boolean;
+    // invalidateOnError also refreshes the invalidate keys when the write
+    // fails: a 409 usually means someone else changed the record, and the
+    // screen must show what it is now, not what it was.
+    invalidateOnError?: boolean;
     networkMode?: "online" | "always";
   } = {},
 ): UseMutationResult<TData, Error, TVars> {
@@ -93,6 +99,11 @@ export function useApiMutation<TData, TVars = void>(
     },
     onError: (error) => {
       if (!opts.suppressErrorToast) toast.error(error.message);
+      if (opts.invalidateOnError) {
+        for (const key of opts.invalidate ?? []) {
+          void queryClient.invalidateQueries({ queryKey: key });
+        }
+      }
     },
   });
 }

@@ -1,6 +1,6 @@
 # Supply registry local acceptance — 16 October 2026
 
-> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
 Related #1133, #1135, #1137 and #1005. This is a completed private declaration slice, not completion of the seller verification or procurement epic. No production migration or deployment was performed for this branch.
 
@@ -31,7 +31,6 @@ New route/unknown-history, duplicate-conflict wording, off-page premise selectio
 
 The production Next build on localhost:4310 used a loopback-only test API on :8090, real disposable PostgreSQL/NATS, signed synthetic sessions and no hospital module. Test-only server code remains outside the committed application. The long-lived fixture resumes its NATS dispatcher after the ordinary harness deadline, so publication was checked after browser activity rather than inferred from a database write.
 
-- Pakistan: created TEST-KHI-DEPOT, verified Asia/Karachi defaults, created TEST-PK-LICENCE-001 using the shared premise dropdown and declared OTC/cold-chain categories. These synthetic category declarations do not authorize restricted trade.
 - Tried expiry before issue; inline validation rejected it. Saved a later expiry, reloaded, and inspected both retained versions with the original and revised dates.
 - India: created TEST-IN-DEPOT from the final UUID-patched build; verified Asia/Kolkata defaults and the persisted address.
 - Verified add/edit focus, mobile heading position below the sticky header, 390px document width without horizontal overflow, and the desktop history view. Restored normal browser viewport.

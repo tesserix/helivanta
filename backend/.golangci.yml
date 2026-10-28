@@ -45,13 +45,17 @@ linters:
             # entry only matters because it is more specific (longer) than
             # the deny entry above — that's what lets it carve out the
             # exception instead of widening it into an allowlist.
+            - "github.com/tesserix/helivanta/internal/modules/drugmaster/contract"
             - "github.com/tesserix/helivanta/internal/modules/emergency/contract"
             - "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+            - "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
             - "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
             - "github.com/tesserix/helivanta/internal/modules/lab/contract"
             - "github.com/tesserix/helivanta/internal/modules/iam/contract"
             - "github.com/tesserix/helivanta/internal/modules/reference/contract"
             - "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
+            - "github.com/tesserix/helivanta/internal/modules/practitioner/contract"
+            - "github.com/tesserix/helivanta/internal/modules/privacy/contract"
             - "github.com/tesserix/helivanta/internal/modules/workforce/contract"
             - "github.com/tesserix/helivanta/internal/modules/workspace/contract"
             # loginclient is NOT another module's internals — it lives

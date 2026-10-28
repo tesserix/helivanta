@@ -1,16 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Plus, Search, History, Package, ArrowLeft } from "lucide-react";
+import { Plus, Search, History, Package } from "lucide-react";
 import {
+  ApiError,
   PAGE_SIZE,
   apiFetch,
   formatZonedDateTime,
   useApiPageQuery,
   useApiPagedQuery,
+  useApiQuery,
   useApiMutation,
   pharmacyKey,
   pharmacyRoot,
@@ -26,17 +28,21 @@ import {
 } from "@helivanta/api";
 import {
   ConfirmDialog,
+  DetailHeader,
   Field,
   FormSelectField,
   SelectControl,
+  ListDetail,
   LoadMore,
   PageTabs,
   Pager,
   Panel,
   RequestFailure,
+  useConfirmLeave,
   useFieldArray,
   useZodForm,
 } from "@helivanta/ui";
+import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-field";
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
@@ -132,7 +138,6 @@ export function CataloguePanel({
   const tax = unclassified ? "unclassified" : "";
   const url = useUrlPage({ tab, q: query, tax });
   const today = zonedDateTimeInput(new Date().toISOString(), timeZone).slice(0, 10);
-  const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();
   const filters = new URLSearchParams(
     Object.entries({ status: tab === "all" ? "" : tab, q: query, tax }).filter(([, v]) => v),
   ).toString();
@@ -142,26 +147,73 @@ export function CataloguePanel({
     url.cursor,
   );
   const emptied = useStepBackWhenEmpty(products, url);
-  const editor = useRef<HTMLElement>(null);
-  function reveal(product: PharmacyProduct | null) {
-    setSelected(product);
-    requestAnimationFrame(() => {
-      editor.current?.scrollIntoView({ block: "start", behavior: "instant" });
-      editor.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-    });
-  }
+  // A product opens beside the list (#1303 E2): the URL holds it, and the
+  // shared mechanism steps, guards and focuses as on Supplier bills.
+  const pane = useListDetail({
+    rows: products.items,
+    name: (row) => row.brand_name,
+    fallbackName: "this product",
+    newName: "the new product",
+    headingId: "catalogue-heading",
+  });
+  const { detail, paneRef, rowProps, openProps } = pane;
+  // The search and the filter are not links: ask before they close an edit.
+  const leave = useConfirmLeave();
+  const go = (href: string) => leave(() => router.replace(href));
+  const record = detail.creating ? (
+    <Panel>
+      <DetailHeader
+        title="New product identity"
+        noun="product"
+        stepping={false}
+        previous={{ disabled: true, onClick: () => {} }}
+        next={{ disabled: true, onClick: () => {} }}
+        closeLabel="Close product"
+        onClose={pane.close}
+      />
+      <div className="mt-6">
+        <ProductForm
+          scope={scope}
+          product={null}
+          defaultCurrency={defaultCurrency}
+          onSaved={(row) => pane.saved(row.id)}
+          onStateChange={pane.formState("product")}
+        />
+      </div>
+    </Panel>
+  ) : detail.openId ? (
+    <Panel>
+      <OpenProduct
+        key={detail.openId}
+        id={detail.openId}
+        scope={scope}
+        scheme={scheme}
+        writable={writable}
+        canManageTax={canManageTax}
+        defaultCurrency={defaultCurrency}
+        timeZone={timeZone}
+        today={today}
+        pane={pane}
+      />
+    </Panel>
+  ) : null;
+  const compact = pane.isOpen;
   return (
-    <div className="space-y-6">
+    <div className="space-y-4" onClickCapture={pane.holdLinks}>
+      {/* The heading, tabs and search span the page above the split, so
+          opening a product narrows only the list (#1303). */}
       <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
-            <h3 className="font-semibold">Product catalogue</h3>
+            <h3 id="catalogue-heading" tabIndex={-1} className="font-semibold outline-none">
+              Product catalogue
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               One SKU per outlet. Every change keeps its history.
             </p>
           </div>
           {writable && (
-            <Button onClick={() => reveal(null)}>
+            <Button onClick={pane.create}>
               <Plus className="mr-2 size-4" />
               Add product
             </Button>
@@ -179,7 +231,7 @@ export function CataloguePanel({
         <CatalogueSearch
           key={query}
           initial={query}
-          onSearch={(q) => router.replace(url.hrefFor({ tab, q, tax }))}
+          onSearch={(q) => go(url.hrefFor({ tab, q, tax }))}
         >
           {scheme && (
             <Button
@@ -187,115 +239,193 @@ export function CataloguePanel({
               variant={unclassified ? "default" : "outline"}
               aria-pressed={unclassified}
               onClick={() =>
-                router.replace(
-                  url.hrefFor({ tab, q: query, tax: unclassified ? "" : "unclassified" }),
-                )
+                go(url.hrefFor({ tab, q: query, tax: unclassified ? "" : "unclassified" }))
               }
             >
               Not classified
             </Button>
           )}
         </CatalogueSearch>
-        {products.isError ? (
-          <RequestFailure message="Could not load the catalogue." retry={products.retry} />
-        ) : products.isPending ? (
-          <p role="status" className="p-6">
-            Loading catalogue…
-          </p>
-        ) : products.items.length === 0 ? (
-          <div className="p-10 text-center">
-            <Package className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <h4 className="font-semibold">
-              {unclassified
-                ? "Every product is classified"
-                : query
-                  ? "No matching products"
-                  : "No products yet"}
-            </h4>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {query
-                ? "Try a brand, generic name or SKU prefix."
-                : "Add a private product identity to begin regulatory review."}
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y">
-            {products.items.map((product) => (
-              <li
-                key={product.id}
-                className="flex flex-wrap items-center justify-between gap-4 p-5"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">{product.brand_name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {product.sku} · {product.generic_name} · {product.pack_size}{" "}
-                    {product.unit_of_issue}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {product.manufacturer} · {product.status} · Revision {product.version}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  {scheme && <TaxBadge tax={product.tax} name={scheme.classification.name} />}
-                  <span className="rounded-full bg-(--hms-amber-tint) px-3 py-1 text-xs font-medium text-(--hms-amber)">
-                    Pending regulatory review
-                  </span>
-                  <Button variant="outline" onClick={() => reveal(product)}>
-                    Open {product.sku}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {!products.isPending && !emptied && (
-          <Pager
-            page={url.page}
-            pageSize={PAGE_SIZE}
-            offset={products.offset}
-            shown={products.items.length}
-            total={products.total}
-            previousHref={url.previousHref}
-            nextHref={url.nextHref(products.nextCursor)}
-            firstHref={url.first}
-          />
-        )}
       </Panel>
-      {selected !== undefined && (
-        <Panel ref={editor} className="scroll-mt-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold">
-              {selected ? selected.brand_name : "New product identity"}
-            </h3>
-            <Button variant="ghost" onClick={() => setSelected(undefined)}>
-              <ArrowLeft className="mr-2 size-4" />
-              Close details
-            </Button>
-          </div>
-          {writable && selected?.status !== "withdrawn" ? (
-            <ProductForm
-              key={selected ? `${selected.id}:${selected.version}` : "new"}
-              scope={scope}
-              product={selected}
-              defaultCurrency={defaultCurrency}
-              onSaved={setSelected}
-            />
-          ) : (
-            selected && <ProductSummary product={selected} />
-          )}{" "}
-          {selected && (
-            <ProductTaxSection
-              key={selected.id}
-              scope={scope}
-              product={selected}
-              scheme={scheme}
-              canManage={canManageTax}
-              today={today}
-            />
-          )}
-          {selected && <ProductHistory scope={scope} product={selected} timeZone={timeZone} />}
-        </Panel>
+      <ListDetail
+        label={
+          detail.creating ? "New product" : pane.openName ? `Product ${pane.openName}` : "Product"
+        }
+        backHref={detail.closeHref}
+        backLabel="Back to products"
+        detail={record && <div ref={paneRef}>{record}</div>}
+        list={
+          <Panel flush>
+            {products.isError ? (
+              <RequestFailure message="Could not load the catalogue." retry={products.retry} />
+            ) : products.isPending ? (
+              <p role="status" className="p-6">
+                Loading catalogue…
+              </p>
+            ) : products.items.length === 0 ? (
+              <div className="p-10 text-center">
+                <Package className="mx-auto mb-3 size-8 text-muted-foreground" />
+                <h4 className="font-semibold">
+                  {unclassified
+                    ? "Every product is classified"
+                    : query
+                      ? "No matching products"
+                      : "No products yet"}
+                </h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {query
+                    ? "Try a brand, generic name or SKU prefix."
+                    : "Add a private product identity to begin regulatory review."}
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {products.items.map((product) => (
+                  <li
+                    key={product.id}
+                    {...rowProps(product.id)}
+                    className={`flex flex-wrap items-center justify-between gap-4 ${compact ? "px-4 py-3" : "p-5"} ${product.id === detail.openId ? "bg-(--hms-accent-dim)" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="wrap-anywhere font-medium">{product.brand_name}</p>
+                      {/* Beside an open product: brand, SKU and tax (#1303 D1). */}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {compact
+                          ? product.sku
+                          : `${product.sku} · ${product.generic_name} · ${product.pack_size} ${product.unit_of_issue}`}
+                      </p>
+                      {!compact && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {product.manufacturer} · {product.status} · Revision {product.version}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {scheme && <TaxBadge tax={product.tax} name={scheme.classification.name} />}
+                      {!compact && (
+                        <span className="rounded-full bg-(--hms-amber-tint) px-3 py-1 text-xs font-medium text-(--hms-amber)">
+                          Pending regulatory review
+                        </span>
+                      )}
+                      <Button
+                        variant="outline"
+                        {...openProps(product.id)}
+                        aria-label={`Open ${product.sku}`}
+                        onClick={() => pane.openRow(product.id)}
+                      >
+                        {compact ? "Open" : `Open ${product.sku}`}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!products.isPending && !emptied && (
+              <Pager
+                page={url.page}
+                pageSize={PAGE_SIZE}
+                offset={products.offset}
+                shown={products.items.length}
+                total={products.total}
+                previousHref={url.previousHref}
+                nextHref={url.nextHref(products.nextCursor)}
+                firstHref={url.first}
+              />
+            )}
+          </Panel>
+        }
+      />
+    </div>
+  );
+}
+
+// The open product, fetched by its id so a reload or a link reopens it. Another
+// outlet's or tenant's product is the same 404 as a missing one (#1303 D3).
+function OpenProduct({
+  id,
+  scope,
+  scheme,
+  writable,
+  canManageTax,
+  defaultCurrency,
+  timeZone,
+  today,
+  pane,
+}: {
+  id: string;
+  scope: PharmacyScope;
+  scheme: ReturnType<typeof taxScheme>;
+  writable: boolean;
+  canManageTax: boolean;
+  defaultCurrency: string;
+  timeZone: string;
+  today: string;
+  pane: ReturnType<typeof useListDetail<PharmacyProduct>>;
+}) {
+  const product = useApiQuery<PharmacyProduct>(
+    pharmacyKey(scope, "product", id),
+    `${pharmacyRoot(scope)}/catalogue/products/${id}`,
+  );
+  const heading = useRef<HTMLHeadingElement>(null);
+  // Viewing focuses the heading, not an edit field (#1303 D6).
+  const loaded = product.data?.id;
+  useEffect(() => {
+    if (loaded) heading.current?.focus({ preventScroll: true });
+  }, [loaded]);
+  const row = product.data;
+  // The header shows whatever the pane could load: beside the list there is
+  // no back link, so Close must be here even for a record not found.
+  const header = (
+    <DetailHeader
+      title={row?.brand_name ?? "Product"}
+      subtitle={row?.sku}
+      headingRef={heading}
+      noun="product"
+      previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
+      next={{ disabled: !pane.canStep(1), onClick: () => pane.step(1) }}
+      closeLabel="Close product"
+      onClose={pane.close}
+    />
+  );
+  if (!row)
+    return (
+      <div className="space-y-6">
+        {header}
+        {product.error instanceof ApiError && product.error.status === 404 ? (
+          <p role="alert" className="text-sm">
+            This record was not found, or you do not have access.
+          </p>
+        ) : product.isError ? (
+          <RequestFailure message="Could not load this product." retry={product.refetch} />
+        ) : (
+          <p role="status">Loading product…</p>
+        )}
+      </div>
+    );
+  return (
+    <div className="space-y-6">
+      {header}
+      {writable && row.status !== "withdrawn" ? (
+        <ProductForm
+          key={`${row.id}:${row.version}`}
+          scope={scope}
+          product={row}
+          defaultCurrency={defaultCurrency}
+          onSaved={(saved) => pane.saved(saved.id)}
+          onStateChange={pane.formState("product")}
+        />
+      ) : (
+        <ProductSummary product={row} />
       )}
+      <ProductTaxSection
+        scope={scope}
+        product={row}
+        scheme={scheme}
+        canManage={canManageTax}
+        today={today}
+        onStateChange={pane.formState("tax")}
+      />
+      <ProductHistory scope={scope} product={row} timeZone={timeZone} />
     </div>
   );
 }
@@ -305,11 +435,13 @@ function ProductForm({
   product,
   defaultCurrency,
   onSaved,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   product: PharmacyProduct | null;
   defaultCurrency: string;
   onSaved: (product: PharmacyProduct) => void;
+  onStateChange?: FormState;
 }) {
   const [id] = useState(() => product?.id ?? newPharmacyId());
   const [confirm, setConfirm] = useState(false);
@@ -328,7 +460,11 @@ function ProductForm({
       }),
     {
       successToast: "Product saved",
-      invalidate: [pharmacyKey(scope, "catalogue"), pharmacyKey(scope, "history", id)],
+      invalidate: [
+        pharmacyKey(scope, "catalogue"),
+        pharmacyKey(scope, "history", id),
+        pharmacyKey(scope, "product", id),
+      ],
       onSuccess: (row) => {
         setConfirm(false);
         onSaved(row);
@@ -345,6 +481,7 @@ function ProductForm({
     ["manufacturer", "Manufacturer"],
     ["marketing_company", "Marketing company"],
   ] as const;
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   const fieldErrors = form.formState.errors;
   return (
     <>
@@ -591,6 +728,7 @@ function ProductHistory({
         </ol>
       )}
       <LoadMore
+        label="Load more revisions"
         hasMore={history.hasMore}
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}

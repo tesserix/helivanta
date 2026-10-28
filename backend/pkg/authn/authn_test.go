@@ -273,3 +273,17 @@ func TestTenantPrincipalWhenMissing(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "missing principal")
 }
+
+// A request never acts as a background process: the database trusts the
+// "system:" and "service:" actor prefixes to mean the bus or a worker
+// (#1373 A4), so a credential claiming one is refused.
+func TestMiddlewareRefusesProcessSubjects(t *testing.T) {
+	for _, subject := range []string{"system:medicore-molecule-published", "service:privacy-deadline-worker", "", " "} {
+		r := router(fakeVerifier{p: authn.Principal{Subject: subject, TenantID: "t1", IdleDeadline: time.Now().Add(time.Hour)}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/p", nil)
+		req.Header.Set("Authorization", "Bearer good")
+		r.ServeHTTP(w, req)
+		require.Equal(t, http.StatusUnauthorized, w.Code, subject)
+	}
+}

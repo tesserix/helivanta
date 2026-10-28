@@ -42,7 +42,7 @@ export function FindingChip({
     <span
       style={{ "--chip": style.colour } as CSSProperties}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
         style.className,
       )}
     >
@@ -91,14 +91,14 @@ export function Narration<S extends FlowStep>({
               index === current ? "border-(--lane) bg-(--home-surface)" : "border-transparent",
             )}
           >
-            <span aria-hidden="true" className="text-sm text-(--home-muted) tabular-nums">
+            <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
               {index + 1}
             </span>
             <div>
-              <p className="text-sm font-semibold text-(--home-ink)">{titleOf(step)}</p>
-              <p className="mt-1 text-sm leading-relaxed text-(--home-muted)">{step.text}</p>
+              <p className="text-base font-semibold text-(--home-ink)">{titleOf(step)}</p>
+              <p className="mt-1 text-base leading-relaxed text-(--home-muted)">{step.text}</p>
               {step.phase === "check" && (
-                <p className="mt-1 text-sm leading-relaxed text-(--home-ink)">{summary}</p>
+                <p className="mt-1 text-base leading-relaxed text-(--home-ink)">{summary}</p>
               )}
             </div>
           </li>
@@ -116,7 +116,7 @@ type LegendProps = { animated: boolean; paused: boolean; onToggle: () => void };
 export function Legend({ animated, paused, onToggle }: LegendProps) {
   return (
     <div className="mt-4 flex items-center justify-between gap-6">
-      <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+      <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
         <li className="flex items-center gap-2 text-(--home-muted)">
           <ScanSearch className="size-3.5 text-(--home-stock)" />
           Checks run by themselves
@@ -188,7 +188,7 @@ export function CheckFlow<R extends FlowRoute>({
             <p className="mt-2.5 text-[13px] leading-tight font-semibold text-(--home-ink)">
               Automatic check
             </p>
-            <p className="mt-1 text-[11px] leading-snug text-(--home-muted)">{cadence}</p>
+            <p className="mt-1 text-xs leading-snug text-(--home-muted)">{cadence}</p>
           </div>
         </BoardCard>
         {routes.map((route, lane) => (

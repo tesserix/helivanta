@@ -174,7 +174,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
       <div
         className={cn(
           REGISTER,
-          "mt-4 border-b border-(--home-line) pb-2 text-[11px] text-(--home-muted)",
+          "mt-4 border-b border-(--home-line) pb-2 text-xs text-(--home-muted)",
         )}
       >
         <p>Item and check</p>
@@ -197,7 +197,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
               >
                 <p className="min-w-0 text-[13px] leading-tight font-semibold text-(--home-ink)">
                   {item.asset}
-                  <span className="block text-[11px] font-normal text-(--home-muted)">
+                  <span className="block text-xs font-normal text-(--home-muted)">
                     {item.check}
                   </span>
                 </p>
@@ -205,9 +205,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
                 <p className="text-[13px] leading-tight text-(--home-ink) tabular-nums">
                   {dueText(item)}
                   {item.lastResult === "fail" && (
-                    <span className="block text-[11px] text-(--home-oversight)">
-                      Failed last test
-                    </span>
+                    <span className="block text-xs text-(--home-oversight)">Failed last test</span>
                   )}
                 </p>
                 <div>

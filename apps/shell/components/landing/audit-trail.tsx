@@ -46,7 +46,7 @@ export function AuditTrail() {
           </div>
         </figure>
         <div className="mt-4 flex items-center justify-between gap-6">
-          <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+          <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
             {(Object.keys(laneName) as TrailLane[]).map((lane) => (
               <li key={lane} className="flex items-center gap-2 text-(--home-muted)">
                 <span
@@ -72,15 +72,15 @@ export function AuditTrail() {
                 index === current ? "border-(--lane) bg-(--home-surface)" : "border-transparent",
               )}
             >
-              <span aria-hidden="true" className="text-sm text-(--home-muted) tabular-nums">
+              <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
                 {index + 1}
               </span>
               <div>
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-(--home-ink)">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-(--home-ink)">
                   {entry.actor}: {entry.title}
                   {entry.readOnly && <ReadOnlyTag />}
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-(--home-muted)">{entry.text}</p>
+                <p className="mt-1 text-base leading-relaxed text-(--home-muted)">{entry.text}</p>
               </div>
             </li>
           ))}
@@ -95,7 +95,7 @@ export function AuditTrail() {
 
 function ReadOnlyTag() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-(--home-line) px-2 py-0.5 text-[11px] font-medium text-(--home-ink)">
+    <span className="inline-flex items-center gap-1 rounded-full border border-(--home-line) px-2 py-0.5 text-xs font-medium text-(--home-ink)">
       <Lock aria-hidden="true" className="size-3" />
       Read only
     </span>
@@ -179,7 +179,7 @@ function Row({ entry, index, fresh, animated, kept, highlighted }: RowProps) {
         !fresh && !highlighted && "border-(--home-line)",
       )}
     >
-      <p className="flex items-center justify-between gap-2 text-[11px] text-(--home-muted)">
+      <p className="flex items-center justify-between gap-2 text-xs text-(--home-muted)">
         {entry.actor}
         {entry.readOnly && <ReadOnlyTag />}
       </p>
@@ -188,13 +188,13 @@ function Row({ entry, index, fresh, animated, kept, highlighted }: RowProps) {
         <span className="text-(--lane) tabular-nums">{entry.figure}</span>
       </p>
       {entry.corrects && (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-(--home-muted)">
+        <p className="mt-1 flex items-center gap-1 text-xs text-(--home-muted)">
           <Undo2 className="size-3" />
           Reverses part of entry {entryNumber(entry.corrects)}
         </p>
       )}
       {kept && (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-(--home-muted)">
+        <p className="mt-1 flex items-center gap-1 text-xs text-(--home-muted)">
           <Lock className="size-3" />
           Kept as recorded
         </p>
@@ -202,7 +202,7 @@ function Row({ entry, index, fresh, animated, kept, highlighted }: RowProps) {
     </div>
   );
   const node = (
-    <span className="col-start-2 mx-auto flex size-7 items-center justify-center rounded-full border border-(--lane) bg-(--home-board) text-[11px] text-(--lane) tabular-nums">
+    <span className="col-start-2 mx-auto flex size-7 items-center justify-center rounded-full border border-(--lane) bg-(--home-board) text-xs text-(--lane) tabular-nums">
       {entry.readOnly ? <Eye className="size-3.5" /> : index + 1}
     </span>
   );

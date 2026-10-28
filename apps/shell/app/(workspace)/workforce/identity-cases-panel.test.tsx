@@ -92,6 +92,8 @@ it("requires review facts and retains an exact draft command after an uncertain 
   const form = screen.getByRole("form", { name: "Prepare review draft" });
   await user.click(within(form).getByRole("button", { name: "Save draft" }));
   expect(writes).toHaveLength(0);
+  expect(within(form).getByText("Enter the hospital policy reference.")).toBeVisible();
+  expect(within(form).getByText("Enter a check reference.")).toBeVisible();
   expect(within(form).getByLabelText("Policy reference")).toHaveFocus();
   await user.type(within(form).getByLabelText("Policy reference"), "SYN-IDENTITY-POLICY");
   await user.type(

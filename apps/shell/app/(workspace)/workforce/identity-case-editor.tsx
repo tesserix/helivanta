@@ -140,14 +140,22 @@ export function IdentityCaseEditor({
         <Field
           id="identity-case-policy"
           label="Policy reference"
-          error={form.formState.errors.policy_reference?.message}
+          error={
+            form.formState.errors.policy_reference?.type === "too_small"
+              ? "Enter the hospital policy reference."
+              : form.formState.errors.policy_reference?.message
+          }
         >
           <Input id="identity-case-policy" maxLength={300} {...form.register("policy_reference")} />
         </Field>
         <Field
           id="identity-case-reference"
           label="Check reference"
-          error={form.formState.errors.check_reference?.message}
+          error={
+            form.formState.errors.check_reference?.type === "too_small"
+              ? "Enter a check reference."
+              : form.formState.errors.check_reference?.message
+          }
         >
           <Input
             id="identity-case-reference"

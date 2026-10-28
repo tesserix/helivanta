@@ -121,3 +121,25 @@ type PrescriptionImageChangedData struct {
 	PrescriptionImageScanRequestedData
 	Status string `json:"status"`
 }
+
+// SubjectCreditNoteIssued identifies a counter credit note for goods returned (#1386 C-1).
+const SubjectCreditNoteIssued = "helivanta.in.pharmacy.credit_note_issued.v1"
+
+// CreditNoteIssuedData carries ids and totals, never the recipient.
+type CreditNoteIssuedData struct {
+	PharmacyID       string                 `json:"pharmacy_id"`
+	OutletID         string                 `json:"outlet_id"`
+	CreditNoteID     string                 `json:"credit_note_id"`
+	SaleID           string                 `json:"sale_id"`
+	CreditNoteNumber string                 `json:"credit_note_number"`
+	Currency         string                 `json:"currency"`
+	TotalMinor       int64                  `json:"total_minor"`
+	Lines            []CreditNoteIssuedLine `json:"lines"`
+}
+
+// CreditNoteIssuedLine is one batch returned to quarantine.
+type CreditNoteIssuedLine struct {
+	ProductID     string `json:"product_id"`
+	BatchID       string `json:"batch_id"`
+	QuantityUnits int64  `json:"quantity_units"`
+}

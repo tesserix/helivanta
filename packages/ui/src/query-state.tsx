@@ -37,7 +37,7 @@ export function QueryState<T>({
           <div
             key={width}
             aria-hidden="true"
-            className={`h-4 ${width} animate-pulse rounded bg-muted motion-reduce:animate-none`}
+            className={`h-4 ${width} animate-pulse rounded-sm bg-muted motion-reduce:animate-none`}
           />
         ))}
       </div>

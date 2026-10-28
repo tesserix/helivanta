@@ -80,7 +80,7 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
   return (
     <div
       aria-hidden="true"
-      className="rounded-2xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px]"
+      className="rounded-xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px]"
     >
       <div className="relative mx-4 grid grid-cols-8 pt-16 pb-8">
         <div className="absolute top-[calc(4rem+1.625rem)] right-[6.25%] left-[6.25%] -translate-y-1/2 border-t-2 border-dashed border-border">

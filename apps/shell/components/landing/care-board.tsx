@@ -138,7 +138,7 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
   return (
     <div
       aria-hidden="true"
-      className="relative aspect-[1000/660] rounded-2xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px]"
+      className="relative aspect-[1000/660] rounded-xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px]"
     >
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} fill="none" className="absolute inset-0 size-full">
         <defs>

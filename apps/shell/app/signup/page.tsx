@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { TesserixFooter } from "@helivanta/ui";
+import { Button, TesserixFooter } from "@helivanta/ui";
 
 export const metadata: Metadata = { title: "Start your workspace | Helivanta" };
 
@@ -34,9 +34,9 @@ export default function SignupPage() {
           </div>
           <section
             aria-labelledby="signup-status"
-            className="self-center rounded-3xl border border-border bg-card p-8 sm:p-10"
+            className="self-center rounded-lg border border-border bg-card p-8 sm:p-10"
           >
-            <p className="inline-block rounded-full bg-accent px-3 py-1 text-xs text-(--hms-band-line)">
+            <p className="inline-block rounded-md bg-accent px-3 py-1 text-xs text-(--hms-band-line)">
               Onboarding preview
             </p>
             <h2 id="signup-status" className="mt-6 text-2xl font-medium">
@@ -46,12 +46,9 @@ export default function SignupPage() {
               New workspace registration is not available yet. Visit Tesserix to get in touch about
               onboarding, or sign in if your organisation already has access.
             </p>
-            <a
-              href="https://tesserix.app"
-              className="mt-7 block rounded-full bg-primary px-6 py-3 text-center text-sm font-semibold text-primary-foreground hover:bg-(--hms-accent-strong)"
-            >
-              Visit Tesserix
-            </a>
+            <Button asChild size="lg" className="mt-7 w-full">
+              <a href="https://tesserix.app">Visit Tesserix</a>
+            </Button>
             <a
               href="/login?start=1"
               className="mt-5 block text-center text-sm font-medium underline underline-offset-4"

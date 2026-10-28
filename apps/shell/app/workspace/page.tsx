@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { HeartPulse } from "lucide-react";
-import { TesserixFooter } from "@helivanta/ui";
+import { Button, TesserixFooter } from "@helivanta/ui";
 import { pageWidth } from "../page-width";
 import { platformGroups } from "../platform-catalog";
 
@@ -58,12 +58,11 @@ export default function WorkspacePage() {
             <a href="/login?start=1" className="hover:underline">
               Sign in
             </a>
-            <a
-              href="/signup"
-              className="rounded-full bg-primary px-5 py-3 text-primary-foreground hover:bg-(--hms-accent-strong)"
-            >
-              Start your workspace <span aria-hidden="true">↗</span>
-            </a>
+            <Button asChild>
+              <a href="/signup">
+                Start your workspace <span aria-hidden="true">↗</span>
+              </a>
+            </Button>
           </div>
         </nav>
       </header>
@@ -86,12 +85,11 @@ export default function WorkspacePage() {
               and everyday workflows together, with your organisation at the centre.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-6">
-              <a
-                href="/signup"
-                className="rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground hover:bg-(--hms-accent-strong)"
-              >
-                Start your workspace <span aria-hidden="true">↗</span>
-              </a>
+              <Button asChild size="lg">
+                <a href="/signup">
+                  Start your workspace <span aria-hidden="true">↗</span>
+                </a>
+              </Button>
               <a
                 href="#platform"
                 className="text-sm font-semibold underline decoration-border underline-offset-8"
@@ -104,14 +102,14 @@ export default function WorkspacePage() {
             </p>
           </div>
           <div
-            className="relative rounded-[2rem] border border-border bg-accent p-6 sm:p-9"
+            className="relative rounded-xl border border-border bg-accent p-6 sm:p-9"
             aria-label="Illustration of the Helivanta workspace"
           >
             <div className="mb-8 flex items-center justify-between text-xs">
               <span className="font-semibold uppercase tracking-widest">Your care ecosystem</span>
-              <span className="rounded-full border border-border px-3 py-1">Product preview</span>
+              <span className="rounded-md border border-border px-3 py-1">Product preview</span>
             </div>
-            <div className="rounded-2xl border border-card bg-card/90 p-6 shadow-[0_16px_40px_-24px_var(--hms-shadow)]">
+            <div className="rounded-lg border border-card bg-card/90 p-6 shadow-[0_16px_40px_-24px_var(--hms-shadow)]">
               <div className="flex items-center gap-3 border-b border-border pb-5">
                 <span
                   className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-2xl text-primary-foreground"
@@ -207,7 +205,7 @@ export default function WorkspacePage() {
                       <article
                         key={module.name}
                         aria-label={module.name}
-                        className={`flex flex-col rounded-2xl p-6 ${group.color}`}
+                        className={`flex flex-col rounded-lg p-6 ${group.color}`}
                       >
                         <p className="text-xs font-medium">{module.product}</p>
                         <h3 className="mt-4 text-lg font-semibold tracking-tight">{module.name}</h3>
@@ -249,7 +247,7 @@ export default function WorkspacePage() {
                 detail: "Diagnostic teams working alongside your care network.",
               },
             ].map(({ name, detail }) => (
-              <article key={name} className="rounded-2xl border border-border bg-card p-7">
+              <article key={name} className="rounded-lg border border-border bg-card p-7">
                 <p className="text-xs text-muted-foreground">Designed for your team</p>
                 <h3 className="mt-5 text-lg font-semibold">{name}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{detail}</p>
@@ -271,12 +269,12 @@ export default function WorkspacePage() {
             </p>
             <div className="mt-10 grid gap-5 md:grid-cols-3">
               {["SOC 2 Type II", "ISO/IEC 27001", "HIPAA safeguards"].map((label, i) => (
-                <article key={label} className="rounded-2xl border border-(--hms-band-line) p-7">
+                <article key={label} className="rounded-lg border border-(--hms-band-line) p-7">
                   <p className="text-xs uppercase tracking-widest text-(--hms-band-muted)">
                     {i === 2 ? "Compliance documentation" : "Certification placeholder"}
                   </p>
                   <h3 className="mt-5 text-xl font-medium">{label}</h3>
-                  <p className="mt-5 inline-block rounded-full border border-(--hms-band-line) px-3 py-1 text-xs">
+                  <p className="mt-5 inline-block rounded-md border border-(--hms-band-line) px-3 py-1 text-xs">
                     {i === 2 ? "Documentation pending" : "Not yet certified"}
                   </p>
                 </article>
@@ -301,7 +299,7 @@ export default function WorkspacePage() {
           </div>
           <div className="grid gap-4">
             {["Customer testimonials", "Verified reviews"].map((label) => (
-              <div key={label} className="rounded-2xl border border-dashed border-border p-6">
+              <div key={label} className="rounded-lg border border-dashed border-border p-6">
                 <h3 className="font-medium">{label}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Awaiting approved content</p>
               </div>
@@ -309,19 +307,18 @@ export default function WorkspacePage() {
           </div>
         </section>
         <div className={`${pageWidth} mb-16`}>
-          <section className="rounded-3xl bg-accent px-6 py-14 text-center">
+          <section className="rounded-xl bg-accent px-6 py-14 text-center">
             <h2 className="text-3xl font-medium tracking-tight">
               Bring your care network together.
             </h2>
             <p className="mt-4 text-muted-foreground">
               Make room for a more connected working day.
             </p>
-            <a
-              href="/signup"
-              className="mt-7 inline-block rounded-full bg-primary px-7 py-4 text-sm font-semibold text-primary-foreground hover:bg-(--hms-accent-strong)"
-            >
-              Start your workspace <span aria-hidden="true">↗</span>
-            </a>
+            <Button asChild size="lg" className="mt-7">
+              <a href="/signup">
+                Start your workspace <span aria-hidden="true">↗</span>
+              </a>
+            </Button>
           </section>
         </div>
       </main>

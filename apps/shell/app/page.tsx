@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import localFont from "next/font/local";
 import { HeartPulse } from "lucide-react";
-import { TesserixFooter } from "@helivanta/ui";
+import { Button, TesserixFooter } from "@helivanta/ui";
 import { AiBoard } from "@/components/landing/ai-board";
 import { AuditTrail } from "@/components/landing/audit-trail";
 import { CareBoard } from "@/components/landing/care-board";
@@ -127,9 +127,6 @@ const trustItems = [
   { label: "HIPAA safeguards", kind: "Compliance documentation", state: "Documentation pending" },
 ];
 
-const primaryAction =
-  "inline-flex min-h-11 items-center rounded-full bg-(--hms-accent) px-6 text-sm font-semibold text-background hover:bg-(--hms-accent-strong) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground";
-
 const sectionHeading =
   "text-4xl leading-[1.02] font-semibold tracking-tight font-stretch-[80%] sm:text-5xl";
 
@@ -208,9 +205,9 @@ export default function LandingPage() {
               Sign in
             </a>
             {/* The hero's identical action sits directly below on small screens. */}
-            <Link href="/workspace" className={`${primaryAction} max-sm:hidden`}>
-              Start your workspace
-            </Link>
+            <Button asChild className="max-sm:hidden">
+              <Link href="/workspace">Start your workspace</Link>
+            </Button>
           </div>
         </nav>
       </header>
@@ -228,9 +225,9 @@ export default function LandingPage() {
               pharmacy, the store and the people who sign it off.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-6">
-              <Link href="/workspace" className={primaryAction}>
-                Start your workspace
-              </Link>
+              <Button asChild size="lg">
+                <Link href="/workspace">Start your workspace</Link>
+              </Button>
               <a href="#how" className="text-sm font-semibold underline underline-offset-8">
                 See how it works
               </a>
@@ -467,11 +464,11 @@ export default function LandingPage() {
             {trustItems.map((item) => (
               <article
                 key={item.label}
-                className="rounded-2xl border border-dashed border-border p-7"
+                className="rounded-lg border border-dashed border-border p-7"
               >
                 <p className="text-[13px] text-muted-foreground">{item.kind}</p>
                 <h3 className="mt-4 text-xl font-semibold">{item.label}</h3>
-                <p className="mt-5 inline-block rounded-full border border-border px-3 py-1 text-[13px] text-muted-foreground">
+                <p className="mt-5 inline-block rounded-md border border-border px-3 py-1 text-[13px] text-muted-foreground">
                   {item.state}
                 </p>
               </article>
@@ -492,7 +489,7 @@ export default function LandingPage() {
             </div>
             <div className="grid gap-4">
               {["Customer testimonials", "Verified reviews"].map((label) => (
-                <div key={label} className="rounded-2xl border border-dashed border-border p-6">
+                <div key={label} className="rounded-lg border border-dashed border-border p-6">
                   <h3 className="font-semibold">{label}</h3>
                   <p className="mt-2 text-base text-muted-foreground">Awaiting approved content</p>
                 </div>
@@ -502,14 +499,14 @@ export default function LandingPage() {
         </section>
 
         <section className={`${homeWidth} mb-20`}>
-          <div className="rounded-3xl border border-border bg-muted px-6 py-16 text-center">
+          <div className="rounded-xl border border-border bg-muted px-6 py-16 text-center">
             <h2 className={sectionHeading}>Bring your hospital onto one connected record.</h2>
             <p className="mt-4 text-muted-foreground">
               Create your organisation&apos;s workspace to get started.
             </p>
-            <Link href="/workspace" className={`${primaryAction} mt-8`}>
-              Start your workspace
-            </Link>
+            <Button asChild size="lg" className="mt-8">
+              <Link href="/workspace">Start your workspace</Link>
+            </Button>
           </div>
         </section>
       </main>

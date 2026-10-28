@@ -45,6 +45,35 @@ describe("design rules", () => {
     ]);
   });
 
+  // One shape scale (#1434 spec D5).
+  it.each([
+    "rounded-2xl border p-4",
+    "rounded-3xl",
+    "rounded-[2rem] p-10",
+    "rounded-t-2xl",
+    "md:rounded-[14px]",
+    "h-3 w-5 rounded border",
+    "rounded-t border",
+  ])("rejects the off-scale radius in %s", async (classes) => {
+    expect(await messages(`export const A = () => <div className="${classes}" />;`)).toEqual([
+      expect.stringMatching(/shape scale/),
+    ]);
+  });
+
+  it.each([
+    "rounded-full bg-primary px-6 text-primary-foreground",
+    "bg-(--hms-accent) rounded-full px-5",
+  ])("rejects a pill primary action: %s", async (classes) => {
+    expect(
+      await messages(`export const A = () => <a href="/" className="${classes}">Go</a>;`),
+    ).toEqual([expect.stringMatching(/not a filled pill/)]);
+  });
+
+  it("accepts the scale, round badges and dots", async () => {
+    const code = `export const A = () => <div className="rounded-sm rounded-md rounded-lg rounded-xl"><span className="rounded-full bg-muted px-2" /><span className="size-2 rounded-full bg-(--hms-good)" /></div>;`;
+    expect(await messages(code)).toEqual([]);
+  });
+
   it("accepts token utilities", async () => {
     const code = `export const A = () => <div className="bg-primary text-foreground border-border text-(--hms-warn)" />;`;
     expect(await messages(code)).toEqual([]);

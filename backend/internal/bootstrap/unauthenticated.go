@@ -22,6 +22,10 @@ import (
 // must be a route that *cannot* work any other way.
 var UnauthenticatedRoutes = map[string]string{
 	"GET /v1/auth/branding/:tenant": "published display-only branding must render before login; no identity or data access",
+	// #1386 C-4a: Razorpay holds no Helivanta session. The account's webhook
+	// secret (HMAC over the raw body) is the credential, and a verified
+	// delivery only triggers a provider API read; it settles nothing itself.
+	"POST /v1/payments/webhooks/razorpay/:tenant/:account": "provider callback authenticated by its HMAC signature, not a session",
 	// Creates the Helivanta session, so it cannot require one: it verifies a
 	// caller-presented Zitadel ID token, not the Helivanta session the /v1
 	// chain checks (#838, spec D1).
@@ -93,8 +97,9 @@ var UnauthenticatedRoutes = map[string]string{
 // instead, which per this repo's enforcement ladder (compile error >
 // boot failure > CI failure > documented convention) is the correct
 // rung: loud and at start-up, not silent and per-request.
-func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, enroll, passwordChange, branding gin.HandlerFunc) {
+func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, enroll, passwordChange, branding, paymentsWebhook gin.HandlerFunc) {
 	mustHandler("GET /v1/auth/branding/:tenant", branding)
+	mustHandler("POST /v1/payments/webhooks/razorpay/:tenant/:account", paymentsWebhook)
 	mustHandler("POST /v1/auth/login", login)
 	mustHandler("GET /v1/auth/login/request/:id", authRequest)
 	mustHandler("POST /v1/auth/login/password", password)
@@ -103,6 +108,7 @@ func MountUnauthenticated(e *gin.Engine, login, authRequest, password, factor, e
 	mustHandler("POST /v1/auth/login/password-change", passwordChange)
 
 	e.GET("/v1/auth/branding/:tenant", branding)
+	e.POST("/v1/payments/webhooks/razorpay/:tenant/:account", paymentsWebhook)
 	e.POST("/v1/auth/login", login)
 	e.GET("/v1/auth/login/request/:id", authRequest)
 	e.POST("/v1/auth/login/password", password)

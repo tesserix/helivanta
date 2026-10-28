@@ -91,6 +91,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	creditNoteRoutes(s, h)
 	h1RegisterRoutes(s, h)
 	dailyReportRoutes(s, h)
+	paymentRequestRoutes(s, h)
 	// No worker means no scan: until it is rolled out, intents are refused
 	// rather than accepted into a quarantine nobody drains.
 	var evidence *attachments.GCS

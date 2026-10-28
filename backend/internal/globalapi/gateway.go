@@ -32,7 +32,7 @@ type Config struct {
 
 var owners = map[string]string{
 	"privacy": "platform", "auth": "platform", "iam": "platform", "workspace": "platform", "patients": "platform", "reference": "platform", "drugmaster": "platform",
-	"mediconnect": "mediconnect", "medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "emergency": "emergency",
+	"mediconnect": "mediconnect", "medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "payments": "platform", "supply": "supply", "lab": "lab", "emergency": "emergency",
 }
 
 // New keeps the owner's authentication, authorization and wire response intact.

@@ -22,6 +22,8 @@ path "transit/hmac/helivanta-staff-*"    { capabilities = ["update"] }
 path "transit/encrypt/helivanta-emergency-*" { capabilities = ["create", "update"] }
 path "transit/decrypt/helivanta-emergency-*" { capabilities = ["update"] }
 path "transit/hmac/helivanta-emergency-*" { capabilities = ["update"] }
+path "transit/encrypt/helivanta-payments-*" { capabilities = ["create", "update"] }
+path "transit/decrypt/helivanta-payments-*" { capabilities = ["update"] }
 `
 
 var (

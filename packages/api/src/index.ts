@@ -55,6 +55,7 @@ export * from "./medicore";
 export * from "./pharmacy";
 export * from "./pharmacy-stock-export";
 export * from "./pharmacy-daily-report";
+export * from "./payments";
 export * from "./pharmacy-h1-register";
 export * from "./customer-time";
 export * from "./staff-assignments";

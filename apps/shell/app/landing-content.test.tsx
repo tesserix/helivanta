@@ -19,27 +19,39 @@ beforeEach(() => {
   );
 });
 
-function renderedText(): string[] {
-  const { container } = renderWithProviders(<LandingPage />);
+const normalise = (text: string | null) => text?.replace(/\s+/g, " ").trim() ?? "";
+
+// Text nodes, as the fixture was recorded.
+function textNodes(container: HTMLElement): string[] {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const seen = new Set<string>();
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node.textContent?.replace(/\s+/g, " ").trim();
+    const text = normalise(node.textContent);
     if (text) seen.add(text);
   }
   return [...seen].sort();
+}
+
+// Whole-element text too, so a sentence whose term became a <Term> button
+// (split into several text nodes) still counts as the same sentence.
+function elementTexts(container: HTMLElement): Set<string> {
+  return new Set(
+    [...container.querySelectorAll("*")].map((element) => normalise(element.textContent)),
+  );
 }
 
 // The home page's content is frozen by this inventory (#1413 spec D6): layout
 // may change and add text, but no existing string may disappear.
 // Regenerate deliberately with UPDATE_LANDING_CONTENT=1 when content is meant to change.
 it("keeps every piece of the home page's content", () => {
-  const text = renderedText();
+  const { container } = renderWithProviders(<LandingPage />);
+  const nodes = textNodes(container);
   if (process.env.UPDATE_LANDING_CONTENT === "1") {
     const path = resolve(process.cwd(), "app/landing-content.fixture.json");
-    writeFileSync(path, `${JSON.stringify(text, null, 2)}\n`);
+    writeFileSync(path, `${JSON.stringify(nodes, null, 2)}\n`);
     return;
   }
-  const missing = fixture.filter((entry) => !text.includes(entry));
+  const elements = elementTexts(container);
+  const missing = fixture.filter((entry) => !nodes.includes(entry) && !elements.has(entry));
   expect(missing).toEqual([]);
 });

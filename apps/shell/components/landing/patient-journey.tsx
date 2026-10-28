@@ -52,13 +52,13 @@ export function PatientJourney() {
             )}
           >
             <p className="flex items-baseline gap-2 font-semibold">
-              <span aria-hidden="true" className="text-sm text-(--home-muted) tabular-nums">
+              <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
                 {index + 1}
               </span>
               {station.label}
             </p>
-            <p className="mt-0.5 text-xs text-(--home-care)">Written by {station.owner}</p>
-            <p className="mt-2 flex-1 text-sm leading-relaxed text-(--home-muted)">
+            <p className="mt-0.5 text-[13px] text-(--home-care)">Written by {station.owner}</p>
+            <p className="mt-2 flex-1 text-base leading-relaxed text-(--home-muted)">
               {station.text}
             </p>
             <div className="mt-3">
@@ -67,7 +67,7 @@ export function PatientJourney() {
           </li>
         ))}
       </ol>
-      <p className="mt-4 max-w-3xl text-sm leading-relaxed text-(--home-muted)">{journeyNote}</p>
+      <p className="mt-4 max-w-3xl text-base leading-relaxed text-(--home-muted)">{journeyNote}</p>
     </div>
   );
 }
@@ -99,7 +99,7 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
             >
               {/* Clears the 1.625rem station radius with a 0.625rem gap. */}
               <span className="absolute bottom-[2.25rem] left-0 flex -translate-x-1/2 flex-col items-center">
-                <span className="rounded-full bg-(--home-care) px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-(--home-canvas) shadow-[0_4px_14px_-4px_var(--home-care)]">
+                <span className="rounded-full bg-(--home-care) px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-(--home-canvas) shadow-[0_4px_14px_-4px_var(--home-care)]">
                   {patient.name}
                 </span>
                 <span className="size-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-(color:--home-care)" />
@@ -158,7 +158,7 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
               <p className="mt-3 text-[13px] leading-tight font-semibold text-(--home-ink)">
                 {station.label}
               </p>
-              <p className="mt-0.5 text-[11px] leading-tight text-(--home-muted)">
+              <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">
                 {station.owner}
               </p>
             </div>
@@ -188,7 +188,7 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
                 )}
               >
                 <span className="truncate text-(--home-ink)">{station.record}</span>
-                <span className="shrink-0 text-[11px] text-(--home-care)">{station.owner}</span>
+                <span className="shrink-0 text-xs text-(--home-care)">{station.owner}</span>
               </motion.li>
             ))}
           </ol>

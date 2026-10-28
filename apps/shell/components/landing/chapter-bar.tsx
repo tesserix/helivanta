@@ -41,7 +41,7 @@ export function ChapterBar({ groups }: { groups: readonly ChapterGroup[] }) {
               index > 0 && "ml-4 border-l border-(--home-line) pl-4",
             )}
           >
-            <p className="pr-2 text-xs font-semibold whitespace-nowrap text-(--home-muted)">
+            <p className="pr-2 text-[13px] font-semibold whitespace-nowrap text-(--home-muted)">
               {group.label}
             </p>
             <ul className="flex">

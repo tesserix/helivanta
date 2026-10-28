@@ -8,7 +8,7 @@ type StoryChapterProps = {
   id: string;
   number: number;
   title: string;
-  lede: string;
+  lede: ReactNode;
   // Bands alternate so each chapter has a visible start and end (#1413 D2).
   tone: "plain" | "band";
   // A chapter of capabilities that are not available yet is outlined, never filled.
@@ -76,8 +76,8 @@ export function StoryAct({ title, summary, upcoming = false }: StoryActProps) {
           upcoming ? "border-dashed border-(--home-muted)" : "border-(--home-ink)",
         )}
       >
-        <p className="text-sm font-semibold text-(--home-ink)">{title}</p>
-        <p className="text-sm text-(--home-muted)">{summary}</p>
+        <p className="text-base font-semibold text-(--home-ink)">{title}</p>
+        <p className="text-base text-(--home-muted)">{summary}</p>
       </div>
     </div>
   );

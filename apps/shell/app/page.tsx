@@ -12,6 +12,7 @@ import { ModuleStatusLabel } from "@/components/landing/module-status";
 import { PatientJourney } from "@/components/landing/patient-journey";
 import { StockWatch } from "@/components/landing/stock-watch";
 import { StoryAct, StoryChapter } from "@/components/landing/story-chapter";
+import { StatusGuide, Term } from "@/components/landing/term";
 import { homeWidth } from "./page-width";
 import { platformGroups } from "./platform-catalog";
 
@@ -59,19 +60,52 @@ const sectors = [
   {
     id: "sector-government",
     name: "Government",
-    summary:
-      "Facilities under the National Health Mission spend against sanctioned budgets and report up through the district.",
+    summary: (
+      <>
+        Facilities under the{" "}
+        <Term definition="The national programme that funds public health services through state and district health societies.">
+          National Health Mission
+        </Term>{" "}
+        spend against sanctioned budgets and report up through the district.
+      </>
+    ),
     levels: [
       { name: "State health department", detail: "Directorate and State Health Society" },
       {
         name: "District health society",
-        detail: "Usually chaired by the District Collector, with the CMO, CMHO or Civil Surgeon",
+        detail: (
+          <>
+            Usually chaired by the District Collector, with the{" "}
+            <Term definition="The district's senior health officer. The title varies by state.">
+              CMO, CMHO
+            </Term>{" "}
+            or Civil Surgeon
+          </>
+        ),
       },
       {
         name: "District hospital",
-        detail: "Medical Superintendent, with the hospital's Rogi Kalyan Samiti",
+        detail: (
+          <>
+            Medical Superintendent, with the hospital&apos;s{" "}
+            <Term definition="A governance committee attached to a public hospital, not a department. Its governing body oversees the hospital's untied funds.">
+              Rogi Kalyan Samiti
+            </Term>
+          </>
+        ),
       },
-      { name: "Block, CHC, PHC and sub-health centre", detail: "Care closest to home" },
+      {
+        name: (
+          <>
+            Block,{" "}
+            <Term definition="Community Health Centre and Primary Health Centre: public facilities run at block level, below the district hospital.">
+              CHC, PHC
+            </Term>{" "}
+            and sub-health centre
+          </>
+        ),
+        detail: "Care closest to home",
+      },
     ],
   },
   {
@@ -242,7 +276,16 @@ export default function LandingPage() {
           number={4}
           tone="band"
           title="Pharmacy stock checks itself"
-          lede="A check flags what is low, out, short-dated or held in quarantine. Agents draft the order or the transfer, and nothing moves until a named person approves it."
+          lede={
+            <>
+              A check flags what is low, out, short-dated or held in{" "}
+              <Term definition="A batch held back until a pharmacist checks it and releases it for dispensing.">
+                quarantine
+              </Term>
+              . Agents draft the order or the transfer, and nothing moves until a named person
+              approves it.
+            </>
+          }
         >
           <StockWatch />
         </StoryChapter>
@@ -307,7 +350,7 @@ export default function LandingPage() {
                   <p className="mt-3 max-w-prose leading-relaxed text-(--home-muted)">
                     {reason.body}
                   </p>
-                  <p className="mt-5 border-l-2 border-(--home-care) pl-3 text-sm leading-relaxed">
+                  <p className="mt-5 border-l-2 border-(--home-care) pl-3 text-base leading-relaxed">
                     {reason.today}
                   </p>
                 </article>
@@ -336,25 +379,26 @@ export default function LandingPage() {
                 <h3 id={sector.id} className="text-2xl font-semibold font-stretch-[85%]">
                   {sector.name}
                 </h3>
-                <p className="mt-2 max-w-md text-sm leading-relaxed text-(--home-muted)">
+                <p className="mt-2 max-w-md text-base leading-relaxed text-(--home-muted)">
                   {sector.summary}
                 </p>
                 <ol className="mt-8 border-l border-(--home-line)">
-                  {sector.levels.map((level) => (
-                    <li key={level.name} className="relative pb-7 pl-6 last:pb-0">
+                  {sector.levels.map((level, rung) => (
+                    // A ladder is fixed and ordered, so its rung is a stable key.
+                    <li key={rung} className="relative pb-7 pl-6 last:pb-0">
                       <span
                         aria-hidden="true"
                         className="absolute top-1.5 -left-1.25 size-2.5 rounded-full border-2 border-(--home-oversight) bg-(--home-canvas)"
                       />
                       <p className="font-semibold">{level.name}</p>
-                      <p className="mt-1 text-sm text-(--home-muted)">{level.detail}</p>
+                      <p className="mt-1 text-base text-(--home-muted)">{level.detail}</p>
                     </li>
                   ))}
                 </ol>
               </article>
             ))}
           </div>
-          <p className="mt-12 max-w-2xl border-l-2 border-(--home-oversight) pl-3 text-sm leading-relaxed xl:col-start-1 xl:row-start-2 xl:self-end">
+          <p className="mt-12 max-w-2xl border-l-2 border-(--home-oversight) pl-3 text-base leading-relaxed xl:col-start-1 xl:row-start-2 xl:self-end">
             Government and private sector setup is planned. Today, every organisation starts from
             the same model of organisations, hospitals and teams.
           </p>
@@ -373,7 +417,7 @@ export default function LandingPage() {
             <p className="mt-5 max-w-3xl leading-relaxed text-(--home-muted)">
               Explore the full platform and its roadmap. Availability varies by module: foundations
               cover the workflows described below, while planned and future capabilities are not yet
-              available. Access depends on your organisation and permissions.
+              available. Access depends on your organisation and permissions. <StatusGuide />
             </p>
             <div className="mt-12">
               {platformGroups.map((group) => (
@@ -383,7 +427,7 @@ export default function LandingPage() {
                 >
                   <div>
                     <h3 className="text-xl font-semibold font-stretch-[85%]">{group.name}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-(--home-muted)">
+                    <p className="mt-2 text-base leading-relaxed text-(--home-muted)">
                       {group.description}
                     </p>
                   </div>
@@ -394,8 +438,8 @@ export default function LandingPage() {
                           <h4 className="font-semibold">{module.name}</h4>
                           <ModuleStatusLabel status={module.status} />
                         </div>
-                        <p className="mt-1 text-xs text-(--home-muted)">{module.product}</p>
-                        <p className="mt-3 text-sm leading-relaxed text-(--home-muted)">
+                        <p className="mt-1 text-[13px] text-(--home-muted)">{module.product}</p>
+                        <p className="mt-3 text-base leading-relaxed text-(--home-muted)">
                           {module.description}
                         </p>
                       </article>
@@ -425,9 +469,9 @@ export default function LandingPage() {
                 key={item.label}
                 className="rounded-2xl border border-dashed border-(--home-line) p-7"
               >
-                <p className="text-xs text-(--home-muted)">{item.kind}</p>
+                <p className="text-[13px] text-(--home-muted)">{item.kind}</p>
                 <h3 className="mt-4 text-xl font-semibold">{item.label}</h3>
-                <p className="mt-5 inline-block rounded-full border border-(--home-line) px-3 py-1 text-xs text-(--home-muted)">
+                <p className="mt-5 inline-block rounded-full border border-(--home-line) px-3 py-1 text-[13px] text-(--home-muted)">
                   {item.state}
                 </p>
               </article>
@@ -441,7 +485,7 @@ export default function LandingPage() {
               <h2 id="reviews-heading" className={sectionHeading}>
                 Real experiences, shared with permission.
               </h2>
-              <p className="mt-5 max-w-md text-sm leading-relaxed text-(--home-muted)">
+              <p className="mt-5 max-w-md text-base leading-relaxed text-(--home-muted)">
                 No customer endorsements or ratings are published yet. Verified testimonials and
                 reviews will appear here after customer approval.
               </p>
@@ -453,7 +497,7 @@ export default function LandingPage() {
                   className="rounded-2xl border border-dashed border-(--home-line) p-6"
                 >
                   <h3 className="font-semibold">{label}</h3>
-                  <p className="mt-2 text-sm text-(--home-muted)">Awaiting approved content</p>
+                  <p className="mt-2 text-base text-(--home-muted)">Awaiting approved content</p>
                 </div>
               ))}
             </div>

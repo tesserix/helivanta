@@ -80,7 +80,7 @@ export function AiBoard() {
             </div>
           </figure>
           <div className="mt-4 flex items-center justify-between gap-6">
-            <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+            <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
               <li className="flex items-center gap-2 text-(--home-muted)">
                 <span className="h-3 w-5 rounded border border-dashed border-(--home-oversight)" />
                 Agents draft
@@ -140,7 +140,7 @@ function Board({ active, reached, animated, playing }: BoardProps) {
             <p className="mt-2 text-[13px] leading-tight font-semibold text-(--home-ink)">
               Supervisor agent
             </p>
-            <p className="mt-1 text-[11px] leading-tight text-(--home-muted)">Routes every task</p>
+            <p className="mt-1 text-xs leading-tight text-(--home-muted)">Routes every task</p>
           </div>
         </BoardCard>
         {scenarios.map((scenario, lane) => (
@@ -308,17 +308,17 @@ function Narration({ scenario, currentStep }: { scenario: Scenario; currentStep?
                 : "border-transparent",
             )}
           >
-            <span aria-hidden="true" className="text-sm text-(--home-muted) tabular-nums">
+            <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
               {index + 1}
             </span>
             <div>
-              <p className="flex flex-wrap items-center gap-x-1.5 text-sm font-semibold text-(--home-ink)">
+              <p className="flex flex-wrap items-center gap-x-1.5 text-base font-semibold text-(--home-ink)">
                 <span>{nodeLabel(step.from, scenario)}</span>
                 <ArrowRight aria-hidden="true" className="size-3.5 text-(--home-oversight)" />
                 <span className="sr-only">to</span>
                 <span>{nodeLabel(step.to, scenario)}</span>
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-(--home-muted)">{step.text}</p>
+              <p className="mt-1 text-base leading-relaxed text-(--home-muted)">{step.text}</p>
             </div>
           </li>
         ))}

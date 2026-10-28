@@ -48,7 +48,7 @@ export function CardHeader({ title, icon, count }: CardHeaderProps) {
         {title}
       </p>
       {count !== undefined && (
-        <span className="ml-auto rounded-md bg-(--home-line) px-1.5 text-[11px] leading-[1.125rem] font-medium text-(--home-ink) tabular-nums">
+        <span className="ml-auto rounded-md bg-(--home-line) px-1.5 text-xs leading-[1.125rem] font-medium text-(--home-ink) tabular-nums">
           {count}
         </span>
       )}
@@ -58,7 +58,7 @@ export function CardHeader({ title, icon, count }: CardHeaderProps) {
 
 export function CardBody({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 border-t border-(--home-line) px-3.5 py-2.5 text-[11px] leading-snug text-(--home-muted)">
+    <div className="flex-1 border-t border-(--home-line) px-3.5 py-2.5 text-xs leading-snug text-(--home-muted)">
       {children}
     </div>
   );
@@ -71,7 +71,7 @@ type StatusPillProps = {
 };
 
 const PILL =
-  "col-start-1 row-start-1 flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-tight";
+  "col-start-1 row-start-1 flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs leading-tight";
 
 // Unread copies of every label share the pill's cell, so a label that wraps never grows the board mid-story.
 export function StatusPill({ tone, label, reserve }: StatusPillProps) {
@@ -117,7 +117,7 @@ export function Arrowhead({ colour }: { colour: string }) {
 // The line is held empty until approval so the board keeps its height as the story plays.
 export function AiAssistedMark({ shown }: { shown: boolean }) {
   return (
-    <span className="mt-1.5 block min-h-[1lh] text-[11px] text-(--home-muted)">
+    <span className="mt-1.5 block min-h-[1lh] text-xs text-(--home-muted)">
       {shown && "Marked AI-assisted"}
     </span>
   );

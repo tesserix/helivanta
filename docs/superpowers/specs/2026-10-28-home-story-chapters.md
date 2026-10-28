@@ -134,6 +134,52 @@ the header.
   existing string fails the test.
 - The test is shown to fail by deleting one register row from the stock data.
 
+### D7. Type sizes
+
+Measured at 1440px before this change, about a quarter of the page's text was
+under 14px (11px 11%, 12–13px 15%), and reading text was 14px.
+
+- Reading text (steps, availability, notes, later-section prose): 14px → 16px.
+- Labels, legends and status pills: 12px → 13px.
+- Diagram text: 11px → 12px minimum. Diagram layouts are unchanged; no text
+  overflows its box at 1440px (checked in a browser).
+- Navigation and buttons stay at 14px.
+
+After: nothing under 12px, and 67% of text at 16px. The page grows from 13,866px
+to about 15,100px, because the longer step columns beside each diagram grow.
+
+The Planned and Future pills differed only by a `--home-line` border (1.42:1).
+They now use `--home-muted` (7.2:1) to meet WCAG 1.4.11.
+
+### D8. Help text
+
+Help text explains terms. It is not a way to fit small text.
+
+- `Term` wraps a term in a dotted-underline button that opens a `Popover` from
+  `@helivanta/ui` (Radix).
+- It opens on click, tap or keyboard, closes on Escape and returns focus. It
+  never relies on hover, which touch screens do not have (WCAG 1.4.13).
+- The button's text is only the term, so the sentence still reads the same.
+- `StatusGuide` sits next to every "Availability" heading and in the platform
+  intro. It defines the four status labels in the wording of
+  `docs/product/public-platform-catalog.md`.
+- The terms defined are:
+  - National Health Mission;
+  - CMO, CMHO;
+  - Rogi Kalyan Samiti;
+  - CHC, PHC;
+  - quarantine.
+
+  The definitions come from `docs/domain/india/public-and-private-sectors.md`
+  and the page's own audit-trail copy. Abbreviations are not expanded where the
+  docs do not expand them.
+
+- Terms inside the animated components' data (for example "indent") are not
+  wrapped in this slice.
+
+The D6 inventory also matches whole-element text, so a sentence split by a
+`Term` button still counts. Renaming a wrapped term was shown to fail it.
+
 ## Accessibility
 
 - One `h1`. Chapters stay `h2`. Maintenance and AI become `h3` inside chapter 5.

@@ -111,7 +111,7 @@ export function StoryPicker({ label, items, selected, onSelect, progress }: Stor
           onClick={() => onSelect(index)}
           style={{ "--story": item.colour } as CSSProperties}
           className={cn(
-            "relative inline-flex min-h-11 shrink-0 items-center gap-2 overflow-hidden rounded-full border px-4 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+            "relative inline-flex min-h-11 shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-4 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
             index === selected
               ? "border-(--story) bg-(--story)/15 text-foreground"
               : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground",

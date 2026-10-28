@@ -21,13 +21,13 @@ export function BoardCard({ style, className, ring, dashed, surface, children }:
         boxShadow: ring ? `0 0 26px -10px ${ring}` : undefined,
       }}
       className={cn(
-        "rounded-[14px] border border-border/60 p-[3px] transition-[opacity,border-color,box-shadow] duration-500",
+        "rounded-lg border border-border/60 p-[3px] transition-[opacity,border-color,box-shadow] duration-500",
         className,
       )}
     >
       <div
         className={cn(
-          "flex h-full flex-col overflow-hidden rounded-[11px] border border-border",
+          "flex h-full flex-col overflow-hidden rounded-md border border-border",
           dashed && "border-dashed",
           surface ?? "bg-muted",
         )}

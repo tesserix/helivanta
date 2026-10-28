@@ -110,7 +110,7 @@ function Ledger({ reached, animated }: { reached: number; animated: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 pt-5 pb-6"
+      className="relative overflow-hidden rounded-xl border border-border bg-card px-6 pt-5 pb-6"
     >
       <div className={cn(ROW, "text-xs font-medium text-muted-foreground")}>
         <p className="flex items-center gap-2">

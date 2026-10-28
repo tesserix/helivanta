@@ -126,7 +126,7 @@ export function Legend({ animated, paused, onToggle }: LegendProps) {
           Agents draft
         </li>
         <li className="flex items-center gap-2 text-muted-foreground">
-          <span className="h-3 w-5 rounded border border-(--hms-accent)" />
+          <span className="h-3 w-5 rounded-sm border border-(--hms-accent)" />
           People decide
         </li>
       </ul>

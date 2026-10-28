@@ -38,4 +38,4 @@ So moving from Dispenses to Stock looks like moving to a different product. Card
 
 - Converting Pharmacy, Supply, Workforce and Emergency (listed in D4; their zone issues own it).
 - Dialogs, menus and popovers: they come from `@tesserix/web` and the `Popover` in `@helivanta/ui`, and keep `--radius-xl` and `--shadow-overlay`.
-- The public pages (`hmsPublicPages`) and the login branding keep their own surfaces.
+- The public pages (`hmsPublicPages`) and the login branding keep their own surfaces. (Superseded by #1434, `2026-10-29-one-shape-scale.md`: they now take the same shapes and `Button`, and lint enforces it.)

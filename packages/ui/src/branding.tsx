@@ -91,7 +91,7 @@ export function LoginSurface({
         </header>
         <div className="mx-auto grid w-full max-w-[1440px] flex-1 gap-8 px-6 pb-8 sm:px-10 lg:grid-cols-2 lg:gap-12">
           {branding.login_layout === "split" && (
-            <aside className="login-story relative hidden flex-col justify-center overflow-hidden rounded-[2rem] p-10 lg:flex">
+            <aside className="login-story relative hidden flex-col justify-center overflow-hidden rounded-xl p-10 lg:flex">
               <h2 className="max-w-lg text-[clamp(2rem,3.4vw,3rem)] leading-[1.1] font-semibold tracking-tight">
                 A little less complexity.
                 <br />A lot more care.
@@ -100,11 +100,11 @@ export function LoginSurface({
                 {branding.welcome_text}
               </p>
               <div
-                className="relative my-8 rounded-2xl border border-border bg-card p-6 shadow-sm"
+                className="relative my-8 rounded-lg border border-border bg-card p-6 shadow-sm"
                 aria-label="Connected hospital, pharmacy and laboratory teams"
               >
                 <div className="flex items-center gap-3 border-b border-border pb-5">
-                  <span className="rounded-xl bg-(--hms-accent-dim) p-3 text-(--hms-accent-strong)">
+                  <span className="rounded-md bg-(--hms-accent-dim) p-3 text-(--hms-accent-strong)">
                     <Building2 size={22} aria-hidden="true" />
                   </span>
                   <div>
@@ -120,7 +120,7 @@ export function LoginSurface({
                   ].map(({ icon: Icon, label }) => (
                     <div
                       key={label}
-                      className="flex flex-col items-center gap-3 rounded-xl bg-background px-2 py-5 text-center"
+                      className="flex flex-col items-center gap-3 rounded-md bg-background px-2 py-5 text-center"
                     >
                       <Icon size={20} className="text-(--hms-accent-strong)" aria-hidden="true" />
                       <span className="text-xs font-medium">{label}</span>

@@ -78,7 +78,7 @@ export function StockWatch() {
       <div className="hidden min-w-0 md:block">
         <figure aria-label="A pharmacy shelf of six medicines is checked automatically, and each medicine is marked in stock, running low, out of stock, expiring within 30 days or in quarantine. Medicines to order and a short-dated batch go to a stock forecasting agent, whose draft a named person approves. A batch in quarantine goes straight to a pharmacist.">
           <div ref={boardRef}>
-            <div aria-hidden="true" className="rounded-2xl border border-border bg-card p-5 lg:p-6">
+            <div aria-hidden="true" className="rounded-xl border border-border bg-card p-5 lg:p-6">
               <Shelf
                 checked={reached >= 1}
                 scanning={animated && step.phase === "check"}

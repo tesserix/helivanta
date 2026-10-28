@@ -86,7 +86,7 @@ export function MaintenanceWatch() {
       <div className="hidden min-w-0 md:block">
         <figure aria-label="A maintenance register of eight electrical, structural, equipment, fire safety, lift and medical gas items is checked automatically, and each item is marked current, due soon, overdue, certificate expiring or failed check. Overdue and due work goes to a maintenance planning agent and an expiring certificate to a compliance agent, whose drafts a named person approves. A failed safety check goes straight to a biomedical engineer, and the equipment stays out of service until it passes a retest.">
           <div ref={boardRef}>
-            <div aria-hidden="true" className="rounded-2xl border border-border bg-card p-5 lg:p-6">
+            <div aria-hidden="true" className="rounded-xl border border-border bg-card p-5 lg:p-6">
               <Register
                 checked={reached >= 1}
                 scanning={animated && step.phase === "check"}

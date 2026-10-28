@@ -1137,8 +1137,6 @@ function RedirectLanding({
     url.searchParams.delete("start");
     window.history.replaceState(window.history.state, "", url);
     void signIn();
-    // signIn is recreated each render; this runs once per arrival.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message, autoStart]);
 
   async function signIn() {
@@ -1176,7 +1174,7 @@ function RedirectLanding({
           </p>
         </div>
 
-        <Button className="w-full" onClick={signIn} disabled={starting}>
+        <Button size="lg" className="w-full" onClick={signIn} disabled={starting}>
           {starting ? "Redirecting…" : "Sign in"}
         </Button>
 

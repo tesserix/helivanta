@@ -643,7 +643,7 @@ export function HmsShell({
             // Floating and content-height from md (#1286 D1); below md the rail
             // stays the flush 64px icon column and the open rail a full-height
             // drawer (D3), so every card class is md-scoped.
-            className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-2xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-2xl md:border md:shadow-sm"}`}
+            className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-xl md:border md:shadow-sm"}`}
           >
             <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
               <GuardedLink
@@ -728,7 +728,7 @@ export function HmsShell({
             the panel and page sit below it, top-aligned (#1286 D6). The header
             is outside the scroll container, so it needs no sticky backdrop. */}
           <div className="flex min-w-0 flex-1 flex-col md:gap-2 md:py-2 md:pr-2">
-            <header className="hms-sidebar-border z-30 shrink-0 border-b bg-background md:rounded-2xl md:border md:bg-(--sidebar-rail) md:shadow-sm">
+            <header className="hms-sidebar-border z-30 shrink-0 border-b bg-background md:rounded-xl md:border md:bg-(--sidebar-rail) md:shadow-sm">
               <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
                 <div className="flex items-center gap-2">
                   <button
@@ -769,7 +769,7 @@ export function HmsShell({
                 A single-page zone has none: it would repeat the rail's one link
                 (#1255 spec D4). */}
               {hasPagePanel && (
-                <aside className="hms-page-panel hms-sidebar-border hidden shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) md:static md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-2xl md:border md:shadow-sm">
+                <aside className="hms-page-panel hms-sidebar-border hidden shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) md:static md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-xl md:border md:shadow-sm">
                   <nav
                     aria-label={zone.label}
                     className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"

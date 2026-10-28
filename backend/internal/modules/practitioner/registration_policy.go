@@ -204,6 +204,10 @@ func (h *handlers) registrationPolicyCommand(c *gin.Context, revision bool) {
 				return errPolicyVersion
 			}
 		} else {
+			// Serialize identical creates before PostgreSQL checks both unique indexes.
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?,0))", p.TenantID+":practitioner-policy-create:"+id.String()).Error; err != nil {
+				return err
+			}
 			result := tx.Exec("INSERT INTO practitioner_registration_policies(tenant_id,id,source_system,normalization,expiry_time_zone,created_by) VALUES(?,?,?,?,?,?) ON CONFLICT(tenant_id,id) DO NOTHING", p.TenantID, id, identity.SourceSystem, identity.Normalization, identity.ExpiryTimeZone, p.Subject)
 			if result.Error != nil {
 				return result.Error

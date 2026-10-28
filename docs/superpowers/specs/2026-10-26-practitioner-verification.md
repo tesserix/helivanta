@@ -264,3 +264,17 @@ recovery, forced RLS, deletion rejection and withdrawal after revision renewal.
 Full practitioner race/coverage passed (127.273s, 84.6% statements), including
 retained-read audit outage/recovery; architecture tests passed (42.017s). Acceptance-tagged lint/vet, API/migrate builds, contract generation/
 check, secret and diff checks passed. No production migration or rollout occurred.
+
+
+## Concurrent policy creation follow-up (2026-10-28)
+
+Main CI at `81a1912` observed a `policy_source_conflict` on an exact concurrent
+create replay. The policy head has both an ID primary key and an issuer unique
+constraint. Creation now takes a transaction-scoped advisory lock keyed by the
+verified tenant and policy ID before the insert, preventing identical speculative
+inserts from racing across the two indexes. The existing five-second owner
+transaction budget bounds lock waits. Different IDs claiming the same issuer
+continue to return 409; no unique constraint, authority check, read audit, version
+check or receipt identity is weakened. Concurrent replay tests also compare every
+200 response to the single 201 immutable receipt. No schema, route, event or
+activation-policy change is introduced; Practitioner remains inactive in runtime.

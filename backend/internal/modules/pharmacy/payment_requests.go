@@ -17,6 +17,8 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // counterPaymentSeconds is how long a counter QR stays payable: long
@@ -25,6 +27,9 @@ import (
 const counterPaymentSeconds = 300
 
 func paymentRequestRoutes(s *platform.Router, h *catalogueHandlers) {
+	// Paid counter payments not yet on a sale (#1386 C-4b): money taken
+	// whose sale did not post stays findable, so it can still be used.
+	platform.ListRoute(s, "/counter-payments", PermSaleCreate, h.listUnusedCounterPayments)
 	s.PUT("/counter-payments/:id", PermSaleCreate, h.putCounterPayment)
 	s.GET("/counter-payments/:id", PermSaleCreate, h.getCounterPayment)
 	s.POST("/counter-payments/:id/cancel", PermSaleCreate, h.cancelCounterPayment)
@@ -44,6 +49,26 @@ type paymentRequest struct {
 	PaidAt            *time.Time `json:"paid_at"`
 	Late              bool       `json:"late"`
 	CreatedAt         time.Time  `json:"created_at"`
+}
+
+// PageKey is the keyset position of a request, newest first.
+func (r paymentRequest) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
+
+func (h *catalogueHandlers) listUnusedCounterPayments(c *gin.Context, params pagination.Params) ([]paymentRequest, error) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return nil, nil
+	}
+	var rows []paymentRequest
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		return tenantdb.ApplyKeyset(tx.Table("pharmacy_payment_requests r"), params).Select(paymentRequestColumns).
+			Where("r.tenant_id=? AND r.outlet_id=? AND r.status='paid' AND NOT EXISTS (SELECT 1 FROM pharmacy_sale_tenders t WHERE t.tenant_id=r.tenant_id AND t.payment_request_id=r.id)", p.TenantID, outlet).
+			Find(&rows).Error
+	})
+	if err != nil {
+		stockError(c, err)
+	}
+	return rows, nil
 }
 
 const paymentRequestColumns = "id,purpose,amount_minor,currency,status,qr_image_url,expires_at,failure_reason,provider_payment_id,rrn,paid_at,late,created_at"

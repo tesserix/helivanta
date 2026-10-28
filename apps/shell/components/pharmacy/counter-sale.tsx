@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -24,6 +24,7 @@ import {
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
+import { VerifiedUpi } from "./verified-upi";
 
 /**
  * The counter sale (#1386 B-1, B-2b): a basket priced by the server exactly
@@ -497,9 +498,11 @@ function Totals({ sale }: { sale: PharmacySaleQuote | PharmacySale }) {
 
 const tenderSchema = z
   .object({
-    kind: z.enum(["cash", "upi", "card"]),
+    kind: z.enum(["cash", "upi_verified", "upi", "card"]),
     tendered_minor: z.number(),
     reference: z.string().trim().max(64, "At most 64 characters"),
+    // The paid counter payment, set by VerifiedUpi only once it is paid.
+    payment_request_id: z.string(),
     total: z.number(),
     discounted: z.boolean(),
     discount_reason: z.string().trim().max(200, "At most 200 characters"),
@@ -519,7 +522,13 @@ const tenderSchema = z
       !(Number.isSafeInteger(v.tendered_minor) && v.tendered_minor >= v.total)
     )
       ctx.addIssue({ code: "custom", path: ["tendered_minor"], message: "At least the total" });
-    if (v.kind !== "cash" && v.reference === "")
+    if (v.kind === "upi_verified" && v.payment_request_id === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["payment_request_id"],
+        message: "Wait for the UPI payment to be confirmed",
+      });
+    if ((v.kind === "upi" || v.kind === "card") && v.reference === "")
       ctx.addIssue({ code: "custom", path: ["reference"], message: "Enter the payment reference" });
     if (v.discounted && v.discount_reason.length < 5)
       ctx.addIssue({
@@ -547,6 +556,7 @@ function TenderForm({
     kind: "cash",
     tendered_minor: quote.total_minor,
     reference: "",
+    payment_request_id: "",
     total: quote.total_minor,
     buyer_name: "",
     buyer_phone: "",
@@ -554,6 +564,12 @@ function TenderForm({
     discount_reason: "",
   });
   const kind = form.watch("kind");
+  const { setValue } = form;
+  const onPaid = useCallback(
+    (paymentRequestId: string | null) =>
+      setValue("payment_request_id", paymentRequestId ?? "", { shouldValidate: false }),
+    [setValue],
+  );
 
   const post = useApiMutation(
     (values: z.infer<typeof tenderSchema>) =>
@@ -568,7 +584,17 @@ function TenderForm({
                   amount_minor: quote.total_minor,
                   tendered_minor: values.tendered_minor,
                 }
-              : { kind: values.kind, amount_minor: quote.total_minor, reference: values.reference },
+              : values.kind === "upi_verified"
+                ? {
+                    kind: "upi_verified",
+                    amount_minor: quote.total_minor,
+                    payment_request_id: values.payment_request_id,
+                  }
+                : {
+                    kind: values.kind,
+                    amount_minor: quote.total_minor,
+                    reference: values.reference,
+                  },
           ],
           ...(values.discounted ? { discount_reason: values.discount_reason } : {}),
           ...(values.buyer_name || values.buyer_phone
@@ -612,7 +638,8 @@ function TenderForm({
           label="Paid by"
           options={[
             { value: "cash", label: "Cash" },
-            { value: "upi", label: "UPI" },
+            { value: "upi_verified", label: "UPI (verified)" },
+            { value: "upi", label: "UPI (reference only)" },
             { value: "card", label: "Card" },
           ]}
         />
@@ -629,6 +656,20 @@ function TenderForm({
             <p className="mt-1 text-xs text-muted-foreground">
               Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
             </p>
+          </div>
+        ) : kind === "upi_verified" ? (
+          <div className="sm:col-span-2">
+            <VerifiedUpi
+              scope={scope}
+              amountMinor={quote.total_minor}
+              currency={quote.currency}
+              onPaid={onPaid}
+            />
+            {form.formState.errors.payment_request_id && (
+              <p className="mt-1 text-sm text-destructive">
+                {form.formState.errors.payment_request_id.message}
+              </p>
+            )}
           </div>
         ) : (
           <Field
@@ -710,10 +751,13 @@ function Invoice({
         <Totals sale={sale} />
         {sale.tenders.map((t) => (
           <p key={t.tender_number} className="mt-2 text-sm">
-            Paid by {t.kind.toUpperCase()} {money(t.amount_minor)}
+            Paid by {t.kind === "upi_verified" ? "UPI (verified)" : t.kind.toUpperCase()}{" "}
+            {money(t.amount_minor)}
             {t.kind === "cash" && t.tendered_minor !== null && t.change_minor !== null
               ? ` · received ${money(t.tendered_minor)} · change ${money(t.change_minor)}`
-              : ` · reference ${t.reference}`}
+              : t.reference
+                ? ` · reference ${t.reference}`
+                : ""}
           </p>
         ))}
         {sale.discount_minor > 0 && (

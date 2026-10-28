@@ -202,11 +202,13 @@ export type PharmacySaleQuote = {
 };
 export type PharmacySaleTender = {
   tender_number: number;
-  kind: "cash" | "upi" | "card";
+  kind: "cash" | "upi" | "card" | "upi_verified";
   amount_minor: number;
   tendered_minor: number | null;
   change_minor: number | null;
   reference: string | null;
+  /** The paid counter payment a verified UPI tender names (#1386 C-4b). */
+  payment_request_id?: string;
 };
 export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
   id: string;

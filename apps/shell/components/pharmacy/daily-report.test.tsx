@@ -25,6 +25,7 @@ const zero = {
   net_minor: 0,
   cash_minor: 0,
   upi_minor: 0,
+  upi_verified_minor: 0,
   card_minor: 0,
   cash_refund_minor: 0,
   upi_refund_minor: 0,
@@ -44,6 +45,7 @@ const days = [
     net_minor: 15000,
     cash_minor: 12500,
     upi_minor: 2500,
+    upi_verified_minor: 68000,
   },
   {
     ...zero,
@@ -86,7 +88,7 @@ describe("DailyReport", () => {
     const first = screen.getByRole("row", { name: /2026-11-01/ });
     expect(first).toHaveTextContent("2 for INR 150.00");
     expect(first).toHaveTextContent("12 units");
-    expect(first).toHaveTextContent("Cash INR 125.00, UPI INR 25.00");
+    expect(first).toHaveTextContent("Cash INR 125.00, UPI (verified) INR 680.00, UPI INR 25.00");
     const second = screen.getByRole("row", { name: /2026-11-02/ });
     expect(second).toHaveTextContent("1 for INR 50.00");
     expect(second).toHaveTextContent("INR -50.00");

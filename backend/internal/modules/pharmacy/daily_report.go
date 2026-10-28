@@ -13,28 +13,30 @@ import (
 // read afresh and cannot drift; nothing is cached or closed.
 
 type dailyRow struct {
-	Day             string `gorm:"column:day" json:"day"`
-	Currency        string `gorm:"column:currency" json:"currency"`
-	Sales           int64  `gorm:"column:sales" json:"sales"`
-	SalesMinor      int64  `gorm:"column:sales_minor" json:"sales_minor"`
-	SalesTaxable    int64  `gorm:"column:sales_taxable_minor" json:"sales_taxable_minor"`
-	SalesCGST       int64  `gorm:"column:sales_cgst_minor" json:"sales_cgst_minor"`
-	SalesSGST       int64  `gorm:"column:sales_sgst_minor" json:"sales_sgst_minor"`
-	DiscountMinor   int64  `gorm:"column:discount_minor" json:"discount_minor"`
-	UnitsSold       int64  `gorm:"column:units_sold" json:"units_sold"`
-	CreditNotes     int64  `gorm:"column:credit_notes" json:"credit_notes"`
-	CreditsMinor    int64  `gorm:"column:credits_minor" json:"credits_minor"`
-	CreditsTaxable  int64  `gorm:"column:credits_taxable_minor" json:"credits_taxable_minor"`
-	CreditsCGST     int64  `gorm:"column:credits_cgst_minor" json:"credits_cgst_minor"`
-	CreditsSGST     int64  `gorm:"column:credits_sgst_minor" json:"credits_sgst_minor"`
-	UnitsReturned   int64  `gorm:"column:units_returned" json:"units_returned"`
-	NetMinor        int64  `gorm:"column:net_minor" json:"net_minor"`
-	CashMinor       int64  `gorm:"column:cash_minor" json:"cash_minor"`
-	UPIMinor        int64  `gorm:"column:upi_minor" json:"upi_minor"`
-	CardMinor       int64  `gorm:"column:card_minor" json:"card_minor"`
-	CashRefundMinor int64  `gorm:"column:cash_refund_minor" json:"cash_refund_minor"`
-	UPIRefundMinor  int64  `gorm:"column:upi_refund_minor" json:"upi_refund_minor"`
-	CardRefundMinor int64  `gorm:"column:card_refund_minor" json:"card_refund_minor"`
+	Day            string `gorm:"column:day" json:"day"`
+	Currency       string `gorm:"column:currency" json:"currency"`
+	Sales          int64  `gorm:"column:sales" json:"sales"`
+	SalesMinor     int64  `gorm:"column:sales_minor" json:"sales_minor"`
+	SalesTaxable   int64  `gorm:"column:sales_taxable_minor" json:"sales_taxable_minor"`
+	SalesCGST      int64  `gorm:"column:sales_cgst_minor" json:"sales_cgst_minor"`
+	SalesSGST      int64  `gorm:"column:sales_sgst_minor" json:"sales_sgst_minor"`
+	DiscountMinor  int64  `gorm:"column:discount_minor" json:"discount_minor"`
+	UnitsSold      int64  `gorm:"column:units_sold" json:"units_sold"`
+	CreditNotes    int64  `gorm:"column:credit_notes" json:"credit_notes"`
+	CreditsMinor   int64  `gorm:"column:credits_minor" json:"credits_minor"`
+	CreditsTaxable int64  `gorm:"column:credits_taxable_minor" json:"credits_taxable_minor"`
+	CreditsCGST    int64  `gorm:"column:credits_cgst_minor" json:"credits_cgst_minor"`
+	CreditsSGST    int64  `gorm:"column:credits_sgst_minor" json:"credits_sgst_minor"`
+	UnitsReturned  int64  `gorm:"column:units_returned" json:"units_returned"`
+	NetMinor       int64  `gorm:"column:net_minor" json:"net_minor"`
+	CashMinor      int64  `gorm:"column:cash_minor" json:"cash_minor"`
+	UPIMinor       int64  `gorm:"column:upi_minor" json:"upi_minor"`
+	// UPI the system saw settle, apart from typed-in references (#1386 C-4b).
+	UPIVerifiedMinor int64 `gorm:"column:upi_verified_minor" json:"upi_verified_minor"`
+	CardMinor        int64 `gorm:"column:card_minor" json:"card_minor"`
+	CashRefundMinor  int64 `gorm:"column:cash_refund_minor" json:"cash_refund_minor"`
+	UPIRefundMinor   int64 `gorm:"column:upi_refund_minor" json:"upi_refund_minor"`
+	CardRefundMinor  int64 `gorm:"column:card_refund_minor" json:"card_refund_minor"`
 }
 
 type dailyReport struct {
@@ -54,7 +56,7 @@ const dailyTotals = `WITH
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
   WHERE s.tenant_id=@tenant AND s.outlet_id=@outlet AND s.sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  st AS (SELECT s.sale_date AS day, s.currency, sum(t.amount_minor) FILTER (WHERE t.kind='cash') AS cash_minor,
-   sum(t.amount_minor) FILTER (WHERE t.kind='upi') AS upi_minor, sum(t.amount_minor) FILTER (WHERE t.kind='card') AS card_minor
+   sum(t.amount_minor) FILTER (WHERE t.kind='upi') AS upi_minor, sum(t.amount_minor) FILTER (WHERE t.kind='upi_verified') AS upi_verified_minor, sum(t.amount_minor) FILTER (WHERE t.kind='card') AS card_minor
   FROM pharmacy_sale_tenders t JOIN pharmacy_sales s ON s.tenant_id=t.tenant_id AND s.outlet_id=t.outlet_id AND s.id=t.sale_id
   WHERE s.tenant_id=@tenant AND s.outlet_id=@outlet AND s.sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  c AS (SELECT credit_note_date AS day, currency, count(*) AS credit_notes, sum(total_minor) AS credits_minor, sum(taxable_minor) AS credits_taxable_minor,
@@ -76,7 +78,7 @@ SELECT to_char(k.day,'YYYY-MM-DD') AS day, k.currency,
  COALESCE(c.credits_cgst_minor,0)::bigint AS credits_cgst_minor, COALESCE(c.credits_sgst_minor,0)::bigint AS credits_sgst_minor,
  COALESCE(cl.units_returned,0)::bigint AS units_returned,
  (COALESCE(s.sales_minor,0)-COALESCE(c.credits_minor,0))::bigint AS net_minor,
- COALESCE(st.cash_minor,0)::bigint AS cash_minor, COALESCE(st.upi_minor,0)::bigint AS upi_minor, COALESCE(st.card_minor,0)::bigint AS card_minor,
+ COALESCE(st.cash_minor,0)::bigint AS cash_minor, COALESCE(st.upi_minor,0)::bigint AS upi_minor, COALESCE(st.upi_verified_minor,0)::bigint AS upi_verified_minor, COALESCE(st.card_minor,0)::bigint AS card_minor,
  COALESCE(cr.cash_refund_minor,0)::bigint AS cash_refund_minor, COALESCE(cr.upi_refund_minor,0)::bigint AS upi_refund_minor,
  COALESCE(cr.card_refund_minor,0)::bigint AS card_refund_minor
 FROM k

@@ -2203,6 +2203,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
@@ -3076,6 +3085,11 @@
           "creates_tables": [
             "pharmacy_payment_requests"
           ]
+        },
+        {
+          "id": "0022_pharmacy",
+          "sql_sha256": "1dbf588c2a408654ff9809d09b437c32c430c4305f996a770748a855790f42e3",
+          "creates_tables": []
         }
       ]
     },

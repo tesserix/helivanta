@@ -23,7 +23,7 @@ import (
 
 // #1386 B-1: an OTC counter sale.
 
-var salePerms = append(append([]authz.Permission{}, releasePerms...), "pharmacy.licence.manage", "pharmacy.licence.review", "pharmacy.sale.create", "pharmacy.sale.read")
+var salePerms = append(append([]authz.Permission{}, releasePerms...), "pharmacy.licence.manage", "pharmacy.licence.review", "pharmacy.sale.create", "pharmacy.sale.read", "pharmacy.prescription.record", "pharmacy.prescription.read")
 
 type saleWorld struct {
 	r                    *gin.Engine
@@ -234,7 +234,7 @@ func TestASaleIsRefusedWithItsReasonAndUsesNoNumber(t *testing.T) {
 	h := w.product(t, "TEST-AMOX-500", "H")
 	w.shelve(t, h, "2028-06-30", 12500, 10)
 	body = cashSale(h, 1, 1250, 1250)
-	expect("is Schedule H and needs prescription evidence")
+	expect("is Schedule H and needs a prescription")
 	x := w.product(t, "TEST-X-1", "X")
 	body = cashSale(x, 1, 1250, 1250)
 	expect("Schedule X or NDPS")
@@ -377,7 +377,7 @@ func TestTheDatabaseKeepsSaleStockAndSeriesHonest(t *testing.T) {
 				supply_nature,rate_ppm,`+map[bool]string{true: value, false: "mrp_minor"}[column == "mrp_minor"]+`,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor
 				FROM pharmacy_sale_lines WHERE sale_id=?`, sale, posted.ID).Error
 		})
-		require.ErrorContains(t, err, "a sale line must be a licensed, sellable OTC batch at its own price", change)
+		require.ErrorContains(t, err, "a sale line must be a licensed, sellable batch at its own price", change)
 	}
 	err = catalogueTx(t, w.db, func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE pharmacy_invoice_series SET last_number=last_number+2 WHERE tenant_id=?`, testutil.TenantA).Error

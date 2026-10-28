@@ -80,6 +80,7 @@ var errFuturePrescription = errors.New("prescription dated after the outlet's to
 
 func prescriptionRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/prescriptions/:id", PermPrescriptionRecord, h.putPrescription)
+	s.GET("/prescriptions/open-lines", PermPrescriptionRead, h.getOpenPrescriptionLines)
 	s.GET("/prescriptions/:id", PermPrescriptionRead, h.getPrescription)
 	platform.ListRoute(s, "/prescriptions", PermPrescriptionRead, h.listPrescriptions)
 }
@@ -246,4 +247,45 @@ func (h *catalogueHandlers) listPrescriptions(c *gin.Context, params pagination.
 		catalogueError(c, err)
 	}
 	return rows, nil
+}
+
+// openPrescriptionLine is a line the counter can still dispense, with what the
+// pharmacist needs to choose it.
+type openPrescriptionLine struct {
+	PrescriptionID   uuid.UUID `gorm:"column:prescription_id" json:"prescription_id"`
+	PrescribedOn     string    `gorm:"column:prescribed_on" json:"prescribed_on"`
+	PrescriberName   string    `gorm:"column:prescriber_name" json:"prescriber_name"`
+	PatientName      string    `gorm:"column:patient_name" json:"patient_name"`
+	AddressesOnFile  bool      `gorm:"column:addresses_on_file" json:"addresses_on_file"`
+	prescriptionLine `gorm:"embedded"`
+}
+
+// maxOpenLines bounds the counter's lookup; a busy outlet records a newer
+// prescription rather than scrolling for an old one.
+const maxOpenLines = 50
+
+func (h *catalogueHandlers) getOpenPrescriptionLines(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	product, err := uuid.Parse(c.Query("product_id"))
+	if err != nil || product == uuid.Nil {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "product_id is required")
+		return
+	}
+	rows := []openPrescriptionLine{}
+	err = h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT p.id AS prescription_id, to_char(p.prescribed_on,'YYYY-MM-DD') AS prescribed_on, p.prescriber_name, p.patient_name,
+			(p.prescriber_address IS NOT NULL AND p.patient_address IS NOT NULL) AS addresses_on_file, q.*
+			FROM pharmacy_prescriptions p
+			JOIN LATERAL (`+prescriptionLinesQuery+` WHERE l.tenant_id=p.tenant_id AND l.outlet_id=p.outlet_id AND l.prescription_id=p.id AND l.product_id=?) q ON true
+			WHERE p.tenant_id=? AND p.outlet_id=? AND q.units_remaining > 0 AND q.dispensings_remaining > 0
+			ORDER BY p.created_at DESC, p.id, q.line_number LIMIT ?`, product, p.TenantID, outlet, maxOpenLines).Scan(&rows).Error
+	})
+	if err != nil {
+		catalogueError(c, err)
+		return
+	}
+	respond.OK(c, gin.H{"lines": rows})
 }

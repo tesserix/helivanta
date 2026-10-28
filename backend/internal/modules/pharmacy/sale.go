@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
@@ -61,6 +62,29 @@ const invoiceProfileColumns = "id,legal_name,address,invoice_prefix,recorded_by,
 type saleLineInput struct {
 	ProductID     uuid.UUID `json:"product_id" binding:"required"`
 	QuantityUnits int64     `json:"quantity_units" binding:"required,min=1,max=1000000"`
+	// The prescription line a G, H or H1 line dispenses (B-2b decision 2).
+	Prescription *saleCitation `json:"prescription" binding:"omitempty"`
+}
+
+type saleCitation struct {
+	PrescriptionID uuid.UUID `json:"prescription_id" binding:"required"`
+	LineNumber     int       `json:"line_number" binding:"required,min=1,max=20"`
+}
+
+// saleBuyer is the optional walk-in buyer (decision 7): pharmacy-owned and
+// never published.
+type saleBuyer struct {
+	Name  *string `json:"name" binding:"omitempty"`
+	Phone *string `json:"phone" binding:"omitempty"`
+}
+
+var buyerPhonePattern = regexp.MustCompile(`^\+?[0-9]{6,15}$`)
+
+func (b *saleBuyer) valid() bool {
+	if b == nil {
+		return true
+	}
+	return (b.Name == nil || prescriptionText(*b.Name, 200)) && (b.Phone == nil || buyerPhonePattern.MatchString(*b.Phone)) && (b.Name != nil || b.Phone != nil)
 }
 
 type saleTenderInput struct {
@@ -73,6 +97,7 @@ type saleTenderInput struct {
 type saleInput struct {
 	Lines   []saleLineInput   `json:"lines" binding:"required,min=1,max=50,dive"`
 	Tenders []saleTenderInput `json:"tenders" binding:"required,min=1,max=5,dive"`
+	Buyer   *saleBuyer        `json:"buyer"`
 }
 
 type saleQuoteInput struct {
@@ -94,6 +119,19 @@ func (in saleInput) digest() string {
 	parts := []string{}
 	for _, l := range in.Lines {
 		parts = append(parts, "l", l.ProductID.String(), strconv.FormatInt(l.QuantityUnits, 10))
+		if l.Prescription != nil {
+			parts = append(parts, "rx", l.Prescription.PrescriptionID.String(), strconv.Itoa(l.Prescription.LineNumber))
+		}
+	}
+	if in.Buyer != nil {
+		name, phone := "", ""
+		if in.Buyer.Name != nil {
+			name = "\x1e" + *in.Buyer.Name
+		}
+		if in.Buyer.Phone != nil {
+			phone = "\x1e" + *in.Buyer.Phone
+		}
+		parts = append(parts, "b", name, phone)
 	}
 	for _, t := range in.Tenders {
 		tendered, reference := "", ""
@@ -149,6 +187,8 @@ type saleRecord struct {
 	CGSTMinor       int64        `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor       int64        `gorm:"column:sgst_minor" json:"sgst_minor"`
 	ActorSubject    string       `gorm:"column:actor_subject" json:"actor_subject"`
+	BuyerName       *string      `gorm:"column:buyer_name" json:"buyer_name"`
+	BuyerPhone      *string      `gorm:"column:buyer_phone" json:"buyer_phone"`
 	CreatedAt       time.Time    `gorm:"column:created_at" json:"created_at"`
 	Lines           []saleLine   `gorm:"-" json:"lines,omitempty"`
 	Tenders         []saleTender `gorm:"-" json:"tenders,omitempty"`
@@ -159,26 +199,28 @@ type saleRecord struct {
 func (saleRecord) TableName() string                 { return "pharmacy_sales" }
 func (r saleRecord) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,created_at"
+const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,created_at"
 
 type saleLine struct {
-	LineNumber         int       `gorm:"column:line_number" json:"line_number"`
-	ProductID          uuid.UUID `gorm:"column:product_id" json:"product_id"`
-	BatchID            uuid.UUID `gorm:"column:batch_id" json:"batch_id"`
-	LocationID         uuid.UUID `gorm:"column:location_id" json:"location_id"`
-	LotNumber          string    `gorm:"column:lot_number" json:"lot_number"`
-	ExpiresOn          string    `gorm:"column:expires_on" json:"expires_on"`
-	RegulatoryClass    string    `gorm:"column:regulatory_class" json:"regulatory_class"`
-	ClassificationCode string    `gorm:"column:classification_code" json:"classification_code"`
-	SupplyNature       string    `gorm:"column:supply_nature" json:"supply_nature"`
-	RatePPM            int64     `gorm:"column:rate_ppm" json:"rate_ppm"`
-	MRPMinor           int64     `gorm:"column:mrp_minor" json:"mrp_minor"`
-	PackSize           int64     `gorm:"column:pack_size" json:"pack_size"`
-	QuantityUnits      int64     `gorm:"column:quantity_units" json:"quantity_units"`
-	AmountMinor        int64     `gorm:"column:amount_minor" json:"amount_minor"`
-	TaxableMinor       int64     `gorm:"column:taxable_minor" json:"taxable_minor"`
-	CGSTMinor          int64     `gorm:"column:cgst_minor" json:"cgst_minor"`
-	SGSTMinor          int64     `gorm:"column:sgst_minor" json:"sgst_minor"`
+	LineNumber         int        `gorm:"column:line_number" json:"line_number"`
+	ProductID          uuid.UUID  `gorm:"column:product_id" json:"product_id"`
+	BatchID            uuid.UUID  `gorm:"column:batch_id" json:"batch_id"`
+	LocationID         uuid.UUID  `gorm:"column:location_id" json:"location_id"`
+	LotNumber          string     `gorm:"column:lot_number" json:"lot_number"`
+	ExpiresOn          string     `gorm:"column:expires_on" json:"expires_on"`
+	RegulatoryClass    string     `gorm:"column:regulatory_class" json:"regulatory_class"`
+	ClassificationCode string     `gorm:"column:classification_code" json:"classification_code"`
+	SupplyNature       string     `gorm:"column:supply_nature" json:"supply_nature"`
+	RatePPM            int64      `gorm:"column:rate_ppm" json:"rate_ppm"`
+	MRPMinor           int64      `gorm:"column:mrp_minor" json:"mrp_minor"`
+	PackSize           int64      `gorm:"column:pack_size" json:"pack_size"`
+	QuantityUnits      int64      `gorm:"column:quantity_units" json:"quantity_units"`
+	AmountMinor        int64      `gorm:"column:amount_minor" json:"amount_minor"`
+	TaxableMinor       int64      `gorm:"column:taxable_minor" json:"taxable_minor"`
+	CGSTMinor          int64      `gorm:"column:cgst_minor" json:"cgst_minor"`
+	SGSTMinor          int64      `gorm:"column:sgst_minor" json:"sgst_minor"`
+	PrescriptionID     *uuid.UUID `gorm:"column:prescription_id" json:"prescription_id"`
+	PrescriptionLine   *int       `gorm:"column:prescription_line" json:"prescription_line"`
 	declaration        uuid.UUID
 }
 
@@ -489,10 +531,6 @@ func saleProducts(tx *gorm.DB, tenant string, outlet uuid.UUID, seller saleSelle
 			return nil, errNotSellable{pr.SKU + " has no approved schedule class"}
 		case class[0].RegulatoryClass == "X" || class[0].NDPS:
 			return nil, errNotSellable{pr.SKU + " is Schedule X or NDPS, which cannot be sold until their controls exist"}
-		// B-2 brings prescription evidence; until then a prescription
-		// medicine is never sold as if it were OTC.
-		case class[0].RegulatoryClass != "none":
-			return nil, errNotSellable{pr.SKU + " is Schedule " + class[0].RegulatoryClass + " and needs prescription evidence, which the counter does not record yet"}
 		}
 		pr.class = class[0]
 	}
@@ -582,8 +620,96 @@ func priceSale(tx *gorm.DB, tenant string, outlet uuid.UUID, in []saleLineInput)
 	if err != nil {
 		return seller, nil, err
 	}
+	if err := checkCitations(tx, tenant, outlet, seller.today, in, products); err != nil {
+		return seller, nil, err
+	}
 	lines, err := allocate(tx, tenant, outlet, seller.today, in, products)
-	return seller, lines, err
+	if err != nil {
+		return seller, nil, err
+	}
+	cited := map[uuid.UUID]*saleCitation{}
+	for _, l := range in {
+		cited[l.ProductID] = l.Prescription
+	}
+	for i := range lines {
+		if c := cited[lines[i].ProductID]; c != nil {
+			id, n := c.PrescriptionID, c.LineNumber
+			lines[i].PrescriptionID, lines[i].PrescriptionLine = &id, &n
+		}
+	}
+	return seller, lines, nil
+}
+
+// checkCitations holds every G, H and H1 line to the prescription line it
+// cites (B-2b decision 2, Rule 65(9)–(11A)), with the reason a cashier can act
+// on. The cited lines are locked in one order first, as the sale guard locks
+// them, so two tills dispensing one prescription serialise; the guard then
+// checks the same limits again as the authority.
+func checkCitations(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, in []saleLineInput, products map[uuid.UUID]*saleProduct) error {
+	cited := []saleLineInput{}
+	for _, l := range in {
+		pr := products[l.ProductID]
+		switch {
+		case pr.class.RegulatoryClass == "none" && l.Prescription != nil:
+			return errNotSellable{pr.SKU + " is sold without a prescription; remove the prescription from its line"}
+		case pr.class.RegulatoryClass != "none" && l.Prescription == nil:
+			return errNotSellable{pr.SKU + " is Schedule " + pr.class.RegulatoryClass + " and needs a prescription"}
+		case l.Prescription != nil:
+			cited = append(cited, l)
+		}
+	}
+	sort.Slice(cited, func(i, j int) bool {
+		a, b := cited[i].Prescription, cited[j].Prescription
+		if a.PrescriptionID != b.PrescriptionID {
+			return a.PrescriptionID.String() < b.PrescriptionID.String()
+		}
+		return a.LineNumber < b.LineNumber
+	})
+	for i := 1; i < len(cited); i++ {
+		if *cited[i].Prescription == *cited[i-1].Prescription {
+			return errNotSellable{"each prescription line is dispensed on one sale line"}
+		}
+	}
+	for _, l := range cited {
+		c, pr := l.Prescription, products[l.ProductID]
+		var rx []struct {
+			ProductID          uuid.UUID
+			DispensingsAllowed int
+			QuantityUnits      int64
+			PrescribedOn       string
+			PrescriberAddress  *string
+			PatientAddress     *string
+		}
+		if err := tx.Raw(`SELECT l.product_id, l.dispensings_allowed, l.quantity_units, to_char(p.prescribed_on,'YYYY-MM-DD') AS prescribed_on, p.prescriber_address, p.patient_address
+			FROM pharmacy_prescription_lines l JOIN pharmacy_prescriptions p ON p.tenant_id=l.tenant_id AND p.outlet_id=l.outlet_id AND p.id=l.prescription_id
+			WHERE l.tenant_id=? AND l.outlet_id=? AND l.prescription_id=? AND l.line_number=? FOR UPDATE OF l`, tenant, outlet, c.PrescriptionID, c.LineNumber).Scan(&rx).Error; err != nil {
+			return err
+		}
+		if len(rx) == 0 {
+			return errNotSellable{"the prescription line cited for " + pr.SKU + " is not recorded at this outlet"}
+		}
+		var left []struct {
+			UnitsRemaining       int64
+			DispensingsRemaining int
+		}
+		if err := tx.Raw(`SELECT units_remaining, dispensings_remaining FROM (`+prescriptionLinesQuery+` WHERE l.tenant_id=? AND l.outlet_id=? AND l.prescription_id=? AND l.line_number=?) q`,
+			tenant, outlet, c.PrescriptionID, c.LineNumber).Scan(&left).Error; err != nil {
+			return err
+		}
+		switch {
+		case rx[0].ProductID != l.ProductID:
+			return errNotSellable{"the prescription line is for another product; a prescribed medicine is not substituted"}
+		case rx[0].PrescribedOn > today:
+			return errNotSellable{"the prescription is dated after today"}
+		case (pr.class.RegulatoryClass == "H" || pr.class.RegulatoryClass == "H1") && (rx[0].PrescriberAddress == nil || rx[0].PatientAddress == nil):
+			return errNotSellable{"a Schedule H or H1 prescription needs the prescriber's and the patient's address; record the prescription again with them"}
+		case left[0].DispensingsRemaining < 1:
+			return errNotSellable{"the prescription for " + pr.SKU + " has been dispensed as often as the prescriber allowed"}
+		case left[0].UnitsRemaining < l.QuantityUnits:
+			return errNotSellable{fmt.Sprintf("the prescription allows %d more units of %s", left[0].UnitsRemaining, pr.SKU)}
+		}
+	}
+	return nil
 }
 
 func saleTotals(lines []saleLine) (total, taxable, half int64) {
@@ -660,6 +786,14 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "at most one cash tender, with the amount handed over; UPI and card need a reference")
 		return
 	}
+	if !in.Buyer.valid() {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a buyer has a name of up to 200 characters, a phone of 6 to 15 digits, or both")
+		return
+	}
+	var buyerName, buyerPhone *string
+	if in.Buyer != nil {
+		buyerName, buyerPhone = in.Buyer.Name, in.Buyer.Phone
+	}
 	digest := in.digest()
 	var result saleRecord
 	created := false
@@ -707,17 +841,18 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return errNotSellable{"this year's invoice series is full; record a shorter invoice prefix"}
 		}
 		if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,
-			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject)
-			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
-			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject).Error; err != nil {
+			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone)
+			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
+			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone).Error; err != nil {
 			return err
 		}
 		for _, l := range lines {
 			if err := tx.Exec(`INSERT INTO pharmacy_sale_lines (tenant_id,outlet_id,sale_id,line_number,product_id,batch_id,location_id,lot_number,expires_on,
-				regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor)
-				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
+				regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,
+				prescription_id,prescription_line)
+				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
 				l.RegulatoryClass, l.declaration, l.ClassificationCode, l.SupplyNature, l.RatePPM, l.MRPMinor, l.PackSize, l.QuantityUnits, l.AmountMinor,
-				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor).Error; err != nil {
+				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.PrescriptionID, l.PrescriptionLine).Error; err != nil {
 				return err
 			}
 			movement := stockMovement{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ActorSubject: p.Subject,
@@ -764,6 +899,8 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 	switch {
 	case errors.As(err, &refusal):
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
+	case prescriptionLimitError(err):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
 	case err != nil:
 		stockError(c, err)
 	case created:
@@ -783,7 +920,7 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	}
 	*out = rows[0]
 	if err := tx.Raw(`SELECT line_number,product_id,batch_id,location_id,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,regulatory_class,
-		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor
+		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,prescription_id,prescription_line
 		FROM pharmacy_sale_lines WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
 		return err
 	}
@@ -831,4 +968,11 @@ func (h *catalogueHandlers) listSales(c *gin.Context, params pagination.Params) 
 		stockError(c, err)
 	}
 	return rows, nil
+}
+
+// prescriptionLimitError is the sale guard refusing a line its handler check
+// passed, so a refusal the database makes still reaches the cashier as one.
+func prescriptionLimitError(err error) bool {
+	var pg *pgconn.PgError
+	return errors.As(err, &pg) && pg.ConstraintName == "pharmacy_sale_line_prescription_limit"
 }

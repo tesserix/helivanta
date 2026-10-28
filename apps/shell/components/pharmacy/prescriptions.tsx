@@ -259,33 +259,32 @@ function PrescriptionPages({
     };
   }, []);
   const perform = async (operation: Operation) => {
-      if (tenantTransitionPending())
-        throw new Error("Wait for your workspace to finish switching.");
-      const active = new AbortController();
-      controller.current = active;
-      if (operation.kind === "upload") {
-        const file = form.getValues("file");
-        if (!file) throw new Error("Choose a page image first.");
-        prepared.current ??= await preparePrescriptionImage(newPharmacyId(), file, active.signal);
-        await submitPrescriptionImage(scope, prescription.id, prepared.current, active.signal);
-        prepared.current = null;
-        form.reset({ file: null });
-        if (input.current) input.current.value = "";
-      } else if (operation.kind === "retry") {
-        await retryPrescriptionImage(scope, operation.image, active.signal);
-      } else {
-        const blob = await downloadPrescriptionImage(scope, operation.image, active.signal);
-        const url = URL.createObjectURL(blob);
-        urls.current.add(url);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = operation.image.filename;
-        link.click();
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          urls.current.delete(url);
-        }, 1500);
-      }
+    if (tenantTransitionPending()) throw new Error("Wait for your workspace to finish switching.");
+    const active = new AbortController();
+    controller.current = active;
+    if (operation.kind === "upload") {
+      const file = form.getValues("file");
+      if (!file) throw new Error("Choose a page image first.");
+      prepared.current ??= await preparePrescriptionImage(newPharmacyId(), file, active.signal);
+      await submitPrescriptionImage(scope, prescription.id, prepared.current, active.signal);
+      prepared.current = null;
+      form.reset({ file: null });
+      if (input.current) input.current.value = "";
+    } else if (operation.kind === "retry") {
+      await retryPrescriptionImage(scope, operation.image, active.signal);
+    } else {
+      const blob = await downloadPrescriptionImage(scope, operation.image, active.signal);
+      const url = URL.createObjectURL(blob);
+      urls.current.add(url);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = operation.image.filename;
+      link.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        urls.current.delete(url);
+      }, 1500);
+    }
   };
   const invalidate = [prescriptionImagesKey(scope, prescription.id)];
   const upload = useApiMutation(() => perform({ kind: "upload" }), {
@@ -361,20 +360,12 @@ function PrescriptionPages({
                 </p>
               </div>
               {image.status === "available" && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => open.mutate(image)}
-                >
+                <Button variant="outline" disabled={busy} onClick={() => open.mutate(image)}>
                   Open {image.filename}
                 </Button>
               )}
               {canRecord && image.status === "scan_error" && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => retry.mutate(image)}
-                >
+                <Button variant="outline" disabled={busy} onClick={() => retry.mutate(image)}>
                   Try again
                 </Button>
               )}

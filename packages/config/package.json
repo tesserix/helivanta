@@ -19,12 +19,12 @@
     "eslint": "^10.13.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.71.2",
-    "@testing-library/jest-dom": "^6.6.3",
     "jsdom": "^26.0.0",
     "prettier": "^3.9.10",
-    "vitest": "^4.1.11"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5",
+    "@testing-library/jest-dom": "^7.0.1"
   },
   "prettier": "@helivanta/config/prettier"
 }

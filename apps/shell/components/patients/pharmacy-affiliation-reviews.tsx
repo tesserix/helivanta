@@ -50,7 +50,14 @@ export function PharmacyAffiliationReviews({
         <ul className="mt-4 divide-y text-sm">
           {reviews.items.map((review) => (
             <li key={review.request_id} className="py-3">
-              <ReviewItem review={review} hospital={hospital} invalidate={key} />
+              {/* A request that moved on, even after a lost answer, is a new
+                  decision: remounting gives it a fresh decision id. */}
+              <ReviewItem
+                key={`${review.status}:${review.decisions.length}`}
+                review={review}
+                hospital={hospital}
+                invalidate={key}
+              />
             </li>
           ))}
         </ul>

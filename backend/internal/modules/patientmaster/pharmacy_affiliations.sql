@@ -52,7 +52,7 @@ CREATE TABLE patient_pharmacy_affiliation_decisions (
 ALTER TABLE patient_pharmacy_affiliation_decisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_pharmacy_affiliation_decisions FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON patient_pharmacy_affiliation_decisions
- USING (hms_tenant_visible(tenant_id) AND patient_hospital_allowed(tenant_id,hospital_id,false))
+ USING (hms_tenant_visible(tenant_id) AND patient_hospital_allowed(tenant_id,hospital_id,true))
  WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND patient_hospital_allowed(tenant_id,hospital_id,true));
 
 -- A decision is the session's own, by a registrar of that hospital, from a

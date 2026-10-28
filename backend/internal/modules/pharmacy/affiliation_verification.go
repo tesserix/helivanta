@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
@@ -98,6 +99,8 @@ func fillVerification(tx *gorm.DB, tenant string, rows []hospitalAffiliation) er
 		request := v.RequestID
 		rows[i].VerificationRequestID = &request
 		if v.Kind == "accepted" {
+			// When pharmacy recorded the acceptance; the hospital's own
+			// decision time stays in patientmaster's history.
 			at := v.CreatedAt
 			rows[i].VerifiedAt = &at
 		}
@@ -153,13 +156,18 @@ func (h *catalogueHandlers) verificationCommand(c *gin.Context, in any, step fun
 		result = rows[0]
 		return nil
 	})
+	var pg *pgconn.PgError
+	if errors.As(err, &pg) && (pg.Code == "23505" || pg.Code == "23514") {
+		// A racing step lost on the sequence or round-id key, or the
+		// transition trigger refused it: the state moved under the caller.
+		err = errVerificationConflict
+	}
 	switch {
 	case errors.Is(err, errWithdrawReason):
 		respond.Error(c, http.StatusBadRequest, "invalid_request", errWithdrawReason.Error())
 	case errors.Is(err, errVerificationConflict):
 		respond.Error(c, http.StatusConflict, "verification_conflict", "the affiliation's verification state does not allow this; reload and try again")
 	case err != nil:
-		// A racing step loses on the sequence key or the transition trigger.
 		stockError(c, err)
 	default:
 		respond.OK(c, result)
@@ -205,14 +213,20 @@ func (h *catalogueHandlers) withdrawVerification(c *gin.Context) {
 		if reason == "" || len([]rune(reason)) > 500 {
 			return errWithdrawReason
 		}
-		if prev == nil || prev.RequestID != request {
-			return errVerificationConflict
+		// A retry is answered from that round's own withdrawal, even after a
+		// newer round has opened; a different reason is a different command.
+		var done []affiliationVerification
+		if err := tx.Select(verificationColumns).Where("tenant_id=? AND affiliation_id=? AND request_id=? AND kind='withdrawn'", p.TenantID, a.ID, request).Limit(1).Find(&done).Error; err != nil {
+			return err
 		}
-		if prev.Kind == "withdrawn" {
-			if prev.Reason == nil || *prev.Reason != reason {
+		if len(done) == 1 {
+			if done[0].Reason == nil || *done[0].Reason != reason {
 				return errVerificationConflict
 			}
 			return nil
+		}
+		if prev == nil || prev.RequestID != request {
+			return errVerificationConflict
 		}
 		if prev.Kind != "requested" && prev.Kind != "accepted" {
 			return errVerificationConflict

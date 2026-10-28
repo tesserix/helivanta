@@ -103,6 +103,38 @@ describe("PharmacyAffiliationReviews", () => {
     });
   });
 
+  it("uses a new decision id once the request has moved on", async () => {
+    // The accept committed but its answer was lost; the refetch shows it accepted.
+    let state = review({});
+    const fetcher = vi.fn(async (_url: string, init: RequestInit = {}) => {
+      if (init.method === "PUT") {
+        const failed = state.status === "pending";
+        state = review({ status: "accepted" });
+        return failed
+          ? new Response(JSON.stringify({ error: "timeout", message: "Gateway timeout" }), {
+              status: 504,
+            })
+          : new Response(JSON.stringify(state));
+      }
+      return new Response(
+        JSON.stringify({ data: [state], page: { has_more: false, next_cursor: null } }),
+      );
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const { user } = renderWithProviders(<PharmacyAffiliationReviews hospital={hospital} />);
+    await user.type(await screen.findByLabelText("Reason"), "Owned");
+    await user.click(screen.getByRole("button", { name: "Verify" }));
+    const revoke = await screen.findByRole("button", { name: "Revoke" });
+    await user.type(screen.getByLabelText("Reason"), "Sold");
+    await user.click(revoke);
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Revoke" }),
+    );
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(2));
+    const id = (url: string) => /decision\/([0-9a-f-]{36})/.exec(url)?.[1];
+    expect(id(puts(fetcher)[1][0])).not.toBe(id(puts(fetcher)[0][0]));
+  });
+
   it("offers no decision on a closed request", async () => {
     stub([review({ status: "withdrawn" })]);
     renderWithProviders(<PharmacyAffiliationReviews hospital={hospital} />);

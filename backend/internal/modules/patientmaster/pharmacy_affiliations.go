@@ -25,8 +25,8 @@ import (
 )
 
 // pharmacyAffiliationReview is a pharmacy's request that this hospital
-// verify its affiliation (#1416). Requester and reviewer identities are
-// kept for attribution and self-acceptance checks, not shown to the queue.
+// verify its affiliation (#1416). The requester is kept only to refuse
+// self-acceptance and is never shown; each decision shows its reviewer.
 type pharmacyAffiliationReview struct {
 	RequestID        uuid.UUID                     `json:"request_id"`
 	AffiliationID    uuid.UUID                     `json:"affiliation_id"`

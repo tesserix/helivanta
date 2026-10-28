@@ -143,6 +143,29 @@ func TestAffiliationVerificationLifecycle(t *testing.T) {
 		require.Equal(t, []string{"requested", "declined", "requested", "revoked"}, steps(affiliation))
 	})
 
+	t.Run("withdraw before acceptance; an old round's retry still answers", func(t *testing.T) {
+		affiliation := declare()
+		first := newID()
+		require.Equal(t, 200, do(r, "PUT", root+affiliation+"/verification-requests/"+first, "editor", `{}`).Code)
+		withdraw := root + affiliation + "/verification-requests/" + first + "/withdraw"
+		w := do(r, "POST", withdraw, "editor", `{"reason":"Asked too early"}`)
+		require.Equal(t, 200, w.Code, w.Body.String())
+		require.Contains(t, w.Body.String(), `"verification_status":"withdrawn"`)
+		decide(affiliation, first, "accepted")
+		require.Equal(t, []string{"requested", "withdrawn"}, steps(affiliation), "a late accept for a withdrawn round is a no-op")
+
+		second := newID()
+		require.Equal(t, 200, do(r, "PUT", root+affiliation+"/verification-requests/"+second, "editor", `{}`).Code)
+		require.Equal(t, 200, do(r, "POST", withdraw, "editor", `{"reason":"Asked too early"}`).Code, "a retried withdrawal of an older round is answered from history")
+		require.Equal(t, 409, do(r, "POST", withdraw, "editor", `{"reason":"another"}`).Code)
+		require.Equal(t, "requested", status(affiliation)["verification_status"], "the retry does not touch the newer round")
+
+		other := declare()
+		w = do(r, "PUT", root+other+"/verification-requests/"+second, "editor", `{}`)
+		require.Equal(t, 409, w.Code)
+		require.Contains(t, w.Body.String(), "verification_conflict")
+	})
+
 	t.Run("a decision naming another hospital is refused", func(t *testing.T) {
 		affiliation := declare()
 		request := newID()
@@ -201,6 +224,31 @@ func TestAffiliationVerificationLifecycle(t *testing.T) {
 		require.Error(t, <-second)
 		require.Equal(t, []string{"requested", "accepted"}, steps(affiliation))
 		require.Error(t, write(func(tx *gorm.DB) error { return insert(tx, 3, "declined", request) }), "a decided round takes no second decision")
+
+		// Two writers opening a round on a fresh affiliation at once.
+		fresh := declare()
+		openRound := func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO pharmacy_affiliation_verifications (id,tenant_id,affiliation_id,sequence,kind,request_id,actor_subject) VALUES (?,?,?,1,'requested',?,'user-editor')`, newID(), testutil.TenantA, fresh, newID()).Error
+		}
+		held, let, first := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+		go func() {
+			first <- write(func(tx *gorm.DB) error {
+				if err := openRound(tx); err != nil {
+					return err
+				}
+				close(held)
+				<-let
+				return nil
+			})
+		}()
+		<-held
+		rival := make(chan error, 1)
+		go func() { rival <- write(openRound) }()
+		time.Sleep(200 * time.Millisecond)
+		close(let)
+		require.NoError(t, <-first)
+		require.Error(t, <-rival, "two requests cannot both open a round")
+		require.Equal(t, []string{"requested"}, steps(fresh))
 		require.NoError(t, write(func(tx *gorm.DB) error { return insert(tx, 3, "revoked", request) }))
 	})
 }

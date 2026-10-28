@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -154,6 +155,16 @@ func TestPharmacyAffiliationReview(t *testing.T) {
 		require.Empty(t, decided(data))
 	})
 
+	t.Run("withdrawal of a pending request closes it", func(t *testing.T) {
+		data := claim()
+		require.NoError(t, deliver(request, data))
+		require.NoError(t, deliver(withdrawal, data))
+		require.Contains(t, scopedDo(r, "GET", "/v1/patients/pharmacy-affiliations", "tokA", "").Body.String(), `"request_id":"`+data.RequestID+`","affiliation_id":"`+data.AffiliationID+`","pharmacy_id":"`+data.PharmacyID+`","pharmacy_name":"Synthetic Ward Pharmacy","hospital_id":"`+testHospital+`","relationship":"owner","status":"withdrawn"`)
+		code, _ := decide("tokA", data, newID(), "accepted", "late")
+		require.Equal(t, 409, code)
+		require.Empty(t, decided(data))
+	})
+
 	t.Run("withdrawal ends an accepted link", func(t *testing.T) {
 		data := claim()
 		require.NoError(t, deliver(request, data))
@@ -186,6 +197,34 @@ func TestPharmacyAffiliationReview(t *testing.T) {
 		require.Error(t, asReviewer("user-tokA", func(tx *gorm.DB) error {
 			return tx.Exec(`UPDATE patient_pharmacy_affiliation_reviews SET status='accepted' WHERE tenant_id=? AND request_id=?`, testutil.TenantA, data.RequestID).Error
 		}), "status cannot move without its decision")
+		// Two reviewers deciding at once: the second waits on the first and
+		// then finds the request no longer pending.
+		race := claim()
+		require.NoError(t, deliver(request, race))
+		decideRaw := func(tx *gorm.DB, outcome string) error {
+			return tx.Exec(`INSERT INTO patient_pharmacy_affiliation_decisions(id,tenant_id,hospital_id,request_id,outcome,reason,fingerprint,reviewer_subject) VALUES (?,?,?,?,?,'race',repeat('a',64),'user-tokA')`, newID(), testutil.TenantA, testHospital, race.RequestID, outcome).Error
+		}
+		held, let, first := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+		go func() {
+			first <- asReviewer("user-tokA", func(tx *gorm.DB) error {
+				if err := decideRaw(tx, "accepted"); err != nil {
+					return err
+				}
+				close(held)
+				<-let
+				return nil
+			})
+		}()
+		<-held
+		rival := make(chan error, 1)
+		go func() {
+			rival <- asReviewer("user-tokA", func(tx *gorm.DB) error { return decideRaw(tx, "declined") })
+		}()
+		time.Sleep(200 * time.Millisecond)
+		close(let)
+		require.NoError(t, <-first)
+		require.Error(t, <-rival, "a request takes one decision")
+
 		require.NoError(t, insert("user-tokA", "accepted"))
 		require.Error(t, asReviewer("user-tokA", func(tx *gorm.DB) error {
 			return tx.Exec(`UPDATE patient_pharmacy_affiliation_decisions SET reason='rewritten'`).Error

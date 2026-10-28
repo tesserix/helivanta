@@ -899,7 +899,15 @@ describe("expandable navigation", () => {
   // lists lay out by the space they have.
   it("drops the content cap on every page of a full-width zone, and only there", () => {
     seedCache(["pharmacy.catalogue.read", "pharmacy.accounts.read", "patient.read"]);
-    for (const path of ["/pharmacy/accounts", "/pharmacy"]) {
+    for (const path of [
+      "/pharmacy/accounts",
+      "/pharmacy",
+      "/dashboard",
+      "/workforce",
+      "/workforce/setup",
+      "/workforce/access",
+      "/workforce/payroll-setup",
+    ]) {
       pathname.current = path;
       const { unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
       const wrapper = screen.getByText("content");

@@ -989,3 +989,51 @@ maker → independent approver → restricted recipient UI checks and source sec
 evidence are recorded in [the preparation report](staff-identity-source-preparation.md).
 This does not complete identity/background/photo cases, cards, employment lifecycle,
 payroll runs, payslips, offers or exit letters. The area ledger and #1399 remain open.
+
+### Production release checkpoint — 2026-10-28
+
+PR #1423 merged as `01154b69c9419361d34f7d35070f1266f256e3d8`.
+The explicitly approved Kargo promotion
+`prod.01m611h1bvf2nk4b90xhrdck97.67fb839` succeeded. API, Global API,
+shell and the document, emergency and supply-evidence workers each report two
+updated, ready and available replicas at that release. Migrations
+`0013_iam_identity_guard`, `0014_iam_staff_templates`, `0019_pharmacy` and
+`0048_workforce_identity_source` are recorded as applied.
+
+Production owner and restricted reviewer sign-in/protected UI loading were
+verified. The owner can load the identity assignment family and both manager and
+reviewer templates, but has no hospital-manager grant and receives the explicit
+no-access message instead of a selectable hospital. No production grant was
+created. The positive independent assignment/link/revocation flows remain local
+synthetic UI evidence; this checkpoint does not claim production positive identity
+source access. The full local Linux Go race/coverage run and PR/main CI passed.
+
+Published release:
+[Staff identity-source preparation](https://github.com/tesserix/helivanta/releases/tag/2026-10-28-staff-identity-preparation).
+This supersedes earlier pending-release statements for those changes only. Full
+Staff workflow acceptance and the gaps above remain open.
+
+### Workspace layout checkpoint — 2026-10-28
+
+Staff and Dashboard use the shared full-width zone policy (maximum 1760px),
+removing the inherited 1152px content cap. Staff subroutes share that policy;
+individual fields and explanatory text retain their readable widths. Department
+shortcuts use available-content breakpoints for one, two or three columns.
+Analytics panels automatically fill the grid when permissions expose only one
+service, rather than reserving a second empty column.
+
+Local browser QA with synthetic staff verified the directory at 1728px with both
+expanded and collapsed navigation. The content widths were 1216px and 1344px,
+respectively, with no document overflow. At 390px the document remained 390px;
+the 546px table scrolled inside its 340px panel. Dashboard shortcuts stacked in
+one 342px column without page overflow. Normal viewport settings were restored.
+Width-policy regression tests first failed against the capped implementation.
+This is layout evidence, not completion of the Staff business workflows.
+
+Issue #1399 was found closed by the document-recovery PR #1415 even though that
+PR explicitly does not implement its photo/card acceptance criteria. It was
+reopened so its incomplete workflow remains visible.
+
+Validation command: `pnpm turbo lint format:check type-check test build` using
+Node 24 and the local Global API URL. All 30 tasks passed, including 1,085 shell
+tests and 236 shared UI tests. `pnpm exec prettier --check docs/qa/staff-management-acceptance.md` and `git diff --check` also passed.

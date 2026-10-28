@@ -262,7 +262,9 @@ describe("zone icons and sections", () => {
 describe("zone width", () => {
   it("declares full width only for the zones that have chosen it", () => {
     expect(ZONES.filter((zone) => zone.width === "full").map((zone) => zone.key)).toEqual([
+      "dashboard",
       "pharmacy",
+      "workforce",
     ]);
   });
 });

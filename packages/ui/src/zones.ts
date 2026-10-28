@@ -86,6 +86,7 @@ export type Zone = {
 export const ZONES: Zone[] = [
   {
     key: "dashboard",
+    width: "full",
     label: "Dashboard",
     railLabel: "Dashboard",
     icon: LayoutDashboard,
@@ -295,6 +296,7 @@ export const ZONES: Zone[] = [
   },
   {
     key: "workforce",
+    width: "full",
     label: "Staff",
     railLabel: "Staff",
     icon: IdCard,

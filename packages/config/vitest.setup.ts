@@ -1,4 +1,7 @@
-import "@testing-library/jest-dom/vitest";
+import * as matchers from "@testing-library/jest-dom/matchers";
+
+// A peer Vitest copy installs duplicate Chai wrappers; use this runner's global expect.
+expect.extend(matchers);
 
 // jsdom omits the pointer-capture and scrolling APIs used by Radix controls.
 if (typeof HTMLElement !== "undefined" && typeof window !== "undefined") {

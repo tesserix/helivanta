@@ -13,13 +13,13 @@
     "type-check": "node ../../scripts/generate-organization-identity.mjs --check && node ../../scripts/generate-country-profiles.mjs --check && node ../../scripts/generate-pharmacy-contract.mjs --check && node ../../scripts/generate-supply-contract.mjs --check && node ../../scripts/generate-workforce-enrollment.mjs --check && node ../../scripts/generate-workforce-roster-config.mjs --check && node ../../scripts/generate-workforce-documents.mjs --check && node ../../scripts/generate-workforce-leave.mjs --check && node ../../scripts/generate-workforce-duty.mjs --check && node ../../scripts/generate-workforce-overtime.mjs --check && node ../../scripts/generate-workforce-attendance.mjs --check && node ../../scripts/generate-workforce-payroll.mjs --check && node ../../scripts/generate-workforce-credentials.mjs --check && node ../../scripts/generate-workforce-benefits.mjs --check && node ../../scripts/generate-staff-access.mjs --check && node ../../scripts/generate-workforce-identity.mjs --check && node ../../scripts/generate-workforce-login-links.mjs --check && node ../../scripts/generate-trading-policy.mjs --check && tsc --noEmit"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.104.2",
+    "@tanstack/react-query": "^5.104.5",
     "sonner": "^2.0.8",
     "uuid": "14.0.3",
-    "zod": "^4.6.6"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
-    "react": "^19.3.0"
+    "react": "^19.3.1"
   },
   "devDependencies": {
     "@helivanta/config": "workspace:*",
@@ -32,10 +32,10 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^6.1.2",
     "eslint": "^10.13.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5"
   },
   "prettier": "@helivanta/config/prettier"

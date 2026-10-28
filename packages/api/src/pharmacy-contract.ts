@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
@@ -38,7 +38,7 @@ export const pharmacyProductFieldsSchema = z
     ingredients: z.array(pharmacyIngredientSchema).min(1).max(20),
     pack_size: z.number().int().min(1).max(1000000),
     unit_of_issue: z.string().trim().min(1).max(40),
-    currency: z.string().min(3).max(3).regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    currency: z.enum(["INR"]),
     mrp_minor: z.number().int().min(0).max(1000000000000),
     status: z.enum(["active", "discontinued", "withdrawn"]),
   })
@@ -56,6 +56,8 @@ export const pharmacyBatchInputSchema = z
     lot_number: z.string().trim().toUpperCase().min(1).max(100),
     expires_on: z.string().date("Use a full valid date."),
     manufactured_on: z.string().date("Use a full valid date.").nullable().optional(),
+    mrp_minor: z.number().int().min(1).max(1000000000000),
+    purchase_cost_minor: z.number().int().min(0).max(1000000000000).nullable().optional(),
   })
   .strict();
 
@@ -111,6 +113,7 @@ export const pharmacyLocationInputSchema = z
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
     storage_address: pharmacyStorageAddressSchema.nullable().optional(),
+    stock_status: z.enum(["quarantine", "sellable"]).nullable().optional(),
   })
   .strict();
 
@@ -138,7 +141,7 @@ export const pharmacyOutletInputSchema = z
       .max(40)
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     timezone: z.string().min(1).max(64),
   })
   .strict();
@@ -147,7 +150,7 @@ export const pharmacyAffiliationInputSchema = z
   .object({
     hospital_id: z
       .string()
-      .uuid()
+      .guid()
       .refine(
         (value) => value !== "00000000-0000-0000-0000-000000000000",
         "Choose a valid hospital reference.",
@@ -184,7 +187,7 @@ export const pharmacyPayableInputSchema = z
     document_reference: z.string().trim().toUpperCase().min(1).max(100),
     issued_on: z.string().date("Use a full valid date."),
     due_on: z.string().date("Use a full valid date."),
-    currency: z.string().min(3).max(3).regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    currency: z.enum(["INR"]),
     lines: z.array(pharmacyPayableLineInputSchema).min(1).max(100),
   })
   .strict();
@@ -193,7 +196,7 @@ export const pharmacySettlementInputSchema = z
   .object({
     kind: z.enum(["payment", "credit", "payment_reversal"]),
     amount_minor: z.number().int().min(1).max(1000000000000),
-    currency: z.string().min(3).max(3).regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
+    currency: z.enum(["INR"]),
     paid_by: z.string().trim().min(1).max(200),
     method: z.enum(["cash", "bank", "card", "upi", "other"]),
     source_reference: z.string().trim().toUpperCase().min(1).max(100),
@@ -213,7 +216,7 @@ export const pharmacySafetyIncidentFieldsSchema = z
       "packaging_damage",
       "suspected_recall",
     ]),
-    reason: z.string().trim().min(10).max(500),
+    reason: z.string().trim().min(10, "Enter at least 10 characters.").max(500),
     occurred_at: z
       .string()
       .min(1)
@@ -234,5 +237,36 @@ export const pharmacyStockExpiryFieldsSchema = z
     expiry_local_date: z.string().date("Use a full valid date."),
     days_to_expiry: z.number().int().min(-3652058).max(3652058),
     expiry_band: z.enum(["expired", "today", "days_30", "days_90", "days_180", "later"]),
+  })
+  .strict();
+
+export const pharmacyTaxRegistrationInputSchema = z
+  .object({
+    jurisdiction_code: z
+      .string()
+      .min(2)
+      .max(2)
+      .regex(new RegExp("^[0-9]{2}$"), "Use the required format."),
+    identifier: z.string().trim().toUpperCase().min(1).max(40),
+    effective_from: z.string().date("Use a full valid date."),
+    reason: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .strict();
+
+export const pharmacyTaxClassificationInputSchema = z
+  .object({
+    classification_code: z.string().trim().min(1).max(20),
+    supply_nature: z.enum(["taxable", "nil_rated", "exempt"]),
+    rate_percent: z
+      .string()
+      .min(1)
+      .max(6)
+      .regex(
+        new RegExp("^(100(\\.0{1,2})?|[0-9]{1,2}(\\.[0-9]{1,2})?)$"),
+        "Use the required format.",
+      ),
+    exemption_basis: z.string().trim().min(1).max(500).nullable().optional(),
+    effective_from: z.string().date("Use a full valid date."),
+    reason: z.string().trim().min(1).max(500).nullable().optional(),
   })
   .strict();

@@ -75,11 +75,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	advancer, err := workforce.NewCredentialReminderAdvancer(ctx, db)
+	if err != nil {
+		return err
+	}
 	startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if _, err := scanner.Status(startup, time.Now().UTC()); err != nil {
-		return errors.New("private document scanner readiness unavailable")
-	}
 	c, err := client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
 	if err != nil {
 		return errors.New("private document workflow client unavailable")
@@ -92,6 +93,13 @@ func run() error {
 		return errors.New("private document workflow worker unavailable")
 	}
 	defer w.Stop()
+	reminders := worker.New(c, workforce.CredentialReminderTaskQueue, worker.Options{MaxConcurrentActivityExecutionSize: 4, WorkerStopTimeout: 30 * time.Second})
+	reminders.RegisterWorkflowWithOptions(workforce.CredentialReminderWorkflow, workflow.RegisterOptions{Name: workforce.CredentialReminderWorkflowName})
+	reminders.RegisterActivityWithOptions(advancer.Advance, activity.RegisterOptions{Name: workforce.CredentialReminderActivityName})
+	if err := reminders.Start(); err != nil {
+		return errors.New("credential reminder workflow worker unavailable")
+	}
+	defer reminders.Stop()
 	cancel()
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultErrorWriter = logging.NewRedactingWriter(gin.DefaultErrorWriter)
@@ -101,7 +109,7 @@ func run() error {
 			_, err := c.CheckHealth(ctx, &client.CheckHealthRequest{})
 			return err
 		}},
-		{Name: "scanner", Check: func(ctx context.Context) error { _, err := scanner.Status(ctx, time.Now().UTC()); return err }},
+		{Name: "scanner", Check: scanner.Ready},
 	}, nil)
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: http.TimeoutHandler(probes.Engine, 5*time.Second, "readiness deadline exceeded"), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 30 * time.Second}
 	errorsCh := make(chan error, 1)

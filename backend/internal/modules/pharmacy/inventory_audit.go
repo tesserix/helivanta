@@ -3,6 +3,7 @@ package pharmacy
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -35,10 +36,29 @@ func (h *catalogueHandlers) listInventoryAudit(c *gin.Context, params pagination
 	}
 	var rows []inventoryAudit
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, params).Table("pharmacy_inventory_audit").Select("id,product_id,sku,brand_name,unit_of_issue,currency,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,created_at,on_hand_units,received_units,uncosted_receipt_units,acquisition_cost_minor,valuation_minor,valuation_status").Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error
+		return tenantdb.ApplyKeyset(tx, params).Table("pharmacy_inventory_audit").Select(inventoryAuditColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error
 	})
 	if err != nil {
 		payableError(c, err)
 	}
 	return rows, nil
+}
+
+const inventoryAuditColumns = "id,product_id,sku,brand_name,unit_of_issue,currency,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,created_at,on_hand_units,received_units,uncosted_receipt_units,acquisition_cost_minor,valuation_minor,valuation_status"
+
+// countedInventoryAudit is the inventory cost audit with a total (#576).
+func countedInventoryAudit(c *gin.Context) (platform.CountedQuery[inventoryAudit], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[inventoryAudit]{}, false
+	}
+	return platform.CountedQuery[inventoryAudit]{
+		Guard: outletReadGuard(c, p, outlet, func(*gorm.DB) (platform.Scope, error) {
+			return func(q *gorm.DB) *gorm.DB {
+				return q.Table("pharmacy_inventory_audit").Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+			}, nil
+		}),
+		Rows: func(q *gorm.DB) *gorm.DB { return q.Select(inventoryAuditColumns) },
+		Fail: payableError,
+	}, true
 }

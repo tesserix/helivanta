@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CSP_REPORT_PATH, contentSecurityPolicy, createNonce } from "@/lib/csp";
+
+// Read directly rather than through lib/env.ts, whose @helivanta/api import
+// would pull React Query into the edge bundle. new URL() throws on a missing
+// value, so the shell still refuses to serve without it.
+const ISSUER_ORIGIN = new URL(process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL ?? "").origin;
 
 // "/api/auth" covers app/api/auth/callback/page.tsx, the redirect target
 // Zitadel sends the browser back to — it does not run with an
@@ -29,24 +35,53 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/v1/auth/login", "/api/v1/auth/branding/"];
 
 export function middleware(req: NextRequest) {
+  // A fresh nonce per request (#1113). Next.js reads it from the forwarded
+  // request policy and stamps its own scripts; the root layout reads x-nonce.
+  const nonce = createNonce();
+  const policy = contentSecurityPolicy(nonce, {
+    dev: process.env.NODE_ENV === "development",
+    issuerOrigin: ISSUER_ORIGIN,
+  });
+  const withPolicy = (response: NextResponse) => {
+    response.headers.set("Content-Security-Policy", policy);
+    return response;
+  };
+  const next = () => {
+    const headers = new Headers(req.headers);
+    headers.set("x-nonce", nonce);
+    headers.set("Content-Security-Policy", policy);
+    return withPolicy(NextResponse.next({ request: { headers } }));
+  };
+
   const { pathname } = req.nextUrl;
-  if (pathname === "/" || pathname === "/signup" || pathname === "/icon.svg") {
-    return NextResponse.next();
+  if (
+    pathname === "/" ||
+    pathname === "/workspace" ||
+    pathname === "/signup" ||
+    pathname === "/icon.svg" ||
+    pathname === "/ambulance" ||
+    pathname === "/api/emergency/access" ||
+    // Violations happen on /login before any session exists (spec D6).
+    pathname === CSP_REPORT_PATH
+  ) {
+    return next();
   }
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
+    return next();
   }
   if (!req.cookies.get("helivanta_session")?.value) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "unauthenticated", message: "missing credentials" },
-        { status: 401 },
+      return withPolicy(
+        NextResponse.json(
+          { error: "unauthenticated", message: "missing credentials" },
+          { status: 401 },
+        ),
       );
     }
     const login = new URL("/login", req.url);
-    return NextResponse.redirect(login);
+    return withPolicy(NextResponse.redirect(login));
   }
-  return NextResponse.next();
+  return next();
 }
 
 export const config = {

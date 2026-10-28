@@ -39,11 +39,17 @@ const NoTenantMembership Permission = "no_tenant_membership"
 type Role string
 
 const (
-	RoleTenantAdmin Role = "tenant_admin"
-	RoleDoctor      Role = "doctor"
-	RoleNurse       Role = "nurse"
-	RolePharmacist  Role = "pharmacist"
-	RoleLabTech     Role = "lab_tech"
+	// RoleStaffMember establishes tenant membership without business permissions.
+	RoleStaffMember         Role = "staff_member"
+	RoleTenantAdmin         Role = "tenant_admin"
+	RoleDoctor              Role = "doctor"
+	RoleNurse               Role = "nurse"
+	RolePharmacist          Role = "pharmacist"
+	RoleLabTech             Role = "lab_tech"
+	RoleEmergencyDispatcher Role = "emergency_dispatcher"
+	RoleEmergencySupervisor Role = "emergency_supervisor"
+	RoleEmergencyCrew       Role = "emergency_crew"
+	RoleEmergencyReceiver   Role = "emergency_receiver"
 
 	// RoleReceptionist is the hospital front desk: registration, and in
 	// time appointments and queueing. Named for the person rather than
@@ -75,7 +81,7 @@ const (
 // truth KnownRole validates against, so a role_key read from anywhere
 // outside this package (an HTTP request body, a raw-SQL row from
 // iam_members) can be checked without hand-copying the role list.
-var systemRoles = []Role{RoleTenantAdmin, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech, RoleReceptionist, RoleSupplyAdmin, RoleSupplyPurchasing, RoleSupplyFinance, RoleSupplyCompliance, RoleSupplyAuditor, RoleSupplyWarehouse, RoleSupplySales, RoleSupplyOwner, RoleSupplyInventory, RoleSupplyPicker, RoleSupplyPacker, RoleSupplyDispatcher, RoleSupplyDriver, RoleSupplyRegulator, RoleSupplySupport, RolePharmacyOwner, RolePharmacyPurchasing, RolePharmacyInventory}
+var systemRoles = []Role{RoleTenantAdmin, RoleStaffMember, RoleEmergencyDispatcher, RoleEmergencySupervisor, RoleEmergencyCrew, RoleEmergencyReceiver, RoleDoctor, RoleNurse, RolePharmacist, RoleLabTech, RoleReceptionist, RoleSupplyAdmin, RoleSupplyPurchasing, RoleSupplyFinance, RoleSupplyCompliance, RoleSupplyAuditor, RoleSupplyWarehouse, RoleSupplySales, RoleSupplyOwner, RoleSupplyInventory, RoleSupplyPicker, RoleSupplyPacker, RoleSupplyDispatcher, RoleSupplyDriver, RoleSupplyRegulator, RoleSupplySupport, RolePharmacyOwner, RolePharmacyPurchasing, RolePharmacyInventory}
 
 // KnownRole reports whether r is one of the seeded system roles. Custom
 // roles are supported by the data model but not yet creatable, so

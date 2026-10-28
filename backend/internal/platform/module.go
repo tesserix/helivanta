@@ -5,6 +5,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"time"
 
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -41,17 +42,27 @@ type RoleLister interface {
 }
 
 // Deps is everything a module may depend on. Modules must not reach
-// around it — cross-module data access goes through events (spec D6).
+// around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
+	ScopedAuthorizer     authz.ScopedAuthorizer
 	OrganizationIdentity *organizationidentity.Client
 	DB                   *tenantdb.DB
 	Bus                  *events.Bus
 	Documents            *attachments.GCS
 	// Transit is nil when OpenBao is unconfigured; routes that need it answer 503.
-	Transit   *transit.Client
-	Workflows client.Client
-	Authz     TupleWriter
-	Roles     RoleLister
+	Transit                     *transit.Client
+	CurrentClaims               *mediconnectclaims.Client
+	Workflows                   client.Client
+	ProxyClinicalCaptureEnabled bool
+	PrivacyDeadlinesEnabled     bool
+	EmergencyDispatchEnabled    bool
+	// AllergyRecordingEnabled gates recording allergy entries (#1373).
+	AllergyRecordingEnabled bool
+	// PharmacyEvidenceEnabled admits prescription page uploads (#1386 B-2a, #1406).
+	PharmacyEvidenceEnabled   bool
+	EmergencyWorkflowsEnabled bool
+	Authz                     TupleWriter
+	Roles                     RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a

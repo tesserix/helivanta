@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Badge, Button, Input } from "@tesserix/web";
 import { CalendarPlus } from "lucide-react";
 import { Can, apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { EmptyState, Field, LoadMore, formatTime, useZodForm } from "@helivanta/ui";
+import { Field, formatTime, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Visit = {
   id: string;
@@ -36,7 +36,7 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
   );
 
   return (
-    <section className="max-w-2xl rounded-lg border bg-card">
+    <Panel flush className="max-w-2xl">
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Visits</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -67,33 +67,32 @@ export function VisitPanel({ department }: { department: "OPD" | "IPD" }) {
           </Button>
         </form>
       </Can>
-      <ul className="divide-y text-sm">
-        {visits.items.length === 0 && (
-          <li>
-            <EmptyState
-              icon={CalendarPlus}
-              title="No visits yet"
-              hint="Create the first one above."
-            />
-          </li>
+      <QueryState
+        query={visits}
+        label="visits"
+        empty={{ icon: CalendarPlus, title: "No visits yet", hint: "Create the first one above." }}
+      >
+        {(items) => (
+          <ul className="divide-y text-sm">
+            {items.map((v) => (
+              <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="truncate font-medium text-foreground">{v.patient_name}</span>
+                  <Badge variant="secondary">{v.department}</Badge>
+                </div>
+                <time className="shrink-0 tabular-nums text-muted-foreground">
+                  {formatTime(v.created_at)}
+                </time>
+              </li>
+            ))}
+          </ul>
         )}
-        {visits.items.map((v) => (
-          <li key={v.id} className="flex items-center justify-between gap-4 px-5 py-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="truncate font-medium text-foreground">{v.patient_name}</span>
-              <Badge variant="secondary">{v.department}</Badge>
-            </div>
-            <time className="shrink-0 tabular-nums text-muted-foreground">
-              {formatTime(v.created_at)}
-            </time>
-          </li>
-        ))}
-      </ul>
+      </QueryState>
       <LoadMore
         hasMore={visits.hasMore}
         isLoading={visits.isFetchingMore}
         onClick={visits.loadMore}
       />
-    </section>
+    </Panel>
   );
 }

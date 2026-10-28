@@ -141,3 +141,54 @@ func TestParseRejectsMalformedCursor(t *testing.T) {
 	_, err := pagination.Parse(c, testTenant)
 	require.ErrorIs(t, err, pagination.ErrInvalidCursor)
 }
+
+// #1295 D3: a newest-first cursor keeps today's exact wire form, so every
+// link already issued keeps decoding to the same position.
+func TestCursorEncodingUnchangedForNewestFirst(t *testing.T) {
+	at := time.Date(2026, 8, 13, 6, 12, 9, 123456000, time.UTC)
+	id := uuid.MustParse("0199e000-0000-7000-8000-000000000001")
+	raw := pagination.Cursor{TenantID: testTenant, CreatedAt: at, ID: id}.Encode()
+	blob, err := base64.RawURLEncoding.DecodeString(raw)
+	require.NoError(t, err)
+	var wire map[string]string
+	require.NoError(t, json.Unmarshal(blob, &wire))
+	require.Equal(t, map[string]string{
+		"t": testTenant,
+		"c": "2026-08-13T06:12:09.123456000Z",
+		"i": id.String(),
+	}, wire)
+}
+
+func TestCursorWithoutDirectionDecodesNewestFirst(t *testing.T) {
+	blob, err := json.Marshal(map[string]string{
+		"t": testTenant, "c": "2026-08-13T06:12:09.123456000Z", "i": uuid.NewString(),
+	})
+	require.NoError(t, err)
+	cur, err := pagination.Decode(base64.RawURLEncoding.EncodeToString(blob), testTenant)
+	require.NoError(t, err)
+	require.Equal(t, pagination.NewestFirst, cur.Direction)
+
+	oldest := pagination.Cursor{TenantID: testTenant, CreatedAt: time.Now().UTC(), ID: uuid.New(), Direction: pagination.OldestFirst}
+	back, err := pagination.Decode(oldest.Encode(), testTenant)
+	require.NoError(t, err)
+	require.Equal(t, pagination.OldestFirst, back.Direction)
+}
+
+// A cursor is only meaningful in the order it was issued for; replaying it
+// against the other order would silently reposition the reader.
+func TestParseForRefusesOtherDirection(t *testing.T) {
+	at := time.Now().UTC()
+	oldest := pagination.Cursor{TenantID: testTenant, CreatedAt: at, ID: uuid.New(), Direction: pagination.OldestFirst}.Encode()
+	newest := pagination.Cursor{TenantID: testTenant, CreatedAt: at, ID: uuid.New()}.Encode()
+
+	_, err := pagination.ParseFor(ginContextForQuery(t, "?cursor="+oldest), testTenant, pagination.NewestFirst)
+	require.ErrorIs(t, err, pagination.ErrDirectionMismatch)
+	_, err = pagination.ParseFor(ginContextForQuery(t, "?cursor="+newest), testTenant, pagination.OldestFirst)
+	require.ErrorIs(t, err, pagination.ErrDirectionMismatch)
+
+	p, err := pagination.ParseFor(ginContextForQuery(t, "?cursor="+oldest), testTenant, pagination.OldestFirst)
+	require.NoError(t, err)
+	require.Equal(t, pagination.OldestFirst, p.Direction)
+	_, err = pagination.Parse(ginContextForQuery(t, "?cursor="+oldest), testTenant)
+	require.ErrorIs(t, err, pagination.ErrDirectionMismatch, "Parse is newest-first")
+}

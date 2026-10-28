@@ -58,7 +58,7 @@ test("switching tenant re-mints the session and changes what the user can do", a
     .click();
 
   // The switch reloads once the new session cookie is in place.
-  await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible({
     timeout: 30_000,
   });
 

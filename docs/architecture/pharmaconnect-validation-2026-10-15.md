@@ -1,5 +1,7 @@
 # Pharma Connect local verification — 15–16 October 2026
 
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
+
 This records local verification of the pharmacy/outlet, catalogue, quarantine receiving and operational expense/payable slices. It is not completion evidence for the entire Pharma Connect backlog, production identity verification, clinical dispensing approval, or SOC 2/HIPAA certification. No production migration or deployment was performed.
 
 ## Automated checks actually run
@@ -38,15 +40,13 @@ The local fixture intentionally omits production Zitadel renewal configuration. 
 
 Both migration series and immutable financial history are forward-only; reverting application code preserves the additive tables. Broader acceptance gates and ownership boundaries remain in the [design](../superpowers/specs/2026-10-15-pharmaconnect-backend.md), [API reference](pharmaconnect-api.md), [ADR 0024](../adr/0024-pharmacy-ownership-and-outlet-tenancy.md) and [ADR 0025](../adr/0025-pharmacy-cost-and-payable-audit.md).
 
-## 16 October: India/Pakistan configuration and procurement reconciliation
+## 16 October: India configuration and procurement reconciliation
 
-The user's confirmed first release is a procurement network: each seller is the contracting party and owns its invoices. External payment recording/reconciliation comes first. Platform-managed marketplace transactions and payment-provider processing remain separate optional work. [ADR 0026](../adr/0026-pharmaconnect-country-and-trading-boundaries.md), the [requirements and role workflows](../requirements/pharmaconnect-india-pakistan.md), editable network diagram and [legacy procurement field map](../requirements/pharmaconnect-legacy-procurement.md) record those boundaries.
+The user's confirmed first release is a procurement network: each seller is the contracting party and owns its invoices. External payment recording/reconciliation comes first. Platform-managed marketplace transactions and payment-provider processing remain separate optional work. [ADR 0026](../adr/0026-pharmaconnect-country-and-trading-boundaries.md), the [requirements and role workflows](../requirements/pharmaconnect-india.md), editable network diagram and [legacy procurement field map](../requirements/pharmaconnect-legacy-procurement.md) record those boundaries.
 
 The restored legacy session allowed read-only inspection of the entire Procurement sidebar, vendor registration, Brand Mapping and receiving form. Only field labels and workflow structure were retained. No actual customer, vendor, bank, tax, licence or contact values were copied into code, fixtures or documentation; no legacy save, approve, upload or stock/payment operation was performed. New epic #1133 has 18 child stories assigned to Sam123ben; #979 links it because GitHub's 100-child limit is already reached. Existing procurement stories were extended rather than duplicated.
 
-Country metadata now has one generated source for IN/INR/Kolkata and PK/PKR/Karachi, locale/direction metadata and explicit regulatory-review status. Outlet API validation rejects unsupported country/timezone pairs. The UI uses country-specific currency defaults for new products/documents, while existing recorded currency remains unchanged. This is configuration metadata and API validation, not a database-backed approved regulatory policy or completed localisation. Statutory tax/licence rules and transaction enablement still require their dedicated implementation and review.
-
-Real browser acceptance created and reopened a synthetic Karachi product at PKR 125.25. An expense for PKR 125.25 and external payment record of PKR 25.10 produced paid PKR 25.10 / outstanding PKR 100.15. No funds moved. This caught a runtime CLDR precision mismatch: PKR must use the explicit two-digit platform currency definition rather than the runtime formatter's zero-digit default. A regression test now verifies both entered minor units and display. Aggregate money continues to use integer/BigInt arithmetic. At 390×844, the PKR expense rendered as a readable stacked card and document width remained 390px; the temporary viewport override was reset.
+Country metadata now has one generated source for IN/INR/Kolkata, locale/direction metadata and explicit regulatory-review status. Outlet API validation rejects unsupported country/timezone pairs. The UI uses country-specific currency defaults for new products/documents, while existing recorded currency remains unchanged. This is configuration metadata and API validation, not a database-backed approved regulatory policy or completed localisation. Statutory tax/licence rules and transaction enablement still require their dedicated implementation and review.
 
 After integrating origin/main's workforce leave changes, `pnpm install --frozen-lockfile`, `pnpm turbo run test lint` (nine tasks; shell 212 tests), `pnpm turbo build`, then `pnpm turbo type-check` (four tasks, including generated country/pharmacy/workforce contract drift checks) passed. The additional currency tests also passed separately (three tests). Go 1.27.2 `golangci-lint run` reported zero issues. The temporary synthetic browser API fixture was removed from the source tree; no permanent authentication bypass or fixture route is included.
 

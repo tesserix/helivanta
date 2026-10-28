@@ -56,7 +56,7 @@ func TestTerritoryCountryBranchAndImmutableDatabaseBoundaries(t *testing.T) {
 	w := testutil.Do(r, "PUT", path, "owner", body)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Equal(t, 409, testutil.Do(r, "PUT", branch, "owner", branchPremiseBody(1, "IN", "TEST-TERRITORY-BRANCH", "warehouse", "omitted")).Code)
-	require.Equal(t, 400, testutil.Do(r, "PUT", owner+"/territories/"+uuid.Must(uuid.NewV7()).String(), "owner", strings.Replace(territoryBody(0, `[]`), `"IN"`, `"PK"`, 1)).Code)
+	require.Equal(t, 400, testutil.Do(r, "PUT", owner+"/territories/"+uuid.Must(uuid.NewV7()).String(), "owner", strings.Replace(territoryBody(0, `[]`), `"IN"`, `"US"`, 1)).Code)
 	id := strings.TrimPrefix(owner, "/v1/supply/parties/")
 	for _, query := range []string{`UPDATE supply_territory_revisions SET version=99`, `DELETE FROM supply_territories`, `DELETE FROM supply_territory_revisions`} {
 		require.Error(t, partyTransaction(t, db, id, func(tx *gorm.DB) error { return tx.Exec(query).Error }))

@@ -103,7 +103,7 @@ func TestResolveFieldName(t *testing.T) {
 }
 
 // jsonEmittedName is the oracle that replaced guessing encoding/json's tag
-// validity rule. These assertions are pinned to observed Go 1.27.2 behaviour; if
+// validity rule. These assertions are pinned to observed Go 1.27.3 behaviour; if
 // a future Go changes which names it honours, the oracle follows it and only
 // the expectations here need revisiting — which is the point of asking rather
 // than mirroring.

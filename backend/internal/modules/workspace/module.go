@@ -34,6 +34,9 @@ const PermCountryPolicyReview authz.Permission = "workspace.country_policy.revie
 //go:embed schema.sql
 var schema string
 
+//go:embed india_only.sql
+var indiaOnlySchema string
+
 //go:embed country_policy.sql
 var countryPolicySchema string
 
@@ -42,7 +45,7 @@ type Module struct{}
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "workspace" }
 func (*Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_workspace", SQL: schema}, {ID: "0002_workspace_country_policies", SQL: countryPolicySchema}}
+	return []tenantdb.Migration{{ID: "0001_workspace", SQL: schema}, {ID: "0002_workspace_country_policies", SQL: countryPolicySchema}, {ID: "0003_workspace_india_only", SQL: indiaOnlySchema}}
 }
 func (*Module) Permissions() []authz.Grant {
 	return []authz.Grant{{Permission: PermBrandingManage}, {Permission: PermCountryPolicyManage}, {Permission: PermCountryPolicyRead, Roles: []authz.Role{authz.RoleSupplyCompliance, authz.RoleSupplyAuditor}}, {Permission: PermCountryPolicyReview, Roles: []authz.Role{authz.RoleSupplyCompliance}}}

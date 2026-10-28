@@ -1,6 +1,24 @@
 export { HmsShell } from "./hms-shell";
-export { ZONES, activeZone, visibleZones, type Zone, type ZoneHue, type ZonePage } from "./zones";
+export {
+  ZONES,
+  activeZone,
+  activePage,
+  visibleZones,
+  type Zone,
+  type ZoneHue,
+  type ZonePage,
+} from "./zones";
 export { ConfirmDialog } from "./confirm-dialog";
+export { ListDetail } from "./list-detail";
+export { DetailHeader } from "./detail-header";
+export {
+  GuardedLink,
+  isModifiedClick,
+  NavigationGuardProvider,
+  useConfirmLeave,
+  useNavigationPending,
+  useLeaveGuard,
+} from "./navigation-guard";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";
 export {
@@ -10,11 +28,18 @@ export {
   type FieldValues,
   type UseFormReturn,
 } from "react-hook-form";
-export { EmptyState } from "./empty-state";
+// EmptyState is rendered only through QueryState, which checks the pending
+// and failed states first (#1276), so it is deliberately not exported.
+export { QueryState } from "./query-state";
+export { RequestFailure } from "./request-failure";
+export { PageHeading } from "./page-heading";
+export { Panel, PanelLink } from "./panel";
 export { LoadMore } from "./load-more";
+export { Pager } from "./pager";
+export { PageTabs, type PageTab } from "./page-tabs";
 export { formatDateTime, formatTime } from "./format";
 export { sanitizeHtml } from "./sanitize";
-export { THEME_STORAGE_KEY, THEME_INIT_SCRIPT, ThemeToggle, useThemeAttribute } from "./theme";
+export { CHROME_INIT_SCRIPT } from "./chrome-flags";
 export { SIGNED_OUT_MARK, IDLE_ENDED_MARK, endZitadelSession } from "./zitadel-session";
 export {
   ACTIVITY_DEBOUNCE_MS,
@@ -26,3 +51,4 @@ export {
 export { TesserixFooter, BrandMark, LoginSurface } from "./branding";
 
 export { SelectControl, FormSelectField, type SelectOption } from "./select";
+export { Popover, PopoverTrigger, PopoverContent } from "./popover";

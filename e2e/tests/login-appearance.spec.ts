@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const palettes = [
-  { theme: "teal", button: "rgb(14, 117, 105)" },
+  { theme: "teal", button: "rgb(51, 65, 85)" }, // the default brand, slate #334155
   { theme: "blue", button: "rgb(29, 93, 168)" },
   { theme: "indigo", button: "rgb(83, 82, 166)" },
 ] as const;

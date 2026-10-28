@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -115,7 +116,8 @@ func TestInventoryAuditLinksAcquisitionCostAndFlagsUnvaluedStock(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	_, location, batch := stockFixture(t, r)
 	stock := strings.TrimSuffix(strings.Split(productPath(""), "/catalogue")[0], "/") + "/stock"
-	receipt := uuid.Must(uuid.NewV7()).String()
+	// Keep amount digits in the UUID to catch request-wide replacements.
+	receipt := "019a1800-0000-7000-8000-000000010000"
 	w := do(r, "PUT", stock+"/movements/"+receipt, "editor", stockBody(location, batch, "receipt", "TEST-COST-RECEIPT", 25))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	audit := func(costed bool, qty int64, status string) {
@@ -154,8 +156,9 @@ func TestInventoryAuditLinksAcquisitionCostAndFlagsUnvaluedStock(t *testing.T) {
 	}
 	audit(false, 25, "cost_missing")
 	body := strings.Replace(expenseBody("TEST-ACQUISITION"), `"category":"utilities"`, `"receipt_id":"`+receipt+`","category":"inventory"`, 1)
-	body = strings.ReplaceAll(body, "10000", "25000")
-	body = strings.ReplaceAll(body, "1800", "2500")
+	body = strings.Replace(body, `"net_minor":10000`, `"net_minor":25000`, 1)
+	body = strings.Replace(body, `"tax_minor":1800`, `"tax_minor":2500`, 1)
+	body = strings.Replace(body, `"recoverable_tax_minor":1800`, `"recoverable_tax_minor":2500`, 1)
 	w = do(r, "PUT", payableRoot()+"/payables/"+uuid.Must(uuid.NewV7()).String(), "editor", body)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	audit(true, 25, "complete")
@@ -165,13 +168,17 @@ func TestInventoryAuditLinksAcquisitionCostAndFlagsUnvaluedStock(t *testing.T) {
 	audit(true, 20, "valuation_review")
 }
 
+// A stocked product's currency cannot relabel its acquisition costs. With
+// India the only supported country (#1287) there is no other currency to
+// relabel to: any other is refused as unsupported before the stocked-product
+// guard, which stays for when a second country returns.
 func TestStockedProductCurrencyCannotRelabelAcquisitionCosts(t *testing.T) {
 	r, _ := catalogueHarness(t)
 	grantCatalogue(t, r, "user-editor", "editor")
 	product, _, _ := stockFixture(t, r)
 	body := strings.Replace(productBody(1, "TEST Amoxicillin 500"), `"INR"`, `"USD"`, 1)
 	w := do(r, "PUT", productPath(product), "editor", body)
-	require.Equal(t, 409, w.Code, w.Body.String())
+	require.Equal(t, 400, w.Code, w.Body.String())
 }
 
 func TestPayableScopeValidationAndImmutableDatabaseControls(t *testing.T) {
@@ -334,4 +341,48 @@ func TestMultipleExpenseLinesKeepOrderAndInvalidReceiptRollsBackDocument(t *test
 		require.Zero(t, count)
 		return err
 	}))
+}
+
+// #576 D4: the overview's bill counts open a list filtered the same way.
+// Today is the outlet's own date (Asia/Kolkata): 2026-10-20 at 23:00 UTC is
+// already 2026-10-21 there.
+func TestPayablesDueFilter(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 10, 20, 23, 0, 0, 0, time.UTC) })
+	bill := func(ref, due string) string {
+		id := uuid.Must(uuid.NewV7()).String()
+		body := strings.Replace(strings.Replace(expenseBody(ref), `"due_on":"2026-10-31"`, `"due_on":"`+due+`"`, 1), `"issued_on":"2026-10-01"`, `"issued_on":"2026-10-01"`, 1)
+		w := do(r, "PUT", payableRoot()+"/payables/"+id, "editor", body)
+		require.Equal(t, 200, w.Code, w.Body.String())
+		return id
+	}
+	bill("TEST-YESTERDAY", "2026-10-20")
+	bill("TEST-TODAY", "2026-10-21")
+	bill("TEST-WEEK-END", "2026-10-28")
+	bill("TEST-LATER", "2026-10-29")
+	paid := bill("TEST-PAID", "2026-10-20")
+	w := do(r, "PUT", payableRoot()+"/payables/"+paid+"/payments/"+uuid.Must(uuid.NewV7()).String(), "editor", settlementBody("payment", "TEST-PAID-IN-FULL", 11800, nil))
+	require.Equal(t, 200, w.Code, w.Body.String())
+
+	refs := func(query string) []string {
+		w := do(r, "GET", payableRoot()+"/payables"+query, "editor", "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		var page struct {
+			Data []struct {
+				Ref string `json:"document_reference"`
+			}
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+		out := []string{}
+		for _, row := range page.Data {
+			out = append(out, row.Ref)
+		}
+		return out
+	}
+	require.ElementsMatch(t, []string{"TEST-YESTERDAY"}, refs("?due=overdue"))
+	require.ElementsMatch(t, []string{"TEST-TODAY", "TEST-WEEK-END"}, refs("?due=week"))
+	require.Len(t, refs(""), 5)
+	require.Equal(t, 400, do(r, "GET", payableRoot()+"/payables?due=soon", "editor", "").Code)
+	require.Equal(t, 400, do(r, "GET", payableRoot()+"/payables?due=week&due=overdue", "editor", "").Code)
 }

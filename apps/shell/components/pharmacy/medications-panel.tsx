@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { ClipboardList } from "lucide-react";
 import { apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { EmptyState, Field, LoadMore, useZodForm } from "@helivanta/ui";
+import { Field, LoadMore, Panel, QueryState, useZodForm } from "@helivanta/ui";
 
 type Medication = { id: string; name: string; strength: string; created_at: string };
 
@@ -31,7 +31,7 @@ export function MedicationsPanel() {
   );
 
   return (
-    <section className="max-w-2xl rounded-lg border bg-card">
+    <Panel flush>
       <div className="border-b px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Formulary</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -57,28 +57,32 @@ export function MedicationsPanel() {
           {addMedication.isPending ? "Adding…" : "Add medication"}
         </Button>
       </form>
-      <ul className="divide-y text-sm">
-        {medications.items.length === 0 && (
-          <li>
-            <EmptyState
-              icon={ClipboardList}
-              title="No medications yet"
-              hint="Add the first one above."
-            />
-          </li>
+      <QueryState
+        query={medications}
+        label="medications"
+        empty={{
+          icon: ClipboardList,
+          title: "No medications yet",
+          hint: "Add the first one above.",
+        }}
+      >
+        {(items) => (
+          <ul className="divide-y text-sm">
+            {items.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-4 px-5 py-3">
+                <span className="truncate font-medium text-foreground">{m.name}</span>
+                <span className="shrink-0 text-muted-foreground">{m.strength}</span>
+              </li>
+            ))}
+          </ul>
         )}
-        {medications.items.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-4 px-5 py-3">
-            <span className="truncate font-medium text-foreground">{m.name}</span>
-            <span className="shrink-0 text-muted-foreground">{m.strength}</span>
-          </li>
-        ))}
-      </ul>
+      </QueryState>
       <LoadMore
+        label="Load more medications"
         hasMore={medications.hasMore}
         isLoading={medications.isFetchingMore}
         onClick={medications.loadMore}
       />
-    </section>
+    </Panel>
   );
 }

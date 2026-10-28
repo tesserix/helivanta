@@ -2,7 +2,7 @@ export const platformGroups = [
   {
     name: "Patient care",
     description: "From the first appointment to the next stage of care.",
-    color: "bg-teal-50 text-teal-900",
+    color: "bg-accent text-accent-foreground",
     modules: [
       {
         name: "Patient management",
@@ -44,14 +44,14 @@ export const platformGroups = [
   {
     name: "Diagnostics, medicines & supplies",
     description: "Connect clinical requests with the teams and resources behind them.",
-    color: "bg-violet-50 text-violet-900",
+    color: "bg-(--hms-violet-tint) text-(--hms-violet)",
     modules: [
       {
         name: "Pharmacy management",
         product: "PharmaConnect",
         status: "Foundation available",
         description:
-          "Medication references and dispensing workflows. Batch and expiry control, pharmacy stock, sales and returns are planned.",
+          "Medication references, dispensing, batch and expiry control, a stock register, and supplier payables and settlements. Quarantine release, sales and returns are planned.",
       },
       {
         name: "Laboratory management",
@@ -78,7 +78,7 @@ export const platformGroups = [
   {
     name: "Hospital operations",
     description: "Give every operational team a clear place in the care network.",
-    color: "bg-amber-50 text-amber-900",
+    color: "bg-(--hms-amber-tint) text-(--hms-amber)",
     modules: [
       {
         name: "Staff & hospital management",
@@ -140,7 +140,7 @@ export const platformGroups = [
   {
     name: "Relationships & administration",
     description: "Connect people and organisations while keeping access deliberate.",
-    color: "bg-sky-50 text-sky-900",
+    color: "bg-(--hms-sky-tint) text-(--hms-sky)",
     modules: [
       {
         name: "CRM & referrals",
@@ -186,4 +186,20 @@ export const platformGroups = [
       },
     ],
   },
-];
+] as const;
+
+type CatalogueModule = (typeof platformGroups)[number]["modules"][number];
+export type ModuleName = CatalogueModule["name"];
+export type ModuleStatus = CatalogueModule["status"];
+
+const statuses = new Map<string, ModuleStatus>(
+  platformGroups.flatMap((group) =>
+    group.modules.map((module) => [module.name, module.status] as const),
+  ),
+);
+
+export function moduleStatus(name: ModuleName): ModuleStatus {
+  const status = statuses.get(name);
+  if (!status) throw new Error(`module missing from the platform catalogue: ${name}`);
+  return status;
+}

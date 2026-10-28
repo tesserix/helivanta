@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PERMISSIONS_CACHE_KEY, RENEW_AT_KEY, storeRenewAt } from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
@@ -29,6 +30,13 @@ const noteDeadlineSpy = vi.hoisted(() => vi.fn());
 // `BroadcastChannel` message from another tab would (idle-timer.ts's own
 // onmessage handler calls exactly this method), without re-testing
 // BroadcastChannel delivery itself (already covered in idle-timer.test.ts).
+// HmsShell reads the path itself (#1091); each test sets it before rendering.
+const pathname = vi.hoisted(() => ({ current: "/" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathname.current,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
 const createdTrackers = vi.hoisted(() => [] as IdleTracker[]);
 vi.mock("./idle-timer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./idle-timer")>();
@@ -60,7 +68,47 @@ function seedCache(permissions: string[]) {
   );
 }
 
+function grantPharmacyPages() {
+  const permissions = ["pharmacy.dispense.read", "pharmacy.stock.read"];
+  seedCache(permissions);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: permissions, subject: "doc", tenant_id: "tenant-a" }),
+    }),
+  );
+}
+
+// Sign out lives in the account menu (#1428).
+async function signOut(user: ReturnType<typeof renderWithProviders>["user"]) {
+  await user.click(screen.getByRole("button", { name: /^Account/ }));
+  await user.click(await screen.findByRole("button", { name: "Sign out" }));
+}
+
 describe("HmsShell", () => {
+  it("notifies other tabs before waiting for remote logout", async () => {
+    let complete: () => void = () => {};
+    const pending = new Promise<Response>((resolve) => {
+      complete = () => resolve(new Response(null, { status: 200 }));
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/logout" ? pending : Promise.resolve(new Response(JSON.stringify({ data: [] }))),
+      ),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    try {
+      await signOut(user);
+      expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
+      expect(endZitadelSession).not.toHaveBeenCalled();
+    } finally {
+      complete();
+    }
+    await waitFor(() => expect(endZitadelSession).toHaveBeenCalledOnce());
+  });
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -69,6 +117,7 @@ describe("HmsShell", () => {
     endZitadelSession.mockResolvedValue(true);
     noteDeadlineSpy.mockReset();
     createdTrackers.length = 0;
+    pathname.current = "/";
     // Deliberately different from the seeded cache: the two prove
     // different things. If the stub matched the cache, `Lab` would render
     // whether or not the cache was ever read, since the network response
@@ -101,14 +150,22 @@ describe("HmsShell", () => {
   // one — usePermissions paints from cache before the fetch resolves.
   it("paints the cached zone before the network response arrives", async () => {
     seedCache(["lab.order.read"]);
-    renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    renderWithProviders(<HmsShell>content</HmsShell>);
 
     expect(screen.getByLabelText("Lab")).toBeInTheDocument();
   });
 
+  // The footer is chrome: pages no longer render it themselves (#1091).
+  it("renders the Powered by footer around the page content", () => {
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    expect(screen.getByText(/Powered by/)).toBeInTheDocument();
+  });
+
   // "/" is the public landing page, so the in-app home link targets the dashboard.
   it("links the rail logo to the dashboard, not the public homepage", () => {
-    renderWithProviders(<HmsShell active="/dashboard">content</HmsShell>);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
 
     expect(screen.getByRole("link", { name: "Helivanta home" })).toHaveAttribute(
       "href",
@@ -120,9 +177,9 @@ describe("HmsShell", () => {
   // user's nav, so signing out drops the cached set.
   it("clears the cached permissions when signing out", async () => {
     seedCache(["lab.order.read"]);
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await signOut(user);
 
     expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull();
   });
@@ -138,9 +195,9 @@ describe("HmsShell", () => {
   it("POSTs to /logout AND ends the Zitadel session by default when no onSignOut is supplied", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal("fetch", fetchMock);
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await signOut(user);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
     // A deliberate sign-out asks for SIGNED_OUT_MARK specifically — never
@@ -149,6 +206,7 @@ describe("HmsShell", () => {
     // can end up set).
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(SIGNED_OUT_MARK));
     expect(endZitadelSession).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
   });
 
   // #781's rule is that a signed-out session must not be reconstructable
@@ -164,8 +222,8 @@ describe("HmsShell", () => {
     storeRenewAt(new Date(Date.now() + 60_000).toISOString());
     expect(window.sessionStorage.getItem(RENEW_AT_KEY)).not.toBeNull();
 
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
-    await user.click(screen.getByLabelText("Sign out"));
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await signOut(user);
 
     await waitFor(() => expect(window.sessionStorage.getItem(RENEW_AT_KEY)).toBeNull());
   });
@@ -177,9 +235,9 @@ describe("HmsShell", () => {
   it("does not navigate itself even when ending the Zitadel session falls back", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
     endZitadelSession.mockResolvedValue(false);
-    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await signOut(user);
 
     await waitFor(() => expect(endZitadelSession).toHaveBeenCalledTimes(1));
     expect(window.location.href).toBe("");
@@ -206,13 +264,9 @@ describe("HmsShell", () => {
           resolveSignOut = resolve;
         }),
     );
-    const { user } = renderWithProviders(
-      <HmsShell active="/" onSignOut={onSignOut}>
-        content
-      </HmsShell>,
-    );
+    const { user } = renderWithProviders(<HmsShell onSignOut={onSignOut}>content</HmsShell>);
 
-    await user.click(screen.getByLabelText("Sign out"));
+    await signOut(user);
 
     expect(onSignOut).toHaveBeenCalledTimes(1);
     expect(window.location.href).toBe("");
@@ -236,7 +290,7 @@ describe("HmsShell", () => {
         json: async () => ({ data: [] }),
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       window.dispatchEvent(new Event("keydown"));
 
@@ -260,7 +314,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       window.dispatchEvent(new Event("keydown"));
 
@@ -295,7 +349,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       window.dispatchEvent(new Event("keydown"));
 
@@ -330,7 +384,7 @@ describe("HmsShell", () => {
     // deadline from a successful activity response.
     it("reports activity on mount, before any interaction, so an untouched terminal still gets a schedule", async () => {
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 15 * 60_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() =>
         expect(fetchMock).toHaveBeenCalledWith(
@@ -346,7 +400,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const deadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
       stubActivityFetch(() => deadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       // Let the mount-seeded activity call resolve and its
       // .then(noteDeadline) run, which schedules onWarn ~5s out.
@@ -383,7 +437,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const deadline = new Date(Date.now() + WARNING_LEAD_MS + 1_000);
       const fetchMock = stubActivityFetch(() => deadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1_000);
@@ -421,7 +475,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const shortDeadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
       stubActivityFetch(() => shortDeadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
@@ -496,7 +550,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       // 65s: past both the warn point (WARNING_LEAD_MS + 65s - WARNING_LEAD_MS
       // = 65s) AND the mount seed's debounce window (60s), so the
@@ -522,7 +576,7 @@ describe("HmsShell", () => {
       vi.useFakeTimers();
       const deadline = new Date(Date.now() + WARNING_LEAD_MS + 1_000);
       stubActivityFetch(() => deadline);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1_000);
@@ -546,7 +600,7 @@ describe("HmsShell", () => {
     it("does not fire a second activity POST for a qualifying interaction immediately after the mount seed", async () => {
       vi.useFakeTimers();
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 15 * 60_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
@@ -596,7 +650,7 @@ describe("HmsShell", () => {
       // warn point (max(0, deadline - WARNING_LEAD_MS - now), floored at
       // 0 here since 5s < WARNING_LEAD_MS) and the deadline itself.
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 5_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       // Two advances: the first crosses the deadline and fires onExpire,
       // whose async body (fetch("/logout") → endZitadelSession(mark))
@@ -639,7 +693,7 @@ describe("HmsShell", () => {
       seedCache(["patients:read"]);
       expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).not.toBeNull();
       stubActivityFetch(() => new Date(Date.now() + 5_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5_000);
@@ -663,7 +717,7 @@ describe("HmsShell", () => {
     it("never calls anything beyond this-browser teardown on expiry", async () => {
       vi.useFakeTimers();
       const fetchMock = stubActivityFetch(() => new Date(Date.now() + 5_000));
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5_000);
@@ -704,7 +758,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
       await waitFor(() => expect(endZitadelSession).toHaveBeenCalledWith(IDLE_ENDED_MARK));
@@ -735,7 +789,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/logout", { method: "POST" }));
       // Teardown ran (endZitadelSession was called), but with no mark —
@@ -763,7 +817,7 @@ describe("HmsShell", () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
       });
       vi.stubGlobal("fetch", fetchMock);
-      renderWithProviders(<HmsShell active="/">content</HmsShell>);
+      renderWithProviders(<HmsShell>content</HmsShell>);
 
       await waitFor(() =>
         expect(fetchMock).toHaveBeenCalledWith(
@@ -798,7 +852,8 @@ describe("expandable navigation", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("shows zone labels and preserves the expanded preference", async () => {
     seedCache(["patient.read", "lab.order.read"]);
-    const { user, unmount } = renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    pathname.current = "/patients";
+    const { user, unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
     await user.click(screen.getByRole("button", { name: "Expand navigation" }));
     const navigation = screen.getByRole("navigation", { name: "Zones" });
     expect(navigation).toHaveTextContent("Patients");
@@ -809,7 +864,8 @@ describe("expandable navigation", () => {
     );
     expect(window.localStorage.getItem("hms.navigation.open")).toBe("1");
     unmount();
-    renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    pathname.current = "/patients";
+    renderWithProviders(<HmsShell>content</HmsShell>);
     expect(await screen.findByRole("button", { name: "Collapse navigation" })).toBeInTheDocument();
   });
   it("keeps navigation usable when preference storage is unavailable", async () => {
@@ -819,12 +875,424 @@ describe("expandable navigation", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("storage unavailable");
     });
-    const { user } = renderWithProviders(<HmsShell active="/patients">content</HmsShell>);
+    pathname.current = "/patients";
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
     await user.click(screen.getByRole("button", { name: "Expand navigation" }));
     expect(screen.getByRole("button", { name: "Collapse navigation" })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
+    // The fallback lives in module state; leave it collapsed for later tests.
+    await user.click(screen.getByRole("button", { name: "Collapse navigation" }));
     vi.restoreAllMocks();
+  });
+
+  // #1091 D3: the shell reads the path itself, and a page nested below a
+  // panel link marks that link, the longest match, as the current one.
+  it("marks the longest matching panel link current on a nested path", () => {
+    seedCache(["emergency.base.read", "emergency.crew.read"]);
+    pathname.current = "/emergency/bases/b/cases/c";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const panel = screen.getByRole("navigation", { name: "EmergencyConnect" });
+    const current = panel.querySelectorAll('[aria-current="page"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAccessibleName("Operating bases & reports");
+  });
+
+  // #1366: a zone that declares full width drops the cap on every page,
+  // the Overview too; other zones keep it. main is a size container, so
+  // lists lay out by the space they have.
+  it("drops the content cap on every page of a full-width zone, and only there", () => {
+    seedCache(["pharmacy.catalogue.read", "pharmacy.accounts.read", "patient.read"]);
+    for (const path of [
+      "/pharmacy/accounts",
+      "/pharmacy",
+      "/dashboard",
+      "/workforce",
+      "/workforce/setup",
+      "/workforce/access",
+      "/workforce/payroll-setup",
+    ]) {
+      pathname.current = path;
+      const { unmount } = renderWithProviders(<HmsShell>content</HmsShell>);
+      const wrapper = screen.getByText("content");
+      expect(wrapper).toHaveAttribute("data-width", "full");
+      expect(wrapper.className).not.toContain("max-w-6xl");
+      expect(wrapper.closest("main")?.className).toContain("@container/main");
+      unmount();
+    }
+
+    pathname.current = "/patients";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getByText("content")).toHaveAttribute("data-width", "capped");
+    expect(screen.getByText("content").className).toContain("max-w-6xl");
+  });
+
+  // #1091: one layout owns the shell, so a navigation is a re-render with a
+  // new path, never a remount. The open idle warning and its tracker must
+  // survive it.
+  it("keeps the idle warning across a pathname change", async () => {
+    vi.useFakeTimers();
+    const deadline = new Date(Date.now() + WARNING_LEAD_MS + 5_000);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => ({
+        ok: true,
+        status: 200,
+        json: async () =>
+          String(url).includes("/auth/session/activity")
+            ? { idle_deadline: deadline.toISOString() }
+            : {
+                data: ["pharmacy.dispense.read", "lab.order.read"],
+                subject: "doc",
+                tenant_id: "tenant-a",
+              },
+      })),
+    );
+    let navigate: (path: string) => void = () => {};
+    function Workspace() {
+      const [, setPath] = useState(pathname.current);
+      navigate = (path) => {
+        pathname.current = path;
+        setPath(path);
+      };
+      return <HmsShell>content</HmsShell>;
+    }
+    createdTrackers.length = 0;
+    pathname.current = "/pharmacy";
+    renderWithProviders(<Workspace />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const trackerBeforeNavigation = createdTrackers[0];
+    act(() => navigate("/lab"));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(createdTrackers).toHaveLength(1);
+    expect(createdTrackers[0]).toBe(trackerBeforeNavigation);
+    // This describe has no afterEach; later tests use real timers.
+    vi.useRealTimers();
+  });
+
+  // #1286 D4: the page panel no longer collapses. A collapse stored before
+  // that must not hide it, or the pages would be unreachable on a desktop.
+  it("shows the page panel even when an old collapse is stored", () => {
+    window.localStorage.setItem("hms.panel.open", "0");
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    const panel = document.querySelector(".hms-page-panel")!;
+    expect(panel.className).toContain("md:w-56");
+    expect(panel.className).not.toContain("md:w-0");
+    expect(document.documentElement.dataset.hmsPanel).toBeUndefined();
+    expect(screen.queryByRole("button", { name: "Collapse page panel" })).toBeNull();
+    window.localStorage.clear();
+  });
+
+  // #1255 spec D4: a zone with one page gets no page panel. The panel would
+  // repeat the rail's one link, and its toggle would hide nothing.
+  it("renders no page panel for a single-page zone", () => {
+    seedCache(["pharmacy.dispense.read"]);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("navigation", { name: "Dashboard" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /page panel/ })).toBeNull();
+    expect(document.querySelector(".hms-page-panel")).toBeNull();
+  });
+
+  // Pages are counted after permission filtering: what the panel would list.
+  it("keeps the page panel for a zone with several pages", () => {
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getByRole("navigation", { name: "PharmaConnect" })).toBeInTheDocument();
+  });
+
+  // #1258 D1: a heading per section, once, before its first permitted page.
+  it("groups the page panel under section headings", () => {
+    seedCache(["pharmacy.dispense.read", "pharmacy.stock.read", "pharmacy.catalogue.read"]);
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    const panel = screen.getByRole("navigation", { name: "PharmaConnect" });
+    const text = Array.from(panel.querySelectorAll("[data-section], a")).map(
+      (node) => node.textContent,
+    );
+    expect(text).toEqual([
+      "Overview",
+      "Dispensing",
+      "Dispense queue",
+      "Inventory",
+      "Stock on hand",
+      "Receiving",
+      "Expiry & safety",
+      "Product catalogue",
+    ]);
+  });
+
+  // Without the panel, the hospital name moves into the header so it is never
+  // lost.
+  it("names the tenant in the header when there is no page panel", async () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+  });
+
+  // #1286: the page panel has no header row, so the header names the tenant
+  // on every page and the collapse control sits at the panel's foot.
+  it("names the tenant in the header beside a page panel, which has no heading", async () => {
+    grantPharmacyPages();
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(await screen.findByTestId("tenant-name")).toHaveTextContent("Helivanta");
+    const panel = screen.getByRole("navigation", { name: "PharmaConnect" }).closest("aside")!;
+    expect(within(panel).queryByRole("heading")).toBeNull();
+    expect(within(panel).queryByRole("button")).toBeNull();
+  });
+
+  it("titles a single-page zone by the zone", () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Dashboard");
+  });
+
+  it("offers one Sign out, inside the account menu", async () => {
+    pathname.current = "/dashboard";
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^Account/ }));
+    const menu = screen.getByRole("dialog", { name: "Account" });
+    expect(screen.getAllByRole("button", { name: "Sign out" })).toEqual([
+      within(menu).getByRole("button", { name: "Sign out" }),
+    ]);
+  });
+
+  it("names the signed-in person and their role at the hospital in the header", async () => {
+    pathname.current = "/dashboard";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/v1/iam/me/profile") {
+          return new Response(
+            JSON.stringify({
+              subject: "doc",
+              tenant_id: "tenant-a",
+              display_name: "Asha Rao",
+              email: "asha@example.test",
+              roles: [{ key: "pharmacist", label: "Pharmacist" }],
+            }),
+          );
+        }
+        if (url === "/api/v1/workspace/branding") {
+          return new Response(
+            JSON.stringify({
+              display_name: "Yes Hospital",
+              welcome_text: "",
+              logo_url: "",
+              theme: "teal",
+              login_layout: "centered",
+            }),
+          );
+        }
+        return new Response(JSON.stringify({ data: [] }));
+      }),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+
+    await user.click(await screen.findByRole("button", { name: "Account: Asha Rao" }));
+
+    const menu = screen.getByRole("dialog", { name: "Account" });
+    expect(
+      await within(menu).findByRole("list", { name: "Role at Yes Hospital" }),
+    ).toHaveTextContent("Pharmacist");
+  });
+
+  // Light only (#1255 spec D1).
+  it("has no theme toggle", () => {
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    expect(screen.queryByRole("button", { name: /theme/i })).toBeNull();
+  });
+});
+
+// #1270: the rail reads in one grouped order, shows nothing partial while
+// permissions load, and keeps its collapse control out of the zone list.
+describe("zone rail", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const everyZone = [
+    "patient.read",
+    "medicore.visit.read",
+    "lab.order.read",
+    "pharmacy.dispense.read",
+    "supply.directory.read",
+    "emergency.base.read",
+    "workspace.branding.manage",
+  ];
+
+  function grant(permissions: string[]) {
+    seedCache(permissions);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: permissions, subject: "doc", tenant_id: "tenant-a" }),
+      }),
+    );
+  }
+
+  it("lists zones in one grouped order with Settings at the foot", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const zones = screen.getByRole("navigation", { name: "Zones" });
+    const labels = Array.from(zones.querySelectorAll("a")).map((a) => a.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "Dashboard",
+      "Patients",
+      "MediCore",
+      "Lab",
+      "Pharmacy (PharmaConnect)",
+      "EmergencyConnect",
+      "Supply Connect",
+      "Staff",
+    ]);
+    const settings = screen.getByRole("link", { name: "Settings" });
+    expect(zones).not.toContainElement(settings);
+    expect(zones.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // #1286 D2: the short label is visible text; the link keeps the full name,
+  // after the words it shows (#1369).
+  it("labels each collapsed rail icon with its short name", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const pharmacy = screen.getByRole("link", { name: "Pharmacy (PharmaConnect)" });
+    expect(pharmacy).toHaveTextContent("Pharmacy");
+    expect(screen.getByRole("link", { name: "EmergencyConnect" })).toHaveTextContent("Emergency");
+  });
+
+  // #1296: one active marker, the pill, as on the page panel.
+  it("marks the active zone with its pill alone", () => {
+    grant(everyZone);
+    pathname.current = "/pharmacy";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+    const active = screen.getByRole("link", { name: "Pharmacy (PharmaConnect)" });
+    expect(active).toHaveAttribute("aria-current", "page");
+    expect(active.querySelector("span[aria-hidden='true']")).toBeNull();
+  });
+
+  it("shows placeholders, not a partial list, while permissions load", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          String(url).includes("/iam/me/permissions")
+            ? new Promise(() => {})
+            : Promise.resolve({ ok: true, status: 200, json: async () => ({}) }),
+        ),
+    );
+    pathname.current = "/patients";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    const zones = screen.getByRole("navigation", { name: "Zones", hidden: true });
+    expect(zones).toHaveAttribute("aria-busy", "true");
+    expect(zones.querySelectorAll("a")).toHaveLength(0);
+    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("nav-placeholder").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Patients");
+  });
+
+  it("keeps the collapse control icon-only, outside the zone list", () => {
+    grant(everyZone);
+    pathname.current = "/dashboard";
+    renderWithProviders(<HmsShell>content</HmsShell>);
+
+    // Either state: an earlier test's unwritable-storage flag is module state.
+    const toggle = screen.getByRole("button", { name: /^(Expand|Collapse) navigation$/ });
+    expect(screen.getByRole("navigation", { name: "Zones" })).not.toContainElement(toggle);
+    expect(toggle).toHaveTextContent("");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveTextContent("");
+    const settings = screen.getByRole("link", { name: "Settings" });
+    expect(
+      settings.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+
+// #1299: on a phone the rail and page panel live behind one header button.
+describe("phone menu", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    pathname.current = "/pharmacy";
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("lists the zones and the current zone's pages, marking the current ones", async () => {
+    grantPharmacyPages();
+    // The queue's address since #576 moved the overview to /pharmacy.
+    pathname.current = "/pharmacy/dispense";
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    const open = screen.getByRole("button", { name: "Open menu" });
+    expect(open).toHaveAttribute("aria-expanded", "false");
+    await user.click(open);
+    expect(open).toHaveAttribute("aria-expanded", "true");
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(menu).getByRole("link", { name: "Dashboard" })).toBeVisible();
+    expect(within(menu).getByRole("link", { name: "PharmaConnect" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(menu).getByRole("link", { name: "Dispense queue" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(menu).getByText("Inventory")).toBeVisible();
+    expect(within(menu).getByRole("link", { name: "Stock on hand" })).toBeVisible();
+    expect(within(menu).getByRole("button", { name: "Close menu" })).toHaveFocus();
+  });
+
+  it("closes on Escape and returns focus to the menu button", async () => {
+    grantPharmacyPages();
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus();
+  });
+
+  it("closes once a page is chosen", async () => {
+    grantPharmacyPages();
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Menu" })).getByRole("link", {
+        name: "Stock on hand",
+      }),
+    );
+    expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull();
+  });
+
+  it("shows placeholders, not a partial list, while permissions load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    const { user } = renderWithProviders(<HmsShell>content</HmsShell>);
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(menu).queryAllByRole("link")).toHaveLength(0);
+    expect(within(menu).getAllByTestId("nav-placeholder").length).toBeGreaterThan(0);
   });
 });

@@ -216,3 +216,17 @@ func TestInvalidConfigurationWarningsDoNotExposeRawValues(t *testing.T) {
 		require.Contains(t, out, key)
 	}
 }
+
+func TestEmergencyWorkerRequiresItsDedicatedDatabaseAndTemporal(t *testing.T) {
+	good := config.Config{EmergencyWorkerDatabaseURL: "postgres://helivanta_emergency_worker:synthetic@localhost/fixture", TemporalAddress: "localhost:7233", TemporalNamespace: "helivanta-fixture"}
+	if err := good.RequireEmergencyWorker(); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*config.Config){func(c *config.Config) { c.EmergencyWorkerDatabaseURL = "" }, func(c *config.Config) { c.TemporalAddress = "" }, func(c *config.Config) { c.TemporalNamespace = "" }} {
+		c := good
+		mutate(&c)
+		if c.RequireEmergencyWorker() == nil {
+			t.Fatal("incomplete dispatch worker configuration accepted")
+		}
+	}
+}

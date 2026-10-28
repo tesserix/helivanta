@@ -72,7 +72,7 @@ func (r stockMovement) MarshalJSON() ([]byte, error) {
 	}{fields: fields(r), movementInput: r.MovementFields})
 }
 
-const batchColumns = "id,tenant_id,outlet_id,product_id,product_version,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,to_char(manufactured_on,'YYYY-MM-DD') AS manufactured_on,created_at"
+const batchColumns = "id,tenant_id,outlet_id,product_id,product_version,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,to_char(manufactured_on,'YYYY-MM-DD') AS manufactured_on,mrp_minor,purchase_cost_minor,created_at"
 const locationColumns = "id,tenant_id,outlet_id,code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status,created_at"
 const movementColumns = "id,tenant_id,outlet_id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject,created_at"
 
@@ -83,12 +83,16 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	s.PUT("/locations/:id", PermStockReceive, h.putLocation)
 	s.PUT("/batches/:id", PermStockReceive, h.putBatch)
+	s.GET("/batches/:id", PermStockRead, h.getBatch)
 	s.PUT("/movements/:id", PermStockReceive, h.putReceipt)
 	s.PUT("/corrections/:id", PermStockCorrect, h.putCorrection)
+	s.PUT("/releases/:id", PermStockRelease, h.putRelease)
 	s.PUT("/safety-incidents/:id", PermStockQuarantine, h.putBatchSafetyIncident)
 	platform.ListRoute(s, "/safety-incidents", PermStockRead, h.listBatchSafetyIncidents)
+	platform.GuardedCountedListRoute[batchSafetyIncident](s, h.db, "/safety-incidents/recent", PermStockRead, tenantdb.Keyset{Column: "created_at"}, countedRecentSafety)
 	s.GET("/balance", PermStockRead, h.getBalance)
 	s.GET("/reconciliation", PermStockRead, h.getStockReconciliation)
+	s.GET("/positions.csv", PermStockRead, h.exportStockPositions)
 	platform.ListRoute(s, "/positions", PermStockRead, h.listStockPositions)
 	platform.ListRoute(s, "/locations", PermStockRead, h.listLocations)
 	platform.ListRoute(s, "/batches", PermStockRead, h.listBatches)
@@ -108,6 +112,10 @@ func stockError(c *gin.Context, err error) {
 	if errors.As(err, &pg) {
 		if pg.ConstraintName == "pharmacy_stock_quantity_bounds" {
 			respond.Conflict(c, "stock correction exceeds the permitted balance")
+			return
+		}
+		if pg.ConstraintName == "pharmacy_stock_quarantine_only" || strings.Contains(pg.Message, "received and corrected in quarantine only") {
+			respond.Conflict(c, "stock is received and corrected in quarantine only; release it to sell it")
 			return
 		}
 		if pg.ConstraintName == "pharmacy_stock_product_identity" {
@@ -156,6 +164,12 @@ func (h *catalogueHandlers) putLocation(c *gin.Context) {
 			return
 		}
 	}
+	// A location's status is fixed when it is created; quarantine unless
+	// the caller asks for a sellable one (#1386 A3).
+	status := "quarantine"
+	if in.StockStatus != nil {
+		status = *in.StockStatus
+	}
 	var result stockLocation
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
 		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":"+id.String()); err != nil {
@@ -163,7 +177,7 @@ func (h *catalogueHandlers) putLocation(c *gin.Context) {
 		}
 		err := tx.Select(locationColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&result).Error
 		if err == nil {
-			if result.Code != in.Code || result.Name != in.Name || result.StorageAddress != address {
+			if result.Code != in.Code || result.Name != in.Name || result.StorageAddress != address || result.StockStatus != status {
 				return errStockIdentity
 			}
 			return nil
@@ -171,7 +185,7 @@ func (h *catalogueHandlers) putLocation(c *gin.Context) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		result = stockLocation{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, Code: in.Code, Name: in.Name, StockStatus: "quarantine", StorageAddress: address}
+		result = stockLocation{ID: id, TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, Code: in.Code, Name: in.Name, StockStatus: status, StorageAddress: address}
 		return tx.Create(&result).Error
 	})
 	if err != nil {
@@ -204,7 +218,15 @@ func sameBatch(a, b batchInput) bool {
 	if b.ManufacturedOn != nil {
 		madeB = *b.ManufacturedOn
 	}
-	return a.ProductID == b.ProductID && a.LotNumber == b.LotNumber && a.ExpiresOn == b.ExpiresOn && madeA == madeB
+	costA, costB := int64(-1), int64(-1)
+	if a.PurchaseCostMinor != nil {
+		costA = *a.PurchaseCostMinor
+	}
+	if b.PurchaseCostMinor != nil {
+		costB = *b.PurchaseCostMinor
+	}
+	return a.ProductID == b.ProductID && a.LotNumber == b.LotNumber && a.ExpiresOn == b.ExpiresOn && madeA == madeB &&
+		a.MRPMinor == b.MRPMinor && costA == costB
 }
 
 func (h *catalogueHandlers) putBatch(c *gin.Context) {
@@ -340,6 +362,28 @@ func (h *catalogueHandlers) listLocations(c *gin.Context, params pagination.Para
 	return rows, nil
 }
 
+// getBatch reads one batch of this outlet, for the safety pane's reload and
+// links (#1303 E5). Another outlet's or tenant's batch is not found.
+func (h *catalogueHandlers) getBatch(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	id, ok := catalogueID(c)
+	if !ok {
+		return
+	}
+	var row stockBatch
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		return tx.Select(batchColumns).Where("tenant_id=? AND outlet_id=? AND id=?", p.TenantID, outlet, id).First(&row).Error
+	})
+	if err != nil {
+		stockError(c, err)
+		return
+	}
+	respond.OK(c, row)
+}
+
 func (h *catalogueHandlers) listBatches(c *gin.Context, params pagination.Params) ([]stockBatch, error) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
@@ -426,13 +470,13 @@ func (h *catalogueHandlers) getBalance(c *gin.Context) {
 		return
 	}
 	var total int64
+	var status []string
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		var count int
-		if err := tx.Raw(`SELECT count(*) FROM pharmacy_stock_locations l CROSS JOIN pharmacy_stock_batches b
-   WHERE l.tenant_id=? AND l.outlet_id=? AND l.id=? AND b.tenant_id=l.tenant_id AND b.outlet_id=l.outlet_id AND b.id=?`, p.TenantID, outlet, location, batch).Scan(&count).Error; err != nil {
+		if err := tx.Raw(`SELECT l.stock_status FROM pharmacy_stock_locations l CROSS JOIN pharmacy_stock_batches b
+   WHERE l.tenant_id=? AND l.outlet_id=? AND l.id=? AND b.tenant_id=l.tenant_id AND b.outlet_id=l.outlet_id AND b.id=?`, p.TenantID, outlet, location, batch).Scan(&status).Error; err != nil {
 			return err
 		}
-		if count != 1 {
+		if len(status) != 1 {
 			return gorm.ErrRecordNotFound
 		}
 		return tx.Raw(`SELECT COALESCE(sum(quantity_units),0) FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=? AND location_id=? AND batch_id=?`, p.TenantID, outlet, location, batch).Scan(&total).Error
@@ -441,6 +485,8 @@ func (h *catalogueHandlers) getBalance(c *gin.Context) {
 		stockError(c, err)
 		return
 	}
-	// Quarantine on-hand is never advertised as available to dispense.
-	respond.OK(c, gin.H{"location_id": location, "batch_id": batch, "on_hand_units": total, "dispensable_units": 0, "stock_status": "quarantine"})
+	// Nothing is advertised as available to dispense: quarantine never is,
+	// and sellable stock's availability (expiry, recall, reservations) is the
+	// sale slice's to compute (#1386 B2), not a raw balance's.
+	respond.OK(c, gin.H{"location_id": location, "batch_id": batch, "on_hand_units": total, "dispensable_units": 0, "stock_status": status[0]})
 }

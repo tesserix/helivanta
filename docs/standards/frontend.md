@@ -9,27 +9,30 @@ new code in the same area.
 
 ## 1. App anatomy
 
-Helivanta's clinician frontend is **one** Next.js app, `apps/shell`, on port
-4301. MediCore, Pharmacy and Lab ("zones") are route segments inside it —
-`app/medicore/`, `app/pharmacy/`, `app/lab/` — not separate apps (#933,
+Helivanta's clinician frontend is **one** Next.js app, `apps/shell`, on
+port 4301. MediCore, Pharmacy and Lab ("zones") are route segments inside it —
+`app/(workspace)/medicore/`, `app/(workspace)/pharmacy/`,
+`app/(workspace)/lab/` — not separate apps (#933,
 design spec `docs/superpowers/specs/2026-10-13-one-next-app-design.md`;
 ADR-0010). A zone is a product area of one app, not a deployment unit:
 entitlement decides what a tenant sees at runtime, not which apps exist.
 
-| Zone     | Routes                                      | Components                     |
-| -------- | ------------------------------------------- | ------------------------------ |
-| MediCore | `app/medicore/{opd,ipd}`                    | `components/medicore/`         |
-| Pharmacy | `app/pharmacy`, `app/pharmacy/medications`  | `components/pharmacy/`         |
-| Lab      | `app/lab`                                   | `components/lab/`              |
+| Zone     | Routes                                                             | Components             |
+| -------- | ------------------------------------------------------------------ | ---------------------- |
+| MediCore | `app/(workspace)/medicore/{opd,ipd}`                               | `components/medicore/` |
+| Pharmacy | `app/(workspace)/pharmacy`, `app/(workspace)/pharmacy/medications` | `components/pharmacy/` |
+| Lab      | `app/(workspace)/lab`                                              | `components/lab/`      |
 
 `apps/shell/next.config.ts` sets `output: "standalone"` (the app builds and
 deploys as one self-contained server, `Dockerfile.shell`) and
 `transpilePackages: ["@helivanta/ui", "@helivanta/api"]` (these are
 TypeScript source packages, not pre-built libraries, so Next compiles them).
-Its one rewrite sends `/api/:path*` to the Go backend for `next dev`;
-production routes `/api/v1/*` at the ingress instead.
+Its rewrite sends `/api/:path*` to the Global API for `next dev`;
+production ingress must route `/api/v1/*` to the same Global API boundary.
+See [Global API rules](../api/global-connector.md) for onboarding and release gates.
 
-Adding a zone is a route segment under `apps/shell/app/<name>/`, its
+Adding a zone is a route segment under
+`apps/shell/app/(workspace)/<name>/`, its
 components under `apps/shell/components/<name>/`, and an entry in
 `packages/ui/src/zones.ts` (section 6). There is no generator: a new zone
 is ordinary routes in the existing app.
@@ -62,7 +65,8 @@ Pages and layouts (`app/page.tsx`, `app/layout.tsx`) are React Server
 Components by default — no `"use client"` directive, no hooks, no event
 handlers. All interactivity — forms, mutations, polling, local state —
 lives in a `components/*.tsx` file marked `"use client"` that the server
-page renders. `apps/shell/app/pharmacy/page.tsx` renders `HmsShell` around
+page renders. The workspace layout, `apps/shell/app/(workspace)/layout.tsx`,
+renders `HmsShell`; `apps/shell/app/(workspace)/pharmacy/page.tsx` renders
 `<DispenseList />`, and `DispenseList` itself is the client component in
 `apps/shell/components/pharmacy/dispense-list.tsx`.
 
@@ -90,6 +94,7 @@ backend's own `Set-Cookie`, rather than reading or mutating panel data,
 so wrapping them in TanStack Query's cache/retry machinery would be
 wrong, not just unnecessary. Today that set is exactly two functions,
 both in `apps/shell/lib/`, both documented at their own definition:
+
 - `exchangeIdToken` (`lib/auth-exchange.ts`) — `POST /v1/auth/login`,
   called once, by the login callback
   (`app/api/auth/callback/page.tsx`), to exchange a fresh Zitadel ID
@@ -217,6 +222,11 @@ menus remain separate from value selection.
 />
 ```
 
+Dropdowns are `SelectControl` (plain state) or `FormSelectField` (inside
+`useZodForm`) from `@helivanta/ui`, both the `@tesserix/web` Select. A native
+`<select>` is a lint error: its popup is drawn by the OS, outside the tokens
+(#1255).
+
 ## 5. UX vocabulary
 
 Action feedback goes through sonner toasts, mounted once per app via
@@ -267,21 +277,73 @@ page or a whole new zone means adding an entry to the `ZONES` array
 there; nothing else in the shell chrome should hardcode zone labels,
 hrefs, or icons.
 
-`HmsShell`'s `active` prop is the current page's absolute path (e.g.
-`"/pharmacy/medications"`), not a zone key or a boolean. `HmsShell`
-derives the active zone and active page from that path (via
-`activeZone()` in `zones.ts`) and uses it to set `aria-current="page"`
-on the matching rail and panel links (section 10). Every page
-renders `<HmsShell active="/pharmacy">...</HmsShell>`
-with its own literal path.
+The chrome is rendered once, by the workspace layout
+`apps/shell/app/(workspace)/layout.tsx` (#1091, design spec
+`docs/superpowers/specs/2026-10-20-workspace-layout-design.md`). A layout
+persists across client-side navigation, so the rail, panel, header and idle
+tracker mount once per page load, not once per page;
+`e2e/tests/navigation.spec.ts` fails if a move remounts them. Every
+authenticated route lives under `app/(workspace)/`; the public routes (`/`,
+`/login`, `/signup`, `/logout`, `/ambulance`, `/api/*`) stay outside it. A
+route group does not change URLs. **A new authenticated route placed outside
+the group gets no chrome and no idle tracking**, so put it inside. Pages
+render their content only: importing `HmsShell` anywhere else in
+`apps/shell` is a lint error. The layout always passes the tenant switcher,
+which renders nothing for a user with fewer than two memberships.
+
+`HmsShell` reads the current path itself with `usePathname()`; there is no
+`active` prop. The active zone comes from `activeZone()` and the active page
+from `activePage()` (both in `zones.ts`): the panel link whose `href` the
+path equals or sits under, the longest one winning, so
+`/emergency/bases/b/cases/c` marks `/emergency`. When nothing matches, no
+panel link is marked. These set `aria-current="page"` on the matching rail
+and panel links (section 10).
+
+The panel and navigation open/closed flags are stored in `localStorage`,
+which the server cannot read. `CHROME_INIT_SCRIPT` (root layout, next to the
+theme script) stamps them on `<html>` before paint, and `packages/ui/styles.css`
+sizes the chrome from those attributes, so a collapsed panel is never painted
+open on a hard load.
+
+### List pages: width, the detail pane and unsaved edits (#1303)
+
+- **Width is a zone's declared choice (#1366).** A `Zone` in `packages/ui/src/zones.ts` may
+  set `width: "full"`; a `ZonePage` cannot, so a zone's pages never jump in width as you move
+  between them. The shell then drops the `max-w-6xl` cap on every page of that zone and stops
+  at 1760px. Other zones keep the cap. Inside a full-width zone, lists and panels fill the
+  width; only prose (about 70ch) and forms (about 640px) keep a reading limit.
+  `e2e/tests/navigation.spec.ts` checks every PharmaConnect page. `main` is a size container
+  (`@container/main`), so a page lays out by the space it actually has: expanding the rail
+  changes that without changing the viewport.
+- **An open record sits beside its list.** Use `ListDetail` from `@helivanta/ui`. It splits
+  when main is at least 840px wide, and shows the record alone, with a back link, below
+  that. It is one tree open or closed, so neither the list nor a half-typed form is
+  remounted. Below 840px, opening a record scrolls the content area (`[data-hms-scroll]`) to
+  its top.
+- **One mechanism per list page:** `useListDetail` (`apps/shell/lib`) for the open record's
+  address (`?open=` and `?new=1` through `useDetail`), Previous / Next over the rows as they
+  were when it was opened, the leave guard, Escape and focus; `DetailHeader` from
+  `@helivanta/ui` for its title, Previous / Next and Close. Each form in the record reports
+  through `formState(key)` and `useReportState`. Do not copy this behaviour into a page.
+- **Outlet pages carry their scope.** `pharmacy=` and `outlet=` are in the address of every
+  outlet-scoped pharmacy page (#1303 E8), and `useUrlPage` keeps them in every link it
+  builds, so a shared link opens the outlet it was copied from. An outlet asked for and not
+  loaded is never replaced by another.
+- **Unsaved edits are never lost silently.** A detail with forms registers through
+  `useListDetail`, or `useLeaveGuard(dirty, name)` directly. Shell links (`GuardedLink`),
+  Back and reload then ask "Discard changes to {name}?"; a Cmd, Ctrl, Shift or middle click
+  opens another tab and is not held. A page's own moves that are not links (a picker, a
+  search) ask through `useConfirmLeave`. Both throw without the shell's
+  `NavigationGuardProvider`, so a page rendered outside the shell fails rather than dropping
+  edits. Component tests wrap it in that provider.
 
 ### Idle session tracking
 
 Interaction tracking for the idle-timeout feature (#848, design spec D2/
 D4/D7) lives in `@helivanta/ui` (`packages/ui/src/idle-timer.ts`), mounted once
 by `HmsShell` (`packages/ui/src/hms-shell.tsx`) — **not** in `apps/shell`.
-Every page renders `HmsShell`, so every page inherits the same tracker
-automatically; tracking on only some pages would count a clinician
+The workspace layout renders `HmsShell` once, so every authenticated page
+inherits the same tracker automatically; tracking on only some pages would count a clinician
 working inside a zone as idle and sign them out mid-consultation. Do not
 add a second, page-local copy of this tracking — if a zone needs something
 the shared tracker does not do, extend `createIdleTracker` rather than
@@ -303,6 +365,13 @@ everything comes from the CSS custom properties `@tesserix/web` and
 `packages/ui/styles.css` define (`--background`, `--foreground`,
 `--sidebar`, `--border`, etc.) via Tailwind's token-backed utility
 classes (`bg-background`, `border-sidebar-border`, and so on).
+
+Colour tokens are declared only in `packages/ui/styles.css`, where
+`contrast.test.ts` asserts every pair against WCAG 2.2 AA. The public pages
+read the same tokens as the app; no page declares a palette of its own.
+`packages/ui/src/token-source.test.ts` enforces both halves: a stylesheet
+elsewhere that declares a colour-valued custom property fails CI, and so does
+source that reads a custom property nothing declares (#542).
 
 `packages/ui/styles.css` documents two pitfalls in `@tesserix/web`'s CSS
 that aren't obvious from the class names alone. Quoted verbatim, because
@@ -338,6 +407,35 @@ an unlayered class with `!important` — rather than reaching for a
 `!important` inline style or a one-off Tailwind arbitrary value, which
 won't win against the unlayered base rule either.
 
+### One look: light, slate, modern enterprise (#1255)
+
+Design spec: `docs/superpowers/specs/2026-10-22-one-look-design.md`.
+
+- **Light only.** There is no dark theme, theme toggle or `dark:` utility.
+  `packages/ui/src/light-only.test.ts` fails on any `data-theme="dark"` rule.
+- **One palette.** The public pages and the app read the same slate tokens in
+  `packages/ui/styles.css`. `packages/ui/src/contrast.test.ts` holds the
+  pairs it lists to WCAG 2.2 AA: text on each surface, status and destructive
+  text on cards and tinted tiles, each category tint, each brand theme, and
+  the blended chrome pairs (`/70` sidebar text, muted text on a hover fill).
+  It covers only what it lists: add a pair when you add a token or render
+  one on a new surface.
+- **Shapes** come from the `@theme` block in `apps/shell/app/globals.css`
+  (radius 6/8/12/16px, faint ink-tinted shadows). `@tesserix/web` follows it,
+  so never set a radius or shadow per component.
+- **Restraint.** A page opens with `PageHeading` from `@helivanta/ui`: a plain
+  title, an optional one-line description and an actions slot. Cards are a
+  border plus `shadow-xs`; only floating surfaces cast a real shadow; never
+  nest a bordered card in another.
+- **Lint-enforced** (`hmsEslint(dir, { design: true })`):
+  - raw Tailwind palette colours and hex arbitrary values;
+  - marketing type (serif, italic, gradients, wide-tracked or uppercase eyebrows);
+  - native `<select>`.
+
+  Only the public pages (`app/page.tsx`, `app/signup/`, `app/ambulance/`,
+  `app/login/`) and the login surface opt out of the marketing-type rule, through
+  `hmsPublicPages`.
+
 ## 8. App Router files
 
 The app ships all three App Router boundary files at `app/` root:
@@ -351,19 +449,26 @@ rest of the app.
 
 The root layout wraps `children` in `AppProviders` from
 `@helivanta/api` — this is what mounts the shared `QueryClientProvider` and
-the `<Toaster />` that sections 3 and 5 depend on. `apps/shell/app/layout.tsx`:
+the `<Toaster />` that sections 3 and 5 depend on. `apps/shell/app/layout.tsx`
+(trimmed):
 
 ```tsx
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce");
+  if (!nonce) throw new Error("missing CSP nonce: middleware did not run");
   return (
-    <html lang="en" data-theme="default">
+    <html lang="en" data-theme="default" suppressHydrationWarning>
       <body>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: CHROME_INIT_SCRIPT }}
+        />
         <AppProviders>
-          <SessionRenewal />
+          <StyleNonce nonce={nonce} />
           {children}
         </AppProviders>
       </body>
@@ -376,6 +481,28 @@ A layout that renders `children` directly without `AppProviders` will
 compile and run, but every `useApiQuery`/`useApiMutation` call beneath
 it throws at runtime because there's no `QueryClientProvider` in the
 tree.
+
+### Content-Security-Policy
+
+Every shell response carries an enforced, per-request nonce policy (#1113,
+`apps/shell/lib/csp.ts`, spec
+`docs/superpowers/specs/2026-10-20-nonce-csp-design.md`). `middleware.ts`
+mints the nonce; the root layout reads it, which makes every page dynamic.
+What that means for code:
+
+- An inline `<script>` needs `nonce={nonce}`. `'strict-dynamic'` trusts
+  whatever a nonced script loads, so bundles and `next/script` need nothing.
+- A `<style>` element is allowed only by nonce or hash. React-rendered and
+  script-created ones are nonced by `StyleNonce`
+  (`apps/shell/components/style-nonce.tsx`). A library that inserts a
+  stylesheet before hydration (sonner) is allowed by hash, with a test that
+  recomputes the hash from the installed package (`lib/csp.test.ts`).
+- `style="…"` attributes are allowed (`style-src-attr 'unsafe-inline'`).
+- A new origin the browser must call (`connect-src`) or load images from
+  goes in `contentSecurityPolicy`, with its reason.
+- `e2e/tests/csp.spec.ts` visits every page and fails on any violation.
+  Production violations are logged by `app/api/csp-report/route.ts` as
+  `csp violation` lines.
 
 ## 9. Copy rules
 
@@ -437,7 +564,7 @@ three zones (create an OPD visit, see it queued for dispense in
 Pharmacy, dispense it) across actual hard navigations between apps.
 
 **No two e2e spec files may share a login account.** Signing out writes a
-revocation watermark that is per *subject* and global across every tenant
+revocation watermark that is per _subject_ and global across every tenant
 and device (#781) — so a spec that signs out invalidates every live
 session for that account, including sessions other specs are using. Under
 parallel workers that is a race; run serially it is a certainty. Each
@@ -505,7 +632,7 @@ the 6.0 alias: it owns typescript-eslint, and without it pnpm resolves
 typescript-eslint's peer to 7.0 and lint refuses to start. Remove the 6.0
 alias once typescript-eslint supports TypeScript 7
 ([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
-  There is no blanket exclusion.
+There is no blanket exclusion.
 
 Running the suite itself is still a separate step — this command is static
 checks only, it does not execute a single Playwright spec:
@@ -568,11 +695,13 @@ on the caller's resolved permissions, fetched from
 
 ```tsx
 const { can } = usePermissions();
-{can("pharmacy.medication.write") && <CreateMedicationButton />}
+{
+  can("pharmacy.medication.write") && <CreateMedicationButton />;
+}
 
 <Can permission="pharmacy.dispense.fulfil">
   <DispenseButton />
-</Can>
+</Can>;
 ```
 
 This is a **convenience layer only** — it decides what to show, not

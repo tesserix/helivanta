@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./support/login";
+import { DISPENSED, waitingFor } from "./support/queue";
 
 test("seeded admin sees every zone", async ({ page }) => {
   await login(page);
@@ -41,12 +42,19 @@ test("login, OPD visit, pharmacy dispense, lab result", async ({ page }) => {
 
   // Pharmacy zone: visit_created fans out asynchronously; the page
   // polls every 3s, so just wait for the patient to appear.
-  await page.goto("/pharmacy");
+  await page.goto(waitingFor(patient));
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
-  await page.locator("li", { hasText: patient }).getByRole("button", { name: "Dispense" }).click();
-  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
+  const row = page.locator("li", { hasText: patient });
+  await row.getByLabel("Medication").fill("Amoxicillin 250mg");
+  await row.getByRole("button", { name: "Dispense" }).click();
+  // Dispensing moves the row from Waiting to the Dispensed tab (#1295).
+  await expect(page.locator("li", { hasText: patient })).toHaveCount(0);
+  await page.goto(DISPENSED);
+  await expect(
+    page.locator("li", { hasText: patient }).getByText("Amoxicillin 250mg"),
+  ).toBeVisible();
 
   // Lab zone: pending order for the same visit; record a result.
   await page.goto("/lab");

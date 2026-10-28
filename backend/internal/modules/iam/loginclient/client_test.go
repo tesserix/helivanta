@@ -590,6 +590,34 @@ func TestUserStateReportsInactive(t *testing.T) {
 	}
 }
 
+func TestUserStateNilClientIsUnavailable(t *testing.T) {
+	var client *Client
+	state, err := client.UserState(t.Context(), "staff-user")
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("error = %v, want ErrUnavailable for missing client", err)
+	}
+	if state.IsActive() {
+		t.Fatal("missing client must not confirm an active identity")
+	}
+}
+
+func TestUserStateReportsKnownNonActiveStates(t *testing.T) {
+	for _, state := range []string{"USER_STATE_LOCKED", "USER_STATE_SUSPEND", "USER_STATE_DELETED", "USER_STATE_INITIAL"} {
+		t.Run(state, func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`{"user":{"state":"` + state + `"}}`))
+			})
+			state, err := c.UserState(t.Context(), "staff-user")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if state != UserStateInactive {
+				t.Fatalf("state = %v, want definite inactive", state)
+			}
+		})
+	}
+}
+
 // A 404 (user deleted upstream) must be reported as "not active", with a
 // NIL error — a deleted user must never renew, and a caller checking err
 // before IsActive() must not see this as a transport failure.
@@ -663,7 +691,7 @@ func TestUserStateNoStateFieldIsError(t *testing.T) {
 // and a live session.
 func TestUserStateUnrecognizedStateIsError(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_LOCKED","username":"a@helivanta.dev"}}`))
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_FUTURE_UNKNOWN","username":"a@helivanta.dev"}}`))
 	})
 	s, err := c.UserState(context.Background(), "1")
 	if !errors.Is(err, ErrUnavailable) {
@@ -690,4 +718,64 @@ func TestUserStateEscapesAdversarialID(t *testing.T) {
 	if gotRequestURI != want {
 		t.Errorf("request URI = %q, want %q (adversarial id must not add path segments or a query string)", gotRequestURI, want)
 	}
+}
+
+func TestUserProfileReadsDisplayNameAndEmail(t *testing.T) {
+	var gotPath string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		if got := r.Header.Get("Authorization"); got != "Bearer test-pat" {
+			t.Errorf("Authorization = %q, want Bearer test-pat", got)
+		}
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_ACTIVE","username":"jordan","human":{"profile":{"givenName":"Jordan","familyName":"Staff","displayName":"Jordan Staff"},"email":{"email":"jordan@helivanta.dev","isVerified":true}}}}`))
+	})
+	p, err := c.UserProfile(t.Context(), "1")
+	require.NoError(t, err)
+	require.Equal(t, UserProfile{DisplayName: "Jordan Staff", Email: "jordan@helivanta.dev"}, p)
+	require.Equal(t, "/v2/users/1", gotPath)
+}
+
+func TestUserProfileWithoutHumanProfileIsUnavailable(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"user":{"userId":"1","state":"USER_STATE_ACTIVE","username":"svc"}}`))
+	})
+	p, err := c.UserProfile(t.Context(), "1")
+	require.ErrorIs(t, err, ErrUnavailable)
+	require.Zero(t, p)
+}
+
+func TestUserProfileNotFoundIsError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"code":5,"message":"User could not be found (QUERY-Dfbg2)"}`))
+	})
+	p, err := c.UserProfile(t.Context(), "deleted-user")
+	require.ErrorIs(t, err, ErrUserNotFound)
+	require.Zero(t, p)
+}
+
+func TestUserProfile5xxIsUnavailable(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	_, err := c.UserProfile(t.Context(), "1")
+	require.ErrorIs(t, err, ErrUnavailable)
+}
+
+func TestUserProfileNilClientIsUnavailable(t *testing.T) {
+	var client *Client
+	_, err := client.UserProfile(t.Context(), "1")
+	require.ErrorIs(t, err, ErrUnavailable)
+}
+
+func TestUserProfileEscapesAdversarialID(t *testing.T) {
+	const adversarial = "../../v2/oidc/auth_requests?x=1"
+	var gotRequestURI string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotRequestURI = r.RequestURI
+		w.Write([]byte(`{"user":{"human":{"profile":{"displayName":"A"},"email":{"email":"a@helivanta.dev"}}}}`))
+	})
+	_, err := c.UserProfile(t.Context(), adversarial)
+	require.NoError(t, err)
+	require.Equal(t, "/v2/users/"+url.PathEscape(adversarial), gotRequestURI)
 }

@@ -20,7 +20,7 @@ type ProductFields struct {
 	Ingredients      []ingredient `json:"ingredients" binding:"required,min=1,max=20,dive" gorm:"serializer:json;type:jsonb"`
 	PackSize         int          `json:"pack_size" binding:"min=1,max=1000000"`
 	UnitOfIssue      string       `json:"unit_of_issue" binding:"required,min=1,max=40"`
-	Currency         string       `json:"currency" binding:"required,min=3,max=3"`
+	Currency         string       `json:"currency" binding:"required,oneof=INR"`
 	MRPMinor         int64        `json:"mrp_minor" binding:"min=0,max=1000000000000"`
 	Status           string       `json:"status" binding:"required,oneof=active discontinued withdrawn"`
 }
@@ -31,10 +31,12 @@ type productInput struct {
 }
 
 type batchInput struct {
-	ProductID      uuid.UUID `json:"product_id" binding:"required"`
-	LotNumber      string    `json:"lot_number" binding:"required,min=1,max=100"`
-	ExpiresOn      string    `json:"expires_on"`
-	ManufacturedOn *string   `json:"manufactured_on" binding:"omitempty"`
+	ProductID         uuid.UUID `json:"product_id" binding:"required"`
+	LotNumber         string    `json:"lot_number" binding:"required,min=1,max=100"`
+	ExpiresOn         string    `json:"expires_on"`
+	ManufacturedOn    *string   `json:"manufactured_on" binding:"omitempty"`
+	MRPMinor          int64     `json:"mrp_minor" binding:"min=1,max=1000000000000"`
+	PurchaseCostMinor *int64    `json:"purchase_cost_minor" binding:"omitempty,min=0,max=1000000000000"`
 }
 
 type movementInput struct {
@@ -57,6 +59,7 @@ type locationInput struct {
 	Code           string                `json:"code" binding:"required,min=1,max=40"`
 	Name           string                `json:"name" binding:"required,min=1,max=200"`
 	StorageAddress *StorageAddressFields `json:"storage_address" binding:"omitempty" gorm:"embedded"`
+	StockStatus    *string               `json:"stock_status" binding:"omitempty,required,oneof=quarantine sellable"`
 }
 
 type OrganizationFields struct {
@@ -68,7 +71,7 @@ type OrganizationFields struct {
 type OutletFields struct {
 	Code        string `json:"code" binding:"required,min=1,max=40"`
 	Name        string `json:"name" binding:"required,min=1,max=200"`
-	CountryCode string `json:"country_code" binding:"required,oneof=IN PK"`
+	CountryCode string `json:"country_code" binding:"required,oneof=IN"`
 	Timezone    string `json:"timezone" binding:"required,min=1,max=64"`
 }
 
@@ -93,14 +96,14 @@ type payableInput struct {
 	DocumentReference string             `json:"document_reference" binding:"required,min=1,max=100"`
 	IssuedOn          string             `json:"issued_on"`
 	DueOn             string             `json:"due_on"`
-	Currency          string             `json:"currency" binding:"required,min=3,max=3"`
+	Currency          string             `json:"currency" binding:"required,oneof=INR"`
 	Lines             []payableLineInput `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
 }
 
 type settlementInput struct {
 	Kind            string     `json:"kind" binding:"required,oneof=payment credit payment_reversal"`
 	AmountMinor     int64      `json:"amount_minor" binding:"min=1,max=1000000000000"`
-	Currency        string     `json:"currency" binding:"required,min=3,max=3"`
+	Currency        string     `json:"currency" binding:"required,oneof=INR"`
 	PaidBy          string     `json:"paid_by" binding:"required,min=1,max=200"`
 	Method          string     `json:"method" binding:"required,oneof=cash bank card upi other"`
 	SourceReference string     `json:"source_reference" binding:"required,min=1,max=100"`
@@ -123,4 +126,20 @@ type StockExpiryFields struct {
 	ExpiryLocalDate string `json:"expiry_local_date"`
 	DaysToExpiry    int    `json:"days_to_expiry" binding:"min=-3652058,max=3652058"`
 	ExpiryBand      string `json:"expiry_band" binding:"required,oneof=expired today days_30 days_90 days_180 later"`
+}
+
+type taxRegistrationInput struct {
+	JurisdictionCode string  `json:"jurisdiction_code" binding:"required,min=2,max=2"`
+	Identifier       string  `json:"identifier" binding:"required,min=1,max=40"`
+	EffectiveFrom    string  `json:"effective_from"`
+	Reason           *string `json:"reason" binding:"omitempty,min=1,max=500"`
+}
+
+type taxClassificationInput struct {
+	ClassificationCode string  `json:"classification_code" binding:"required,min=1,max=20"`
+	SupplyNature       string  `json:"supply_nature" binding:"required,oneof=taxable nil_rated exempt"`
+	RatePercent        string  `json:"rate_percent" binding:"required,min=1,max=6"`
+	ExemptionBasis     *string `json:"exemption_basis" binding:"omitempty,min=1,max=500"`
+	EffectiveFrom      string  `json:"effective_from"`
+	Reason             *string `json:"reason" binding:"omitempty,min=1,max=500"`
 }

@@ -3,8 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@tesserix/web";
 import { useSupplyPlatformIdentity, type SupplyRegistryScope } from "@helivanta/api";
-import { formatDateTime } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { formatDateTime, RequestFailure } from "@helivanta/ui";
 
 export function PlatformIdentity({
   scope,

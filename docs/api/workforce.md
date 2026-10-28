@@ -2,6 +2,51 @@
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
+## Reviewed account links (worktree implementation)
+
+Workforce owns the hospital-local binding and immutable review history; IAM owns
+login membership and application access. A link never grants a permission or
+clinical authority. This prerequisite for #1132/#1053 does not implement scoped
+IAM assignments or self-service leave. See the [binding design](../superpowers/specs/2026-10-27-staff-login-links.md).
+
+The base path is `/v1/workforce/hospitals/{hospital}/staff/{staff}/login-links`,
+reached by web clients through Global API. All operations require verified tenant
+membership and a current hospital manager grant. The existing tenant administrator
+has the two new administrative permissions; other system roles do not gain them.
+
+| Method and suffix       | Permission                                                  | Behavior                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `PUT /{link}`           | `workforce.login_links.manage`                              | UUIDv7 command ID; `{subject, reason}` proposes an active staff member's immutable account binding                           |
+| `POST /{link}/decision` | `.review` for approve/reject; `.manage` for withdraw/revoke | `{expected_version, decision, reason}`; independent review excludes proposer and target subject; withdrawal is proposer-only |
+| `GET /`                 | Either permission                                           | Private, audited cursor page                                                                                                 |
+| `GET /{link}/history`   | Either permission                                           | Immutable version history; private, audited cursor page                                                                      |
+
+Bodies are limited to 8 KiB. Account subjects are opaque, case-sensitive strings
+of 1–200 characters, without whitespace, NUL or `*#:`; clients reject malformed
+subjects without trimming them. Reasons are required and limited to 500 characters.
+Generated models come from `contracts/workforce-login-links.json`. Lists use the
+platform default 50 / maximum 200 rows and return `Cache-Control: no-store`.
+The client sends `X-Helivanta-Expected-Tenant`; if supplied, exactly one value must
+match the verified tenant or the handler returns 404. It never selects a tenant.
+
+Statuses are pending, active, rejected, withdrawn and revoked. Only one pending
+or active link may exist per staff member or per subject within a hospital.
+Inactivation revokes pending/active links atomically, including through enrollment;
+reactivation does not restore them. Reusing a proposal ID with different content,
+conflicting bindings or stale decisions returns 409 `link_conflict`. Identical
+immediate decision retries preserve the committed version; proposal and approval
+retries still recheck candidate membership. A removed candidate returns 404 and an
+unavailable membership dependency returns 503 `identity_unavailable`. Refetch
+authorized history after an ambiguous outcome. Missing permissions return 403;
+foreign/missing objects return 404. The binding cannot authorize self-service.
+
+`helivanta.in.workforce.login_link_changed.v1` carries only `hospital_id`,
+`staff_id`, `link_id`, `version` and `status`. Account subjects, names and reasons
+stay behind protected reads. State, history, minimized audit and outbox commit
+together. The additive migration preserves records and blocks inactive staff with
+current links; older writers that omit revocation fail this guard after links exist.
+No live migration or deployment is established by this document.
+
 ## Authentication and scope
 
 Use an existing Helivanta session obtained through the Zitadel login flow. Every route checks the session and current OpenFGA tenant membership. The session's tenant is authoritative; request bodies cannot set tenant, actor or role. Unknown JSON properties are rejected. No route creates a tenant or a Zitadel identity.
@@ -100,6 +145,18 @@ Field definitions are shared through `contracts/workforce-enrollment.json` and `
 
 See [ADR 0015](../adr/0015-staff-enrollment.md), [editable diagram](../diagrams/staff-enrollment.drawio), and `scripts/verify-staff-enrollment.mjs` for repeatable designated-synthetic-tenant verification. This enrollment release does not complete payroll, rosters, leave, dependent benefits, jurisdiction-specific IDs, document quarantine/release integration, legacy import or all of #1035/#979.
 
+Enrollment supervisor links form an acyclic hospital-local reporting chain.
+The owner command serializes graph changes before staff locks; an additive
+PostgreSQL constraint also protects direct writes. A circular chain returns 409
+`supervisor_cycle` with no reporting-path disclosure, version change, success
+audit or outbox event. Clearing a supervisor can repair an invalid chain. A busy
+supervision lock returns 503 `supervision_busy`; retain the draft and retry after
+refresh. Unsupported snapshot isolation modes fail closed with 503
+`supervision_unavailable`; non-null supervisor writes require PostgreSQL
+read-committed semantics. Supervisor selection grants no access or clinical authority. Migration
+`0039_workforce_supervision` is unreleased; pre-rollout owner review must identify
+and correct existing cycles through attributable HR commands.
+
 ## Versioned HR setup
 
 Design: [ADR 0016](../adr/0016-versioned-hr-masters.md). Diagram: [editable draw.io](../diagrams/versioned-hr-masters.drawio).
@@ -114,11 +171,182 @@ PUT input: `expected_version` (0 for creation), `kind`, `code` (1–40 ASCII let
 
 Categories: department, designation, grade, qualification, document_category, exit_reason, relationship, language, contract_type. This does not implement salary, tax, leave policy or KRA/KPI models. Retire/reactivate with `active`; no delete endpoint exists. List/history support the shared cursor and limit contract.
 
+Profile connections also accept optional `preferred_language_revision_id`,
+`exit_reason_revision_id`, `contract_type` (0–80 characters) and
+`contract_type_revision_id`. Language/exit-reason text remains compatible with
+legacy requests. Contract type is separate from engagement type and is a
+server-derived classification requiring its typed master reference when set;
+it does not activate employment, access, payroll rules or legal contract terms.
+The new fields can be omitted without clearing existing pins; explicit empty
+reference strings clear them. Null is rejected for these new reference fields
+and the new contract-type text. Existing reference null compatibility is
+unchanged. Owner lookup derives labels and rejects new inactive/stale references;
+existing historical pins remain editable during unrelated enrollment changes.
+
+The default GET/PUT enrollment response retains its original profile shape for
+older strict editors. Updated clients request `?profile_masters=v1` on both
+methods to receive the four extension properties and top-level
+`profile_masters_version: "v1"`. An empty, unsupported or repeated selector
+returns 400 before any enrollment write. The selector changes representation,
+not authority, stored facts, concurrency or retry behavior. Omitted input
+references preserve pins even when the legacy response hides them. The updated
+editor checks the response marker and separates its versioned cache key; an
+older API that ignores the selector produces an explicit unavailable view,
+without exposing an editable profile with unknown pins shown as blank.
+
+Migrations `0040_workforce_profile_masters` and
+`0041_workforce_profile_master_indexes` add typed tenant/hospital/category foreign
+keys, concurrent reference indexes and a distinct older-writer guard. This is
+source behavior, not a production deployment claim. Older binaries cannot use
+the existing generic HR-reference marker to erase the new pins. Deploy the
+schema and updated API fleet before exposing the new fields; retain the columns
+and guard on application rollback. No existing free text is bulk matched.
+
 Enrollment profiles can select `department_revision_id`, `designation_revision_id`, `grade_revision_id`. Foreign-key scope includes tenant, hospital and category. The server derives the assignment name from the immutable revision; supplied label text cannot forge a snapshot. New assignments must select the active current revision. An existing assignment may retain its older/retired revision. Explicit empty reference clears it; omitted reference fields from older clients preserve an existing assignment. Free-text legacy assignments remain supported without silently matching names. A database guard refuses older API writers attempting to remove a pinned profile during rolling deployment.
+
+Qualification rows can select optional `qualification_revision_id`, restricted to
+the same tenant, hospital and `qualification` category. The server derives the
+qualification label from that immutable revision. New selections require the
+active current revision; existing historical pins remain valid. Omitting the
+field preserves the stored reference **by the existing qualification row ID**;
+an explicit empty string clears it and permits historical free text. Null and
+malformed UUIDs return 400. Changing/removing a row ID is a row replacement/removal,
+not an instruction to copy another row's reference. Qualification row IDs and
+their existing private-evidence anchors are retained on ordinary amendments.
+Duplicate qualification/institution/year combinations are checked again after
+canonical labels resolve, before any staff write or audit/outbox publication.
+
+Default enrollment responses, including `?profile_masters=v1` alone, retain the
+original qualification shape for older strict editors. Request
+`?qualification_masters=v1` on GET/PUT to receive `qualification_revision_id` and
+top-level `qualification_masters_version: "v1"`. The two selectors are independent
+and may be combined. Empty, unsupported or repeated selectors return 400 before
+writes. Updated editors require both response markers and version their query
+cache; a profile-aware API without qualification support cannot open a writable
+existing record. Neither selector grants enrollment/hospital authority.
+
+Migrations `0042_workforce_qualification_masters` and
+`0043_workforce_qualification_master_index` add a typed composite foreign key,
+constant category check, concurrent reference index and a distinct older-writer
+guard. Intermediate profile-aware binaries cannot delete or update pinned
+qualification rows using their existing profile support marker. Deploy schema
+and updated API fleet before exposing these controls; preserve the columns and
+guard on application rollback. This is source behavior, not evidence of
+production deployment. No new route, permission or event field is introduced.
+
+Emergency-contact relationship integration retains the existing 60-code-point
+consumer limit and the HR master's 80-code-point owner limit. A valid HR master
+with a 61–80-code-point name remains available in HR setup but cannot be newly
+assigned to an emergency contact: the selector explains its unavailable state,
+and the server rejects the assignment before writes. Names are never truncated,
+and v1 is not widened. Existing free-text relationships remain supported.
+Optional `relationship_revision_id` binds a same-tenant/hospital `relationship`
+revision; historical pins and older-client omission are preserved by contact row
+ID. This is contact information, not clinical authority or next-of-kin consent.
+
+Request `?contact_masters=v1` on enrollment GET/PUT to receive contact reference
+fields and `contact_masters_version: "v1"`. This selector is independent of the
+profile and qualification selectors; any combination is valid. Default and
+older opt-in responses retain their original contact shape. Empty, unsupported
+or repeated selectors return 400 before writes. Updated editors require all
+three response markers and a distinct cache identity. Omitted contact references
+preserve the existing row's pin; explicit empty clears it, null fails, and a
+different staff record cannot inherit a pin merely by supplying the same child
+ID. Supplied relationship labels are replaced by the scoped immutable revision's
+label before the consumer limit is checked.
+
+Migrations `0044_workforce_contact_masters` and
+`0045_workforce_contact_master_index` add the typed tenant/hospital/category
+reference, constant category check, concurrent index and a distinct contact
+writer marker. A qualification-aware older binary cannot delete/update a pinned
+contact with its existing support markers. Apply schema and updated APIs before
+exposing the UI; retain columns/guard on application rollback. No new permission,
+route or event field is introduced, and this source contract is not a production
+deployment claim.
 
 `helivanta.in.workforce.master_changed.v1` contains hospital/master/revision UUIDs, category and revision number only. Audit, master head, immutable revision and outbox intent commit together. Neither employee attributes nor master labels are broadcast. The existing JetStream relay publishes; no Valkey caching or Temporal workflow is required for this transaction.
 
 Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.
+
+## Staff file classification
+
+Classification is optional versioned HR metadata beside an existing staff file.
+The fixed evidence `category` and owner record binding, upload intent, bytes,
+scan/release state and download authorization are unchanged. Hospital-defined
+`document_category` masters cannot replace those security-purpose values.
+Benefits and tax evidence are excluded from these staff classification routes.
+PR #1411 merged after local owner/reviewer UI checks and full local and remote
+gates passed. Production rollout and deployed acceptance remain open. See [ADR 0045](../adr/0045-staff-document-classification.md).
+
+| Method | Owner-relative route                                                            | Authority / behavior                                                                                                        |
+| ------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/workforce/hospitals/{hospital}/staff/{staff}/documents/{file}/classification` | `workforce.documents.manage` and explicit hospital manager grant; exact staff/file binding; protected metadata read audited |
+| PUT    | Same                                                                            | Same authority; optimistic versioned amendment or explicit clear                                                            |
+| GET    | Same + `/history`                                                               | Same authority; bounded standard cursor pagination; immutable revisions and read audit                                      |
+
+Route traffic uses the existing Global API product destination. Inaccessible
+objects return 404; a missing route permission returns 403. Current output is
+`file_id`, `hospital_id`, `staff_id`, `version`, `classification_revision_id`,
+`classification_name` and nullable `updated_at`. An authorized file with no
+classification returns version 0, empty reference/name and null timestamp.
+History adds its immutable `id`, `actor_subject` and `created_at` in place of
+`updated_at`; all response IDs retain verified owner scope.
+
+PUT requires exactly `expected_version` (safe nonnegative integer) and
+`classification_revision_id` (nonzero UUID or explicit empty string). Null,
+omission, unknown fields and bodies above 1 KiB return 400. Labels are derived
+from same-tenant/hospital immutable `document_category` revisions. New selections
+require the active current revision; an unchanged retained historical reference
+remains valid after retirement. An empty reference clears the selection while
+preserving history. No legacy name is matched automatically.
+
+An unchanged current request is a no-op. An exact retry against the immediately
+preceding expected version returns the same response; other stale commands return 409. First writes and amendments serialize on the authorized parent file lock.
+Migration `0046_workforce_document_classification` adds scoped current/history
+tables, typed master/file foreign keys, forced RLS, immutable history, monotonic
+head guards and reference/history indexes. Old upload clients cannot erase the
+separate metadata. Retain these tables on application rollback.
+
+Each meaningful amendment commits history, attributed audit and
+`helivanta.in.workforce.document_classification_changed.v1` in the owner outbox.
+The payload contains only hospital, staff, file, classification-receipt revision
+IDs and metadata version; no category selection, label, name, filename, file
+content or storage location. This changes no credential, identity, background,
+consent, clinical privilege or employee outcome.
+
+## Recovery of stalled private-file processing
+
+`PUT /workforce/hospitals/{hospital}/staff/{staff}/documents/{file}/retries/{attempt}`
+requires `workforce.documents.manage` and an explicit current hospital manager
+grant for the exact staff/file. The same recovery rule applies behind the existing
+payroll/benefits evidence routes, with their own permissions, parent revision and
+pending/frozen checks. Frozen evidence cannot change its attempt, including a
+pending-to-pending transition after the deadline. This command does not review identity, approve evidence or
+release bytes.
+
+The attempt is a canonical integer of at least 2, exactly one above the stored
+attempt. `scan_error` permits immediate retry. `scan_pending` permits recovery only
+after 2700 seconds (45 minutes) since its committed `updated_at`, measured on the
+database clock, matching the Temporal execution deadline. Recent pending, skipped
+attempts and terminal files return 409. Inaccessible scope remains 404; decided
+proposal evidence remains 409 `not_pending`. The database prevents rewriting an
+unchanged pending attempt's waiting clock and stamps new queue/retry entry itself.
+
+A new command returns 202; the exact repeated command returns its current receipt
+with 200 after reauthorization, without another scan-request event. File lock,
+monotonic attempt, state, audit and outbox commit atomically. A timed-out or late
+worker for an old attempt cannot commit a release after recovery, even if storage
+copy completed. Current bytes become downloadable only after the new attempt's
+valid matching scanner/release proof. Dependency failure remains protected and
+retryable; no direct Temporal restart or business-data patch is required.
+
+The UI derives the recovery affordance from the existing timestamp. A client clock
+skew can cause an early command to receive 409; it cannot shorten the server guard.
+There is no new response field, purpose enum or permission. Migration
+`0047_workforce_document_recovery` replaces the guard function without changing
+file content, history, ownership or RLS. Old clients remain compatible but do not
+offer recovery for expired pending files. See [ADR 0046](../adr/0046-staff-document-stalled-processing.md).
+This development candidate has not been rolled out to production.
 
 ## Credential validity reviews
 
@@ -134,6 +362,56 @@ Design: [credential validity spec](../superpowers/specs/2026-10-20-credential-va
 | `GET /workforce/hospitals/{hospital}/hr/credentials?expiring_within=` | `workforce.enrollment.manage` and hospital manager         | Reviewed credentials, soonest `valid_until` first, optionally within 0–365 days of the hospital date; 409 `time_zone_unset` when filtering without a roster time zone; audited                                                                                                                                    |
 
 Status is computed per request in the hospital roster time zone: `unreviewed`, `not_yet_valid`, `valid`, `expires_today`, `expired`, or `date_unknown` when no zone is set. The expiry day counts as valid. Once a credential is reviewed, an enrollment `PUT` that changes its type, number, issuer or dates, or removes it, answers 409 `credential_reviewed`. Responses are `Cache-Control: no-store`. Each proposal and decision publishes `credential_review_changed.v1`, and an approval also publishes `credential_validity_changed.v1` and `enrollment_changed.v1`, all through the outbox and carrying identifiers, status and version only.
+
+## Credential renewal reminders
+
+Design: [credential renewal reminders spec](../superpowers/specs/2026-10-18-credential-renewal-reminders-design.md) (#1108 slice B). UI: `/workforce/credential-reminders`.
+
+| Route                                                                 | Permission                                                | Behaviour                                                                                                                                                     |
+| --------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/hr/credential-reminder-policy`   | `workforce.enrollment.manage` and hospital manager        | Current policy; `version: 0, thresholds: []` when reminders are off                                                                                           |
+| `PUT /workforce/hospitals/{hospital}/hr/credential-reminder-policy`   | `workforce.enrollment.manage` and locked hospital manager | `expected_version`, `thresholds` (1–6 distinct whole days, 0–365), stored descending; identical thresholds return the current version; 409 `version_conflict` |
+| `GET /workforce/hospitals/{hospital}/hr/credential-reminders?status=` | `workforce.enrollment.manage` and hospital manager        | `open` (default), `acknowledged` or `superseded`; keyset pages, soonest `due_on` first; never includes number or issuer; audited                              |
+| `POST …/hr/credential-reminders/{reminder}/acknowledgement`           | `workforce.enrollment.manage` and locked hospital manager | Records the acknowledging subject; idempotent for an acknowledged reminder; 409 `reminder_superseded`                                                         |
+
+Each approved revision gets one Temporal schedule (`workforce-credential-reminders-v1` on the document worker), started by the `workforce-credential-reminders` consumer of `credential_validity_changed.v1`. Threshold _t_ is due when `valid_until − t` is on or before the hospital's local date; only the smallest due threshold is written, superseding larger open ones, and approving a new revision supersedes the old revision's open reminders. With no policy or no roster time zone nothing is written. Responses are `Cache-Control: no-store`. Policy saves publish `credential_reminder_policy_changed.v1`; reminder creation, acknowledgement and supersession publish `credential_reminder_changed.v1`, through the outbox with identifiers, status, threshold and version only.
+
+## Dependents and benefit enrollment
+
+Design: [dependents and benefits spec](../superpowers/specs/2026-10-18-dependents-benefits-design.md) (#1106 slice A) and [benefits screens spec](../superpowers/specs/2026-10-19-benefits-screens-design.md) (slice B), [benefit evidence and export spec](../superpowers/specs/2026-10-19-benefit-evidence-export-design.md) (slice C). UI: `/workforce/benefits`. Paths are relative to `/workforce/hospitals/{hospital}`.
+
+| Route                                                                    | Permission                                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/hr/benefits/plans`                                                | `workforce.benefits.view` and reader/manager grant       | Keyset pages up to 100 of current plans; audited                                                                                                                                                                                                                                                                                                                                              |
+| `PUT …/hr/benefits/plans/{plan}`                                         | `workforce.benefits.manage` and locked hospital manager  | `expected_version`, `code`, `name`, `kind`, `description`, `covers_dependents`, `covered_relationships`, `effective_from`, `effective_until`, `status`. Unchanged retries return the plan; 409 `version_conflict`, `duplicate_plan`, `plan_retired`, `coverage_outside_plan`                                                                                                                  |
+| `GET …/hr/benefits/plans/{plan}/history`                                 | `workforce.benefits.view` and reader/manager grant       | Revisions, newest first; audited                                                                                                                                                                                                                                                                                                                                                              |
+| `GET …/staff/{id}/dependents`                                            | `workforce.benefits.view` and reader/manager grant       | Current dependents with relationship name; audited                                                                                                                                                                                                                                                                                                                                            |
+| `PUT …/staff/{id}/dependents/{dependent}`                                | `workforce.benefits.manage` and locked hospital manager  | `expected_version`, `full_name`, `relationship_revision_id` (current, active `relationship` master), `birth_date`, `phone` (E.164 or empty), `status` (`active`/`removed`), `reason`; 409 `version_conflict`, `duplicate_dependent`, `dependent_covered`, `staff_inactive`                                                                                                                    |
+| `GET …/staff/{id}/dependents/{dependent}/history`                        | `workforce.benefits.view` and reader/manager grant       | Revisions with their reason; audited                                                                                                                                                                                                                                                                                                                                                          |
+| `GET …/staff/{id}/benefit-enrollments`                                   | `workforce.benefits.view` and reader/manager grant       | Enrollments with approved `coverage` and any `pending` proposal; audited                                                                                                                                                                                                                                                                                                                      |
+| `PUT …/staff/{id}/benefit-enrollments/{enrollment}/proposals/{proposal}` | `workforce.benefits.manage` and locked hospital manager  | `expected_version`, `plan_id`, `dependent_id` (omit for the employee), `coverage_from`, `coverage_until`, `eligibility_basis`. An identical replay returns the proposal; 409 `proposal_pending`, `proposal_conflict`, `version_conflict`, `nothing_to_change`, `plan_retired`, `coverage_outside_plan`, `coverage_overlap`, `relationship_not_covered`, `dependent_removed`, `staff_inactive` |
+| `POST …/proposals/{proposal}/decision`                                   | `workforce.benefits.approve` and locked hospital manager | `expected_version`, `decision`, `note` (required to reject); 409 `self_review`, `plan_changed`, `dependent_changed`, `evidence_scanning` and the proposal checks above                                                                                                                                                                                                                        |
+| `POST …/proposals/{proposal}/withdraw`                                   | `workforce.benefits.manage` and locked hospital manager  | Proposer only; 409 `not_proposer`, `evidence_scanning`                                                                                                                                                                                                                                                                                                                                        |
+| `GET …/staff/{id}/benefit-enrollments/{enrollment}/history`              | `workforce.benefits.view` and reader/manager grant       | Proposals and decisions, newest first; audited                                                                                                                                                                                                                                                                                                                                                |
+
+Benefits tables need the `app.workforce_benefits` RLS scope, which only these handlers set, so enrollment, directory and payroll access never reads them. An enrollment keeps the plan revision it was first approved under. A retired plan may still shorten existing coverage. Events (`benefit_plan_changed.v1`, `dependent_changed.v1`, `benefit_enrollment_changed.v1`) and audit rows carry identifiers, status and version only. Every response is `Cache-Control: no-store`.
+
+### Benefit evidence and coverage export
+
+Eligibility evidence is a workforce document whose record is a coverage proposal (`record_kind` `benefit_proposal`, category `benefit_eligibility_evidence`). It uses the staff document pipeline for quarantine, malware scanning and release. Row-level security admits these rows only under the `app.workforce_benefits` scope, so staff document, enrollment and payroll routes never list, download or revoke them. Evidence paths are relative to `…/staff/{id}/benefit-enrollments/{enrollment}/proposals/{proposal}`.
+
+| Route                                                          | Permission                                              | Behaviour                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/evidence`                                               | `workforce.benefits.view` and reader/manager grant      | `{evidence, uploads_available}`: at most 10 files of that proposal, newest first. Expired intents are left out. 404 unless the proposal belongs to this enrollment                                                                                                                                                                |
+| `PUT …/evidence/{file}`                                        | `workforce.benefits.manage` and locked hospital manager | `filename`, `content_type` (`image/png`/`image/jpeg`), `size` (≤ 10 MiB), `sha256`. 201 when created, 200 for an identical replay. 409 `not_pending` once the proposal is decided, `evidence_limit` for an 11th file                                                                                                              |
+| `PUT …/evidence/{file}/content`                                | `workforce.benefits.manage` and locked hospital manager | Streams the bytes, verifies them against size and digest, and queues the scan (202). 409 `not_pending` once decided                                                                                                                                                                                                               |
+| `PUT …/evidence/{file}/retries/{attempt}`                      | `workforce.benefits.manage` and locked hospital manager | Re-queues `scan_error` or `scan_pending` after the 45-minute server deadline. 409 `not_pending` once decided                                                                                                                                                                                                                      |
+| `GET …/evidence/{file}/content`                                | `workforce.benefits.view` and reader/manager grant      | Released bytes of an `available` file. Audited as `workforce.benefits.evidence_downloaded`, `Cache-Control: private, no-store`                                                                                                                                                                                                    |
+| `GET /workforce/hospitals/{hospital}/hr/benefits/coverage.csv` | `workforce.benefits.export` and reader/manager grant    | `as_of` (required, `YYYY-MM-DD`), `plan_id` (optional), each at most once. Approved coverage in force on `as_of`. `X-Export-Row-Count` and `X-Export-Sha256` describe the body. 400 `invalid_request` for unknown, repeated or empty parameters; 413 `benefits_export_too_large` above 1,000 rows or 8 MiB, before any file bytes |
+
+A decision or withdrawal answers 409 `evidence_scanning` while any of the proposal's files is `scan_pending`. A decision freezes the proposal's evidence. Approval keeps available files readable as the record of what was approved, while rejection and withdrawal revoke them, each with a `document_changed.v1` event. The database refuses to unfreeze a file or scan it again.
+
+No other benefits permission implies `workforce.benefits.export`. Each file writes one `workforce.benefits.exported` audit row in the same transaction, carrying the report id `workforce.benefits.coverage`, the filters, the row count and the SHA-256 of the bytes, never cell values. Rows hold the enrollment, employee code, name and employment status, the plan, who is covered (the employee, or the dependent's name, relationship and status), coverage dates, approved version and approval time. Birth dates, phones, eligibility bases, decision notes and evidence are excluded. Cells are neutralised against spreadsheet formulas. The audit records that a file was generated, not that it was opened or kept; exports above 1,000 rows and scheduled exports are not in this slice.
 
 ## Versioned shift definitions
 
@@ -190,22 +468,25 @@ Effective dates cannot move earlier than the current revision (400). Stale versi
 
 Design: [ADR 0020](../adr/0020-dated-rosters.md). UI: `/workforce/rosters`.
 
-| Endpoint                                                          | Authorization                                                | Behavior                                                                                                         |
-| ----------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `GET /workforce/hospitals/{hospital}/hr/rosters`                  | Tenant membership and explicit hospital reader/manager grant | Bounded keyset list with status, period, pinned settings and current allocation count                            |
-| `PUT /workforce/hospitals/{hospital}/hr/rosters/{id}`             | `workforce.roster.manage` and locked hospital manager grant  | Idempotent create of a reviewed draft; name, start and end date                                                  |
-| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}`             | Tenant membership and explicit hospital reader/manager grant | Current head                                                                                                     |
-| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}/allocations` | Tenant membership and explicit hospital reader/manager grant | Bounded keyset list; `?version=N` returns the allocations as of that version; `?staff_id=` narrows to one person |
-| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}/revisions`   | Tenant membership and explicit hospital reader/manager grant | Bounded keyset history with action, mode, counts, reason and reviewer                                            |
-| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/changes`    | `workforce.roster.manage` and locked hospital manager grant  | `mode` `roster`, `employee` or `additional`; up to 500 additions and 500 removals                                |
-| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/populate`   | `workforce.roster.manage` and locked hospital manager grant  | Fill empty staff-dates from active weekly-template assignments; optional `staff_ids` (≤500)                      |
-| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/freeze`     | `workforce.roster.manage` and locked hospital manager grant  | Draft → frozen; frozen rosters reject changes and population                                                     |
-| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/discard`    | `workforce.roster.manage` and locked hospital manager grant  | Draft → discarded with a reason; removes current allocations, keeps history, frees the period                    |
-| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/unfreeze`   | `workforce.roster.correct` and locked hospital manager grant | Frozen → draft with a reason, for audited corrections                                                            |
+| Endpoint                                                                 | Authorization                                                | Behavior                                                                                                         |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/hr/rosters`                         | Tenant membership and explicit hospital reader/manager grant | Bounded keyset list with status, period, pinned settings and current allocation count                            |
+| `PUT /workforce/hospitals/{hospital}/hr/rosters/{id}`                    | `workforce.roster.manage` and locked hospital manager grant  | Idempotent create of a reviewed draft; name, start and end date                                                  |
+| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}`                    | Tenant membership and explicit hospital reader/manager grant | Current head                                                                                                     |
+| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}/allocations`        | Tenant membership and explicit hospital reader/manager grant | Bounded keyset list; `?version=N` returns the allocations as of that version; `?staff_id=` narrows to one person |
+| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}/revisions`          | Tenant membership and explicit hospital reader/manager grant | Bounded keyset history with action, mode, counts (including `credential_clashes`), reason and reviewer           |
+| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/changes`           | `workforce.roster.manage` and locked hospital manager grant  | `mode` `roster`, `employee` or `additional`; up to 500 additions and 500 removals                                |
+| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/populate`          | `workforce.roster.manage` and locked hospital manager grant  | Fill empty staff-dates from active weekly-template assignments; optional `staff_ids` (≤500)                      |
+| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/freeze`            | `workforce.roster.manage` and locked hospital manager grant  | Draft → frozen; `acknowledged_clashes` (≤2,000 allocation ids) must cover every current credential clash         |
+| `GET /workforce/hospitals/{hospital}/hr/rosters/{id}/credential-clashes` | `workforce.roster.manage` and hospital manager grant         | Current allocations outside a reviewed credential's validity, by date; type, dates and standing only; audited    |
+| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/discard`           | `workforce.roster.manage` and locked hospital manager grant  | Draft → discarded with a reason; removes current allocations, keeps history, frees the period                    |
+| `POST /workforce/hospitals/{hospital}/hr/rosters/{id}/unfreeze`          | `workforce.roster.correct` and locked hospital manager grant | Frozen → draft with a reason, for audited corrections                                                            |
 
 Rosters cover one to six whole weeks starting on the reviewed week start and pin the settings revision in force on their first day; without reviewed settings, creation returns 400 `roster_settings_missing`. Non-discarded periods cannot overlap (409 `roster_overlap`). Every write carries `change_id`, `expected_version` and `reviewed: true`: a replayed `change_id` returns the original revision, reuse for another action returns 409 `change_reused`, and stale versions return 409 `stale_version`.
 
-Allocations name `id`, `staff_id`, `roster_date`, `shift_revision_id` and `area_revision_id`. Staff must be active, the area revision current and effective on the date, and the shift one of the area's shifts (400 `invalid_reference`). Shift times resolve through the pinned IANA timezone; `end ≤ start` ends the next day, and a DST gap or repeated hour returns 400 `dst_unresolvable`. Each staff-date has one primary; `additional` adds non-overlapping extra shifts to an existing primary. Overlapping time for one person, in any roster, returns 409 with `reason: "allocation_overlap"` and the conflicting `allocation_ids`. Population follows the pinned `auto_population`, never overwrites existing staff-dates, reports skipped counts, returns 400 `population_disabled` when disabled and `population_too_large` above 20,000 rows. Leave (#1037) and credential (#1108) conflicts are not yet checked.
+Allocations name `id`, `staff_id`, `roster_date`, `shift_revision_id` and `area_revision_id`. Staff must be active, the area revision current and effective on the date, and the shift one of the area's shifts (400 `invalid_reference`). Shift times resolve through the pinned IANA timezone; `end ≤ start` ends the next day, and a DST gap or repeated hour returns 400 `dst_unresolvable`. Each staff-date has one primary; `additional` adds non-overlapping extra shifts to an existing primary. Overlapping time for one person, in any roster, returns 409 with `reason: "allocation_overlap"` and the conflicting `allocation_ids`. Population follows the pinned `auto_population`, never overwrites existing staff-dates, reports skipped counts, returns 400 `population_disabled` when disabled and `population_too_large` above 20,000 rows. Population skips approved full-day leave (#1037).
+
+A credential clash (#1108) is a current allocation dated after a reviewed credential's `valid_until` (`expired`) or before its `valid_from` (`not_yet_valid`); the boundary days are valid and typed enrollment dates never count. Clashes are computed on read and never block changes or population. Freezing answers 409 `reason: "credential_clashes"` with the `outstanding` count until every clash is acknowledged, 409 `too_many_clashes` above 2,000, and 400 if `acknowledged_clashes` is sent to discard or unfreeze. Each acknowledged pair is kept in an append-only, audited table with its validity version; frozen rosters keep frozen and show later clashes on the next read. Design: [roster credential clashes spec](../superpowers/specs/2026-10-18-roster-credential-clashes-design.md).
 
 State, revision, audit and an identifier-only `helivanta.in.workforce.roster_changed.v1` outbox row commit together; Valkey and Temporal are not involved. Responses are `Cache-Control: no-store`. Synthetic acceptance: `scripts/verify-rosters.mjs` (run after `verify-roster-policy.mjs`).
 
@@ -258,21 +539,105 @@ Every write takes one hospital advisory lock and commits state, an append-only `
 
 ## Leave requests and approvals
 
+### Reviewer scope discovery (development slice)
+
+`GET /workforce/leave-review-scopes` requires a verified session and current tenant
+membership. It derives the caller's own active reviewed account-link candidates,
+then requires current IAM leave-review authority and locked active employment/link
+validation for each returned hospital. A reviewed link alone is insufficient.
+The optional expected-tenant header is checked before owner queries. The response
+is `{data:[{hospital_id,name}],page:{has_more,next_cursor}}`, generated from
+`contracts/workforce-leave.json`; data rows expose only the hospital ID/name and no staff profiles or authority
+receipts. The opaque cursor carries the caller-bound candidate pagination key. Successful scope reads have minimized attributable audits.
+
+Discovery defaults to twenty candidates and accepts limits 1–20. Its cursor is
+bound to tenant, caller and route; it is not an authorization credential. Filtering
+may leave an empty page with `has_more:true`; callers must retain the supplied
+continuation rather than infer completion from `data.length`. Graph checks run
+outside transactions, at most four concurrently. Each disclosed scope is checked
+inside the existing IAM guard and product staff/link locks. Dependency failure
+returns an error without a partial scope page. Revoked credentials return 401;
+withdrawn/expired assignments or revoked/inactive links are absent from discovery.
+A separate concurrent-index migration supports the subject/status/keyset lookup.
+This is not the pending-request queue/detail API or a released reviewer UI.
+
+### Reviewer queue and detail (development slice)
+
+`GET /workforce/hospitals/{hospital}/leave-review-requests` is a scoped, keyset-paged
+pending queue (default 50, maximum 100). It requires a current reviewed IAM leave
+assignment plus the caller's locked active employment/account link. A legacy
+permission alone does not admit this purpose-bound queue. Linked self and original
+filer are excluded by both the query and forced RLS. The canonical
+`leaveReviewRequest` model exposes minimal staff display, leave type, dates/unit,
+amount, status, expected version and paging identity. Reasons and filer subjects
+are absent from queue rows.
+
+`GET /workforce/hospitals/{hospital}/staff/{id}/leave-review-requests/{request}`
+rechecks the same authority and the exact pending target, then releases the existing
+`leaveRequestDetail` model with reason, counted days and bounded roster clashes.
+Own, completed or inaccessible requests return 404; the endpoint does not expose
+request history or enrollment. Both reads use the IAM guard's transaction and
+locked actor/link validation, with minimized per-request disclosure audits. Their
+read-only RLS context cannot authorize decisions, ledger writes, payroll, private
+enrollment or unrelated staff access. Read-audit failure rolls back the read
+transaction and returns an error rather than a partial response.
+
+Scoped GET and POST gates check the optional expected-tenant assertion before
+scope lookup/product work; stale, malformed or multiple assertions return 409
+`session_changed`. Queue/detail use additive read policies in unreleased migration
+`0036`; `0038_workforce_leave_review_queue_index` builds the hospital/status/keyset
+index concurrently. Production migration and release are not established here.
+
+The development UI is `/workforce/leave-review`, linked as **Review leave** in
+Staff navigation. It discovers usable scopes, loads the pending queue and protected
+detail, and posts decisions to the existing decision endpoint. It needs no Staff
+directory lookup or tenant-wide business grant. Query keys bind tenant/subject and
+requests carry the expected tenant. The page clears during workspace transition;
+a known access/version refusal hides private detail and requires refresh. After
+an uncertain response, it preserves the exact decision/version/note, freezes edits
+and offers an identical retry. A 200 result refreshes the queue; errors never
+present success. Browser and live two-person acceptance remain required.
+
+### Request and decision contract
+
+The scoped decision consumer is implemented in the current development slice;
+reviewer discovery/queue UI and production acceptance remain outstanding. A scoped
+reviewer receives no hospital-manager grant or general directory, enrollment,
+payroll, cancellation or revocation authority. General request-list/detail/history
+routes retain their existing authorization until separately implemented.
+
+Before a scoped decision, IAM verifies the graph outside database locks, then
+checks current assignment, membership generation, acknowledged epoch, credential
+watermark and validity under owner locks. Workforce joins the same transaction,
+checks and locks the actor's active employment and reviewed account link, and
+restricts RLS to the exact target request and necessary leave rules. Own-filer and
+linked-self exclusions apply before decisions and retries. Decision, event, audit,
+outbox and any balance consumption commit together. Audit records the assignment
+revision/epochs and actor link revision without copying private leave reasons.
+
+Withdrawal that commits before a waiting guard prevents product work. Expiry
+while waiting for the leave-ledger lock cancels the transaction and returns 403;
+the request stays pending with no consumption or success audit. An obsolete link
+returns 404, revoked credentials return 401, stale versions return 409 and
+unavailable scoped authority returns 503. A credential denial cannot fall back to
+a legacy grant within the request. These guarantees apply to this guarded
+consumer, not all employment or session-disablement workflows.
+
 Design: [spec](../superpowers/specs/2026-10-15-leave-requests-design.md), [ADR 0021](../adr/0021-leave-management.md). UI: `/workforce/leave-requests`. Contract: `contracts/workforce-leave.json`.
 
-| Route                                                                                   | Access                                                | Behaviour                                                                                |
-| --------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET /workforce/hospitals/{hospital}/hr/leave-requests`                                 | Reader/manager grant                                  | Optional `status`, `staff_id`, `leave_year`; newest filing first, keyset pages up to 100 |
-| `PUT /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | `workforce.leave.request` and locked hospital manager | Client-chosen id; replay returns the request, reuse with other values returns 409        |
-| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | Reader/manager grant                                  | Request, counted days and roster allocations it clashes with                             |
-| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/history`       | Reader/manager grant                                  | Append-only transitions                                                                  |
-| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/decision`     | `workforce.leave.approve` and locked hospital manager | `expected_version`, `decision` (`approve`, `reject`), `note` (required to reject)        |
-| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/cancellation` | `workforce.leave.request` and locked hospital manager | Withdraws a pending request; `expected_version`, optional `note`                         |
-| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/revocation`   | `workforce.leave.approve` and locked hospital manager | Cancels approved leave and writes its reversal; `expected_version`, `note` required      |
+| Route                                                                                   | Access                                                                                                                                           | Behaviour                                                                                |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `GET /workforce/hospitals/{hospital}/hr/leave-requests`                                 | Reader/manager grant                                                                                                                             | Optional `status`, `staff_id`, `leave_year`; newest filing first, keyset pages up to 100 |
+| `PUT /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | `workforce.leave.request` and locked hospital manager                                                                                            | Client-chosen id; replay returns the request, reuse with other values returns 409        |
+| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}`               | Reader/manager grant                                                                                                                             | Request, counted days and roster allocations it clashes with                             |
+| `GET /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/history`       | Reader/manager grant                                                                                                                             | Append-only transitions                                                                  |
+| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/decision`     | `workforce.leave.approve` and locked hospital manager, or current reviewed hospital-scoped leave authority plus active reviewed staff-login link | `expected_version`, `decision` (`approve`, `reject`), `note` (required to reject)        |
+| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/cancellation` | `workforce.leave.request` and locked hospital manager                                                                                            | Withdraws a pending request; `expected_version`, optional `note`                         |
+| `POST /workforce/hospitals/{hospital}/staff/{id}/leave-requests/{request}/revocation`   | `workforce.leave.approve` and locked hospital manager                                                                                            | Cancels approved leave and writes its reversal; `expected_version`, `note` required      |
 
 Filing takes `leave_type_id`, `unit` (`full_day` over `start_on`–`end_on`; `half_day` on one date with `session` `first_half`/`second_half`; `short_leave` on one date with `minutes` in 15-minute steps) and an optional `reason` of up to 500 characters. A request lies inside one open leave year and pins the leave-type, assignment and holiday-calendar revisions in force; regular and government holidays count zero, a request of only holidays is 400 and a year without an active calendar is 409. The type must be active, in the staff member's structure and allow the unit (400). Overlapping pending or approved leave (a PostgreSQL exclusion over half-day slots), non-clubbable neighbours, an insufficient balance after pending holds, a closed year and a stale version return 409. Types closed during probation need `workforce.enrollment.manage` to read the probation end (403 without it, 409 when missing or not before the start).
 
-Approval re-checks every rule, requires a ledger balance covering the request and posts one `consumption` entry; revocation posts one `reversal`. Both replay safely. The decider must differ from the filer (403, also a table check). A leave year cannot close while requests are pending (409). Roster population skips staff-days covered by approved full-day leave and reports them as `skipped_leave`.
+Approval re-checks every rule, requires a ledger balance covering the request and posts one `consumption` entry; revocation posts one `reversal`. Both replay safely. The decider must differ from the filer (403, also a table check) and from the staff member currently bound by an active reviewed login link. Approval, rejection, revocation and decision retries lock the target staff row and recheck that binding inside the owner transaction; no account-link or HR details are disclosed by this check. A leave year cannot close while requests are pending (409). Roster population skips staff-days covered by approved full-day leave and reports them as `skipped_leave`.
 
 Reasons and notes may hold health information: they are returned only to holders of `workforce.leave.request` or `workforce.leave.approve` and never enter events, logs or audit payloads. Every write takes the hospital leave-ledger lock and commits the request, an event row, any ledger entry, a `workforce_audit` row and an identifier-only `helivanta.in.workforce.leave_request_changed.v1` outbox event together. Valkey and Temporal are not involved. Synthetic acceptance: `scripts/verify-leave-requests.mjs` after `scripts/verify-leave-ledger.mjs`; set `HELIVANTA_VERIFY_APPROVER_COOKIE` to a second synthetic session to cover approval and reversal.
 
@@ -478,7 +843,44 @@ Design: [tax declaration evidence spec](../superpowers/specs/2026-10-19-tax-decl
 | `GET …/tax-declarations/{tax_year}/evidence?revision_id=`             | `workforce.payroll.view` and reader/manager grant         | `{evidence, uploads_available}`: at most 10 files of that revision, newest first. Expired intents are left out. 404 unless the revision belongs to this staff member and year                                                       |
 | `PUT …/tax-declarations/{tax_year}/evidence/{file}`                   | `workforce.payroll.configure` and locked hospital manager | `revision_id`, `filename`, `content_type` (`image/png`/`image/jpeg`), `size` (≤ 10 MiB), `sha256`. 201 when created, 200 for an identical replay. 409 `not_pending` once the proposal is decided, `evidence_limit` for an 11th file |
 | `PUT …/tax-declarations/{tax_year}/evidence/{file}/content`           | `workforce.payroll.configure` and locked hospital manager | Streams the bytes, verifies them against size and digest, and queues the scan (202). 409 `not_pending` once decided                                                                                                                 |
-| `PUT …/tax-declarations/{tax_year}/evidence/{file}/retries/{attempt}` | `workforce.payroll.configure` and locked hospital manager | Re-queues a `scan_error` file. 409 `not_pending` once decided                                                                                                                                                                       |
+| `PUT …/tax-declarations/{tax_year}/evidence/{file}/retries/{attempt}` | `workforce.payroll.configure` and locked hospital manager | Re-queues `scan_error` or `scan_pending` after the 45-minute server deadline. 409 `not_pending` once decided                                                                                                                        |
 | `GET …/tax-declarations/{tax_year}/evidence/{file}/content`           | `workforce.payroll.view` and reader/manager grant         | Released bytes of an `available` file. Audited as `workforce.tax_declaration.evidence_downloaded`, `Cache-Control: private, no-store`                                                                                               |
 
 A decision or withdrawal answers 409 `evidence_scanning` while any of the proposal's files is `scan_pending`. A decision freezes the proposal's evidence. Approval keeps available files readable, while rejection and withdrawal revoke them, each with a `document_changed.v1` event. The database refuses to unfreeze a file or scan it again.
+
+### Identity review source (preparation)
+
+`GET /workforce/hospitals/:hospital/identity-staff/:id` returns the canonical
+`IdentitySource` from `contracts/workforce-identity-checks.json`. Workforce owns
+this hospital-scoped Staff/profile projection. It includes recorded names, staff
+code, date of birth, employment status, current Staff version, identity fingerprint
+and employment generation; it excludes contact details and private documents.
+The fingerprint excludes contact changes and binds tenant/hospital/Staff IDs,
+employee code, display/given/family names and DOB. A missing profile returns empty
+profile fields, not fabricated identity evidence.
+
+Every read requires a current IAM `workforce.identity_manager.v1` or
+`workforce.identity_reviewer.v1` assignment,
+active independently reviewed Staff/login binding, live credential/membership and
+current hospital scope. A legacy hospital manager or tenant permission alone is
+insufficient. IAM's transaction guard revalidates authority and holds it through
+Workforce source locks and sensitive-read audit commit. Missing assignment is 403;
+invisible target or inactive actor is 404; unavailable authority is 503. Responses
+use `Cache-Control: no-store` and contain no source data before successful commit.
+
+Migration `0048_workforce_identity_source` initializes the internal employment
+generation to 1 and increments it on every employment-status transition. Clients
+cannot set the counter. This is an observed-state generation, not a hire date or
+employment-period history. It does not implement exit/offboarding or verify an
+identity. Forward-only rollback retains the generation and audit data while
+stopping the consumer. RLS additions retain existing write/delete boundaries.
+
+IAM's canonical template catalogue now includes separate identity manager and
+reviewer templates. The existing assignment list remains leave-only; the additive
+`GET /iam/identity-assignment-proposals` lists identity templates and
+`GET /iam/staff-access-templates` exposes governance metadata. Existing assignment
+proposal/decision/history/activation commands retain independent review, current
+membership, scope epochs and immutable permission snapshots. The Staff access UI
+selects the appropriate assignment family. Both HR templates can read the current
+identity source; neither read performs a review decision. Identity/background/photo cases,
+evidence review and card issue remain separate unfinished workflows (#1399).

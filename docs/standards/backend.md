@@ -153,7 +153,7 @@ transaction:
   RLS-protected tenant table reads as empty inside it — `WithSystem` is
   not an escape hatch for tenant data, it is the mechanism used to touch
   the platform tables that predate tenancy.
-- **`WithAdmin(ctx, fn)`** — opens a transaction on the *admin* pool (the
+- **`WithAdmin(ctx, fn)`** — opens a transaction on the _admin_ pool (the
   migration role), which bypasses RLS completely and sees every tenant's
   rows in every table. This is for boot-time/ops code only, never a
   request path — the permission reconciler
@@ -445,7 +445,7 @@ already past its idle deadline.
 
 ### Rate limiting
 
-**Every `/v1` route is rate limited**, per tenant *and* per principal —
+**Every `/v1` route is rate limited**, per tenant _and_ per principal —
 both buckets must allow. The tenant bucket protects other hospitals from
 a noisy one; the principal bucket protects a hospital from one of its own
 users, or from a compromised credential looping.
@@ -477,7 +477,7 @@ pinned by `TestRateLimitExemptionsAreAllowlisted`. The bar is high: an
 exempt route is one an attacker may hammer without being refused. The two
 entries today are sign-out and admin revoke — security controls whose
 whole purpose is to work during the incident that would trip a limiter.
-Exempt means exempt from the *limit*, not from the *record*: exempt
+Exempt means exempt from the _limit_, not from the _record_: exempt
 requests are still logged, or the exemption becomes a blind spot.
 
 `TestRateLimitPolicyRoutesAreRegistered` additionally requires every
@@ -503,7 +503,7 @@ count.
 ### The login-client credential
 
 `ZITADEL_LOGIN_CLIENT_TOKEN` is an **instance-level** Zitadel PAT: its
-holder can finalise an OIDC auth request for *any* app on the shared
+holder can finalise an OIDC auth request for _any_ app on the shared
 Zitadel instance, not just Helivanta's own (`docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
 D2). It is the most privileged secret Helivanta holds. It **must never appear
 in a frontend service or in a log** — it lives only in the Go API
@@ -711,7 +711,7 @@ forever, with no policy in the way.
 
 `tenant_id` is **nullable**, and that is deliberate. `SubjectCredentialRevoked`
 publishes with no tenant at all — revocation is subject-scoped and ends every
-session for a subject *in every tenant* — and broadcasts travel the same
+session for a subject _in every tenant_ — and broadcasts travel the same
 `Publish` → outbox → dispatcher path as module events. So the policy is
 asymmetric:
 
@@ -728,7 +728,7 @@ WITH CHECK (tenant_id IS NULL
   sign-out 500s.
 
 **Every `WITH CHECK` needs its own `NULLIF`.** `USING` clauses are safe because
-they call `hms_tenant_visible`, which carries it; `WITH CHECK` clauses *cannot*
+they call `hms_tenant_visible`, which carries it; `WITH CHECK` clauses _cannot_
 call that function (the lint requires writes to stay pinned to one tenant), so
 they must wrap `current_setting` themselves. Without it, an unset GUC on a
 **reused pooled connection** is `''` rather than NULL — `current_setting`
@@ -751,7 +751,7 @@ count drops rather than that the call returned nil.
 ### Retention
 
 `streamMaxAge` (24h) bounds how long a payload lives on the stream and how long
-a *published* outbox row is kept. **Unpublished outbox rows are never pruned at
+a _published_ outbox row is kept. **Unpublished outbox rows are never pruned at
 any age** — an old unpublished row is a dispatcher failure to investigate, not
 garbage.
 
@@ -810,6 +810,23 @@ reusing the exact same ID string is not.
 `backend/internal/archtest/arch_test.go` collects every module's and
 `events.Migrations()`'s IDs into one map and fails on the first
 collision.
+
+### Concurrent indexes on populated tables
+
+Use a separate `tenantdb.Migration.ConcurrentIndexes` entry after the additive
+column/constraint migration. A migration must contain either SQL or typed indexes,
+never both. The index runner only supports ordinary non-unique public-schema
+B-tree keys and optional descending order; extend it with tests when a real caller
+needs more semantics. Do not put `CREATE INDEX CONCURRENTLY` in transactional SQL
+or substitute a blocking build on serving tables.
+
+The schema-owner URL must be session-affine (direct PostgreSQL or session pooling),
+not transaction-pooled PgBouncer. The runner serializes migrators using nonblocking
+advisory-lock attempts, bounds waits/statements, restores settings and discards a
+connection whose cleanup fails. Concurrent markers mean all specified indexes are
+valid/ready. Equivalent interrupted artifacts are reusable/rebuildable; conflicting
+objects fail without being dropped. Keep applied migrations immutable and retain
+index/history state on rollback. See [ADR-0042](../adr/0042-concurrent-index-migrations.md).
 
 ## 8. Logging
 
@@ -920,7 +937,7 @@ a `json:"-"` field cannot be published because it is never rendered.
 What this layer computes independently is which emitted **key** each tagged
 field corresponds to. Two things decide that, and both are handled without
 guessing: **which tag names `encoding/json` honours** is answered by asking
-`encoding/json` itself, including normalized names. Go 1.27.2 accepts
+`encoding/json` itself, including normalized names. Go 1.27.3 accepts
 international names that older releases rejected and can normalize unusual
 tag syntax; the mask must follow the actual emitted key. A rejected name
 renders under the Go field name instead. The second decision, **which field
@@ -946,7 +963,7 @@ Three things it cannot see, by construction:
   type carries no tag. **Do not log PHI that way.**
 - PHI inside a type that marshals itself (`json.Marshaler` /
   `encoding.TextMarshaler`), including the pointer-receiver case: this is
-  about the *type*, not about how it was logged, so **any value reachable
+  about the _type_, not about how it was logged, so **any value reachable
   through such a type is affected** — `struct{ P *T }` where `*T` has its own
   `MarshalJSON` is as exposed as logging the `*T` directly. Tag the field
   that holds it instead; a tagged field of such a type is masked whole.
@@ -1250,7 +1267,7 @@ what Postgres no longer backs.** Two functions in
   as the backstop for a `member_revoked` event that was lost before
   `iam-fga-sync` applied it. As a safety floor, `Reconcile` refuses to
   write or delete anything, and returns an error instead, if the
-  `iam_members` read comes back with zero *usable* rows — rows whose
+  `iam_members` read comes back with zero _usable_ rows — rows whose
   `role_key` resolves to a known `authz.Role`, since a row with an
   unrecognized `role_key` is skipped and contributes nothing to the
   desired tuple set — across every tenant while OpenFGA still holds
@@ -1266,7 +1283,7 @@ what Postgres no longer backs.** Two functions in
   be worse than one that refuses to start.
 
   One consequence of running at boot on every replica: during a mixed-
-  version deploy or rollback, an old-version replica that boots *after*
+  version deploy or rollback, an old-version replica that boots _after_
   a deploy added or renamed a permission will run `Reconcile` against a
   registry that does not yet know about it, and will delete that
   permission's `perm:` tuples for every tenant — including tenants a
@@ -1277,6 +1294,7 @@ what Postgres no longer backs.** Two functions in
   permission is denied rather than granted. Treat that window as
   expected churn during a rollout, not a bug — it self-heals as soon as
   the old replica is gone.
+
 - **`platform.ReconcileTenant(ctx, reg, w, tenantID)`** — grant-path,
   additive only. Called inside `iam`'s own transaction on every
   membership grant (`internal/modules/iam/sync.go`), and writes only

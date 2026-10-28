@@ -1,10 +1,12 @@
 # ADR 0030: Reviewed country policy before B2B commitments
 
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
+
 Date: 2026-10-16. Status: implemented locally; production approval pending. Child #1182, parent #1134, related #1136 and epic #1133.
 
 ## Problem and decision
 
-The generated IN/PK country profiles describe currency, timezone, locale direction and identifier kinds. They deliberately say `review_required`; that metadata cannot authorise a commercial transaction. An Indian approval must never activate Pakistan, and organisation ownership or a verified licence must never stand in for country/category/operation eligibility.
+The generated India country profile describe currency, timezone, locale direction and identifier kinds. They deliberately say `review_required`; that metadata cannot authorise a commercial transaction. Organisation ownership or a verified licence must never stand in for country/category/operation eligibility.
 
 Platform owns reviewed country-policy authority alongside tenant configuration. Implement its shared authority in a platform-owned package, with configuration/review routes in the existing workspace module. The authority exposes a transaction guard for later Pharmacy and Supply integration; this change wires only workspace configuration and its authoritative preview. Product, supplier, invoice and inventory masters remain with their existing owners. No new deployed service is required.
 
@@ -37,6 +39,6 @@ Use strict forced tenant RLS on policy scopes, versions, requirements and review
 
 Synthetic sources and approvals must be labelled TEST ONLY and must not activate real regulated trading. Sources are stored citations, not server-fetched arbitrary URLs. No genuine legal/licence/provider claims are inferred. Existing catalogue drafts and quarantined receiving remain possible; actual listing/order/dispatch/dispensing commitments need all eligibility checks.
 
-Test the source model, real PostgreSQL RLS and locks, cross-tenant404, role and same-subject denial, IN/PK independence, currency precision, locale direction, effective/expiry transitions, replay/concurrency and exact audit/outbox counts. Verify the complete UI/API path and failed dependency states before claiming story completion.
+Test the source model, real PostgreSQL RLS and locks, cross-tenant404, role and same-subject denial, currency precision, locale direction, effective/expiry transitions, replay/concurrency and exact audit/outbox counts. Verify the complete UI/API path and failed dependency states before claiming story completion.
 
 The additive migration will be named and tested against a scratch database with recovery evidence before production approval. No live database migration is authorised merely by this ADR. Navigation #1178 and Go CI repair #1179/#1176 are already deployed. Child #1182 tracks the configuration/API/UI slice and its pending production acceptance. Parent #1134 remains open until restricted transition integrations and country acceptance are implemented and tested. See [local verification and release notes](../delivery/country-policy-1182.md).

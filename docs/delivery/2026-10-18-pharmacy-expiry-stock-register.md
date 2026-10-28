@@ -1,5 +1,7 @@
 # Pharmacy expiry stock register — #1226
 
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
+
 Parent #167; procurement epic #1133; exploration tracker #979.
 
 ## Scope and authority
@@ -34,7 +36,7 @@ The snapshot freezes movement quantities and the evaluation timestamp. The timez
 - `go build -o /tmp/helivanta-1226-api ./cmd/api`, `go vet ./internal/modules/pharmacy`, `golangci-lint run ./internal/modules/pharmacy/...`: pass (0 lint issues).
 - `pnpm turbo lint format:check type-check`: all 15 tasks pass, including generated-contract drift checks.
 - `node /tmp/helivanta-1217-identity/run.mjs build pnpm turbo build`: Next.js 16.4.0 production build passes using the isolated local identity configuration.
-- Genuine local API acceptance: 130 successful checks across IN/PK, 20 batches/receipts, 2 net-zero corrections, all date windows, two-row cursor pages, reader access, no-store headers, invalid/repeated filters and foreign-outlet references. API rate limiting remained enabled; the helper respects bounded Retry-After retries.
+- Genuine local API acceptance: 130 successful checks across India outlets, 20 batches/receipts, 2 net-zero corrections, all date windows, two-row cursor pages, reader access, no-store headers, invalid/repeated filters and foreign-outlet references. API rate limiting remained enabled; the helper respects bounded Retry-After retries.
 - Browser against the production build and real local OIDC session: 30-day filter returns today, day 1 and day 30 only, positive balance composes without changing snapshot, and Inspect lot scrolls/focuses reconciliation with closing stock 5.
 
 ## Final local verification
@@ -42,7 +44,7 @@ The snapshot freezes movement quantities and the evaluation timestamp. The timez
 - `go test ./...`: passes on rerun. The first concurrent run passed every application package but the unrelated Testcontainers cleanup subprocess encountered a reaper already being removed. The unchanged testinfra package passes on rerun in 7.427 seconds; no reaper, timeout or security setting was disabled.
 - `go test -race ./internal/modules/pharmacy`: passes in 51.577 seconds.
 - `pnpm test`: API 280/280 and shared UI 93/93 passed. The initial shell run hit three 15-second timeouts in unchanged payroll/country-policy tests while Go/build jobs were running. `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=1` passes all 494 tests across 68 files. No assertion, test timeout or application code was changed to get this result.
-- Genuine local API acceptance rerun: another 130 checks pass with the same fixture identities. Read-only SQL verifies each IN/PK outlet has exactly 10 batches, 11 movements, 45 units on hand and product version 1. All three pharmacy stock/catalogue tables retain forced RLS.
-- Final browser checks: All balances shows 10 IN rows including the zero position; Positive stock shows 9. Reload loads the completed PK outlet with Asia/Karachi, clears the IN rows and filters, and Expires today shows only the PK today lot. No customer timezone override or browser-clock calculation is used for expiry.
+- Genuine local API acceptance rerun: another 130 checks pass with the same fixture identities. Read-only SQL verifies each outlet has exactly 10 batches, 11 movements, 45 units on hand and product version 1. All three pharmacy stock/catalogue tables retain forced RLS.
+- Final browser checks: All balances shows 10 IN rows including the zero position; Positive stock shows 9. Reload clears the rows and filters, and Expires today shows only today's lot. No customer timezone override or browser-clock calculation is used for expiry.
 
 PR #1228 contains the implementation. The initial hosted web, scripts, secret scanning and image build/scan/sign checks passed; the required final checks remain authoritative on the PR head. Production remains at the previous c400b00 release with all four application workloads at 2 ready replicas and CNPG 2/2. No production rollout, schema migration or live stock operation was performed by this increment. Approval is required for the concrete PR merge/production rollout under the supplied AGENTS.md rules. Keep #1226 open until deployed verification and #167 open for its wider acceptance.

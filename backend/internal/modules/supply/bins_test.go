@@ -107,25 +107,24 @@ func TestBinsRequireOwnedStoragePremisesAndCurrentExplicitRoles(t *testing.T) {
 func TestBinInputCountryAndPremiseBoundaries(t *testing.T) {
 	r, _ := partyHarness(t)
 	root := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
-	owned := strings.Replace(partyBody(0, "TEST Owned Pakistan"), "counterparty", "owned_organisation", 1)
-	owned = strings.Replace(owned, `"country_code":"IN"`, `"country_code":"PK"`, 1)
+	owned := strings.Replace(partyBody(0, "TEST Owned Distributor"), "counterparty", "owned_organisation", 1)
 	require.Equal(t, 200, testutil.Do(r, "PUT", root, "owner", owned).Code)
 	first := root + "/premises/" + uuid.Must(uuid.NewV7()).String()
 	second := root + "/premises/" + uuid.Must(uuid.NewV7()).String()
-	require.Equal(t, 200, testutil.Do(r, "PUT", first, "owner", premiseBody(0, "PK")).Code)
-	require.Equal(t, 200, testutil.Do(r, "PUT", second, "owner", strings.Replace(strings.Replace(premiseBody(0, "PK"), "test-warehouse", "TEST-DEPOT", 1), `"kind":"warehouse"`, `"kind":"depot"`, 1)).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", first, "owner", premiseBody(0, "IN")).Code)
+	require.Equal(t, 200, testutil.Do(r, "PUT", second, "owner", strings.Replace(strings.Replace(premiseBody(0, "IN"), "test-warehouse", "TEST-DEPOT", 1), `"kind":"warehouse"`, `"kind":"depot"`, 1)).Code)
 	branch := root + "/premises/" + uuid.Must(uuid.NewV7()).String()
-	branchBody := strings.Replace(strings.Replace(premiseBody(0, "PK"), "test-warehouse", "TEST-BRANCH", 1), `"kind":"warehouse"`, `"kind":"branch"`, 1)
+	branchBody := strings.Replace(strings.Replace(premiseBody(0, "IN"), "test-warehouse", "TEST-BRANCH", 1), `"kind":"warehouse"`, `"kind":"branch"`, 1)
 	require.Equal(t, 200, testutil.Do(r, "PUT", branch, "owner", branchBody).Code)
 	require.Equal(t, 404, testutil.Do(r, "GET", branch+"/bins", "owner", "").Code)
 	require.Equal(t, 404, testutil.Do(r, "PUT", branch+"/bins/"+uuid.Must(uuid.NewV7()).String(), "owner", binBody(0, "TEST-BIN")).Code)
 	path := first + "/bins/" + uuid.Must(uuid.NewV7()).String()
 	w := testutil.Do(r, "PUT", path, "owner", binBody(0, "TEST-BIN"))
 	require.Equal(t, 200, w.Code, w.Body.String())
-	require.Contains(t, w.Body.String(), `"country_code":"PK"`)
+	require.Contains(t, w.Body.String(), `"country_code":"IN"`)
 	for name, change := range map[string]func(map[string]any){
 		"tenant spoof":     func(v map[string]any) { v["tenant_id"] = testutil.TenantB },
-		"country spoof":    func(v map[string]any) { v["country_code"] = "IN" },
+		"country spoof":    func(v map[string]any) { v["country_code"] = "US" },
 		"premise spoof":    func(v map[string]any) { v["premise_id"] = strings.TrimPrefix(second, root+"/premises/") },
 		"role spoof":       func(v map[string]any) { v["role"] = "administrator" },
 		"missing version":  func(v map[string]any) { delete(v, "expected_version") },

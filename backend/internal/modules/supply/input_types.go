@@ -28,7 +28,7 @@ type PostalAddressFields struct {
 	City        string `json:"city" binding:"required,min=1,max=100"`
 	Region      string `json:"region" binding:"required,min=1,max=100"`
 	PostalCode  string `json:"postal_code" binding:"required,min=1,max=20"`
-	CountryCode string `json:"country_code" binding:"required,oneof=IN PK"`
+	CountryCode string `json:"country_code" binding:"required,oneof=IN"`
 }
 
 type AddressFields struct {
@@ -39,7 +39,7 @@ type AddressFields struct {
 
 type TaxRegistrationFields struct {
 	ID           uuid.UUID `json:"id" binding:"required"`
-	Kind         string    `json:"kind" binding:"required,oneof=gstin pan other ntn stn"`
+	Kind         string    `json:"kind" binding:"required,oneof=gstin pan other"`
 	Number       string    `json:"number" binding:"required,min=1,max=100"`
 	Jurisdiction string    `json:"jurisdiction" binding:"required,min=1,max=100"`
 }
@@ -50,7 +50,7 @@ type PartyFields struct {
 	LegalName          string                  `json:"legal_name" binding:"required,min=1,max=200"`
 	TradingName        string                  `json:"trading_name" binding:"max=200"`
 	BusinessKind       string                  `json:"business_kind" binding:"required,oneof=pharmacy distributor wholesaler manufacturer importer other"`
-	CountryCode        string                  `json:"country_code" binding:"required,oneof=IN PK"`
+	CountryCode        string                  `json:"country_code" binding:"required,oneof=IN"`
 	Jurisdiction       string                  `json:"jurisdiction" binding:"required,min=1,max=100"`
 	RegistrationNumber string                  `json:"registration_number" binding:"required,min=1,max=100"`
 	CorporateGroup     string                  `json:"corporate_group" binding:"max=200"`
@@ -174,7 +174,7 @@ type corporateInput struct {
 type TerritoryFields struct {
 	Code                  string     `json:"code" binding:"required,min=1,max=40"`
 	Name                  string     `json:"name" binding:"required,min=1,max=200"`
-	CountryCode           string     `json:"country_code" binding:"required,oneof=IN PK"`
+	CountryCode           string     `json:"country_code" binding:"required,oneof=IN"`
 	Region                string     `json:"region" binding:"required,min=1,max=100"`
 	City                  string     `json:"city" binding:"max=100"`
 	Description           string     `json:"description" binding:"max=1000"`
@@ -249,7 +249,7 @@ type DeliveryTaskFields struct {
 	DestinationCity         string `json:"destination_city" binding:"required,min=1,max=100"`
 	DestinationRegion       string `json:"destination_region" binding:"required,min=1,max=100"`
 	DestinationPostalCode   string `json:"destination_postal_code" binding:"required,min=1,max=20"`
-	CountryCode             string `json:"country_code" binding:"required,oneof=IN PK"`
+	CountryCode             string `json:"country_code" binding:"required,oneof=IN"`
 	BusinessContactName     string `json:"business_contact_name" binding:"min=0,max=200"`
 	BusinessContactPhone    string `json:"business_contact_phone" binding:"min=0,max=16"`
 	WindowStart             string `json:"window_start" binding:"required,min=20,max=35"`

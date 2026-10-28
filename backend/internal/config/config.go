@@ -18,15 +18,27 @@ type Config struct {
 	// SystemDatabaseURL names the BYPASSRLS role. Only cmd/api needs it —
 	// it is the only binary that reconciles, drains the outbox or prunes
 	// retention, which are the three operations that cross tenants (#894).
-	SystemDatabaseURL                  string
-	NATSURL                            string
-	ValkeyURL                          string
-	ValkeyTimeout                      time.Duration
-	DocumentQuarantineBucket           string
-	DocumentReleasedBucket             string
-	TemporalAddress                    string
-	TemporalNamespace                  string
-	DocumentWorkerDatabaseURL          string
+	SystemDatabaseURL           string
+	NATSURL                     string
+	ValkeyURL                   string
+	ValkeyTimeout               time.Duration
+	DocumentQuarantineBucket    string
+	DocumentReleasedBucket      string
+	TemporalAddress             string
+	TemporalNamespace           string
+	DocumentWorkerDatabaseURL   string
+	EmergencyWorkerDatabaseURL  string
+	PrivacyWorkerDatabaseURL    string
+	ProxyClinicalCaptureEnabled bool
+	PrivacyDeadlinesEnabled     bool
+	EmergencyDispatchEnabled    bool
+	// AllergyRecordingEnabled stays off until a clinician approves the
+	// reaction and severity lists (#1373 decision 2).
+	AllergyRecordingEnabled bool
+	// PharmacyEvidenceEnabled stays off until the pharmacy evidence worker is
+	// rolled out (#1406): a page uploaded with no worker could never be scanned.
+	PharmacyEvidenceEnabled            bool
+	EmergencyWorkflowsEnabled          bool
 	ClamAVAddress                      string
 	OpenBaoAddr                        string
 	OpenBaoTransitMount                string
@@ -237,6 +249,14 @@ func Load() Config {
 		TemporalAddress:                    os.Getenv("TEMPORAL_ADDRESS"),
 		TemporalNamespace:                  os.Getenv("TEMPORAL_NAMESPACE"),
 		DocumentWorkerDatabaseURL:          os.Getenv("DOCUMENT_WORKER_DATABASE_URL"),
+		EmergencyWorkerDatabaseURL:         os.Getenv("EMERGENCY_WORKER_DATABASE_URL"),
+		PrivacyWorkerDatabaseURL:           os.Getenv("PRIVACY_WORKER_DATABASE_URL"),
+		ProxyClinicalCaptureEnabled:        os.Getenv("PATIENTMASTER_PROXY_CLINICAL_CAPTURE_ENABLED") == "true",
+		PrivacyDeadlinesEnabled:            os.Getenv("PRIVACY_DEADLINES_ENABLED") == "true",
+		EmergencyDispatchEnabled:           os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
+		AllergyRecordingEnabled:            os.Getenv("MEDICORE_ALLERGY_RECORDING_ENABLED") == "true",
+		PharmacyEvidenceEnabled:            os.Getenv("PHARMACY_EVIDENCE_ENABLED") == "true",
+		EmergencyWorkflowsEnabled:          os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),
 		OpenBaoAddr:                        os.Getenv("OPENBAO_ADDR"),
 		OpenBaoTransitMount:                os.Getenv("OPENBAO_TRANSIT_MOUNT"),

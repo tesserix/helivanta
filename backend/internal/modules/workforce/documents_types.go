@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const documentProcessingTimeoutSeconds = 2700
+
 var documentCategoryBindings = map[string][]string{"enrollment": {"employment_evidence", "identity_evidence"}, "credential": {"credential_evidence"}, "qualification": {"qualification_evidence"}}
 
 type documentInput struct {
@@ -48,4 +50,28 @@ type documentRecordChoice struct {
 	RecordID   uuid.UUID `json:"record_id"`
 	Label      string    `json:"label"`
 	Categories []string  `json:"categories"`
+}
+type documentClassificationInput struct {
+	ExpectedVersion          *int64  `json:"expected_version" binding:"required,gte=0,lte=9007199254740991"`
+	ClassificationRevisionID *string `json:"classification_revision_id" binding:"required"`
+}
+type documentClassification struct {
+	FileID                   uuid.UUID  `json:"file_id"`
+	HospitalID               uuid.UUID  `json:"hospital_id"`
+	StaffID                  uuid.UUID  `json:"staff_id"`
+	Version                  int64      `json:"version"`
+	ClassificationRevisionID string     `json:"classification_revision_id"`
+	ClassificationName       string     `json:"classification_name"`
+	UpdatedAt                *time.Time `json:"updated_at"`
+}
+type documentClassificationRevision struct {
+	ID                       uuid.UUID `json:"id"`
+	FileID                   uuid.UUID `json:"file_id"`
+	HospitalID               uuid.UUID `json:"hospital_id"`
+	StaffID                  uuid.UUID `json:"staff_id"`
+	Version                  int64     `json:"version"`
+	ClassificationRevisionID string    `json:"classification_revision_id"`
+	ClassificationName       string    `json:"classification_name"`
+	ActorSubject             string    `json:"actor_subject"`
+	CreatedAt                time.Time `json:"created_at"`
 }

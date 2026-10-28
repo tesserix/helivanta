@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { login, specAdmin, specPharmacist } from "./support/login";
+import { DISPENSED, waitingFor } from "./support/queue";
+import { signOut } from "./support/sign-out";
 
 // The cross-zone journey with authorization actually enforced: an admin
 // creates a visit that fans out to pharmacy and lab, and a
@@ -20,7 +22,7 @@ test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) 
   await expect(page.getByText(patient).first()).toBeVisible();
 
   // visit_created flows through JetStream into both consumers.
-  await page.goto("/pharmacy");
+  await page.goto(waitingFor(patient));
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
@@ -86,7 +88,7 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   // attacker's <img> tag) can navigate to directly — see
   // apps/shell/app/logout/route.ts and #781. Every zone renders the same
   // HmsShell sign-out control, including the medicore page we're on.
-  await page.getByRole("button", { name: "Sign out" }).last().click();
+  await signOut(page);
   // Sign-out (lib/sign-out.ts) is a MULTI-HOP redirect chain: Helivanta
   // dashboard -> Zitadel's end_session endpoint (which is what actually
   // clears Zitadel's own SSO cookie) -> back to Helivanta's /login -> /login's
@@ -118,10 +120,17 @@ test("pharmacist can dispense a visit created by admin", async ({ page }) => {
   });
   await login(page, specPharmacist());
 
-  await page.goto("/pharmacy");
+  await page.goto(waitingFor(patient));
   await expect(page.getByText(patient).first()).toBeVisible({
     timeout: 30_000,
   });
-  await page.locator("li", { hasText: patient }).getByRole("button", { name: "Dispense" }).click();
-  await expect(page.locator("li", { hasText: patient }).getByText(/Dispensed/)).toBeVisible();
+  const row = page.locator("li", { hasText: patient });
+  await row.getByLabel("Medication").fill("Amoxicillin 250mg");
+  await row.getByRole("button", { name: "Dispense" }).click();
+  // Dispensing moves the row from Waiting to the Dispensed tab (#1295).
+  await expect(page.locator("li", { hasText: patient })).toHaveCount(0);
+  await page.goto(DISPENSED);
+  await expect(
+    page.locator("li", { hasText: patient }).getByText("Amoxicillin 250mg"),
+  ).toBeVisible();
 });

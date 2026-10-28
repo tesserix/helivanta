@@ -7,11 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tesserix/helivanta/internal/modules/drugmaster"
+	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
@@ -152,10 +156,10 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 			// oversight (#781 — PermCredentialRevoke is declared with no
 			// system roles precisely so only tenant_admin's implicit
 			// grant reaches it).
-			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges, overtime, attendance, payroll, identifier reveal) are also admin-only;
+			// Workforce hospital setup, access and HR configuration (rosters, leave, duty exchanges, overtime, attendance, payroll, identifier reveal, benefits) are also admin-only;
 			// staff data still requires an independent hospital grant (ADR 0009).
-			// Pharmacy grant administration is likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
-			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermCredentialReview && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != patientmaster.PermPatientAccessManage && perm != pharmacy.PermAccessManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust {
+			// MediCore hospital access (#80 E3) and pharmacy grant administration are likewise admin-only; pharmacists cannot self-grant outlet or financial access. Operational finance permissions are separately admin-only (ADR 0025).
+			if n := holders[perm]; n <= 1 && perm != iam.PermMemberManage && perm != iam.PermCredentialRevoke && perm != emergency.PermReceivingManage && perm != emergency.PermClinicalManage && perm != emergency.PermBaseManage && perm != workforce.PermHospitalManage && perm != workforce.PermEnrollmentManage && perm != workforce.PermDocumentManage && perm != workforce.PermCredentialReview && perm != workforce.PermBenefitsView && perm != workforce.PermBenefitsManage && perm != workforce.PermBenefitsApprove && perm != workforce.PermBenefitsExport && perm != workforce.PermMasterManage && perm != workforce.PermRosterManage && perm != workforce.PermRosterCorrect && perm != workforce.PermLeaveConfigure && perm != workforce.PermLeaveAllocate && perm != workforce.PermLeaveCorrect && perm != workforce.PermLeaveRequest && perm != workforce.PermLeaveApprove && perm != workforce.PermDutyRequest && perm != workforce.PermDutyApprove && perm != workforce.PermOvertimeConfigure && perm != workforce.PermOvertimeRequest && perm != workforce.PermOvertimeApprove && perm != workforce.PermAttendanceConfigure && perm != workforce.PermAttendanceRecord && perm != workforce.PermAttendanceCorrect && perm != workforce.PermAttendanceApprove && perm != workforce.PermAttendanceFinalise && perm != workforce.PermPayrollConfigure && perm != workforce.PermPayrollView && perm != workforce.PermPayrollApprove && perm != workforce.PermPayrollIdentifiersReveal && perm != workspace.PermBrandingManage && perm != workspace.PermCountryPolicyManage && perm != privacy.PermOfficerManage && perm != privacy.PermDeadlineManage && perm != mediconnect.PermNoticeManage && perm != patientmaster.PermPatientAccessManage && perm != patientmaster.PermRegistrationReplay && perm != medicore.PermAccessManage && perm != patientmaster.PermConsentAuthorityReview && perm != patientmaster.PermProxyAuthorityReview && perm != patientmaster.PermSharingNoticeReview && perm != patientmaster.PermSharingRecipientReview && perm != pharmacy.PermAccessManage && perm != pharmacy.PermTaxManage && perm != pharmacy.PermStockCorrect && perm != pharmacy.PermAccountsRead && perm != pharmacy.PermAccountsWrite && perm != pharmacy.PermAccountsPayment && perm != pharmacy.PermAccountsAdjust && perm != iam.PermAssignmentManage && perm != workforce.PermLoginLinkManage && perm != workforce.PermLoginLinkReview && perm != workforce.PermIdentityChecksManage && perm != workforce.PermIdentityChecksReview {
 
 				t.Errorf("module %q guards a route with %q, held by tenant_admin only; declare the role that needs it", m.Name(), perm)
 			}
@@ -180,17 +184,38 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
-	supply.PermTerritoryRead:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales},
-	supply.PermTerritoryWrite: {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
-	supply.PermOperatingRead:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
-	supply.PermOperatingWrite: {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyInventory},
-	supply.PermDeliveryRead:   {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
-	supply.PermDeliveryWrite:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher},
-	supply.PermDriverRead:     {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
-	supply.PermDriverAction:   {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
-	supply.PermSupportRead:    {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
-	supply.PermSupportManage:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
-	supply.PermSupportRevoke:  {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
+	privacy.PermOfficerManage:    {authz.RoleTenantAdmin},
+	privacy.PermDeadlineManage:   {authz.RoleTenantAdmin},
+	mediconnect.PermNoticeManage: {authz.RoleTenantAdmin},
+	emergency.PermBaseRead:       {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor},
+	// Receiving configuration/delegation is admin-only; operational authority
+	// additionally requires independently verified campus grants (receiving ADR).
+	emergency.PermReceivingManage: {authz.RoleTenantAdmin},
+	emergency.PermReceivingRead:   {authz.RoleTenantAdmin, authz.RoleEmergencyReceiver},
+	emergency.PermReceivingAct:    {authz.RoleTenantAdmin, authz.RoleEmergencyReceiver},
+	emergency.PermCrewRead:        {authz.RoleTenantAdmin, authz.RoleEmergencyCrew},
+	emergency.PermCrewAct:         {authz.RoleTenantAdmin, authz.RoleEmergencyCrew},
+	emergency.PermDispatchManage:  {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermBaseManage:      {authz.RoleTenantAdmin},
+	emergency.PermClinicalManage:  {authz.RoleTenantAdmin},
+	emergency.PermCaseAssess:      {authz.RoleTenantAdmin, authz.RoleDoctor},
+	emergency.PermCaseRead:        {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor, authz.RoleDoctor},
+	emergency.PermCaseIntake:      {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermCaseClose:       {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
+	emergency.PermFleetRead:       {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	emergency.PermFleetManage:     {authz.RoleTenantAdmin, authz.RoleEmergencySupervisor},
+	emergency.PermFleetCheck:      {authz.RoleTenantAdmin, authz.RoleEmergencyDispatcher, authz.RoleEmergencySupervisor},
+	supply.PermTerritoryRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleSupplySales},
+	supply.PermTerritoryWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
+	supply.PermOperatingRead:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyWarehouse, authz.RoleSupplyInventory, authz.RoleSupplyPicker, authz.RoleSupplyPacker, authz.RoleSupplyDispatcher, authz.RoleSupplyDriver, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
+	supply.PermOperatingWrite:     {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyInventory},
+	supply.PermDeliveryRead:       {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher, authz.RoleSupplyAuditor, authz.RoleSupplyRegulator},
+	supply.PermDeliveryWrite:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplyDispatcher},
+	supply.PermDriverRead:         {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
+	supply.PermDriverAction:       {authz.RoleTenantAdmin, authz.RoleSupplyDriver},
+	supply.PermSupportRead:        {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
+	supply.PermSupportManage:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin},
+	supply.PermSupportRevoke:      {authz.RoleTenantAdmin, authz.RoleSupplyOwner, authz.RoleSupplyAdmin, authz.RoleSupplySupport},
 
 	supply.PermBinRead:            {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyOwner, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
 	supply.PermBinWrite:           {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyOwner, authz.RoleSupplyPurchasing},
@@ -208,9 +233,16 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	supply.PermLicenseRead:        {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyOwner, authz.RoleSupplyPurchasing, authz.RoleSupplyFinance, authz.RoleSupplyCompliance, authz.RoleSupplyAuditor},
 	supply.PermLicenseWrite:       {authz.RoleTenantAdmin, authz.RoleSupplyAdmin, authz.RoleSupplyOwner, authz.RoleSupplyPurchasing, authz.RoleSupplyCompliance},
 
-	workforce.PermHospitalManage:           {authz.RoleTenantAdmin},
-	workforce.PermEnrollmentManage:         {authz.RoleTenantAdmin},
+	workforce.PermHospitalManage:   {authz.RoleTenantAdmin},
+	workforce.PermEnrollmentManage: {authz.RoleTenantAdmin},
+	// Reviewed account binding is administrative and grants no application access.
+	workforce.PermLoginLinkManage:          {authz.RoleTenantAdmin},
+	workforce.PermLoginLinkReview:          {authz.RoleTenantAdmin},
 	workforce.PermCredentialReview:         {authz.RoleTenantAdmin},
+	workforce.PermBenefitsView:             {authz.RoleTenantAdmin},
+	workforce.PermBenefitsManage:           {authz.RoleTenantAdmin},
+	workforce.PermBenefitsApprove:          {authz.RoleTenantAdmin},
+	workforce.PermBenefitsExport:           {authz.RoleTenantAdmin},
 	workforce.PermDocumentManage:           {authz.RoleTenantAdmin},
 	workforce.PermMasterManage:             {authz.RoleTenantAdmin},
 	workforce.PermRosterManage:             {authz.RoleTenantAdmin},
@@ -219,6 +251,8 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermLeaveAllocate:            {authz.RoleTenantAdmin},
 	workforce.PermLeaveCorrect:             {authz.RoleTenantAdmin},
 	workforce.PermLeaveRequest:             {authz.RoleTenantAdmin},
+	workforce.PermIdentityChecksManage:     {authz.RoleTenantAdmin},
+	workforce.PermIdentityChecksReview:     {authz.RoleTenantAdmin},
 	workforce.PermLeaveApprove:             {authz.RoleTenantAdmin},
 	workforce.PermDutyRequest:              {authz.RoleTenantAdmin},
 	workforce.PermDutyApprove:              {authz.RoleTenantAdmin},
@@ -238,27 +272,48 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workspace.PermCountryPolicyManage:      {authz.RoleTenantAdmin},
 	workspace.PermCountryPolicyReview:      {authz.RoleSupplyCompliance, authz.RoleTenantAdmin},
 	workspace.PermCountryPolicyRead:        {authz.RoleSupplyCompliance, authz.RoleSupplyAuditor, authz.RoleTenantAdmin},
+	iam.PermAssignmentReview:               {authz.RoleTenantAdmin},
+	iam.PermAssignmentManage:               {authz.RoleTenantAdmin},
 	iam.PermMemberManage:                   {authz.RoleTenantAdmin},
 	iam.PermCredentialRevoke:               {authz.RoleTenantAdmin},
 
-	medicore.PermVisitCreate:     {authz.RoleDoctor, authz.RoleTenantAdmin},
-	medicore.PermVisitRead:       {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
-	medicore.PermVisitUpdate:     {authz.RoleNurse, authz.RoleTenantAdmin},
-	pharmacy.PermAccountsRead:    {authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
-	pharmacy.PermAccountsWrite:   {authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
-	pharmacy.PermAccountsPayment: {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
-	pharmacy.PermAccountsAdjust:  {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
-	pharmacy.PermStockRead:       {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory},
-	pharmacy.PermStockReceive:    {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyInventory},
-	pharmacy.PermStockQuarantine: {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyInventory},
-	pharmacy.PermStockCorrect:    {authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyInventory},
-	pharmacy.PermAccessManage:    {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
-	pharmacy.PermCatalogueRead:   {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory},
-	pharmacy.PermCatalogueWrite:  {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
-	pharmacy.PermMedicationWrite: {authz.RolePharmacist, authz.RoleTenantAdmin},
-	pharmacy.PermMedicationRead:  {authz.RolePharmacist, authz.RoleTenantAdmin},
-	pharmacy.PermDispenseRead:    {authz.RolePharmacist, authz.RoleDoctor, authz.RoleTenantAdmin},
-	pharmacy.PermDispenseFulfil:  {authz.RolePharmacist, authz.RoleTenantAdmin},
+	drugmaster.PermCatalogueRead:    {authz.RoleDoctor, authz.RoleNurse, authz.RolePharmacist, authz.RoleTenantAdmin},
+	medicore.PermVisitCreate:        {authz.RoleDoctor, authz.RoleTenantAdmin},
+	medicore.PermVisitRead:          {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	medicore.PermVisitUpdate:        {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	medicore.PermAccessManage:       {authz.RoleTenantAdmin},
+	medicore.PermAllergyRead:        {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	medicore.PermAllergyRecord:      {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	medicore.PermObservationRead:    {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	medicore.PermObservationRecord:  {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
+	pharmacy.PermAccountsRead:       {authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
+	pharmacy.PermAccountsWrite:      {authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
+	pharmacy.PermAccountsPayment:    {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermAccountsAdjust:     {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermStockRead:          {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory},
+	pharmacy.PermStockReceive:       {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyInventory},
+	pharmacy.PermStockQuarantine:    {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyInventory},
+	pharmacy.PermStockCorrect:       {authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyInventory},
+	pharmacy.PermAccessManage:       {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermTaxManage:          {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermLicenceManage:      {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermLicenceReview:      {authz.RoleTenantAdmin, authz.RolePharmacyOwner},
+	pharmacy.PermScheduleDeclare:    {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
+	pharmacy.PermScheduleReview:     {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
+	pharmacy.PermStockRelease:       {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermSaleCreate:         {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermSaleRead:           {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
+	pharmacy.PermPrescriptionRecord: {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermPrescriptionRead:   {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermSaleDiscount:       {authz.RoleTenantAdmin},
+	pharmacy.PermDiscountManage:     {authz.RolePharmacyOwner, authz.RoleTenantAdmin},
+	pharmacy.PermSaleReturn:         {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermCatalogueRead:      {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory},
+	pharmacy.PermCatalogueWrite:     {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
+	pharmacy.PermMedicationWrite:    {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermMedicationRead:     {authz.RolePharmacist, authz.RoleTenantAdmin},
+	pharmacy.PermDispenseRead:       {authz.RolePharmacist, authz.RoleDoctor, authz.RoleTenantAdmin},
+	pharmacy.PermDispenseFulfil:     {authz.RolePharmacist, authz.RoleTenantAdmin},
 
 	lab.PermOrderRead:   {authz.RoleLabTech, authz.RoleDoctor, authz.RoleTenantAdmin},
 	lab.PermOrderFulfil: {authz.RoleLabTech, authz.RoleTenantAdmin},
@@ -267,8 +322,13 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 		authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 		authz.RolePharmacist, authz.RoleLabTech, authz.RoleTenantAdmin,
 	},
-	patientmaster.PermPatientRegister:     {authz.RoleReceptionist, authz.RoleTenantAdmin},
-	patientmaster.PermPatientAccessManage: {authz.RoleTenantAdmin},
+	patientmaster.PermPatientRegister:        {authz.RoleReceptionist, authz.RoleTenantAdmin},
+	patientmaster.PermPatientAccessManage:    {authz.RoleTenantAdmin},
+	patientmaster.PermRegistrationReplay:     {authz.RoleTenantAdmin},
+	patientmaster.PermConsentAuthorityReview: {authz.RoleTenantAdmin},
+	patientmaster.PermProxyAuthorityReview:   {authz.RoleTenantAdmin},
+	patientmaster.PermSharingNoticeReview:    {authz.RoleTenantAdmin},
+	patientmaster.PermSharingRecipientReview: {authz.RoleTenantAdmin},
 }
 
 // TestDeclaredPermissionsMatchTheApprovedMatrix is the independent-oracle

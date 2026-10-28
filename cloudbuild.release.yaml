@@ -1,0 +1,55 @@
+# Submit only a git archive of the reviewed commit. This does not promote it.
+steps:
+  - id: api
+    name: gcr.io/cloud-builders/docker@sha256:bbb3d633c5c2813b2ce5245852979e1d637768f4acfc504d8ece288f91e9b60f
+    waitFor: ["-"]
+    env: [DOCKER_BUILDKIT=1]
+    args:
+      - build
+      - -f
+      - Dockerfile.api
+      - --build-arg
+      - GO_BUILDER_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-go-builder@sha256:3e00161f419a8fd7abe3144ad46d08ef809126294d785bcdd6b4b16137070a70
+      - --build-arg
+      - GO_RUNTIME_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-distroless-static@sha256:a0ada4bf3d50447e7bbc3bf95f872ade97dd85feba81e7b4facf8e9fab665594
+      - --build-arg
+      - COMMIT=${_COMMIT}
+      - --build-arg
+      - VERSION=${_COMMIT}
+      - --label
+      - org.opencontainers.image.revision=${_COMMIT}
+      - -t
+      - asia-south1-docker.pkg.dev/tesseracthub-480811/global/helivanta-api:${_COMMIT}
+      - .
+  - id: shell
+    name: gcr.io/cloud-builders/docker@sha256:bbb3d633c5c2813b2ce5245852979e1d637768f4acfc504d8ece288f91e9b60f
+    waitFor: ["-"]
+    env: [DOCKER_BUILDKIT=1]
+    args:
+      - build
+      - -f
+      - Dockerfile.shell
+      - --build-arg
+      - NODE_BUILDER_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-node-builder-24@sha256:f210283d939b44a2404d8970865e5ec848704556542464297f71644ca28f4302
+      - --build-arg
+      - NODE_RUNTIME_IMAGE=asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/base-node-runtime-24@sha256:48607e5eef602f303299d13d70b36eeb39bd69eee62e00af64d127ba839463e3
+      - --build-arg
+      - NEXT_PUBLIC_ZITADEL_ISSUER_URL=https://auth.tesserix.app
+      - --build-arg
+      - NEXT_PUBLIC_ZITADEL_CLIENT_ID=386782591925092979
+      - --build-arg
+      - API_URL=http://helivanta-api.helivanta.svc.cluster.local:8080
+      - --label
+      - org.opencontainers.image.revision=${_COMMIT}
+      - -t
+      - asia-south1-docker.pkg.dev/tesseracthub-480811/global/helivanta-shell:${_COMMIT}
+      - .
+images:
+  - asia-south1-docker.pkg.dev/tesseracthub-480811/global/helivanta-api:${_COMMIT}
+  - asia-south1-docker.pkg.dev/tesseracthub-480811/global/helivanta-shell:${_COMMIT}
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+  requestedVerifyOption: VERIFIED
+timeout: 1800s
+serviceAccount: projects/tesseracthub-480811/serviceAccounts/849928263410-compute@developer.gserviceaccount.com

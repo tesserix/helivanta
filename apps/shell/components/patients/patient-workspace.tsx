@@ -17,10 +17,18 @@ import {
   type PatientRegistrationInput,
   type PatientRegistrationResult,
 } from "@helivanta/api";
-import { Field, LoadMore, useZodForm, SelectControl, FormSelectField } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  PageHeading,
+  Panel,
+  SelectControl,
+  useZodForm,
+} from "@helivanta/ui";
 
 const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
+  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 const searchSchema = z.object({ query: z.string().trim().max(100) });
 
 export function PatientWorkspace() {
@@ -29,32 +37,23 @@ export function PatientWorkspace() {
   const hospital = hospitals.items.find((item) => item.id === hospitalId) ?? hospitals.items[0];
   return (
     <>
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--hms-accent)">
-            Patient services
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight">
-            Every patient. A clear beginning.
-          </h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            Find a patient record or register someone new, with the right hospital context at every
-            step.
-          </p>
-        </div>
-        {hospital && (
-          <div className="w-full max-w-sm sm:w-72">
-            <Field id="patient-hospital" label="Hospital">
-              <SelectControl
-                id="patient-hospital"
-                value={hospital.id}
-                onValueChange={setHospitalId}
-                options={hospitals.items.map((item) => ({ value: item.id, label: item.name }))}
-              />
-            </Field>
-          </div>
-        )}
-      </header>
+      <PageHeading
+        description="Find a patient record or register someone new in the selected hospital."
+        actions={
+          hospital && (
+            <div className="w-full max-w-sm sm:w-72">
+              <Field id="patient-hospital" label="Hospital">
+                <SelectControl
+                  id="patient-hospital"
+                  value={hospital.id}
+                  onValueChange={setHospitalId}
+                  options={hospitals.items.map((item) => ({ value: item.id, label: item.name }))}
+                />
+              </Field>
+            </div>
+          )
+        }
+      />
       {hospitals.isError ? (
         <Failure message="Could not load your hospitals." retry={hospitals.retry} />
       ) : hospitals.isPending ? (
@@ -62,13 +61,13 @@ export function PatientWorkspace() {
       ) : hospital ? (
         <HospitalPatients key={hospital.id} hospital={hospital} />
       ) : (
-        <section className="rounded-2xl border bg-card p-10 text-center">
+        <Panel className="text-center">
           <UsersRound className="mx-auto mb-4 size-8 text-muted-foreground" />
           <h3 className="font-semibold">No hospital access yet</h3>
           <p className="mt-2 text-sm text-muted-foreground">
             Ask your administrator to configure your hospital directory and clinical access.
           </p>
-        </section>
+        </Panel>
       )}
       <LoadMore
         hasMore={hospitals.hasMore}
@@ -81,12 +80,12 @@ export function PatientWorkspace() {
 
 function Failure({ message, retry }: { message: string; retry: () => void }) {
   return (
-    <div role="alert" className="rounded-xl border bg-card p-6">
+    <Panel role="alert" as="div">
       <p className="mb-3 text-sm">{message}</p>
       <Button variant="outline" onClick={retry}>
         Try again
       </Button>
-    </div>
+    </Panel>
   );
 }
 
@@ -107,7 +106,7 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
   );
   return (
     <>
-      <div className="mb-6 flex items-center gap-3 rounded-xl border bg-card px-5 py-4 text-sm">
+      <Panel as="div" className="mb-6 flex items-center gap-3 px-5 py-4 text-sm">
         <ShieldCheck className="size-5 shrink-0 text-(--hms-accent)" />
         <p>
           <span className="font-medium">Hospital-specific records</span>
@@ -115,7 +114,7 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
             Patient information stays within {hospital.name}.
           </span>
         </p>
-      </div>
+      </Panel>
       {access.isPending ? (
         <p role="status">Checking clinical access…</p>
       ) : access.isError ? (
@@ -168,7 +167,7 @@ function Registry({
   const form = useZodForm(searchSchema, { query });
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-6">
           <div>
             <h3 className="text-lg font-semibold">Patient registry</h3>
@@ -301,7 +300,7 @@ function Registry({
             onClick={patients.loadMore}
           />
         </div>
-      </section>
+      </Panel>
       {registering && (
         <Registration
           hospital={hospital}
@@ -317,7 +316,7 @@ function Registry({
         />
       )}
       {receipt && (
-        <section role="status" className="mt-6 rounded-xl border bg-card p-6">
+        <Panel role="status" className="mt-6">
           <h3 className="font-semibold">Registration saved</h3>
           <p className="mt-2 text-sm">
             {receipt.patient.given_name} {receipt.patient.family_name} has been registered at{" "}
@@ -329,7 +328,7 @@ function Registry({
               registration for this patient.
             </p>
           )}
-        </section>
+        </Panel>
       )}
       {selected && (
         <PatientDetail
@@ -357,7 +356,7 @@ function PatientDetail({
     `/patients/${id}?hospital_id=${hospital.id}`,
   );
   return (
-    <section className="mt-6 rounded-2xl border bg-card p-6">
+    <Panel className="mt-6">
       <div className="mb-5 flex justify-between gap-4">
         <h3 className="text-lg font-semibold">Patient record</h3>
         <Button variant="ghost" onClick={onClose}>
@@ -401,7 +400,7 @@ function PatientDetail({
           </dl>
         )
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -448,11 +447,7 @@ function Registration({
     },
   );
   return (
-    <section
-      ref={sectionRef}
-      aria-labelledby="registration-heading"
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6"
-    >
+    <Panel ref={sectionRef} aria-labelledby="registration-heading" className="mt-6 scroll-mt-24">
       <div className="mb-6 flex justify-between gap-4">
         <div>
           <h3 id="registration-heading" className="text-xl font-semibold">
@@ -543,67 +538,68 @@ function Registration({
           <input type="checkbox" {...form.register("dob_estimated")} />
           Date of birth is estimated
         </label>
-        <fieldset
-          className="rounded-xl border bg-muted/20 p-5 sm:col-span-2"
-          aria-describedby="blood-group-help"
-        >
-          <legend className="px-1 text-sm font-semibold">Blood group · optional</legend>
-          <p id="blood-group-help" className="mb-4 text-sm leading-6 text-muted-foreground">
-            Record what the patient, guardian or document reports. This is not a verified laboratory
-            result and must not be used for transfusion decisions.
-          </p>
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(form.watch("reported_blood_group"))}
-              onChange={(event) => {
-                form.setValue(
-                  "reported_blood_group",
-                  event.target.checked ? { abo: "unknown", rh: "unknown", source: "" } : undefined,
-                );
-                form.clearErrors("reported_blood_group");
-              }}
-            />
-            Record a reported blood group
-          </label>
-          {form.watch("reported_blood_group") && (
-            <div className="mt-5 grid gap-5 md:grid-cols-3">
-              <FormSelectField
-                control={form.control}
-                name="reported_blood_group.abo"
-                id="registration-abo"
-                label="ABO group"
-                options={[
-                  { value: "unknown", label: "Unknown" },
-                  ...["A", "B", "AB", "O"].map((value) => ({ value, label: value })),
-                ]}
+        <Panel className="sm:col-span-2">
+          <fieldset aria-describedby="blood-group-help">
+            <legend className="px-1 text-sm font-semibold">Blood group · optional</legend>
+            <p id="blood-group-help" className="mb-4 text-sm leading-6 text-muted-foreground">
+              Record what the patient, guardian or document reports. This is not a verified
+              laboratory result and must not be used for transfusion decisions.
+            </p>
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(form.watch("reported_blood_group"))}
+                onChange={(event) => {
+                  form.setValue(
+                    "reported_blood_group",
+                    event.target.checked
+                      ? { abo: "unknown", rh: "unknown", source: "" }
+                      : undefined,
+                  );
+                  form.clearErrors("reported_blood_group");
+                }}
               />
-              <FormSelectField
-                control={form.control}
-                name="reported_blood_group.rh"
-                id="registration-rh"
-                label="Rh(D) type"
-                options={[
-                  { value: "unknown", label: "Unknown" },
-                  { value: "positive", label: "Positive" },
-                  { value: "negative", label: "Negative" },
-                ]}
-              />
-              <FormSelectField
-                control={form.control}
-                name="reported_blood_group.source"
-                id="registration-blood-source"
-                label="Blood group source"
-                options={[
-                  { value: "", label: "Select a source" },
-                  { value: "patient", label: "Patient" },
-                  { value: "guardian", label: "Guardian" },
-                  { value: "document", label: "Document (unverified)" },
-                ]}
-              />
-            </div>
-          )}
-        </fieldset>
+              Record a reported blood group
+            </label>
+            {form.watch("reported_blood_group") && (
+              <div className="mt-5 grid gap-5 md:grid-cols-3">
+                <FormSelectField
+                  control={form.control}
+                  name="reported_blood_group.abo"
+                  id="registration-abo"
+                  label="ABO group"
+                  options={[
+                    { value: "unknown", label: "Unknown" },
+                    ...["A", "B", "AB", "O"].map((value) => ({ value, label: value })),
+                  ]}
+                />
+                <FormSelectField
+                  control={form.control}
+                  name="reported_blood_group.rh"
+                  id="registration-rh"
+                  label="Rh(D) type"
+                  options={[
+                    { value: "unknown", label: "Unknown" },
+                    { value: "positive", label: "Positive" },
+                    { value: "negative", label: "Negative" },
+                  ]}
+                />
+                <FormSelectField
+                  control={form.control}
+                  name="reported_blood_group.source"
+                  id="registration-blood-source"
+                  label="Blood group source"
+                  options={[
+                    { value: "", label: "Select a source" },
+                    { value: "patient", label: "Patient" },
+                    { value: "guardian", label: "Guardian" },
+                    { value: "document", label: "Document (unverified)" },
+                  ]}
+                />
+              </div>
+            )}
+          </fieldset>
+        </Panel>
         <div className="border-t pt-5 sm:col-span-2">
           <label className="flex items-start gap-3 text-sm">
             <input type="checkbox" className="mt-1" {...form.register("consent_confirmed")} />I have
@@ -631,7 +627,7 @@ function Registration({
           </Button>
         </div>
       </form>
-    </section>
+    </Panel>
   );
 }
 
@@ -660,37 +656,39 @@ function ClinicalAccessSetup({ hospital }: { hospital: Hospital }) {
     },
   );
   return (
-    <details className="mt-6 rounded-xl border bg-card p-5">
-      <summary className="cursor-pointer text-sm font-medium">
-        Clinical access administration
-      </summary>
-      <form
-        noValidate
-        className="mt-4 space-y-4"
-        onSubmit={form.handleSubmit(() => grant.mutate())}
-      >
-        <p className="text-sm text-muted-foreground">
-          Staff-directory access does not grant patient access. This action grants your signed-in
-          account patient registration access at {hospital.name}.
-        </p>
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
-          Grant my account clinical registration access to this hospital
-        </label>
-        {form.formState.errors.confirmed && (
-          <p role="alert" className="text-sm text-destructive">
-            {form.formState.errors.confirmed.message}
+    <Panel className="mt-6">
+      <details>
+        <summary className="cursor-pointer text-sm font-medium">
+          Clinical access administration
+        </summary>
+        <form
+          noValidate
+          className="mt-4 space-y-4"
+          onSubmit={form.handleSubmit(() => grant.mutate())}
+        >
+          <p className="text-sm text-muted-foreground">
+            Staff-directory access does not grant patient access. This action grants your signed-in
+            account patient registration access at {hospital.name}.
           </p>
-        )}
-        {grant.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {grant.error.message}
-          </p>
-        )}
-        <Button type="submit" disabled={grant.isPending}>
-          Grant clinical access
-        </Button>
-      </form>
-    </details>
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
+            Grant my account clinical registration access to this hospital
+          </label>
+          {form.formState.errors.confirmed && (
+            <p role="alert" className="text-sm text-destructive">
+              {form.formState.errors.confirmed.message}
+            </p>
+          )}
+          {grant.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {grant.error.message}
+            </p>
+          )}
+          <Button type="submit" disabled={grant.isPending}>
+            Grant clinical access
+          </Button>
+        </form>
+      </details>
+    </Panel>
   );
 }

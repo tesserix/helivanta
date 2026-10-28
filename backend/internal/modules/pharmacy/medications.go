@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
-	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -37,7 +36,7 @@ type medicationHandlers struct {
 
 // create adds a medication to the tenant's formulary.
 func (h *medicationHandlers) create(c *gin.Context) {
-	p, tenantUUID, ok := authn.TenantPrincipal(c)
+	p, tenantUUID, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}
@@ -64,7 +63,7 @@ func (h *medicationHandlers) create(c *gin.Context) {
 // platform.ListRoute owns all three, so they cannot be got wrong per
 // endpoint.
 func (h *medicationHandlers) list(c *gin.Context, p pagination.Params) ([]medication, error) {
-	principal, _, ok := authn.TenantPrincipal(c)
+	principal, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

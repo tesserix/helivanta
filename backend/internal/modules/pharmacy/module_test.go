@@ -117,10 +117,34 @@ func TestDispenseFlow(t *testing.T) {
 	require.Equal(t, http.StatusNotFound,
 		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokB", `{"medication":"Paracetamol 500mg"}`).Code)
 
-	// Dispense succeeds once…
+	// A blank medication is refused and leaves the task pending (#1272 D3).
+	require.Equal(t, http.StatusBadRequest,
+		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"   "}`).Code)
+	require.NotContains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"dispensed"`)
+
+	// Dispense succeeds once, storing the trimmed medication…
 	require.Equal(t, http.StatusOK,
-		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"Paracetamol 500mg"}`).Code)
-	require.Contains(t, do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String(), `"dispensed"`)
+		do(r, "POST", "/v1/pharmacy/dispenses/"+dispenseID+"/dispense", "tokA", `{"medication":"  Paracetamol 500mg "}`).Code)
+	listed := do(r, "GET", "/v1/pharmacy/dispenses", "tokA", "").Body.String()
+	require.Contains(t, listed, `"dispensed"`)
+	require.Contains(t, listed, `"medication":"Paracetamol 500mg"`)
+
+	// The queue filters by status on the server (#1258 D4), so a pending
+	// row beyond the first page is never hidden behind dispensed ones.
+	statusIDs := func(query string) (int, string) {
+		w := do(r, "GET", "/v1/pharmacy/dispenses"+query, "tokA", "")
+		return w.Code, w.Body.String()
+	}
+	code, body := statusIDs("?status=dispensed")
+	require.Equal(t, http.StatusOK, code)
+	require.Contains(t, body, dispenseID)
+	require.NotContains(t, body, `"pending"`)
+	code, body = statusIDs("?status=pending")
+	require.Equal(t, http.StatusOK, code)
+	require.NotContains(t, body, dispenseID)
+	require.NotContains(t, body, `"dispensed"`)
+	code, _ = statusIDs("?status=cancelled")
+	require.Equal(t, http.StatusBadRequest, code)
 
 	// …and 409s on repeat.
 	require.Equal(t, http.StatusConflict,

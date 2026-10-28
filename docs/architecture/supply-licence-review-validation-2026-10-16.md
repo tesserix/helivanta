@@ -1,5 +1,7 @@
 # Supplier licence review — local acceptance
 
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
+
 Issue #1135; epic #1133; parent #979. This is the independent licence-review
 slice. Organisation lifecycle, reviewed country/category policy and bilateral
 trading remain distinct acceptance. No production migration has been applied.
@@ -17,8 +19,8 @@ immutable. The SQL guard independently rejects self-review and forged transition
 
 API tests use real disposable PostgreSQL and NATS/JetStream with isolated test
 identities and third-party GCS/ClamAV protocol fixtures. No real licence, bank,
-patient, employee or customer data is copied from legacy. India and Pakistan
-fixtures use separate private country/premises/licence sources. Actual government
+patient, employee or customer data is copied from legacy. India
+fixtures use private country/premises/licence sources. Actual government
 verification, production OIDC and country transaction activation are not inferred
 from the fixtures.
 

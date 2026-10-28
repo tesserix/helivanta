@@ -16,7 +16,7 @@ export function emitModels(models, kindSchema) {
   let ts = Object.values(models).some((fields) =>
     fields.some((field) => ["uuid", "[]uuid"].includes(field.type)),
   )
-    ? 'const identifier=z.string().uuid("Choose a valid record.").refine(value=>value!=="00000000-0000-0000-0000-000000000000","Choose a valid record.");\n'
+    ? 'const identifier=z.string().guid("Choose a valid record.").refine(value=>value!=="00000000-0000-0000-0000-000000000000","Choose a valid record.");\n'
     : "";
   for (const [name, fields] of Object.entries(models)) {
     go += `type ${name} struct{\n`;
@@ -53,6 +53,10 @@ export function emitModels(models, kindSchema) {
         if (f.min !== undefined)
           schema += `.min(${f.min}${f.format === "name" ? ', "Enter a name."' : ""})`;
         if (f.max !== undefined) schema += `.max(${f.max})`;
+        if (base === "string" && f.pattern !== undefined)
+          schema += `.regex(new RegExp(${JSON.stringify(f.pattern)}, "u"), "Use a valid identifier.")`;
+        if (base === "string" && f.no_nul)
+          schema += `.refine(value=>!value.includes(String.fromCharCode(0)), "Use a valid identifier.")`;
         if (f.format === "clock")
           schema += '.regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/,"Use a 24-hour time such as 18:30.")';
         if (f.format === "date")

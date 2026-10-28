@@ -3,6 +3,7 @@ package transit_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -203,4 +204,106 @@ func TestNewRejectsUnsafeConfiguration(t *testing.T) {
 	require.Error(t, err)
 	_, err = transit.New("http://x", "transit", nil, nil)
 	require.Error(t, err)
+}
+
+func TestConsentReceiptHMACUsesDedicatedNonExportableKeyAndDetectsTampering(t *testing.T) {
+	addr, root := testinfra.StartOpenBao(t)
+	policy := testinfra.ClinicalConsentTransitPolicy
+	encoded, err := json.Marshal(map[string]string{"policy": policy})
+	require.NoError(t, err)
+	require.NoError(t, testinfra.OpenBaoWrite(addr, root, http.MethodPut, "/v1/sys/policies/acl/clinical-consent-test", string(encoded)))
+	user, password := testinfra.OpenBaoUser(t, time.Hour, "clinical-consent-test")
+	c, err := transit.New(addr, "transit", transit.UserpassLogin(user, password), nil)
+	require.NoError(t, err)
+	key := "helivanta-consent-" + uuid.NewString()
+	require.NoError(t, c.EnsureHMACKey(t.Context(), key))
+	require.NoError(t, c.EnsureHMACKey(t.Context(), key))
+	receipt := []byte(`{"schema_version":1,"purpose":"care_coordination","recipient_id":"synthetic-recipient"}`)
+	signature, err := c.HMAC(t.Context(), key, receipt)
+	require.NoError(t, err)
+	valid, err := c.VerifyHMAC(t.Context(), key, receipt, signature)
+	require.NoError(t, err)
+	require.True(t, valid)
+	valid, err = c.VerifyHMAC(t.Context(), key, []byte(`{"purpose":"marketing"}`), signature)
+	require.NoError(t, err)
+	require.False(t, valid)
+	valid, err = c.VerifyHMAC(t.Context(), key, receipt, "malformed")
+	require.NoError(t, err)
+	require.False(t, valid)
+	require.ErrorIs(t, c.EnsureHMACKey(t.Context(), staffKey()), transit.ErrUnavailable)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, addr+"/v1/transit/keys/"+key, nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Vault-Token", root)
+	response, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = response.Body.Close() }()
+	var metadata struct {
+		Data struct {
+			Type                 string `json:"type"`
+			Exportable           bool   `json:"exportable"`
+			DeletionAllowed      bool   `json:"deletion_allowed"`
+			AllowPlaintextBackup bool   `json:"allow_plaintext_backup"`
+			KeySize              int    `json:"key_size"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(response.Body).Decode(&metadata))
+	require.Equal(t, "hmac", metadata.Data.Type)
+	require.False(t, metadata.Data.Exportable)
+	require.False(t, metadata.Data.DeletionAllowed)
+	require.False(t, metadata.Data.AllowPlaintextBackup)
+	require.Equal(t, 32, metadata.Data.KeySize)
+	roleToken, _, err := transit.UserpassLogin(user, password)(t.Context(), http.DefaultClient, addr)
+	require.NoError(t, err)
+	require.ErrorContains(t, testinfra.OpenBaoWrite(addr, roleToken, http.MethodPost, "/v1/transit/keys/"+key+"/rotate", "{}"), "status 403")
+	for _, size := range []int{1, 16, 24, 31, 33, 128} {
+		weak := fmt.Sprintf(`{"type":"hmac","key_size":"%d","exportable":false,"allow_plaintext_backup":false}`, size)
+		require.ErrorContains(t, testinfra.OpenBaoWrite(addr, roleToken, http.MethodPost, "/v1/transit/keys/helivanta-consent-"+uuid.NewString(), weak), "status 403")
+	}
+	for _, unsafe := range []string{
+		`{"type":"hmac","key_size":"32","exportable":true,"allow_plaintext_backup":false}`,
+		`{"type":"hmac","key_size":"32","exportable":false,"allow_plaintext_backup":true}`,
+		`{"type":"aes256-gcm96","key_size":"32","exportable":false,"allow_plaintext_backup":false}`,
+	} {
+		require.ErrorContains(t, testinfra.OpenBaoWrite(addr, roleToken, http.MethodPost, "/v1/transit/keys/helivanta-consent-"+uuid.NewString(), unsafe), "status 403")
+	}
+	require.NoError(t, testinfra.OpenBaoWrite(addr, root, http.MethodPost, "/v1/transit/keys/"+key+"/rotate", "{}"))
+	valid, err = c.VerifyHMAC(t.Context(), key, receipt, signature)
+	require.NoError(t, err)
+	require.True(t, valid)
+}
+
+func TestTransitDoesNotRedirectCredentialsOrReceiptPayload(t *testing.T) {
+	var calls atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"hmac":"vault:v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}`))
+	}))
+	t.Cleanup(target.Close)
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(source.Close)
+	c, err := transit.New(source.URL, "transit", func(context.Context, *http.Client, string) (string, time.Duration, error) {
+		return "synthetic-transit-token", time.Hour, nil
+	}, http.DefaultClient)
+	require.NoError(t, err)
+	_, err = c.HMAC(t.Context(), staffKey(), []byte("synthetic receipt"))
+	require.ErrorIs(t, err, transit.ErrUnavailable)
+	require.Zero(t, calls.Load())
+}
+
+func TestTransitRefusesMalformedHMACObservations(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"hmac":"vault:v1:garbage"}}`))
+	}))
+	t.Cleanup(server.Close)
+	c, err := transit.New(server.URL, "transit", func(context.Context, *http.Client, string) (string, time.Duration, error) {
+		return "synthetic-token", time.Hour, nil
+	}, nil)
+	require.NoError(t, err)
+	value, err := c.HMAC(t.Context(), staffKey(), []byte("synthetic receipt"))
+	require.ErrorIs(t, err, transit.ErrUnavailable)
+	require.Empty(t, value)
 }

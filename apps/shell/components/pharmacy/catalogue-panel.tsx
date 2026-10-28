@@ -1,13 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Plus, Search, History, Package, ArrowLeft } from "lucide-react";
+import { Plus, Search, History, Package } from "lucide-react";
 import {
+  ApiError,
+  PAGE_SIZE,
   apiFetch,
   formatZonedDateTime,
+  useApiPageQuery,
   useApiPagedQuery,
+  useApiQuery,
   useApiMutation,
   pharmacyKey,
   pharmacyRoot,
@@ -18,19 +23,75 @@ import {
   type PharmacyProductInput,
   type PharmacyRevision,
   type PharmacyScope,
+  taxScheme,
+  zonedDateTimeInput,
 } from "@helivanta/api";
 import {
+  ConfirmDialog,
+  DetailHeader,
   Field,
   FormSelectField,
+  SelectControl,
+  ListDetail,
   LoadMore,
-  useZodForm,
+  PageTabs,
+  Pager,
+  Panel,
+  RequestFailure,
+  useConfirmLeave,
   useFieldArray,
-  ConfirmDialog,
+  useZodForm,
 } from "@helivanta/ui";
-import { CurrencyAmountField } from "./currency-amount-field";
-import { RequestFailure } from "../request-failure";
+import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
+import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
+import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-field";
+import { ProductTaxSection, TaxBadge } from "./tax-classification";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
+
+const TABS = {
+  all: "All",
+  active: "Active",
+  discontinued: "Discontinued",
+  withdrawn: "Withdrawn",
+} as const;
+type CatalogueTab = keyof typeof TABS;
+
+// Keyed by the search in the URL, so it shows what the list was searched for.
+function CatalogueSearch({
+  initial,
+  onSearch,
+  children,
+}: {
+  initial: string;
+  onSearch: (query: string) => void;
+  children?: React.ReactNode;
+}) {
+  const search = useZodForm(searchSchema, { query: initial });
+  return (
+    <form
+      noValidate
+      role="search"
+      className="flex flex-wrap items-end gap-3 border-b p-5"
+      onSubmit={search.handleSubmit((values) => onSearch(values.query))}
+    >
+      <div className="min-w-48 flex-1">
+        <Field
+          id="catalogue-search"
+          label="Search by brand, generic or SKU"
+          error={search.formState.errors.query?.message}
+        >
+          <Input id="catalogue-search" {...search.register("query")} />
+        </Field>
+      </div>
+      <Button type="submit" variant="outline">
+        <Search className="mr-2 size-4" />
+        Search catalogue
+      </Button>
+      {children}
+    </form>
+  );
+}
 const newProduct: PharmacyProductInput = {
   expected_version: 0,
   sku: "",
@@ -43,7 +104,7 @@ const newProduct: PharmacyProductInput = {
   ingredients: [{ name: "", strength: "", unit: "mg" }],
   pack_size: 10,
   unit_of_issue: "capsule",
-  currency: "",
+  currency: "INR",
   mrp_minor: 0,
   status: "active",
 };
@@ -53,139 +114,318 @@ export function CataloguePanel({
   writable,
   defaultCurrency,
   timeZone = "UTC",
+  countryCode = "",
+  canManageTax = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
   defaultCurrency: string;
   timeZone?: string;
+  countryCode?: string;
+  /** pharmacy.tax.manage with editor access: rates are the owner's, not the catalogue editor's. */
+  canManageTax?: boolean;
 }) {
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<PharmacyProduct | null | undefined>();
-  const search = useZodForm(searchSchema, { query: "" });
-  const products = useApiPagedQuery<PharmacyProduct>(
-    pharmacyKey(scope, "catalogue", query),
-    `${pharmacyRoot(scope)}/catalogue/products?q=${encodeURIComponent(query)}`,
+  const scheme = taxScheme(countryCode);
+  // The tab, search and filter are the URL (#576 slice 3 D3/D4). Without a
+  // tax scheme nothing can be classified, so the filter would be hidden and
+  // could not be cleared: ignore it.
+  const router = useRouter();
+  const params = useSearchParams();
+  const rawTab = params.get("tab") ?? "";
+  const tab: CatalogueTab = Object.hasOwn(TABS, rawTab) ? (rawTab as CatalogueTab) : "all";
+  const query = (params.get("q") ?? "").trim().slice(0, 200);
+  const unclassified = !!scheme && params.get("tax") === "unclassified";
+  const tax = unclassified ? "unclassified" : "";
+  const url = useUrlPage({ tab, q: query, tax });
+  const today = zonedDateTimeInput(new Date().toISOString(), timeZone).slice(0, 10);
+  const filters = new URLSearchParams(
+    Object.entries({ status: tab === "all" ? "" : tab, q: query, tax }).filter(([, v]) => v),
+  ).toString();
+  const products = useApiPageQuery<PharmacyProduct>(
+    pharmacyKey(scope, "catalogue", "counted", tab, query, unclassified),
+    `${pharmacyRoot(scope)}/catalogue/products/counted${filters ? `?${filters}` : ""}`,
+    url.cursor,
   );
-  const editor = useRef<HTMLElement>(null);
-  function reveal(product: PharmacyProduct | null) {
-    setSelected(product);
-    requestAnimationFrame(() => {
-      editor.current?.scrollIntoView({ block: "start", behavior: "instant" });
-      editor.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-    });
-  }
+  const emptied = useStepBackWhenEmpty(products, url);
+  // A product opens beside the list (#1303 E2): the URL holds it, and the
+  // shared mechanism steps, guards and focuses as on Supplier bills.
+  const pane = useListDetail({
+    rows: products.items,
+    name: (row) => row.brand_name,
+    fallbackName: "this product",
+    newName: "the new product",
+    headingId: "catalogue-heading",
+  });
+  const { detail, paneRef, rowProps, openProps } = pane;
+  // The search and the filter are not links: ask before they close an edit.
+  const leave = useConfirmLeave();
+  const go = (href: string) => leave(() => router.replace(href));
+  const record = detail.creating ? (
+    <Panel>
+      <DetailHeader
+        title="New product identity"
+        noun="product"
+        stepping={false}
+        previous={{ disabled: true, onClick: () => {} }}
+        next={{ disabled: true, onClick: () => {} }}
+        closeLabel="Close product"
+        onClose={pane.close}
+      />
+      <div className="mt-6">
+        <ProductForm
+          scope={scope}
+          product={null}
+          defaultCurrency={defaultCurrency}
+          onSaved={(row) => pane.saved(row.id)}
+          onStateChange={pane.formState("product")}
+        />
+      </div>
+    </Panel>
+  ) : detail.openId ? (
+    <Panel>
+      <OpenProduct
+        key={detail.openId}
+        id={detail.openId}
+        scope={scope}
+        scheme={scheme}
+        writable={writable}
+        canManageTax={canManageTax}
+        defaultCurrency={defaultCurrency}
+        timeZone={timeZone}
+        today={today}
+        pane={pane}
+      />
+    </Panel>
+  ) : null;
+  const compact = pane.isOpen;
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-2xl border bg-card">
+    <div className="space-y-4" onClickCapture={pane.holdLinks}>
+      {/* The heading, tabs and search span the page above the split, so
+          opening a product narrows only the list (#1303). */}
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
-            <h3 className="font-semibold">Product catalogue</h3>
+            <h3 id="catalogue-heading" tabIndex={-1} className="font-semibold outline-none">
+              Product catalogue
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               One SKU per outlet. Every change keeps its history.
             </p>
           </div>
           {writable && (
-            <Button onClick={() => reveal(null)}>
+            <Button onClick={pane.create}>
               <Plus className="mr-2 size-4" />
               Add product
             </Button>
           )}
         </div>
-        <form
-          noValidate
-          className="flex flex-wrap items-end gap-3 border-b p-5"
-          onSubmit={search.handleSubmit((values) => setQuery(values.query))}
-        >
-          <div className="min-w-48 flex-1">
-            <Field
-              id="catalogue-search"
-              label="Search by brand, generic or SKU"
-              error={search.formState.errors.query?.message}
-            >
-              <Input id="catalogue-search" {...search.register("query")} />
-            </Field>
-          </div>
-          <Button type="submit" variant="outline">
-            <Search className="mr-2 size-4" />
-            Search catalogue
-          </Button>
-        </form>
-        {products.isError ? (
-          <RequestFailure message="Could not load the catalogue." retry={products.retry} />
-        ) : products.isPending ? (
-          <p role="status" className="p-6">
-            Loading catalogue…
-          </p>
-        ) : products.items.length === 0 ? (
-          <div className="p-10 text-center">
-            <Package className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <h4 className="font-semibold">{query ? "No matching products" : "No products yet"}</h4>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {query
-                ? "Try a brand, generic name or SKU prefix."
-                : "Add a private product identity to begin regulatory review."}
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y">
-            {products.items.map((product) => (
-              <li
-                key={product.id}
-                className="flex flex-wrap items-center justify-between gap-4 p-5"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">{product.brand_name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {product.sku} · {product.generic_name} · {product.pack_size}{" "}
-                    {product.unit_of_issue}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {product.manufacturer} · {product.status} · Revision {product.version}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="rounded-full bg-(--hms-amber-tint) px-3 py-1 text-xs font-medium text-(--hms-amber)">
-                    Pending regulatory review
-                  </span>
-                  <Button variant="outline" onClick={() => reveal(product)}>
-                    Open {product.sku}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <LoadMore
-          hasMore={products.hasMore}
-          isLoading={products.isFetchingMore}
-          onClick={products.loadMore}
+        <PageTabs
+          label="Product status"
+          current={tab}
+          tabs={(Object.keys(TABS) as CatalogueTab[]).map((key) => ({
+            key,
+            label: TABS[key],
+            href: url.hrefFor({ tab: key, q: query, tax }),
+          }))}
         />
-      </section>
-      {selected !== undefined && (
-        <section ref={editor} className="scroll-mt-6 rounded-2xl border bg-card p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold">
-              {selected ? selected.brand_name : "New product identity"}
-            </h3>
-            <Button variant="ghost" onClick={() => setSelected(undefined)}>
-              <ArrowLeft className="mr-2 size-4" />
-              Close details
+        <CatalogueSearch
+          key={query}
+          initial={query}
+          onSearch={(q) => go(url.hrefFor({ tab, q, tax }))}
+        >
+          {scheme && (
+            <Button
+              type="button"
+              variant={unclassified ? "default" : "outline"}
+              aria-pressed={unclassified}
+              onClick={() =>
+                go(url.hrefFor({ tab, q: query, tax: unclassified ? "" : "unclassified" }))
+              }
+            >
+              Not classified
             </Button>
-          </div>
-          {writable && selected?.status !== "withdrawn" ? (
-            <ProductForm
-              key={selected ? `${selected.id}:${selected.version}` : "new"}
-              scope={scope}
-              product={selected}
-              defaultCurrency={defaultCurrency}
-              onSaved={setSelected}
-            />
-          ) : (
-            selected && <ProductSummary product={selected} />
-          )}{" "}
-          {selected && <ProductHistory scope={scope} product={selected} timeZone={timeZone} />}
-        </section>
+          )}
+        </CatalogueSearch>
+      </Panel>
+      <ListDetail
+        label={
+          detail.creating ? "New product" : pane.openName ? `Product ${pane.openName}` : "Product"
+        }
+        backHref={detail.closeHref}
+        backLabel="Back to products"
+        detail={record && <div ref={paneRef}>{record}</div>}
+        list={
+          <Panel flush>
+            {products.isError ? (
+              <RequestFailure message="Could not load the catalogue." retry={products.retry} />
+            ) : products.isPending ? (
+              <p role="status" className="p-6">
+                Loading catalogue…
+              </p>
+            ) : products.items.length === 0 ? (
+              <div className="p-10 text-center">
+                <Package className="mx-auto mb-3 size-8 text-muted-foreground" />
+                <h4 className="font-semibold">
+                  {unclassified
+                    ? "Every product is classified"
+                    : query
+                      ? "No matching products"
+                      : "No products yet"}
+                </h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {query
+                    ? "Try a brand, generic name or SKU prefix."
+                    : "Add a private product identity to begin regulatory review."}
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {products.items.map((product) => (
+                  <li
+                    key={product.id}
+                    {...rowProps(product.id)}
+                    className={`flex flex-wrap items-center justify-between gap-4 ${compact ? "px-4 py-3" : "p-5"} ${product.id === detail.openId ? "bg-(--hms-accent-dim)" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="wrap-anywhere font-medium">{product.brand_name}</p>
+                      {/* Beside an open product: brand, SKU and tax (#1303 D1). */}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {compact
+                          ? product.sku
+                          : `${product.sku} · ${product.generic_name} · ${product.pack_size} ${product.unit_of_issue}`}
+                      </p>
+                      {!compact && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {product.manufacturer} · {product.status} · Revision {product.version}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {scheme && <TaxBadge tax={product.tax} name={scheme.classification.name} />}
+                      {!compact && (
+                        <span className="rounded-full bg-(--hms-amber-tint) px-3 py-1 text-xs font-medium text-(--hms-amber)">
+                          Pending regulatory review
+                        </span>
+                      )}
+                      <Button
+                        variant="outline"
+                        {...openProps(product.id)}
+                        aria-label={`Open ${product.sku}`}
+                        onClick={() => pane.openRow(product.id)}
+                      >
+                        {compact ? "Open" : `Open ${product.sku}`}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!products.isPending && !emptied && (
+              <Pager
+                page={url.page}
+                pageSize={PAGE_SIZE}
+                offset={products.offset}
+                shown={products.items.length}
+                total={products.total}
+                previousHref={url.previousHref}
+                nextHref={url.nextHref(products.nextCursor)}
+                firstHref={url.first}
+              />
+            )}
+          </Panel>
+        }
+      />
+    </div>
+  );
+}
+
+// The open product, fetched by its id so a reload or a link reopens it. Another
+// outlet's or tenant's product is the same 404 as a missing one (#1303 D3).
+function OpenProduct({
+  id,
+  scope,
+  scheme,
+  writable,
+  canManageTax,
+  defaultCurrency,
+  timeZone,
+  today,
+  pane,
+}: {
+  id: string;
+  scope: PharmacyScope;
+  scheme: ReturnType<typeof taxScheme>;
+  writable: boolean;
+  canManageTax: boolean;
+  defaultCurrency: string;
+  timeZone: string;
+  today: string;
+  pane: ReturnType<typeof useListDetail<PharmacyProduct>>;
+}) {
+  const product = useApiQuery<PharmacyProduct>(
+    pharmacyKey(scope, "product", id),
+    `${pharmacyRoot(scope)}/catalogue/products/${id}`,
+  );
+  const heading = useRef<HTMLHeadingElement>(null);
+  // Viewing focuses the heading, not an edit field (#1303 D6).
+  const loaded = product.data?.id;
+  useEffect(() => {
+    if (loaded) heading.current?.focus({ preventScroll: true });
+  }, [loaded]);
+  const row = product.data;
+  // The header shows whatever the pane could load: beside the list there is
+  // no back link, so Close must be here even for a record not found.
+  const header = (
+    <DetailHeader
+      title={row?.brand_name ?? "Product"}
+      subtitle={row?.sku}
+      headingRef={heading}
+      noun="product"
+      previous={{ disabled: !pane.canStep(-1), onClick: () => pane.step(-1) }}
+      next={{ disabled: !pane.canStep(1), onClick: () => pane.step(1) }}
+      closeLabel="Close product"
+      onClose={pane.close}
+    />
+  );
+  if (!row)
+    return (
+      <div className="space-y-6">
+        {header}
+        {product.error instanceof ApiError && product.error.status === 404 ? (
+          <p role="alert" className="text-sm">
+            This record was not found, or you do not have access.
+          </p>
+        ) : product.isError ? (
+          <RequestFailure message="Could not load this product." retry={product.refetch} />
+        ) : (
+          <p role="status">Loading product…</p>
+        )}
+      </div>
+    );
+  return (
+    <div className="space-y-6">
+      {header}
+      {writable && row.status !== "withdrawn" ? (
+        <ProductForm
+          key={`${row.id}:${row.version}`}
+          scope={scope}
+          product={row}
+          defaultCurrency={defaultCurrency}
+          onSaved={(saved) => pane.saved(saved.id)}
+          onStateChange={pane.formState("product")}
+        />
+      ) : (
+        <ProductSummary product={row} />
       )}
+      <ProductTaxSection
+        scope={scope}
+        product={row}
+        scheme={scheme}
+        canManage={canManageTax}
+        today={today}
+        onStateChange={pane.formState("tax")}
+      />
+      <ProductHistory scope={scope} product={row} timeZone={timeZone} />
     </div>
   );
 }
@@ -195,11 +435,13 @@ function ProductForm({
   product,
   defaultCurrency,
   onSaved,
+  onStateChange,
 }: {
   scope: PharmacyScope;
   product: PharmacyProduct | null;
   defaultCurrency: string;
   onSaved: (product: PharmacyProduct) => void;
+  onStateChange?: FormState;
 }) {
   const [id] = useState(() => product?.id ?? newPharmacyId());
   const [confirm, setConfirm] = useState(false);
@@ -207,7 +449,7 @@ function ProductForm({
     pharmacyProductFormSchema,
     product
       ? { ...pharmacyProductFieldsSchema.strip().parse(product), expected_version: product.version }
-      : { ...newProduct, currency: defaultCurrency },
+      : { ...newProduct, currency: defaultCurrency as PharmacyProductInput["currency"] },
   );
   const ingredients = useFieldArray({ control: form.control, name: "ingredients" });
   const save = useApiMutation(
@@ -218,7 +460,11 @@ function ProductForm({
       }),
     {
       successToast: "Product saved",
-      invalidate: [pharmacyKey(scope, "catalogue"), pharmacyKey(scope, "history", id)],
+      invalidate: [
+        pharmacyKey(scope, "catalogue"),
+        pharmacyKey(scope, "history", id),
+        pharmacyKey(scope, "product", id),
+      ],
       onSuccess: (row) => {
         setConfirm(false);
         onSaved(row);
@@ -235,6 +481,7 @@ function ProductForm({
     ["manufacturer", "Manufacturer"],
     ["marketing_company", "Marketing company"],
   ] as const;
+  useReportState(onStateChange, form.formState.isDirty, save.isPending);
   const fieldErrors = form.formState.errors;
   return (
     <>
@@ -273,9 +520,10 @@ function ProductForm({
           <legend className="mb-4 font-medium">Active ingredients</legend>
           <div className="space-y-4">
             {ingredients.fields.map((ingredient, index) => (
-              <div
+              <Panel
                 key={ingredient.id}
-                className="grid items-end gap-3 rounded-xl border p-4 sm:grid-cols-[2fr_1fr_1fr_auto]"
+                as="div"
+                className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]"
               >
                 <Field
                   id={`ingredient-${index}-name`}
@@ -317,7 +565,7 @@ function ProductForm({
                 >
                   Remove
                 </Button>
-              </div>
+              </Panel>
             ))}
           </div>
           <Button
@@ -356,12 +604,14 @@ function ProductForm({
               label="Currency code"
               error={fieldErrors.currency?.message}
             >
-              <Input
+              <SelectControl
                 id="product-currency"
-                {...form.register("currency", {
-                  setValueAs: (value) => String(value).toUpperCase(),
-                  onChange: () => form.setValue("mrp_minor", 0),
-                })}
+                value={form.watch("currency")}
+                onValueChange={(value) => {
+                  form.setValue("currency", value as PharmacyProductInput["currency"]);
+                  form.setValue("mrp_minor", 0);
+                }}
+                options={supportedCurrencies.map((value) => ({ value, label: value }))}
               />
             </Field>
             <CurrencyAmountField
@@ -457,7 +707,7 @@ function ProductHistory({
       ) : (
         <ol className="space-y-3">
           {history.items.map((row) => (
-            <li key={row.id} className="rounded-xl bg-muted p-4 text-sm">
+            <Panel key={row.id} as="li" className="text-sm">
               <p className="font-medium">
                 Revision {row.version} · {row.snapshot.brand_name}
               </p>
@@ -473,11 +723,12 @@ function ProductHistory({
                   <ProductSummary product={row.snapshot} />
                 </div>
               </details>
-            </li>
+            </Panel>
           ))}
         </ol>
       )}
       <LoadMore
+        label="Load more revisions"
         hasMore={history.hasMore}
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}

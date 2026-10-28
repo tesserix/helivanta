@@ -30,7 +30,19 @@ Helivanta is a hospital platform with one workspace for clinical, pharmacy, labo
 
 [Synthetic fixtures and legacy conversion](08-development-data.md) documents the working fixture generator, the boundary for converting legacy exports, and the required tenant and hospital isolation checks before import.
 
+## Global client API
+
+[ADR-0036](../adr/0036-global-api-client-boundary.md) refines the client path:
+UI/apps → Global API → owning product API. Existing diagrams predate this
+additional hop; they remain product-ownership targets, not deployed topology.
+Use the [Global API rules](../api/global-connector.md) for implementation.
+
 ## API implementation
+
+[API contracts and integration specifications](../api/README.md) provide the
+current runtime inventory, generated event schemas, clinical OpenAPI pilot,
+domain coverage and review plan. Use that reference to distinguish existing
+`/v1` behavior from the proposed product API paths in this architecture.
 
 [Hospital onboarding and multitenancy](../delivery/hospital-onboarding.md) gives
 the current step-by-step identity provisioning/adoption procedure and the checks

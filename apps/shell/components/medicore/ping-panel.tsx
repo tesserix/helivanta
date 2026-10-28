@@ -3,7 +3,7 @@
 import { Activity } from "lucide-react";
 import { Button } from "@tesserix/web";
 import { apiFetch, useApiMutation, useApiPagedQuery } from "@helivanta/api";
-import { EmptyState, LoadMore, formatTime } from "@helivanta/ui";
+import { formatTime, LoadMore, Panel, QueryState } from "@helivanta/ui";
 
 type Ping = { id: string; message: string; created_at: string };
 
@@ -23,7 +23,7 @@ export function PingPanel({ department }: { department: string }) {
   );
 
   return (
-    <section className="max-w-2xl rounded-lg border bg-card">
+    <Panel flush className="max-w-2xl">
       <div className="flex items-center justify-between border-b px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Platform check</h2>
@@ -35,22 +35,25 @@ export function PingPanel({ department }: { department: string }) {
           {sendPing.isPending ? "Pinging…" : `Ping from ${department}`}
         </Button>
       </div>
-      <ul className="divide-y text-sm">
-        {pings.items.length === 0 && (
-          <li>
-            <EmptyState icon={Activity} title="No activity yet" />
-          </li>
+      <QueryState
+        query={pings}
+        label="activity"
+        empty={{ icon: Activity, title: "No activity yet" }}
+      >
+        {(items) => (
+          <ul className="divide-y text-sm">
+            {items.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-4 px-5 py-3">
+                <span className="truncate text-foreground">{p.message}</span>
+                <time className="shrink-0 tabular-nums text-muted-foreground">
+                  {formatTime(p.created_at)}
+                </time>
+              </li>
+            ))}
+          </ul>
         )}
-        {pings.items.map((p) => (
-          <li key={p.id} className="flex items-center justify-between gap-4 px-5 py-3">
-            <span className="truncate text-foreground">{p.message}</span>
-            <time className="shrink-0 tabular-nums text-muted-foreground">
-              {formatTime(p.created_at)}
-            </time>
-          </li>
-        ))}
-      </ul>
+      </QueryState>
       <LoadMore hasMore={pings.hasMore} isLoading={pings.isFetchingMore} onClick={pings.loadMore} />
-    </section>
+    </Panel>
   );
 }

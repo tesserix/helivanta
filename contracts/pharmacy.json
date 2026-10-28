@@ -104,9 +104,7 @@
         {
           "name": "currency",
           "type": "string",
-          "min": 3,
-          "max": 3,
-          "pattern": "^[A-Z]{3}$"
+          "country_currency": true
         },
         {
           "name": "mrp_minor",
@@ -160,6 +158,19 @@
           "name": "manufactured_on",
           "type": "string",
           "format": "date",
+          "optional": true
+        },
+        {
+          "name": "mrp_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000
+        },
+        {
+          "name": "purchase_cost_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000,
           "optional": true
         }
       ]
@@ -263,6 +274,12 @@
           "type": "StorageAddressFields",
           "optional": true,
           "gorm": "embedded"
+        },
+        {
+          "name": "stock_status",
+          "type": "string",
+          "enum": ["quarantine", "sellable"],
+          "optional": true
         }
       ]
     },
@@ -438,9 +455,7 @@
         {
           "name": "currency",
           "type": "string",
-          "min": 3,
-          "max": 3,
-          "pattern": "^[A-Z]{3}$"
+          "country_currency": true
         },
         {
           "name": "lines",
@@ -469,9 +484,7 @@
         {
           "name": "currency",
           "type": "string",
-          "min": 3,
-          "max": 3,
-          "pattern": "^[A-Z]{3}$"
+          "country_currency": true
         },
         {
           "name": "paid_by",
@@ -540,7 +553,8 @@
           "type": "string",
           "trim": true,
           "min": 10,
-          "max": 500
+          "max": 500,
+          "min_message": "Enter at least 10 characters."
         },
         {
           "name": "occurred_at",
@@ -589,6 +603,86 @@
             "days_180",
             "later"
           ]
+        }
+      ]
+    },
+    {
+      "name": "taxRegistrationInput",
+      "schema": "pharmacyTaxRegistrationInputSchema",
+      "fields": [
+        {
+          "name": "jurisdiction_code",
+          "type": "string",
+          "min": 2,
+          "max": 2,
+          "pattern": "^[0-9]{2}$"
+        },
+        {
+          "name": "identifier",
+          "type": "string",
+          "min": 1,
+          "max": 40,
+          "trim": true,
+          "upper": true
+        },
+        {
+          "name": "effective_from",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "name": "taxClassificationInput",
+      "schema": "pharmacyTaxClassificationInputSchema",
+      "fields": [
+        {
+          "name": "classification_code",
+          "type": "string",
+          "min": 1,
+          "max": 20,
+          "trim": true
+        },
+        {
+          "name": "supply_nature",
+          "type": "string",
+          "enum": ["taxable", "nil_rated", "exempt"]
+        },
+        {
+          "name": "rate_percent",
+          "type": "string",
+          "min": 1,
+          "max": 6,
+          "pattern": "^(100(\\.0{1,2})?|[0-9]{1,2}(\\.[0-9]{1,2})?)$"
+        },
+        {
+          "name": "exemption_basis",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true,
+          "optional": true
+        },
+        {
+          "name": "effective_from",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true,
+          "optional": true
         }
       ]
     }

@@ -38,8 +38,9 @@ func TestClamAVRequiresFreshAttributableDefinitions(t *testing.T) {
 		wantErr     bool
 	}{
 		{"fresh", "ClamAV 1.5.1/28000/Wed Oct 14 11:00:00 2026\x00", false},
-		{"exact_age_limit", "ClamAV 1.5.1/28000/Tue Oct 13 12:00:00 2026\x00", false},
-		{"stale", "ClamAV 1.5.1/28000/Tue Oct 13 11:59:59 2026\x00", true},
+		{"missed_daily_publish", "ClamAV 1.5.1/28000/Tue Oct 13 06:00:00 2026\x00", false},
+		{"exact_age_limit", "ClamAV 1.5.1/28000/Mon Oct 12 12:00:00 2026\x00", false},
+		{"stale", "ClamAV 1.5.1/28000/Mon Oct 12 11:59:59 2026\x00", true},
 		{"future", "ClamAV 1.5.1/28000/Wed Oct 14 12:05:01 2026\x00", true},
 		{"missing_database", "ClamAV 1.5.1\x00", true},
 		{"invalid_version", "ClamAV 1.5.1/no-version/Wed Oct 14 11:00:00 2026\x00", true},
@@ -60,7 +61,37 @@ func TestClamAVRequiresFreshAttributableDefinitions(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "1.5.1", status.EngineVersion)
 			require.EqualValues(t, 28000, status.DefinitionVersion)
-			require.LessOrEqual(t, now.Sub(status.DefinitionsUpdatedAt), 24*time.Hour)
+			require.LessOrEqual(t, now.Sub(status.DefinitionsUpdatedAt), attachments.MaxDefinitionAge)
 		})
 	}
+}
+
+func TestClamAVReadinessFailsBeforeScansRefuse(t *testing.T) {
+	stamp := func(age time.Duration) string {
+		return "ClamAV 1.5.1/28000/" + time.Now().UTC().Add(-age).Format(time.ANSIC) + "\x00"
+	}
+	for _, tc := range []struct {
+		name      string
+		age       time.Duration
+		ready     bool
+		scannable bool
+	}{
+		{"fresh", time.Hour, true, true},
+		{"just_inside_ready", attachments.ReadyDefinitionAge - time.Minute, true, true},
+		{"ageing", attachments.ReadyDefinitionAge + time.Minute, false, true},
+		{"stale", attachments.MaxDefinitionAge + time.Minute, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scanner, err := attachments.NewClamAV(versionServer(t, stamp(tc.age)), time.Second, 1024)
+			require.NoError(t, err)
+			require.Equal(t, tc.ready, scanner.Ready(t.Context()) == nil)
+			scanner, err = attachments.NewClamAV(versionServer(t, stamp(tc.age)), time.Second, 1024)
+			require.NoError(t, err)
+			_, err = scanner.Status(t.Context(), time.Now().UTC())
+			require.Equal(t, tc.scannable, err == nil)
+		})
+	}
+	scanner, err := attachments.NewClamAV("127.0.0.1:1", time.Second, 1024)
+	require.NoError(t, err)
+	require.Error(t, scanner.Ready(t.Context()))
 }

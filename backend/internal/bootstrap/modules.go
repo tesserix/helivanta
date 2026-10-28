@@ -13,11 +13,15 @@
 package bootstrap
 
 import (
+	"github.com/tesserix/helivanta/internal/modules/drugmaster"
+	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/lab"
+	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
@@ -41,11 +45,14 @@ import (
 // /v1/auth/renew (#916, design spec D3) re-checks the SAME Zitadel
 // login-client PAT identity cmd/api constructs once, rather than a
 // second client. cmd/migrate, which never serves a request, passes nil.
-func Modules(revocationChecker *iam.RevocationChecker, userState iam.UserStateChecker) []platform.Module {
+// The same client reads profiles for GET /v1/iam/me/profile (#1428).
+func Modules(revocationChecker *iam.RevocationChecker, userState iam.IdentityProvider) []platform.Module {
 	return []platform.Module{
-		iam.New(revocationChecker).SetUserStateChecker(userState),
+		iam.New(revocationChecker).SetUserStateChecker(userState).SetUserProfileReader(userState),
 		reference.New(),
-		medicore.New(),
+		emergency.New(),
+		drugmaster.New(),
+		medicore.New(), mediconnect.New(), privacy.New(),
 		pharmacy.New(),
 		supply.New(),
 		lab.New(),
@@ -57,7 +64,7 @@ func Modules(revocationChecker *iam.RevocationChecker, userState iam.UserStateCh
 // NewRegistry builds a *platform.Registry pre-populated with
 // Modules(revocationChecker, userState). Both cmd/api and cmd/migrate
 // call this instead of hand-rolling the registration loop.
-func NewRegistry(revocationChecker *iam.RevocationChecker, userState iam.UserStateChecker) (*platform.Registry, error) {
+func NewRegistry(revocationChecker *iam.RevocationChecker, userState iam.IdentityProvider) (*platform.Registry, error) {
 	reg := platform.NewRegistry()
 	for _, m := range Modules(revocationChecker, userState) {
 		if err := reg.Register(m); err != nil {

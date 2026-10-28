@@ -21,8 +21,7 @@ import {
   type SupplyPartySummary,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
 
 export function OrganisationStructure({
   scope,
@@ -505,7 +504,8 @@ function TerritoryEditor({
           expected_version: 0,
           code: "",
           name: "",
-          country_code: country === "PK" ? "PK" : "IN",
+          // India is the only supported country (#1287); the server refuses any other.
+          country_code: "IN",
           region: "",
           city: "",
           description: "",
@@ -621,8 +621,7 @@ function TerritoryEditor({
         />
       </div>
       <p className="text-sm text-muted-foreground">
-        Country: {country === "PK" ? "Pakistan" : "India"}. Territory country follows the owning
-        organisation.
+        Country: India. Territory country follows the owning organisation.
       </p>
       <FormSelectField
         control={form.control}

@@ -17,8 +17,14 @@ import {
   type SupplyPartyAccess,
   type SupplyPartyRevision,
 } from "@helivanta/api";
-import { Field, LoadMore, useZodForm, formatDateTime } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import {
+  Field,
+  formatDateTime,
+  LoadMore,
+  PageHeading,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 import { PartyEditor } from "./party-editor";
 import { PartyRegistration } from "./party-registration";
 import { PlatformIdentity } from "./platform-identity";
@@ -86,19 +92,7 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
     );
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
-          <Building2 className="size-4" />
-          Supply Connect
-        </p>
-        <h2 className="text-3xl font-semibold tracking-tight">
-          The right connections. Clearly accounted for.
-        </h2>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Manage your organisations and supplier records across India and Pakistan, with private
-          profiles and explicit access.
-        </p>
-      </header>
+      <PageHeading description="Your organisations and supplier records. Profiles stay private unless access is granted." />
       <WorkspaceConnections current="supply" />
       <div className="flex items-start gap-3 rounded-xl border bg-card p-5">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
@@ -388,7 +382,7 @@ function PrivateParty({
     <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             Private profile · Version {party.version}
           </p>
           <h3

@@ -10,8 +10,11 @@
     ["mobile_phone", "phone"],
     ["work_phone", "phone"],
     ["preferred_language", 80],
+    ["preferred_language_revision_id", "uuid", true],
     ["blood_group", 10],
     ["engagement_type", 30],
+    ["contract_type", 80, true],
+    ["contract_type_revision_id", "uuid", true],
     ["department", 100],
     ["designation", 100],
     ["grade", 80],
@@ -23,7 +26,8 @@
     ["end_date", "date"],
     ["probation_end_date", "date"],
     ["confirmation_date", "date"],
-    ["exit_reason", 500]
+    ["exit_reason", 500],
+    ["exit_reason_revision_id", "uuid", true]
   ],
   "addresses": [
     ["use", 20],
@@ -37,6 +41,7 @@
   "emergency_contacts": [
     ["name", 150],
     ["relationship", 60],
+    ["relationship_revision_id", "uuid", true],
     ["phone", "phone"],
     ["email", "email"],
     ["priority", "int"]
@@ -52,6 +57,7 @@
   ],
   "qualifications": [
     ["qualification", 150],
+    ["qualification_revision_id", "uuid", true],
     ["institution", 150],
     ["country", 2],
     ["completion_year", "year"]
@@ -61,5 +67,28 @@
     ["role", 100],
     ["start_date", "date"],
     ["end_date", "date"]
-  ]
+  ],
+  "profile_masters": [
+    ["department", "department", false, false],
+    ["designation", "designation", false, false],
+    ["grade", "grade", false, false],
+    ["language", "preferred_language", true, false],
+    ["exit_reason", "exit_reason", true, false],
+    ["contract_type", "contract_type", true, true]
+  ],
+  "profile_masters_projection": {
+    "query": "profile_masters",
+    "version": "v1",
+    "response_field": "profile_masters_version"
+  },
+  "qualification_masters_projection": {
+    "query": "qualification_masters",
+    "version": "v1",
+    "response_field": "qualification_masters_version"
+  },
+  "contact_masters_projection": {
+    "query": "contact_masters",
+    "version": "v1",
+    "response_field": "contact_masters_version"
+  }
 }

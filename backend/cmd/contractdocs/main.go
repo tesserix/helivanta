@@ -1,0 +1,259 @@
+// Command contractdocs exports registry facts without starting infrastructure.
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"go.temporal.io/sdk/client"
+)
+
+type route struct {
+	ScopeKind      string           `json:"scope_kind,omitempty"`
+	ScopeParameter string           `json:"scope_parameter,omitempty"`
+	Method         string           `json:"method"`
+	Path           string           `json:"path"`
+	Permission     authz.Permission `json:"permission"`
+	Authentication bool             `json:"authentication_required"`
+	Membership     bool             `json:"membership_required"`
+	Paginated      bool             `json:"paginated"`
+	Counted        bool             `json:"counted"`
+}
+
+type subscription struct {
+	Name        string `json:"name"`
+	Subject     string `json:"subject"`
+	AfterCommit bool   `json:"after_commit"`
+}
+
+type migration struct {
+	ID                string                     `json:"id"`
+	SHA256            string                     `json:"sql_sha256"`
+	Tables            []string                   `json:"creates_tables"`
+	ConcurrentIndexes []tenantdb.ConcurrentIndex `json:"concurrent_indexes,omitempty"`
+}
+
+type grant struct {
+	Permission authz.Permission `json:"permission"`
+	Roles      []authz.Role     `json:"roles"`
+}
+
+type module struct {
+	Name           string         `json:"name"`
+	Source         string         `json:"source"`
+	Routes         []route        `json:"routes"`
+	Grants         []grant        `json:"grants"`
+	Publishes      []string       `json:"publishes"`
+	Directed       []string       `json:"directed_subjects"`
+	DirectedTables []string       `json:"directed_write_tables"`
+	Consumers      []subscription `json:"consumers"`
+	Broadcasts     []string       `json:"broadcasts"`
+	Migrations     []migration    `json:"migrations"`
+}
+
+type reference struct {
+	FormatVersion      int               `json:"format_version"`
+	Modules            []module          `json:"modules"`
+	Unauthenticated    map[string]string `json:"unauthenticated_routes"`
+	PlatformMigrations []migration       `json:"platform_migrations"`
+}
+
+// No handler is dispatched; deny membership if one is ever called by mistake.
+type noRequests struct{}
+
+// Embedding supplies the external client interface for registration only.
+// No method may be called: there is deliberately no connected client.
+type registrationClient struct{ client.Client }
+
+func (noRequests) IsMember(context.Context, string, string) (bool, error) { return false, nil }
+
+var createTable = regexp.MustCompile(`(?i)\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
+
+func migrations(items []tenantdb.Migration) []migration {
+	out := make([]migration, 0, len(items))
+	for _, item := range items {
+		tables := []string{}
+		for _, match := range createTable.FindAllStringSubmatch(item.SQL, -1) {
+			tables = append(tables, match[1])
+		}
+		out = append(out, migration{ID: item.ID, SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(item.SQL))), Tables: tables, ConcurrentIndexes: item.ConcurrentIndexes})
+	}
+	return out
+}
+
+func inventory() reference {
+	gin.SetMode(gin.ReleaseMode)
+	doc := reference{FormatVersion: 1, Unauthenticated: bootstrap.UnauthenticatedRoutes,
+		PlatformMigrations: migrations(bootstrap.PlatformMigrations())}
+	deps := platform.Deps{Workflows: registrationClient{}, EmergencyWorkflowsEnabled: true, EmergencyDispatchEnabled: true, PrivacyDeadlinesEnabled: true}
+	for _, m := range bootstrap.Modules(nil, nil) {
+		r := platform.NewRouter(gin.New().Group("/v1"), noRequests{})
+		m.Routes(r, deps)
+		item := module{Name: m.Name(), Source: "backend/internal/modules/" + m.Name() + "/module.go",
+			Publishes: append([]string{}, m.Publishes()...), Directed: append([]string{}, m.DirectedSubjects()...),
+			DirectedTables: append([]string{}, m.DirectedWriteTables()...), Migrations: migrations(m.Migrations()),
+			Routes: []route{}, Grants: []grant{}, Consumers: []subscription{}, Broadcasts: []string{}}
+		for _, d := range r.Declared() {
+			item.Routes = append(item.Routes, route{Method: d.Method, Path: d.Path, Permission: d.Permission, Authentication: true, Membership: d.Permission != authz.NoTenantMembership, Paginated: d.Paginated, Counted: d.Counted, ScopeKind: d.ScopeKind, ScopeParameter: d.ScopeParameter})
+		}
+		sort.Slice(item.Routes, func(i, j int) bool {
+			return item.Routes[i].Path+item.Routes[i].Method < item.Routes[j].Path+item.Routes[j].Method
+		})
+		for _, g := range m.Permissions() {
+			item.Grants = append(item.Grants, grant{g.Permission, append([]authz.Role{}, g.Roles...)})
+		}
+		for _, c := range m.Consumers(deps) {
+			item.Consumers = append(item.Consumers, subscription{c.Name, c.Subject, c.AfterCommit != nil})
+		}
+		for _, b := range m.Broadcasts(deps) {
+			item.Broadcasts = append(item.Broadcasts, b.Subject)
+		}
+		doc.Modules = append(doc.Modules, item)
+	}
+	return doc
+}
+
+func markdown(doc reference) []byte {
+	var b strings.Builder
+	b.WriteString("# Generated backend contract inventory\n\n[Contract index](../README.md) · generated by `backend/cmd/contractdocs`; do not edit.\n\n")
+	b.WriteString("This is registry evidence, not a complete OpenAPI specification. Routes are mounted without executing handlers. All workflow/dispatch registration gates are enabled with a disconnected client so conditional consumers are included; this does not assert deployment enablement. Permissions do not replace domain object grants. `public` still requires authentication and tenant membership; `no_tenant_membership` still requires authentication. Tenant administrators implicitly receive declared permissions; domain grants remain separate.\n\n")
+	b.WriteString("Tables below are historical `CREATE TABLE` declarations found in registered migration SQL, not a reconstructed final schema. Read all later migrations for changes and removals. SQL hashes detect migration drift; no database is queried. Functions, policies, views, triggers, indexes and column constraints remain authoritative in the owning migrations.\n\n")
+	for _, m := range doc.Modules {
+		fmt.Fprintf(&b, "## %s\n\nSource: [%s](../../../%s). Payloads: `backend/internal/modules/%s/contract/`, owning handlers, and [schema index](../schemas.md).\n\n", m.Name, m.Source, m.Source, m.Name)
+		b.WriteString("| Method | Path | Permission | Cursor pagination | Page total |\n| --- | --- | --- | --- | --- |\n")
+		for _, r := range m.Routes {
+			fmt.Fprintf(&b, "| %s | `%s` | `%s` | %t | %t |\n", r.Method, r.Path, r.Permission, r.Paginated, r.Counted)
+		}
+		b.WriteString("\nPublished subjects:\n\n")
+		if len(m.Publishes) == 0 {
+			b.WriteString("None.\n")
+		}
+		for _, s := range m.Publishes {
+			fmt.Fprintf(&b, "- `%s`\n", s)
+		}
+		b.WriteString("\nSubscriptions:\n\n")
+		if len(m.Consumers)+len(m.Broadcasts) == 0 {
+			b.WriteString("None.\n")
+		}
+		for _, c := range m.Consumers {
+			fmt.Fprintf(&b, "- `%s` ← `%s`; after-commit hook: %t.\n", c.Name, c.Subject, c.AfterCommit)
+		}
+		for _, s := range m.Broadcasts {
+			fmt.Fprintf(&b, "- Fanout broadcast ← `%s`.\n", s)
+		}
+		if len(m.Directed) > 0 {
+			fmt.Fprintf(&b, "\nDirected allowlist: `%s`.\n", strings.Join(m.Directed, "`, `"))
+		}
+		if len(m.DirectedTables) > 0 {
+			fmt.Fprintf(&b, "\nDirected-write provenance tables: `%s`.\n", strings.Join(m.DirectedTables, "`, `"))
+		}
+		b.WriteString("\nMigration table declarations:\n\n")
+		writeTables(&b, m.Migrations)
+		b.WriteString("\n")
+	}
+	b.WriteString("## Routes outside session authentication\n\n| Route | Reason |\n| --- | --- |\n")
+	keys := make([]string, 0, len(doc.Unauthenticated))
+	for key := range doc.Unauthenticated {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "| `%s` | %s |\n", key, doc.Unauthenticated[key])
+	}
+	b.WriteString("\n## Platform migration table declarations\n\nSource: `backend/internal/bootstrap/migrations.go` includes tenantdb, events and audit in runtime apply order. The migrator separately creates `schema_migrations` bookkeeping in `backend/pkg/tenantdb/db.go`; it is not a module-owned table.\n\n")
+	writeTables(&b, doc.PlatformMigrations)
+	return []byte(b.String())
+}
+
+func writeTables(b *strings.Builder, items []migration) {
+	for _, m := range items {
+		if len(m.Tables) > 0 {
+			fmt.Fprintf(b, "- `%s`: `%s`.\n", m.ID, strings.Join(m.Tables, "`, `"))
+		}
+		for _, index := range m.ConcurrentIndexes {
+			keys := make([]string, 0, len(index.Columns))
+			for _, column := range index.Columns {
+				key := column.Name
+				if column.Descending {
+					key += " DESC"
+				}
+				keys = append(keys, key)
+			}
+			fmt.Fprintf(b, "- `%s`: concurrent index `%s` on `%s (%s)`.\n", m.ID, index.Name, index.Table, strings.Join(keys, ", "))
+		}
+	}
+}
+
+func save(file string, data []byte, check bool) (resultErr error) {
+	if !check {
+		if err := os.MkdirAll(filepath.Dir(file), 0750); err != nil {
+			return err
+		}
+	}
+	root, err := os.OpenRoot(filepath.Dir(file))
+	if err != nil {
+		return err
+	}
+	defer func() { resultErr = errors.Join(resultErr, root.Close()) }()
+	name := filepath.Base(file)
+	if check {
+		old, err := root.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("read reference %s: %w", file, err)
+		}
+		if !bytes.Equal(old, data) {
+			return fmt.Errorf("stale reference %s: run go run ./cmd/contractdocs from backend", file)
+		}
+		return nil
+	}
+	return root.WriteFile(name, data, 0600)
+}
+
+func run() error {
+	check := flag.Bool("check", false, "fail if generated references differ")
+	output := flag.String("out", "../docs/api/reference", "output directory, relative to working directory")
+	root := flag.String("root", "..", "repository root, relative to working directory")
+	flag.Parse()
+	doc := inventory()
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := save(filepath.Join(*output, "inventory.json"), append(data, '\n'), *check); err != nil {
+		return err
+	}
+	schemas, err := eventSchemas(doc, *root)
+	if err != nil {
+		return err
+	}
+	data, err = json.MarshalIndent(schemas, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := save(filepath.Join(*output, "event-payloads.json"), append(data, '\n'), *check); err != nil {
+		return err
+	}
+	return save(filepath.Join(*output, "README.md"), markdown(doc), *check)
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}

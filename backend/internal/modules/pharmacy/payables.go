@@ -9,6 +9,7 @@ import (
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/countryprofile"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -68,6 +69,8 @@ func payableRoutes(g *platform.Router, deps platform.Deps) {
 	platform.ListRoute(s, "/payables/:id/settlements", PermAccountsRead, h.listSettlements)
 	platform.ListRoute(s, "/payables", PermAccountsRead, h.listPayables)
 	platform.ListRoute(s, "/inventory-audit", PermAccountsRead, h.listInventoryAudit)
+	platform.GuardedCountedListRoute[payable](s, h.db, "/payables/counted", PermAccountsRead, tenantdb.Keyset{Column: "created_at"}, countedPayables)
+	platform.GuardedCountedListRoute[inventoryAudit](s, h.db, "/inventory-audit/counted", PermAccountsRead, tenantdb.Keyset{Column: "created_at"}, countedInventoryAudit)
 }
 func payableError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
@@ -91,7 +94,7 @@ func validPayable(in *payableInput) (int64, bool) {
 	in.DocumentReference = strings.ToUpper(strings.TrimSpace(in.DocumentReference))
 	issued, e1 := time.Parse(time.DateOnly, in.IssuedOn)
 	due, e2 := time.Parse(time.DateOnly, in.DueOn)
-	if e1 != nil || e2 != nil || due.Before(issued) || !currencyPattern.MatchString(in.Currency) || in.PayeeReference == "" || in.PayeeName == "" || in.DocumentReference == "" {
+	if e1 != nil || e2 != nil || due.Before(issued) || !countryprofile.SupportedCurrency(in.Currency) || in.PayeeReference == "" || in.PayeeName == "" || in.DocumentReference == "" {
 		return 0, false
 	}
 	var total int64
@@ -214,12 +217,76 @@ func (h *catalogueHandlers) listPayables(c *gin.Context, params pagination.Param
 	if !ok {
 		return nil, nil
 	}
+	due := c.QueryArray("due")
+	if len(due) > 1 || (len(due) == 1 && !validPayableDue(due[0])) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "due must be overdue or week")
+		return nil, nil
+	}
 	var rows []payable
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, params).Table("pharmacy_payable_balances").Select(payableColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error
+		q := tenantdb.ApplyKeyset(tx, params).Table("pharmacy_payable_balances").Select(payableColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+		if len(due) == 1 {
+			today, err := outletLocalDate(tx, p.TenantID, outlet)
+			if err != nil {
+				return err
+			}
+			q = payableDueScope(due[0], today)(q)
+		}
+		return q.Find(&rows).Error
 	})
 	if err != nil {
 		payableError(c, err)
 	}
 	return rows, nil
+}
+
+// countedPayables is the bill list with a total (#576 slice 3): the same
+// due filter as listPayables, the outlet date read once inside the snapshot.
+func countedPayables(c *gin.Context) (platform.CountedQuery[payable], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[payable]{}, false
+	}
+	due := c.QueryArray("due")
+	if len(due) > 1 || (len(due) == 1 && !validPayableDue(due[0])) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "due must be overdue or week")
+		return platform.CountedQuery[payable]{}, false
+	}
+	return platform.CountedQuery[payable]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			today := ""
+			if len(due) == 1 {
+				var err error
+				if today, err = outletLocalDate(tx, p.TenantID, outlet); err != nil {
+					return nil, err
+				}
+			}
+			return func(q *gorm.DB) *gorm.DB {
+				q = q.Table("pharmacy_payable_balances").Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+				if len(due) == 1 {
+					q = payableDueScope(due[0], today)(q)
+				}
+				return q
+			}, nil
+		}),
+		Rows: func(q *gorm.DB) *gorm.DB { return q.Select(payableColumns) },
+		Fail: payableError,
+	}, true
+}
+
+func validPayableDue(due string) bool { return due == "overdue" || due == "week" }
+
+// payableDueScope is the supplier-bill due filter (#576 D4), shared by the
+// bill list and the overview's counts so the two cannot disagree. Only a bill
+// with an amount still outstanding is due; an over-credited bill is settled.
+// today is the outlet's own date: overdue is strictly before it, week is
+// today to today + 7 inclusive.
+func payableDueScope(due, today string) func(*gorm.DB) *gorm.DB {
+	return func(tx *gorm.DB) *gorm.DB {
+		tx = tx.Where("outstanding_minor > 0")
+		if due == "overdue" {
+			return tx.Where("due_on < ?::date", today)
+		}
+		return tx.Where("due_on BETWEEN ?::date AND ?::date + 7", today, today)
+	}
 }

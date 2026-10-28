@@ -1,12 +1,10 @@
 package workforce
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"gorm.io/gorm"
@@ -14,9 +12,6 @@ import (
 )
 
 const taxEvidenceKind = "tax_declaration"
-const taxEvidenceLimit = 10
-
-var errDeclarationEvidenceScanning = errors.New("tax declaration evidence is still being scanned")
 
 // taxEvidence gates one tax year's declaration evidence: payroll managers attach to a pending proposal, payroll viewers read.
 type taxEvidence struct{ year string }
@@ -105,9 +100,7 @@ func (h *handlers) listTaxEvidence(c *gin.Context) {
 		if err := gate.owns(tx, p, hospital, staff, taxEvidenceKind, revision); err != nil {
 			return err
 		}
-		// Expired intents never received bytes and no longer count towards the limit.
-		return tx.Select(documentColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND record_kind=? AND record_id=? AND NOT(status='upload_pending' AND expires_at<=clock_timestamp())",
-			p.TenantID, hospital, staff, taxEvidenceKind, revision).Order("created_at DESC,id DESC").Limit(taxEvidenceLimit).Find(&rows).Error
+		return evidenceRows(tx, taxEvidenceKind, p.TenantID, hospital, staff, revision, &rows)
 	})
 	if documentUploadError(c, err) {
 		return
@@ -164,29 +157,4 @@ func (h *handlers) downloadTaxEvidence(c *gin.Context) {
 	if id, ok := taxEvidenceFile(c); ok {
 		h.sendDocument(c, gate, p, hospital, staff, id)
 	}
-}
-
-// settleDeclarationEvidence freezes a proposal's evidence at its decision and revokes what was readable unless the proposal took effect.
-func settleDeclarationEvidence(tx *gorm.DB, tenant string, hospital, staff, proposal uuid.UUID, to string) error {
-	var scanning int64
-	if err := tx.Table("workforce_documents").Where("tenant_id=? AND hospital_id=? AND record_kind=? AND record_id=? AND status='scan_pending'", tenant, hospital, taxEvidenceKind, proposal).Count(&scanning).Error; err != nil {
-		return err
-	}
-	if scanning > 0 {
-		return errDeclarationEvidenceScanning
-	}
-	var settled []document
-	if err := tx.Raw(`UPDATE workforce_documents SET frozen=true,status=CASE WHEN ?::text<>'approved' AND status='available' THEN 'revoked' ELSE status END,updated_at=clock_timestamp()
-	 WHERE tenant_id=? AND hospital_id=? AND record_kind=? AND record_id=? AND NOT frozen RETURNING `+documentColumns, to, tenant, hospital, taxEvidenceKind, proposal).Scan(&settled).Error; err != nil {
-		return err
-	}
-	for _, d := range settled {
-		if d.Status != "revoked" {
-			continue
-		}
-		if err := documentStateEvent(tx, workforcecontract.DocumentScanInput{TenantID: tenant, HospitalID: hospital.String(), StaffID: staff.String(), FileID: d.ID.String(), ScanAttempt: d.ScanAttempt}, "revoked"); err != nil {
-			return err
-		}
-	}
-	return nil
 }

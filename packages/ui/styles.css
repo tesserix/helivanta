@@ -1,4 +1,5 @@
-/* Helivanta color tokens — Frost/Night system (light theme, cool teal accent).
+/* Helivanta color tokens — slate, light only: one palette for the public
+   site and the app.
    Layer AFTER @tesserix/web/styles so these win.
    @tesserix/web's own light theme rule includes a `:not(.dark):not(.light)`
    fallback branch, whose two :not() pseudo-classes each add a class-level
@@ -12,118 +13,66 @@
 :root[data-theme="default"],
 [data-theme="default"] {
   /* Content surface */
-  --background: #f4f6f9 !important;
-  --foreground: #0f1728 !important;
+  --background: #f8fafc !important;
+  --foreground: #0f172a !important;
   --card: #ffffff !important;
-  --card-foreground: #0f1728 !important;
+  --card-foreground: #0f172a !important;
   --popover: #ffffff !important;
-  --popover-foreground: #0f1728 !important;
+  --popover-foreground: #0f172a !important;
 
-  --primary: #0e7569 !important;
+  --primary: #334155 !important;
   --primary-foreground: #ffffff !important;
 
-  --secondary: #f0f3f7 !important;
-  --secondary-foreground: #3a4557 !important;
+  --secondary: #f1f5f9 !important;
+  --secondary-foreground: #334155 !important;
 
-  --muted: #f6f8fb !important;
-  --muted-foreground: #647082 !important;
+  --muted: #f1f5f9 !important;
+  --muted-foreground: #475569 !important;
 
-  --accent: #e3f2ef !important;
-  --accent-foreground: #0a5a50 !important;
+  --accent: #e2e8f0 !important;
+  --accent-foreground: #1e293b !important;
 
   --destructive: #c93b3b !important;
   --destructive-foreground: #ffffff !important;
 
-  --border: #e5eaf1 !important;
-  --input: #e5eaf1 !important;
-  --ring: #0e7569 !important;
+  --border: #cbd5e1 !important;
+  --input: #cbd5e1 !important;
+  --ring: #334155 !important;
 
   /* Sidebar — light rails */
-  --sidebar: #fafbfd !important;
-  --sidebar-foreground: #0f1728 !important;
-  --sidebar-primary: #0e7569 !important;
+  --sidebar: #f1f5f9 !important;
+  --sidebar-foreground: #0f172a !important;
+  --sidebar-primary: #334155 !important;
   --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: #f0f3f7 !important;
-  --sidebar-accent-foreground: #0f1728 !important;
-  --sidebar-border: #ebeff5 !important;
-  --sidebar-ring: #0e7569 !important;
+  --sidebar-accent: #e2e8f0 !important;
+  --sidebar-accent-foreground: #0f172a !important;
+  --sidebar-border: #cbd5e1 !important;
+  --sidebar-ring: #334155 !important;
   --sidebar-rail: #ffffff !important;
 
   /* Helivanta semantic tokens */
-  --hms-accent: #0e7569 !important;
-  --hms-accent-strong: #0a5a50 !important;
-  --hms-accent-dim: #e3f2ef !important;
-  --hms-good: #12915e !important;
-  --hms-warn: #b95e04 !important;
+  --hms-accent: #334155 !important;
+  --hms-accent-strong: #1e293b !important;
+  --hms-accent-dim: #e2e8f0 !important;
+  --hms-good: #0f7a4f !important;
+  --hms-warn: #a85503 !important;
   --hms-crit: #c93b3b !important;
   --hms-rose: #c13b5e !important;
   --hms-rose-tint: #fbedf1 !important;
-  --hms-amber: #a16207 !important;
+  --hms-amber: #92400e !important;
   --hms-amber-tint: #fbf3e4 !important;
-  --hms-violet: #5b5bd6 !important;
+  --hms-violet: #4f46e5 !important;
   --hms-violet-tint: #eeeefb !important;
+  --hms-sky: #1d5da8 !important;
+  --hms-sky-tint: #e7effa !important;
   --hms-track: #e7ebf1 !important;
-}
 
-:root[data-theme="dark"],
-[data-theme="dark"] {
-  /* Content surface */
-  --background: #0f1317 !important;
-  --foreground: #e8edf2 !important;
-  --card: #161c22 !important;
-  --card-foreground: #e8edf2 !important;
-  --popover: #161c22 !important;
-  --popover-foreground: #e8edf2 !important;
-
-  --primary: #45c4b4 !important;
-  --primary-foreground: #06211d !important;
-
-  --secondary: #1b222a !important;
-  --secondary-foreground: #e8edf2 !important;
-
-  --muted: #1b222a !important;
-  --muted-foreground: #8b96a3 !important;
-
-  --accent: #182b2d !important;
-  --accent-foreground: #45c4b4 !important;
-
-  --destructive: #f87171 !important;
-  --destructive-foreground: #0f1317 !important;
-
-  --border: #232b34 !important;
-  --input: #232b34 !important;
-  --ring: #45c4b4 !important;
-
-  /* Sidebar — dark rails */
-  --sidebar: #12161b !important;
-  --sidebar-foreground: #e8edf2 !important;
-  --sidebar-primary: #45c4b4 !important;
-  --sidebar-primary-foreground: #06211d !important;
-  --sidebar-accent: #1b222a !important;
-  --sidebar-accent-foreground: #e8edf2 !important;
-  --sidebar-border: #1c232b !important;
-  --sidebar-ring: #45c4b4 !important;
-  --sidebar-rail: #0b0e11 !important;
-
-  /* Helivanta semantic tokens */
-  --hms-accent: #45c4b4 !important;
-  --hms-accent-strong: #5fd8c8 !important;
-  --hms-accent-dim: #182b2d !important;
-  --hms-good: #4ade80 !important;
-  --hms-warn: #fbbf24 !important;
-  --hms-crit: #f87171 !important;
-  --hms-rose: #f17e9c !important;
-  --hms-rose-tint: #302831 !important;
-  --hms-amber: #f2c464 !important;
-  --hms-amber-tint: #30302a !important;
-  --hms-violet: #9d9df0 !important;
-  --hms-violet-tint: #26273b !important;
-  --hms-track: #232b34 !important;
-
-  /* --radius is only defined under [data-theme="default"] by @tesserix/web;
-     guard it here so it's never undefined in dark mode if a future
-     @tesserix/web release starts consuming it. */
-  --radius: 0.625rem !important;
+  /* Light slate supporting bands. */
+  --hms-band: #f1f5f9 !important;
+  --hms-band-ink: #0f172a !important;
+  --hms-band-muted: #475569 !important;
+  --hms-band-line: #475569 !important;
+  --hms-shadow: #334155 !important;
 }
 
 /* @tesserix/web ships an UNLAYERED base rule that forces
@@ -133,6 +82,20 @@
    class + !important wins over both. */
 .hms-sidebar-border {
   border-color: var(--sidebar-border) !important;
+}
+
+/* Stored chrome layout from the first paint (#1091 D7). The server renders the
+   default (navigation collapsed); CHROME_INIT_SCRIPT stamps the
+   stored values on <html> before paint and HmsShell keeps them in step, so
+   these rules only differ from the utilities while React has not yet applied
+   the stored state. Unlayered, so they beat the layered width utilities.
+   Only the non-default values need a rule. The open navigation is sized from
+   md up only: below md it is an overlay React opens after hydration, and
+   widening it in flow there would push the page. */
+@media (min-width: 48rem) {
+  html[data-hms-navigation="open"] .hms-rail {
+    width: 13rem;
+  }
 }
 
 /* Autofill honours the theme (#858).
@@ -186,10 +149,10 @@ select:autofill {
 }
 
 [data-brand-theme="teal"] {
-  --hms-accent: #0e7569;
-  --hms-accent-strong: #0a5a50;
-  --hms-accent-dim: #e3f2ef;
-  --primary: #0e7569;
+  --hms-accent: #334155;
+  --hms-accent-strong: #1e293b;
+  --hms-accent-dim: #e2e8f0;
+  --primary: #334155;
   --primary-foreground: #ffffff;
 }
 [data-brand-theme="blue"] {
@@ -205,21 +168,6 @@ select:autofill {
   --hms-accent-dim: #eeedf9;
   --primary: #5352a6;
   --primary-foreground: #ffffff;
-}
-[data-theme="dark"] [data-brand-theme="teal"] {
-  --hms-accent: #45c4b4;
-  --hms-accent-strong: #5fd8c8;
-  --hms-accent-dim: #182b2d;
-}
-[data-theme="dark"] [data-brand-theme="blue"] {
-  --hms-accent: #80baff;
-  --hms-accent-strong: #a1ccff;
-  --hms-accent-dim: #18283d;
-}
-[data-theme="dark"] [data-brand-theme="indigo"] {
-  --hms-accent: #b2abff;
-  --hms-accent-strong: #ccc6ff;
-  --hms-accent-dim: #29243e;
 }
 
 /* Public authentication stays light independently of the clinical workspace theme. */
@@ -300,9 +248,9 @@ select:autofill {
   background: var(--card);
 }
 .login-page [data-brand-theme="teal"] {
-  --hms-accent: #0e7569;
-  --hms-accent-strong: #0a5a50;
-  --hms-accent-dim: #e3f2ef;
+  --hms-accent: #334155;
+  --hms-accent-strong: #1e293b;
+  --hms-accent-dim: #e2e8f0;
 }
 .login-page [data-brand-theme="blue"] {
   --hms-accent: #1d5da8;

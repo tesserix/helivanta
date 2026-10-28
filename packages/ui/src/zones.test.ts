@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ZONES, visibleZones, type Zone } from "./zones";
+import { ZONES, activePage, railName, visibleZones, type Zone } from "./zones";
 
 // Mirrors the real can() semantics (packages/api/src/permissions.tsx):
 // "public" always resolves true, everything else must be explicitly
@@ -23,8 +23,22 @@ describe("visibleZones", () => {
     );
 
     expect(pharmacy?.label).toBe("PharmaConnect");
-    expect(pharmacy?.href).toBe("/pharmacy/catalogue");
-    expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy/catalogue"]);
+    // #576: the overview is the landing page for anyone with an outlet role.
+    expect(pharmacy?.href).toBe("/pharmacy");
+    expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy", "/pharmacy/catalogue"]);
+  });
+
+  it("lists benefits only for a benefits reader, never for directory access", () => {
+    const staffPages = (granted: string[]) =>
+      visibleZones(canWith(granted))
+        .find((zone) => zone.key === "workforce")
+        ?.pages.map((page) => page.href);
+
+    expect(staffPages([])).not.toContain("/workforce/benefits");
+    expect(staffPages(["workforce.payroll.view", "workforce.enrollment.manage"])).not.toContain(
+      "/workforce/benefits",
+    );
+    expect(staffPages(["workforce.benefits.view"])).toContain("/workforce/benefits");
   });
 
   it("hides zones whose permission the user lacks", () => {
@@ -43,7 +57,9 @@ describe("visibleZones", () => {
       (z) => z.key === "pharmacy",
     );
 
-    expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Dispenses"]);
+    expect(pharmacy?.pages.map((p) => p.label)).toEqual(["Dispense queue"]);
+    // A doctor, who only reads the queue, still opens at the queue.
+    expect(pharmacy?.href).toBe("/pharmacy/dispense");
   });
 
   it("declares a permission on every zone and page", () => {
@@ -112,4 +128,161 @@ it("offers the supply directory to non-clinical purchasing users", () => {
   expect(supply?.href).toBe("/supply/parties");
   expect(supply?.pages.map((page) => page.href)).toEqual(["/supply/parties"]);
   expect(zones.some((zone) => zone.key === "pharmacy")).toBe(false);
+});
+
+it("opens only crew assignments for an emergency crew user", () => {
+  const emergency = visibleZones(canWith(["emergency.crew.read"])).find(
+    (zone) => zone.key === "emergency",
+  );
+  expect(emergency?.href).toBe("/emergency/crew");
+  expect(emergency?.pages.map((page) => page.href)).toEqual(["/emergency/crew"]);
+});
+
+it("opens only the receiving inbox for a hospital receiver", () => {
+  const emergency = visibleZones(canWith(["emergency.receiving.read"])).find(
+    (zone) => zone.key === "emergency",
+  );
+  expect(emergency?.href).toBe("/emergency/receiving");
+  expect(emergency?.pages.map((page) => page.href)).toEqual(["/emergency/receiving"]);
+});
+
+describe("activePage", () => {
+  const zone = (key: string) => ZONES.find((z) => z.key === key)!;
+
+  it("marks an exact page match", () => {
+    expect(activePage(zone("pharmacy"), "/pharmacy/medications")?.href).toBe(
+      "/pharmacy/medications",
+    );
+  });
+  it("marks the page a nested path sits under", () => {
+    expect(activePage(zone("emergency"), "/emergency/bases/b/cases/c")?.href).toBe("/emergency");
+  });
+  it("prefers the longest matching page over a shorter prefix", () => {
+    expect(activePage(zone("workforce"), "/workforce/setup")?.href).toBe("/workforce/setup");
+  });
+  it("matches only at a segment boundary", () => {
+    expect(activePage(zone("pharmacy"), "/pharmacyx")).toBeUndefined();
+  });
+  it("marks nothing when no page matches", () => {
+    expect(activePage(zone("pharmacy"), "/lab")).toBeUndefined();
+  });
+});
+
+// #1270 D1: the rail reads in one order, grouped by use, whatever order
+// zones were added in.
+// #1286 D2: a collapsed rail shows this under the icon, so it must fit.
+it("gives every zone a short rail label", () => {
+  for (const zone of ZONES) expect(zone.railLabel, zone.key).toMatch(/^.{1,9}$/);
+});
+
+// #1369 (WCAG 2.5.3): a rail link's name holds the words it shows, the short
+// label collapsed and the full one expanded.
+it("names every rail link with both of its labels", () => {
+  for (const zone of ZONES) {
+    const name = railName(zone).toLowerCase();
+    expect(name, zone.key).toContain(zone.railLabel.toLowerCase());
+    expect(name, zone.key).toContain(zone.label.toLowerCase());
+  }
+  expect(railName(ZONES.find((zone) => zone.key === "pharmacy")!)).toBe("Pharmacy (PharmaConnect)");
+  expect(railName(ZONES.find((zone) => zone.key === "lab")!)).toBe("Lab");
+});
+
+describe("zone order", () => {
+  it("lists zones grouped by use, settings last", () => {
+    expect(ZONES.map((zone) => zone.key)).toEqual([
+      "dashboard",
+      "patients",
+      "medicore",
+      "lab",
+      "pharmacy",
+      "emergency",
+      "supply",
+      "workforce",
+      "settings",
+    ]);
+  });
+
+  it("keeps each group contiguous", () => {
+    const runs = ZONES.map((zone) => zone.group).filter(
+      (group, index, groups) => group !== groups[index - 1],
+    );
+    expect(runs).toEqual(["overview", "care", "operations", "admin"]);
+  });
+});
+
+// #1258 D1/D5: an icon tells pages apart only if it is not shared, and a
+// section heading appears once only if its pages sit together.
+describe("zone icons and sections", () => {
+  it("gives every rail zone its own icon", () => {
+    const icons = ZONES.map((zone) => zone.icon);
+    expect(new Set(icons).size).toBe(icons.length);
+  });
+
+  it.each(ZONES.map((zone) => [zone.key, zone] as const))(
+    "gives every %s page its own icon",
+    (_key, zone) => {
+      const icons = zone.pages.map((page) => page.icon);
+      expect(new Set(icons).size).toBe(icons.length);
+    },
+  );
+
+  it.each(ZONES.map((zone) => [zone.key, zone] as const))(
+    "keeps each %s section contiguous",
+    (_key, zone) => {
+      const runs = zone.pages
+        .map((page) => page.section)
+        .filter((section, index, sections) => section !== sections[index - 1]);
+      expect(new Set(runs).size).toBe(runs.length);
+    },
+  );
+
+  it("structures PharmaConnect as pharmacy management", () => {
+    const pharmacy = ZONES.find((zone) => zone.key === "pharmacy")!;
+    expect(pharmacy.pages.map((page) => [page.section, page.label, page.href])).toEqual([
+      [undefined, "Overview", "/pharmacy"],
+      ["Dispensing", "Counter sale", "/pharmacy/counter"],
+      ["Dispensing", "Returns", "/pharmacy/returns"],
+      ["Dispensing", "Daily sales", "/pharmacy/daily-report"],
+      ["Dispensing", "H1 register", "/pharmacy/h1-register"],
+      ["Dispensing", "Prescriptions", "/pharmacy/prescriptions"],
+      ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
+      ["Dispensing", "Medication list", "/pharmacy/medications"],
+      ["Inventory", "Stock on hand", "/pharmacy/stock"],
+      ["Inventory", "Receiving", "/pharmacy/receiving"],
+      ["Inventory", "Expiry & safety", "/pharmacy/safety"],
+      ["Inventory", "Product catalogue", "/pharmacy/catalogue"],
+      ["Purchasing", "Supplier bills", "/pharmacy/accounts"],
+      ["Setup", "Outlets & access", "/pharmacy/setup"],
+    ]);
+  });
+});
+
+// #1366: width is a zone's declared choice, so its pages never jump in width
+// as you move between them. A page cannot set its own (ZonePage has no width).
+describe("zone width", () => {
+  it("declares full width only for the zones that have chosen it", () => {
+    expect(ZONES.filter((zone) => zone.width === "full").map((zone) => zone.key)).toEqual([
+      "dashboard",
+      "pharmacy",
+      "workforce",
+    ]);
+  });
+});
+
+it.each(["iam.member.manage", "iam.assignment.manage", "iam.assignment.review"])(
+  "shows Staff access to a caller holding %s",
+  (permission) => {
+    const pages = visibleZones((p) => p === "public" || p === permission).flatMap((z) => z.pages);
+    expect(pages.some((p) => p.href === "/workforce/access")).toBe(true);
+  },
+);
+
+it("hides Staff access from callers without membership or assignment administration", () => {
+  const pages = visibleZones((p) => p === "public").flatMap((z) => z.pages);
+  expect(pages.some((p) => p.href === "/workforce/access")).toBe(false);
+});
+
+it("shows the scoped leave review entry without tenant-wide business grants", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/leave-review")).toBe(true);
 });

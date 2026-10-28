@@ -93,7 +93,8 @@ load.
 - The patient app (#11, `apps/mobile`): a separate audience and auth realm.
 - Moving `HmsShell` into a shared layout so the chrome does not remount per
   page. Each page still renders its own `HmsShell`, exactly as before. This
-  change is the move, not a chrome redesign.
+  change is the move, not a chrome redesign. Done in #1091; see
+  `2026-10-20-workspace-layout-design.md`.
 - Any change to routes' content, permissions, or the API.
 
 ## Proof

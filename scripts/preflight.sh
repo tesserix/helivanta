@@ -23,12 +23,12 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # no Make involved still checks the stock ports. The web app's port (4301,
 # apps/shell) is out of scope for this variable set (see .env.example) and
 # stays literal.
-PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HELIVANTA_PG_PORT:-5432} ${HELIVANTA_NATS_PORT:-4222} ${HELIVANTA_NATS_MONITOR_PORT:-8222} ${HELIVANTA_REDIS_PORT:-6379} ${HELIVANTA_OPENFGA_PORT:-8090} ${HELIVANTA_ZITADEL_PORT:-20080} ${HELIVANTA_ZITADEL_PG_PORT:-5433} ${HELIVANTA_API_PORT:-8080} 4301"}
+PREFLIGHT_PORTS=${PREFLIGHT_PORTS:-"${HELIVANTA_PG_PORT:-5432} ${HELIVANTA_NATS_PORT:-4222} ${HELIVANTA_NATS_MONITOR_PORT:-8222} ${HELIVANTA_REDIS_PORT:-6379} ${HELIVANTA_OPENFGA_PORT:-8090} ${HELIVANTA_ZITADEL_PORT:-20080} ${HELIVANTA_ZITADEL_PG_PORT:-5433} ${HELIVANTA_API_PORT:-8080} ${HELIVANTA_GLOBAL_API_PORT:-8081} 4301"}
 NODE_MIN=22
 
 # Keep the patch-level requirement aligned with CI and local Make targets.
 GO_MOD_VERSION=$(sed -n 's/^go \([0-9][0-9.]*\).*/\1/p' "$REPO_ROOT/backend/go.mod" 2>/dev/null)
-GO_MOD_VERSION=${GO_MOD_VERSION:-1.27.2}
+GO_MOD_VERSION=${GO_MOD_VERSION:-1.27.3}
 GO_MIN=$GO_MOD_VERSION
 
 # Zitadel does not fail fast on a wrong-length masterkey — it crash-loops

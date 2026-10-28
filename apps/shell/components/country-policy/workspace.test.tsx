@@ -44,7 +44,7 @@ it("keeps a UTC datetime valid after the control loses focus", async () => {
 
 // Filling all eleven requirements takes many interactions, which shared CI runners run about three times slower.
 it(
-  "submits all Pakistan requirements with PKR and replays an unchanged failed submission",
+  "submits all India requirements with INR and replays an unchanged failed submission",
   { timeout: 15_000 },
   async () => {
     HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -115,9 +115,11 @@ it(
     vi.stubGlobal("fetch", fetcher);
     const { user } = renderWithProviders(<CountryPolicyWorkspace />);
     await user.click(await screen.findByRole("button", { name: "Create policy" }));
+    // #1287: India is the only country offered.
     await user.click(screen.getByRole("combobox", { name: "Country" }));
-    await user.click(await screen.findByRole("option", { name: "Pakistan" }));
-    await user.type(screen.getByLabelText("Jurisdiction"), "TEST-PROVINCE");
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["India"]);
+    await user.click(await screen.findByRole("option", { name: "India" }));
+    await user.type(screen.getByLabelText("Jurisdiction"), "TEST-STATE");
     fireEvent.change(screen.getByLabelText("Effective from (UTC)"), {
       target: { value: "2026-10-16T00:00" },
     });
@@ -145,19 +147,17 @@ it(
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "TEST submission temporarily unavailable",
     );
-    expect(screen.getByLabelText("Jurisdiction")).toHaveValue("TEST-PROVINCE");
+    expect(screen.getByLabelText("Jurisdiction")).toHaveValue("TEST-STATE");
     await user.click(screen.getByRole("button", { name: "Submit policy for review" }));
     await waitFor(() => expect(posts).toHaveLength(2));
     expect(posts[1]).toEqual(posts[0]);
     expect(posts[1]).toMatchObject({
-      country: "PK",
-      currency: "PKR",
+      country: "IN",
+      currency: "INR",
       requirements: expect.any(Array),
     });
     expect(posts[1].requirements).toHaveLength(11);
-    expect(
-      await screen.findByRole("heading", { name: "Pakistan · TEST-PROVINCE" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "India · TEST-STATE" })).toBeInTheDocument();
   },
 );
 it("shows the empty state and focuses the new policy form", async () => {

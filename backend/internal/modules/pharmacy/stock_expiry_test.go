@@ -14,12 +14,12 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 )
 
+// India is the only supported country (#1287); its cases still tell the
+// outlet's calendar from UTC's, since 18:45Z is already the 29th in Kolkata.
 func TestStockExpiryBandsUseOutletCalendar(t *testing.T) {
 	for _, country := range []struct{ code, zone, cutoff, date string }{
 		{"IN-before", "Asia/Kolkata", "2024-02-28T18:29:59Z", "2024-02-28"},
 		{"IN-after", "Asia/Kolkata", "2024-02-28T18:45:00Z", "2024-02-29"},
-		{"PK-before", "Asia/Karachi", "2024-02-28T18:45:00Z", "2024-02-28"},
-		{"PK-after", "Asia/Karachi", "2024-02-28T19:00:00Z", "2024-02-29"},
 	} {
 		t.Run(country.code, func(t *testing.T) {
 			r, db, _, _ := catalogueSetup(t)
@@ -34,7 +34,7 @@ func TestStockExpiryBandsUseOutletCalendar(t *testing.T) {
 			require.NoError(t, err)
 			for _, days := range []int{-1, 0, 1, 30, 31, 90, 91, 180, 181} {
 				batch := uuid.Must(uuid.NewV7()).String()
-				w := do(r, "PUT", root+"/stock/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":%q}`, product, fmt.Sprintf("TEST-EXPIRY-%d", days), localDate.AddDate(0, 0, days).Format(time.DateOnly)))
+				w := do(r, "PUT", root+"/stock/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":%q,"mrp_minor":12500}`, product, fmt.Sprintf("TEST-EXPIRY-%d", days), localDate.AddDate(0, 0, days).Format(time.DateOnly)))
 				require.Equal(t, 200, w.Code, w.Body.String())
 				require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 					if err := tx.Exec(`SELECT set_config('app.actor_subject','user-editor',true),set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {

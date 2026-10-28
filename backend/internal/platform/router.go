@@ -2,6 +2,7 @@ package platform
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +19,10 @@ import (
 // route skips tenant membership, only that it declares no permission
 // (#781) — see authz.NoTenantMembership for the narrower opt-out.
 type Router struct {
-	group      *gin.RouterGroup
-	declared   *[]DeclaredRoute
-	membership authz.MembershipChecker
+	group            *gin.RouterGroup
+	declared         *[]DeclaredRoute
+	membership       authz.MembershipChecker
+	scopedAuthorizer authz.ScopedAuthorizer
 }
 
 // DeclaredRoute is one route's method, path and permission, as recorded
@@ -29,13 +31,18 @@ type Router struct {
 // NoTenantMembership allowlist arch test — doesn't have to re-register
 // every module's routes a second time to find out.
 type DeclaredRoute struct {
-	Method     string
-	Path       string
-	Permission authz.Permission
+	Method         string
+	Path           string
+	Permission     authz.Permission
+	ScopeKind      string
+	ScopeParameter string
 	// Paginated is true for routes registered through ListRoute. The
 	// arch test uses it to fail any collection GET registered the old
 	// way — the one hole ListRoute's type signature cannot close.
 	Paginated bool
+	// Counted is true for routes registered through CountedListRoute,
+	// whose page carries a total (#1295 D1).
+	Counted bool
 }
 
 // NewRouter builds the root router. membership is required, not
@@ -54,7 +61,40 @@ func NewRouter(g *gin.RouterGroup, membership authz.MembershipChecker) *Router {
 // list and membership checker, so Declared() sees every route regardless
 // of nesting.
 func (r *Router) Group(prefix string) *Router {
-	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership}
+	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer}
+}
+
+// WithScopedAuthorizer configures scoped authority before route registration.
+func (r *Router) WithScopedAuthorizer(authority authz.ScopedAuthorizer) *Router {
+	r.scopedAuthorizer = authority
+	return r
+}
+
+// POSTScopedHospital declares a command with legacy or hospital-scoped authority.
+func (r *Router) POSTScopedHospital(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScope(http.MethodPost, path, permission, hospitalParam, false, handlers...)
+}
+
+// GETScopedHospital declares a purpose-bound hospital-scoped read.
+func (r *Router) GETScopedHospital(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)
+}
+
+func (r *Router) handleHospitalScope(method, path string, permission authz.Permission, hospitalParam string, paginated bool, handlers ...gin.HandlerFunc) {
+	fullPath := r.group.BasePath() + path
+	found := false
+	for _, segment := range strings.Split(fullPath, "/") {
+		if hospitalParam != "" && segment == ":"+hospitalParam {
+			found = true
+			break
+		}
+	}
+	if !found || permission == "" || permission == authz.Public || permission == authz.NoTenantMembership {
+		panic("platform: scoped route requires a permission and declared hospital parameter")
+	}
+	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: "hospital", ScopeParameter: hospitalParam})
+	chain := []gin.HandlerFunc{authz.RequireMembership(r.membership), authz.RequireHospitalScope(permission, hospitalParam, r.scopedAuthorizer)}
+	r.group.Handle(method, path, append(chain, handlers...)...)
 }
 
 func (r *Router) GET(path string, perm authz.Permission, h ...gin.HandlerFunc) {
@@ -78,9 +118,14 @@ func (r *Router) DELETE(path string, perm authz.Permission, h ...gin.HandlerFunc
 }
 
 func (r *Router) handle(method, path string, perm authz.Permission, paginated bool, h []gin.HandlerFunc) {
-	*r.declared = append(*r.declared, DeclaredRoute{
-		Method: method, Path: r.group.BasePath() + path, Permission: perm, Paginated: paginated,
-	})
+	r.declare(path, DeclaredRoute{Method: method, Path: r.group.BasePath() + path, Permission: perm, Paginated: paginated}, h)
+}
+
+// declare records d and mounts h at path (relative to this group) behind
+// the membership and permission gates.
+func (r *Router) declare(path string, d DeclaredRoute, h []gin.HandlerFunc) {
+	method, perm := d.Method, d.Permission
+	*r.declared = append(*r.declared, d)
 	chain := make([]gin.HandlerFunc, 0, len(h)+2)
 	// Membership first: a non-member gets the same answer on every route
 	// regardless of what permission it declares, and a route marked

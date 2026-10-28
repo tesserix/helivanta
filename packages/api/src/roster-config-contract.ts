@@ -20,7 +20,7 @@ export const ROSTER_MODES = {
 } as const;
 const identifier = z
   .string()
-  .uuid("Choose a valid record.")
+  .guid("Choose a valid record.")
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const rosterShiftContract = z
   .object({
@@ -405,6 +405,7 @@ export const rosterStatusInputContract = z
       .max(500)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed: z.boolean(),
+    acknowledged_clashes: z.array(identifier).max(2000).optional(),
   })
   .strict();
 export type RosterStatusInput = z.infer<typeof rosterStatusInputContract>;
@@ -426,6 +427,7 @@ export const rosterRevisionContract = z
     skipped_unassigned: z.number().int().min(0),
     skipped_conflicts: z.number().int().min(0),
     skipped_leave: z.number().int().min(0),
+    credential_clashes: z.number().int().min(0),
     reason: z
       .string()
       .max(500)
@@ -448,3 +450,41 @@ export const rosterChangeResultContract = z
   })
   .strict();
 export type RosterChangeResult = z.infer<typeof rosterChangeResultContract>;
+
+export const rosterClashCredentialContract = z
+  .object({
+    credential_id: identifier,
+    type: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_from: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_until: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    validity_version: z.number().int().min(1),
+    standing: z.enum(["expired", "not_yet_valid"]),
+  })
+  .strict();
+export type RosterClashCredential = z.infer<typeof rosterClashCredentialContract>;
+
+export const rosterCredentialClashContract = z
+  .object({
+    allocation_id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    roster_date: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    credentials: z.array(rosterClashCredentialContract),
+  })
+  .strict();
+export type RosterCredentialClash = z.infer<typeof rosterCredentialClashContract>;

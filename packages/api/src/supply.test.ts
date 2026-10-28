@@ -56,15 +56,16 @@ it("rejects duplicate contact identities and country-incompatible declarations",
       ],
     }).success,
   ).toBe(false);
+  // #1287: only India is supported; another country and its identifier kinds are refused.
   expect(
     supplyPartyFormSchema.safeParse({
       ...input,
-      country_code: "PK",
+      country_code: "US",
       tax_registrations: [
         { id: newSupplyId(), kind: "ntn", number: "TEST-TAX", jurisdiction: "TEST" },
       ],
     }).success,
-  ).toBe(true);
+  ).toBe(false);
   expect(
     supplyPartyFormSchema.safeParse({
       ...input,
@@ -77,7 +78,7 @@ it("rejects duplicate contact identities and country-incompatible declarations",
           city: "TEST City",
           region: "TEST Region",
           postal_code: "TEST",
-          country_code: "PK",
+          country_code: "US",
         },
       ],
     }).success,

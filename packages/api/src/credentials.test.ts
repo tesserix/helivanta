@@ -1,6 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
+  acknowledgeCredentialReminder,
   citableEvidence,
+  credentialReminderPolicyFormSchema,
+  credentialRemindersPath,
+  parseReminderDays,
+  saveCredentialReminderPolicy,
   credentialDecisionFormSchema,
   credentialRegisterPath,
   credentialReviewFormSchema,
@@ -124,4 +129,69 @@ it("proposes to the review id and refuses a receipt for another credential", asy
     }),
   ).rejects.toThrow("The saved review did not match this credential.");
   expect(calls[1]?.url).toMatch(/\/reviews\/[0-9a-f-]+\/decision$/);
+});
+
+it("accepts 1 to 6 distinct whole reminder days from 0 to 365", () => {
+  const message = (days: string) =>
+    credentialReminderPolicyFormSchema.safeParse({ days }).error?.issues[0]?.message;
+  expect(message("90, 30, 0")).toBeUndefined();
+  expect(parseReminderDays("90, 30, 0")).toEqual([90, 30, 0]);
+  expect(message(" ")).toBe("Enter at least one day.");
+  expect(message("30, 1.5")).toBe("Use whole days from 0 to 365, separated by commas.");
+  expect(message("366")).toBe("Use whole days from 0 to 365, separated by commas.");
+  expect(message("-1")).toBe("Use whole days from 0 to 365, separated by commas.");
+  expect(message("30,,0")).toBe("Use whole days from 0 to 365, separated by commas.");
+  expect(message("1,2,3,4,5,6,7")).toBe("Use up to 6 reminder days.");
+  expect(message("30, 30")).toBe("List each day once.");
+});
+
+it("filters the reminder inbox by a known status only", () => {
+  expect(credentialRemindersPath(hospital, "open")).toBe(
+    `/workforce/hospitals/${hospital}/hr/credential-reminders?status=open`,
+  );
+  expect(() => credentialRemindersPath(hospital, "closed" as "open")).toThrow();
+});
+
+it("saves the policy against a version and refuses a receipt for another reminder", async () => {
+  const calls: { url: string; method?: string; body?: string }[] = [];
+  let body: unknown = { version: 2, thresholds: [30, 0], created_by_subject: "synthetic-hr" };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, method: init.method, body: init.body as string | undefined });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  await expect(saveCredentialReminderPolicy(hospital, 1, [30, 0])).resolves.toMatchObject({
+    version: 2,
+  });
+  expect(calls[0]).toEqual({
+    url: `/api/v1/workforce/hospitals/${hospital}/hr/credential-reminder-policy`,
+    method: "PUT",
+    body: JSON.stringify({ expected_version: 1, thresholds: [30, 0] }),
+  });
+  body = {
+    id: file,
+    staff_id: staff,
+    employee_code: "SYN-001",
+    display_name: "Synthetic Nurse",
+    credential_id: credential,
+    type: "Synthetic registration",
+    valid_until: "2026-12-31",
+    validity_version: 1,
+    threshold_days: 30,
+    due_on: "2026-12-01",
+    status: "acknowledged",
+    created_at: stamp,
+  };
+  await expect(acknowledgeCredentialReminder(hospital, review)).rejects.toThrow(
+    "The acknowledged reminder did not match.",
+  );
+  expect(calls[1]).toMatchObject({
+    url: `/api/v1/workforce/hospitals/${hospital}/hr/credential-reminders/${review}/acknowledgement`,
+    method: "POST",
+  });
+  await expect(acknowledgeCredentialReminder(hospital, file)).resolves.toMatchObject({
+    status: "acknowledged",
+  });
 });

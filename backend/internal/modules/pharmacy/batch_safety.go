@@ -3,6 +3,7 @@ package pharmacy
 import (
 	"encoding/json"
 	"errors"
+	"github.com/tesserix/helivanta/internal/platform"
 	"net/http"
 	"regexp"
 	"strings"
@@ -123,6 +124,34 @@ func (h *catalogueHandlers) listBatchSafetyIncidents(c *gin.Context, params pagi
 	if !ok {
 		return nil, nil
 	}
+	// Without a batch, the list is the outlet's recent concerns (#576 D4),
+	// which is what the overview counts. Any other unscoped request is
+	// refused rather than listing the whole journal.
+	if c.Query("batch_id") == "" {
+		if c.Query("recorded") != "30d" {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "give batch_id, or recorded=30d for the outlet's recent concerns")
+			return nil, nil
+		}
+		var rows []batchSafetyIncident
+		err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+			var o pharmacyOutlet
+			if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
+				return err
+			}
+			today, err := outletToday(o.Timezone)
+			if err != nil {
+				return err
+			}
+			q := tenantdb.ApplyKeyset(tx, params).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet)
+			return recentSafetyScope(today, o.Timezone)(q).Find(&rows).Error
+		})
+		// The same answers as the per-batch list: 404 without an outlet
+		// grant, 503 when access cannot be checked.
+		if err != nil {
+			stockError(c, err)
+		}
+		return rows, nil
+	}
 	batch, ok := stockFilter(c, "batch_id", true)
 	if !ok {
 		return nil, nil
@@ -138,4 +167,39 @@ func (h *catalogueHandlers) listBatchSafetyIncidents(c *gin.Context, params pagi
 		stockError(c, err)
 	}
 	return rows, nil
+}
+
+// recentSafetyScope keeps concerns recorded in the last 30 days of the
+// outlet's own calendar, today included (#576). Shared by the outlet-wide
+// list and the overview count so the two cannot disagree.
+func recentSafetyScope(today, timezone string) func(*gorm.DB) *gorm.DB {
+	return func(tx *gorm.DB) *gorm.DB {
+		return tx.Where("(created_at AT TIME ZONE ?)::date >= ?::date - 29", timezone, today)
+	}
+}
+
+// countedRecentSafety is the outlet's concerns of the last 30 days with a
+// total (#576 slice 3): the overview's safety count, the outlet's date and
+// time zone read once inside the snapshot.
+func countedRecentSafety(c *gin.Context) (platform.CountedQuery[batchSafetyIncident], bool) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return platform.CountedQuery[batchSafetyIncident]{}, false
+	}
+	return platform.CountedQuery[batchSafetyIncident]{
+		Guard: outletReadGuard(c, p, outlet, func(tx *gorm.DB) (platform.Scope, error) {
+			var o pharmacyOutlet
+			if err := tx.Select(outletColumns).Where("tenant_id=? AND id=?", p.TenantID, outlet).First(&o).Error; err != nil {
+				return nil, err
+			}
+			today, err := outletToday(o.Timezone)
+			if err != nil {
+				return nil, err
+			}
+			return func(q *gorm.DB) *gorm.DB {
+				return recentSafetyScope(today, o.Timezone)(q.Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet))
+			}, nil
+		}),
+		Fail: stockError,
+	}, true
 }

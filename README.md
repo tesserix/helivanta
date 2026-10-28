@@ -10,6 +10,12 @@ Helivanta — a hospital management system platform, in one monorepo.
 
 ## Target architecture
 
+[API contracts, schemas and integration specifications](docs/api/README.md)
+document the current backend surface, domain ownership, event payloads and
+review proposals for beds, clinical handoffs, CRM and the wider portfolio.
+The generated registry reference distinguishes implemented operations from
+planned product capabilities.
+
 [Full HMS design and editable diagrams](docs/architecture/README.md) cover one
 shared UI, separate product APIs, multi-hospital tenants with optional data
 sharing, CRM, Zitadel, Istio, PostgreSQL, Valkey, future Qdrant and HIPAA/SOC 2
@@ -18,25 +24,27 @@ current implementation.
 
 ## Quick start
 
-Requires Docker, Go 1.27.2, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
+Requires Docker, Go 1.27.3, Node 24, the version in `.nvmrc` (`corepack enable`). No registry
 credentials: `@tesserix/web` is published to the public npm registry, so
 `pnpm install` on a fresh clone needs nothing but network access.
 
     pnpm install
-    make up             # infra + migrations + seed + API (8080) + the web app (4301)
+    make up             # infra + migrations + seed + API (8080) + Global API (8081) + web (4301)
     make verify-local   # asserts every process is healthy (separate terminal)
     make down           # stops everything
 
-`make up` runs in the foreground. Ctrl-C stops the API and web servers;
+`make up` runs in the foreground. Ctrl-C stops the API, Global API and web servers;
 `make down` then stops the containers **and** any app processes still
-holding ports 4301 or 8080 — `docker compose down` on its own leaves
+holding ports 4301, 8080 or 8081 — `docker compose down` on its own leaves
 those running against infrastructure that no longer exists. `make down`
 only ever stops processes whose working directory is inside this repo, so
 an unrelated service of yours on 8080 is reported and left alone.
 
 Seeding is idempotent, so re-running `make up` is safe. The individual
 steps are still available if you want them: `make dev-infra`, `make
-migrate`, `make seed`, `make dev-api`, `make dev-web`.
+migrate`, `make seed`, `make dev-api`, `make dev-global-api`, `make dev-web`.
+The UI connects through the [Global API](docs/delivery/global-api.md) on port
+8081, which routes to the product owners in the backend on port 8080.
 
 `make up` runs `scripts/preflight.sh` first. It checks Docker, Compose v2,
 Go, Node, pnpm, the Zitadel dev masterkey's length, `lsof`, and
@@ -58,11 +66,11 @@ prompt for scripts.
 Seeded accounts (Zitadel, verified by a real hosted-UI login as part of
 `make seed` — see `scripts/seed-dev.mjs`):
 
-| User                 | Password      | Tenant                 | Role           | Sees              |
-| -------------------- | ------------- | ---------------------- | -------------- | ----------------- |
-| `test@helivanta.dev`       | `HmsDev123!`  | `1111…1111` (default)  | `tenant_admin` | every zone        |
-| `test@helivanta.dev`       | `HmsDev123!`  | `2222…2222`            | `pharmacist`   | Pharmacy only     |
-| `pharmacist@helivanta.dev` | `HmsDev123!`  | `1111…1111`            | `pharmacist`   | Pharmacy only     |
+| User                       | Password     | Tenant                | Role           | Sees          |
+| -------------------------- | ------------ | --------------------- | -------------- | ------------- |
+| `test@helivanta.dev`       | `HmsDev123!` | `1111…1111` (default) | `tenant_admin` | every zone    |
+| `test@helivanta.dev`       | `HmsDev123!` | `2222…2222`           | `pharmacist`   | Pharmacy only |
+| `pharmacist@helivanta.dev` | `HmsDev123!` | `1111…1111`           | `pharmacist`   | Pharmacy only |
 
 `test@helivanta.dev` is deliberately a member of **two** tenants so tenant
 switching is exercisable end to end: OpenFGA
@@ -115,9 +123,9 @@ else, and the app's OIDC redirect URIs are registered against
 This is deliberate, and it is not cosmetic (#916, design spec D6). Production
 serves the app at `helivanta.app` and the IdP at `auth.tesserix.app` —
 **different registrable domains**, so every browser request from the app to the
-IdP is *cross-site* and a `SameSite=Lax` IdP cookie is withheld. The old dev
+IdP is _cross-site_ and a `SameSite=Lax` IdP cookie is withheld. The old dev
 setup put both on `localhost` and differed only by port, and **ports are not
-part of a "site"** — so dev was *same-site*, a cross-site defect worked
+part of a "site"** — so dev was _same-site_, a cross-site defect worked
 perfectly here, and #916 reached production with no test able to fail.
 `helivanta.localhost` and `tesserix.localhost` are distinct registrable domains,
 so dev now reproduces production's relationship;
@@ -186,7 +194,7 @@ the containers themselves. See `.env.example` for the full variable list.
   `docs/superpowers/spikes/2026-08-15-zitadel-spike.md`'s "Task 0"). This
   means `make seed` needs a Chromium binary Playwright can drive —
   `pnpm install` pulls in `@playwright/test`; run `pnpm exec playwright
-  install chromium` once if seeding fails with a "browser not found" error.
+install chromium` once if seeding fails with a "browser not found" error.
 - Backend tests need Docker (testcontainers): `cd backend && go test ./...`
 - `make verify-local` retries the web check: `next dev` compiles a route on
   its first request, so a cold route can take tens of seconds to answer once
@@ -210,12 +218,29 @@ the containers themselves. See `.env.example` for the full variable list.
 
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.
 
-
-The backend toolchain is pinned to Go 1.27.2 in `backend/go.mod`. Make targets
+The backend toolchain is pinned to Go 1.27.3 in `backend/go.mod`. Make targets
 and preflight select that exact toolchain; CI reads the module version, and the
-shared Docker builder explicitly selects `go1.27.2`. Install the linter with
+shared Docker builder explicitly selects `go1.27.3`. Install the linter with
 the matching toolchain if an older binary refuses the module:
 
 ```sh
-GOTOOLCHAIN=go1.27.2 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+GOTOOLCHAIN=go1.27.3 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 ```
+
+## AmbulanceConnect / EmergencyConnect
+
+The citizen emergency-access app lives in
+[`apps/ambulanceconnect`](apps/ambulanceconnect/README.md). The public web page
+is `/ambulance`; calling information is also exposed by the read-only
+`GET /api/emergency/access?country=IN|OTHER`. This first slice provides emergency
+calling, not live ambulance booking.
+
+[India research](docs/research/2026-10-18-india-emergency-transport.md),
+[design](docs/superpowers/specs/2026-10-18-ambulanceconnect-design.md) and
+[delivery plan](docs/superpowers/plans/2026-10-18-ambulanceconnect-plan.md) map the
+citizen, dispatch, fleet, crew, hospital and CRM work under
+[programme #1220](https://github.com/tesserix/helivanta/issues/1220).
+
+Staff intake and base-scoped case review are documented in
+[EmergencyConnect operations](docs/architecture/emergencyconnect-operations.md).
+The staff console is `/emergency`; public calling remains `/ambulance`.

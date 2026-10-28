@@ -12,7 +12,9 @@
 # `latest` stays on the Node 24 line and points only at the last green build.
 # The major must match .nvmrc, which CI tests on (#956); a CI runtime that
 # differs from the shipped one tests something production does not run.
-FROM ghcr.io/tesserix/base-node-builder-24:latest AS builder
+ARG NODE_BUILDER_IMAGE=ghcr.io/tesserix/base-node-builder-24@sha256:f210283d939b44a2404d8970865e5ec848704556542464297f71644ca28f4302
+ARG NODE_RUNTIME_IMAGE=ghcr.io/tesserix/base-node-runtime-24@sha256:48607e5eef602f303299d13d70b36eeb39bd69eee62e00af64d127ba839463e3
+FROM ${NODE_BUILDER_IMAGE} AS builder
 
 # The shared builder supports non-root consumers by default. This monorepo
 # build writes workspace dependencies and Next output under /src, so root is
@@ -43,10 +45,14 @@ WORKDIR /src
 # `apps/*` glob does not match it as a package.)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/shell/package.json ./apps/shell/
+COPY apps/ambulanceconnect/package.json ./apps/ambulanceconnect/
 COPY packages/api/package.json ./packages/api/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/config/package.json ./packages/config/
+COPY packages/emergency-access/package.json ./packages/emergency-access/
 COPY e2e/package.json ./e2e/
+COPY scripts/package.json ./scripts/
+COPY patches ./patches
 
 # `--filter @helivanta/shell...` installs the shell and its workspace
 # dependency closure ONLY. Without it a plain install also pulls the root's
@@ -58,6 +64,7 @@ RUN pnpm install --frozen-lockfile --filter @helivanta/shell...
 
 COPY apps/shell ./apps/shell
 COPY packages ./packages
+COPY backend/internal/modules/emergency/contract ./backend/internal/modules/emergency/contract
 
 # ---------------------------------------------------------------------------
 # Build-time configuration. ALL of these are baked into the output and none
@@ -117,7 +124,7 @@ RUN mkdir -p /src/apps/shell/public
 # certificates and the non-root nextjs user. It is weekly rebuilt and
 # Trivy-gated before the moving `latest` tag advances.
 # ---------------------------------------------------------------------------
-FROM ghcr.io/tesserix/base-node-runtime-24:latest AS runtime
+FROM ${NODE_RUNTIME_IMAGE} AS runtime
 
 WORKDIR /app
 

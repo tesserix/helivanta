@@ -13,6 +13,11 @@ function currencyDigits(currency: string) {
         .maximumFractionDigits ?? 2)
     : 2;
 }
+/** The currencies an amount may be in: each supported country's (#1287). */
+export const supportedCurrencies = [
+  ...new Set(countryConfiguration.countries.map((country) => country.currency)),
+];
+
 export function formatPharmacyMoney(minor: number | string, currency: string) {
   const digits = currencyDigits(currency);
   const value = BigInt(minor),

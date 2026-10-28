@@ -1,15 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
-import { Button } from "@tesserix/web";
-import { Pill, ShieldCheck } from "lucide-react";
 import {
-  apiFetch,
+  ApiError,
   countryProfile,
   useApiQuery,
   useApiPagedQuery,
-  useApiMutation,
   usePermissions,
   pharmacyKey,
   pharmacyRoot,
@@ -17,16 +15,62 @@ import {
   type PharmacyOutlet,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, SelectControl, LoadMore, useZodForm } from "@helivanta/ui";
-import { RequestFailure } from "../request-failure";
+import {
+  Field,
+  GuardedLink as Link,
+  LoadMore,
+  PageHeading,
+  Panel,
+  RequestFailure,
+  SelectControl,
+  useConfirmLeave,
+  useNavigationPending,
+} from "@helivanta/ui";
 import { CataloguePanel } from "./catalogue-panel";
+import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
-import { WorkspaceConnections } from "../workspace-connections";
+import { StockRegister } from "./stock-register";
+import { BatchSafety } from "./batch-safety";
+import { OutletsSetup } from "./outlets-setup";
+import { CounterSale } from "./counter-sale";
+import { Prescriptions } from "./prescriptions";
+import { Returns } from "./returns";
+import { DailyReport } from "./daily-report";
+import { H1Register } from "./h1-register";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
-export function PharmacyWorkspace({ view }: { view: "catalogue" | "stock" | "accounts" }) {
+// The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
+type PharmacyView =
+  | "overview"
+  | "counter"
+  | "prescriptions"
+  | "returns"
+  | "daily-report"
+  | "h1-register"
+  | "stock"
+  | "receiving"
+  | "safety"
+  | "catalogue"
+  | "accounts"
+  | "setup";
+const DESCRIPTIONS: Record<PharmacyView, string> = {
+  overview: "What needs attention at this outlet, most urgent first.",
+  counter: "Sell OTC medicines from sellable stock and print the GST invoice.",
+  prescriptions: "Record prescriptions and their scanned pages, kept private and virus-scanned.",
+  returns: "Take medicine back against its invoice: a GST credit note, a refund, and quarantine.",
+  "daily-report": "Each day's sales, credit notes, payments and refunds at this outlet.",
+  "h1-register":
+    "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
+  stock: "What each outlet holds, by product and batch, with reconciliation and export.",
+  receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
+  safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
+  catalogue: "Product identities and their history for this pharmacy.",
+  accounts: "Supplier bills, payments, adjustments and outstanding balances.",
+  setup: "Pharmacies, outlets, hospital links and who can work at each outlet.",
+};
+export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
   const identity = useApiQuery<PharmacyIdentity>(
     ["iam", "me", "permissions"],
     "/iam/me/permissions",
@@ -36,35 +80,69 @@ export function PharmacyWorkspace({ view }: { view: "catalogue" | "stock" | "acc
       <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
     );
   if (!identity.data) return <p role="status">Loading pharmacy workspace…</p>;
-  return <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />;
+  // Suspense: an outlet page reads its starting filter from the URL (#576 D4).
+  return (
+    <Suspense fallback={<p role="status">Loading pharmacy workspace…</p>}>
+      <TenantPharmacy key={identity.data.tenant_id} identity={identity.data} view={view} />
+    </Suspense>
+  );
 }
 const selectionSchema = z.object({
-  pharmacyId: z.string().uuid().or(z.literal("")),
-  outletId: z.string().uuid().or(z.literal("")),
+  pharmacyId: z.string().guid().or(z.literal("")),
+  outletId: z.string().guid().or(z.literal("")),
 });
-function TenantPharmacy({
-  identity,
-  view,
-}: {
-  identity: PharmacyIdentity;
-  view: "catalogue" | "stock" | "accounts";
-}) {
+function rememberPharmacySelection(storageKey: string, value: z.infer<typeof selectionSchema>) {
+  try {
+    sessionStorage.setItem(storageKey, JSON.stringify(value));
+  } catch {
+    /* Selection persistence is optional; every API request is authorised independently. */
+  }
+}
+
+function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: PharmacyView }) {
   const { can } = usePermissions();
   const storageKey = `helivanta:pharmacy:scope:${identity.tenant_id}`;
-  const [selection, setSelection] = useState(() => {
+  // Read as it is now, not once at mount: a rail link back to this same
+  // page drops the address's scope and must land on the latest choice.
+  const readSaved = () => {
     try {
       return selectionSchema.parse(JSON.parse(sessionStorage.getItem(storageKey) ?? "null"));
     } catch {
       return { pharmacyId: "", outletId: "" };
     }
-  });
+  };
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const query = params.toString();
+  const leave = useConfirmLeave();
+  const { pending: navigationPending, isPending: isNavigationPending } = useNavigationPending();
+  // The address first, so a shared link opens the outlet it was copied from
+  // (#1303 E8); then this tab's saved choice; then the first loaded.
+  const inAddress = (key: string) => {
+    const value = params.get(key) ?? "";
+    return z.string().guid().safeParse(value).success ? value : "";
+  };
+  const addressed = !!(inAddress("pharmacy") || inAddress("outlet"));
+  const selection = addressed
+    ? { pharmacyId: inAddress("pharmacy"), outletId: inAddress("outlet") }
+    : readSaved();
   function select(value: z.infer<typeof selectionSchema>) {
-    setSelection(value);
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(value));
-    } catch {
-      /* Selection persistence is optional; every API request is authorised independently. */
-    }
+    // A page, its cursor and an open record belong to one outlet's list:
+    // another outlet's list opens at its first page with nothing open,
+    // keeping the tab and filters (#576, #1303 E8).
+    leave(() => {
+      const kept = new URLSearchParams(params);
+      // A location, product or lot id belongs to one outlet too: another
+      // outlet would be asked for an id it does not have (#1303 E8).
+      for (const key of ["page", "cursor", "open", "new", "at", "location", "product"])
+        kept.delete(key);
+      kept.set("pharmacy", value.pharmacyId);
+      if (value.outletId) kept.set("outlet", value.outletId);
+      else kept.delete("outlet");
+      router.replace(`${pathname}?${kept}`);
+      rememberPharmacySelection(storageKey, value);
+    });
   }
   const pharmacies = useApiPagedQuery<PharmacyOrganization>(
     ["pharmacy", identity.tenant_id, "organizations"],
@@ -78,64 +156,97 @@ function TenantPharmacy({
     `/pharmacy/pharmacies/${pharmacy?.id ?? ""}/outlets`,
     { enabled: !!pharmacy },
   );
+  // An outlet asked for and not loaded stays unresolved: "Choose an outlet",
+  // never another outlet in its place. Fail closed, so an open record from
+  // one outlet is never looked up under another (#1303 E8).
   const outlet = selection.outletId
     ? outlets.items.find((row) => row.id === selection.outletId)
     : outlets.items[0];
+  // What resolved is written into the address, so a copied address always
+  // carries it, and saved as this tab's working outlet.
+  const pharmacyId = pharmacy?.id ?? "";
+  const outletId = outlet?.id ?? "";
+  useEffect(() => {
+    if (navigationPending || isNavigationPending() || !pharmacyId || !outletId) return;
+    const current = new URL(window.location.href);
+    if (current.pathname !== pathname || current.searchParams.toString() !== query) return;
+    rememberPharmacySelection(storageKey, { pharmacyId, outletId });
+    if (
+      current.searchParams.get("pharmacy") === pharmacyId &&
+      current.searchParams.get("outlet") === outletId
+    )
+      return;
+    current.searchParams.set("pharmacy", pharmacyId);
+    current.searchParams.set("outlet", outletId);
+    window.history.replaceState(null, "", `${current.pathname}${current.search}${current.hash}`);
+  }, [pharmacyId, outletId, pathname, query, storageKey, navigationPending, isNavigationPending]);
   return (
     <>
-      <header className="mb-7 space-y-5">
-        <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-(--hms-accent)">
-            <Pill className="size-4" />
-            PharmaConnect
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight">
-            {view === "catalogue"
-              ? "A precise foundation for every medicine."
-              : view === "accounts"
-                ? "A clear account of every cost."
-                : "Every batch. Every movement accounted for."}
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {view === "catalogue"
-              ? "Manage product identities and their history for independent, chain or hospital-owned pharmacies."
-              : view === "accounts"
-                ? "Follow purchase costs, expenses and outstanding payments across your pharmacy inventory."
-                : "Receive and reconcile quarantined stock in the right pharmacy and outlet."}
-          </p>
+      <PageHeading
+        description={DESCRIPTIONS[view]}
+        actions={
+          <div className="grid w-full gap-4 sm:w-xl sm:grid-cols-2">
+            {pharmacies.items.length > 0 && (
+              <div data-picker>
+                <Field id="pharmacy-organization" label="Pharmacy">
+                  <SelectControl
+                    id="pharmacy-organization"
+                    value={pharmacy?.id ?? ""}
+                    onValueChange={(pharmacyId) => select({ pharmacyId, outletId: "" })}
+                    options={pharmacies.items.map((row) => ({ value: row.id, label: row.name }))}
+                  />
+                </Field>
+                <LoadMore
+                  label="Load more pharmacies"
+                  hasMore={pharmacies.hasMore}
+                  isLoading={pharmacies.isFetchingMore}
+                  onClick={pharmacies.loadMore}
+                />
+              </div>
+            )}
+            {/* On Outlets & access the list below is the outlet chooser (#1303 E6). */}
+            {outlets.items.length > 0 && view !== "setup" && (
+              <div data-picker>
+                <Field id="pharmacy-outlet" label="Outlet">
+                  <SelectControl
+                    id="pharmacy-outlet"
+                    value={outlet?.id ?? ""}
+                    onValueChange={(outletId) =>
+                      select({ pharmacyId: pharmacy?.id ?? "", outletId })
+                    }
+                    options={outlets.items.map((row) => ({ value: row.id, label: row.name }))}
+                  />
+                </Field>
+                <LoadMore
+                  label="Load more outlets"
+                  hasMore={outlets.hasMore}
+                  isLoading={outlets.isFetchingMore}
+                  onClick={outlets.loadMore}
+                />
+              </div>
+            )}
+          </div>
+        }
+      />
+      {/* Hospital-wide, so it shows whatever the outlet state is (#576 D2). */}
+      {view === "overview" && can("pharmacy.dispense.read") && (
+        <div className="mb-4">
+          <WaitingTile />
         </div>
-        <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-          {pharmacies.items.length > 0 && (
-            <Field id="pharmacy-organization" label="Pharmacy">
-              <SelectControl
-                id="pharmacy-organization"
-                value={pharmacy?.id ?? ""}
-                onValueChange={(pharmacyId) => select({ pharmacyId, outletId: "" })}
-                options={pharmacies.items.map((row) => ({ value: row.id, label: row.name }))}
-              />
-            </Field>
-          )}
-          {outlets.items.length > 0 && (
-            <Field id="pharmacy-outlet" label="Outlet">
-              <SelectControl
-                id="pharmacy-outlet"
-                value={outlet?.id ?? ""}
-                onValueChange={(outletId) => select({ pharmacyId: pharmacy?.id ?? "", outletId })}
-                options={outlets.items.map((row) => ({ value: row.id, label: row.name }))}
-              />
-            </Field>
-          )}
-        </div>
-      </header>
-      <div className="mb-6">
-        <WorkspaceConnections current="pharmacy" />
-      </div>
+      )}
       {pharmacies.isError ? (
         <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
       ) : pharmacies.isPending ? (
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
-        <DirectoryEmpty selected={!!selection.pharmacyId} />
+        <DirectoryEmpty selected={!!selection.pharmacyId} setup={view === "setup"} />
+      ) : view === "setup" ? (
+        <OutletsSetup
+          tenantId={identity.tenant_id}
+          pharmacy={pharmacy}
+          subject={identity.subject}
+          outlets={outlets}
+        />
       ) : outlets.isError ? (
         <RequestFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
       ) : outlets.isPending ? (
@@ -143,65 +254,84 @@ function TenantPharmacy({
       ) : outlet ? (
         <OutletPharmacy
           key={`${identity.tenant_id}:${pharmacy.id}:${outlet.id}:${outlet.timezone}`}
-          pharmacy={pharmacy}
           outlet={outlet}
           scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id, outletId: outlet.id }}
-          subject={identity.subject}
           view={view}
         />
       ) : (
-        <section className="rounded-2xl border bg-card p-8">
+        <Panel>
           <h3 className="font-semibold">
             {selection.outletId ? "Choose an outlet" : "No outlets available"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Choose an outlet from this pharmacy, load more below, or ask your administrator to
+            Choose an outlet from this pharmacy, load more above, or ask your administrator to
             register one.
           </p>
-        </section>
+        </Panel>
       )}
-      <LoadMore
-        hasMore={pharmacies.hasMore}
-        isLoading={pharmacies.isFetchingMore}
-        onClick={pharmacies.loadMore}
-      />
-      <LoadMore
-        hasMore={outlets.hasMore}
-        isLoading={outlets.isFetchingMore}
-        onClick={outlets.loadMore}
-      />
-      {can("pharmacy.access.manage") && (
-        <PharmacyRegistrySetup tenantId={identity.tenant_id} pharmacy={pharmacy} />
-      )}
+      {/* No pharmacy yet: register the first. With one, the setup page has its own. */}
+      {/* Only once the directory is known to be empty: mounted while it
+          loads, the form would be replaced, and anything typed lost. */}
+      {view === "setup" &&
+        !pharmacies.isPending &&
+        !pharmacies.isError &&
+        !pharmacy &&
+        can("pharmacy.access.manage") && <PharmacyRegistrySetup tenantId={identity.tenant_id} />}
     </>
   );
 }
-function DirectoryEmpty({ selected }: { selected: boolean }) {
+function DirectoryEmpty({ selected, setup }: { selected: boolean; setup: boolean }) {
+  const [title, hint] = selected
+    ? [
+        "Choose a pharmacy",
+        "Your saved pharmacy is not in the loaded directory. Choose one or load more above.",
+      ]
+    : setup
+      ? [
+          "No pharmacy registered yet",
+          "Register the first pharmacy below. A hospital is not required.",
+        ]
+      : [
+          "No pharmacies available",
+          "Ask your administrator to register a pharmacy and grant outlet access. A hospital is not required.",
+        ];
   return (
-    <section className="rounded-2xl border bg-card p-8">
-      <h3 className="font-semibold">
-        {selected ? "Choose a pharmacy" : "No pharmacies available"}
-      </h3>
+    <Panel>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
+    </Panel>
+  );
+}
+// Setup never renders an outlet's pages (#1303 E6), so this is always another
+// page; a grant manager is linked straight to the outlet's own pane.
+function NoOutletAccess({ canGrant, scope }: { canGrant: boolean; scope: PharmacyScope }) {
+  return (
+    <Panel>
+      <h3 className="font-semibold">You don't have access to this outlet yet</h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        {selected
-          ? "Your saved pharmacy is not in the loaded directory. Choose one above or load more below."
-          : "Ask your administrator to register a pharmacy and grant outlet access. A hospital is not required."}
+        {canGrant
+          ? "Outlet access is granted per person, administrators included."
+          : "Ask your administrator to grant you access to this outlet."}
       </p>
-    </section>
+      {canGrant && (
+        <Link
+          href={`/pharmacy/setup?${new URLSearchParams({ pharmacy: scope.pharmacyId, outlet: scope.outletId, open: scope.outletId })}`}
+          className="mt-3 inline-flex text-sm font-medium text-(--hms-accent) hover:underline"
+        >
+          Grant access in Setup
+        </Link>
+      )}
+    </Panel>
   );
 }
 function OutletPharmacy({
-  pharmacy,
   outlet,
   scope,
-  subject,
   view,
 }: {
-  pharmacy: PharmacyOrganization;
   outlet: PharmacyOutlet;
   scope: PharmacyScope;
-  subject: string;
-  view: "catalogue" | "stock" | "accounts";
+  view: PharmacyView;
 }) {
   const { can } = usePermissions();
   const access = useApiQuery<{ level: "reader" | "editor" }>(
@@ -211,26 +341,47 @@ function OutletPharmacy({
   );
   return (
     <>
-      <div className="mb-6 flex items-start gap-3 rounded-xl border bg-card px-5 py-4">
-        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
-        <p className="text-sm leading-6">
-          <strong>
-            {pharmacy.name} · {outlet.name}
-          </strong>
-          <span className="block text-muted-foreground">Time zone: {outlet.timezone}</span>
-          <span className="text-muted-foreground">
-            Outlet access is explicit. Common ownership or a hospital affiliation does not share
-            patient records or stock. Products and quarantine stock awaiting review are unavailable
-            for dispensing.
-          </span>
-        </p>
-      </div>
+      <p className="mb-4 text-xs text-muted-foreground">Times are in {outlet.timezone}.</p>
       {access.isPending ? (
         <p role="status">Checking pharmacy access…</p>
+      ) : access.error instanceof ApiError && access.error.status === 404 ? (
+        // 404 is the server's settled "no grant here"; retrying cannot change it (#1285).
+        <NoOutletAccess canGrant={can("pharmacy.access.manage")} scope={scope} />
       ) : access.isError ? (
         <RequestFailure
-          message="Pharmacy access is unavailable. Ask your administrator for access to this outlet, or retry if it was just updated."
+          message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
+        />
+      ) : view === "setup" ? null : view === "overview" ? (
+        <OverviewTiles scope={scope} outlet={outlet} />
+      ) : view === "counter" ? (
+        <CounterSale
+          scope={scope}
+          canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
+          canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
+          canDiscount={can("pharmacy.sale.discount")}
+          canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
+        />
+      ) : view === "h1-register" ? (
+        <H1Register
+          scope={scope}
+          // The outlet's own date (en-CA formats as YYYY-MM-DD).
+          today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
+        />
+      ) : view === "daily-report" ? (
+        <DailyReport
+          scope={scope}
+          today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
+        />
+      ) : view === "returns" ? (
+        <Returns
+          scope={scope}
+          canReturn={access.data?.level === "editor" && can("pharmacy.sale.return")}
+        />
+      ) : view === "prescriptions" ? (
+        <Prescriptions
+          scope={scope}
+          canRecord={access.data?.level === "editor" && can("pharmacy.prescription.record")}
         />
       ) : view === "accounts" ? (
         <AccountsPanel
@@ -245,76 +396,22 @@ function OutletPharmacy({
           timeZone={outlet.timezone}
           defaultCurrency={countryProfile(outlet.country_code)?.currency ?? ""}
           writable={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
+          countryCode={outlet.country_code}
+          canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
         />
+      ) : view === "stock" ? (
+        <StockRegister scope={scope} timeZone={outlet.timezone} />
+      ) : view === "safety" ? (
+        <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (
         <StockPanel
           scope={scope}
           timeZone={outlet.timezone}
           writable={access.data?.level === "editor" && can("pharmacy.stock.receive")}
           correctable={access.data?.level === "editor" && can("pharmacy.stock.correct")}
+          releasable={access.data?.level === "editor" && can("pharmacy.stock.release")}
         />
       )}
-      {can("pharmacy.access.manage") && (
-        <AccessSetup scope={scope} subject={subject} outletName={outlet.name} />
-      )}
     </>
-  );
-}
-const accessSchema = z.object({
-  confirmed: z.boolean().refine(Boolean, "Confirm the outlet before granting access."),
-});
-function AccessSetup({
-  scope,
-  subject,
-  outletName,
-}: {
-  scope: PharmacyScope;
-  subject: string;
-  outletName: string;
-}) {
-  const form = useZodForm(accessSchema, { confirmed: false });
-  const grant = useApiMutation(
-    () =>
-      apiFetch(`${pharmacyRoot(scope)}/access/${encodeURIComponent(subject)}`, {
-        method: "PUT",
-        body: JSON.stringify({ level: "editor" }),
-      }),
-    {
-      successToast: "Pharmacy access granted",
-      invalidate: [pharmacyKey(scope, "access")],
-      suppressErrorToast: true,
-    },
-  );
-  return (
-    <details className="mt-7 rounded-xl border bg-card p-5">
-      <summary className="cursor-pointer text-sm font-medium">Outlet access administration</summary>
-      <form
-        noValidate
-        className="mt-4 space-y-4"
-        onSubmit={form.handleSubmit(() => grant.mutate())}
-      >
-        <p className="text-sm text-muted-foreground">
-          Grant your signed-in account catalogue and receiving access at {outletName}. This does not
-          approve medicines or confer hospital clinical access.
-        </p>
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" className="mt-1" {...form.register("confirmed")} />
-          Grant my account pharmacy access to this outlet
-        </label>
-        {form.formState.errors.confirmed && (
-          <p role="alert" className="text-sm text-destructive">
-            {form.formState.errors.confirmed.message}
-          </p>
-        )}
-        {grant.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {grant.error.message}
-          </p>
-        )}
-        <Button type="submit" disabled={grant.isPending || !subject}>
-          Grant pharmacy access
-        </Button>
-      </form>
-    </details>
   );
 }

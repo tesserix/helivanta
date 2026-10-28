@@ -1,0 +1,32 @@
+import type { ReactNode } from "react";
+
+/**
+ * The one heading every workspace page opens with (#1255 spec D3). The shell
+ * header owns the page's h1 and already names the page, so the title is an
+ * optional h2 for when it adds something (a record, a view) and is otherwise
+ * left out rather than repeated (#1274). Deliberately plain: no eyebrow,
+ * accent line or slogan styling — a working tool, not a landing page.
+ */
+export function PageHeading({
+  title,
+  description,
+  actions,
+}: {
+  title?: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        {title && <h2 className="text-xl font-semibold text-foreground">{title}</h2>}
+        {description && (
+          <p className={`${title ? "mt-1 " : ""}max-w-2xl text-sm text-muted-foreground`}>
+            {description}
+          </p>
+        )}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </header>
+  );
+}

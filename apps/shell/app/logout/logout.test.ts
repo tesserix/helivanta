@@ -13,7 +13,11 @@ function request(headers: Record<string, string>, sessionCookie?: string): NextR
 }
 
 describe("POST /logout", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
 
   it("refuses a cross-site POST", async () => {
     const res = await POST(request({ "sec-fetch-site": "cross-site" }));
@@ -75,4 +79,26 @@ describe("POST /logout", () => {
     expect(res.status).toBe(200);
     expect(res.cookies.get("helivanta_session")?.value).toBe("");
   });
+});
+
+it("sends logout through the configured Global API", async () => {
+  vi.resetModules();
+  vi.stubEnv("API_URL", "https://global.example");
+  const { POST: globalLogout } = await import("./route");
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+  vi.stubGlobal("fetch", fetchMock);
+  try {
+    const response = await globalLogout(
+      request({ "sec-fetch-site": "same-origin" }, "synthetic-session"),
+    );
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://global.example/v1/iam/me/sign-out",
+      expect.objectContaining({ method: "POST" }),
+    );
+  } finally {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  }
 });

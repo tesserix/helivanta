@@ -30,3 +30,7 @@ type MemberChangedData struct {
 type CredentialRevokedData struct {
 	Subject string `json:"subject"`
 }
+
+const SubjectAssignmentScopeRequested = "helivanta.in.iam.assignment_scope_requested.v1"
+
+const SubjectAssignmentProjectionRequested = "helivanta.in.iam.assignment_projection_requested.v1"

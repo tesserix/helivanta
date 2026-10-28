@@ -1,29 +1,81 @@
 import {
-  Building2,
+  Ambulance,
+  ArrowLeftRight,
+  BadgeCheck,
   BedDouble,
+  BellRing,
+  BookOpen,
+  Boxes,
+  Building,
+  Building2,
+  CalendarCog,
   CalendarDays,
-  Users,
-  Settings,
-  ClipboardList,
+  CalendarX,
+  Clock,
+  ClipboardCheck,
+  Contact,
+  FileText,
+  FileScan,
+  Fingerprint,
   FlaskConical,
+  HeartHandshake,
   HeartPulse,
+  Hospital,
+  Hourglass,
+  IdCard,
+  Layers,
   LayoutDashboard,
+  Gauge,
+  ListChecks,
+  ShoppingCart,
+  PackagePlus,
+  Palette,
   Pill,
+  ReceiptText,
+  Scale,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  SlidersHorizontal,
   Stethoscope,
+  Store,
+  Tablets,
+  Undo2,
+  ScrollText,
+  Timer,
+  Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
-export type ZonePage = { label: string; href: string; icon: LucideIcon; permission: string };
+export type ZonePage = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  permission: string;
+  alternativePermissions?: string[];
+  /** Heading the page panel shows before the first page of a run (#1258 D1). */
+  section?: string;
+};
 
 export type ZoneHue = "rose" | "amber" | "violet";
+
+// The rail groups zones by use (#1270 D1); `admin` sits at the foot of the rail.
+export type ZoneGroup = "overview" | "care" | "operations" | "admin";
 
 export type Zone = {
   key: string;
   label: string;
+  /** Shown under the icon on a collapsed rail; at most 9 characters (#1286 D2). */
+  railLabel: string;
   icon: LucideIcon;
   href: string;
   permission: string;
   hue: ZoneHue;
+  group: ZoneGroup;
+  /** "full" drops the content cap on every page of the zone, so moving between
+   * its pages never changes the width (#1366). Pages cannot set their own. */
+  width?: "full";
   pages: ZonePage[];
 };
 
@@ -34,182 +86,205 @@ export type Zone = {
 export const ZONES: Zone[] = [
   {
     key: "dashboard",
+    width: "full",
     label: "Dashboard",
+    railLabel: "Dashboard",
     icon: LayoutDashboard,
     href: "/dashboard",
     permission: "public",
     hue: "rose",
-    pages: [
-      { label: "Departments", href: "/dashboard", icon: LayoutDashboard, permission: "public" },
-    ],
+    group: "overview",
+    pages: [{ label: "Overview", href: "/dashboard", icon: LayoutDashboard, permission: "public" }],
   },
   {
     key: "patients",
     label: "Patients",
+    railLabel: "Patients",
     icon: Users,
     href: "/patients",
     permission: "patient.read",
     hue: "rose",
+    group: "care",
     pages: [
       { label: "Patient registry", href: "/patients", icon: Users, permission: "patient.read" },
     ],
   },
   {
-    key: "workforce",
-    label: "Staff",
-    icon: Users,
-    href: "/workforce",
-    permission: "public",
-    hue: "rose",
-    pages: [
-      { label: "Staff directory", href: "/workforce", icon: Users, permission: "public" },
-      { label: "HR setup", href: "/workforce/setup", icon: Settings, permission: "public" },
-      { label: "Shifts", href: "/workforce/shifts", icon: Settings, permission: "public" },
-      {
-        label: "Roster setup",
-        href: "/workforce/roster-setup",
-        icon: Settings,
-        permission: "public",
-      },
-      {
-        label: "Roster policy",
-        href: "/workforce/roster-policy",
-        icon: Settings,
-        permission: "public",
-      },
-      { label: "Rosters", href: "/workforce/rosters", icon: CalendarDays, permission: "public" },
-      {
-        label: "Leave setup",
-        href: "/workforce/leave-setup",
-        icon: Settings,
-        permission: "public",
-      },
-      {
-        label: "Leave balances",
-        href: "/workforce/leave-balances",
-        icon: CalendarDays,
-        permission: "public",
-      },
-      {
-        label: "Leave requests",
-        href: "/workforce/leave-requests",
-        icon: CalendarDays,
-        permission: "public",
-      },
-      {
-        label: "Leave reports",
-        href: "/workforce/leave-reports",
-        icon: CalendarDays,
-        permission: "public",
-      },
-      {
-        label: "Duty exchanges",
-        href: "/workforce/duty-exchanges",
-        icon: CalendarDays,
-        permission: "public",
-      },
-      {
-        label: "Overtime",
-        href: "/workforce/overtime",
-        icon: CalendarDays,
-        permission: "public",
-      },
-      {
-        label: "Attendance",
-        href: "/workforce/attendance",
-        icon: CalendarDays,
-        permission: "public",
-      },
-      {
-        label: "Credential register",
-        href: "/workforce/credentials",
-        icon: ClipboardList,
-        permission: "workforce.enrollment.manage",
-      },
-      {
-        label: "Payroll setup",
-        href: "/workforce/payroll-setup",
-        icon: Settings,
-        permission: "workforce.payroll.view",
-      },
-    ],
-  },
-  {
-    key: "settings",
-    label: "Settings",
-    icon: Settings,
-    href: "/settings/branding",
-    permission: "public",
-    hue: "violet",
-    pages: [
-      {
-        label: "Country policies",
-        href: "/settings/country-policies",
-        icon: Settings,
-        permission: "workspace.country_policy.read",
-      },
-      {
-        label: "Branding",
-        href: "/settings/branding",
-        icon: Settings,
-        permission: "workspace.branding.manage",
-      },
-    ],
-  },
-  {
     key: "medicore",
     label: "MediCore",
+    railLabel: "MediCore",
     icon: HeartPulse,
     href: "/medicore/opd",
     permission: "medicore.visit.read",
     hue: "rose",
+    group: "care",
     pages: [
       { label: "OPD", href: "/medicore/opd", icon: Stethoscope, permission: "medicore.visit.read" },
       { label: "IPD", href: "/medicore/ipd", icon: BedDouble, permission: "medicore.visit.read" },
     ],
   },
   {
+    key: "lab",
+    label: "Lab",
+    railLabel: "Lab",
+    icon: FlaskConical,
+    href: "/lab",
+    permission: "lab.order.read",
+    hue: "violet",
+    group: "care",
+    pages: [{ label: "Orders", href: "/lab", icon: FlaskConical, permission: "lab.order.read" }],
+  },
+  {
     key: "pharmacy",
     label: "PharmaConnect",
+    railLabel: "Pharmacy",
     icon: Pill,
     href: "/pharmacy",
     permission: "public",
     hue: "amber",
+    group: "care",
+    width: "full",
     pages: [
-      { label: "Dispenses", href: "/pharmacy", icon: Pill, permission: "pharmacy.dispense.read" },
+      // What needs attention, for every outlet role (#576). A doctor, who
+      // only reads the queue, lands on the queue instead.
       {
-        label: "Product catalogue",
-        href: "/pharmacy/catalogue",
-        icon: ClipboardList,
+        label: "Overview",
+        href: "/pharmacy",
+        icon: Gauge,
         permission: "pharmacy.catalogue.read",
       },
       {
-        label: "Stock receiving",
+        section: "Dispensing",
+        label: "Counter sale",
+        href: "/pharmacy/counter",
+        icon: ShoppingCart,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Returns",
+        href: "/pharmacy/returns",
+        icon: Undo2,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Daily sales",
+        href: "/pharmacy/daily-report",
+        icon: CalendarDays,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "H1 register",
+        href: "/pharmacy/h1-register",
+        icon: ScrollText,
+        permission: "pharmacy.prescription.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Prescriptions",
+        href: "/pharmacy/prescriptions",
+        icon: FileScan,
+        permission: "pharmacy.prescription.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Dispense queue",
+        href: "/pharmacy/dispense",
+        icon: ListChecks,
+        permission: "pharmacy.dispense.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Medication list",
+        href: "/pharmacy/medications",
+        icon: Tablets,
+        permission: "pharmacy.medication.read",
+      },
+      {
+        section: "Inventory",
+        label: "Stock on hand",
         href: "/pharmacy/stock",
-        icon: Pill,
+        icon: Boxes,
         permission: "pharmacy.stock.read",
       },
       {
-        label: "Expenses & audit",
+        section: "Inventory",
+        label: "Receiving",
+        href: "/pharmacy/receiving",
+        icon: PackagePlus,
+        permission: "pharmacy.stock.read",
+      },
+      {
+        section: "Inventory",
+        label: "Expiry & safety",
+        href: "/pharmacy/safety",
+        icon: ShieldAlert,
+        permission: "pharmacy.stock.read",
+      },
+      {
+        section: "Inventory",
+        label: "Product catalogue",
+        href: "/pharmacy/catalogue",
+        icon: BookOpen,
+        permission: "pharmacy.catalogue.read",
+      },
+      {
+        section: "Purchasing",
+        label: "Supplier bills",
         href: "/pharmacy/accounts",
-        icon: ClipboardList,
+        icon: ReceiptText,
         permission: "pharmacy.accounts.read",
       },
       {
-        label: "Medications",
-        href: "/pharmacy/medications",
-        icon: ClipboardList,
-        permission: "pharmacy.medication.read",
+        section: "Setup",
+        label: "Outlets & access",
+        href: "/pharmacy/setup",
+        icon: Store,
+        permission: "pharmacy.access.manage",
+      },
+    ],
+  },
+  {
+    key: "emergency",
+    label: "EmergencyConnect",
+    railLabel: "Emergency",
+    icon: Ambulance,
+    href: "/emergency",
+    permission: "public",
+    hue: "rose",
+    group: "care",
+    pages: [
+      {
+        label: "Operating bases & reports",
+        href: "/emergency",
+        icon: Building,
+        permission: "emergency.base.read",
+      },
+      {
+        label: "My crew assignments",
+        href: "/emergency/crew",
+        icon: Ambulance,
+        permission: "emergency.crew.read",
+      },
+      {
+        label: "Hospital receiving",
+        href: "/emergency/receiving",
+        icon: Hospital,
+        permission: "emergency.receiving.read",
       },
     ],
   },
   {
     key: "supply",
     label: "Supply Connect",
+    railLabel: "Supply",
     icon: Building2,
     href: "/supply/parties",
     permission: "supply.directory.read",
     hue: "amber",
+    group: "operations",
     pages: [
       {
         label: "Organisations & suppliers",
@@ -220,13 +295,141 @@ export const ZONES: Zone[] = [
     ],
   },
   {
-    key: "lab",
-    label: "Lab",
-    icon: FlaskConical,
-    href: "/lab",
-    permission: "lab.order.read",
+    key: "workforce",
+    width: "full",
+    label: "Staff",
+    railLabel: "Staff",
+    icon: IdCard,
+    href: "/workforce",
+    permission: "public",
+    hue: "rose",
+    group: "operations",
+    pages: [
+      { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
+      {
+        label: "Staff access",
+        href: "/workforce/access",
+        icon: ShieldCheck,
+        permission: "iam.assignment.manage",
+        alternativePermissions: ["iam.member.manage", "iam.assignment.review"],
+      },
+      {
+        label: "HR setup",
+        href: "/workforce/setup",
+        icon: SlidersHorizontal,
+        permission: "public",
+      },
+      { label: "Shifts", href: "/workforce/shifts", icon: Clock, permission: "public" },
+      {
+        label: "Roster setup",
+        href: "/workforce/roster-setup",
+        icon: Layers,
+        permission: "public",
+      },
+      {
+        label: "Roster policy",
+        href: "/workforce/roster-policy",
+        icon: Scale,
+        permission: "public",
+      },
+      { label: "Rosters", href: "/workforce/rosters", icon: CalendarDays, permission: "public" },
+      {
+        label: "Leave setup",
+        href: "/workforce/leave-setup",
+        icon: CalendarCog,
+        permission: "public",
+      },
+      {
+        label: "Leave balances",
+        href: "/workforce/leave-balances",
+        icon: Hourglass,
+        permission: "public",
+      },
+      {
+        label: "Leave requests",
+        href: "/workforce/leave-requests",
+        icon: CalendarX,
+        permission: "public",
+      },
+      {
+        label: "Review leave",
+        href: "/workforce/leave-review",
+        icon: ClipboardCheck,
+        permission: "public",
+      },
+      {
+        label: "Leave reports",
+        href: "/workforce/leave-reports",
+        icon: FileText,
+        permission: "public",
+      },
+      {
+        label: "Duty exchanges",
+        href: "/workforce/duty-exchanges",
+        icon: ArrowLeftRight,
+        permission: "public",
+      },
+      {
+        label: "Overtime",
+        href: "/workforce/overtime",
+        icon: Timer,
+        permission: "public",
+      },
+      {
+        label: "Attendance",
+        href: "/workforce/attendance",
+        icon: Fingerprint,
+        permission: "public",
+      },
+      {
+        label: "Credential register",
+        href: "/workforce/credentials",
+        icon: BadgeCheck,
+        permission: "workforce.enrollment.manage",
+      },
+      {
+        label: "Credential reminders",
+        href: "/workforce/credential-reminders",
+        icon: BellRing,
+        permission: "workforce.enrollment.manage",
+      },
+      {
+        label: "Payroll setup",
+        href: "/workforce/payroll-setup",
+        icon: Wallet,
+        permission: "workforce.payroll.view",
+      },
+      {
+        label: "Benefits",
+        href: "/workforce/benefits",
+        icon: HeartHandshake,
+        permission: "workforce.benefits.view",
+      },
+    ],
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    railLabel: "Settings",
+    icon: Settings,
+    href: "/settings/branding",
+    permission: "public",
     hue: "violet",
-    pages: [{ label: "Orders", href: "/lab", icon: FlaskConical, permission: "lab.order.read" }],
+    group: "admin",
+    pages: [
+      {
+        label: "Country policies",
+        href: "/settings/country-policies",
+        icon: Scale,
+        permission: "workspace.country_policy.read",
+      },
+      {
+        label: "Branding",
+        href: "/settings/branding",
+        icon: Palette,
+        permission: "workspace.branding.manage",
+      },
+    ],
   },
 ];
 
@@ -240,7 +443,9 @@ export const ZONES: Zone[] = [
 export function visibleZones(can: (permission: string) => boolean, zones: Zone[] = ZONES): Zone[] {
   return zones
     .map((zone) => {
-      const pages = zone.pages.filter((page) => can(page.permission));
+      const pages = zone.pages.filter(
+        (page) => can(page.permission) || page.alternativePermissions?.some(can),
+      );
       return {
         ...zone,
         pages,
@@ -259,4 +464,23 @@ export function activeZone(path: string): Zone {
       (path === "/" + z.key || path.startsWith("/" + z.key + "/") || path.startsWith("/" + z.key)),
   );
   return match ?? ZONES.find((zone) => zone.key === "dashboard")!;
+}
+
+// The longest page href that `path` equals or sits under. No match marks no
+// page current: aria-current on the wrong link misleads a screen reader.
+// A rail link's accessible name (#1369, WCAG 2.5.3): it must hold the words
+// shown, the rail label collapsed and the full label expanded.
+export function railName(zone: Zone): string {
+  return zone.label.toLowerCase().includes(zone.railLabel.toLowerCase())
+    ? zone.label
+    : `${zone.railLabel} (${zone.label})`;
+}
+
+export function activePage(zone: Zone, path: string): ZonePage | undefined {
+  return zone.pages
+    .filter((page) => path === page.href || path.startsWith(page.href + "/"))
+    .reduce<ZonePage | undefined>(
+      (best, page) => (best && best.href.length >= page.href.length ? best : page),
+      undefined,
+    );
 }

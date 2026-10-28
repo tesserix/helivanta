@@ -22,8 +22,11 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/httpserver"
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/modules/mediconnect"
+	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -209,14 +212,31 @@ func run() error {
 		if err != nil {
 			return err
 		}
+	}
+	// Enabled pharmacy evidence without private storage is a misconfiguration, not a quiet 503.
+	if cfg.PharmacyEvidenceEnabled && !documentsEnabled {
+		return errors.New("pharmacy evidence requires the private document storage and scanner pipeline")
+	}
+	if cfg.EmergencyWorkflowsEnabled {
+		if err := cfg.RequireEmergencyWorkflows(); err != nil {
+			return err
+		}
+	}
+	if cfg.PrivacyDeadlinesEnabled {
+		if err := cfg.RequirePrivacyDeadlines(); err != nil {
+			return err
+		}
+	}
+	if documentsEnabled || cfg.EmergencyWorkflowsEnabled || cfg.PrivacyDeadlinesEnabled {
 		startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 		workflows, err = client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
 		cancel()
 		if err != nil {
-			return errors.New("private document workflow client unavailable")
+			return errors.New("durable workflow client unavailable")
 		}
 		defer workflows.Close()
 	}
+
 	transitEnabled, err := cfg.RequireTransit()
 	if err != nil {
 		return err
@@ -364,18 +384,31 @@ func run() error {
 	// could get out of sync rather than two call sites independently
 	// negating cfg.IsDev().
 	sessionSecureCookie := !cfg.IsDev()
+	currentClaims, err := mediconnectclaims.FromEnv(os.Getenv)
+	if err != nil {
+		return errors.New("invalid MediConnect current claim owner configuration")
+	}
+	scopedAuthorizer := iam.NewScopedAuthorizer(db, fga)
 	deps := platform.Deps{
-		OrganizationIdentity: identityClient,
-		Documents:            documents,
-		Transit:              vault,
-		Workflows:            workflows,
-		DB:                   db,
-		Bus:                  bus,
-		Authz:                fga,
-		Roles:                fga,
-		SessionSigner:        sessionSigner,
-		SessionTTL:           sessionTTL,
-		SessionSecureCookie:  sessionSecureCookie,
+		ScopedAuthorizer:            scopedAuthorizer,
+		ProxyClinicalCaptureEnabled: cfg.ProxyClinicalCaptureEnabled,
+		CurrentClaims:               currentClaims,
+		EmergencyDispatchEnabled:    cfg.EmergencyDispatchEnabled,
+		AllergyRecordingEnabled:     cfg.AllergyRecordingEnabled,
+		PharmacyEvidenceEnabled:     cfg.PharmacyEvidenceEnabled,
+		EmergencyWorkflowsEnabled:   cfg.EmergencyWorkflowsEnabled,
+		PrivacyDeadlinesEnabled:     cfg.PrivacyDeadlinesEnabled,
+		OrganizationIdentity:        identityClient,
+		Documents:                   documents,
+		Transit:                     vault,
+		Workflows:                   workflows,
+		DB:                          db,
+		Bus:                         bus,
+		Authz:                       fga,
+		Roles:                       fga,
+		SessionSigner:               sessionSigner,
+		SessionTTL:                  sessionTTL,
+		SessionSecureCookie:         sessionSecureCookie,
 		Reconcile: func(ctx context.Context, tenantID string) error {
 			return platform.ReconcileTenant(ctx, registry, fga, tenantID)
 		},
@@ -387,6 +420,22 @@ func run() error {
 		// map, the same mechanism (and the same limiter instance built
 		// below) every other authenticated route already uses.
 		IdleTimeout: idleTimeout,
+	}
+
+	if os.Getenv("MEDICONNECT_CLAIM_VERIFICATION_ENABLED") == "true" {
+		account := os.Getenv("MEDICONNECT_CLAIM_CALLER")
+		if account == "" {
+			return errors.New("current claim verification requires an explicit owner workload")
+		}
+		kubeConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return errors.New("current claim verification requires Kubernetes identity")
+		}
+		caller, err := workloadidentity.New(kubeConfig, mediconnectcontract.ClaimWorkloadAudience, account)
+		if err != nil {
+			return err
+		}
+		srv.Engine.POST(mediconnectcontract.CurrentClaimPath, mediconnect.NewClaimCheckHandler(deps, caller))
 	}
 
 	if os.Getenv("HOSPITAL_PROVISIONING_ENABLED") == "true" {
@@ -432,9 +481,10 @@ func run() error {
 		limiter = ratelimit.NewMemory(10_000)
 	}
 	api := platform.NewRouter(
-		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
+		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga,
+			iam.NewIdentityGuard(db, bus, revocationChecker, zitadelLoginClient))...),
 		fga,
-	)
+	).WithScopedAuthorizer(scopedAuthorizer)
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint

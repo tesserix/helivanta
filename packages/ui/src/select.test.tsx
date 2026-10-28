@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { SelectControl } from "./select";
+
+// HmsShell reads the current path itself (#1091).
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/dashboard",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 function Picker() {
   const [value, setValue] = useState("A");
@@ -79,7 +85,6 @@ it("carries the tenant theme into a menu rendered outside the workspace", async 
   const { DEFAULT_BRANDING } = await import("@helivanta/api");
   const { renderWithProviders } = await import("@helivanta/api/testing");
   const { HmsShell } = await import("./hms-shell");
-  const { vi } = await import("vitest");
   vi.stubGlobal(
     "fetch",
     vi.fn(
@@ -95,11 +100,11 @@ it("carries the tenant theme into a menu rendered outside the workspace", async 
     ),
   );
   const { user } = renderWithProviders(
-    <HmsShell active="/dashboard">
+    <HmsShell>
       <Picker />
     </HmsShell>,
   );
-  await screen.findByRole("heading", { name: "Blue Care" });
+  await screen.findByText("Blue Care");
   await user.click(screen.getByRole("combobox", { name: "Blood group" }));
   expect(screen.getByRole("listbox")).toHaveAttribute("data-brand-theme", "blue");
   vi.unstubAllGlobals();

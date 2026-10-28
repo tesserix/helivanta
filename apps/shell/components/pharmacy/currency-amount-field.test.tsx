@@ -9,24 +9,23 @@ it("formats aggregate money without losing cents beyond Number.MAX_SAFE_INTEGER"
   expect(formatPharmacyMoney(125, "JPY")).toBe("JPY 125");
   expect(formatPharmacyMoney(12525, "KWD")).toBe("KWD 12.525");
 });
-it("preserves Pakistan paisa in displayed amounts and entered minor units", async () => {
-  expect(formatPharmacyMoney(12525, "PKR")).toBe("PKR 125.25");
+it("preserves paise in displayed amounts and entered minor units", async () => {
   const entered: number[] = [];
   const user = userEvent.setup();
   render(
     <CurrencyAmountField
-      id="pkr"
+      id="inr"
       label="Amount"
-      currency="PKR"
+      currency="INR"
       initialMinor={0}
       onChange={(minor) => entered.push(minor)}
     />,
   );
-  await user.clear(screen.getByLabelText("Amount (PKR)"));
-  await user.type(screen.getByLabelText("Amount (PKR)"), "125.25");
+  await user.clear(screen.getByLabelText("Amount (INR)"));
+  await user.type(screen.getByLabelText("Amount (INR)"), "125.25");
   expect(entered.at(-1)).toBe(12525);
 });
 it("keeps large audit totals exact without converting strings to floats", () => {
-  expect(formatPharmacyMoney("9007199254740993", "PKR")).toBe("PKR 90,071,992,547,409.93");
-  expect(formatPharmacyMoney("-9007199254740993", "PKR")).toBe("PKR -90,071,992,547,409.93");
+  expect(formatPharmacyMoney("9007199254740993", "INR")).toBe("INR 90,071,992,547,409.93");
+  expect(formatPharmacyMoney("-9007199254740993", "INR")).toBe("INR -90,071,992,547,409.93");
 });

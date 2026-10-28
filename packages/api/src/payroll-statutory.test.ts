@@ -22,7 +22,7 @@ const id = "11111111-1111-4111-8111-111111111111";
 const issues = (
   schema: {
     safeParse: (v: unknown) => {
-      error?: { issues: { path: (string | number)[]; message: string }[] };
+      error?: { issues: { path: PropertyKey[]; message: string }[] };
     };
   },
   value: object,

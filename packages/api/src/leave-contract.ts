@@ -44,7 +44,7 @@ export const LEAVE_REQUEST_STATUSES = {
 } as const;
 const identifier = z
   .string()
-  .uuid("Choose a valid record.")
+  .guid("Choose a valid record.")
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const leaveTypeRulesContract = z
   .object({
@@ -636,3 +636,47 @@ export const leaveStatusReportRowContract = z
   })
   .strict();
 export type LeaveStatusReportRow = z.infer<typeof leaveStatusReportRowContract>;
+
+export const leaveReviewScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type LeaveReviewScope = z.infer<typeof leaveReviewScopeContract>;
+
+export const leaveReviewRequestContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    leave_year: z.number().int(),
+    unit: z.enum(["full_day", "half_day", "short_leave"]),
+    start_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    end_on: z
+      .string()
+      .date("Use a valid date.")
+      .refine((value) => value >= "0001-01-01", "Use a valid date.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    session: z.enum(["first_half", "second_half"]).optional(),
+    minutes: z.number().int().optional(),
+    half_days: z.number().int(),
+    status: z.enum(["pending"]),
+    version: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type LeaveReviewRequest = z.infer<typeof leaveReviewRequestContract>;

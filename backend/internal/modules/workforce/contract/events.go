@@ -1,6 +1,18 @@
 // Package contract defines workforce's published event interface.
 package contract
 
+import "time"
+
+const SubjectLoginLinkChanged = "helivanta.in.workforce.login_link_changed.v1"
+
+type LoginLinkChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	LinkID     string `json:"link_id"`
+	Version    int64  `json:"version"`
+	Status     string `json:"status"`
+}
+
 // SubjectStaffEnrollmentChanged carries no personal enrollment data.
 const SubjectStaffEnrollmentChanged = "helivanta.in.workforce.enrollment_changed.v1"
 
@@ -311,4 +323,87 @@ type CredentialValidityChangedData struct {
 	CredentialID string `json:"credential_id"`
 	ReviewID     string `json:"review_id"`
 	Version      int64  `json:"version"`
+}
+
+// SubjectCredentialReminderPolicyChanged reports a new version of a hospital's reminder thresholds.
+const SubjectCredentialReminderPolicyChanged = "helivanta.in.workforce.credential_reminder_policy_changed.v1" //nolint:gosec // G101: an event subject, not a secret
+
+type CredentialReminderPolicyChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	Version    int64  `json:"version"`
+}
+
+// SubjectCredentialReminderChanged reports a renewal reminder opening, being acknowledged or being superseded.
+const SubjectCredentialReminderChanged = "helivanta.in.workforce.credential_reminder_changed.v1" //nolint:gosec // G101: an event subject, not a secret
+
+type CredentialReminderChangedData struct {
+	HospitalID    string `json:"hospital_id"`
+	StaffID       string `json:"staff_id"`
+	CredentialID  string `json:"credential_id"`
+	ReminderID    string `json:"reminder_id"`
+	Status        string `json:"status"`
+	ThresholdDays int    `json:"threshold_days"`
+	Version       int64  `json:"version"`
+}
+
+// CredentialReminderInput is the durable schedule input: identifiers and the reviewed revision only.
+type CredentialReminderInput struct {
+	TenantID     string `json:"tenant_id"`
+	HospitalID   string `json:"hospital_id"`
+	StaffID      string `json:"staff_id"`
+	CredentialID string `json:"credential_id"`
+	Version      int64  `json:"version"`
+}
+
+// CredentialReminderStep is one schedule cycle's outcome.
+type CredentialReminderStep struct {
+	Done   bool      `json:"done"`
+	WakeAt time.Time `json:"wake_at"`
+}
+
+// SubjectBenefitPlanChanged reports a new benefit plan revision; payloads never carry plan names or dates.
+const SubjectBenefitPlanChanged = "helivanta.in.workforce.benefit_plan_changed.v1" //nolint:gosec // G101: event subject, not secret
+
+type BenefitPlanChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	PlanID     string `json:"plan_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+	Status     string `json:"status"`
+}
+
+// SubjectDependentChanged reports a new dependent revision; names, relationships and birth dates stay behind the API.
+const SubjectDependentChanged = "helivanta.in.workforce.dependent_changed.v1" //nolint:gosec // G101: event subject, not secret
+
+type DependentChangedData struct {
+	HospitalID  string `json:"hospital_id"`
+	StaffID     string `json:"staff_id"`
+	DependentID string `json:"dependent_id"`
+	RevisionID  string `json:"revision_id"`
+	Version     int64  `json:"version"`
+	Status      string `json:"status"`
+}
+
+// SubjectBenefitEnrollmentChanged reports a coverage proposal or decision; coverage dates stay behind the API.
+const SubjectBenefitEnrollmentChanged = "helivanta.in.workforce.benefit_enrollment_changed.v1" //nolint:gosec // G101: event subject, not secret
+
+type BenefitEnrollmentChangedData struct {
+	HospitalID   string `json:"hospital_id"`
+	StaffID      string `json:"staff_id"`
+	EnrollmentID string `json:"enrollment_id"`
+	ProposalID   string `json:"proposal_id"`
+	Status       string `json:"status"`
+	Version      int64  `json:"version"`
+}
+
+const SubjectAssignmentScopeVerified = "helivanta.in.workforce.assignment_scope_verified.v1"
+
+const SubjectDocumentClassificationChanged = "helivanta.in.workforce.document_classification_changed.v1"
+
+type DocumentClassificationChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	FileID     string `json:"file_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
 }

@@ -19,7 +19,7 @@ export const credentialStatusSchema = z.enum([
 ]);
 const identifier = z
   .string()
-  .uuid("Choose a valid record.")
+  .guid("Choose a valid record.")
   .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const credentialReviewInputContract = z
   .object({
@@ -189,3 +189,49 @@ export const credentialRegisterEntryContract = z
   })
   .strict();
 export type CredentialRegisterEntry = z.infer<typeof credentialRegisterEntryContract>;
+
+export const credentialReminderPolicyInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    thresholds: z.array(z.number().int()).max(6),
+  })
+  .strict();
+export type CredentialReminderPolicyInput = z.infer<typeof credentialReminderPolicyInputContract>;
+
+export const credentialReminderPolicyContract = z
+  .object({
+    version: z.number().int(),
+    thresholds: z.array(z.number().int()).max(6),
+    created_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    created_at: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+export type CredentialReminderPolicy = z.infer<typeof credentialReminderPolicyContract>;
+
+export const credentialReminderContract = z
+  .object({
+    id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    credential_id: identifier,
+    type: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_until: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    validity_version: z.number().int(),
+    threshold_days: z.number().int(),
+    due_on: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    status: z.enum(["open", "acknowledged", "superseded"]),
+    acknowledged_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    acknowledged_at: z.string().datetime({ offset: true }).optional(),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type CredentialReminder = z.infer<typeof credentialReminderContract>;

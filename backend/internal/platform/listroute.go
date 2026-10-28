@@ -10,6 +10,8 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 // Keyed is what a row must provide to be pageable: the two values the
@@ -53,7 +55,16 @@ func SearchRoute[T Keyed](r *Router, path string, perm authz.Permission, h ListH
 }
 
 func listRoute[T Keyed](r *Router, method, path string, perm authz.Permission, h ListHandler[T]) {
-	r.handle(method, path, perm, true, []gin.HandlerFunc{func(c *gin.Context) {
+	r.handle(method, path, perm, true, listHandlers(path, h))
+}
+
+// ScopedHospitalListRoute retains list envelopes under the shared hospital-scope gate.
+func ScopedHospitalListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, h ListHandler[T]) {
+	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlers(path, h)...)
+}
+
+func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
+	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
 			respond.Unauthenticated(c, "missing principal")
@@ -102,6 +113,133 @@ func listRoute[T Keyed](r *Router, method, path string, perm authz.Permission, h
 		respond.OK(c, gin.H{
 			"data": rows,
 			"page": gin.H{"next_cursor": next, "has_more": hasMore},
+		})
+	}}
+}
+
+// Scope applies a counted list's filter to a query.
+type Scope func(*gorm.DB) *gorm.DB
+
+// CountedListHandler validates the request and returns the list's filter.
+// On a bad request it responds itself and returns false; the platform then
+// opens no transaction.
+type CountedListHandler func(c *gin.Context) (Scope, bool)
+
+// CountedListRoute registers a list whose page carries a total (#1295 D1).
+//
+// The handler returns one Scope and the platform applies it twice, once to
+// count and once with the keyset to fetch the page, so a total that counts
+// something the rows do not is not expressible. Both statements run in one
+// read-only REPEATABLE READ snapshot (D2), so a row committed between them
+// cannot make them disagree. The page also reports offset, the rows before
+// it in that snapshot, so a client shows a true range. The ordering, k, is fixed here by the
+// registering code; a cursor issued for the other direction is a 400 (D3).
+func CountedListRoute[T Keyed](r *Router, db *tenantdb.DB, path string, perm authz.Permission, k tenantdb.Keyset, h CountedListHandler) {
+	GuardedCountedListRoute[T](r, db, path, perm, k, func(c *gin.Context) (CountedQuery[T], bool) {
+		scope, ok := h(c)
+		return CountedQuery[T]{Guard: func(*gorm.DB) (Scope, error) { return scope, nil }}, ok
+	})
+}
+
+// CountedQuery is a counted list that needs work inside its snapshot
+// (#576 D1): an outlet list checks the caller's grant and reads the
+// outlet's date there, so the check, the count and the rows see one state.
+type CountedQuery[T any] struct {
+	// Guard runs first, inside the snapshot, and returns the list's scope.
+	// An error goes to Fail; nothing is counted.
+	Guard func(tx *gorm.DB) (Scope, error)
+	// Rows, if set, applies to the page fetch only: a Select in the shared
+	// scope would break the count.
+	Rows Scope
+	// After, if set, runs on the fetched page inside the snapshot.
+	After func(tx *gorm.DB, rows []T) error
+	// Fail answers a Guard or After error with the module's own statuses.
+	Fail func(c *gin.Context, err error)
+}
+
+// GuardedListHandler validates the request and returns its CountedQuery. On
+// a bad request it responds itself and returns false; no transaction opens.
+type GuardedListHandler[T any] func(c *gin.Context) (CountedQuery[T], bool)
+
+// GuardedCountedListRoute is CountedListRoute for a list whose filter
+// depends on work done inside the snapshot. Database errors from the count
+// and the fetch stay a 500; errors from Guard and After are the module's.
+func GuardedCountedListRoute[T Keyed](r *Router, db *tenantdb.DB, path string, perm authz.Permission, k tenantdb.Keyset, h GuardedListHandler[T]) {
+	d := DeclaredRoute{Method: "GET", Path: r.group.BasePath() + path, Permission: perm, Paginated: true, Counted: true}
+	r.declare(path, d, []gin.HandlerFunc{func(c *gin.Context) {
+		p, ok := authn.PrincipalFrom(c)
+		if !ok {
+			respond.Unauthenticated(c, "missing principal")
+			return
+		}
+		params, err := pagination.ParseFor(c, p.TenantID, k.Direction)
+		if err != nil {
+			respond.BadRequest(c, err)
+			return
+		}
+		q, ok := h(c)
+		if !ok || c.IsAborted() {
+			return
+		}
+		var rows []T
+		var total, offset int64
+		var hasMore bool
+		var moduleErr error
+		err = db.WithTenantSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+			scope, err := q.Guard(tx)
+			if err != nil {
+				moduleErr = err
+				return err
+			}
+			if err := scope(tx.Model(new(T))).Count(&total).Error; err != nil {
+				return err
+			}
+			// The rows before this page, from the same snapshot, so the
+			// range is right even after earlier rows were removed.
+			if params.After != nil {
+				if err := tenantdb.KeysetBefore(scope(tx.Model(new(T))), params, k).Count(&offset).Error; err != nil {
+					return err
+				}
+			}
+			fetch := scope(tx.Model(new(T)))
+			if q.Rows != nil {
+				fetch = q.Rows(fetch)
+			}
+			if err := tenantdb.ApplyOrderedKeyset(fetch, params, k).Find(&rows).Error; err != nil {
+				return err
+			}
+			hasMore = len(rows) > params.Limit
+			if hasMore {
+				rows = rows[:params.Limit]
+			}
+			if q.After != nil {
+				if err := q.After(tx, rows); err != nil {
+					moduleErr = err
+					return err
+				}
+			}
+			return nil
+		})
+		if moduleErr != nil {
+			q.Fail(c, moduleErr)
+			return
+		}
+		if err != nil {
+			respond.InternalErr(c, err, "could not list "+path)
+			return
+		}
+		var next *string
+		if hasMore && len(rows) > 0 {
+			at, id := rows[len(rows)-1].PageKey()
+			encoded := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Direction: k.Direction}.Encode()
+			next = &encoded
+		}
+		if rows == nil {
+			rows = []T{}
+		}
+		respond.OK(c, gin.H{
+			"data": rows,
+			"page": gin.H{"next_cursor": next, "has_more": hasMore, "total": total, "offset": offset},
 		})
 	}})
 }

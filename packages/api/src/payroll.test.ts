@@ -31,7 +31,7 @@ const hra = "22222222-2222-4222-8222-222222222222";
 const issues = (
   schema: {
     safeParse: (v: unknown) => {
-      error?: { issues: { path: (string | number)[]; message: string }[] };
+      error?: { issues: { path: PropertyKey[]; message: string }[] };
     };
   },
   value: object,

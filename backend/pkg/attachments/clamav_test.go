@@ -38,7 +38,7 @@ func TestClamAVBindsVersionAndStreamToOneServerConnection(t *testing.T) {
 
 func TestClamAVCannotScanWithStaleOrUnknownDefinitions(t *testing.T) {
 	for _, version := range []string{
-		"ClamAV 1.5.1/28000/" + time.Now().UTC().Add(-25*time.Hour).Format(time.ANSIC) + "\x00",
+		"ClamAV 1.5.1/28000/" + time.Now().UTC().Add(-attachments.MaxDefinitionAge-time.Minute).Format(time.ANSIC) + "\x00",
 		"ClamAV 1.5.1\x00",
 	} {
 		scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: OK\x00", version), time.Second, 1024)

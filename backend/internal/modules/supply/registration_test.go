@@ -15,8 +15,8 @@ import (
 
 func premiseBody(version int, country string) string {
 	zone := "Asia/Kolkata"
-	if country == "PK" {
-		zone = "Asia/Karachi"
+	if country == "US" {
+		zone = "America/New_York"
 	}
 	return fmt.Sprintf(`{"expected_version":%d,"code":" test-warehouse ","name":"TEST Warehouse","kind":"warehouse","line1":"TEST Building","line2":"","city":"TEST City","region":"TEST Region","postal_code":"TEST-001","country_code":%q,"time_zone":%q,"status":"active"}`, version, country, zone)
 }
@@ -37,7 +37,7 @@ func TestPremisesAndLicenceDeclarationsArePrivateVersionedAndCountryBound(t *tes
 	for _, actor := range []string{"auditor", "manager", "foreign"} {
 		require.Equal(t, 404, testutil.Do(r, "GET", url, actor, "").Code)
 	}
-	bad := testutil.Do(r, "PUT", root+"/premises/"+uuid.Must(uuid.NewV7()).String(), "owner", premiseBody(0, "PK"))
+	bad := testutil.Do(r, "PUT", root+"/premises/"+uuid.Must(uuid.NewV7()).String(), "owner", premiseBody(0, "US"))
 	require.Equal(t, 400, bad.Code, bad.Body.String())
 	licence := root + "/licenses/" + uuid.Must(uuid.NewV7()).String()
 	w = testutil.Do(r, "PUT", licence, "owner", licenseBody(0, premise))
@@ -301,7 +301,7 @@ func TestRegistryAuditorReadOnlyAndStrictRLSWithWidenedGroupVisibility(t *testin
 	for _, sql := range []string{
 		`UPDATE supply_premise_revisions SET version=99`, `DELETE FROM supply_license_revisions`,
 		`DELETE FROM supply_premises`, `DELETE FROM supply_licenses`,
-		`UPDATE supply_premises SET version=version+1,country_code='PK'`,
+		`UPDATE supply_premises SET version=version+1,country_code='US'`,
 		`UPDATE supply_licenses SET version=version+2`,
 	} {
 		require.Error(t, partyTransaction(t, db, party, func(tx *gorm.DB) error { return tx.Exec(sql).Error }))

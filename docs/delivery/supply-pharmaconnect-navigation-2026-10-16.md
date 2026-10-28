@@ -1,5 +1,7 @@
 # Supply Connect and PharmaConnect navigation repair
 
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
+
 Status: implemented and validated locally; user approved commit, merge after required checks, and production rollout. Hosted checks and release evidence follow below. Source branch `fix/pharmaconnect-workspace-navigation`, based on main `db7376f`.
 
 ## Reported problem and findings
@@ -34,7 +36,7 @@ The updated production build ran on `http://localhost:4308`. A temporary, loopba
 
 Observed through browser controls:
 
-- Supply directory loaded the persisted synthetic Pakistan distributor and showed PharmaConnect links with expanded navigation.
+- Supply directory loaded the persisted synthetic distributor and showed PharmaConnect links with expanded navigation.
 - Catalogue showed the saved pharmacy, outlet, SKU and pending regulatory review state.
 - Receiving opened for the same pharmacy/outlet and its product selector enabled after data loaded.
 - Expenses/audit loaded TEST-BILL-20261016-001: INR125.25 billed, INR25.10 paid, INR0 credits and INR100.15 outstanding. Inventory audit loaded 25 received/on-hand tablets, batch TEST-LOT-20261016, expiry2030-12-31 and INR125.25 acquisition/stock value.

@@ -8,8 +8,41 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/insights"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
+
+// indiaOnlySchema refuses Pakistan rows before the country is gone (#1287).
+//
+//go:embed india_only.sql
+var indiaOnlySchema string
+
+//go:embed licences.sql
+var licencesSchema string
+
+//go:embed schedule_class.sql
+var scheduleClassSchema string
+
+//go:embed release.sql
+var releaseSchema string
+
+//go:embed prescriptions.sql
+var prescriptionsSchema string
+
+//go:embed prescription_sale.sql
+var prescriptionSaleSchema string
+
+//go:embed discounts.sql
+var discountsSchema string
+
+//go:embed credit_notes.sql
+var creditNotesSchema string
+
+//go:embed daily_report.sql
+var dailyReportSchema string
+
+//go:embed sale.sql
+var saleSchema string
 
 //go:embed catalogue.sql
 var catalogueSchema string
@@ -22,6 +55,12 @@ var payablesSchema string
 
 //go:embed batch_safety.sql
 var batchSafetySchema string
+
+//go:embed tax.sql
+var taxSchema string
+
+//go:embed dispense_lists.sql
+var dispenseListsSchema string
 
 //go:embed storage_address.sql
 var storageAddressSchema string
@@ -38,6 +77,30 @@ const (
 	PermCatalogueRead   authz.Permission = "pharmacy.catalogue.read"
 	PermCatalogueWrite  authz.Permission = "pharmacy.catalogue.write"
 	PermAccessManage    authz.Permission = "pharmacy.access.manage"
+	// PermTaxManage sets outlet registrations and product rates. It is apart
+	// from catalogue.write: a wrong rate taxes every sale of the product.
+	PermTaxManage authz.Permission = "pharmacy.tax.manage"
+	// Outlet drug licences (#1386 A1): entered by one owner, reviewed by another.
+	PermLicenceManage authz.Permission = "pharmacy.licence.manage"
+	PermLicenceReview authz.Permission = "pharmacy.licence.review"
+	// Declared schedule class (#1386 A2): declared by one person, reviewed by another.
+	PermScheduleDeclare authz.Permission = "pharmacy.schedule.declare"
+	PermScheduleReview  authz.Permission = "pharmacy.schedule.review"
+	// PermStockRelease moves stock from quarantine to sellable (#1386 A3).
+	PermStockRelease authz.Permission = "pharmacy.stock.release"
+	// Counter sale (#1386 B-1).
+	PermSaleCreate authz.Permission = "pharmacy.sale.create"
+	PermSaleRead   authz.Permission = "pharmacy.sale.read"
+	// Prescriptions are patient data: the pharmacist alone records and reads
+	// them (#1386 B-2a); the owner's work needs neither.
+	PermPrescriptionRecord authz.Permission = "pharmacy.prescription.record"
+	PermPrescriptionRead   authz.Permission = "pharmacy.prescription.read"
+	// PermSaleDiscount has no system role: a tenant administrator assigns it
+	// (#1386 B-3, decision 3). PermDiscountManage records the outlet ceiling.
+	PermSaleDiscount   authz.Permission = "pharmacy.sale.discount"
+	PermDiscountManage authz.Permission = "pharmacy.discount.manage"
+	// PermSaleReturn issues a credit note for goods returned (#1386 C-1).
+	PermSaleReturn      authz.Permission = "pharmacy.sale.return"
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
 	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
 	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
@@ -63,6 +126,19 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermCatalogueRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory}},
 		{Permission: PermCatalogueWrite, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}},
 		{Permission: PermAccessManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermTaxManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermLicenceManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermLicenceReview, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermScheduleDeclare, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
+		{Permission: PermScheduleReview, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
+		{Permission: PermStockRelease, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermSaleCreate, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermSaleRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
+		{Permission: PermPrescriptionRecord, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermPrescriptionRead, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermSaleDiscount},
+		{Permission: PermDiscountManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermSaleReturn, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
 		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
@@ -125,12 +201,12 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/pharmacy")
-	g.GET("/insights", PermDispenseRead, insights.Counts(deps.DB, "pharmacy_dispenses", "status", []string{"pending", "dispensed"}))
+	g.GET("/insights", PermDispenseRead, requirePharmacyTenant, insights.Counts(deps.DB, "pharmacy_dispenses", "status", []string{"pending", "dispensed"}))
 	registryRoutes(g, deps)
 	catalogueRoutes(g, deps)
 	inventoryRoutes(g, deps)
@@ -141,12 +217,16 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST("/medications", PermMedicationWrite, meds.create)
 	platform.ListRoute(g, "/medications", PermMedicationRead, meds.list)
 	platform.ListRoute(g, "/dispenses", PermDispenseRead, disp.list)
+	platform.CountedListRoute[dispense](g, deps.DB, "/dispenses/waiting", PermDispenseRead,
+		tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}, dispenseStatus("pending"))
+	platform.CountedListRoute[dispensedRow](g, deps.DB, "/dispenses/dispensed", PermDispenseRead,
+		tenantdb.Keyset{Column: "dispensed_at", Direction: pagination.NewestFirst}, dispenseStatus("dispensed"))
 	g.POST("/dispenses/:id/dispense", PermDispenseFulfil, disp.fulfil)
 }
 
 // Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded}
+	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged, pharmacycontract.SubjectCreditNoteIssued}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

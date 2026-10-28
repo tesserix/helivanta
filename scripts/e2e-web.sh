@@ -25,9 +25,9 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 OUT="$REPO_ROOT/.e2e-web"
 SECRETS="$REPO_ROOT/dev/zitadel/secrets"
 ISSUER=${NEXT_PUBLIC_ZITADEL_ISSUER_URL:-${ZITADEL_ISSUER_URL:-http://auth.tesserix.localhost:20080}}
-API_PORT=${HELIVANTA_API_PORT:-8080}
-IDLE_API_PORT=${HELIVANTA_IDLE_API_PORT:-8099}
-RENEWAL_API_PORT=${HELIVANTA_RENEWAL_API_PORT:-8098}
+API_PORT=${HELIVANTA_GLOBAL_API_PORT:-8081}
+IDLE_API_PORT=${HELIVANTA_IDLE_GLOBAL_API_PORT:-8199}
+RENEWAL_API_PORT=${HELIVANTA_RENEWAL_GLOBAL_API_PORT:-8198}
 
 # client_id_from FILE — the ZITADEL_CLIENT_ID a dev env file provisions.
 # Fails loudly rather than building a shell with an empty client id, which

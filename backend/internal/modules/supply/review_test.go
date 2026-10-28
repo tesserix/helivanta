@@ -308,31 +308,6 @@ func TestLicenceReviewExplainsInactiveAndInvalidDatePrerequisites(t *testing.T) 
 	}
 }
 
-func TestLicenceReviewUsesIndependentPakistanSourcesWithoutApprovingTrade(t *testing.T) {
-	s := newEvidenceScenario(t)
-	root := "/v1/supply/parties/" + uuid.Must(uuid.NewV7()).String()
-	body := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(partyBody(0, "TEST Pakistan Distributor"), `"country_code":"IN"`, `"country_code":"PK"`), "TEST-DISTRIBUTOR", "TEST-PK-DISTRIBUTOR"), "TEST-REG-001", "TEST-PK-REG-001"), "TEST-MH", "TEST-Sindh")
-	w := testutil.Do(s.r, "PUT", root, "owner", body)
-	require.Equal(t, 200, w.Code, w.Body.String())
-	premise := uuid.Must(uuid.NewV7()).String()
-	w = testutil.Do(s.r, "PUT", root+"/premises/"+premise, "owner", premiseBody(0, "PK"))
-	require.Equal(t, 200, w.Code, w.Body.String())
-	licence := root + "/licenses/" + uuid.Must(uuid.NewV7()).String()
-	w = testutil.Do(s.r, "PUT", licence, "owner", strings.ReplaceAll(licenseBody(0, premise), "TEST-MH", "TEST-Sindh"))
-	require.Equal(t, 200, w.Code, w.Body.String())
-	s.root, s.licence, s.path = root, licence, licence+"/evidence/"+uuid.Must(uuid.NewV7()).String()
-	s = releaseReviewEvidence(t, s)
-	grantReviewer(t, s)
-	w = testutil.Do(s.r, "PUT", newReview(s), "owner", reviewBody(s, 0, "submit"))
-	require.Equal(t, 201, w.Code, w.Body.String())
-	w = testutil.Do(s.r, "PUT", newReview(s), "auditor", reviewBody(s, 1, "verify"))
-	require.Equal(t, 201, w.Code, w.Body.String())
-	w = testutil.Do(s.r, "GET", licence+"/review", "owner", "")
-	require.Equal(t, 200, w.Code, w.Body.String())
-	require.Contains(t, w.Body.String(), `"effective_status":"verified"`)
-	require.Contains(t, w.Body.String(), `"trading_approved":false`)
-}
-
 func TestLicenceReviewRefusesAStaleBrowserIdentityBeforeWriting(t *testing.T) {
 	s := reviewedEvidenceScenario(t)
 	request := httptest.NewRequest("PUT", newReview(s), strings.NewReader(reviewBody(s, 0, "submit")))

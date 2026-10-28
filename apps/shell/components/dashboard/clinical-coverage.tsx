@@ -1,3 +1,4 @@
+import { Panel } from "@helivanta/ui";
 import { Activity, Baby, BedDouble, DoorOpen, HeartPulse, Scissors } from "lucide-react";
 
 const reports = [
@@ -52,11 +53,7 @@ export function ClinicalCoverage() {
       </div>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {reports.map(({ title, icon: Icon, measures, detail }) => (
-          <article
-            key={title}
-            aria-label={title}
-            className="min-w-0 rounded-2xl border bg-card p-5"
-          >
+          <Panel as="article" key={title} aria-label={title} className="min-w-0">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
               <Icon className="size-5 text-(--hms-accent)" aria-hidden="true" />
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -66,7 +63,7 @@ export function ClinicalCoverage() {
             <h4 className="font-semibold">{title}</h4>
             <p className="mt-2 text-xs font-medium leading-5">{measures}</p>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">{detail}</p>
-          </article>
+          </Panel>
         ))}
       </div>
     </section>

@@ -1,5 +1,7 @@
 # Licence review implementation plan
 
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
+
 Issue #1135; spec: ../specs/2026-10-16-supply-licence-review.md.
 
 1. Add failing public API tests for clean-evidence submission and independent
@@ -11,8 +13,8 @@ Issue #1135; spec: ../specs/2026-10-16-supply-licence-review.md.
 4. Add an accessible API-backed review panel next to each declared licence with
    source evidence, independent-review form and paginated immutable decisions.
    Write failing UI tests before implementation; verify all state/error cases.
-5. Exercise legacy forms read-only and local real API/UI with synthetic India and
-   Pakistan records. Update architecture/legacy coverage and actual test evidence.
+5. Exercise legacy forms read-only and local real API/UI with synthetic India
+   records. Update architecture/legacy coverage and actual test evidence.
 6. Run full required checks, commit/push a scoped PR referencing #1135/#1133, then
    seek the specific production migration approval only when the result is concrete.
 7. Continue organisation lifecycle and bilateral relationships, offers and orders

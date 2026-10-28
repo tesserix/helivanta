@@ -1,0 +1,101 @@
+{
+  "known_answer": "27AABCU9603R1ZN",
+  "cases": [
+    {
+      "name": "valid 07",
+      "jurisdiction": "07",
+      "identifier": "07ABCDE1234F1Z2",
+      "error": null
+    },
+    {
+      "name": "valid 27",
+      "jurisdiction": "27",
+      "identifier": "27PQRST5678K2Z1",
+      "error": null
+    },
+    {
+      "name": "valid 04",
+      "jurisdiction": "04",
+      "identifier": "04LMNOP4321Q1ZC",
+      "error": null
+    },
+    {
+      "name": "valid 37",
+      "jurisdiction": "37",
+      "identifier": "37ZZZZZ0000Z9ZH",
+      "error": null
+    },
+    {
+      "name": "valid 97",
+      "jurisdiction": "97",
+      "identifier": "97ABCDE1234F1ZT",
+      "error": null
+    },
+    {
+      "name": "lowercase is normalised",
+      "jurisdiction": "07",
+      "identifier": "07abcde1234f1z2",
+      "error": null
+    },
+    {
+      "name": "surrounding spaces are trimmed",
+      "jurisdiction": "07",
+      "identifier": " 07ABCDE1234F1Z2 ",
+      "error": null
+    },
+    {
+      "name": "wrong check character",
+      "jurisdiction": "07",
+      "identifier": "07ABCDE1234F1Z3",
+      "error": "checksum"
+    },
+    {
+      "name": "14 characters",
+      "jurisdiction": "07",
+      "identifier": "07ABCDE1234F1Z",
+      "error": "format"
+    },
+    {
+      "name": "16 characters",
+      "jurisdiction": "07",
+      "identifier": "07ABCDE1234F1Z2A",
+      "error": "format"
+    },
+    {
+      "name": "no Z at position 14",
+      "jurisdiction": "07",
+      "identifier": "07ABCDE1234F1Y4",
+      "error": "format"
+    },
+    {
+      "name": "PAN shape broken",
+      "jurisdiction": "07",
+      "identifier": "07ABCD11234F1ZF",
+      "error": "format"
+    },
+    {
+      "name": "entity digit zero",
+      "jurisdiction": "07",
+      "identifier": "07ABCDE1234F0Z3",
+      "error": "format"
+    },
+    {
+      "name": "valid checksum, other jurisdiction",
+      "jurisdiction": "27",
+      "identifier": "07ABCDE1234F1Z2",
+      "error": "jurisdiction"
+    },
+    {
+      "name": "retired state code 25",
+      "jurisdiction": "25",
+      "identifier": "25ABCDE1234F1Z4",
+      "error": "jurisdiction"
+    },
+    {
+      "name": "unknown jurisdiction with matching prefix",
+      "jurisdiction": "99",
+      "identifier": "99ABCDE1234F1ZP",
+      "error": "jurisdiction"
+    }
+  ]
+}

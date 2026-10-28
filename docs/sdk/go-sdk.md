@@ -13,7 +13,7 @@
 
 
 Module: `github.com/tesserix/helivanta-go-sdk` (single module; see architecture §4.2). Evolves from `go-shared`.
-Target: Go 1.27.2, consumed by every backend service via pinned versions.
+Target: Go 1.27.3, consumed by every backend service via pinned versions.
 
 ## Package structure
 

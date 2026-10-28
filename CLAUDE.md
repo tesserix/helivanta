@@ -1,5 +1,28 @@
 # Helivanta — agent rules
 
+@AGENTS.md
+
+The imported root `AGENTS.md` contains the shared enterprise guardrails and
+mandatory contract-documentation reading before development. Apply it alongside
+the rules below and applicable nested instructions; keep shared policy there.
+India HMS skills in `.claude/skills/hms-india*` link to the canonical shared
+`.agents/skills/` definitions; use the domain router required by `AGENTS.md`.
+
+## Hospital workflow reference
+
+For MediConnect and hospital API stories, consult
+[ICTHospital](https://github.com/ictinnovations/ICTHospital) to understand its
+implemented workflows, controllers, models and tests before choosing relevant
+patterns. Read the affected source, not only its README, and record the reviewed
+commit. The initial review used `e506dfb553f7d146a6d0cddc136ffd5b6c9bdb09`.
+It is a staff-facing Laravel application, not Helivanta's patient API contract.
+Helivanta stories, canonical contracts, data ownership and security rules remain
+authoritative. Do not inherit its patient-disclosing conflict messages, assume
+tenant/proxy isolation, or treat SQLite tests as proof of concurrent database
+locking. Its GPLv3 implementation is reference material; do not copy source
+without an explicit licensing decision. Preserve historical clinical values,
+separate owning services, and independently test every adopted behavior locally.
+
 ## Quality bar (read first, applies to everything)
 
 Full document: docs/standards/engineering-principles.md — read it before
@@ -7,7 +30,7 @@ proposing any design or writing any code.
 
 - **No minimal, MVP, quick or temporary solutions.** "For now", "we can harden
   it later" and "good enough to unblock" are not acceptable justifications.
-  When work is too big, decompose it into *correct* slices; never build an
+  When work is too big, decompose it into _correct_ slices; never build an
   incorrect small one.
 - **Scope down, never quality down.** Cut the set of cases handled, never
   correctness, isolation, error handling, tests or observability. State what a
@@ -43,8 +66,10 @@ Every piece of work is tracked by a GitHub issue. Before writing code:
 4. **Link the work back:** PR bodies close their issue (`Closes #<n>`), and
    design specs record the issue they resolve in their header.
 
-The `gh` CLI must be authenticated as the personal account `Sam123ben`
-for this repo.
+The `gh` CLI must be authenticated as the developer's own personal account
+(the repo's maintainers are `@Sam123ben` and `@mahesh-sangawar`, see
+`.github/CODEOWNERS`). An issue assigned to another maintainer is theirs: do
+not pick it up, branch for it or add yourself to it without asking first.
 
 ## Frontend rules
 
@@ -56,7 +81,9 @@ Binding rules for all frontend work. Full document: docs/standards/frontend.md
 - Navigation: in-app links (rail, panel, cards) are `next/link`; zones are routes of one app (`apps/shell`, #933), so moving between them never reloads the page (`e2e/tests/navigation.spec.ts` enforces it). Zone nav lives only in `packages/ui/src/zones.ts`.
 - Permission gating uses `Can`/`usePermissions` from `@helivanta/api` and is convenience only — the API enforces. Every zone/page in `packages/ui/src/zones.ts` declares a permission.
 - Styling: design tokens only — no hardcoded colors. Read the pitfall comments in `packages/ui/styles.css` before touching sidebar/border styles.
-- New zones are route segments in `apps/shell/app/<name>/` plus an entry in `packages/ui/src/zones.ts`; there are no separate zone apps.
+- One look (#1255): light only, one slate palette shared with the public pages and declared only in `packages/ui/styles.css` (#542), modern enterprise restraint (`PageHeading`, no serif/eyebrow/gradient in the app). Raw colours, marketing type and native `<select>` are lint errors; dropdowns are `SelectControl`/`FormSelectField`. See frontend.md §7.
+- New zones are route segments in `apps/shell/app/(workspace)/<name>/` plus an entry in `packages/ui/src/zones.ts`; there are no separate zone apps. Authenticated routes outside `(workspace)/` get no chrome and no idle tracking; only its layout may import `HmsShell` (lint-enforced).
+- Every response carries an enforced nonce CSP (`apps/shell/lib/csp.ts`, #1113): inline `<script>` needs the request nonce, a library that injects `<style>` before hydration needs a hash with a test (spec D5), and a new browser-called origin goes in the policy. `e2e/tests/csp.spec.ts` fails on any violation.
 - Every new/changed panel component needs a Vitest test using `renderWithProviders` from `@helivanta/api/testing`.
 - Before done: `pnpm turbo lint type-check test build format:check` green — this covers `apps/*`, `packages/*`, `e2e/` (lint, type-check, format:check) and `scripts/` (lint, format:check only — see docs/standards/frontend.md); it does not run the Playwright suite itself. Shell scripts have their own gate: `make lint-shell` (shellcheck, every severity) green. Keep `e2e/tests/smoke.spec.ts` selectors working.
 

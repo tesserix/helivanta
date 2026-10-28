@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -667,4 +668,38 @@ func TestLintRLSAcceptsAdditionalRestrictionsWithoutPermittingWiderAccess(t *tes
 	bad, err = db.LintRLS(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, bad, "a restrictive policy alone is not a tenant policy")
+}
+
+// #1295 D2: a counted list reads its total and its rows in two statements.
+// Under READ COMMITTED a row committed between them makes the total and the
+// rows disagree; the snapshot must not. The READ COMMITTED half proves the
+// test can tell the difference.
+func TestSnapshotCountAndRowsAgreeAcrossConcurrentInsert(t *testing.T) {
+	db, ctx, tenantID := keysetHarness(t)
+	seedRows(t, db, ctx, tenantID, 3)
+
+	readTwice := func(with func(context.Context, string, func(*gorm.DB) error) error, name string) (int64, int) {
+		var count int64
+		var rows []keysetRow
+		require.NoError(t, with(ctx, tenantID, func(tx *gorm.DB) error {
+			if err := tx.Model(&keysetRow{}).Count(&count).Error; err != nil {
+				return err
+			}
+			insertRowAt(t, db, ctx, tenantID, name, time.Now().UTC())
+			return tx.Find(&rows).Error
+		}))
+		return count, len(rows)
+	}
+
+	count, rows := readTwice(db.WithTenantSnapshot, "during-snapshot")
+	require.Equal(t, int(count), rows, "snapshot: total and rows must agree")
+
+	count, rows = readTwice(db.WithTenant, "during-read-committed")
+	require.NotEqual(t, int(count), rows, "READ COMMITTED should see the concurrent insert")
+
+	err := db.WithTenantSnapshot(ctx, tenantID, func(tx *gorm.DB) error {
+		return tx.Create(&keysetRow{TenantID: uuid.MustParse(tenantID), Name: "write"}).Error
+	})
+	require.ErrorContains(t, err, "read-only")
+	require.ErrorIs(t, db.WithTenantSnapshot(ctx, "not-a-uuid", func(*gorm.DB) error { return nil }), tenantdb.ErrInvalidTenant)
 }

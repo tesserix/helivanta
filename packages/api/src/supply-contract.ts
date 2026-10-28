@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const identifier = z
   .string()
-  .uuid()
+  .guid()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
@@ -41,7 +41,7 @@ export const supplyPostalAddressSchema = z
     city: z.string().trim().min(1).max(100),
     region: z.string().trim().min(1).max(100),
     postal_code: z.string().trim().min(1).max(20),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
   })
   .strict();
 
@@ -55,7 +55,7 @@ export const supplyAddressSchema = supplyPostalAddressSchema
 export const supplyTaxRegistrationSchema = z
   .object({
     id: identifier,
-    kind: z.enum(["gstin", "pan", "other", "ntn", "stn"]),
+    kind: z.enum(["gstin", "pan", "other"]),
     number: z.string().trim().toUpperCase().min(1).max(100),
     jurisdiction: z.string().trim().min(1).max(100),
   })
@@ -81,7 +81,7 @@ export const supplyPartyFieldsSchema = z
       "importer",
       "other",
     ]),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     jurisdiction: z.string().trim().min(1).max(100),
     registration_number: z.string().trim().toUpperCase().min(1).max(100),
     corporate_group: z.string().trim().max(200),
@@ -252,7 +252,7 @@ export const supplyTerritoryFieldsSchema = z
       .max(40)
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     name: z.string().trim().min(1).max(200),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     region: z.string().trim().min(1).max(100),
     city: z.string().trim().max(100),
     description: z.string().trim().max(1000),
@@ -378,7 +378,7 @@ export const supplyDeliveryTaskFieldsSchema = z
     destination_city: z.string().trim().min(1).max(100),
     destination_region: z.string().trim().min(1).max(100),
     destination_postal_code: z.string().trim().min(1).max(20),
-    country_code: z.enum(["IN", "PK"]),
+    country_code: z.enum(["IN"]),
     business_contact_name: z.string().trim().min(0).max(200),
     business_contact_phone: z
       .string()
@@ -478,7 +478,7 @@ export const supplyAccessLimitsInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(9007199254740990),
     max_grant_hours: z.number().int().min(1).max(8784),
-    max_support_hours: z.number().int().min(1).max(24),
+    max_support_hours: z.number().int().min(1).max(24, "Must be less than or equal to 24."),
     reason: z.string().trim().min(5).max(500),
   })
   .strict();

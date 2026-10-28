@@ -74,7 +74,7 @@ it("identifies missing emergency and birth reporting without inventing counts or
 it("keeps clinical reporting coverage in the clinical view and out of service and team views", async () => {
   mockApi();
   const { user } = renderWithProviders(<OperationalDashboard />);
-  await user.click(await screen.findByRole("button", { name: "Patient activity" }));
+  await user.click(await screen.findByRole("tab", { name: "Patient activity" }));
   const coverage = screen.getByRole("region", { name: "Clinical reporting coverage" });
   for (const title of [
     "Admissions & discharges",
@@ -83,35 +83,43 @@ it("keeps clinical reporting coverage in the clinical view and out of service an
     "Deaths",
   ])
     expect(within(coverage).getByRole("heading", { name: title })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Diagnostics & pharmacy" }));
+  await user.click(screen.getByRole("tab", { name: "Diagnostics & pharmacy" }));
   expect(
     screen.queryByRole("region", { name: "Clinical reporting coverage" }),
   ).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Care teams" }));
+  await user.click(screen.getByRole("tab", { name: "Care teams" }));
   expect(
     screen.queryByRole("region", { name: "Clinical reporting coverage" }),
   ).not.toBeInTheDocument();
 });
+
+type User = ReturnType<typeof renderWithProviders>["user"];
+
+// The custom range lives in a popover behind the period control (#1255 spec D5).
+async function openFilters(user: User) {
+  await user.click(await screen.findByRole("button", { name: /Custom range/ }));
+  return screen.findByRole("form", { name: "Dashboard filters" });
+}
 
 it("focuses the clinical view and keeps the applied period when returning to overview", async () => {
   mockApi();
   const { user } = renderWithProviders(
     <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
   );
-  await user.click(await screen.findByRole("button", { name: "Patient activity" }));
-  expect(screen.getByRole("button", { name: "Patient activity" })).toHaveAttribute(
-    "aria-pressed",
+  await user.click(await screen.findByRole("tab", { name: "Patient activity" }));
+  expect(screen.getByRole("tab", { name: "Patient activity" })).toHaveAttribute(
+    "aria-selected",
     "true",
   );
   expect(screen.getByRole("region", { name: "Patient activity" })).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Laboratory" })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Doctors & care teams" })).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Care teams" }));
-  expect(screen.queryByRole("form", { name: "Dashboard filters" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "Care teams" }));
+  expect(screen.queryByRole("button", { name: /Custom range/ })).not.toBeInTheDocument();
   expect(screen.getByRole("region", { name: "Doctors & care teams" })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Overview" }));
+  await user.click(screen.getByRole("tab", { name: "Overview" }));
   expect(await screen.findByRole("region", { name: "Laboratory" })).toBeInTheDocument();
-  expect(screen.getByLabelText("From")).toHaveValue("2026-10-01");
+  expect(within(await openFilters(user)).getByLabelText("From")).toHaveValue("2026-10-01");
 });
 
 it("uses the current date when a preset is clicked after midnight", async () => {
@@ -119,10 +127,10 @@ it("uses the current date when a preset is clicked after midnight", async () => 
   vi.setSystemTime(new Date("2026-10-18T23:59:00Z"));
   mockApi();
   const { user } = renderWithProviders(<OperationalDashboard />);
-  const form = await screen.findByRole("form", { name: "Dashboard filters" });
+  await screen.findByRole("button", { name: /Custom range/ });
   vi.setSystemTime(new Date("2026-10-19T00:01:00Z"));
   await user.click(screen.getByRole("button", { name: /^Today$/ }));
-  expect(within(form).getByLabelText("From")).toHaveValue("2026-10-19");
+  expect(within(await openFilters(user)).getByLabelText("From")).toHaveValue("2026-10-19");
 });
 
 it("rejects invalid ranges inline without fetching a misleading result", async () => {
@@ -130,9 +138,9 @@ it("rejects invalid ranges inline without fetching a misleading result", async (
   const { user } = renderWithProviders(
     <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
   );
-  const form = await screen.findByRole("form", { name: "Dashboard filters" });
+  const form = await openFilters(user);
   fireEvent.change(within(form).getByLabelText("From"), { target: { value: "2027-01-01" } });
-  await user.click(within(form).getByRole("button", { name: "Apply filters" }));
+  await user.click(within(form).getByRole("button", { name: "Apply" }));
   expect(await within(form).findByText(/ending on or after From/)).toBeInTheDocument();
   expect(reads.some((url) => url.includes("from=2027"))).toBe(false);
 });
@@ -159,13 +167,13 @@ it("applies inclusive dates, timezone and yearly grouping to each permitted pane
   const { user } = renderWithProviders(
     <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
   );
-  const form = await screen.findByRole("form", { name: "Dashboard filters" });
+  const form = await openFilters(user);
   await user.clear(within(form).getByLabelText("From"));
   await user.type(within(form).getByLabelText("From"), "2024-01-01");
   await chooseOption(user, within(form).getByLabelText("Group by"), "Year");
   await user.clear(within(form).getByLabelText("Timezone"));
   await user.type(within(form).getByLabelText("Timezone"), "Asia/Kolkata");
-  await user.click(within(form).getByRole("button", { name: "Apply filters" }));
+  await user.click(within(form).getByRole("button", { name: "Apply" }));
   await waitFor(() =>
     expect(
       reads.filter(
@@ -228,4 +236,81 @@ it("counts calendar days equally across a DST transition", async () => {
   renderWithProviders(<OperationalDashboard />);
   const clinical = await screen.findByRole("region", { name: "Patient activity" });
   expect(await within(clinical).findByText("9.3")).toBeInTheDocument();
+});
+
+// #1255 spec D3/D5: a plain title, no slogan, eyebrow or tenant pill.
+it("titles the page plainly", async () => {
+  mockApi();
+  renderWithProviders(<OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />);
+  expect(
+    await screen.findByRole("heading", { level: 2, name: "Hospital overview" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/Your care|Hospital intelligence|authorised data/)).toBeNull();
+});
+
+it("keeps quick ranges visible and the custom range in a popover", async () => {
+  const reads = mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  expect(await screen.findByRole("button", { name: "This month" })).toBeVisible();
+  expect(screen.queryByLabelText("From")).toBeNull();
+  const form = await openFilters(user);
+  for (const label of ["From", "To", "Group by", "Timezone"]) {
+    expect(within(form).getByLabelText(label)).toBeInTheDocument();
+  }
+  fireEvent.change(within(form).getByLabelText("From"), { target: { value: "2026-09-01" } });
+  await user.click(within(form).getByRole("button", { name: "Apply" }));
+  await waitFor(() => expect(screen.queryByRole("form", { name: "Dashboard filters" })).toBeNull());
+  await waitFor(() => expect(reads.some((url) => url.includes("from=2026-09-01"))).toBe(true));
+  expect(screen.getByRole("button", { name: /Custom range/ })).toHaveTextContent("2026-09-01");
+});
+
+it("shows each caveat on demand, word for word", async () => {
+  mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  const caveat =
+    "Current status of orders created in this period. Completed does not mean resulted during this period.";
+  await screen.findByRole("region", { name: "Laboratory" });
+  expect(screen.queryByText(caveat)).toBeNull();
+  await user.click(screen.getByRole("button", { name: "About Laboratory" }));
+  expect(screen.getByText(caveat)).toBeVisible();
+});
+
+// #1255 final review: floating panels are announced and keep the user's place.
+it("announces each caveat as a dialog its info button controls", async () => {
+  mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  await screen.findByRole("region", { name: "Laboratory" });
+  const info = screen.getByRole("button", { name: "About Laboratory" });
+  await user.click(info);
+  const dialog = screen.getByRole("dialog", { name: "About Laboratory" });
+  expect(info).toHaveAttribute("aria-controls", dialog.id);
+});
+
+it("returns focus to the range control after Apply", async () => {
+  mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  const form = await openFilters(user);
+  await user.click(within(form).getByRole("button", { name: "Apply" }));
+  await waitFor(() => expect(screen.queryByRole("form", { name: "Dashboard filters" })).toBeNull());
+  expect(screen.getByRole("button", { name: /Custom range/ })).toHaveFocus();
+});
+
+// Five range buttons do not fit a 390px phone; below sm they are one menu.
+it("offers the quick ranges as one menu on a phone", async () => {
+  const reads = mockApi();
+  const { user } = renderWithProviders(
+    <OperationalDashboard now={new Date("2026-10-18T10:00:00Z")} />,
+  );
+  const menu = await screen.findByRole("combobox", { name: "Quick range" });
+  expect(menu.closest(".sm\\:hidden")).not.toBeNull();
+  await chooseOption(user, menu, "Today");
+  await waitFor(() => expect(reads.some((url) => url.includes("from=2026-10-18"))).toBe(true));
 });

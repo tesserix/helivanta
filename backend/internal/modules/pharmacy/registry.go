@@ -60,13 +60,15 @@ const affiliationColumns = "id,tenant_id,pharmacy_id,hospital_id,relationship,ve
 
 func registryRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
-	g.GET("/configuration", PermCatalogueRead, func(c *gin.Context) {
+	taxRegistrationRoutes(g, h)
+	g.GET("/configuration", PermCatalogueRead, requirePharmacyTenant, func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		respond.OK(c, countryprofile.Configuration())
 	})
 	platform.ListRoute(g, "/pharmacies", PermCatalogueRead, h.listOrganizations)
 	g.PUT("/pharmacies/:pharmacy", PermAccessManage, h.putOrganization)
 	platform.ListRoute(g, "/pharmacies/:pharmacy/outlets", PermCatalogueRead, h.listOutlets)
+	g.GET("/pharmacies/:pharmacy/outlets/:outlet", PermCatalogueRead, h.getOutlet)
 	g.PUT("/pharmacies/:pharmacy/outlets/:outlet", PermAccessManage, h.putOutlet)
 	platform.ListRoute(g, "/pharmacies/:pharmacy/hospital-affiliations", PermCatalogueRead, h.listAffiliations)
 	g.PUT("/pharmacies/:pharmacy/hospital-affiliations/:id", PermAccessManage, h.putAffiliation)
@@ -107,7 +109,7 @@ func pharmacyVisible(tx *gorm.DB, p authn.Principal, id uuid.UUID, manager bool)
 
 func (h *catalogueHandlers) listOrganizations(c *gin.Context, params pagination.Params) ([]pharmacyOrganization, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -123,7 +125,7 @@ func (h *catalogueHandlers) listOrganizations(c *gin.Context, params pagination.
 	return rows, nil
 }
 func (h *catalogueHandlers) putOrganization(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}
@@ -164,7 +166,7 @@ func (h *catalogueHandlers) putOrganization(c *gin.Context) {
 	respond.OK(c, result)
 }
 func (h *catalogueHandlers) listOutlets(c *gin.Context, params pagination.Params) ([]pharmacyOutlet, error) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -177,15 +179,52 @@ func (h *catalogueHandlers) listOutlets(c *gin.Context, params pagination.Params
 		if err := pharmacyVisible(tx, p, id, registryManager(c)); err != nil {
 			return err
 		}
-		return tenantdb.ApplyKeyset(tx, params).Select(outletColumns).Where(`tenant_id=? AND pharmacy_id=? AND (? OR EXISTS (SELECT 1 FROM pharmacy_outlet_access a WHERE a.tenant_id=pharmacy_outlets.tenant_id AND a.outlet_id=pharmacy_outlets.id AND a.subject=?))`, p.TenantID, id, registryManager(c), p.Subject).Find(&rows).Error
+		return visibleOutlets(tenantdb.ApplyKeyset(tx, params), p, id, registryManager(c)).Find(&rows).Error
 	})
 	if err != nil {
 		catalogueError(c, err)
 	}
 	return rows, nil
 }
+
+// visibleOutlets is the one rule for which outlets of a pharmacy a subject
+// sees: all of them for an access manager, otherwise those granted to them.
+// The list and the single read both use it, so they cannot disagree (#1303 E6).
+func visibleOutlets(tx *gorm.DB, p authn.Principal, pharmacy uuid.UUID, manager bool) *gorm.DB {
+	return tx.Select(outletColumns).Where(`tenant_id=? AND pharmacy_id=? AND (? OR EXISTS (SELECT 1 FROM pharmacy_outlet_access a WHERE a.tenant_id=pharmacy_outlets.tenant_id AND a.outlet_id=pharmacy_outlets.id AND a.subject=?))`, p.TenantID, pharmacy, manager, p.Subject)
+}
+
+// getOutlet reads one outlet, for the Outlets & access pane's reload and
+// links (#1303 E6). An outlet the list would hide, or another pharmacy's or
+// tenant's, is not found.
+func (h *catalogueHandlers) getOutlet(c *gin.Context) {
+	p, _, ok := pharmacyPrincipal(c)
+	if !ok {
+		return
+	}
+	pharmacy, ok := registryID(c, "pharmacy")
+	if !ok {
+		return
+	}
+	id, ok := registryID(c, "outlet")
+	if !ok {
+		return
+	}
+	var row pharmacyOutlet
+	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if err := pharmacyVisible(tx, p, pharmacy, registryManager(c)); err != nil {
+			return err
+		}
+		return visibleOutlets(tx, p, pharmacy, registryManager(c)).Where("id=?", id).First(&row).Error
+	})
+	if err != nil {
+		catalogueError(c, err)
+		return
+	}
+	respond.OK(c, row)
+}
 func (h *catalogueHandlers) putOutlet(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}
@@ -230,7 +269,7 @@ func (h *catalogueHandlers) putOutlet(c *gin.Context) {
 	respond.OK(c, result)
 }
 func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.Params) ([]hospitalAffiliation, error) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -251,7 +290,7 @@ func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.P
 	return rows, nil
 }
 func (h *catalogueHandlers) putAffiliation(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return
 	}

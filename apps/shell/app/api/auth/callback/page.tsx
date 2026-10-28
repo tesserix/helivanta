@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearPermissionsCache, storeExpiresAt, storeRenewAt } from "@helivanta/api";
+import {
+  clearPermissionsCache,
+  storeExpiresAt,
+  storeRenewAt,
+  notifySessionChanged,
+} from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
 import { exchangeIdToken } from "@/lib/auth-exchange";
 
@@ -70,6 +75,7 @@ export default function AuthCallbackPage() {
         // The session's expiry, for the renewal loop's retry cadence after a
         // failed renewal (#941) — stored for the same reason as renew_at.
         storeExpiresAt(expires_at);
+        notifySessionChanged();
         router.replace("/dashboard");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed.");

@@ -1937,6 +1937,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.workforce.document_classification_changed.v1": {
+    "source": "backend/internal/modules/workforce/contract/events.go:403",
+    "go_type": "DocumentClassificationChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        },
+        "staff_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "file_id",
+        "revision_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.workforce.document_scan_requested.v1": {
     "source": "backend/internal/modules/workforce/contract/events.go:56",
     "go_type": "DocumentScanRequestedData",

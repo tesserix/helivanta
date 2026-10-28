@@ -5889,6 +5889,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification/history",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
+          "permission": "workforce.documents.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content",
           "permission": "workforce.documents.manage",
           "authentication_required": true,
@@ -6311,6 +6338,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.document_classification_changed.v1",
         "helivanta.in.workforce.assignment_scope_verified.v1",
         "helivanta.in.workforce.login_link_changed.v1",
         "helivanta.in.workforce.enrollment_changed.v1",
@@ -6883,6 +6911,14 @@
                 }
               ]
             }
+          ]
+        },
+        {
+          "id": "0046_workforce_document_classification",
+          "sql_sha256": "ffa0c67399a42d890c399cb00ae8c74f6963c2a51b818eb954f6f78547d364e1",
+          "creates_tables": [
+            "workforce_document_classification_revisions",
+            "workforce_document_classifications"
           ]
         }
       ]

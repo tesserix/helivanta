@@ -66,11 +66,21 @@ function fixture(
     files?: unknown[];
     failContent?: boolean;
     failRetry?: boolean;
+    classification?: boolean;
   } = {},
 ) {
   const requests: { url: string; init?: RequestInit }[] = [];
   let pending: { [key: string]: unknown } | undefined;
   let contentAttempts = 0;
+  let classificationState = {
+    file_id: evidence.id,
+    hospital_id: hospital.id,
+    staff_id: staff.id,
+    version: 0,
+    classification_revision_id: "",
+    classification_name: "",
+    updated_at: null as string | null,
+  };
   let savedFiles = options.files ?? [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     requests.push({ url, init });
@@ -95,6 +105,61 @@ function fixture(
             categories: ["employment_evidence", "identity_evidence"],
           },
         ],
+      });
+    if (url.endsWith("/classification")) {
+      if (!options.classification)
+        return Response.json(
+          { error: "not_found", message: "Previous API does not expose this view." },
+          { status: 404 },
+        );
+      if (init?.method === "PUT") {
+        const input = JSON.parse(String(init.body));
+        classificationState = {
+          ...classificationState,
+          version: classificationState.version + 1,
+          classification_revision_id: input.classification_revision_id,
+          classification_name: input.classification_revision_id ? "Synthetic file category" : "",
+          updated_at: "2026-10-28T00:00:00Z",
+        };
+      }
+      return Response.json(classificationState);
+    }
+    if (url.includes("/classification/history?"))
+      return Response.json({
+        data: classificationState.version
+          ? [
+              {
+                id: "99999999-9999-4999-8999-999999999999",
+                file_id: evidence.id,
+                hospital_id: hospital.id,
+                staff_id: staff.id,
+                version: classificationState.version,
+                classification_revision_id: classificationState.classification_revision_id,
+                classification_name: classificationState.classification_name,
+                actor_subject: "synthetic-admin",
+                created_at: "2026-10-28T00:00:00Z",
+              },
+            ]
+          : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    if (url.includes("/hr/masters?kind=document_category"))
+      return Response.json({
+        data: [
+          {
+            id: "77777777-7777-4777-8777-777777777777",
+            revision_id: "88888888-8888-4888-8888-888888888888",
+            kind: "document_category",
+            code: "SYN-FILE",
+            name: "Synthetic file category",
+            description: "Synthetic only",
+            active: true,
+            version: 1,
+            created_at: "2026-10-28T00:00:00Z",
+            updated_at: "2026-10-28T00:00:00Z",
+          },
+        ],
+        page: { has_more: false, next_cursor: null },
       });
     if (init?.method === "PUT") {
       if (url.endsWith("/revocation")) {
@@ -302,5 +367,61 @@ it("keeps the same manual scan attempt after a lost acknowledgement and clears t
   await waitFor(() => expect(screen.queryByText("synthetic-evidence.png")).not.toBeInTheDocument());
   expect(
     await screen.findByText("Switching tenant. This document workspace has been cleared."),
+  ).toBeInTheDocument();
+});
+
+it("opens one scoped classification and keeps an older API fail closed", async () => {
+  const { requests } = fixture({ files: [evidence] });
+  const { user } = renderWithProviders(
+    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+  );
+  await user.click(await screen.findByRole("button", { name: `Classify ${evidence.filename}` }));
+  expect(await screen.findByText(/Document classification is not available/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Save classification" })).not.toBeInTheDocument();
+  const request = requests.find((row) =>
+    row.url.endsWith(`/staff/${staff.id}/documents/${evidence.id}/classification`),
+  );
+  expect(request).toBeDefined();
+  expect(new Headers(request?.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  expect(requests.some((row) => row.url.endsWith("/enrollment"))).toBe(false);
+});
+
+it("classifies a saved file through Global API without changing its evidence purpose", async () => {
+  const { requests } = fixture({ files: [evidence], classification: true });
+  const { user } = renderWithProviders(
+    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+  );
+  await user.click(await screen.findByRole("button", { name: `Classify ${evidence.filename}` }));
+  const categoryControl = await screen.findByRole("combobox", { name: "Document classification" });
+  await waitFor(() => expect(categoryControl).toHaveFocus());
+  await user.click(categoryControl);
+  await user.click(screen.getByRole("option", { name: /Synthetic file category/ }));
+  await user.click(screen.getByRole("button", { name: "Save classification" }));
+  expect(await screen.findByText("Document classification saved.")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Document classification" })).toHaveTextContent(
+      "Synthetic file category",
+    ),
+  );
+  const writes = requests.filter(
+    (row) => row.url.endsWith("/classification") && row.init?.method === "PUT",
+  );
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(String(writes[0].init?.body))).toEqual({
+    expected_version: 0,
+    classification_revision_id: "88888888-8888-4888-8888-888888888888",
+  });
+  for (const row of requests.filter(
+    (row) => row.url.includes("/classification") || row.url.includes("/hr/masters"),
+  )) {
+    expect(row.url).toContain("/api/v1/workforce/");
+    expect(new Headers(row.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  }
+  expect(screen.getByText(/Employment evidence ·/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Show classification history" }));
+  expect(
+    await within(await screen.findByRole("region", { name: "Classification history" })).findByText(
+      /Version 1/,
+    ),
   ).toBeInTheDocument();
 });

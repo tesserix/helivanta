@@ -29,6 +29,7 @@ const goType = (format) => {
     {
       uuid: "uuid.UUID",
       positive: "int64",
+      nonnegative: "int64",
       size: "int64",
       timestamp: "time.Time",
       categories: "[]string",
@@ -42,6 +43,8 @@ const binding = (format) => {
     filename: `required,max=${contract.max_filename}`,
     size: `required,min=1,max=${contract.max_bytes}`,
     sha256: "required,len=64",
+    nonnegative: "required,gte=0,lte=9007199254740991",
+    reference: "required",
   }[format];
 };
 let go =
@@ -53,11 +56,16 @@ for (const [group, type] of [
   ["input", "documentInput"],
   ["document", "document"],
   ["record_choice", "documentRecordChoice"],
+  ["classification_input", "documentClassificationInput"],
+  ["classification", "documentClassification"],
+  ["classification_revision", "documentClassificationRevision"],
 ]) {
   go += `type ${type} struct {\n`;
   for (const [name, format, visibility] of contract[group]) {
-    const rule = group === "input" ? binding(format) : undefined;
-    go += `${pascal(name)} ${goType(format)} \`json:"${visibility === "hidden" ? "-" : name}"${rule ? ` binding:"${rule}"` : ""}\`\n`;
+    const rule =
+      group === "input" || group === "classification_input" ? binding(format) : undefined;
+    const fieldType = group === "classification_input" ? "*" + goType(format) : goType(format);
+    go += `${pascal(name)} ${fieldType} \`json:"${visibility === "hidden" ? "-" : name}"${rule ? ` binding:"${rule}"` : ""}\`\n`;
   }
   go += "}\n";
 }
@@ -75,6 +83,10 @@ const schema = (format) => {
         filename: "filename",
         size: "z.number().int().min(1).max(MAX_DOCUMENT_BYTES)",
         positive: "z.number().int().safe().min(1)",
+        nonnegative: "z.number().int().safe().min(0)",
+        reference: 'z.union([identifier,z.literal("")])',
+        classification_label: "z.string().max(80)",
+        actor: "z.string().min(1).max(255)",
         timestamp: "z.string().datetime({offset:true})",
         sha256: "z.string().regex(/^[a-f0-9]{64}$/)",
         label: "z.string().min(1).max(350)",
@@ -88,17 +100,32 @@ for (const [group, name, type] of [
   ["input", "documentInputSchema", "DocumentInput"],
   ["document", "staffDocumentSchema", "StaffDocument"],
   ["record_choice", "documentRecordChoiceSchema", "DocumentRecordChoice"],
+  ["classification_input", "documentClassificationInputSchema", "DocumentClassificationInput"],
+  ["classification", "documentClassificationSchema", "DocumentClassification"],
+  [
+    "classification_revision",
+    "documentClassificationRevisionSchema",
+    "DocumentClassificationRevision",
+  ],
 ]) {
   ts += `export const ${name}=z.object({\n`;
   for (const [key, format, visibility] of contract[group])
     if (visibility !== "hidden") ts += `${key}:${schema(format)},\n`;
-  ts += "})" + (group === "input" ? ".strict()" : "");
+  ts += "})" + (group === "input" || group.startsWith("classification") ? ".strict()" : "");
   if (group === "input")
     ts +=
       '.superRefine((value,ctx)=>{if(!(DOCUMENT_CATEGORIES[value.record_kind] as readonly string[]).includes(value.category))ctx.addIssue({code:"custom",path:["category"],message:"Choose evidence for the selected record."})})';
   if (group === "record_choice")
     ts +=
       '.superRefine((value,ctx)=>{if(new Set(value.categories).size!==value.categories.length || value.categories.some(category=>!(DOCUMENT_CATEGORIES[value.record_kind] as readonly string[]).includes(category)))ctx.addIssue({code:"custom",path:["categories"],message:"Record purposes do not match."})})';
+  if (group === "classification" || group === "classification_revision") {
+    ts +=
+      '.superRefine((value,ctx)=>{if(Boolean(value.classification_revision_id)!==Boolean(value.classification_name))ctx.addIssue({code:"custom",path:["classification_revision_id"],message:"Classification reference and label must agree."});';
+    if (group === "classification")
+      ts +=
+        'if((value.version===0 && (value.classification_revision_id!=="" || value.updated_at!==null)) || (value.version>0 && value.updated_at===null))ctx.addIssue({code:"custom",path:["version"],message:"Classification state is incomplete."});';
+    ts += "})";
+  }
   ts += `;\nexport type ${type}=z.infer<typeof ${name}>;\n`;
 }
 ts +=

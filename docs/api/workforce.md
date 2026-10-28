@@ -268,6 +268,52 @@ deployment claim.
 
 Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.
 
+## Staff file classification (development slice)
+
+Classification is optional versioned HR metadata beside an existing staff file.
+The fixed evidence `category` and owner record binding, upload intent, bytes,
+scan/release state and download authorization are unchanged. Hospital-defined
+`document_category` masters cannot replace those security-purpose values.
+Benefits and tax evidence are excluded from these staff classification routes.
+This local implementation is unreleased; UI and the full acceptance gates remain
+open. See [ADR 0045](../adr/0045-staff-document-classification.md).
+
+| Method | Owner-relative route                                                            | Authority / behavior                                                                                                        |
+| ------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/workforce/hospitals/{hospital}/staff/{staff}/documents/{file}/classification` | `workforce.documents.manage` and explicit hospital manager grant; exact staff/file binding; protected metadata read audited |
+| PUT    | Same                                                                            | Same authority; optimistic versioned amendment or explicit clear                                                            |
+| GET    | Same + `/history`                                                               | Same authority; bounded standard cursor pagination; immutable revisions and read audit                                      |
+
+Route traffic uses the existing Global API product destination. Inaccessible
+objects return 404; a missing route permission returns 403. Current output is
+`file_id`, `hospital_id`, `staff_id`, `version`, `classification_revision_id`,
+`classification_name` and nullable `updated_at`. An authorized file with no
+classification returns version 0, empty reference/name and null timestamp.
+History adds its immutable `id`, `actor_subject` and `created_at` in place of
+`updated_at`; all response IDs retain verified owner scope.
+
+PUT requires exactly `expected_version` (safe nonnegative integer) and
+`classification_revision_id` (nonzero UUID or explicit empty string). Null,
+omission, unknown fields and bodies above 1 KiB return 400. Labels are derived
+from same-tenant/hospital immutable `document_category` revisions. New selections
+require the active current revision; an unchanged retained historical reference
+remains valid after retirement. An empty reference clears the selection while
+preserving history. No legacy name is matched automatically.
+
+An unchanged current request is a no-op. An exact retry against the immediately
+preceding expected version returns the same response; other stale commands return 409. First writes and amendments serialize on the authorized parent file lock.
+Migration `0046_workforce_document_classification` adds scoped current/history
+tables, typed master/file foreign keys, forced RLS, immutable history, monotonic
+head guards and reference/history indexes. Old upload clients cannot erase the
+separate metadata. Retain these tables on application rollback.
+
+Each meaningful amendment commits history, attributed audit and
+`helivanta.in.workforce.document_classification_changed.v1` in the owner outbox.
+The payload contains only hospital, staff, file, classification-receipt revision
+IDs and metadata version; no category selection, label, name, filename, file
+content or storage location. This changes no credential, identity, background,
+consent, clinical privilege or employee outcome.
+
 ## Credential validity reviews
 
 Design: [credential validity spec](../superpowers/specs/2026-10-20-credential-validity-design.md) (#1108 slice A). UI: Credentials on each staff row of `/workforce`, and `/workforce/credentials` for the register.

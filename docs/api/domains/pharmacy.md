@@ -91,7 +91,7 @@ Each product must:
 - be tax-classified on the sale date;
 - have an approved class `none` that is not NDPS.
 
-Schedule G, H and H1 are refused until a sale can cite a prescription (B-2b). They are never sold as OTC. X and NDPS are refused until their controls exist.
+Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, below). They are never sold as OTC. X and NDPS are refused until their controls exist.
 
 **Allocation and stock.**
 
@@ -132,7 +132,24 @@ Schedule G, H and H1 are refused until a sale can cite a prescription (B-2b). Th
 **Events and scope.**
 
 - `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
-- B-1 records no customer details. Prescription records and their scanned pages are B-2a (below); selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3.
+- `sale_posted.v1` carries no buyer or prescription data. Prescription records and their scanned pages are B-2a; selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3.
+
+### Selling against a prescription (#1386 B-2b)
+
+The source is Drugs Rules 1945, Rule 65 (CDSCO 2022 compilation): Schedule H and H1 are sold only on a prescription (65(9)), which names the patient's address and the total quantity (65(10)). It is dispensed only as often as the prescriber allows (65(11)), and nothing is supplied in its place (65(11A)). Schedule G is held to the same rule by product decision; that is stricter than Rule 65.
+
+- **What was prescribed.** `PUT …/prescriptions/{uuidv7}` now requires `lines`, 1 to 20 of them. Each line is `{prescribed_as, product_id, quantity_units (1–100000), dispensings_allowed (1–12)}`. An optional `prescriber_address` is accepted. A prescription and its lines are recorded in one transaction and never change. `GET …/prescriptions/{id}` returns each line with `units_remaining` and `dispensings_remaining`. Prescriptions recorded before B-2b have no lines and cannot be sold against.
+- **The counter's lookup.** `GET …/prescriptions/open-lines?product_id=` returns the lines for a product that can still be dispensed, newest first, at most 50. Each carries `addresses_on_file`.
+- **The sale.** A sale or quote line takes an optional `prescription: {prescription_id, line_number}`:
+  - It is required for G, H and H1 and refused on an OTC line.
+  - The cited line must be for the same product, dated on or before the sale, and have enough units and a dispensing left.
+  - For H and H1, the prescription must give both the prescriber's and the patient's address.
+
+  Each refusal is 409 `not_sellable` with its reason. A sale whose allocation spans several batches is one dispensing. A replay dispenses nothing more.
+
+- **Database guarantees.** The sale-line guard locks the cited prescription line and checks product, date, units, dispensings and addresses itself. A line carries a citation exactly when its class is not `none`. A bug in the handler cannot dispense more than the prescriber allowed.
+- **Walk-in buyer.** A sale takes an optional `buyer: {name?, phone?}` (phone `^\+?[0-9]{6,15}$`). It is shown with the invoice to `pharmacy.sale.read` holders and never published.
+- **Not covered.** Directions to dispense at intervals (the pharmacist records the number of dispensings), an age limit (the rules set none), Schedule X and NDPS (#165, #171), and the H1 register report (#1062).
 
 ### Prescription evidence (#1386 B-2a)
 

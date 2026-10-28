@@ -2265,6 +2265,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions",
           "permission": "pharmacy.prescription.read",
           "authentication_required": true,
@@ -2850,6 +2859,13 @@
           "creates_tables": [
             "pharmacy_prescriptions",
             "pharmacy_prescription_images"
+          ]
+        },
+        {
+          "id": "0017_pharmacy",
+          "sql_sha256": "28745d8350ea61cd0f5a7ce581c3c535808994e5520512a90ff41f46c0945bdc",
+          "creates_tables": [
+            "pharmacy_prescription_lines"
           ]
         }
       ]

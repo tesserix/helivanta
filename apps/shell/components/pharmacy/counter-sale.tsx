@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -13,6 +13,7 @@ import {
   useApiPagedQuery,
   useApiQuery,
   type PharmacyInvoiceProfile,
+  type PharmacyOpenPrescriptionLine,
   type PharmacyProduct,
   type PharmacySale,
   type PharmacySaleAvailability,
@@ -24,10 +25,10 @@ import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } f
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 
 /**
- * The counter sale (#1386 B-1): an OTC basket, priced by the server
- * exactly as it will post it, paid by one tender and printed as a GST
- * invoice. Prescription medicines are refused by the server until their
- * evidence can be recorded (B-2).
+ * The counter sale (#1386 B-1, B-2b): a basket priced by the server exactly
+ * as it will post it, paid by one tender and printed as a GST invoice. A
+ * Schedule G, H or H1 line is dispensed against a recorded prescription line,
+ * which the server holds to the units and dispensings the prescriber allowed.
  */
 export function CounterSale({
   scope,
@@ -138,7 +139,15 @@ function InvoiceProfileForm({ scope }: { scope: PharmacyScope }) {
   );
 }
 
-type BasketLine = { product: PharmacyProduct; quantity_units: number };
+type Citation = { prescription_id: string; line_number: number };
+type BasketLine = { product: PharmacyProduct; quantity_units: number; prescription?: Citation };
+
+// The basket line as the quote and the sale send it.
+const lineBody = (l: BasketLine) => ({
+  product_id: l.product.id,
+  quantity_units: l.quantity_units,
+  ...(l.prescription ? { prescription: l.prescription } : {}),
+});
 
 const lineSchema = z.object({
   product_id: z.string().min(1, "Choose a product"),
@@ -147,6 +156,8 @@ const lineSchema = z.object({
     .int("Enter a whole number of units")
     .min(1, "At least one unit")
     .max(1000000, "At most 1,000,000 units"),
+  // "prescription_id:line_number", or empty for an OTC product.
+  prescription: z.string(),
 });
 
 function Counter({ scope }: { scope: PharmacyScope }) {
@@ -157,20 +168,31 @@ function Counter({ scope }: { scope: PharmacyScope }) {
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const [posted, setPosted] = useState<PharmacySale | null>(null);
-  const form = useZodForm(lineSchema, { product_id: "", quantity_units: 1 });
+  const form = useZodForm(lineSchema, { product_id: "", quantity_units: 1, prescription: "" });
   const chosen = form.watch("product_id");
   const availability = useApiQuery<PharmacySaleAvailability>(
     pharmacyKey(scope, "counter", "availability", chosen),
     `${pharmacyRoot(scope)}/sales/availability?product_id=${encodeURIComponent(chosen)}`,
     { enabled: chosen !== "" },
   );
+  const rxClass = availability.data?.regulatory_class;
+  const needsPrescription = rxClass === "G" || rxClass === "H" || rxClass === "H1";
+  const openLines = useApiQuery<{ lines: PharmacyOpenPrescriptionLine[] }>(
+    pharmacyKey(scope, "counter", "open-lines", chosen),
+    `${pharmacyRoot(scope)}/prescriptions/open-lines?product_id=${encodeURIComponent(chosen)}`,
+    { enabled: needsPrescription },
+  );
+  // A prescription is chosen for one product; choosing a product starts over.
+  useEffect(() => {
+    form.setValue("prescription", "");
+  }, [chosen, form]);
+  // The class decides whether a prescription is needed, so a line waits for it.
+  const classKnown = chosen === "" || availability.data !== undefined;
   const price = useApiMutation(
     (lines: BasketLine[]) =>
       apiFetch<PharmacySaleQuote>(`${pharmacyRoot(scope)}/sales/quote`, {
         method: "POST",
-        body: JSON.stringify({
-          lines: lines.map((l) => ({ product_id: l.product.id, quantity_units: l.quantity_units })),
-        }),
+        body: JSON.stringify({ lines: lines.map(lineBody) }),
       }),
     { onSuccess: setQuote, suppressErrorToast: true },
   );
@@ -203,8 +225,8 @@ function Counter({ scope }: { scope: PharmacyScope }) {
     <Panel>
       <h3 className="font-semibold">Counter sale</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        OTC medicines only for now. Prescription medicines are refused until their evidence can be
-        recorded. NPPA ceiling prices are not checked.
+        A Schedule G, H or H1 medicine is dispensed against a recorded prescription. NPPA ceiling
+        prices are not checked.
       </p>
       <form
         noValidate
@@ -212,8 +234,32 @@ function Counter({ scope }: { scope: PharmacyScope }) {
         onSubmit={form.handleSubmit((values) => {
           const product = products.items.find((p) => p.id === values.product_id);
           if (!product) return;
-          changeBasket([...basket, { product, quantity_units: values.quantity_units }]);
-          form.reset({ product_id: "", quantity_units: 1 });
+          const offered = (openLines.data?.lines ?? []).some(
+            (l) => `${l.prescription_id}:${l.line_number}` === values.prescription,
+          );
+          if (needsPrescription && !offered) {
+            form.setError("prescription", {
+              message: `Schedule ${rxClass}: choose the prescription this is dispensed against`,
+            });
+            return;
+          }
+          const [prescriptionID, lineNumber] = values.prescription.split(":");
+          changeBasket([
+            ...basket,
+            {
+              product,
+              quantity_units: values.quantity_units,
+              ...(needsPrescription
+                ? {
+                    prescription: {
+                      prescription_id: prescriptionID,
+                      line_number: Number(lineNumber),
+                    },
+                  }
+                : {}),
+            },
+          ]);
+          form.reset({ product_id: "", quantity_units: 1, prescription: "" });
         })}
       >
         <FormSelectField
@@ -236,7 +282,7 @@ function Counter({ scope }: { scope: PharmacyScope }) {
           />
         </Field>
         <div className="flex items-end">
-          <Button type="submit" variant="outline">
+          <Button type="submit" variant="outline" disabled={!classKnown}>
             Add to basket
           </Button>
         </div>
@@ -247,6 +293,26 @@ function Counter({ scope }: { scope: PharmacyScope }) {
               ? `, nearest expiry ${availability.data.nearest_expiry}`
               : ""}
           </p>
+        )}
+        {chosen && needsPrescription && (
+          <div className="sm:col-span-3">
+            <FormSelectField
+              control={form.control}
+              name="prescription"
+              id="counter-prescription"
+              label={`Prescription (Schedule ${rxClass})`}
+              options={(openLines.data?.lines ?? []).map((l) => ({
+                value: `${l.prescription_id}:${l.line_number}`,
+                label: `${l.patient_name} · ${l.prescriber_name} · ${l.prescribed_on} · ${l.units_remaining} units, ${l.dispensings_remaining} dispensing${l.dispensings_remaining === 1 ? "" : "s"} left${l.addresses_on_file ? "" : " · addresses missing"}`,
+              }))}
+            />
+            {openLines.data && openLines.data.lines.length === 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                No recorded prescription for this product can still be dispensed. Record the
+                prescription first.
+              </p>
+            )}
+          </div>
         )}
       </form>
       <LoadMore
@@ -261,6 +327,7 @@ function Counter({ scope }: { scope: PharmacyScope }) {
             <li key={line.product.id} className="flex items-center justify-between p-3 text-sm">
               <span>
                 {line.product.sku} · {line.product.brand_name} × {line.quantity_units}
+                {line.prescription ? " · on prescription" : ""}
               </span>
               <Button
                 type="button"
@@ -370,6 +437,15 @@ const tenderSchema = z
     tendered_minor: z.number(),
     reference: z.string().trim().max(64, "At most 64 characters"),
     total: z.number(),
+    // The walk-in buyer is optional on every sale (#1386 B-2b decision 7).
+    buyer_name: z.string().trim().max(200, "At most 200 characters"),
+    buyer_phone: z
+      .string()
+      .trim()
+      .refine(
+        (v) => v === "" || /^\+?[0-9]{6,15}$/.test(v),
+        "Use 6 to 15 digits, with an optional +",
+      ),
   })
   .superRefine((v, ctx) => {
     if (
@@ -400,6 +476,8 @@ function TenderForm({
     tendered_minor: quote.total_minor,
     reference: "",
     total: quote.total_minor,
+    buyer_name: "",
+    buyer_phone: "",
   });
   const kind = form.watch("kind");
 
@@ -408,10 +486,7 @@ function TenderForm({
       apiFetch<PharmacySale>(`${pharmacyRoot(scope)}/sales/${id}`, {
         method: "PUT",
         body: JSON.stringify({
-          lines: basket.map((l) => ({
-            product_id: l.product.id,
-            quantity_units: l.quantity_units,
-          })),
+          lines: basket.map(lineBody),
           tenders: [
             values.kind === "cash"
               ? {
@@ -421,6 +496,14 @@ function TenderForm({
                 }
               : { kind: values.kind, amount_minor: quote.total_minor, reference: values.reference },
           ],
+          ...(values.buyer_name || values.buyer_phone
+            ? {
+                buyer: {
+                  ...(values.buyer_name ? { name: values.buyer_name } : {}),
+                  ...(values.buyer_phone ? { phone: values.buyer_phone } : {}),
+                },
+              }
+            : {}),
         }),
       }),
     {
@@ -482,6 +565,22 @@ function TenderForm({
           </Field>
         )}
       </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field
+          id="buyer-name"
+          label="Buyer name (optional)"
+          error={form.formState.errors.buyer_name?.message}
+        >
+          <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+        </Field>
+        <Field
+          id="buyer-phone"
+          label="Buyer phone (optional)"
+          error={form.formState.errors.buyer_phone?.message}
+        >
+          <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
+        </Field>
+      </div>
       {post.isError && (
         <div role="alert" className="text-sm text-destructive">
           <p>{post.error.message}</p>
@@ -533,10 +632,21 @@ function Invoice({
               : ` · reference ${t.reference}`}
           </p>
         ))}
+        {(sale.buyer_name || sale.buyer_phone) && (
+          <p className="mt-2 text-sm">
+            Buyer {[sale.buyer_name, sale.buyer_phone].filter(Boolean).join(" · ")}
+          </p>
+        )}
         <p className="mt-3 text-xs text-muted-foreground">
           Schedule classes are as declared by the outlet. NPPA ceiling prices were not checked.
         </p>
       </article>
+      {sale.lines.some((l) => l.prescription_id) && (
+        <p role="note" className="mt-4 rounded-md border p-3 text-sm print:hidden">
+          Endorse the prescription: note {sale.seller_legal_name}, {sale.seller_address} and{" "}
+          {sale.sale_date} on it before returning it.
+        </p>
+      )}
       <div className="mt-4 flex gap-2 print:hidden">
         <Button type="button" variant="outline" onClick={() => window.print()}>
           Print invoice

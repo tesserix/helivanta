@@ -22,11 +22,9 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"                           //nolint:depguard // external test importing its own module
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract" //nolint:depguard // own data-only contract
-	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/attachments"
-	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -349,17 +347,8 @@ func TestPrescriptionImagesWaitForTheWorkerRollout(t *testing.T) {
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
-	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA},
-		Perms:   map[string][]authz.Permission{"editor": prescriptionPerms, "pharmacist": prescriptionPerms},
-		Modules: []platform.Module{pharmacy.New()}, Documents: files,
-	})
-	seedPharmacyOutlet(t, r)
-	grantCatalogue(t, r, "user-editor", "editor")
-	grantCatalogue(t, r, "user-pharmacist", "editor")
-	w := prescriptionWorld{r: r, db: db, bus: bus, files: files}
+	w := newPrescriptionWorldWith(t, files, false)
 	rx := w.record(t)
-	res := do(r, "PUT", prescriptionPath("/"+rx+"/images/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", `{"filename":"TEST.png","content_type":"image/png","size":10,"sha256":"`+strings.Repeat("a", 64)+`"}`)
+	res := do(w.r, "PUT", prescriptionPath("/"+rx+"/images/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", `{"filename":"TEST.png","content_type":"image/png","size":10,"sha256":"`+strings.Repeat("a", 64)+`"}`)
 	require.Equal(t, http.StatusServiceUnavailable, res.Code, res.Body.String())
 }

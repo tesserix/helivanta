@@ -371,6 +371,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images` | `pharmacy.prescription.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines` | `pharmacy.prescription.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions` | `pharmacy.prescription.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.create` | false | false |
@@ -432,6 +433,7 @@ Migration table declarations:
 - `0014_pharmacy`: `pharmacy_stock_releases`.
 - `0015_pharmacy`: `pharmacy_outlet_invoice_profiles`, `pharmacy_invoice_series`, `pharmacy_sales`, `pharmacy_sale_lines`, `pharmacy_sale_tenders`.
 - `0016_pharmacy`: `pharmacy_prescriptions`, `pharmacy_prescription_images`.
+- `0017_pharmacy`: `pharmacy_prescription_lines`.
 
 ## supply
 

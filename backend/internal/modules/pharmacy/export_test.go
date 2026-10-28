@@ -21,3 +21,6 @@ var (
 
 // DiscountLine exposes the B-3 discount rounding.
 var DiscountLine = discountLine
+
+// CreditStep exposes the C-1 return arithmetic.
+var CreditStep = creditStep

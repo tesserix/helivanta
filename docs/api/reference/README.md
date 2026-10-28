@@ -357,6 +357,9 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id` | `pharmacy.sale.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id` | `pharmacy.sale.return` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes` | `pharmacy.sale.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id` | `pharmacy.discount.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling` | `pharmacy.sale.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id` | `pharmacy.tax.manage` | false | false |
@@ -416,6 +419,7 @@ Published subjects:
 - `helivanta.in.pharmacy.sale_posted.v1`
 - `helivanta.in.pharmacy.prescription_image_scan_requested.v1`
 - `helivanta.in.pharmacy.prescription_image_changed.v1`
+- `helivanta.in.pharmacy.credit_note_issued.v1`
 
 Subscriptions:
 
@@ -437,6 +441,7 @@ Migration table declarations:
 - `0016_pharmacy`: `pharmacy_prescriptions`, `pharmacy_prescription_images`.
 - `0017_pharmacy`: `pharmacy_prescription_lines`.
 - `0018_pharmacy`: `pharmacy_outlet_discount_ceilings`.
+- `0019_pharmacy`: `pharmacy_credit_note_series`, `pharmacy_credit_notes`, `pharmacy_credit_note_lines`, `pharmacy_credit_note_refunds`.
 
 ## supply
 

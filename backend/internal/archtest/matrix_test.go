@@ -305,6 +305,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	pharmacy.PermPrescriptionRead:   {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermSaleDiscount:       {authz.RoleTenantAdmin},
 	pharmacy.PermDiscountManage:     {authz.RolePharmacyOwner, authz.RoleTenantAdmin},
+	pharmacy.PermSaleReturn:         {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermCatalogueRead:      {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing, authz.RolePharmacyInventory},
 	pharmacy.PermCatalogueWrite:     {authz.RolePharmacist, authz.RoleTenantAdmin, authz.RolePharmacyOwner, authz.RolePharmacyPurchasing},
 	pharmacy.PermMedicationWrite:    {authz.RolePharmacist, authz.RoleTenantAdmin},

@@ -346,6 +346,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule":         "one product's class in force with its last 50 declarations",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id":                        "one credit note: its lines, at most the 200 batch lines of one sale; the list is paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling":                        "the one discount ceiling in force at an outlet",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile":                         "the one invoice profile in force at an outlet",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability":                      "one product's sellable units and nearest expiry",

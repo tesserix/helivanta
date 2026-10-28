@@ -35,6 +35,9 @@ var prescriptionSaleSchema string
 //go:embed discounts.sql
 var discountsSchema string
 
+//go:embed credit_notes.sql
+var creditNotesSchema string
+
 //go:embed sale.sql
 var saleSchema string
 
@@ -91,8 +94,10 @@ const (
 	PermPrescriptionRead   authz.Permission = "pharmacy.prescription.read"
 	// PermSaleDiscount has no system role: a tenant administrator assigns it
 	// (#1386 B-3, decision 3). PermDiscountManage records the outlet ceiling.
-	PermSaleDiscount    authz.Permission = "pharmacy.sale.discount"
-	PermDiscountManage  authz.Permission = "pharmacy.discount.manage"
+	PermSaleDiscount   authz.Permission = "pharmacy.sale.discount"
+	PermDiscountManage authz.Permission = "pharmacy.discount.manage"
+	// PermSaleReturn issues a credit note for goods returned (#1386 C-1).
+	PermSaleReturn      authz.Permission = "pharmacy.sale.return"
 	PermDispenseRead    authz.Permission = "pharmacy.dispense.read"
 	PermDispenseFulfil  authz.Permission = "pharmacy.dispense.fulfil"
 	PermMedicationRead  authz.Permission = "pharmacy.medication.read"
@@ -130,6 +135,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermPrescriptionRead, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleDiscount},
 		{Permission: PermDiscountManage, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermSaleReturn, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermDispenseRead, Roles: []authz.Role{authz.RolePharmacist, authz.RoleDoctor}},
 		{Permission: PermDispenseFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermMedicationRead, Roles: []authz.Role{authz.RolePharmacist}},
@@ -192,7 +198,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -217,7 +223,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged}
+	return []string{pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged, pharmacycontract.SubjectCreditNoteIssued}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

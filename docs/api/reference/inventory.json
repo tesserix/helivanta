@@ -2143,6 +2143,33 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id",
+          "permission": "pharmacy.sale.return",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id",
           "permission": "pharmacy.discount.manage",
@@ -2722,6 +2749,12 @@
           ]
         },
         {
+          "permission": "pharmacy.sale.return",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
           "permission": "pharmacy.dispense.read",
           "roles": [
             "pharmacist",
@@ -2756,7 +2789,8 @@
         "helivanta.in.pharmacy.batch_safety_recorded.v1",
         "helivanta.in.pharmacy.sale_posted.v1",
         "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
-        "helivanta.in.pharmacy.prescription_image_changed.v1"
+        "helivanta.in.pharmacy.prescription_image_changed.v1",
+        "helivanta.in.pharmacy.credit_note_issued.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -2906,6 +2940,16 @@
           "sql_sha256": "c8fee8c37465b2fdd0cac78f007f969eb479145d2b5a67ddb992648396006694",
           "creates_tables": [
             "pharmacy_outlet_discount_ceilings"
+          ]
+        },
+        {
+          "id": "0019_pharmacy",
+          "sql_sha256": "303ca0c43bc8753c54a3e42db50fbc2d5aa86c3994255173e5730f32c9cd5ce6",
+          "creates_tables": [
+            "pharmacy_credit_note_series",
+            "pharmacy_credit_notes",
+            "pharmacy_credit_note_lines",
+            "pharmacy_credit_note_refunds"
           ]
         }
       ]

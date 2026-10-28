@@ -319,6 +319,80 @@ quarantine for pharmacist re-release (#163, #202). Also:
 - the H1 register report (#1062);
 - the payment gateway (#210, #211).
 
+#### Slice C pull requests
+
+| PR  | Covers                                                                               |
+| --- | ------------------------------------------------------------------------------------ |
+| C-1 | Returns at the counter as GST credit notes, stock back to quarantine, refunds        |
+| C-2 | The H1 register (#1062): H1 supplies and returns, from the sale and credit-note data |
+| C-3 | The end-of-day report (#1060): sales, credit notes, tenders and refunds by day       |
+| C-4 | The payment gateway (#210, #211), confirming UPI and card tenders                    |
+
+#### C-1 decisions (2026-10-28)
+
+**Sources:**
+
+- CGST Act 2017, s.34(1) and (2), and CGST Rules 2017, Rule 53(1A), as published on CBIC's tax
+  information portal:
+  - a credit note is issued for goods returned;
+  - it is declared no later than 30 November after the end of the financial year of the supply;
+  - its serial number is consecutive, at most 16 characters and unique for a financial year;
+  - it carries the corresponding invoice's number and date, the taxable value, rate and tax
+    credited;
+  - for an unregistered recipient it carries the recipient's name and address, the delivery
+    address and the state with its code. No value threshold applies.
+- Drugs Rules 1945, Rule 65(3): the register records each supply. A return is recorded against
+  it, not by removing it.
+
+**Decisions:**
+
+1. **A return is a credit note against one posted sale of the same outlet.** Each credit line
+   names a sale line, which is one batch. The units returned on a line, across all its credit
+   notes, never exceed the units sold. A reason of 5–200 characters is required.
+2. **Amounts reverse the original line, not today's prices or rates.** Credits are cumulative
+   pro rata, so a full return credits exactly what was charged. With `k` units returned so far
+   out of `q` sold:
+   - the taxable value credited so far is `floor(taxable × k ÷ q)`;
+   - each tax half credited so far is `floor(half × k ÷ q)`;
+   - the amount is their sum.
+
+   Each credit line is the step from the previous cumulative total. The taxable value and the
+   tax are prorated apart. Prorating the amount and deriving the taxable value as the rest made
+   it negative on steps worth a paisa or two (found in C-1 review).
+
+3. **The number** is `PREFIX/FY/Cn`, from a gap-free series per outlet and the financial year of
+   the credit note's date. It is at most 16 characters; a full series refuses the return. The
+   `C` keeps it apart from the invoice series.
+4. **The recipient.** The person refunded is recorded by name and address (Rule 53(1A)(f)). The
+   delivery address is the outlet, since it is a counter sale, and the state is the sale's
+   place of supply.
+5. **The deadline.** A credit note is refused after 30 November following the end of the sale's
+   financial year (s.34(2)). The earlier limit, the date of the annual return, is not known to
+   the system; filing that return before then is the outlet's responsibility to observe.
+6. **Stock goes to quarantine, never straight back to a shelf.** Returned units are received into
+   a quarantine location the pharmacist chooses, as movement kind `return`, which exists only
+   under a credit note line. To sell them again, the pharmacist releases them (slice A3). That
+   release re-checks expiry, MRP, safety and class. Medicine that left the pharmacy is not
+   assumed fit to sell.
+7. **The refund** is recorded as tenders equal to the credit note total: cash, or UPI or card
+   with a reference.
+8. **A prescription is not restored.** Units dispensed against a prescription line stay
+   dispensed. The return appears in the register (C-2).
+9. **Permissions.** `pharmacy.sale.return` (pharmacist) issues a credit note, with the outlet
+   `editor` grant. `pharmacy.sale.read` reads it.
+10. **Events.** `credit_note_issued.v1` carries ids, the number, the total and each line's product,
+    batch and units. It carries no recipient details.
+
+**Not covered:**
+
+- destruction and disposal of returned stock;
+- recording a cold-chain or condition judgement (all returns go to quarantine);
+- returns from wards and failed deliveries;
+- credit notes without goods (billing errors);
+- debit notes;
+- e-invoicing (#539);
+- a digital signature. The credit note records who issued it.
+
 ## Not covered by A–C
 
 Admission and bed billing (#1387), service charges (#1388), e-prescription dispensing (#170),

@@ -70,8 +70,8 @@ const h1Entries = `(SELECT l.id, s.created_at, to_char(s.sale_date,'YYYY-MM-DD')
  WHERE l.tenant_id=? AND l.outlet_id=? AND l.regulatory_class='H1' AND s.sale_date BETWEEN ?::date AND ?::date) e`
 
 const (
-	h1MaxPeriodDays = 366
-	h1ExportBytes   = 4 << 20
+	maxPeriodDays = 366
+	h1ExportBytes = 4 << 20
 )
 
 // h1ExportRows bounds an export; a var only so a test can reach the bound.
@@ -82,12 +82,13 @@ func h1RegisterRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/registers/h1/export", PermPrescriptionRead, h.exportH1Register)
 }
 
-// h1Period reads ?from=&to= as outlet dates, at most 366 days apart.
-func h1Period(c *gin.Context) (string, string, bool) {
+// outletPeriod reads ?from=&to= as outlet dates, at most 366 days apart; what
+// names the report in the refusal.
+func outletPeriod(c *gin.Context, what string) (string, string, bool) {
 	from, errFrom := time.Parse(time.DateOnly, c.Query("from"))
 	to, errTo := time.Parse(time.DateOnly, c.Query("to"))
-	if errFrom != nil || errTo != nil || to.Before(from) || to.Sub(from) > (h1MaxPeriodDays-1)*24*time.Hour {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "the H1 register needs from and to dates (YYYY-MM-DD), from on or before to, for a period of at most 366 days")
+	if errFrom != nil || errTo != nil || to.Before(from) || to.Sub(from) > (maxPeriodDays-1)*24*time.Hour {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", what+" needs from and to dates (YYYY-MM-DD), from on or before to, for a period of at most 366 days")
 		return "", "", false
 	}
 	return from.Format(time.DateOnly), to.Format(time.DateOnly), true
@@ -111,7 +112,7 @@ func (h *catalogueHandlers) listH1Register(c *gin.Context, params pagination.Par
 	if !ok {
 		return nil, nil
 	}
-	from, to, ok := h1Period(c)
+	from, to, ok := outletPeriod(c, "the H1 register")
 	if !ok {
 		return nil, nil
 	}
@@ -135,7 +136,7 @@ func (h *catalogueHandlers) exportH1Register(c *gin.Context) {
 	if !ok {
 		return
 	}
-	from, to, ok := h1Period(c)
+	from, to, ok := outletPeriod(c, "the H1 register")
 	if !ok {
 		return
 	}

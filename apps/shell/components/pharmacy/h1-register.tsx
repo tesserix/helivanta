@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
@@ -14,29 +13,13 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import { Field, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import { periodSchema, type Period } from "./period";
 
 /**
  * The Schedule H1 register (#1386 C-2; Drugs Rules 1945, Rule 65(3)(h)): each
  * H1 supply as it was recorded at the sale, with what has come back. It is
  * read, never edited, and every read is recorded.
  */
-const periodSchema = z
-  .object({
-    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the first day"),
-    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the last day"),
-  })
-  .superRefine((v, ctx) => {
-    const days = (Date.parse(v.to) - Date.parse(v.from)) / 86_400_000;
-    if (days < 0)
-      ctx.addIssue({
-        code: "custom",
-        path: ["to"],
-        message: "The last day is on or after the first",
-      });
-    else if (days > 365)
-      ctx.addIssue({ code: "custom", path: ["to"], message: "A period is at most 366 days" });
-  });
-type Period = z.infer<typeof periodSchema>;
 
 export function H1Register({ scope, today }: { scope: PharmacyScope; today: string }) {
   const [period, setPeriod] = useState<Period>({ from: today.slice(0, 8) + "01", to: today });

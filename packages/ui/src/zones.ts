@@ -168,6 +168,13 @@ export const ZONES: Zone[] = [
       },
       {
         section: "Dispensing",
+        label: "Daily sales",
+        href: "/pharmacy/daily-report",
+        icon: CalendarDays,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
         label: "H1 register",
         href: "/pharmacy/h1-register",
         icon: ScrollText,

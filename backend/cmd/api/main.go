@@ -481,7 +481,8 @@ func run() error {
 		limiter = ratelimit.NewMemory(10_000)
 	}
 	api := platform.NewRouter(
-		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga)...),
+		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga,
+			iam.NewIdentityGuard(db, bus, revocationChecker, zitadelLoginClient))...),
 		fga,
 	).WithScopedAuthorizer(scopedAuthorizer)
 

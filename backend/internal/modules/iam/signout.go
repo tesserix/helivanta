@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"time"
@@ -40,7 +41,7 @@ func (h *revocationHandlers) signOut(c *gin.Context) {
 		respond.Unauthenticated(c, "missing principal")
 		return
 	}
-	if err := h.revoke(c, p.Subject, time.Now().UTC(), "sign_out", p.Subject); err != nil {
+	if err := h.revoke(c.Request.Context(), p.Subject, time.Now().UTC(), "sign_out", p.Subject); err != nil {
 		respond.InternalErr(c, err, "could not sign out")
 		return
 	}
@@ -79,7 +80,7 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 		respond.NotFound(c, "subject")
 		return
 	}
-	if err := h.revoke(c, target, time.Now().UTC(), "admin_revoke", p.Subject); err != nil {
+	if err := h.revoke(c.Request.Context(), target, time.Now().UTC(), "admin_revoke", p.Subject); err != nil {
 		respond.InternalErr(c, err, "could not revoke credentials")
 		return
 	}
@@ -105,8 +106,8 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 // commit. A subject whose watermark
 // moves is refused by authn.Middleware on their very next request,
 // regardless of what Zitadel still believes.
-func (h *revocationHandlers) revoke(c *gin.Context, subject string, at time.Time, reason, actor string) error {
-	err := h.db.WithSystem(c.Request.Context(), func(tx *gorm.DB) error {
+func (h *revocationHandlers) revoke(ctx context.Context, subject string, at time.Time, reason, actor string) error {
+	err := h.db.WithSystem(ctx, func(tx *gorm.DB) error {
 		if err := h.checker.RevokeTx(tx, subject, at, reason, actor); err != nil {
 			return err
 		}

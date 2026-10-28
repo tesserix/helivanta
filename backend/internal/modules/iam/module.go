@@ -252,7 +252,16 @@ ALTER TABLE login_attempt
   ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'factor'
   CONSTRAINT login_attempt_stage_check CHECK (stage IN ('factor', 'password_change'));
 `,
-	}, {ID: "0008_iam_assignment_proposals", SQL: assignmentProposalsSchema}, {ID: "0009_iam_assignment_decisions", SQL: assignmentDecisionsSchema}, {ID: "0010_iam_assignment_projection", SQL: assignmentProjectionSchema}, {ID: "0011_iam_assignment_membership", SQL: assignmentMembershipSchema}, {ID: "0012_iam_assignment_activation", SQL: assignmentActivationSchema}}
+	}, {ID: "0008_iam_assignment_proposals", SQL: assignmentProposalsSchema}, {ID: "0009_iam_assignment_decisions", SQL: assignmentDecisionsSchema}, {ID: "0010_iam_assignment_projection", SQL: assignmentProjectionSchema}, {ID: "0011_iam_assignment_membership", SQL: assignmentMembershipSchema}, {ID: "0012_iam_assignment_activation", SQL: assignmentActivationSchema}, {
+		ID: "0013_iam_identity_guard",
+		SQL: `SET LOCAL lock_timeout='5s';
+		SET LOCAL statement_timeout='60s';
+		ALTER TABLE iam_credential_revocations
+			DROP CONSTRAINT iam_credential_revocations_reason_check,
+			ADD CONSTRAINT iam_credential_revocations_reason_check
+			CHECK (reason IN ('sign_out','admin_revoke','identity_inactive')) NOT VALID;
+		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
+	}}
 }
 
 type role struct {

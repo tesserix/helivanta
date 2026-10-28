@@ -4855,7 +4855,7 @@
         },
         {
           "id": "0013_patientmaster",
-          "sql_sha256": "96a1601df3cf7f94ca630001b879cf59a310d9cde5c63433f464cd31b314f49f",
+          "sql_sha256": "e3f05c20bb5f3da1f54462480268a377c697bb2cda7f52315be7c10aa1682dd0",
           "creates_tables": [
             "patient_pharmacy_affiliation_reviews",
             "patient_pharmacy_affiliation_decisions"

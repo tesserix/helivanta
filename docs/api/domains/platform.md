@@ -146,7 +146,7 @@ otherwise recording `scope_rejected`. Each transition increments the version.
 Withdrawal is allowed from `pending_scope`, `pending_review`,
 `pending_decision_scope`, `approved_pending_activation` and `active`; it changes the request
 correlation and records `withdrawn`, so delayed responses cannot reopen it.
-Rejected and withdrawn proposals cannot reopen. The decision ledger records
+Rejected and withdrawn proposals cannot reopen. The Staff access UI may prepare renewal from an activated assignment, including an expired one. Renewal submits a new proposal ID with fresh mandatory dates and reason for the same account/hospital/template; it does not mutate the source or inherit its authorization. The prior ID/version in the reason is a human reference, not a server-enforced predecessor relation. Current membership generation, hospital verification, independent review and acknowledged activation apply again. Withdrawn, rejected and unactivated records have no renewal shortcut. The decision ledger records
 **requested actions**, not successful review outcomes: use proposal state and
 history to determine the outcome. Reasons remain private to protected reads.
 

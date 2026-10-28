@@ -72,6 +72,7 @@ function Assignments({ identity }: { identity: Identity }) {
   const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
   const records = useStaffAssignments(scope, family);
   const [proposing, setProposing] = useState(false);
+  const [renewal, setRenewal] = useState<StaffAssignment | undefined>();
   const [notice, setNotice] = useState("");
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -98,6 +99,7 @@ function Assignments({ identity }: { identity: Identity }) {
           value={family}
           onValueChange={(value) => {
             setFamily(value as StaffAssignmentFamily);
+            setRenewal(undefined);
             setProposing(false);
             setNotice("");
           }}
@@ -119,6 +121,7 @@ function Assignments({ identity }: { identity: Identity }) {
           <Button
             onClick={() => {
               setNotice("");
+              setRenewal(undefined);
               setProposing(true);
             }}
           >
@@ -129,8 +132,9 @@ function Assignments({ identity }: { identity: Identity }) {
       {notice && <p role="status">{notice}</p>}
       {proposing && (
         <AssignmentProposalForm
-          key={family}
+          key={`${family}:${renewal?.id ?? "new"}`}
           family={family}
+          renewal={renewal}
           scope={scope}
           onClose={() => setProposing(false)}
           onSaved={() => {
@@ -158,6 +162,11 @@ function Assignments({ identity }: { identity: Identity }) {
                 manage={manage}
                 review={review}
                 now={now}
+                onRenew={() => {
+                  setNotice("");
+                  setRenewal(item);
+                  setProposing(true);
+                }}
                 onSaved={() =>
                   setNotice(
                     "Decision recorded. Refresh to check hospital verification and activation; a submitted approval is not yet active access.",
@@ -182,6 +191,7 @@ function AssignmentRecord({
   manage,
   review,
   now,
+  onRenew,
   onSaved,
 }: {
   item: StaffAssignment;
@@ -189,6 +199,7 @@ function AssignmentRecord({
   manage: boolean;
   review: boolean;
   now: number;
+  onRenew: () => void;
   onSaved: () => void;
 }) {
   const [decision, setDecision] = useState<StaffAssignmentDecision["decision"] | null>(null);
@@ -221,6 +232,11 @@ function AssignmentRecord({
       <p>Proposed by {item.proposed_by}</p>
       <p>{item.input.reason}</p>
       <div className="flex flex-wrap gap-2">
+        {manage && item.status === "active" && (
+          <Button variant="outline" onClick={onRenew}>
+            Renew access
+          </Button>
+        )}
         {review && independent && !expired && item.status === "pending_review" && (
           <>
             <Button onClick={() => setDecision("approve")}>Approve</Button>

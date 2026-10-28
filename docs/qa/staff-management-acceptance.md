@@ -1,6 +1,6 @@
 # Staff Management workflow acceptance
 
-Current audit: 2026-10-28. Scope is every Staff navigation entry and its complete
+Current audit: 2026-10-28. Summary status and the ordered Access/RBAC checklist are maintained in [the delivery tracker](staff-management-progress.md), updated 2026-10-29. Scope is every Staff navigation entry and its complete
 business workflows, including account provisioning/verification/offboarding,
 staff identity/background verification, protected photographs and identity-card
 issuance, supervision, review and payroll. This checklist records evidence, not readiness
@@ -1139,3 +1139,7 @@ revocation, protected photograph processing/self-service, identity cards and
 employment lifecycle remain open. Payroll execution, branded payslips and
 offer/exit documents also remain open. Neither this draft slice nor the approved
 layout/access releases complete Staff Management or issue #1399.
+
+### Staff scope tracker and renewal preparation — 2026-10-29
+
+The [delivery tracker](staff-management-progress.md) consolidates the complete requested Staff scope, current evidence, remaining acceptance and the ordered A01–A12 Access/RBAC journeys. Its renewal checkpoint records new-proposal preparation, local independent maker/checker activation, recipient access, withdrawal/history preservation and fresh-login denial. All 30 frontend tasks passed. This does not complete the Access area or employment suspension/exit/rehire, and no production rollout of this UI slice is claimed.

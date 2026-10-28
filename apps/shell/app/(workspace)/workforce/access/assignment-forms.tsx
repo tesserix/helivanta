@@ -73,7 +73,8 @@ export function AssignmentProposalForm({
   onClose,
   onSaved,
   family = "leave",
-}: FormProps & { family?: StaffAssignmentFamily }) {
+  renewal,
+}: FormProps & { family?: StaffAssignmentFamily; renewal?: StaffAssignment }) {
   const [id] = useState(() => newStaffAssignmentId());
   const [submitted, setSubmitted] = useState<StaffAssignmentInput | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -81,19 +82,33 @@ export function AssignmentProposalForm({
     [...staffAssignmentsKey(scope), "hospitals", cursor],
     `/workforce/hospitals${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
     {
+      enabled: !renewal,
       gcTime: 0,
       request: { cache: "no-store", headers: { "X-Helivanta-Expected-Tenant": scope.tenantId } },
     },
   );
+  const renewalPrefix = renewal ? `Renewal of ${renewal.id} v${renewal.version}: ` : "";
   const [defaults] = useState(() => ({
-    hospital_id: "",
-    template_key: staffAccessTemplates.find((template) => template.family === family)!.key,
-    subject: "",
+    hospital_id: renewal?.input.hospital_id ?? "",
+    template_key:
+      renewal?.input.template_key ??
+      staffAccessTemplates.find((template) => template.family === family)!.key,
+    subject: renewal?.input.subject ?? "",
     reason: "",
-    valid_from: localTime(new Date()),
-    expires_at: localTime(new Date(Date.now() + 86400000)),
+    valid_from: renewal ? "" : localTime(new Date()),
+    expires_at: renewal ? "" : localTime(new Date(Date.now() + 86400000)),
   }));
-  const form = useZodForm(proposalForm, defaults);
+  const form = useZodForm(
+    proposalForm.superRefine((value, ctx) => {
+      if (renewal && value.reason.length + renewalPrefix.length > 500)
+        ctx.addIssue({
+          code: "custom",
+          path: ["reason"],
+          message: `Use at most ${500 - renewalPrefix.length} characters for the renewal reason.`,
+        });
+    }),
+    defaults,
+  );
   const save = useApiMutation(
     (input: StaffAssignmentInput) => proposeStaffAssignment(scope, id, input),
     {
@@ -105,12 +120,13 @@ export function AssignmentProposalForm({
   const managers = hospitals.data?.data.filter((h) => h.access_level === "manager") ?? [];
   return (
     <form
-      aria-label="Propose assignment"
+      aria-label={renewal ? "Renew assignment" : "Propose assignment"}
       noValidate
       className="space-y-4 border-t border-border pt-4"
       onSubmit={form.handleSubmit((values) => {
         const command = submitted ?? {
           ...values,
+          reason: renewalPrefix + values.reason,
 
           valid_from: new Date(values.valid_from).toISOString(),
           expires_at: new Date(values.expires_at).toISOString(),
@@ -119,18 +135,29 @@ export function AssignmentProposalForm({
         save.mutate(command);
       })}
     >
-      <h2 className="text-lg font-semibold">Propose staff access</h2>
+      <h2 className="text-lg font-semibold">
+        {renewal ? "Renew staff access" : "Propose staff access"}
+      </h2>
+      {renewal && (
+        <p>
+          This creates a new proposal requiring hospital verification and independent review. It
+          does not extend or reactivate the previous assignment. Choose new dates and give a fresh
+          reason. Previous assignment: {renewal.id}, version {renewal.version}.
+        </p>
+      )}
       <FormSelectField
         control={form.control}
         name="template_key"
         id="assignment-template"
         label="Access template"
-        disabled={!!submitted}
+        disabled={!!submitted || !!renewal}
         options={staffAccessTemplates
           .filter((template) => template.family === family)
           .map((template) => ({ value: template.key, label: template.name }))}
       />
-      {hospitals.isPending ? (
+      {renewal ? (
+        <p className="break-all">Hospital: {renewal.input.hospital_id}</p>
+      ) : hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
         <p role="alert">
@@ -192,6 +219,7 @@ export function AssignmentProposalForm({
           aria-invalid={!!form.formState.errors.subject}
           aria-describedby={form.formState.errors.subject ? "assignment-subject-error" : undefined}
           autoComplete="off"
+          readOnly={!!renewal}
           disabled={!!submitted}
           {...form.register("subject")}
         />
@@ -242,8 +270,17 @@ export function AssignmentProposalForm({
       </Field>
       {save.isError && <p role="alert">{failure(save.error)}</p>}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending || hospitals.isPending || hospitals.isError}>
-          {save.isPending ? "Saving…" : save.isError ? "Retry same request" : "Submit proposal"}
+        <Button
+          type="submit"
+          disabled={save.isPending || (!renewal && (hospitals.isPending || hospitals.isError))}
+        >
+          {save.isPending
+            ? "Saving…"
+            : save.isError
+              ? "Retry same request"
+              : renewal
+                ? "Propose renewal"
+                : "Submit proposal"}
         </Button>
         <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
           Close form

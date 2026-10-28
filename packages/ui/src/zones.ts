@@ -12,8 +12,10 @@ import {
   CalendarDays,
   CalendarX,
   Clock,
+  ClipboardCheck,
   Contact,
   FileText,
+  FileScan,
   Fingerprint,
   FlaskConical,
   HeartHandshake,
@@ -25,6 +27,7 @@ import {
   LayoutDashboard,
   Gauge,
   ListChecks,
+  ShoppingCart,
   PackagePlus,
   Palette,
   Pill,
@@ -32,10 +35,13 @@ import {
   Scale,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   SlidersHorizontal,
   Stethoscope,
   Store,
   Tablets,
+  Undo2,
+  ScrollText,
   Timer,
   Users,
   Wallet,
@@ -47,10 +53,9 @@ export type ZonePage = {
   href: string;
   icon: LucideIcon;
   permission: string;
+  alternativePermissions?: string[];
   /** Heading the page panel shows before the first page of a run (#1258 D1). */
   section?: string;
-  /** "full" drops the content cap for a page that needs the width (#1303 D8). */
-  width?: "full";
 };
 
 export type ZoneHue = "rose" | "amber" | "violet";
@@ -68,6 +73,9 @@ export type Zone = {
   permission: string;
   hue: ZoneHue;
   group: ZoneGroup;
+  /** "full" drops the content cap on every page of the zone, so moving between
+   * its pages never changes the width (#1366). Pages cannot set their own. */
+  width?: "full";
   pages: ZonePage[];
 };
 
@@ -78,6 +86,7 @@ export type Zone = {
 export const ZONES: Zone[] = [
   {
     key: "dashboard",
+    width: "full",
     label: "Dashboard",
     railLabel: "Dashboard",
     icon: LayoutDashboard,
@@ -134,6 +143,7 @@ export const ZONES: Zone[] = [
     permission: "public",
     hue: "amber",
     group: "care",
+    width: "full",
     pages: [
       // What needs attention, for every outlet role (#576). A doctor, who
       // only reads the queue, lands on the queue instead.
@@ -142,6 +152,41 @@ export const ZONES: Zone[] = [
         href: "/pharmacy",
         icon: Gauge,
         permission: "pharmacy.catalogue.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Counter sale",
+        href: "/pharmacy/counter",
+        icon: ShoppingCart,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Returns",
+        href: "/pharmacy/returns",
+        icon: Undo2,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Daily sales",
+        href: "/pharmacy/daily-report",
+        icon: CalendarDays,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "H1 register",
+        href: "/pharmacy/h1-register",
+        icon: ScrollText,
+        permission: "pharmacy.prescription.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Prescriptions",
+        href: "/pharmacy/prescriptions",
+        icon: FileScan,
+        permission: "pharmacy.prescription.read",
       },
       {
         section: "Dispensing",
@@ -191,7 +236,6 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/accounts",
         icon: ReceiptText,
         permission: "pharmacy.accounts.read",
-        width: "full",
       },
       {
         section: "Setup",
@@ -252,6 +296,7 @@ export const ZONES: Zone[] = [
   },
   {
     key: "workforce",
+    width: "full",
     label: "Staff",
     railLabel: "Staff",
     icon: IdCard,
@@ -261,6 +306,13 @@ export const ZONES: Zone[] = [
     group: "operations",
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
+      {
+        label: "Staff access",
+        href: "/workforce/access",
+        icon: ShieldCheck,
+        permission: "iam.assignment.manage",
+        alternativePermissions: ["iam.member.manage", "iam.assignment.review"],
+      },
       {
         label: "HR setup",
         href: "/workforce/setup",
@@ -297,6 +349,12 @@ export const ZONES: Zone[] = [
         label: "Leave requests",
         href: "/workforce/leave-requests",
         icon: CalendarX,
+        permission: "public",
+      },
+      {
+        label: "Review leave",
+        href: "/workforce/leave-review",
+        icon: ClipboardCheck,
         permission: "public",
       },
       {
@@ -385,7 +443,9 @@ export const ZONES: Zone[] = [
 export function visibleZones(can: (permission: string) => boolean, zones: Zone[] = ZONES): Zone[] {
   return zones
     .map((zone) => {
-      const pages = zone.pages.filter((page) => can(page.permission));
+      const pages = zone.pages.filter(
+        (page) => can(page.permission) || page.alternativePermissions?.some(can),
+      );
       return {
         ...zone,
         pages,
@@ -408,6 +468,14 @@ export function activeZone(path: string): Zone {
 
 // The longest page href that `path` equals or sits under. No match marks no
 // page current: aria-current on the wrong link misleads a screen reader.
+// A rail link's accessible name (#1369, WCAG 2.5.3): it must hold the words
+// shown, the rail label collapsed and the full label expanded.
+export function railName(zone: Zone): string {
+  return zone.label.toLowerCase().includes(zone.railLabel.toLowerCase())
+    ? zone.label
+    : `${zone.railLabel} (${zone.label})`;
+}
+
 export function activePage(zone: Zone, path: string): ZonePage | undefined {
   return zone.pages
     .filter((page) => path === page.href || path.startsWith(page.href + "/"))

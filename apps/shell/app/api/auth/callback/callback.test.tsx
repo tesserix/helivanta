@@ -29,6 +29,7 @@ describe("AuthCallbackPage", () => {
     render(<AuthCallbackPage />);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+    expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
     expect(fetch).toHaveBeenCalledWith(
       "/api/v1/auth/login",
       expect.objectContaining({

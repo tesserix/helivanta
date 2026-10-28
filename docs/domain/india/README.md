@@ -15,6 +15,7 @@ Use this knowledge alongside the implemented API references, not as evidence tha
 | Tariffs, hospital invoices, cashless/TPA, schemes and claims  | [Billing and insurance](billing-and-insurance.md)                                                                                                     | [Product ownership](../../api/portfolio.md), [NHCX source](sources.md#exchange-and-revenue)               |
 | Licensing, accreditation, infection control, assets and waste | [Facility and quality](facility-and-quality.md)                                                                                                       | [Remaining product coverage](../../api/portfolio.md)                                                      |
 | Staff, payroll and professional credentials                   | [Existing workforce specification](../../api/domains/workforce.md), [India statutory research](../../payroll-india-statutory-reference-2026-10-16.md) | [Workforce API](../../api/workforce.md)                                                                   |
+| Government versus private hospitals, hierarchy and titles     | [Public and private sectors](public-and-private-sectors.md)                                                                                           | [Organization knowledge](../organization/README.md)                                                       |
 | Emergency calling, dispatch and receiving                     | [Existing India transport research](../../research/2026-10-18-india-emergency-transport.md)                                                           | [EmergencyConnect](../../api/domains/emergency.md)                                                        |
 
 ## India is a profile, not a universal legal switch
@@ -58,3 +59,4 @@ The canonical repository skills are in `.agents/skills/`; matching `.claude/skil
 - [hms-india-clinical](../../../.agents/skills/hms-india-clinical/SKILL.md): patient identity, care transitions, orders and diagnostics.
 - [hms-india-revenue](../../../.agents/skills/hms-india-revenue/SKILL.md): tariffs, liability, insurance, claims and settlement.
 - [hms-india-regulated-operations](../../../.agents/skills/hms-india-regulated-operations/SKILL.md): pharmacy/supply, facility compliance and quality evidence.
+- [hms-organization-access](../../../.agents/skills/hms-organization-access/SKILL.md): roles, departments, access, configurable workflows and sector profiles.

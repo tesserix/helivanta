@@ -63,7 +63,7 @@ func TestManualSupplyDeliveryHasNoPharmacyStockFinanceOrDispenseEffects(t *testi
 	request("PUT", outletRoot+"/access/user-owner", "owner", `{"level":"editor"}`)
 	request("PUT", outletRoot+"/catalogue/products/"+product, "owner", `{"expected_version":0,"sku":"TEST-LOGISTICS-DRUG","brand_name":"TEST Synthetic Medicine","generic_name":"TEST ingredient","dosage_form":"tablet","route":"oral","manufacturer":"TEST Manufacturer","marketing_company":"","ingredients":[{"name":"TEST ingredient","strength":"10","unit":"mg"}],"pack_size":10,"unit_of_issue":"tablet","currency":"INR","mrp_minor":12500,"status":"active"}`)
 	request("PUT", outletRoot+"/stock/locations/"+location, "owner", `{"code":"TEST-QUARANTINE","name":"TEST Quarantine"}`)
-	request("PUT", outletRoot+"/stock/batches/"+batch, "owner", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2035-12-31"}`, product))
+	request("PUT", outletRoot+"/stock/batches/"+batch, "owner", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2035-12-31","mrp_minor":12500}`, product))
 	receiptBody := fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"kind":"receipt","quantity_units":100,"reason":"TEST opening stock","source_reference":"TEST-SHARED-REFERENCE"}`, location, batch)
 	request("PUT", outletRoot+"/stock/movements/"+receipt, "owner", receiptBody)
 	payablePath := outletRoot + "/accounts/payables/" + payable

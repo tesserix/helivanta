@@ -5,6 +5,10 @@ import { apiFetch, POLL_INTERVAL_MS } from "./client";
 import { documentPath, documentHeaders, type DocumentScope } from "./documents";
 import { documentRecordsSchema, staffDocumentSchema, type StaffDocument } from "./documents-fields";
 import type { Page } from "./paged";
+import {
+  readDocumentClassification,
+  readDocumentClassificationHistory,
+} from "./document-classification";
 
 export function documentQueryKey(scope: DocumentScope): string[] {
   return ["workforce", "documents", scope.tenantId, scope.hospitalId, scope.staffId];
@@ -61,5 +65,36 @@ export function useStaffDocuments(scope: DocumentScope, cursor: string | null, e
       )
         ? POLL_INTERVAL_MS
         : false,
+  });
+}
+
+export function documentClassificationQueryKey(scope: DocumentScope, file: string): string[] {
+  return [...documentQueryKey(scope), "classification", file];
+}
+
+export function useDocumentClassification(scope: DocumentScope, file: string, enabled: boolean) {
+  return useQuery({
+    queryKey: documentClassificationQueryKey(scope, file),
+    queryFn: ({ signal }) => readDocumentClassification(scope, file, signal),
+    enabled,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+export function useDocumentClassificationHistory(
+  scope: DocumentScope,
+  file: string,
+  cursor: string | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...documentClassificationQueryKey(scope, file), "history", cursor],
+    queryFn: ({ signal }) => readDocumentClassificationHistory(scope, file, cursor, signal),
+    enabled,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
 }

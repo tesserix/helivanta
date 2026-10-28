@@ -243,7 +243,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
         </AnalyticsPanel>
       )}
       {showServices && (
-        <div className="grid items-start gap-6 xl:grid-cols-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,32rem),1fr))] items-start gap-6">
           {can("lab.order.read") && (
             <AnalyticsPanel
               title="Laboratory"

@@ -88,6 +88,14 @@ func Middleware(v TokenVerifier, rev RevocationChecker) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
 			return
 		}
+		// The database reads "system:" and "service:" actors as the event bus
+		// or a worker (tenantdb.ActorSetting), so no credential may claim one;
+		// nor may it name no one, since every audited write needs its actor.
+		if strings.TrimSpace(p.Subject) == "" || strings.HasPrefix(p.Subject, "system:") || strings.HasPrefix(p.Subject, "service:") {
+			slog.Warn("refused a credential naming a process or no one", "path", c.Request.URL.Path)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
+			return
+		}
 		watermark, err := rev.RevokedAfter(c.Request.Context(), p.Subject)
 		if err != nil {
 			slog.ErrorContext(c.Request.Context(), "revocation lookup failed",

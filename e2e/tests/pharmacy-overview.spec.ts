@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./support/login";
-import { addProduct, api, freshOutlet, uuidv7 } from "./support/pharmacy";
+import { addProduct, api, expectList, freshOutlet, uuidv7 } from "./support/pharmacy";
 
 // #576 D1: the overview is /pharmacy; the queue moved to /pharmacy/dispense,
 // and a shared queue link with its parameters still opens the queue.
@@ -44,7 +44,7 @@ test("each overview count opens exactly the rows it counted", async ({ page }) =
 
   await overdue.click();
   // The tile's count is the tab's total (#576 slice 3).
-  await expect(page).toHaveURL(/\/pharmacy\/accounts\?tab=overdue$/);
+  await expectList(page, "/pharmacy/accounts", { tab: "overdue" });
   await expect(page.getByRole("link", { name: "Overdue" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("1–1 of 1")).toBeVisible();
   await expect(page.getByText(`TEST-OVERDUE-${stamp}`)).toBeVisible();
@@ -54,7 +54,7 @@ test("each overview count opens exactly the rows it counted", async ({ page }) =
     .getByRole("region", { name: "Setup gaps" })
     .getByRole("link", { name: /Not classified/ })
     .click();
-  await expect(page).toHaveURL(/tax=unclassified$/);
+  await expectList(page, "/pharmacy/catalogue", { tax: "unclassified" });
   await expect(page.getByRole("button", { name: "Not classified" })).toHaveAttribute(
     "aria-pressed",
     "true",

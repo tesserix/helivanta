@@ -53,7 +53,7 @@ export default function SignupPage() {
               Visit Tesserix
             </a>
             <a
-              href="/login"
+              href="/login?start=1"
               className="mt-5 block text-center text-sm font-medium underline underline-offset-4"
             >
               Sign in to an existing workspace

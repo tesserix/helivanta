@@ -1,5 +1,31 @@
 # Events and cross-product integration contracts
 
+The staff-access worktree adds a same-tenant IAM/workforce exchange:
+`helivanta.in.iam.assignment_scope_requested.v1` →
+`helivanta.in.workforce.assignment_scope_verified.v1`. Both declarations and
+payloads derive from `contracts/staff-access.json`. The request contains proposal,
+request and hospital IDs plus the proposing actor subject, needed to verify the
+owner's explicit manager grant. The response contains matching IDs and eligibility.
+No target subject, private reason or staff profile is sent. Neither event grants
+access. IAM accepts only its current correlated pending request, rechecks
+membership/expiry, and records a review-queue or rejection state. Approval needs
+fresh owner verification and independent reviewer authority; this preliminary
+response cannot substitute for current authorization. See the platform domain
+contract for retry, history, activation and unfinished product-access gates.
+
+IAM also publishes `helivanta.in.iam.assignment_projection_requested.v1`, with
+only `{proposal_id}` from the canonical staff-access contract. The owning IAM
+consumer reloads the current subject/hospital scope and permission snapshots;
+the event supplies no authority, subject, permission list or private reason.
+The durable consumer's `AfterCommit` step writes OpenFGA outside database locks,
+records guarded per-snapshot activation, then compare-and-set acknowledges the
+scope epoch. Duplicate deliveries re-run
+that idempotent step, including after a crash following commit. Stale attempts
+cannot acknowledge a newer epoch. Missing graph dependencies or write failures
+retry through the existing bounded retry/dead-letter mechanism. Activation does
+not replace IAM's current-state authority check or product-owned lifecycle and
+object checks; no new product route is authorized by this event alone.
+
 [Contract index](README.md) · current guarantees and proposed journeys
 
 ## Client integration boundary

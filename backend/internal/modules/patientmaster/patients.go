@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/helivanta/internal/mediconnectclaims"
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster/matching"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -29,12 +30,15 @@ import (
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"github.com/tesserix/helivanta/pkg/transit"
 )
 
 // dateLayout is the ISO calendar-date form every DOB on the wire and in
 // matching.Candidate uses — never a timestamp, since a patient's date of
 // birth has no time component to lose or fabricate.
 const dateLayout = "2006-01-02"
+
+const registrationAdultAgeYears = 18
 
 var errRegistrationKeyReused = errors.New("registration request ID reused with different input")
 
@@ -173,8 +177,11 @@ type registerRequest struct {
 }
 
 type patientHandlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	proxyClinicalCaptureEnabled bool
+	db                          *tenantdb.DB
+	bus                         *events.Bus
+	transit                     *transit.Client
+	claims                      *mediconnectclaims.Client
 }
 
 // possibleMatch is the wire shape of one Possible-band candidate offered
@@ -241,7 +248,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 	if !scoped {
 		return
 	}
-	principal, tenantUUID, ok := authn.TenantPrincipal(c)
+	principal, tenantUUID, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -280,7 +287,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 		return
 	}
 	dateNow, _ := time.Parse(dateLayout, today)
-	if dob.AddDate(18, 0, 0).After(dateNow) && req.ConsentedBy != "guardian" {
+	if dob.AddDate(registrationAdultAgeYears, 0, 0).After(dateNow) && req.ConsentedBy != "guardian" {
 		respond.BadRequest(c, errors.New("a guardian consent receipt is required for a minor"))
 		return
 	}
@@ -593,7 +600,7 @@ func (h *patientHandlers) get(c *gin.Context) {
 	if !scoped {
 		return
 	}
-	principal, _, ok := authn.TenantPrincipal(c)
+	principal, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -647,7 +654,7 @@ func (h *patientHandlers) list(c *gin.Context, p pagination.Params) ([]patient, 
 	if !scoped {
 		return nil, nil
 	}
-	principal, _, ok := authn.TenantPrincipal(c)
+	principal, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

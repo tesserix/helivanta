@@ -1,6 +1,9 @@
 # CRM, MediConnect and engagement boundaries
 
-[Contract index](../README.md) · **draft integration specification; no registered CRM or MediConnect API**
+[Contract index](../README.md) · **engagement contracts remain draft; MediConnect accounts and unverified link-request intake are implemented**
+
+See the [account API](../mediconnect.md) for implemented create/read/preferences and unverified link-request
+contracts. No CRM, patient linking, booking or report-disclosure API is implied.
 
 ## Three different customer relationships
 
@@ -33,6 +36,11 @@ No provider-specific endpoint, signature algorithm, deduplication retention, pol
 Technical discovery [#807](https://github.com/tesserix/helivanta/issues/807) feeds the implementation estimate and handover [#813](https://github.com/tesserix/helivanta/issues/813); reuse that record rather than copy it into a second handover document. Record named owners, commitments, variance and agreed scope. These workflows remain unimplemented contracts, not additional fields on `supply_parties`.
 
 ## Proposed patient and hospital engagement contracts
+
+The [MediConnect delivery review](../../delivery/mediconnect.md) tracks current
+source gaps, assigned issues and the email/WhatsApp OTP release scope (SMS
+disabled). The [onboarding proposal](../../superpowers/specs/2026-10-24-mediconnect-onboarding.md)
+is a draft, not an implemented patient API.
 
 MediConnect must bind authenticated patient/dependent accounts to reviewed hospital registrations. A shared household phone, CRM contact ID or guardian assertion does not confer chart access. Distinguish legal guardian, booking on behalf, emergency contact and permission to view records, each with scope/expiry/revocation evidence.
 

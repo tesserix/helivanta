@@ -4,6 +4,7 @@ package transit
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -47,16 +48,22 @@ type Client struct {
 // New builds a client; addr must be an absolute http(s) URL and mount a single path segment.
 func New(addr, mount string, login Login, httpClient *http.Client) (*Client, error) {
 	u, err := url.Parse(addr)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" {
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || u.RawPath != "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery {
 		return nil, errors.New("transit address must be an http(s) origin")
 	}
 	if !keyName.MatchString(mount) || login == nil {
 		return nil, errors.New("transit mount and login are required")
 	}
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 5 * time.Second}
+	client := http.Client{Timeout: 5 * time.Second}
+	if httpClient != nil {
+		client = *httpClient
+		if client.Timeout == 0 {
+			client.Timeout = 5 * time.Second
+		}
 	}
-	return &Client{addr: strings.TrimSuffix(addr, "/"), mount: mount, http: httpClient, login: login, now: time.Now}, nil
+	client.Jar = nil
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &Client{addr: strings.TrimSuffix(addr, "/"), mount: mount, http: &client, login: login, now: time.Now}, nil
 }
 
 // KubernetesLogin authenticates with the projected service-account token at tokenPath, re-read on every login.
@@ -141,10 +148,43 @@ func (c *Client) HMAC(ctx context.Context, key string, input []byte) (string, er
 	if err := c.call(ctx, "hmac", key, map[string]any{"input": b64(input), "key_version": 1, "algorithm": "sha2-256"}, &out); err != nil {
 		return "", err
 	}
-	if !strings.HasPrefix(out.Data.HMAC, "vault:v1:") {
+	if _, valid := receiptMACBytes(out.Data.HMAC); !valid {
 		return "", fmt.Errorf("%w: malformed hmac", ErrUnavailable)
 	}
 	return out.Data.HMAC, nil
+}
+
+// EnsureHMACKey idempotently provisions a non-exportable 256-bit HMAC key allowed by policy.
+func (c *Client) EnsureHMACKey(ctx context.Context, key string) error {
+	var out map[string]any
+	// Transit uses bytes here; a decimal string also matches the policy's exact raw parameter type.
+	return c.call(ctx, "keys", key, map[string]any{"type": "hmac", "key_size": "32", "exportable": false, "allow_plaintext_backup": false}, &out)
+}
+
+// VerifyHMAC separates a modified receipt from an unavailable cryptographic dependency.
+func (c *Client) VerifyHMAC(ctx context.Context, key string, payload []byte, signature string) (bool, error) {
+	provided, valid := receiptMACBytes(signature)
+	if !valid {
+		return false, nil
+	}
+	expected, err := c.HMAC(ctx, key, payload)
+	if err != nil {
+		return false, err
+	}
+	computed, valid := receiptMACBytes(expected)
+	if !valid {
+		return false, ErrUnavailable
+	}
+	return subtle.ConstantTimeCompare(computed, provided) == 1, nil
+}
+
+func receiptMACBytes(signature string) ([]byte, bool) {
+	if !strings.HasPrefix(signature, "vault:v1:") {
+		return nil, false
+	}
+	encoded := strings.TrimPrefix(signature, "vault:v1:")
+	decoded, err := base64.StdEncoding.Strict().DecodeString(encoded)
+	return decoded, err == nil && len(decoded) == 32 && base64.StdEncoding.EncodeToString(decoded) == encoded
 }
 
 // call retries exactly once with a fresh token when OpenBao answers 403, which is how an expired or revoked token presents.
@@ -162,7 +202,7 @@ func (c *Client) call(ctx context.Context, op, key string, body, out any) error 
 		switch {
 		case err != nil:
 			return err
-		case status == http.StatusOK:
+		case status == http.StatusOK || (status == http.StatusNoContent && op == "keys"):
 			return nil
 		case status == http.StatusForbidden && attempt == 0:
 			continue

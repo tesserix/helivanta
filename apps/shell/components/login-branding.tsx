@@ -39,7 +39,13 @@ export function LoginBrandingProvider({ children }: { children: ReactNode }) {
   );
 }
 export function TenantLoginLayout({ children }: { children: ReactNode }) {
-  return <LoginSurface branding={useContext(Context)}>{children}</LoginSurface>;
+  const branding = useContext(Context);
+  // The provider hands out DEFAULT_BRANDING itself whenever no tenant branding resolved.
+  return (
+    <LoginSurface branding={branding} homeHref={branding === DEFAULT_BRANDING ? "/" : undefined}>
+      {children}
+    </LoginSurface>
+  );
 }
 export function TenantLoginHeading() {
   return (

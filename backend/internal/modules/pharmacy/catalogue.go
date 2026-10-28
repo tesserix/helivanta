@@ -21,6 +21,7 @@ import (
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
@@ -83,6 +84,20 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	platform.GuardedCountedListRoute[catalogueProduct](s, h.db, "/catalogue/products/counted", PermCatalogueRead, tenantdb.Keyset{Column: "created_at"}, countedProducts)
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
 	taxClassificationRoutes(s, h)
+	licenceRoutes(s, h)
+	scheduleRoutes(s, h)
+	saleRoutes(s, h)
+	prescriptionRoutes(s, h)
+	creditNoteRoutes(s, h)
+	h1RegisterRoutes(s, h)
+	dailyReportRoutes(s, h)
+	// No worker means no scan: until it is rolled out, intents are refused
+	// rather than accepted into a quarantine nobody drains.
+	var evidence *attachments.GCS
+	if deps.PharmacyEvidenceEnabled {
+		evidence = deps.Documents
+	}
+	prescriptionImageRoutes(s, h, evidence)
 }
 
 func decodeCatalogue(c *gin.Context, in any) bool {

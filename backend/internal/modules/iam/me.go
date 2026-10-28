@@ -62,8 +62,9 @@ type switchRequest struct {
 // iam-fga-sync consumer, so resolving from there needs no migration, no
 // new RLS policy, and no privileged accessor on a request path.
 type meHandlers struct {
-	roles  platform.RoleLister
-	signer *session.Signer
+	roles    platform.RoleLister
+	profiles UserProfileReader
+	signer   *session.Signer
 	// ttl and secureCookie mirror iam.LoginHandlers' fields exactly (see
 	// login.go): a re-minted session cookie must carry the SAME lifetime
 	// and the SAME `secure` flag semantics a freshly logged-in session
@@ -76,6 +77,7 @@ type meHandlers struct {
 func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 	me := &meHandlers{
 		roles:        deps.Roles,
+		profiles:     m.profiles,
 		signer:       deps.SessionSigner,
 		ttl:          deps.SessionTTL,
 		secureCookie: deps.SessionSecureCookie,
@@ -90,6 +92,7 @@ func (m *Module) registerMe(g *platform.Router, deps platform.Deps) {
 	// permissions reports only what the caller actually resolved to.
 	g.GET("/me/permissions", authz.NoTenantMembership, permissions)
 	g.GET("/me/tenants", authz.NoTenantMembership, me.tenants)
+	g.GET("/me/profile", authz.NoTenantMembership, me.profile)
 	g.POST("/me/tenant", authz.NoTenantMembership, me.switchTenant)
 }
 
@@ -139,6 +142,59 @@ func (h *meHandlers) tenants(c *gin.Context) {
 		return
 	}
 	respond.OK(c, gin.H{"data": groupByTenant(bindings, p.TenantID)})
+}
+
+type profileRole struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+}
+
+// profile names the caller and the roles they hold in the tenant their
+// session names (#1428). Zitadel owns the profile; nothing is stored.
+func (h *meHandlers) profile(c *gin.Context) {
+	p, ok := authn.PrincipalFrom(c)
+	if !ok {
+		respond.Unauthenticated(c, "missing principal")
+		return
+	}
+	bindings, err := h.roles.ListRoles(c.Request.Context(), p.Subject)
+	if err != nil {
+		respondRolesUnavailable(c, err)
+		return
+	}
+	if h.profiles == nil {
+		respondProfileUnavailable(c, errors.New("no user profile reader configured"))
+		return
+	}
+	user, err := h.profiles.UserProfile(c.Request.Context(), p.Subject)
+	if err != nil {
+		respondProfileUnavailable(c, err)
+		return
+	}
+	respond.OK(c, gin.H{
+		"subject":      p.Subject,
+		"tenant_id":    p.TenantID,
+		"display_name": user.DisplayName,
+		"email":        user.Email,
+		"roles":        rolesInTenant(bindings, p.TenantID),
+	})
+}
+
+// rolesInTenant labels the caller's roles in one tenant, by key when the
+// catalogue has no label. Never nil, so the JSON array is never null.
+func rolesInTenant(bindings []authz.RoleBinding, tenantID string) []profileRole {
+	out := []profileRole{}
+	for _, b := range bindings {
+		if b.TenantID != tenantID {
+			continue
+		}
+		label, ok := systemRoleLabels[b.Role]
+		if !ok {
+			label = string(b.Role)
+		}
+		out = append(out, profileRole{Key: string(b.Role), Label: label})
+	}
+	return out
 }
 
 // switchTenant re-mints the caller's OWN Helivanta session for another tenant
@@ -295,6 +351,14 @@ func respondRolesUnavailable(c *gin.Context, err error) {
 	requestid.Logger(c).ErrorContext(c.Request.Context(), "list roles failed", "err", err)
 	respond.Error(c, http.StatusServiceUnavailable,
 		"authz_unavailable", "authorization is temporarily unavailable")
+}
+
+// respondProfileUnavailable never answers with a partial or placeholder
+// identity: the menu reports "unavailable" rather than a wrong name.
+func respondProfileUnavailable(c *gin.Context, err error) {
+	requestid.Logger(c).ErrorContext(c.Request.Context(), "read user profile failed", "err", err)
+	respond.Error(c, http.StatusServiceUnavailable,
+		"identity_unavailable", "account details are temporarily unavailable")
 }
 
 // respondMintUnavailable fails closed when Helivanta itself cannot re-mint the

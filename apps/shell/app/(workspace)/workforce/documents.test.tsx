@@ -66,11 +66,23 @@ function fixture(
     files?: unknown[];
     failContent?: boolean;
     failRetry?: boolean;
+    commitRetryBeforeFailure?: boolean;
+    classification?: boolean;
   } = {},
 ) {
   const requests: { url: string; init?: RequestInit }[] = [];
   let pending: { [key: string]: unknown } | undefined;
   let contentAttempts = 0;
+  let retryRequests = 0;
+  let classificationState = {
+    file_id: evidence.id,
+    hospital_id: hospital.id,
+    staff_id: staff.id,
+    version: 0,
+    classification_revision_id: "",
+    classification_name: "",
+    updated_at: null as string | null,
+  };
   let savedFiles = options.files ?? [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     requests.push({ url, init });
@@ -96,6 +108,61 @@ function fixture(
           },
         ],
       });
+    if (url.endsWith("/classification")) {
+      if (!options.classification)
+        return Response.json(
+          { error: "not_found", message: "Previous API does not expose this view." },
+          { status: 404 },
+        );
+      if (init?.method === "PUT") {
+        const input = JSON.parse(String(init.body));
+        classificationState = {
+          ...classificationState,
+          version: classificationState.version + 1,
+          classification_revision_id: input.classification_revision_id,
+          classification_name: input.classification_revision_id ? "Synthetic file category" : "",
+          updated_at: "2026-10-28T00:00:00Z",
+        };
+      }
+      return Response.json(classificationState);
+    }
+    if (url.includes("/classification/history?"))
+      return Response.json({
+        data: classificationState.version
+          ? [
+              {
+                id: "99999999-9999-4999-8999-999999999999",
+                file_id: evidence.id,
+                hospital_id: hospital.id,
+                staff_id: staff.id,
+                version: classificationState.version,
+                classification_revision_id: classificationState.classification_revision_id,
+                classification_name: classificationState.classification_name,
+                actor_subject: "synthetic-admin",
+                created_at: "2026-10-28T00:00:00Z",
+              },
+            ]
+          : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    if (url.includes("/hr/masters?kind=document_category"))
+      return Response.json({
+        data: [
+          {
+            id: "77777777-7777-4777-8777-777777777777",
+            revision_id: "88888888-8888-4888-8888-888888888888",
+            kind: "document_category",
+            code: "SYN-FILE",
+            name: "Synthetic file category",
+            description: "Synthetic only",
+            active: true,
+            version: 1,
+            created_at: "2026-10-28T00:00:00Z",
+            updated_at: "2026-10-28T00:00:00Z",
+          },
+        ],
+        page: { has_more: false, next_cursor: null },
+      });
     if (init?.method === "PUT") {
       if (url.endsWith("/revocation")) {
         const revoked = { ...evidence, status: "revoked" };
@@ -103,11 +170,22 @@ function fixture(
         return Response.json(revoked);
       }
       if (url.includes("/retries/")) {
-        if (options.failRetry)
+        if (options.failRetry && (!options.commitRetryBeforeFailure || retryRequests++ === 0)) {
+          if (options.commitRetryBeforeFailure)
+            savedFiles = [
+              {
+                ...evidence,
+                status: "scan_pending",
+                scan_attempt: 2,
+                failure_code: null,
+                updated_at: new Date(Date.now()).toISOString(),
+              },
+            ];
           return Response.json(
             { error: "unavailable", message: "Synthetic retry unavailable" },
             { status: 503 },
           );
+        }
         return Response.json({
           ...evidence,
           status: "scan_pending",
@@ -303,4 +381,131 @@ it("keeps the same manual scan attempt after a lost acknowledgement and clears t
   expect(
     await screen.findByText("Switching tenant. This document workspace has been cleared."),
   ).toBeInTheDocument();
+});
+
+it("opens one scoped classification and keeps an older API fail closed", async () => {
+  const { requests } = fixture({ files: [evidence] });
+  const { user } = renderWithProviders(
+    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+  );
+  await user.click(await screen.findByRole("button", { name: `Classify ${evidence.filename}` }));
+  expect(await screen.findByText(/Document classification is not available/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Save classification" })).not.toBeInTheDocument();
+  const request = requests.find((row) =>
+    row.url.endsWith(`/staff/${staff.id}/documents/${evidence.id}/classification`),
+  );
+  expect(request).toBeDefined();
+  expect(new Headers(request?.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  expect(requests.some((row) => row.url.endsWith("/enrollment"))).toBe(false);
+});
+
+it("classifies a saved file through Global API without changing its evidence purpose", async () => {
+  const { requests } = fixture({ files: [evidence], classification: true });
+  const { user } = renderWithProviders(
+    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+  );
+  await user.click(await screen.findByRole("button", { name: `Classify ${evidence.filename}` }));
+  const categoryControl = await screen.findByRole("combobox", { name: "Document classification" });
+  await waitFor(() => expect(categoryControl).toHaveFocus());
+  await user.click(categoryControl);
+  await user.click(screen.getByRole("option", { name: /Synthetic file category/ }));
+  await user.click(screen.getByRole("button", { name: "Save classification" }));
+  expect(await screen.findByText("Document classification saved.")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Document classification" })).toHaveTextContent(
+      "Synthetic file category",
+    ),
+  );
+  const writes = requests.filter(
+    (row) => row.url.endsWith("/classification") && row.init?.method === "PUT",
+  );
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(String(writes[0].init?.body))).toEqual({
+    expected_version: 0,
+    classification_revision_id: "88888888-8888-4888-8888-888888888888",
+  });
+  for (const row of requests.filter(
+    (row) => row.url.includes("/classification") || row.url.includes("/hr/masters"),
+  )) {
+    expect(row.url).toContain("/api/v1/workforce/");
+    expect(new Headers(row.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+  }
+  expect(screen.getByText(/Employment evidence ·/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Show classification history" }));
+  expect(
+    await within(await screen.findByRole("region", { name: "Classification history" })).findByText(
+      /Version 1/,
+    ),
+  ).toBeInTheDocument();
+});
+
+it("offers retry for an expired pending scan while keeping a recent pending scan protected", async () => {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-28T00:46:00Z"));
+  try {
+    const pending = {
+      ...evidence,
+      status: "scan_pending",
+      failure_code: null,
+      updated_at: "2026-10-28T00:00:00Z",
+    };
+    const recent = {
+      ...pending,
+      id: "66666666-6666-4666-8666-666666666666",
+      filename: "recent-processing.png",
+      updated_at: "2026-10-28T00:45:00Z",
+    };
+    const { requests } = fixture({ files: [pending, recent], failRetry: true });
+    const { user } = renderWithProviders(
+      <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    );
+    await screen.findByText(recent.filename);
+    expect(screen.getAllByRole("button", { name: "Retry scan" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Retry scan" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic retry unavailable");
+    await user.click(screen.getByRole("button", { name: "Retry previous request" }));
+    await waitFor(() =>
+      expect(requests.filter((r) => r.url.includes("/retries/"))).toHaveLength(2),
+    );
+    expect(requests.filter((r) => r.url.includes("/retries/")).map((r) => r.url)).toEqual([
+      expect.stringContaining(`/documents/${evidence.id}/retries/2`),
+      expect.stringContaining(`/documents/${evidence.id}/retries/2`),
+    ]);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it("confirms the same uncertain attempt after refresh shows it already pending", async () => {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-28T00:46:00Z"));
+  try {
+    const { requests } = fixture({
+      files: [
+        {
+          ...evidence,
+          status: "scan_pending",
+          failure_code: null,
+          updated_at: "2026-10-28T00:00:00Z",
+        },
+      ],
+      failRetry: true,
+      commitRetryBeforeFailure: true,
+    });
+    const { user } = renderWithProviders(
+      <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Retry scan" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic retry unavailable");
+    await user.click(screen.getByRole("button", { name: "Refresh status" }));
+    await waitFor(() =>
+      expect(screen.queryByText(/Processing has not completed/)).not.toBeInTheDocument(),
+    );
+    await user.click(await screen.findByRole("button", { name: "Retry previous request" }));
+    expect(await screen.findByText("The scan request has been confirmed.")).toBeInTheDocument();
+    expect(requests.filter((r) => r.url.includes("/retries/")).map((r) => r.url)).toEqual([
+      expect.stringContaining("/retries/2"),
+      expect.stringContaining("/retries/2"),
+    ]);
+  } finally {
+    clock.mockRestore();
+  }
 });

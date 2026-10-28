@@ -7,6 +7,7 @@ import {
   useApiQuery,
   apiFetch,
   clearPermissionsCache,
+  notifySessionChanged,
   beginTenantTransition,
   cancelTenantTransition,
 } from "@helivanta/api";
@@ -72,6 +73,7 @@ export function TenantPicker() {
       // show the old tenant's nav.
       onSuccess: () => {
         clearPermissionsCache();
+        notifySessionChanged();
         window.location.reload();
       },
     },

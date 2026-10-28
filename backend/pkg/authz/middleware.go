@@ -13,6 +13,7 @@ import (
 )
 
 const permissionsKey = "authz.permissions"
+const resolverKey = "authz.resolver"
 
 // Resolver returns a subject's permissions within one tenant. *Client
 // implements it; tests substitute fakes.
@@ -43,6 +44,7 @@ func Middleware(r Resolver) gin.HandlerFunc {
 			return
 		}
 		c.Set(permissionsKey, set)
+		c.Set(resolverKey, r)
 		c.Next()
 	}
 }

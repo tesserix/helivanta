@@ -24,7 +24,7 @@ func TestQuarantineReceiptIsIdempotentAndBalanceIsNotDispensable(t *testing.T) {
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+"/stock/locations/"+location, "editor", `{"code":"TEST-QUARANTINE","name":"TEST Receiving quarantine"}`).Body.String())
 	batch := uuid.Must(uuid.NewV7()).String()
-	batchBody := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-001","expires_on":"2030-10-31","manufactured_on":"2026-10-01"}`, product)
+	batchBody := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT-001","expires_on":"2030-10-31","manufactured_on":"2026-10-01","mrp_minor":12500}`, product)
 	w = do(r, "PUT", root+"/stock/batches/"+batch, "editor", batchBody)
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.JSONEq(t, w.Body.String(), do(r, "PUT", root+"/stock/batches/"+batch, "editor", batchBody).Body.String())
@@ -58,7 +58,7 @@ func stockFixture(t *testing.T, r *gin.Engine) (product, location, batch string)
 	batch = uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(r, "PUT", productPath(product), "editor", productBody(0, "TEST Quarantine product")).Code)
 	require.Equal(t, 200, do(r, "PUT", root+"/stock/locations/"+location, "editor", `{"code":"TEST-Q","name":"TEST Quarantine"}`).Code)
-	w := do(r, "PUT", root+"/stock/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31"}`, product))
+	w := do(r, "PUT", root+"/stock/batches/"+batch, "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31","mrp_minor":12500}`, product))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	return product, location, batch
 }
@@ -123,7 +123,7 @@ func TestBatchIdentityDatesAndStockedProductUnitsAreProtected(t *testing.T) {
 	grantCatalogue(t, r, "user-editor", "editor")
 	product, location, batch := stockFixture(t, r)
 	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pharmaOutlet + "/stock"
-	body := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31"}`, product)
+	body := fmt.Sprintf(`{"product_id":%q,"lot_number":"TEST-LOT","expires_on":"2030-10-31","mrp_minor":12500}`, product)
 	require.Equal(t, 200, do(r, "PUT", root+"/batches/"+batch, "editor", body).Code)
 	require.Equal(t, 409, do(r, "PUT", root+"/batches/"+batch, "editor", strings.Replace(body, "2030-10-31", "2030-11-30", 1)).Code)
 	require.Equal(t, 409, do(r, "PUT", root+"/batches/"+uuid.Must(uuid.NewV7()).String(), "editor", body).Code)
@@ -151,4 +151,30 @@ func TestBatchIdentityDatesAndStockedProductUnitsAreProtected(t *testing.T) {
 	w = do(r, "GET", root+"/batches?product_id="+product, "editor", "")
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), `"expires_on":"2030-10-31"`)
+}
+
+// #1303 E5: a batch opens in the safety pane by its id, so a reload or a
+// link reopens it. Another outlet's or tenant's batch is the same 404 as a
+// missing one.
+func TestReadOneBatch(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	product, _, batch := stockFixture(t, r)
+	root := "/v1/pharmacy/pharmacies/" + pharmaOrganization + "/outlets/" + pharmaOutlet + "/stock/batches/"
+	w := do(r, "GET", root+batch, "editor", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Equal(t, batch, got["id"])
+	require.Equal(t, product, got["product_id"])
+	require.Equal(t, "TEST-LOT", got["lot_number"])
+	require.Equal(t, "2030-10-31", got["expires_on"])
+
+	require.Equal(t, 404, do(r, "GET", root+uuid.Must(uuid.NewV7()).String(), "editor", "").Code)
+	require.Equal(t, 404, do(r, "GET", root+"not-a-batch", "editor", "").Code)
+	for _, token := range []string{"sibling", "foreign"} {
+		require.Equal(t, 404, do(r, "GET", root+batch, token, "").Code, token)
+	}
+	require.Equal(t, 403, do(r, "GET", root+batch, "denied", "").Code)
+	require.Equal(t, 401, do(r, "GET", root+batch, "unknown", "").Code)
 }

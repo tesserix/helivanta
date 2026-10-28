@@ -95,3 +95,38 @@ func TestOrganisationObjectKeyNeedsNoHospitalAndCannotAliasClinicalOwnership(t *
 		require.Error(t, err)
 	}
 }
+
+func TestPractitionerObjectKeySeparatesTenantRegistrationEvidence(t *testing.T) {
+	scope := attachments.ObjectScope{
+		TenantID: uuid.Must(uuid.NewV7()), OwnerKind: "practitioner", OwnerID: uuid.Must(uuid.NewV7()),
+		RecordID: uuid.Must(uuid.NewV7()), FileID: uuid.Must(uuid.NewV7()), Version: 1,
+		UploadedAt: time.Date(2026, 10, 26, 0, 5, 0, 0, time.FixedZone("hospital", 19800)),
+	}
+	key, err := attachments.ObjectKey(scope)
+	require.NoError(t, err)
+	require.Equal(t, "t/"+scope.TenantID.String()+"/o/practitioner/"+scope.OwnerID.String()+"/r/"+scope.RecordID.String()+"/d/2026/10/25/f/"+scope.FileID.String()+"/v/1", key)
+	organisation := scope
+	organisation.OwnerKind = "organisation"
+	other, err := attachments.ObjectKey(organisation)
+	require.NoError(t, err)
+	require.NotEqual(t, key, other)
+	scope.HospitalID = uuid.Must(uuid.NewV7())
+	rejected, err := attachments.ObjectKey(scope)
+	require.Error(t, err)
+	require.Empty(t, rejected)
+}
+
+func TestPharmacyOutletObjectKeyKeepsPrescriptionsOutOfHospitalPaths(t *testing.T) {
+	scope := attachments.ObjectScope{
+		TenantID: uuid.Must(uuid.NewV7()), OwnerKind: "pharmacy_outlet", OwnerID: uuid.Must(uuid.NewV7()),
+		RecordID: uuid.Must(uuid.NewV7()), FileID: uuid.Must(uuid.NewV7()), Version: 1,
+		UploadedAt: time.Date(2026, 10, 28, 0, 5, 0, 0, time.FixedZone("outlet", 19800)),
+	}
+	key, err := attachments.ObjectKey(scope)
+	require.NoError(t, err)
+	require.Equal(t, "t/"+scope.TenantID.String()+"/o/pharmacy_outlet/"+scope.OwnerID.String()+"/r/"+scope.RecordID.String()+"/d/2026/10/27/f/"+scope.FileID.String()+"/v/1", key)
+	scope.HospitalID = uuid.Must(uuid.NewV7())
+	rejected, err := attachments.ObjectKey(scope)
+	require.Error(t, err)
+	require.Empty(t, rejected)
+}

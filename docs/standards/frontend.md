@@ -307,21 +307,35 @@ open on a hard load.
 
 ### List pages: width, the detail pane and unsaved edits (#1303)
 
-- **Width is a page's declared choice.** A `ZonePage` in `packages/ui/src/zones.ts` may set
-  `width: "full"`. The shell then drops the `max-w-6xl` cap for that page and stops at
-  1760px. Every other page keeps the cap. `main` is a size container (`@container/main`),
-  so a page lays out by the space it actually has: expanding the rail changes that without
-  changing the viewport.
+- **Width is a zone's declared choice (#1366).** A `Zone` in `packages/ui/src/zones.ts` may
+  set `width: "full"`; a `ZonePage` cannot, so a zone's pages never jump in width as you move
+  between them. The shell then drops the `max-w-6xl` cap on every page of that zone and stops
+  at 1760px. Other zones keep the cap. Inside a full-width zone, lists and panels fill the
+  width; only prose (about 70ch) and forms (about 640px) keep a reading limit.
+  `e2e/tests/navigation.spec.ts` checks every PharmaConnect page. `main` is a size container
+  (`@container/main`), so a page lays out by the space it actually has: expanding the rail
+  changes that without changing the viewport.
 - **An open record sits beside its list.** Use `ListDetail` from `@helivanta/ui`. It splits
   when main is at least 840px wide, and shows the record alone, with a back link, below
-  that. It is one grid at every width, so a half-typed form survives the rail expanding.
-  Keep the record's address in the URL with `useDetail` (`?open=` and `?new=1`, in
-  `apps/shell/lib`): opening is a Back step, and switching records replaces it.
-- **Unsaved edits are never lost silently.** A detail with forms calls `useLeaveGuard(dirty,
-name)`. Shell links (`GuardedLink`), Back and reload then ask "Discard changes to
-  {name}?". `useLeaveGuard` throws without the shell's `NavigationGuardProvider`, so a page
-  rendered outside the shell fails rather than dropping edits. Component tests wrap it in
-  that provider. In-page links (tabs, pager, back link) are guarded by the page.
+  that. It is one tree open or closed, so neither the list nor a half-typed form is
+  remounted. Below 840px, opening a record scrolls the content area (`[data-hms-scroll]`) to
+  its top.
+- **One mechanism per list page:** `useListDetail` (`apps/shell/lib`) for the open record's
+  address (`?open=` and `?new=1` through `useDetail`), Previous / Next over the rows as they
+  were when it was opened, the leave guard, Escape and focus; `DetailHeader` from
+  `@helivanta/ui` for its title, Previous / Next and Close. Each form in the record reports
+  through `formState(key)` and `useReportState`. Do not copy this behaviour into a page.
+- **Outlet pages carry their scope.** `pharmacy=` and `outlet=` are in the address of every
+  outlet-scoped pharmacy page (#1303 E8), and `useUrlPage` keeps them in every link it
+  builds, so a shared link opens the outlet it was copied from. An outlet asked for and not
+  loaded is never replaced by another.
+- **Unsaved edits are never lost silently.** A detail with forms registers through
+  `useListDetail`, or `useLeaveGuard(dirty, name)` directly. Shell links (`GuardedLink`),
+  Back and reload then ask "Discard changes to {name}?"; a Cmd, Ctrl, Shift or middle click
+  opens another tab and is not held. A page's own moves that are not links (a picker, a
+  search) ask through `useConfirmLeave`. Both throw without the shell's
+  `NavigationGuardProvider`, so a page rendered outside the shell fails rather than dropping
+  edits. Component tests wrap it in that provider.
 
 ### Idle session tracking
 
@@ -351,6 +365,13 @@ everything comes from the CSS custom properties `@tesserix/web` and
 `packages/ui/styles.css` define (`--background`, `--foreground`,
 `--sidebar`, `--border`, etc.) via Tailwind's token-backed utility
 classes (`bg-background`, `border-sidebar-border`, and so on).
+
+Colour tokens are declared only in `packages/ui/styles.css`, where
+`contrast.test.ts` asserts every pair against WCAG 2.2 AA. The public pages
+read the same tokens as the app; no page declares a palette of its own.
+`packages/ui/src/token-source.test.ts` enforces both halves: a stylesheet
+elsewhere that declares a colour-valued custom property fails CI, and so does
+source that reads a custom property nothing declares (#542).
 
 `packages/ui/styles.css` documents two pitfalls in `@tesserix/web`'s CSS
 that aren't obvious from the class names alone. Quoted verbatim, because
@@ -386,13 +407,13 @@ an unlayered class with `!important` — rather than reaching for a
 `!important` inline style or a one-off Tailwind arbitrary value, which
 won't win against the unlayered base rule either.
 
-### One look: light, sage, modern enterprise (#1255)
+### One look: light, slate, modern enterprise (#1255)
 
 Design spec: `docs/superpowers/specs/2026-10-22-one-look-design.md`.
 
 - **Light only.** There is no dark theme, theme toggle or `dark:` utility.
   `packages/ui/src/light-only.test.ts` fails on any `data-theme="dark"` rule.
-- **One palette.** The public pages and the app read the same sage tokens in
+- **One palette.** The public pages and the app read the same slate tokens in
   `packages/ui/styles.css`. `packages/ui/src/contrast.test.ts` holds the
   pairs it lists to WCAG 2.2 AA: text on each surface, status and destructive
   text on cards and tinted tiles, each category tint, each brand theme, and

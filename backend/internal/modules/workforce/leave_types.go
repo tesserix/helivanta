@@ -314,3 +314,27 @@ type leaveStatusReportRow struct {
 	DecidedBySubject   *string   `json:"decided_by_subject,omitempty"`
 	CreatedAt          time.Time `json:"created_at"`
 }
+
+type leaveReviewScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+}
+
+type leaveReviewRequest struct {
+	ID           uuid.UUID `json:"id"`
+	StaffID      uuid.UUID `json:"staff_id"`
+	EmployeeCode string    `json:"employee_code"`
+	DisplayName  string    `json:"display_name"`
+	Code         string    `json:"code"`
+	Name         string    `json:"name"`
+	LeaveYear    int       `json:"leave_year"`
+	Unit         string    `json:"unit"`
+	StartOn      string    `json:"start_on"`
+	EndOn        string    `json:"end_on"`
+	Session      *string   `json:"session,omitempty"`
+	Minutes      *int      `json:"minutes,omitempty"`
+	HalfDays     int       `json:"half_days"`
+	Status       string    `json:"status"`
+	Version      int64     `json:"version"`
+	CreatedAt    time.Time `json:"created_at"`
+}

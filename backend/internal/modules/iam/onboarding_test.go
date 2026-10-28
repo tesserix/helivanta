@@ -76,7 +76,12 @@ func TestHospitalProvisioningPreservesExistingMembershipsAndRetriesFGA(t *testin
 		return nil
 	}))
 	allowBootstrap = false
-	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return tx.Exec("DELETE FROM iam_members").Error }))
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.actor_subject','synthetic-onboarding-test-admin',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Exec("DELETE FROM iam_members").Error
+	}))
 	require.Equal(t, 409, call("Bearer approved", "new-admin"), "a completed onboarding must never recreate revoked membership")
 	allowBootstrap = true
 	require.Equal(t, 409, call("Bearer approved", "new-admin"), "a lost activation status must never recreate revoked membership")
@@ -161,6 +166,9 @@ func TestHospitalAdoptionSealsExistingMembershipWithoutReplacement(t *testing.T)
 			return err
 		}
 		require.EqualValues(t, 1, count)
+		if err := tx.Exec(`SELECT set_config('app.actor_subject','synthetic-onboarding-test-admin',true)`).Error; err != nil {
+			return err
+		}
 		return tx.Exec("DELETE FROM iam_members").Error
 	}))
 	require.Equal(t, 409, call(false, "existing-admin"))

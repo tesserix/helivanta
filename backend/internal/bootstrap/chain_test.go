@@ -51,7 +51,7 @@ func (chainAllowResolver) Resolve(context.Context, string, string) (authz.Permis
 // V1Chain function main.go calls, with the SAME verifier construction
 // main.go uses (authn.NewSessionVerifier), rather than a bespoke fake
 // TokenVerifier a wiring regression could slip past.
-func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
+func newChainHarness(t *testing.T, guards ...gin.HandlerFunc) (*gin.Engine, *session.Signer) {
 	t.Helper()
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
@@ -70,7 +70,11 @@ func newChainHarness(t *testing.T) (*gin.Engine, *session.Signer) {
 
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	v1 := e.Group("/v1", bootstrap.V1Chain(requestVerifier, chainNeverRevoked{}, limiter, cfg, chainAllowResolver{})...)
+	identity := gin.HandlerFunc(func(c *gin.Context) { c.Next() })
+	if len(guards) != 0 {
+		identity = guards[0]
+	}
+	v1 := e.Group("/v1", bootstrap.V1Chain(requestVerifier, chainNeverRevoked{}, limiter, cfg, chainAllowResolver{}, identity)...)
 	v1.GET("/whoami", func(c *gin.Context) {
 		p, _ := authn.PrincipalFrom(c)
 		c.JSON(http.StatusOK, gin.H{"subject": p.Subject, "tenant_id": p.TenantID})
@@ -98,6 +102,40 @@ func TestV1ChainAcceptsAnHMSSession(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "11111111-1111-1111-1111-111111111111")
+}
+
+func TestV1ChainRequiresCurrentIdentityBeforeBusinessHandler(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusServiceUnavailable} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			var seen string
+			guard := func(c *gin.Context) {
+				p, ok := authn.PrincipalFrom(c)
+				require.True(t, ok)
+				seen = p.Subject
+				c.AbortWithStatus(status)
+			}
+			e, signer := newChainHarness(t, guard)
+			token, err := signer.Mint("staff-user", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour))
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/v1/whoami", nil)
+			r.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: token})
+			e.ServeHTTP(w, r)
+			require.Equal(t, status, w.Code)
+			require.Equal(t, "staff-user", seen)
+		})
+	}
+}
+
+func TestV1ChainMissingIdentityGuardFailsClosed(t *testing.T) {
+	e, signer := newChainHarness(t, nil)
+	token, err := signer.Mint("staff-user", "11111111-1111-1111-1111-111111111111", time.Now(), time.Now().Add(time.Hour))
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/v1/whoami", nil)
+	r.AddCookie(&http.Cookie{Name: authn.SessionCookie, Value: token})
+	e.ServeHTTP(w, r)
+	require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
 }
 
 // TestV1ChainRefusesRawZitadelToken is the mandatory Task 4 proof, at

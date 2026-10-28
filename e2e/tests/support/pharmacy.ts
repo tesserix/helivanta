@@ -37,7 +37,14 @@ export async function api(page: Page, method: string, path: string, body?: unkno
 // workspace's selected outlet, so counts and pages start from nothing.
 export async function freshOutlet(page: Page) {
   await login(page);
-  await page.goto("/pharmacy");
+  return newOutlet(page);
+}
+
+/** A new pharmacy and outlet, made this tab's working outlet; already signed in. */
+export async function newOutlet(page: Page) {
+  // Not a pharmacy page: one that is open resolves its outlet and saves it
+  // as the tab's working outlet (#1303 E8), and could overwrite this one.
+  await page.goto("/dashboard");
   const me = await api(page, "GET", "/iam/me/permissions");
   const stamp = Date.now().toString(36).toUpperCase();
   const pharmacyId = uuidv7();
@@ -104,4 +111,48 @@ export async function addBill(page: Page, outlet: string, reference: string, due
       },
     ],
   });
+}
+
+/**
+ * The address is a list at `path` with `params`, wherever its scope is: outlet
+ * pages also carry `pharmacy` and `outlet` (#1303 E8). `open` and `new` are
+ * absent unless `open` is asked for.
+ */
+export async function expectList(
+  page: Page,
+  path: string,
+  params: Record<string, string>,
+  { open = false }: { open?: boolean } = {},
+) {
+  await expect
+    .poll(
+      () => {
+        const url = new URL(page.url());
+        const search = url.searchParams;
+        return (
+          url.pathname === path &&
+          Object.entries(params).every(([key, value]) => search.get(key) === value) &&
+          search.has("open") === open &&
+          !search.has("new")
+        );
+      },
+      { message: `${path} with ${JSON.stringify(params)}${open ? " and a record open" : ""}` },
+    )
+    .toBe(true);
+}
+
+// WCAG 2.5.3 Label in Name: a control's visible words are part of its
+// accessible name, so a voice-control user can say what they see (#1364).
+// The whole page, chrome included (#1369); a dropdown shows its value, not its label.
+export async function expectLabelsInNames(page: Page) {
+  const mismatched = await page
+    .locator("button[aria-label]:not([role=combobox]), a[aria-label]")
+    .evaluateAll((els) =>
+      els
+        .filter((el) => el.checkVisibility())
+        .map((el) => [(el as HTMLElement).innerText.trim(), el.getAttribute("aria-label") ?? ""])
+        .filter(([text, name]) => text && !name.toLowerCase().includes(text.toLowerCase()))
+        .map(([text, name]) => `"${text}" is not in "${name}"`),
+    );
+  expect(mismatched).toEqual([]);
 }

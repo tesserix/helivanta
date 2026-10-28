@@ -67,3 +67,35 @@ it("lets a tenant administrator explicitly create and grant their first hospital
   await waitFor(() => expect(requests).toHaveLength(2));
   expect(requests[1]).toMatch(/\/access\/owner-1$/);
 });
+
+it("offers identity detail checks to directory readers without enabling editing", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/iam/me/permissions"))
+        return Response.json({ tenant_id: hospital, subject: "scoped-manager", data: [] });
+      if (url.includes("/staff"))
+        return Response.json(
+          page([
+            {
+              id: "33333333-3333-4333-8333-333333333333",
+              employee_code: "SYN-READER",
+              display_name: "Synthetic Reader Target",
+              job_category: "other",
+              employment_status: "active",
+            },
+          ]),
+        );
+      return Response.json(
+        page([{ id: hospital, name: "Synthetic Reader Hospital", access_level: "reader" }]),
+      );
+    }),
+  );
+  renderWithProviders(<Workforce />);
+  expect(
+    await screen.findByRole("button", { name: "Identity details for Synthetic Reader Target" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Edit Synthetic Reader Target" }),
+  ).not.toBeInTheDocument();
+});

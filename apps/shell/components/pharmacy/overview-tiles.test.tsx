@@ -4,6 +4,8 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import type { PharmacyOutlet } from "@helivanta/api";
 import { OverviewTiles, WaitingTile } from "./overview-tiles";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 const scope = {
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",

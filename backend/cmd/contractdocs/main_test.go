@@ -89,7 +89,7 @@ func TestReferenceIncludesConsumersBehindWorkflowConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"emergency-dispatch", "emergency-receiving", "supply-evidence-scan", "workforce-document-scan", "workforce-credential-reminders"} {
+	for _, name := range []string{"privacy-deadline", "emergency-dispatch", "emergency-receiving", "supply-evidence-scan", "workforce-document-scan", "workforce-credential-reminders"} {
 		if !strings.Contains(string(data), `"name":"`+name+`"`) {
 			t.Errorf("conditional consumer %s omitted", name)
 		}
@@ -135,6 +135,10 @@ func TestEventSchemasCoverDeclaredSubjectsAndPreserveWireFields(t *testing.T) {
 	if !strings.Contains(string(policy.Properties["version_id"]), `"null"`) {
 		t.Fatal("nullable version_id changed")
 	}
+	sale := string(wire["helivanta.in.pharmacy.sale_posted.v1"].Schema.Properties["lines"])
+	if !strings.Contains(sale, `"type":"array"`) || !strings.Contains(sale, `"batch_id"`) {
+		t.Fatalf("sale lines are not an array of batches: %s", sale)
+	}
 }
 
 func TestReferenceIncludesSharedAuditAndPlatformMigrations(t *testing.T) {
@@ -152,5 +156,56 @@ func TestReferenceIncludesSharedAuditAndPlatformMigrations(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("shared append-only audit schema omitted")
+	}
+}
+
+func TestReferenceIncludesConcurrentIndexDefinitionsAndOrdering(t *testing.T) {
+	encoded, err := json.Marshal(inventory())
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := `"concurrent_indexes":[{"name":"patient_clinical_consent_proxy_authority","table":"patient_clinical_consents","columns":[{"name":"tenant_id","descending":false},{"name":"proxy_authority_id","descending":false}]},{"name":"patient_sharing_notice_capacity_page"`
+	if !strings.Contains(string(encoded), expected) {
+		t.Fatal("reference omits concurrent index names, tables or ordered key definitions")
+	}
+	if !strings.Contains(string(encoded), `{"name":"created_at","descending":true}`) {
+		t.Fatal("reference omits descending index key order")
+	}
+	rendered := string(markdown(inventory()))
+	if !strings.Contains(rendered, "patient_sharing_notice_capacity_page") {
+		t.Fatal("rendered migration reference omits concurrent indexes")
+	}
+}
+
+func TestEventSchemasIncludeGeneratedContractFiles(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "backend/internal/modules/example/contract")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"events.go":       `package contract; const SubjectChecked="helivanta.in.example.checked.v1"`,
+		"generated.go":    "package contract\ntype CheckedData struct { Allowed bool `json:\"allowed\"` }",
+		"ignored_test.go": "package contract\ntype CheckedData struct { Wrong string `json:\"wrong\"` }",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	schemas, err := eventSchemas(reference{Modules: []module{{Name: "example", Publishes: []string{"helivanta.in.example.checked.v1"}}}}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := schemas["helivanta.in.example.checked.v1"]
+	if got.Source != "backend/internal/modules/example/contract/generated.go:2" {
+		t.Fatalf("wrong source: %s", got.Source)
+	}
+	properties := got.Schema["properties"].(map[string]any)
+	if _, ok := properties["allowed"]; !ok {
+		t.Fatalf("missing generated field: %#v", properties)
+	}
+	if _, ok := properties["wrong"]; ok {
+		t.Fatal("test fixture type must not enter published schema")
 	}
 }

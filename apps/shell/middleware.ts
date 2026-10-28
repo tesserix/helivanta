@@ -56,6 +56,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (
     pathname === "/" ||
+    pathname === "/workspace" ||
     pathname === "/signup" ||
     pathname === "/icon.svg" ||
     pathname === "/ambulance" ||

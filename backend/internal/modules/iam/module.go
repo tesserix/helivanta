@@ -48,6 +48,8 @@ type Module struct {
 	// userState re-checks a subject's Zitadel state on renewal (#916,
 	// design spec D3). See SetUserStateChecker.
 	userState UserStateChecker
+	// profiles reads the caller's Zitadel profile for GET /me/profile.
+	profiles UserProfileReader
 }
 
 func New(checker *RevocationChecker) *Module { return &Module{checker: checker} }
@@ -64,6 +66,12 @@ func New(checker *RevocationChecker) *Module { return &Module{checker: checker} 
 // nil-userState branch.
 func (m *Module) SetUserStateChecker(u UserStateChecker) *Module {
 	m.userState = u
+	return m
+}
+
+// SetUserProfileReader wires GET /me/profile's Zitadel read; unset, the route answers 503.
+func (m *Module) SetUserProfileReader(r UserProfileReader) *Module {
+	m.profiles = r
 	return m
 }
 
@@ -89,13 +97,18 @@ func (m *Module) CheckerForTest() *RevocationChecker { return m.checker }
 // TestNewRegistryGivesIAMTheExactCheckerPassedIn exactly.
 func (m *Module) UserStateCheckerForTest() UserStateChecker { return m.userState }
 
-// Permissions declares iam.member.manage and iam.credential.revoke.
-// Neither lists a role: tenant_admin is implicit, and revoking a
+// UserProfileReaderForTest exposes the profile reader for the same wiring assertion.
+func (m *Module) UserProfileReaderForTest() UserProfileReader { return m.profiles }
+
+// Permissions declares administrative membership, proposal and credential actions.
+// None lists a role: tenant_admin is implicit, and revoking a
 // person's credentials platform-wide is not an authority any clinical
 // role should carry.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermMemberManage},
+		{Permission: PermAssignmentManage},
+		{Permission: PermAssignmentReview},
 		{Permission: PermCredentialRevoke},
 	}
 }
@@ -250,7 +263,16 @@ ALTER TABLE login_attempt
   ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'factor'
   CONSTRAINT login_attempt_stage_check CHECK (stage IN ('factor', 'password_change'));
 `,
-	}}
+	}, {ID: "0008_iam_assignment_proposals", SQL: assignmentProposalsSchema}, {ID: "0009_iam_assignment_decisions", SQL: assignmentDecisionsSchema}, {ID: "0010_iam_assignment_projection", SQL: assignmentProjectionSchema}, {ID: "0011_iam_assignment_membership", SQL: assignmentMembershipSchema}, {ID: "0012_iam_assignment_activation", SQL: assignmentActivationSchema}, {
+		ID: "0013_iam_identity_guard",
+		SQL: `SET LOCAL lock_timeout='5s';
+		SET LOCAL statement_timeout='60s';
+		ALTER TABLE iam_credential_revocations
+			DROP CONSTRAINT iam_credential_revocations_reason_check,
+			ADD CONSTRAINT iam_credential_revocations_reason_check
+			CHECK (reason IN ('sign_out','admin_revoke','identity_inactive')) NOT VALID;
+		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
+	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}}
 }
 
 type role struct {
@@ -277,10 +299,7 @@ func (member) TableName() string { return "iam_members" }
 // PageKey is the keyset position of this row, satisfying platform.Keyed.
 func (m member) PageKey() (time.Time, uuid.UUID) { return m.CreatedAt, m.ID }
 
-type grantRequest struct {
-	Subject string `json:"subject" binding:"required,max=200"`
-	RoleKey string `json:"role_key" binding:"required,max=100"`
-}
+type grantRequest = MemberGrantInput
 
 // knownRole reports whether key is a system role. Custom roles are
 // supported by the model but not yet creatable, so anything else is a
@@ -301,7 +320,7 @@ type memberHandlers struct {
 // re-publishing member_granted for a grant that already exists at the
 // row level.
 func (h *memberHandlers) grant(c *gin.Context) {
-	p, tenantUUID, ok := authn.TenantPrincipal(c)
+	p, tenantUUID, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
@@ -360,7 +379,7 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		respond.InternalErr(c, err, "could not grant role")
 		return
 	}
-	respond.Accepted(c, gin.H{"id": row.ID.String()})
+	respond.Accepted(c, MemberGrantResult{ID: row.ID})
 }
 
 // revoke removes a subject's role, publishing member_revoked
@@ -373,6 +392,9 @@ func (h *memberHandlers) revoke(c *gin.Context) {
 	}
 	subject, roleKey := c.Param("subject"), c.Param("role")
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.actor_subject',?,true)`, p.Subject).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("subject = ? AND role_key = ?", subject, roleKey).
 			Delete(&member{}).Error; err != nil {
 			return err
@@ -427,6 +449,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/roles", PermMemberManage, listRoles)
 
 	m.registerMe(g, deps)
+	m.registerAssignmentProposals(g, deps)
 
 	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, roles: deps.Roles}
 	// NoTenantMembership: a member whose membership was just revoked must
@@ -502,11 +525,11 @@ func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
 	auth.POST("/renew", authz.NoTenantMembership, h.renew)
 }
 
-// Publishes declares the three events iam emits: member_granted and
-// member_revoked drive the FGA sync consumers, credential_revoked is a
-// broadcast every replica hears (see Broadcasts below).
+// Publishes declares membership, assignment verification/projection and revocation events.
 func (m *Module) Publishes() []string {
 	return []string{
+		iamcontract.SubjectAssignmentScopeRequested,
+		iamcontract.SubjectAssignmentProjectionRequested,
 		iamcontract.SubjectMemberGranted,
 		iamcontract.SubjectMemberRevoked,
 		iamcontract.SubjectCredentialRevoked,

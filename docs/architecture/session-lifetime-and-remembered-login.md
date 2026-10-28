@@ -19,6 +19,16 @@ as human activity. User activity can extend the inactivity deadline. Logout,
 revocation watermarks, cryptographic verification, tenant authorization and
 forced database RLS remain enforced.
 
+Ordinary protected requests also recheck current identity through IAM's mandatory
+guard; renewal is not the sole enforcement point. Known non-active identity
+observations commit a global credential watermark and invalidation together.
+Reactivation requires a fresh authentication and does not restore old cookies.
+Unknown/unavailable identity state denies with 503, while self sign-out retains
+its ability to end the caller's own credentials. Administrative revocation still
+requires live identity because it changes another user's access. See
+[ADR-0047](../adr/0047-current-identity-on-protected-requests.md) for the request
+budget, fresh watermark check, outage consequences and employment-lifecycle limits.
+
 Newly issued sessions receive the new window. An already expired session must
 sign in again; deployment does not resurrect an expired or revoked cookie.
 

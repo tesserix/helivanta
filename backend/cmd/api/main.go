@@ -213,6 +213,10 @@ func run() error {
 			return err
 		}
 	}
+	// Enabled pharmacy evidence without private storage is a misconfiguration, not a quiet 503.
+	if cfg.PharmacyEvidenceEnabled && !documentsEnabled {
+		return errors.New("pharmacy evidence requires the private document storage and scanner pipeline")
+	}
 	if cfg.EmergencyWorkflowsEnabled {
 		if err := cfg.RequireEmergencyWorkflows(); err != nil {
 			return err
@@ -391,6 +395,7 @@ func run() error {
 		CurrentClaims:               currentClaims,
 		EmergencyDispatchEnabled:    cfg.EmergencyDispatchEnabled,
 		AllergyRecordingEnabled:     cfg.AllergyRecordingEnabled,
+		PharmacyEvidenceEnabled:     cfg.PharmacyEvidenceEnabled,
 		EmergencyWorkflowsEnabled:   cfg.EmergencyWorkflowsEnabled,
 		PrivacyDeadlinesEnabled:     cfg.PrivacyDeadlinesEnabled,
 		OrganizationIdentity:        identityClient,

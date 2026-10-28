@@ -166,15 +166,48 @@ allowed to sell it. So this ships in three slices; each is correct on its own.
 
 #### Slice B pull requests
 
-| PR  | Covers                                                                                  |
-| --- | --------------------------------------------------------------------------------------- |
-| B-1 | B1–B4, B7–B11 for `none` (OTC) products only; no customer data is recorded              |
-| B-2 | B5 and B6: prescription evidence (private scanned image), registered and walk-in buyers |
-| B-3 | Discounts under the outlet ceiling (decision 3)                                         |
+| PR   | Covers                                                                               |
+| ---- | ------------------------------------------------------------------------------------ |
+| B-1  | B1–B4, B7–B11 for `none` (OTC) products only; no customer data is recorded           |
+| B-2a | B5 evidence: the prescription record and its private, scanned image                  |
+| B-2b | B5 and B6 at the counter: G, H and H1 sales citing a prescription; walk-in buyers    |
+| B-2c | B6 registered patients, through a pharmacy projection of patientmaster registrations |
+| B-3  | Discounts under the outlet ceiling (decision 3)                                      |
 
-Until B-2, a product whose class in force is `G`, `H` or `H1` is refused at the counter with
-that reason; it is never sold without its evidence. Plan:
-`docs/superpowers/plans/2026-10-28-counter-sale-slice-b1.md`.
+Until B-2b, a product whose class in force is `G`, `H` or `H1` is refused at the counter with
+that reason; it is never sold without its evidence. Plans:
+`docs/superpowers/plans/2026-10-28-counter-sale-slice-b1.md`,
+`docs/superpowers/plans/2026-10-28-counter-sale-slice-b2a.md`.
+
+B-2 was split (2026-10-28) because each part carries its own infrastructure:
+
+- **The image** needs a scan worker of its own. Supply, workforce and practitioner each own a
+  worker with a dedicated database role, and no module's worker processes another's files.
+- **A registered patient** cannot be checked against patientmaster's tables. Pharmacy needs a
+  projection of `patientmaster.registered.v1`, which carries ids only. An id the pharmacy has
+  not seen is not accepted, because a supplied id is not authority.
+
+#### B-2a decisions
+
+- **A prescription is a record of its own,** owned by the outlet. It holds the prescriber's
+  name, registration number and council, the prescription date and the patient's name, plus
+  the patient's address where the prescription gives one. A sale cites it in B-2b; nothing
+  sells against it in B-2a.
+  - It is insert-only. A mistake is corrected by recording a new prescription; the old one
+    stays, because a posted sale may cite it.
+  - The date cannot be after the outlet's today. How long a prescription stays valid for
+    dispensing is a legal and clinical rule that B-2b must source; B-2a records the date and
+    decides nothing from it.
+- **Images** are PNG or JPEG pages, up to 10 MiB each. Several pages may belong to one
+  prescription. Each follows the supply licence evidence lifecycle: upload intent, exact-size
+  checksummed upload, quarantine, ClamAV scan by the pharmacy evidence worker, release. Only a
+  released image can be downloaded, and every download is audited.
+  - An image cannot be revoked in B-2a. Once sales can cite a prescription (B-2b), revoking a
+    cited image would remove the evidence for a posted sale, so the rule is decided there.
+- **Who sees it.** `pharmacy.prescription.record` and `pharmacy.prescription.read` are held by
+  the pharmacist alone. The owner holds neither: a prescription is patient data, and nothing in
+  the owner's work needs to read it. Both also need the outlet grant, `editor` to record.
+- **Events** carry ids, the scan attempt and a status, never prescriber or patient details.
 
 ### Slice C: after the sale
 

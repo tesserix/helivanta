@@ -34,7 +34,10 @@ type Config struct {
 	EmergencyDispatchEnabled    bool
 	// AllergyRecordingEnabled stays off until a clinician approves the
 	// reaction and severity lists (#1373 decision 2).
-	AllergyRecordingEnabled            bool
+	AllergyRecordingEnabled bool
+	// PharmacyEvidenceEnabled stays off until the pharmacy evidence worker is
+	// rolled out (#1406): a page uploaded with no worker could never be scanned.
+	PharmacyEvidenceEnabled            bool
 	EmergencyWorkflowsEnabled          bool
 	ClamAVAddress                      string
 	OpenBaoAddr                        string
@@ -252,6 +255,7 @@ func Load() Config {
 		PrivacyDeadlinesEnabled:            os.Getenv("PRIVACY_DEADLINES_ENABLED") == "true",
 		EmergencyDispatchEnabled:           os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		AllergyRecordingEnabled:            os.Getenv("MEDICORE_ALLERGY_RECORDING_ENABLED") == "true",
+		PharmacyEvidenceEnabled:            os.Getenv("PHARMACY_EVIDENCE_ENABLED") == "true",
 		EmergencyWorkflowsEnabled:          os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
 		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),
 		OpenBaoAddr:                        os.Getenv("OPENBAO_ADDR"),

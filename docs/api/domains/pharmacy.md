@@ -91,7 +91,7 @@ Each product must:
 - be tax-classified on the sale date;
 - have an approved class `none` that is not NDPS.
 
-Schedule G, H and H1 are refused until prescription evidence exists (B-2). They are never sold as OTC. X and NDPS are refused until their controls exist.
+Schedule G, H and H1 are refused until a sale can cite a prescription (B-2b). They are never sold as OTC. X and NDPS are refused until their controls exist.
 
 **Allocation and stock.**
 
@@ -132,7 +132,25 @@ Schedule G, H and H1 are refused until prescription evidence exists (B-2). They 
 **Events and scope.**
 
 - `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
-- B-1 records no customer details. Registered patients, walk-in buyers and prescription evidence are B-2; discounts are B-3.
+- B-1 records no customer details. Prescription records and their scanned pages are B-2a (below); selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3.
+
+### Prescription evidence (#1386 B-2a)
+
+The outlet's record of a prescription, and its scanned pages. Nothing sells against it until B-2b. Every route needs the pharmacist's `pharmacy.prescription.record` (writes, with the outlet `editor` grant) or `pharmacy.prescription.read` (any outlet grant). The pharmacy owner holds neither: a prescription is patient data.
+
+| Route                                             | Behaviour                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PUT …/prescriptions/{uuidv7}`                    | Records `{prescriber_name, prescriber_registration, prescriber_council, prescribed_on, patient_name, patient_address?}`. The date cannot be after the outlet's today. Returns 201, or 200 for a replay by the same pharmacist; any other body or recorder is 409. A prescription is never changed or deleted |
+| `GET …/prescriptions/{id}`, `GET …/prescriptions` | The record and the paged list                                                                                                                                                                                                                                                                                |
+| `PUT …/prescriptions/{id}/images/{uuidv7}`        | An upload intent `{filename, content_type: image/png\|image/jpeg, size ≤ 10 MiB, sha256}`, valid for 30 minutes. A replay with different details is 409. Without private storage configured it is 503 `evidence_unavailable`                                                                                 |
+| `PUT …/images/{file}/content`                     | The exact bytes: matching type, size and checksum, and a passive image, before anything is written to quarantine. Returns 202 `scan_pending` and queues `prescription_image_scan_requested.v1`                                                                                                               |
+| `POST …/images/{file}/retry/{attempt}`            | After `scan_error`, queues the next attempt only                                                                                                                                                                                                                                                             |
+| `GET …/images/{file}/download`                    | Only an `available` page whose released generation, size and checksum match. Sent `private, no-store`, `nosniff`, as an attachment under a sandbox CSP. Every download writes an audit `read` event                                                                                                          |
+| `GET …/prescriptions/{id}/images`                 | The paged pages with their status: `upload_pending`, `scan_pending`, `available`, `rejected` (`malware_detected`, `unsupported_content`, `integrity_mismatch`) or `scan_error`                                                                                                                               |
+
+**The pharmacy evidence worker** (`cmd/pharmacy-evidence-worker`) consumes the scan request through Temporal (`pharmacy-prescription-image-v1`) and connects as `helivanta_pharmacy_evidence_worker` with `PHARMACY_EVIDENCE_WORKER_DATABASE_URL`; it never falls back to another module's credential. Its session names one file, and row security shows it that file only. It holds no privilege on prescriptions, can change only the lifecycle columns, and can write only its own audit rows and a `prescription_image_changed.v1` whose status the row holds. No page can be revoked yet. Once a sale can cite a prescription (B-2b), revoking a cited page would remove a posted sale's evidence, so that rule is decided there.
+
+Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and are never downloadable.
 
 ## Integration requirements
 

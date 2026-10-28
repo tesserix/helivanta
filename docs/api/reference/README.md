@@ -364,6 +364,14 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download` | `pharmacy.prescription.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt` | `pharmacy.prescription.record` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images` | `pharmacy.prescription.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.record` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions` | `pharmacy.prescription.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability` | `pharmacy.sale.read` | false | false |
@@ -403,10 +411,13 @@ Published subjects:
 - `helivanta.in.pharmacy.settlement_recorded.v1`
 - `helivanta.in.pharmacy.batch_safety_recorded.v1`
 - `helivanta.in.pharmacy.sale_posted.v1`
+- `helivanta.in.pharmacy.prescription_image_scan_requested.v1`
+- `helivanta.in.pharmacy.prescription_image_changed.v1`
 
 Subscriptions:
 
 - `pharmacy-visit-intake` ← `helivanta.in.medicore.visit_created.v1`; after-commit hook: false.
+- `pharmacy-prescription-image-scan` ← `helivanta.in.pharmacy.prescription_image_scan_requested.v1`; after-commit hook: true.
 
 Migration table declarations:
 
@@ -420,6 +431,7 @@ Migration table declarations:
 - `0013_pharmacy`: `pharmacy_product_schedule_declarations`, `pharmacy_product_schedule_reviews`.
 - `0014_pharmacy`: `pharmacy_stock_releases`.
 - `0015_pharmacy`: `pharmacy_outlet_invoice_profiles`, `pharmacy_invoice_series`, `pharmacy_sales`, `pharmacy_sale_lines`, `pharmacy_sale_tenders`.
+- `0016_pharmacy`: `pharmacy_prescriptions`, `pharmacy_prescription_images`.
 
 ## supply
 

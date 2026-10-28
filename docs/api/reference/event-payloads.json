@@ -987,6 +987,66 @@
       "type": "object"
     }
   },
+  "helivanta.in.pharmacy.prescription_image_changed.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:120",
+    "go_type": "PrescriptionImageChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "prescription_id": {
+          "type": "string"
+        },
+        "scan_attempt": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "outlet_id",
+        "prescription_id",
+        "file_id",
+        "scan_attempt",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.prescription_image_scan_requested.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:103",
+    "go_type": "PrescriptionImageScanRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "prescription_id": {
+          "type": "string"
+        },
+        "scan_attempt": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "outlet_id",
+        "prescription_id",
+        "file_id",
+        "scan_attempt"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.pharmacy.sale_posted.v1": {
     "source": "backend/internal/modules/pharmacy/contract/events.go:77",
     "go_type": "SalePostedData",

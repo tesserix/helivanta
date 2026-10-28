@@ -1037,3 +1037,37 @@ reopened so its incomplete workflow remains visible.
 Validation command: `pnpm turbo lint format:check type-check test build` using
 Node 24 and the local Global API URL. All 30 tasks passed, including 1,085 shell
 tests and 236 shared UI tests. `pnpm exec prettier --check docs/qa/staff-management-acceptance.md` and `git diff --check` also passed.
+
+### Payroll configuration and route-access checkpoint — 2026-10-28
+
+Local synthetic Staff Admin UI QA rejected an empty salary head with field-level
+errors for code, name, payslip label and review confirmation. A synthetic earning
+head was created, edited to version 2 and reloaded; history retained versions 1
+and 2. A salary structure with an explicitly synthetic INR 10,000 monthly amount
+was created after incomplete-structure validation was exercised.
+
+The Admin proposed that structure for the synthetic employee. The proposer could
+withdraw but had no approve action. A separate existing approver signed in,
+reviewed and approved the proposal. History recorded distinct proposer and
+reviewer accounts; the approved version survived page reload. A 31-day preview
+returned the synthetic earning and explicitly reported missing PF, ESI,
+professional-tax and labour-welfare rules plus the missing income-tax election.
+No statutory policy, payroll run, payment or payslip was created. These observations
+cover configuration only, not financial execution or statutory correctness.
+
+A restricted reviewer had no Payroll navigation entry. Direct navigation exposed
+no payroll records because the server denied reads, but showed generic retry
+errors. The workspace now checks `workforce.payroll.view` before mounting hospital
+and payroll queries, with a clear denial message for missing permission. Configure
+permission alone does not substitute for view permission. Existing API permission,
+tenant/hospital scope and object checks remain the security boundary; no new access
+is granted by this UI change. Browser QA confirmed the denial after a fresh load.
+
+The two denial regressions failed before the guard; the corrected parameterized
+fixtures explicitly model empty permissions and configure-only permissions. The
+11-test payroll setup suite passed, retaining authorized read-only and manager
+coverage. After updating the isolated branch to merged main, all 30 tasks in
+`pnpm turbo lint format:check type-check test build` passed on Node 24, including
+1,091 shell tests and 236 shared UI tests. No API, schema or permission contract
+was changed. Full payroll execution and the remaining Staff acceptance areas stay
+open.

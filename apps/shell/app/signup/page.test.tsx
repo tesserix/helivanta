@@ -10,7 +10,7 @@ it("states signup availability without collecting data or implying a tenant was 
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Sign in to an existing workspace" })).toHaveAttribute(
     "href",
-    "/login",
+    "/login?start=1",
   );
   expect(screen.getByRole("link", { name: "Visit Tesserix" })).toHaveAttribute(
     "href",

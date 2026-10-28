@@ -373,6 +373,27 @@ read the same tokens as the app; no page declares a palette of its own.
 elsewhere that declares a colour-valued custom property fails CI, and so does
 source that reads a custom property nothing declares (#542).
 
+One shape scale everywhere, public pages and login included (#1434). It is
+set once in `apps/shell/app/globals.css`:
+
+| Role                                                                         | Utility                                  |
+| ---------------------------------------------------------------------------- | ---------------------------------------- |
+| Controls (buttons, inputs, selects) and cards (`Panel`)                      | `rounded-lg` (12px)                      |
+| Regions inside a card, small controls and tags                               | `rounded-md` (8px) or `rounded-sm` (6px) |
+| Large surfaces: overlays, the app chrome, diagram boards and page-wide bands | `rounded-xl` (16px)                      |
+| Status badges, chips, avatars, dots and icon-only round buttons              | `rounded-full`                           |
+
+Primary actions are `Button`, using `asChild` around a link. Server
+components import it from `@helivanta/ui`, because `@tesserix/web`'s
+`export *` entry cannot be imported by name across the server/client
+boundary.
+
+These are lint errors in every design-checked file:
+
+- an arbitrary `rounded-[…]` or a bare `rounded`;
+- `rounded-2xl` or `rounded-3xl`;
+- a filled pill CTA.
+
 `packages/ui/styles.css` documents two pitfalls in `@tesserix/web`'s CSS
 that aren't obvious from the class names alone. Quoted verbatim, because
 paraphrasing loses the specific mechanism:

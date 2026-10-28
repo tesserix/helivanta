@@ -12,9 +12,36 @@ const RAW_COLOUR = String.raw`/(^|[\s:])(bg|text|border|ring|ring-offset|fill|st
 const COLOUR_MESSAGE =
   "Use a design-token utility (frontend.md §7), not a raw Tailwind colour or hex.";
 
+// One shape scale everywhere, public pages included (#1434 spec D5): radii
+// beyond the scale and pill-shaped primary actions are how each page drifted
+// to its own look. Overlays that need rounded-xl live in packages/ui.
+// Arbitrary radii and pills are banned everywhere. 2xl and 3xl are banned
+// outside the workspace; inside it #1275's surface rule already rejects them,
+// and SURFACE_LEGACY files keep that exemption until their zone tidy-up.
+// Bare `rounded` (4px) is off the scale too.
+const ARBITRARY_RADIUS = String.raw`/(^|[\s:])rounded(-[trblse]{1,2})?(-\[[^\]]*\])?(\s|$)/`;
+const LARGE_RADIUS = String.raw`/(^|[\s:])rounded(-[trblse]{1,2})?-(2xl|3xl)(\s|$)/`;
+// A filled primary background with text-button padding; badges (accent-dim,
+// muted) and bars without horizontal padding stay round.
+const PILL_ACTION = String.raw`/^(?=.*(^|[\s:])rounded-full(\s|$))(?=.*(^|\s)bg-(primary|\(--hms-accent\)|\(--hms-accent-strong\))(\s|$))(?=.*(^|\s)px-([4-9]|1\d)(\s|$))/`;
+const SHAPE_MESSAGE =
+  "Use the shape scale (frontend.md §7): rounded-sm/md/lg, rounded-xl for overlays, no 2xl, 3xl or arbitrary radius.";
+const PILL_MESSAGE =
+  "Primary actions are Button (asChild for links; import it from @helivanta/ui in server components), not a filled pill (#1434).";
+const literal = (pattern, message) => [
+  { selector: `Literal[value=${pattern}]`, message },
+  { selector: `TemplateElement[value.raw=${pattern}]`, message },
+];
+const SHAPE_SYNTAX = [
+  ...literal(ARBITRARY_RADIUS, SHAPE_MESSAGE),
+  ...literal(PILL_ACTION, PILL_MESSAGE),
+];
+const LARGE_RADIUS_SYNTAX = literal(LARGE_RADIUS, SHAPE_MESSAGE);
+
 const DESIGN_SYNTAX = [
   { selector: `Literal[value=${RAW_COLOUR}]`, message: COLOUR_MESSAGE },
   { selector: `TemplateElement[value.raw=${RAW_COLOUR}]`, message: COLOUR_MESSAGE },
+  ...SHAPE_SYNTAX,
   // The native popup is drawn by the OS in OS colours, outside the tokens
   // (#1255 spec D6).
   {
@@ -88,7 +115,9 @@ const SANITIZE_SYNTAX = {
 export function hmsPublicPages(files) {
   return {
     files,
-    rules: { "no-restricted-syntax": ["error", SANITIZE_SYNTAX, ...DESIGN_SYNTAX] },
+    rules: {
+      "no-restricted-syntax": ["error", SANITIZE_SYNTAX, ...DESIGN_SYNTAX, ...LARGE_RADIUS_SYNTAX],
+    },
   };
 }
 
@@ -145,7 +174,7 @@ export function hmsEslint(rootDir, { design = false } = {}) {
           SANITIZE_SYNTAX,
           // One array: no-restricted-syntax options do not merge across
           // config objects, so a later object would drop the entry above.
-          ...(design ? [...DESIGN_SYNTAX, ...MARKETING_SYNTAX] : []),
+          ...(design ? [...DESIGN_SYNTAX, ...MARKETING_SYNTAX, ...LARGE_RADIUS_SYNTAX] : []),
         ],
       },
       settings: { next: { rootDir } },

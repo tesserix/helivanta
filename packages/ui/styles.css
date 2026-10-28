@@ -189,7 +189,8 @@ select:autofill {
   --auth-muted: var(--muted-foreground);
   --auth-subtle: var(--muted-foreground);
   --auth-warn: var(--destructive);
-  --auth-radius: 0.75rem;
+  /* The auth form reads the shared shape scale (#1434 D4). */
+  --auth-radius: var(--radius-lg);
 }
 .login-content > div,
 .login-content > div > div {
@@ -205,10 +206,6 @@ select:autofill {
 }
 .login-content .text-center {
   text-align: left;
-}
-.login-content button {
-  min-height: 2.875rem;
-  border-radius: 0.75rem;
 }
 .login-content [data-auth-submit] {
   display: inline-flex;

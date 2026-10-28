@@ -52,3 +52,4 @@ export { TesserixFooter, BrandMark, LoginSurface } from "./branding";
 
 export { SelectControl, FormSelectField, type SelectOption } from "./select";
 export { Popover, PopoverTrigger, PopoverContent } from "./popover";
+export { Button } from "./button";

@@ -82,11 +82,11 @@ export function AiBoard() {
           <div className="mt-4 flex items-center justify-between gap-6">
             <ul aria-hidden="true" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
               <li className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-3 w-5 rounded border border-dashed border-(--hms-violet)" />
+                <span className="h-3 w-5 rounded-sm border border-dashed border-(--hms-violet)" />
                 Agents draft
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-3 w-5 rounded border border-(--hms-accent)" />
+                <span className="h-3 w-5 rounded-sm border border-(--hms-accent)" />
                 People decide
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
@@ -113,7 +113,7 @@ function Board({ active, reached, animated, playing }: BoardProps) {
   return (
     <div
       aria-hidden="true"
-      className="rounded-2xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px] p-5 lg:p-6"
+      className="rounded-xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px] p-5 lg:p-6"
     >
       <div className={cn(COLUMNS, "pb-3 text-xs text-muted-foreground")}>
         <p>Hospital event</p>

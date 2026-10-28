@@ -37,9 +37,11 @@ func catalogueHarness(t *testing.T) (*gin.Engine, *tenantdb.DB) {
 func catalogueSetup(t *testing.T) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
 	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"editor": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA},
+		Tokens: map[string]string{"editor": testutil.TenantA, "reader": testutil.TenantA, "sibling": testutil.TenantA, "foreign": testutil.TenantB, "denied": testutil.TenantA, "steward": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"editor":  {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.correct", "pharmacy.stock.quarantine"},
+			"editor": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.access.manage", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.correct", "pharmacy.stock.quarantine"},
+			// A second registry manager, so a test can tell one actor from another.
+			"steward": {"pharmacy.catalogue.read", "pharmacy.access.manage"},
 			"reader":  {"pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
 			"sibling": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},
 			"foreign": {"pharmacy.accounts.read", "pharmacy.accounts.write", "pharmacy.accounts.payment", "pharmacy.accounts.adjust", "pharmacy.catalogue.read", "pharmacy.catalogue.write", "pharmacy.stock.read", "pharmacy.stock.receive", "pharmacy.stock.quarantine"},

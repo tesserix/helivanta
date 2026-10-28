@@ -321,12 +321,16 @@ export type PharmacyOutlet = {
   regulatory_status: "pending_review";
   created_at: string;
 };
+import type { AffiliationVerificationStatus } from "./pharmacy-affiliations";
 export type PharmacyHospitalAffiliation = {
   id: string;
   pharmacy_id: string;
   hospital_id: string;
   relationship: "owner" | "serving" | "partner";
-  verification_status: "pending_validation";
+  /** Derived from the verification history (#1416); only "verified" confers anything. */
+  verification_status: AffiliationVerificationStatus;
+  verification_request_id: string | null;
+  verified_at: string | null;
   created_at: string;
 };
 

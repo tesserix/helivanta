@@ -76,3 +76,18 @@ type ProxyAuthorityChangedData struct {
 	AuthorityID string `json:"authority_id"`
 	Version     int64  `json:"version"`
 }
+
+// SubjectPharmacyAffiliationDecided records a hospital's accept, decline or
+// revoke of a pharmacy affiliation request.
+const SubjectPharmacyAffiliationDecided = "helivanta.in.patientmaster.pharmacy_affiliation_decided.v1"
+
+// PharmacyAffiliationDecidedData omits the reviewer and reason; both stay
+// in patientmaster's decision history.
+type PharmacyAffiliationDecidedData struct {
+	RequestID     string `json:"request_id"`
+	AffiliationID string `json:"affiliation_id"`
+	HospitalID    string `json:"hospital_id"`
+	DecisionID    string `json:"decision_id"`
+	Outcome       string `json:"outcome"`
+	DecidedAt     string `json:"decided_at"`
+}

@@ -26,6 +26,7 @@ import {
   SelectControl,
   useZodForm,
 } from "@helivanta/ui";
+import { PharmacyAffiliationReviews } from "./pharmacy-affiliation-reviews";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -130,6 +131,9 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
           setQuery={setQuery}
           patients={patients}
         />
+      )}
+      {access.data?.level === "registrar" && can("patient.pharmacy-affiliation.review") && (
+        <PharmacyAffiliationReviews hospital={hospital} />
       )}
       {can("patient.access.manage") && <ClinicalAccessSetup hospital={hospital} />}
     </>

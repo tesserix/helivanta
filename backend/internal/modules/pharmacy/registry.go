@@ -49,6 +49,9 @@ type hospitalAffiliation struct {
 	AffiliationFields  `gorm:"embedded"`
 	VerificationStatus string    `json:"verification_status"`
 	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime:false;default:now()"`
+	// Derived from the verification history (#1416), never stored here.
+	VerificationRequestID *uuid.UUID `json:"verification_request_id" gorm:"-"`
+	VerifiedAt            *time.Time `json:"verified_at" gorm:"-"`
 }
 
 func (hospitalAffiliation) TableName() string                 { return "pharmacy_hospital_affiliations" }
@@ -72,6 +75,7 @@ func registryRoutes(g *platform.Router, deps platform.Deps) {
 	g.PUT("/pharmacies/:pharmacy/outlets/:outlet", PermAccessManage, h.putOutlet)
 	platform.ListRoute(g, "/pharmacies/:pharmacy/hospital-affiliations", PermCatalogueRead, h.listAffiliations)
 	g.PUT("/pharmacies/:pharmacy/hospital-affiliations/:id", PermAccessManage, h.putAffiliation)
+	affiliationVerificationRoutes(g, h)
 }
 
 func registryID(c *gin.Context, param string) (uuid.UUID, bool) {
@@ -282,7 +286,10 @@ func (h *catalogueHandlers) listAffiliations(c *gin.Context, params pagination.P
 		if err := pharmacyVisible(tx, p, id, registryManager(c)); err != nil {
 			return err
 		}
-		return tenantdb.ApplyKeyset(tx, params).Select(affiliationColumns).Where("tenant_id=? AND pharmacy_id=?", p.TenantID, id).Find(&rows).Error
+		if err := tenantdb.ApplyKeyset(tx, params).Select(affiliationColumns).Where("tenant_id=? AND pharmacy_id=?", p.TenantID, id).Find(&rows).Error; err != nil {
+			return err
+		}
+		return fillVerification(tx, p.TenantID, rows)
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -316,6 +323,11 @@ func (h *catalogueHandlers) putAffiliation(c *gin.Context) {
 			if !reflect.DeepEqual(result.AffiliationFields, in) {
 				return errStockIdentity
 			}
+			rows := []hospitalAffiliation{result}
+			if err := fillVerification(tx, p.TenantID, rows); err != nil {
+				return err
+			}
+			result = rows[0]
 			return nil
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {

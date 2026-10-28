@@ -60,21 +60,25 @@ func Webhook(deps platform.Deps, limiter ratelimit.Limiter) gin.HandlerFunc {
 		}
 		eventID := c.GetHeader("X-Razorpay-Event-Id")
 		ctx := tenantdb.WithActor(c.Request.Context(), "system:payments-webhook")
+		var a account
+		var intentID uuid.UUID
+		var event string
+		// Each step is its own short transaction: the vault and the provider
+		// are called with none open.
 		err = deps.DB.WithTenant(ctx, tenant.String(), func(tx *gorm.DB) error {
-			var a account
-			if err := tx.Raw(`SELECT * FROM payment_accounts WHERE id=?`, accountID).Scan(&a).Error; err != nil {
-				return err
-			}
-			if a.ID == uuid.Nil {
-				return errWebhookRefused
-			}
-			secret, err := svc.unseal(ctx, a, a.WebhookSecretSealed)
-			if err != nil {
-				return err
-			}
-			if !validWebhookSignature(body, c.GetHeader("X-Razorpay-Signature"), secret) || eventID == "" || len(eventID) > 100 {
-				return errWebhookRefused
-			}
+			return tx.Raw(`SELECT * FROM payment_accounts WHERE id=?`, accountID).Scan(&a).Error
+		})
+		if err == nil && a.ID == uuid.Nil {
+			err = errWebhookRefused
+		}
+		var secret string
+		if err == nil {
+			secret, err = svc.unseal(ctx, a, a.WebhookSecretSealed)
+		}
+		if err == nil && (!validWebhookSignature(body, c.GetHeader("X-Razorpay-Signature"), secret) || eventID == "" || len(eventID) > 100) {
+			err = errWebhookRefused
+		}
+		if err == nil {
 			var delivery struct {
 				Event   string `json:"event"`
 				Payload struct {
@@ -85,30 +89,45 @@ func Webhook(deps platform.Deps, limiter ratelimit.Limiter) gin.HandlerFunc {
 					} `json:"qr_code"`
 				} `json:"payload"`
 			}
-			if err := json.Unmarshal(body, &delivery); err != nil || delivery.Event == "" || len(delivery.Event) > 100 {
-				return errWebhookRefused
+			if json.Unmarshal(body, &delivery) != nil || delivery.Event == "" || len(delivery.Event) > 100 {
+				err = errWebhookRefused
 			}
-			res := tx.Exec(`INSERT INTO payment_webhook_deliveries (tenant_id,account_id,event_id,event) VALUES (?,?,?,?) ON CONFLICT DO NOTHING`,
-				tenant, a.ID, eventID, delivery.Event)
-			if res.Error != nil || res.RowsAffected == 0 {
-				return res.Error
+			event = delivery.Event
+			duplicate := false
+			if err == nil {
+				err = deps.DB.WithTenant(ctx, tenant.String(), func(tx *gorm.DB) error {
+					var seen int64
+					if err := tx.Raw(`SELECT count(*) FROM payment_webhook_deliveries WHERE account_id=? AND event_id=?`, a.ID, eventID).Scan(&seen).Error; err != nil {
+						return err
+					}
+					if duplicate = seen > 0; duplicate || (event != "qr_code.credited" && event != "qr_code.closed") {
+						return nil
+					}
+					var row struct{ ID uuid.UUID }
+					err := tx.Raw(`SELECT id FROM payment_intents WHERE provider_ref=? AND account_id=? AND status IN ('awaiting_payment','expired','cancelled')`,
+						delivery.Payload.QRCode.Entity.ID, a.ID).Scan(&row).Error
+					intentID = row.ID
+					return err
+				})
 			}
-			if delivery.Event != "qr_code.credited" && delivery.Event != "qr_code.closed" {
-				return nil
+			if err == nil && !duplicate {
+				if intentID != uuid.Nil {
+					err = svc.check(ctx, tenant.String(), intentID, "webhook", false)
+				}
+				// Recorded only once its check succeeded: a failed check
+				// answers 503, and Razorpay's redelivery is processed in full.
+				if err == nil {
+					err = deps.DB.WithTenant(ctx, tenant.String(), func(tx *gorm.DB) error {
+						return tx.Exec(`INSERT INTO payment_webhook_deliveries (tenant_id,account_id,event_id,event) VALUES (?,?,?,?) ON CONFLICT DO NOTHING`,
+							tenant, a.ID, eventID, event).Error
+					})
+				}
 			}
-			in, found, err := lockIntent(tx, false, "provider_ref=? AND account_id=? AND status IN ('awaiting_payment','expired','cancelled')",
-				delivery.Payload.QRCode.Entity.ID, a.ID)
-			if err != nil || !found {
-				return err
-			}
-			return svc.check(ctx, tx, in, "webhook", "")
-		})
+		}
 		switch {
 		case errors.Is(err, errWebhookRefused):
 			refuse()
 		case err != nil:
-			// The delivery row rolled back with the failed check, so
-			// Razorpay's redelivery is processed in full.
 			slog.WarnContext(ctx, "payments webhook not processed", "tenant_id", tenant, "account_id", accountID, "error", err)
 			respond.Error(c, http.StatusServiceUnavailable, "service_unavailable", "webhook not processed; retry")
 		default:

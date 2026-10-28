@@ -38,8 +38,11 @@ CREATE TABLE payment_intents (
  request_id uuid NOT NULL,
  amount_minor bigint NOT NULL CHECK (amount_minor BETWEEN 1 AND 1000000000000),
  currency char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
- status text NOT NULL CHECK (status IN ('awaiting_payment','paid','failed','expired','cancelled')),
+ status text NOT NULL CHECK (status IN ('opening','awaiting_payment','paid','failed','expired','cancelled')),
  account_id uuid,
+ -- The key id the QR was made with: keys cannot change while an intent is
+ -- open, and a closed intent's late checks stop if they did.
+ key_id text,
  provider_ref text,
  qr_image_url text CHECK (qr_image_url IS NULL OR qr_image_url ~ '^https://'),
  failure_reason text CHECK (failure_reason IN ('provider_not_configured','provider_unavailable','provider_rejected')),
@@ -49,10 +52,19 @@ CREATE TABLE payment_intents (
  late_checks_left integer NOT NULL DEFAULT 2 CHECK (late_checks_left BETWEEN 0 AND 2),
  paid_payment_id text,
  late boolean NOT NULL DEFAULT false,
+ -- A cancel the requester asked for; the poller honours it if the
+ -- after-commit check did not run.
+ cancel_requested boolean NOT NULL DEFAULT false,
+ check_failures integer NOT NULL DEFAULT 0,
+ -- Held by the one checker calling the provider for this intent; no
+ -- transaction stays open across that call.
+ lease_until timestamptz,
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE (tenant_id, requester, request_id),
  CHECK ((status = 'failed') = (failure_reason IS NOT NULL)),
- CHECK (status = 'failed' OR (provider_ref IS NOT NULL AND qr_image_url IS NOT NULL AND account_id IS NOT NULL)),
+ CHECK (status = 'opening' OR status = 'failed' OR (status = 'cancelled' AND provider_ref IS NULL)
+  OR (provider_ref IS NOT NULL AND qr_image_url IS NOT NULL AND account_id IS NOT NULL)),
+ CHECK (status <> 'opening' OR (account_id IS NOT NULL AND key_id IS NOT NULL)),
  CHECK ((status = 'paid') = (paid_payment_id IS NOT NULL)),
  CHECK (NOT late OR status = 'paid')
 );

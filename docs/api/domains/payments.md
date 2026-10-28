@@ -10,17 +10,17 @@ outbox events; neither reads the other's tables.
 
 ## Provider account
 
-| Route                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                       |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/payments/razorpay-account` | `payments.account.manage` (tenant administrators only). Mode, key id, whether each secret is set, who saved it and when, and the webhook path; `webhook_url` only where `PAYMENTS_WEBHOOK_BASE_URL` names a public Global API origin. Never a secret, sealed or not.                                                                                                                            |
-| `PUT /v1/payments/razorpay-account` | `{mode, key_id, key_secret?, webhook_secret?}`. Both secrets on the first save; a new key id needs its secret. The keys are checked with Razorpay first (`422 credentials_rejected`, `503 provider_unavailable`), then sealed with OpenBao Transit key `helivanta-payments-credentials`, bound to tenant and account. Without OpenBao: `503`, never plaintext. A concurrent save answers `409`. |
+| Route                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/payments/razorpay-account` | `payments.account.manage` (tenant administrators only). Mode, key id, whether each secret is set, who saved it and when, and the webhook path; `webhook_url` only where `PAYMENTS_WEBHOOK_BASE_URL` names a public Global API origin. Never a secret, sealed or not.                                                                                                                                                                                                  |
+| `PUT /v1/payments/razorpay-account` | `{mode, key_id, key_secret?, webhook_secret?}`. Both secrets on the first save; a new key id needs its secret. The keys are checked with Razorpay first (`422 credentials_rejected`, `503 provider_unavailable`), then sealed with OpenBao Transit key `helivanta-payments-credentials`, bound to tenant and account. Without OpenBao: `503`, never plaintext. A concurrent save, or a new key id while any intent is `opening` or `awaiting_payment`, answers `409`. |
 
 ## Intents
 
-| Event in                                     | Effect                                                                                                                                                                                                                                                                                                          |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `helivanta.in.pharmacy.payment_requested.v1` | One intent per request (a redelivery does nothing). No account: `intent_failed{provider_not_configured}`. Otherwise one Razorpay UPI QR (`upi_qr`, `single_use`, `fixed_amount`, `close_by` = expiry; INR, 120–7200 s) with a 10 s timeout and no retry: `intent_opened` or `intent_failed{provider_unavailable | provider_rejected}`. |
-| `helivanta.in.pharmacy.payment_cancelled.v1` | Closes the QR, then checks: `intent_paid` if money landed, else `intent_cancelled`. Retried until its request's intent exists.                                                                                                                                                                                  |
+| Event in                                     | Effect                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `helivanta.in.pharmacy.payment_requested.v1` | One intent per request (a redelivery does nothing). No account: `intent_failed{provider_not_configured}`. Otherwise one Razorpay UPI QR (`upi_qr`, `single_use`, `fixed_amount`, `close_by` = expiry; INR, 120–7200 s) with a 10 s timeout and no retry, made after the consumer commits (an intent still `opening` after 45 s is failed): `intent_opened` or `intent_failed{provider_unavailable | provider_rejected}`. |
+| `helivanta.in.pharmacy.payment_cancelled.v1` | Closes the QR, then checks: `intent_paid` if money landed, else `intent_cancelled`. A cancel that arrives before its request leaves a `cancelled` tombstone, and the request then opens no QR.                                                                                                                                                                                                    |
 
 An intent is paid only by a payment fetched from the Razorpay API, `captured`,
 with the intent's amount and currency. Every captured payment is stored once
@@ -46,9 +46,11 @@ VPA, name or contact is stored, logged or published.
 - **Poller** (in the API process): checks at +5, +10, +20, +30 s, then every
   30 s; at expiry it closes the QR, then fetches, then decides; late checks at
   +2 and +15 min after closing. It reads due `(tenant_id, id)` pairs across
-  tenants (system role, those columns only) and checks each under its
-  tenant with the row locked `SKIP LOCKED`. A provider failure retries the
-  intent in 30 s.
+  tenants (system role, those columns only) and checks up to 8 at once, each
+  under its tenant: a short transaction takes a 60 s lease, Razorpay is
+  called with no transaction open, and a second transaction decides. A
+  provider failure retries in 30 s; a closed intent's late checks stop after
+  10 failures, and only the poller spends a late check.
 
 ## Not covered
 

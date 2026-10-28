@@ -111,6 +111,18 @@ payments does not keep payer identity.
   `payment_amount` = amount, `close_by` = now + `expires_in_seconds`. The
   counter uses 300 seconds; Razorpay requires between 120 and 7200. `notes`
   carries only the intent id.
+- The request consumer records an `opening` intent in the bus transaction
+  and makes the QR after commit (`AfterCommit`), so no consumer holds a
+  connection while Razorpay answers. An intent still `opening` after 45 s is
+  failed by the poller (`provider_unavailable`), and a QR made after that is
+  closed unused.
+- A cancel that overtakes its request (the bus does not order subjects)
+  leaves a `cancelled` tombstone; the request then finds it and opens no QR.
+  A cancel on an open intent sets `cancel_requested`, which the after-commit
+  check and, failing that, the poller both honour.
+- The key id cannot change while an intent is `opening` or
+  `awaiting_payment` (`409`): an open QR is checked with the keys it was
+  made under. A closed intent whose keys changed stops its late checks.
 - One attempt with a 10 s timeout. Any failure is reported at once as
   `intent_failed`, so the cashier is never left waiting on retries.
 - A consumer redelivery after Razorpay already made a QR can leave a second,
@@ -163,8 +175,16 @@ payments does not keep payer identity.
 - Finding due intents means reading across tenants: only `(tenant_id,
 intent_id)` pairs, through `WithAllTenants`. This is a reviewed entry in the
   archtest allowlist.
-- Each check then runs under `WithTenant`, holding the intent row
-  `FOR UPDATE SKIP LOCKED`, so two replicas never check the same intent at once.
+- Each check runs under its tenant in two short transactions: the first
+  claims the intent with a 60 s lease, the provider is called with no
+  transaction open, and the second decides. Two checkers never call for
+  the same intent at once, and a slow Razorpay never holds the API's small
+  shared connection pool. Up to 8 checks run at once per pass.
+- A provider failure retries the intent after 30 s. An open intent keeps
+  retrying, because its decision is owed; a closed intent's late checks stop
+  after 10 failures.
+- Only the poller spends a late check. Razorpay's own `qr_code.closed`
+  webhook for our close is a nudge, not one of the two late looks.
 - The decision not to use Temporal: the repo's Temporal workers are separate
   binaries that aren't deployed yet (#1406). A counter must converge wherever
   the API runs.
@@ -178,13 +198,14 @@ intent_id)` pairs, through `WithAllTenants`. This is a reviewed entry in the
 
 ### PharmaConnect counter payment requests (C-4a)
 
-- `POST /pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments`:
+- `PUT /pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id`:
   - needs an outlet editor and `pharmacy.sale.create`;
-  - body: `{request_key, amount_minor}`, with currency from the outlet;
+  - the id is a client-chosen UUIDv7, as for sales; body `{amount_minor}`,
+    with currency from the outlet;
   - inserts a request in `requested` and publishes
     `payment_requested.v1` in the same transaction;
-  - `request_key` is unique per outlet, so a retried click returns the same
-    request (`200`) instead of making a second one.
+  - the same id returns the same request (`200`) instead of making a second
+    one; the same id with another amount is `409`.
 - `GET …/counter-payments/:request` returns its state for the counter:
   `requested | awaiting_payment | paid | failed | expired | cancelled`, plus
   the QR image URL, expiry, amount, failure reason and the `late` flag.
@@ -225,6 +246,13 @@ intent_id)` pairs, through `WithAllTenants`. This is a reviewed entry in the
   same UPI amount.
 
 ## Not covered (C-4)
+
+- A request event dead-lettered by repeated database failures never reaches
+  payments, and its pharmacy request stays `requested`; the dead-letter
+  alert is the control. The counter (C-4b) treats a request with no QR
+  after a minute as failed for the cashier.
+- The webhook budget (120/min) is per account, so a flood at a known URL
+  can crowd out real deliveries; the poller still converges every intent.
 
 - Refunds through Razorpay, including for excess, late or unused payments.
   Finance refunds those in the Razorpay dashboard, and recording that is a later

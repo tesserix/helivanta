@@ -27,6 +27,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
+	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -401,6 +402,8 @@ func run() error {
 		OrganizationIdentity:        identityClient,
 		Documents:                   documents,
 		Transit:                     vault,
+		PaymentsProviderURL:         cfg.RazorpayAPIURL,
+		PaymentsWebhookBaseURL:      cfg.PaymentsWebhookBaseURL,
 		Workflows:                   workflows,
 		DB:                          db,
 		Bus:                         bus,
@@ -577,7 +580,7 @@ func run() error {
 	// missing, per its own doc comment.
 	bootstrap.MountUnauthenticated(srv.Engine, loginHandlers.Login,
 		loginUIHandlers.AuthRequest, loginUIHandlers.Password, loginUIHandlers.Factor,
-		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter))
+		loginUIHandlers.Enroll, loginUIHandlers.PasswordChange, workspace.PublicHandler(db, limiter), payments.Webhook(deps, limiter))
 
 	for _, m := range registry.All() {
 		m.Routes(api, deps)
@@ -589,6 +592,8 @@ func run() error {
 		}
 	}
 	go bus.RunDispatcher(ctx, db)
+	// #1386 C-4a: converges payment intents whose webhook never arrived.
+	go payments.RunReconciler(ctx, deps)
 	// A separate loop and ticker from the dispatcher's 500ms tick (#835
 	// Task 2, spec D3): pruning belongs on its own hourly cadence, not
 	// coupled to publish throughput.

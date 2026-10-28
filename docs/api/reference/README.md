@@ -359,6 +359,9 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id` | `pharmacy.sale.create` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id` | `pharmacy.sale.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id` | `pharmacy.sale.return` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes` | `pharmacy.sale.read` | true | false |
@@ -425,11 +428,18 @@ Published subjects:
 - `helivanta.in.pharmacy.prescription_image_scan_requested.v1`
 - `helivanta.in.pharmacy.prescription_image_changed.v1`
 - `helivanta.in.pharmacy.credit_note_issued.v1`
+- `helivanta.in.pharmacy.payment_requested.v1`
+- `helivanta.in.pharmacy.payment_cancelled.v1`
 
 Subscriptions:
 
 - `pharmacy-visit-intake` ← `helivanta.in.medicore.visit_created.v1`; after-commit hook: false.
 - `pharmacy-prescription-image-scan` ← `helivanta.in.pharmacy.prescription_image_scan_requested.v1`; after-commit hook: true.
+- `pharmacy-payment-opened` ← `helivanta.in.payments.intent_opened.v1`; after-commit hook: false.
+- `pharmacy-payment-failed` ← `helivanta.in.payments.intent_failed.v1`; after-commit hook: false.
+- `pharmacy-payment-paid` ← `helivanta.in.payments.intent_paid.v1`; after-commit hook: false.
+- `pharmacy-payment-expired` ← `helivanta.in.payments.intent_expired.v1`; after-commit hook: false.
+- `pharmacy-payment-cancelled` ← `helivanta.in.payments.intent_cancelled.v1`; after-commit hook: false.
 
 Migration table declarations:
 
@@ -447,6 +457,33 @@ Migration table declarations:
 - `0017_pharmacy`: `pharmacy_prescription_lines`.
 - `0018_pharmacy`: `pharmacy_outlet_discount_ceilings`.
 - `0019_pharmacy`: `pharmacy_credit_note_series`, `pharmacy_credit_notes`, `pharmacy_credit_note_lines`, `pharmacy_credit_note_refunds`.
+- `0021_pharmacy`: `pharmacy_payment_requests`.
+
+## payments
+
+Source: [backend/internal/modules/payments/module.go](../../../backend/internal/modules/payments/module.go). Payloads: `backend/internal/modules/payments/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/payments/razorpay-account` | `payments.account.manage` | false | false |
+| PUT | `/v1/payments/razorpay-account` | `payments.account.manage` | false | false |
+
+Published subjects:
+
+- `helivanta.in.payments.intent_opened.v1`
+- `helivanta.in.payments.intent_failed.v1`
+- `helivanta.in.payments.intent_paid.v1`
+- `helivanta.in.payments.intent_expired.v1`
+- `helivanta.in.payments.intent_cancelled.v1`
+
+Subscriptions:
+
+- `payments-pharmacy-request` ← `helivanta.in.pharmacy.payment_requested.v1`; after-commit hook: false.
+- `payments-pharmacy-cancel` ← `helivanta.in.pharmacy.payment_cancelled.v1`; after-commit hook: false.
+
+Migration table declarations:
+
+- `0001_payments`: `payment_accounts`, `payment_intents`, `payment_intent_transitions`, `payment_provider_payments`, `payment_webhook_deliveries`.
 
 ## supply
 
@@ -979,6 +1016,7 @@ Migration table declarations:
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password-change` | completes a sign-in whose password must change first, so it cannot require a session |
+| `POST /v1/payments/webhooks/razorpay/:tenant/:account` | provider callback authenticated by its HMAC signature, not a session |
 
 ## Platform migration table declarations
 

@@ -6936,6 +6936,11 @@
             "workforce_document_classification_revisions",
             "workforce_document_classifications"
           ]
+        },
+        {
+          "id": "0047_workforce_document_recovery",
+          "sql_sha256": "435ce5712f68d07fcef6adbe93e9fc46af8fe97e167bba6794a2f381b7e41b69",
+          "creates_tables": []
         }
       ]
     },

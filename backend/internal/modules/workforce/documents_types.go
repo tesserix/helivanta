@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const documentProcessingTimeoutSeconds = 2700
+
 var documentCategoryBindings = map[string][]string{"enrollment": {"employment_evidence", "identity_evidence"}, "credential": {"credential_evidence"}, "qualification": {"qualification_evidence"}}
 
 type documentInput struct {

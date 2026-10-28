@@ -268,15 +268,15 @@ deployment claim.
 
 Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.
 
-## Staff file classification (development slice)
+## Staff file classification
 
 Classification is optional versioned HR metadata beside an existing staff file.
 The fixed evidence `category` and owner record binding, upload intent, bytes,
 scan/release state and download authorization are unchanged. Hospital-defined
 `document_category` masters cannot replace those security-purpose values.
 Benefits and tax evidence are excluded from these staff classification routes.
-This local implementation is unreleased; UI and the full acceptance gates remain
-open. See [ADR 0045](../adr/0045-staff-document-classification.md).
+PR #1411 merged after local owner/reviewer UI checks and full local and remote
+gates passed. Production rollout and deployed acceptance remain open. See [ADR 0045](../adr/0045-staff-document-classification.md).
 
 | Method | Owner-relative route                                                            | Authority / behavior                                                                                                        |
 | ------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -313,6 +313,40 @@ The payload contains only hospital, staff, file, classification-receipt revision
 IDs and metadata version; no category selection, label, name, filename, file
 content or storage location. This changes no credential, identity, background,
 consent, clinical privilege or employee outcome.
+
+## Recovery of stalled private-file processing
+
+`PUT /workforce/hospitals/{hospital}/staff/{staff}/documents/{file}/retries/{attempt}`
+requires `workforce.documents.manage` and an explicit current hospital manager
+grant for the exact staff/file. The same recovery rule applies behind the existing
+payroll/benefits evidence routes, with their own permissions, parent revision and
+pending/frozen checks. Frozen evidence cannot change its attempt, including a
+pending-to-pending transition after the deadline. This command does not review identity, approve evidence or
+release bytes.
+
+The attempt is a canonical integer of at least 2, exactly one above the stored
+attempt. `scan_error` permits immediate retry. `scan_pending` permits recovery only
+after 2700 seconds (45 minutes) since its committed `updated_at`, measured on the
+database clock, matching the Temporal execution deadline. Recent pending, skipped
+attempts and terminal files return 409. Inaccessible scope remains 404; decided
+proposal evidence remains 409 `not_pending`. The database prevents rewriting an
+unchanged pending attempt's waiting clock and stamps new queue/retry entry itself.
+
+A new command returns 202; the exact repeated command returns its current receipt
+with 200 after reauthorization, without another scan-request event. File lock,
+monotonic attempt, state, audit and outbox commit atomically. A timed-out or late
+worker for an old attempt cannot commit a release after recovery, even if storage
+copy completed. Current bytes become downloadable only after the new attempt's
+valid matching scanner/release proof. Dependency failure remains protected and
+retryable; no direct Temporal restart or business-data patch is required.
+
+The UI derives the recovery affordance from the existing timestamp. A client clock
+skew can cause an early command to receive 409; it cannot shorten the server guard.
+There is no new response field, purpose enum or permission. Migration
+`0047_workforce_document_recovery` replaces the guard function without changing
+file content, history, ownership or RLS. Old clients remain compatible but do not
+offer recovery for expired pending files. See [ADR 0046](../adr/0046-staff-document-stalled-processing.md).
+This development candidate has not been rolled out to production.
 
 ## Credential validity reviews
 
@@ -371,7 +405,7 @@ Eligibility evidence is a workforce document whose record is a coverage proposal
 | `GET …/evidence`                                               | `workforce.benefits.view` and reader/manager grant      | `{evidence, uploads_available}`: at most 10 files of that proposal, newest first. Expired intents are left out. 404 unless the proposal belongs to this enrollment                                                                                                                                                                |
 | `PUT …/evidence/{file}`                                        | `workforce.benefits.manage` and locked hospital manager | `filename`, `content_type` (`image/png`/`image/jpeg`), `size` (≤ 10 MiB), `sha256`. 201 when created, 200 for an identical replay. 409 `not_pending` once the proposal is decided, `evidence_limit` for an 11th file                                                                                                              |
 | `PUT …/evidence/{file}/content`                                | `workforce.benefits.manage` and locked hospital manager | Streams the bytes, verifies them against size and digest, and queues the scan (202). 409 `not_pending` once decided                                                                                                                                                                                                               |
-| `PUT …/evidence/{file}/retries/{attempt}`                      | `workforce.benefits.manage` and locked hospital manager | Re-queues a `scan_error` file. 409 `not_pending` once decided                                                                                                                                                                                                                                                                     |
+| `PUT …/evidence/{file}/retries/{attempt}`                      | `workforce.benefits.manage` and locked hospital manager | Re-queues `scan_error` or `scan_pending` after the 45-minute server deadline. 409 `not_pending` once decided                                                                                                                                                                                                                      |
 | `GET …/evidence/{file}/content`                                | `workforce.benefits.view` and reader/manager grant      | Released bytes of an `available` file. Audited as `workforce.benefits.evidence_downloaded`, `Cache-Control: private, no-store`                                                                                                                                                                                                    |
 | `GET /workforce/hospitals/{hospital}/hr/benefits/coverage.csv` | `workforce.benefits.export` and reader/manager grant    | `as_of` (required, `YYYY-MM-DD`), `plan_id` (optional), each at most once. Approved coverage in force on `as_of`. `X-Export-Row-Count` and `X-Export-Sha256` describe the body. 400 `invalid_request` for unknown, repeated or empty parameters; 413 `benefits_export_too_large` above 1,000 rows or 8 MiB, before any file bytes |
 
@@ -809,7 +843,7 @@ Design: [tax declaration evidence spec](../superpowers/specs/2026-10-19-tax-decl
 | `GET …/tax-declarations/{tax_year}/evidence?revision_id=`             | `workforce.payroll.view` and reader/manager grant         | `{evidence, uploads_available}`: at most 10 files of that revision, newest first. Expired intents are left out. 404 unless the revision belongs to this staff member and year                                                       |
 | `PUT …/tax-declarations/{tax_year}/evidence/{file}`                   | `workforce.payroll.configure` and locked hospital manager | `revision_id`, `filename`, `content_type` (`image/png`/`image/jpeg`), `size` (≤ 10 MiB), `sha256`. 201 when created, 200 for an identical replay. 409 `not_pending` once the proposal is decided, `evidence_limit` for an 11th file |
 | `PUT …/tax-declarations/{tax_year}/evidence/{file}/content`           | `workforce.payroll.configure` and locked hospital manager | Streams the bytes, verifies them against size and digest, and queues the scan (202). 409 `not_pending` once decided                                                                                                                 |
-| `PUT …/tax-declarations/{tax_year}/evidence/{file}/retries/{attempt}` | `workforce.payroll.configure` and locked hospital manager | Re-queues a `scan_error` file. 409 `not_pending` once decided                                                                                                                                                                       |
+| `PUT …/tax-declarations/{tax_year}/evidence/{file}/retries/{attempt}` | `workforce.payroll.configure` and locked hospital manager | Re-queues `scan_error` or `scan_pending` after the 45-minute server deadline. 409 `not_pending` once decided                                                                                                                        |
 | `GET …/tax-declarations/{tax_year}/evidence/{file}/content`           | `workforce.payroll.view` and reader/manager grant         | Released bytes of an `available` file. Audited as `workforce.tax_declaration.evidence_downloaded`, `Cache-Control: private, no-store`                                                                                               |
 
 A decision or withdrawal answers 409 `evidence_scanning` while any of the proposal's files is `scan_pending`. A decision freezes the proposal's evidence. Approval keeps available files readable, while rejection and withdrawal revoke them, each with a `document_changed.v1` event. The database refuses to unfreeze a file or scan it again.

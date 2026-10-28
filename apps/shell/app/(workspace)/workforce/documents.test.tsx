@@ -66,12 +66,14 @@ function fixture(
     files?: unknown[];
     failContent?: boolean;
     failRetry?: boolean;
+    commitRetryBeforeFailure?: boolean;
     classification?: boolean;
   } = {},
 ) {
   const requests: { url: string; init?: RequestInit }[] = [];
   let pending: { [key: string]: unknown } | undefined;
   let contentAttempts = 0;
+  let retryRequests = 0;
   let classificationState = {
     file_id: evidence.id,
     hospital_id: hospital.id,
@@ -168,11 +170,22 @@ function fixture(
         return Response.json(revoked);
       }
       if (url.includes("/retries/")) {
-        if (options.failRetry)
+        if (options.failRetry && (!options.commitRetryBeforeFailure || retryRequests++ === 0)) {
+          if (options.commitRetryBeforeFailure)
+            savedFiles = [
+              {
+                ...evidence,
+                status: "scan_pending",
+                scan_attempt: 2,
+                failure_code: null,
+                updated_at: new Date(Date.now()).toISOString(),
+              },
+            ];
           return Response.json(
             { error: "unavailable", message: "Synthetic retry unavailable" },
             { status: 503 },
           );
+        }
         return Response.json({
           ...evidence,
           status: "scan_pending",
@@ -424,4 +437,75 @@ it("classifies a saved file through Global API without changing its evidence pur
       /Version 1/,
     ),
   ).toBeInTheDocument();
+});
+
+it("offers retry for an expired pending scan while keeping a recent pending scan protected", async () => {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-28T00:46:00Z"));
+  try {
+    const pending = {
+      ...evidence,
+      status: "scan_pending",
+      failure_code: null,
+      updated_at: "2026-10-28T00:00:00Z",
+    };
+    const recent = {
+      ...pending,
+      id: "66666666-6666-4666-8666-666666666666",
+      filename: "recent-processing.png",
+      updated_at: "2026-10-28T00:45:00Z",
+    };
+    const { requests } = fixture({ files: [pending, recent], failRetry: true });
+    const { user } = renderWithProviders(
+      <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    );
+    await screen.findByText(recent.filename);
+    expect(screen.getAllByRole("button", { name: "Retry scan" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Retry scan" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic retry unavailable");
+    await user.click(screen.getByRole("button", { name: "Retry previous request" }));
+    await waitFor(() =>
+      expect(requests.filter((r) => r.url.includes("/retries/"))).toHaveLength(2),
+    );
+    expect(requests.filter((r) => r.url.includes("/retries/")).map((r) => r.url)).toEqual([
+      expect.stringContaining(`/documents/${evidence.id}/retries/2`),
+      expect.stringContaining(`/documents/${evidence.id}/retries/2`),
+    ]);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it("confirms the same uncertain attempt after refresh shows it already pending", async () => {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-28T00:46:00Z"));
+  try {
+    const { requests } = fixture({
+      files: [
+        {
+          ...evidence,
+          status: "scan_pending",
+          failure_code: null,
+          updated_at: "2026-10-28T00:00:00Z",
+        },
+      ],
+      failRetry: true,
+      commitRetryBeforeFailure: true,
+    });
+    const { user } = renderWithProviders(
+      <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Retry scan" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic retry unavailable");
+    await user.click(screen.getByRole("button", { name: "Refresh status" }));
+    await waitFor(() =>
+      expect(screen.queryByText(/Processing has not completed/)).not.toBeInTheDocument(),
+    );
+    await user.click(await screen.findByRole("button", { name: "Retry previous request" }));
+    expect(await screen.findByText("The scan request has been confirmed.")).toBeInTheDocument();
+    expect(requests.filter((r) => r.url.includes("/retries/")).map((r) => r.url)).toEqual([
+      expect.stringContaining("/retries/2"),
+      expect.stringContaining("/retries/2"),
+    ]);
+  } finally {
+    clock.mockRestore();
+  }
 });

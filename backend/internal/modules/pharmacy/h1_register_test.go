@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/testutil"
 )
 
@@ -95,10 +96,15 @@ func TestTheH1RegisterIsThePharmacistsAlone(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", h1Path(period), "clerk", "").Code, "patient and prescriber details are not for every outlet reader")
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", h1Path("/export"+period), "clerk", "").Code)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", h1Path(period), "foreign", "").Code)
-	for _, bad := range []string{"", "?from=2026-11-01", "?from=2026-11-02&to=2026-11-01", "?from=2025-01-01&to=2026-11-01", "?from=01/11/2026&to=2026-11-01"} {
+	require.Equal(t, http.StatusForbidden, do(w.r, "GET", h1Path(period), "owner", "").Code, "decision 3: the owner does not see patient details")
+	// 366 days inclusive is the longest period, in an ordinary and a leap year.
+	for _, bad := range []string{"", "?from=2026-11-01", "?from=2026-11-02&to=2026-11-01", "?from=2025-10-31&to=2026-11-01",
+		"?from=2023-12-31&to=2024-12-31", "?from=01/11/2026&to=2026-11-01"} {
 		require.Equal(t, http.StatusBadRequest, do(w.r, "GET", h1Path(bad), "pharmacist", "").Code, bad)
 	}
-	require.Equal(t, http.StatusOK, do(w.r, "GET", h1Path("?from=2025-11-02&to=2026-11-01"), "pharmacist", "").Code, "366 days is a period")
+	for _, good := range []string{"?from=2025-11-01&to=2026-11-01", "?from=2024-01-01&to=2024-12-31", "?from=2026-11-01&to=2026-11-01"} {
+		require.Equal(t, http.StatusOK, do(w.r, "GET", h1Path(good), "pharmacist", "").Code, good)
+	}
 }
 
 func TestTheH1RegisterExportsAnAuditedCSV(t *testing.T) {
@@ -134,4 +140,19 @@ func TestTheH1RegisterExportCannotCarryAFormula(t *testing.T) {
 	res := do(w.r, "GET", h1Path("/export?from=2026-11-01&to=2026-11-01"), "pharmacist", "")
 	require.Equal(t, http.StatusOK, res.Code)
 	require.NotContains(t, res.Body.String(), ",=HYPERLINK")
+}
+
+// An export over its bound is refused, never truncated, and as nothing was
+// disclosed it records no export.
+func TestAnOversizedH1ExportIsRefusedAndRecordsNothing(t *testing.T) {
+	w, _ := h1World(t)
+	pharmacy.SetH1ExportRows(t, 0)
+	res := do(w.r, "GET", h1Path("/export?from=2026-11-01&to=2026-11-01"), "pharmacist", "")
+	require.Equal(t, http.StatusRequestEntityTooLarge, res.Code, res.Body.String())
+	require.Contains(t, res.Body.String(), "register_export_too_large")
+	var exports int64
+	require.NoError(t, w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT count(*) FROM audit_events WHERE resource_type='pharmacy_h1_register' AND action='register_export'`).Scan(&exports).Error
+	}))
+	require.Zero(t, exports)
 }

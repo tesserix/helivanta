@@ -413,13 +413,18 @@ supplied. The records are kept for three years and are open for inspection.
    never purged. Any future retention job must keep H1 entries for at least three years.
 3. **Who may see it.** `pharmacy.prescription.read` (pharmacist) with an outlet grant. The
    register shows patient and prescriber details, so the owner does not see it.
-4. **Every read is audited.** Each page read records an `audit_events` row naming the period. Each
-   CSV export records the period, the row count and the SHA-256 digest, as the stock register
-   export does.
+4. **Every read is audited.**
+   - Each page read and each CSV export writes an `audit_events` row (`register_read` or
+     `register_export`) in the read's own transaction, so an unrecorded read is never returned.
+   - `audit_events` holds field names only, so the period itself, and for an export the row count
+     and SHA-256 digest, go to the structured audit log, as the stock register export does.
+   - A refused export discloses nothing and records nothing.
 5. **Bounds.**
    - A period is at most 366 days, in outlet dates.
    - The JSON register is paged.
    - The CSV is refused above 1,000 entries; narrow the period.
+   - Entries are ordered by the sale's time. The lines of one sale follow a stable but not
+     line-number order; each entry carries its invoice and line number.
 
 Not covered: Schedule X and NDPS registers (#165, #171); registers for drugs other than H1
 (Rule 65(3)(1)'s general prescription register is the invoice and credit note record);

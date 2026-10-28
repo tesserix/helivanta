@@ -71,9 +71,11 @@ const h1Entries = `(SELECT l.id, s.created_at, to_char(s.sale_date,'YYYY-MM-DD')
 
 const (
 	h1MaxPeriodDays = 366
-	h1ExportRows    = 1000
 	h1ExportBytes   = 4 << 20
 )
+
+// h1ExportRows bounds an export; a var only so a test can reach the bound.
+var h1ExportRows = 1000
 
 func h1RegisterRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/registers/h1", PermPrescriptionRead, h.listH1Register)
@@ -85,17 +87,23 @@ func h1Period(c *gin.Context) (string, string, bool) {
 	from, errFrom := time.Parse(time.DateOnly, c.Query("from"))
 	to, errTo := time.Parse(time.DateOnly, c.Query("to"))
 	if errFrom != nil || errTo != nil || to.Before(from) || to.Sub(from) > (h1MaxPeriodDays-1)*24*time.Hour {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "the H1 register needs from and to dates (YYYY-MM-DD), from on or before to, at most 366 days apart")
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "the H1 register needs from and to dates (YYYY-MM-DD), from on or before to, for a period of at most 366 days")
 		return "", "", false
 	}
 	return from.Format(time.DateOnly), to.Format(time.DateOnly), true
 }
 
-// auditH1Read records who read which period of the register; the read and its
-// record commit together, so an unrecorded read is never returned.
-func auditH1Read(tx *gorm.DB, tenant, subject string, outlet uuid.UUID, action, from, to string) error {
-	return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields) VALUES(?,?,?,'pharmacy_h1_register',?,ARRAY[?,?]::text[])`,
-		tenant, subject, action, outlet, "from:"+from, "to:"+to).Error
+// auditH1Read records who read the register; the read and its record commit
+// together, so an unrecorded read is never returned. audit_events holds field
+// names only, so the period's values go to the structured audit log.
+func auditH1Read(c *gin.Context, tx *gorm.DB, tenant, subject string, outlet uuid.UUID, action, from, to string) error {
+	if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields) VALUES(?,?,?,'pharmacy_h1_register',?,ARRAY['from','to']::text[])`,
+		tenant, subject, action, outlet).Error; err != nil {
+		return err
+	}
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "pharmacy.h1_register."+action, "H1 register read", "tenant_id", tenant, "subject", subject,
+		"outlet_id", outlet, "from", from, "to", to)
+	return nil
 }
 
 func (h *catalogueHandlers) listH1Register(c *gin.Context, params pagination.Params) ([]h1Entry, error) {
@@ -114,7 +122,7 @@ func (h *catalogueHandlers) listH1Register(c *gin.Context, params pagination.Par
 		if err := tenantdb.ApplyKeyset(tx.Table(h1Entries, p.TenantID, outlet, from, to), params).Find(&rows).Error; err != nil {
 			return err
 		}
-		return auditH1Read(tx, p.TenantID, p.Subject, outlet, "register_read", from, to)
+		return auditH1Read(c, tx, p.TenantID, p.Subject, outlet, "register_read", from, to)
 	})
 	if err != nil {
 		stockError(c, err)
@@ -147,11 +155,11 @@ func (h *catalogueHandlers) exportH1Register(c *gin.Context) {
 		if data, err = encodeH1CSV(rows); err != nil {
 			return err
 		}
-		return auditH1Read(tx, p.TenantID, p.Subject, outlet, "register_export", from, to)
+		return auditH1Read(c, tx, p.TenantID, p.Subject, outlet, "register_export", from, to)
 	})
 	switch {
 	case errors.Is(err, errH1TooLarge), errors.Is(err, csvsafe.ErrTooLarge):
-		respond.Error(c, http.StatusRequestEntityTooLarge, "register_export_too_large", "the H1 register export exceeds 1000 entries; narrow the period")
+		respond.Error(c, http.StatusRequestEntityTooLarge, "register_export_too_large", fmt.Sprintf("the H1 register export exceeds %d entries; narrow the period", h1ExportRows))
 		return
 	case err != nil:
 		stockError(c, err)

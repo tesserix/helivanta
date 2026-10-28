@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@helivanta/config": "workspace:*",
-    "eslint": "^9.18.0",
+    "eslint": "^10.13.0",
     "globals": "^14.0.0"
   },
   "prettier": "@helivanta/config/prettier"

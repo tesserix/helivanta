@@ -1,6 +1,6 @@
 # Pharmacy tax setup
 
-> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
 Resolves #1283. First slice of pharmacy Sales (#172): a sale cannot be taxed until outlets are registered and products are classified. Hospital-wide billing tax stays with #208 and #539.
 
@@ -12,7 +12,7 @@ A counter sale needs three things that do not exist:
 - **How each product is taxed.** A product has a pack MRP but no HSN code, no rate and no supply nature (taxable, nil-rated, exempt).
 - **A calculation.** Nothing computes tax. Supplier bills (`payables`) store a typed-in tax amount, with no rate and no split.
 
-The platform holds no approved tax rates (IN-RC-10 in `docs/domain/india/billing-and-insurance.md`; §Country configuration in `docs/requirements/pharmaconnect-india-pakistan.md`). Rates also change: India rationalised its GST slabs in 2025. So **the hospital sets the HSN code and rate on its products** (decided by the product owner on 2026-10-23), and the country setting describes only how tax works there.
+The platform holds no approved tax rates (IN-RC-10 in `docs/domain/india/billing-and-insurance.md`; §Country configuration in `docs/requirements/pharmaconnect-india.md`). Rates also change: India rationalised its GST slabs in 2025. So **the hospital sets the HSN code and rate on its products** (decided by the product owner on 2026-10-23), and the country setting describes only how tax works there.
 
 ## Decisions
 
@@ -34,7 +34,7 @@ The platform holds no approved tax rates (IN-RC-10 in `docs/domain/india/billing
   - 96 (foreign) and 99 (Centre jurisdiction), which are not outlet locations;
   - retired codes 25 and 28. Dadra & Nagar Haveli and Daman & Diu registrations moved to 26 in the 2020 merger, and Andhra Pradesh moved from 28 to 37; neither appears in the GST portal's current state list (checked 2026-10-23), so a new registration starting `25` or `28` is refused.
   - If the sources show otherwise when the list is copied, the sources win and this paragraph is corrected in the same change.
-- Pakistan gets `"tax": null`. A null scheme **refuses** tax setup for that country's outlets (`409 tax_scheme_unavailable`), failing closed rather than guessing a scheme. Adding a country means adding its scheme, plus a new calculation kind if it is not `gst`. No `if country == "IN"` branch anywhere.
+- A country with `"tax": null` (no scheme) **refuses** tax setup for its outlets (`409 tax_scheme_unavailable`), failing closed rather than guessing a scheme. Adding a country means adding its scheme, plus a new calculation kind if it is not `gst`. No `if country == "IN"` branch anywhere.
 - The generator validates the shape: unique jurisdiction codes, `registration_kind` among `tax_identifier_kinds`, a compilable `pattern`, and https `sources`. The generator's existing check fails CI when a generated file is stale.
 
 ### D2. Outlet tax registration
@@ -129,4 +129,3 @@ A pure Go package with no database, usable later by MediCore (#208). All amounts
 - GSTN verification, composition-scheme outlets (bill of supply), cess, reverse charge, e-invoicing and GST reports (#1061).
 - Bulk import of HSN codes.
 - Hospital-wide billing tax and a central rate registry (#208, #539). This slice's `pkg/tax` is a building block for them, not a replacement.
-- Pakistan's sales tax scheme.

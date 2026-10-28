@@ -1,6 +1,6 @@
 # SupplyConnect draft-profile local validation
 
-> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
 Validated 16 October 2026 for the profile slice of #1135, #1137 and #1005 under epic #1133. This does not complete those stories or authorise a production migration.
 
@@ -27,7 +27,7 @@ The tests exercise the public HTTP routes against real PostgreSQL and durable NA
 
 The Next.js UI was exercised against a standalone local API using the same module stack, real disposable PostgreSQL and NATS, and a test-only signed synthetic identity. The temporary authentication fixture and its entry route remain outside tracked source. This is local functional acceptance; it is distinct from production Zitadel/OIDC and external-provider acceptance.
 
-Through the UI, a synthetic Pakistan supplier was created with a contact, registered address and NTN declaration, updated to revision 2, and reloaded from persisted API data. Both revisions were visible. Country and tax dropdowns showed Pakistan-specific choices. The new-profile action focused its form. The navigation expansion control displayed zone labels. Desktop and 390px mobile layouts had no horizontal overflow, and browser error/warning logs were empty. Reserved example domains, fictitious phone values and `TEST-` identifiers were used throughout; no customer rows were copied from legacy.
+Through the UI, a synthetic supplier was created with a contact, registered address and tax declaration, updated to revision 2, and reloaded from persisted API data. Both revisions were visible. Country and tax dropdowns were exercised. The new-profile action focused its form. The navigation expansion control displayed zone labels. Desktop and 390px mobile layouts had no horizontal overflow, and browser error/warning logs were empty. Reserved example domains, fictitious phone values and `TEST-` identifiers were used throughout; no customer rows were copied from legacy.
 
 ## Remaining acceptance
 

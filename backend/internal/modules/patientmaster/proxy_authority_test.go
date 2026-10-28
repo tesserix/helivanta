@@ -142,7 +142,7 @@ func TestProxyAuthorityAppointmentRequiresExplicitIndependentEvidence(t *testing
 func TestProxyAuthorityRefusesUnknownClassesAndIncompleteOrConflictingEvidence(t *testing.T) {
 	r, db, in := proxyAuthorityFixture(t, "parental")
 	for _, change := range []map[string]any{
-		{"kind": "adult_delegation"}, {"kind": "self"}, {"kind": "appointed_guardian"}, {"country_code": "PK"}, {"country_code": ""},
+		{"kind": "adult_delegation"}, {"kind": "self"}, {"kind": "appointed_guardian"}, {"country_code": "US"}, {"country_code": ""},
 		{"identity_age_confirmed": false}, {"identity_age_confirmed": nil}, {"authority_confirmed": false}, {"authority_confirmed": nil},
 		{"identity_age_reference": uuid.NewString()}, {"authority_evidence_reference": ""}, {"policy_reference": nil}, {"appointment_reference": uuid.Must(uuid.NewV7()).String()},
 		{"subject": "user-peer"}, {"valid_until": "2030-01-01T00:00:00.000000001Z"},

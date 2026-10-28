@@ -1,6 +1,6 @@
 # Pharmacy Tax Setup Implementation Plan
 
-> **2026-10-23, #1287:** Pakistan is no longer a supported country. India is the only country profile; existing Pakistan records refuse the migration rather than being changed. Pakistan content below is historical.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -58,13 +58,12 @@
     - `"25"`, `"96"` and `"99"` are absent, and `"97"` is present;
     - codes are unique;
     - the classification pattern matches `3004`, `300490` and `30049099`, and rejects `300` and `30049`.
-  - `TestPakistanHasNoTaxScheme`: `Tax("PK")` is not ok.
+  - `TestCountryWithoutTaxSchemeRefusesTaxSetup`: `Tax("US")` is not ok.
   - Generator test: it refuses a profile whose `registration_kind` is not in `tax_identifier_kinds`, a duplicate jurisdiction code, a non-https source, or an uncompilable pattern.
 - [ ] **Step 2: Run them.** `cd backend && go test ./pkg/countryprofile/...`. Expected: FAIL (`Tax` undefined).
 - [ ] **Step 3: Implement.**
   - Copy the state-code list from the GST portal's state-code table, and the UTGST set from the UTGST Act 2017 §2 (as amended), into `tax.jurisdictions`. Record both URLs and today's date in `tax.sources`.
   - Extend the generator's validation and emitters for both outputs.
-  - Pakistan gets `"tax": null`.
 - [ ] **Step 4: Regenerate and run.** Run `node scripts/generate-country-profiles.mjs`, then the Go tests, the generator test and `node scripts/generate-country-profiles.mjs --check`. Expected: PASS.
 - [ ] **Step 5: Commit** `feat(country): per-country tax scheme in the country profile (#1283)`.
 
@@ -258,7 +257,7 @@
 
 - Modify:
   - `docs/api/domains/pharmacy.md`: a "Tax setup" section with the routes, the permission, the rules and what's not covered;
-  - `docs/requirements/pharmaconnect-india-pakistan.md` §Country configuration: the country metadata now carries a tax **scheme** but still no rates; hospitals classify;
+  - `docs/requirements/pharmaconnect-india.md` §Country configuration: the country metadata now carries a tax **scheme** but still no rates; hospitals classify;
   - `docs/domain/india/README.md`: link to the spec if the index lists specs.
 - Commit `docs(pharmacy): tax setup contract and requirement notes (#1283)`.
 

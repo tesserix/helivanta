@@ -1,14 +1,14 @@
-# Confirmed Pakistan test-fixture cleanup
+# Confirmed test-fixture cleanup
 
 Date: 2026-10-25. This is a one-time, explicitly requested cleanup supporting the
 India-only release in [the release procedure](remove-pakistan-release.md).
 It is not a general data-retention job and must never select production records
-merely because their country is Pakistan.
+merely because of their country.
 
 ## Classification and scope
 
 The user requested a reviewable cleanup plan for confirmed test data and removal
-of Pakistan support while India development continues. Read-only production
+of unsupported-country support while India development continues. Read-only production
 inspection found the same 15 blocking rows recorded in
 [tesserix/kargo-manifests#60](https://github.com/tesserix/kargo-manifests/pull/60).
 The affected pharmacy and supply roots have TEST-coded identifiers. The suspended
@@ -106,7 +106,7 @@ also run the normal code, contract, race and end-to-end suites.
 ## Production verification and release gates
 
 After an approved commit, rerun all count queries from the release procedure:
-every Pakistan/PKR blocker must be zero. Verify exact cleanup audit counts, parent
+every blocker must be zero. Verify exact cleanup audit counts, parent
 preservation, constraints, trigger states and forced RLS against the capture.
 Run drift detection and check API readiness; retain pre-existing audit history.
 Record the operation result here before lifting the GitOps promotion hold.

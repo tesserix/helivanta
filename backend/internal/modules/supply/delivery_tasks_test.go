@@ -180,7 +180,7 @@ func TestDeliverySourceInputAndLocationBoundariesRejectDuplicateOrPrivateFields(
 	require.Equal(t, 400, testutil.Do(r, "PUT", duplicate, "dispatcher", private).Code)
 	wrong := changedPartyBody(t, body, func(v map[string]any) { v["window_end"] = "2020-01-01T00:00:00Z" })
 	require.Equal(t, 400, testutil.Do(r, "PUT", duplicate, "dispatcher", wrong).Code)
-	wrong = changedPartyBody(t, body, func(v map[string]any) { v["country_code"] = "PK" })
+	wrong = changedPartyBody(t, body, func(v map[string]any) { v["country_code"] = "US" })
 	require.Equal(t, 400, testutil.Do(r, "PUT", duplicate, "dispatcher", wrong).Code)
 	from := time.Now().Add(-time.Minute)
 	require.Equal(t, 200, testutil.Do(r, "PUT", party+"/grants/"+uuid.Must(uuid.NewV7()).String(), "owner", accessBody(0, "user-finance", "finance", nil, from, from.Add(24*time.Hour), "active")).Code)

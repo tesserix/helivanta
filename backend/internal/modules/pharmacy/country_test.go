@@ -33,7 +33,6 @@ func TestCountryConfigurationIsIndiaOnly(t *testing.T) {
 	require.Equal(t, "INR", config.Countries[0].Currency)
 	require.Equal(t, "Asia/Kolkata", config.Countries[0].Timezone)
 	require.Equal(t, "review_required", config.Countries[0].RegulatoryStatus)
-	require.NotContains(t, w.Body.String(), `"PK"`)
 	require.NotContains(t, w.Body.String(), "gst_rate")
 	require.NotContains(t, w.Body.String(), "licence_approved")
 	require.Equal(t, 403, do(r, "GET", "/v1/pharmacy/configuration", "denied", "").Code)
@@ -46,8 +45,8 @@ func TestOutletCountryRejectsUnsupportedAndMismatchedTimezone(t *testing.T) {
 	}
 	w := do(r, "PUT", root+uuid.Must(uuid.NewV7()).String(), "editor", body("IN", "Asia/Kolkata"))
 	require.Equal(t, 200, w.Code, w.Body.String())
-	// #1287: Pakistan is refused like any unsupported country.
-	for _, invalid := range [][2]string{{"ZZ", "UTC"}, {"PK", "Asia/Karachi"}, {"PK", "Asia/Kolkata"}, {"IN", "Asia/Karachi"}, {"in", "Asia/Kolkata"}} {
+	// An unsupported country is refused, whatever its timezone.
+	for _, invalid := range [][2]string{{"ZZ", "UTC"}, {"US", "America/New_York"}, {"US", "Asia/Kolkata"}, {"IN", "America/New_York"}, {"in", "Asia/Kolkata"}} {
 		w := do(r, "PUT", root+uuid.Must(uuid.NewV7()).String(), "editor", body(invalid[0], invalid[1]))
 		require.Equal(t, 400, w.Code, w.Body.String())
 	}

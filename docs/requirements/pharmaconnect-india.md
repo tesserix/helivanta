@@ -1,18 +1,16 @@
 # PharmaConnect — India requirements and workflow map
 
-> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country. The file keeps its name because issues link to it.
+> **2026-10-23, #1287:** Pakistan was removed; India is the only supported country.
 
-Epic: #1133. Owner: Sam123ben. Related exploration: #979 (at GitHub's 100-child limit). Country/tenancy decision: [ADR 0026](../adr/0026-pharmaconnect-country-and-trading-boundaries.md). Machine-readable issue inventory: [manifest](../delivery/pharmaconnect-inpk-issues.json).
+Epic: #1133. Owner: Sam123ben. Related exploration: #979 (at GitHub's 100-child limit). Country/tenancy decision: [ADR 0026](../adr/0026-pharmaconnect-country-and-trading-boundaries.md). Machine-readable issue inventory: [manifest](../delivery/pharmaconnect-india-issues.json).
 
 ## Confirmed commercial scope
 
 Release 1 is a procurement network. The seller is contracting party and invoice owner. Initially record external invoices/payments and reconcile their evidence. Optional marketplace and payment-provider processing are separately delivered and activated; they do not silently change an accepted order's parties or create a transfer from a record-payment action. India is the only supported country (#1287). The country model stays: a country's transaction activation requires independent policy and operational acceptance. Countries, currencies and group membership do not confer cross-border or cross-organisation permission.
 
-![Country and organisation boundaries](../architecture/diagrams/12-pharmaconnect-india-pakistan-network.svg)
+![Country and organisation boundaries](../architecture/diagrams/12-pharmaconnect-india-network.svg)
 
-_The diagram predates #1287 and still shows Pakistan, which is no longer supported._
-
-[Editable draw.io source](../architecture/diagrams/12-pharmaconnect-india-pakistan-network.drawio).
+[Editable draw.io source](../architecture/diagrams/12-pharmaconnect-india-network.drawio).
 
 ## Roles and organisation model
 

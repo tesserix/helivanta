@@ -21,7 +21,7 @@ export function PatientJourney() {
   return (
     <div>
       <div className="flex items-end justify-between gap-6">
-        <p className="max-w-xl text-(--home-muted)">{patient.summary}</p>
+        <p className="max-w-xl text-muted-foreground">{patient.summary}</p>
         {player.animated && (
           <div className="max-md:hidden">
             <PlayToggle paused={player.paused} onToggle={player.togglePaused} />
@@ -46,19 +46,17 @@ export function PatientJourney() {
             aria-current={index === current ? "step" : undefined}
             className={cn(
               "flex flex-col rounded-xl border p-4 transition-colors duration-500",
-              index === current
-                ? "border-(--home-care) bg-(--home-surface)"
-                : "border-(--home-line)",
+              index === current ? "border-(--hms-accent) bg-muted" : "border-border",
             )}
           >
             <p className="flex items-baseline gap-2 font-semibold">
-              <span aria-hidden="true" className="text-base text-(--home-muted) tabular-nums">
+              <span aria-hidden="true" className="text-base text-muted-foreground tabular-nums">
                 {index + 1}
               </span>
               {station.label}
             </p>
-            <p className="mt-0.5 text-[13px] text-(--home-care)">Written by {station.owner}</p>
-            <p className="mt-2 flex-1 text-base leading-relaxed text-(--home-muted)">
+            <p className="mt-0.5 text-[13px] text-(--hms-accent)">Written by {station.owner}</p>
+            <p className="mt-2 flex-1 text-base leading-relaxed text-muted-foreground">
               {station.text}
             </p>
             <div className="mt-3">
@@ -67,7 +65,9 @@ export function PatientJourney() {
           </li>
         ))}
       </ol>
-      <p className="mt-4 max-w-3xl text-base leading-relaxed text-(--home-muted)">{journeyNote}</p>
+      <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground">
+        {journeyNote}
+      </p>
     </div>
   );
 }
@@ -80,12 +80,12 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
   return (
     <div
       aria-hidden="true"
-      className="rounded-2xl border border-(--home-line) bg-(--home-board) bg-[radial-gradient(var(--home-line)_1px,transparent_1px)] bg-size-[28px_28px]"
+      className="rounded-2xl border border-border bg-card bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[28px_28px]"
     >
       <div className="relative mx-4 grid grid-cols-8 pt-16 pb-8">
-        <div className="absolute top-[calc(4rem+1.625rem)] right-[6.25%] left-[6.25%] -translate-y-1/2 border-t-2 border-dashed border-(--home-line)">
+        <div className="absolute top-[calc(4rem+1.625rem)] right-[6.25%] left-[6.25%] -translate-y-1/2 border-t-2 border-dashed border-border">
           <motion.div
-            className="absolute -top-0.5 left-0 h-0.5 rounded-full bg-(--home-care)/70"
+            className="absolute -top-0.5 left-0 h-0.5 rounded-full bg-(--hms-accent)/70"
             initial={false}
             animate={{ width: along(reached) }}
             transition={walk}
@@ -99,12 +99,12 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
             >
               {/* Clears the 1.625rem station radius with a 0.625rem gap. */}
               <span className="absolute bottom-[2.25rem] left-0 flex -translate-x-1/2 flex-col items-center">
-                <span className="rounded-full bg-(--home-care) px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-(--home-canvas) shadow-[0_4px_14px_-4px_var(--home-care)]">
+                <span className="rounded-full bg-(--hms-accent) px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-background shadow-[0_4px_14px_-4px_var(--hms-accent)]">
                   {patient.name}
                 </span>
-                <span className="size-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-(color:--home-care)" />
+                <span className="size-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-(color:--hms-accent)" />
               </span>
-              <span className="absolute size-3 -translate-1/2 rounded-full bg-(--home-ink) shadow-[0_0_14px_4px_var(--home-care)]" />
+              <span className="absolute size-3 -translate-1/2 rounded-full bg-foreground shadow-[0_0_14px_4px_var(--hms-accent)]" />
             </motion.div>
           )}
         </div>
@@ -123,15 +123,15 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
               <div
                 style={delay}
                 className={cn(
-                  "relative z-10 flex size-13 items-center justify-center rounded-full border bg-(--home-surface) transition-[border-color,background-color,box-shadow] duration-500",
-                  state === "ahead" ? "border-(--home-line)" : "border-(--home-care)",
+                  "relative z-10 flex size-13 items-center justify-center rounded-full border bg-muted transition-[border-color,background-color,box-shadow] duration-500",
+                  state === "ahead" ? "border-border" : "border-(--hms-accent)",
                   here &&
-                    "bg-[color-mix(in_oklab,var(--home-care)_18%,var(--home-surface))] shadow-[0_0_26px_-4px_var(--home-care)]",
+                    "bg-[color-mix(in_oklab,var(--hms-accent)_18%,var(--muted))] shadow-[0_0_26px_-4px_var(--hms-accent)]",
                 )}
               >
                 {here && (
                   <motion.span
-                    className="absolute inset-0 rounded-full border border-(--home-care)"
+                    className="absolute inset-0 rounded-full border border-(--hms-accent)"
                     initial={{ scale: 1, opacity: 0 }}
                     animate={{ scale: 1.45, opacity: [0, 0.7, 0] }}
                     transition={{
@@ -146,27 +146,27 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
                   style={delay}
                   className={cn(
                     "size-5 transition-colors duration-500",
-                    state === "ahead" ? "text-(--home-muted)" : "text-(--home-care)",
+                    state === "ahead" ? "text-muted-foreground" : "text-(--hms-accent)",
                   )}
                 />
                 {state === "done" && (
-                  <span className="absolute -right-0.5 -bottom-0.5 flex size-4.5 items-center justify-center rounded-full border-2 border-(--home-board) bg-(--home-care) text-(--home-canvas)">
+                  <span className="absolute -right-0.5 -bottom-0.5 flex size-4.5 items-center justify-center rounded-full border-2 border-card bg-(--hms-accent) text-background">
                     <Check strokeWidth={3.5} className="size-2.5" />
                   </span>
                 )}
               </div>
-              <p className="mt-3 text-[13px] leading-tight font-semibold text-(--home-ink)">
+              <p className="mt-3 text-[13px] leading-tight font-semibold text-foreground">
                 {station.label}
               </p>
-              <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">{station.owner}</p>
+              <p className="mt-0.5 text-xs leading-tight text-muted-foreground">{station.owner}</p>
             </div>
           );
         })}
       </div>
-      <div className="border-t border-(--home-line) px-6 py-5">
+      <div className="border-t border-border px-6 py-5">
         <div className="flex items-baseline justify-between gap-4">
-          <p className="text-sm font-semibold text-(--home-ink)">Shared patient record</p>
-          <p className="text-xs text-(--home-muted) tabular-nums">
+          <p className="text-sm font-semibold text-foreground">Shared patient record</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
             {patient.name}, {patient.number}
           </p>
         </div>
@@ -181,19 +181,19 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
                 className={cn(
                   "flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5 text-[13px]",
                   animated && index === reached
-                    ? "border-(--home-care) bg-(--home-care)/10"
-                    : "border-(--home-line) bg-(--home-surface)",
+                    ? "border-(--hms-accent) bg-(--hms-accent)/10"
+                    : "border-border bg-muted",
                 )}
               >
-                <span className="truncate text-(--home-ink)">{station.record}</span>
-                <span className="shrink-0 text-xs text-(--home-care)">{station.owner}</span>
+                <span className="truncate text-foreground">{station.record}</span>
+                <span className="shrink-0 text-xs text-(--hms-accent)">{station.owner}</span>
               </motion.li>
             ))}
           </ol>
           {stations.slice(entries.length).map((station) => (
             <div
               key={station.id}
-              className="rounded-lg border border-dashed border-(--home-line)/70 py-1.5"
+              className="rounded-lg border border-dashed border-border/70 py-1.5"
             >
               &nbsp;
             </div>

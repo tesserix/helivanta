@@ -48,22 +48,8 @@
   color-scheme: light;
 }
 
-/* Slate home page palette: signal colours mark the kind of exchange on the care board. */
+/* The home page reads the shared tokens in packages/ui/styles.css; it declares no palette of its own (#542). */
 .home-slate {
-  --home-canvas: #f8fafc;
-  --home-board: #ffffff;
-  --home-surface: #f1f5f9;
-  --home-hub: #e2e8f0;
-  --home-line: #cbd5e1;
-  --home-ink: #0f172a;
-  --home-muted: #475569;
-  --home-care: #334155;
-  --home-care-hover: #1e293b;
-  --home-stock: #92400e;
-  --home-oversight: #4f46e5;
-  --foreground: var(--home-ink);
-  --muted-foreground: var(--home-muted);
-  --border: var(--home-line);
   color-scheme: light;
 }
 

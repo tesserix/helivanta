@@ -10,7 +10,7 @@ it("offers public signup and sign-in while clearly labeling unpublished trust co
     "href",
     "/signup",
   );
-  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login?start=1");
   expect(screen.getByText("SOC 2 Type II")).toBeInTheDocument();
   expect(screen.getAllByText("Not yet certified")).toHaveLength(2);
   expect(

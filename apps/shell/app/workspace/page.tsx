@@ -55,7 +55,7 @@ export default function WorkspacePage() {
             >
               Emergency help
             </a>
-            <a href="/login" className="hover:underline">
+            <a href="/login?start=1" className="hover:underline">
               Sign in
             </a>
             <a

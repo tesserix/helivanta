@@ -204,7 +204,7 @@ export default function LandingPage() {
             >
               Emergency help
             </Link>
-            <a href="/login" className="hover:underline">
+            <a href="/login?start=1" className="hover:underline">
               Sign in
             </a>
             {/* The hero's identical action sits directly below on small screens. */}

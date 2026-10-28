@@ -134,6 +134,20 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 - `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
 - `sale_posted.v1` carries no buyer or prescription data. Prescription records and their scanned pages are B-2a; selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3 (below).
 
+### The Schedule H1 register (#1386 C-2, #1062)
+
+Drugs Rules 1945, Rule 65(3)(h): an H1 supply is recorded in a separate register at the time of supply. The entry gives the prescriber's name and address, the patient's name, the drug and the quantity. The register is kept for three years and is open for inspection.
+
+| Route                                 | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/registers/h1?from=&to=`        | The paged register, newest first, for a period of outlet dates of at most 366 days. Each entry has the supply date, invoice and line, the prescriber's name, registration and address, the patient's name and address, the prescription date, the drug (SKU, brand and generic name), batch and expiry, units supplied, units since returned on credit notes, and the selling pharmacist. Requires `pharmacy.prescription.read` (pharmacist) |
+| `GET …/registers/h1/export?from=&to=` | The same entries as a CSV, oldest first. Formula-like cells are neutralised. It is refused above 1000 entries rather than truncated, and returns its row count and SHA-256                                                                                                                                                                                                                                                                   |
+
+- **A read, never a copy.** Each entry is an H1 sale line, written in its sale's transaction and never changed. A return is shown against its supply, never by removing it. Nothing in the register can be edited.
+- **Kept.** Sales, prescriptions and credit notes are insert-only and never purged. A future retention job must keep H1 entries for at least three years.
+- **Audited.** Every page read writes an `audit_events` row (`register_read`) naming the period. Every export writes one (`register_export`) and logs the row count and digest. The pharmacy owner cannot read the register: it shows patient and prescriber details.
+- **Not covered.** Schedule X and NDPS registers (#165, #171), and printing as a bound register.
+
 ### Returns as credit notes (#1386 C-1)
 
 A return is a GST credit note against one posted invoice. The rules followed are CGST Act 2017, s.34, and CGST Rules 2017, Rule 53(1A), as published by CBIC. Returned medicine goes to quarantine and is sold again only after a pharmacist releases it (A3).

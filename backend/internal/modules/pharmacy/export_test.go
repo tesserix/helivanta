@@ -24,3 +24,10 @@ var DiscountLine = discountLine
 
 // CreditStep exposes the C-1 return arithmetic.
 var CreditStep = creditStep
+
+// SetH1ExportRows lowers the H1 register export bound for one test.
+func SetH1ExportRows(t interface{ Cleanup(func()) }, n int) {
+	old := h1ExportRows
+	h1ExportRows = n
+	t.Cleanup(func() { h1ExportRows = old })
+}

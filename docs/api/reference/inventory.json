@@ -2333,6 +2333,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,

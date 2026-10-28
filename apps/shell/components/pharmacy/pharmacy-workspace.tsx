@@ -37,6 +37,7 @@ import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
 import { Prescriptions } from "./prescriptions";
 import { Returns } from "./returns";
+import { H1Register } from "./h1-register";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
@@ -45,6 +46,7 @@ type PharmacyView =
   | "counter"
   | "prescriptions"
   | "returns"
+  | "h1-register"
   | "stock"
   | "receiving"
   | "safety"
@@ -56,6 +58,8 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
   counter: "Sell OTC medicines from sellable stock and print the GST invoice.",
   prescriptions: "Record prescriptions and their scanned pages, kept private and virus-scanned.",
   returns: "Take medicine back against its invoice: a GST credit note, a refund, and quarantine.",
+  "h1-register":
+    "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
@@ -354,6 +358,12 @@ function OutletPharmacy({
           canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
           canDiscount={can("pharmacy.sale.discount")}
           canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
+        />
+      ) : view === "h1-register" ? (
+        <H1Register
+          scope={scope}
+          // The outlet's own date (en-CA formats as YYYY-MM-DD).
+          today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
         />
       ) : view === "returns" ? (
         <Returns

@@ -393,6 +393,43 @@ quarantine for pharmacist re-release (#163, #202). Also:
 - e-invoicing (#539);
 - a digital signature. The credit note records who issued it.
 
+#### C-2 decisions (2026-10-28)
+
+**Source.** Drugs Rules 1945, Rule 65(3)(h) (CDSCO 2022 compilation, knowledge source S09). A
+Schedule H1 supply is recorded "in a separate register at the time of the supply". The entry
+gives the prescriber's name and address, the patient's name, the drug's name and the quantity
+supplied. The records are kept for three years and are open for inspection.
+
+1. **The register is a read of the facts, never a second copy.** Each H1 sale line is an entry,
+   written in its sale's own transaction (so "at the time of the supply") and never changed. The
+   register adds nothing and cannot be edited. Each entry shows:
+   - the date, the invoice and the line;
+   - the prescriber's name, registration number and address;
+   - the patient's name and address;
+   - the product and generic name, the batch and its expiry;
+   - the units supplied and the units since returned on credit notes (#1062);
+   - the pharmacist who sold it.
+2. **Kept for three years and more.** Sales, prescriptions and credit notes are insert-only and
+   never purged. Any future retention job must keep H1 entries for at least three years.
+3. **Who may see it.** `pharmacy.prescription.read` (pharmacist) with an outlet grant. The
+   register shows patient and prescriber details, so the owner does not see it.
+4. **Every read is audited.**
+   - Each page read and each CSV export writes an `audit_events` row (`register_read` or
+     `register_export`) in the read's own transaction, so an unrecorded read is never returned.
+   - `audit_events` holds field names only, so the period itself, and for an export the row count
+     and SHA-256 digest, go to the structured audit log, as the stock register export does.
+   - A refused export discloses nothing and records nothing.
+5. **Bounds.**
+   - A period is at most 366 days, in outlet dates.
+   - The JSON register is paged.
+   - The CSV is refused above 1,000 entries; narrow the period.
+   - Entries are ordered by the sale's time. The lines of one sale follow a stable but not
+     line-number order; each entry carries its invoice and line number.
+
+Not covered: Schedule X and NDPS registers (#165, #171); registers for drugs other than H1
+(Rule 65(3)(1)'s general prescription register is the invoice and credit note record);
+printing as a bound register.
+
 ## Not covered by A–C
 
 Admission and bed billing (#1387), service charges (#1388), e-prescription dispensing (#170),

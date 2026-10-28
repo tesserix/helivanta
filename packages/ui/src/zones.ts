@@ -41,6 +41,7 @@ import {
   Store,
   Tablets,
   Undo2,
+  ScrollText,
   Timer,
   Users,
   Wallet,
@@ -164,6 +165,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/returns",
         icon: Undo2,
         permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "H1 register",
+        href: "/pharmacy/h1-register",
+        icon: ScrollText,
+        permission: "pharmacy.prescription.read",
       },
       {
         section: "Dispensing",

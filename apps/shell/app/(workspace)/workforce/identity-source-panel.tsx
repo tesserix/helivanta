@@ -3,7 +3,15 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@tesserix/web";
 import { Panel } from "@helivanta/ui";
-import { ApiError, IdentitySourceContract, useApiQuery } from "@helivanta/api";
+import {
+  ApiError,
+  IdentitySourceContract,
+  IdentitySourceProjectionQuery,
+  IdentitySourceDraftProjection,
+  useApiQuery,
+} from "@helivanta/api";
+
+import { StaffIdentityCases } from "./identity-cases-panel";
 
 type Props = { hospitalId: string; staffId: string; onClose: () => void };
 type Identity = { tenant_id: string; subject: string };
@@ -40,13 +48,16 @@ export function StaffIdentitySourcePanel(props: Props) {
 function IdentityDetails({ hospitalId, staffId, identity }: Props & { identity: Identity }) {
   const source = useApiQuery(
     ["workforce", "identity-source", identity.tenant_id, identity.subject, hospitalId, staffId],
-    `/workforce/hospitals/${hospitalId}/identity-staff/${staffId}`,
+    `/workforce/hospitals/${hospitalId}/identity-staff/${staffId}?${IdentitySourceProjectionQuery}=${IdentitySourceDraftProjection}`,
     {
       gcTime: 0,
       staleTime: 0,
       request: {
         cache: "no-store",
-        headers: { "X-Helivanta-Expected-Tenant": identity.tenant_id },
+        headers: {
+          "X-Helivanta-Expected-Tenant": identity.tenant_id,
+          "X-Helivanta-Expected-Subject": identity.subject,
+        },
       },
     },
   );
@@ -95,6 +106,16 @@ function IdentityDetails({ hospitalId, staffId, identity }: Props & { identity: 
       <Button variant="outline" onClick={() => void source.refetch()} disabled={source.isFetching}>
         Refresh identity details
       </Button>
+      {record.manage_checks_allowed === undefined ? (
+        <p className="text-sm text-muted-foreground">
+          Review drafts are not available on this server yet.
+        </p>
+      ) : (
+        <StaffIdentityCases
+          scope={{ tenantId: identity.tenant_id, subject: identity.subject, hospitalId, staffId }}
+          source={record}
+        />
+      )}
     </>
   );
 }

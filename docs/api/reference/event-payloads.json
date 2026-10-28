@@ -2112,6 +2112,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.workforce.identity_case_changed.v1": {
+    "source": "backend/internal/modules/workforce/contract/events.go:413",
+    "go_type": "IdentityCaseChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "case_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "staff_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "case_id",
+        "version",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.workforce.leave_config_changed.v1": {
     "source": "backend/internal/modules/workforce/contract/events.go:109",
     "go_type": "LeaveConfigChangedData",

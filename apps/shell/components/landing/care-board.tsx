@@ -250,9 +250,7 @@ function Board({ story, stepIndex, animated, replay }: BoardProps) {
             <p className="text-[13px] leading-tight font-semibold text-(--home-ink)">
               {teams[id].label}
             </p>
-            <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">
-              {teams[id].detail}
-            </p>
+            <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">{teams[id].detail}</p>
             {receiving && (
               <motion.span
                 key={motionKey}

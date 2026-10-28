@@ -158,9 +158,7 @@ function Corridor({ reached, animated }: { reached: number; animated: boolean })
               <p className="mt-3 text-[13px] leading-tight font-semibold text-(--home-ink)">
                 {station.label}
               </p>
-              <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">
-                {station.owner}
-              </p>
+              <p className="mt-0.5 text-xs leading-tight text-(--home-muted)">{station.owner}</p>
             </div>
           );
         })}

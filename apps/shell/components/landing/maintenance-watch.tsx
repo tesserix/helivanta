@@ -205,9 +205,7 @@ function Register({ checked, scanning, focus }: RegisterProps) {
                 <p className="text-[13px] leading-tight text-(--home-ink) tabular-nums">
                   {dueText(item)}
                   {item.lastResult === "fail" && (
-                    <span className="block text-xs text-(--home-oversight)">
-                      Failed last test
-                    </span>
+                    <span className="block text-xs text-(--home-oversight)">Failed last test</span>
                   )}
                 </p>
                 <div>

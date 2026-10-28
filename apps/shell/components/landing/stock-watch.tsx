@@ -164,10 +164,7 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
         )}
       </div>
       <div
-        className={cn(
-          SHELF,
-          "mt-4 border-b border-(--home-line) pb-2 text-xs text-(--home-muted)",
-        )}
+        className={cn(SHELF, "mt-4 border-b border-(--home-line) pb-2 text-xs text-(--home-muted)")}
       >
         <p>Medicine</p>
         <p className="text-right">Can dispense</p>
@@ -190,9 +187,7 @@ function Shelf({ checked, scanning, focus }: ShelfProps) {
               >
                 <p className="min-w-0 text-[13px] leading-tight font-semibold text-(--home-ink)">
                   {item.medicine}
-                  <span className="block text-xs font-normal text-(--home-muted)">
-                    {item.unit}
-                  </span>
+                  <span className="block text-xs font-normal text-(--home-muted)">{item.unit}</span>
                 </p>
                 <p className="text-right text-[13px] leading-tight text-(--home-ink) tabular-nums">
                   {units.format(item.dispensable)}

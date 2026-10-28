@@ -507,6 +507,10 @@ describe("CounterSale", () => {
     await user.click(screen.getByRole("button", { name: "Add to basket" }));
     expect(await screen.findByText(/× 8 · 10% off/)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Price basket" }));
+    // Decision 5: each line shows its list amount and discount before payment.
+    expect(await screen.findByRole("columnheader", { name: "Discount" })).toBeVisible();
+    expect(screen.getByText("INR 100.00", { selector: "td" })).toBeVisible();
+    expect(screen.getByText("10% · INR 10.00")).toBeVisible();
     await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI");
     await user.type(screen.getByLabelText("Payment reference"), "TEST-UPI");
     await user.click(screen.getByRole("button", { name: "Post sale" }));
@@ -545,6 +549,12 @@ describe("CounterSale", () => {
     expect(
       await screen.findByText(/None recorded, so no discount can be given at this outlet./),
     ).toBeVisible();
+    await user.type(screen.getByLabelText("Ceiling %"), "100.5");
+    await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
+    expect(
+      await screen.findAllByText("Enter a percentage from 0 to 100, at most two decimals"),
+    ).not.toHaveLength(0);
+    await user.clear(screen.getByLabelText("Ceiling %"));
     await user.type(screen.getByLabelText("Ceiling %"), "7.5");
     await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
     expect(await screen.findByText("Give the reason, at least 5 characters")).toBeVisible();

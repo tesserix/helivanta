@@ -963,6 +963,8 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
 	case prescriptionLimitError(err):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
+	case violated(err, "pharmacy_sale_line_discount_ceiling"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the outlet's discount ceiling changed; price the basket again")
 	case err != nil:
 		stockError(c, err)
 	case created:
@@ -1038,8 +1040,13 @@ func (h *catalogueHandlers) listSales(c *gin.Context, params pagination.Params) 
 // prescriptionLimitError is the sale guard refusing a line its handler check
 // passed, so a refusal the database makes still reaches the cashier as one.
 func prescriptionLimitError(err error) bool {
+	return violated(err, "pharmacy_sale_line_prescription_limit")
+}
+
+// violated reports whether err is the named constraint refusing a write.
+func violated(err error, constraint string) bool {
 	var pg *pgconn.PgError
-	return errors.As(err, &pg) && pg.ConstraintName == "pharmacy_sale_line_prescription_limit"
+	return errors.As(err, &pg) && pg.ConstraintName == constraint
 }
 
 // checkDiscounts holds every discount to the outlet's ceiling in force, with

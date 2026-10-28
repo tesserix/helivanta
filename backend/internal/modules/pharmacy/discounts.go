@@ -62,7 +62,9 @@ func (h *catalogueHandlers) putDiscountCeiling(c *gin.Context) {
 	var row discountCeiling
 	created := false
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
-		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":discount-ceiling:"+id.String()); err != nil {
+		// One lock per outlet, not per record: "latest" is decided by seq, so
+		// concurrent records must commit in the order they are numbered.
+		if err := stockLock(tx, p.TenantID+":"+outlet.String()+":discount-ceiling"); err != nil {
 			return err
 		}
 		var existing []struct{ IntentSHA256, RecordedBy string }

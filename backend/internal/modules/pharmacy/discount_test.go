@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // #1386 B-3: discounts under the outlet ceiling.
@@ -263,4 +264,26 @@ func TestDiscountArithmetic(t *testing.T) {
 		d, a := pharmacy.DiscountLine(c.list, c.bps)
 		require.Equal(t, []int64{c.discount, c.charged}, []int64{d, a}, "%+v", c)
 	}
+}
+
+// Review minor 3: a ceiling lowered between the handler's check and the line
+// insert is refused by the database, and the cashier hears it as a refusal.
+func TestACeilingLoweredMidSaleIsARefusal(t *testing.T) {
+	w := newDiscountWorld(t)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	w.ceiling(t, 1000)
+	// The handler reads 10%; the guard then sees 0%, as if lowered in between.
+	require.NoError(t, w.db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_ceiling_lowered_mid_sale", SQL: `
+		CREATE OR REPLACE FUNCTION pharmacy_sale_line_discount_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+		 IF NEW.discount_bps > 0 THEN
+		  RAISE EXCEPTION 'a sale line''s discount is within the outlet''s ceiling' USING ERRCODE='23514',CONSTRAINT='pharmacy_sale_line_discount_ceiling';
+		 END IF;
+		 RETURN NEW;
+		END $$;`}}))
+	code, out := w.sellAs(t, "manager", discountSale(p, 10, 1000, 11250, "TEST senior citizen"))
+	require.Equal(t, http.StatusConflict, code, out)
+	require.Contains(t, out, `"not_sellable"`)
+	require.Contains(t, out, "discount ceiling changed")
 }

@@ -177,7 +177,7 @@ const lineSchema = z.object({
     .string()
     .trim()
     .refine(
-      (v) => v === "" || /^(100|[0-9]{1,2})(\.[0-9]{1,2})?$/.test(v),
+      (v) => v === "" || /^(100(\.0{1,2})?|[0-9]{1,2}(\.[0-9]{1,2})?)$/.test(v),
       "Enter a percentage from 0 to 100, at most two decimals",
     ),
 });
@@ -429,6 +429,8 @@ function SaleLines({
   products: PharmacyProduct[];
 }) {
   const money = (minor: number) => formatPharmacyMoney(minor, currency);
+  // Decision 5 and CGST s.15(3)(a): a discount is shown on the line it reduces.
+  const discounted = lines.some((l) => l.discount_minor > 0);
   return (
     <table className="mt-4 w-full text-sm">
       <thead className="text-left text-muted-foreground">
@@ -439,6 +441,8 @@ function SaleLines({
           <th>Expiry</th>
           <th>MRP per pack</th>
           <th>Units</th>
+          {discounted && <th>List</th>}
+          {discounted && <th>Discount</th>}
           <th>Taxable</th>
           <th>CGST + SGST</th>
           <th>Amount</th>
@@ -455,6 +459,14 @@ function SaleLines({
             <td>{l.expires_on}</td>
             <td>{money(l.mrp_minor)}</td>
             <td>{l.quantity_units}</td>
+            {discounted && <td>{money(l.list_amount_minor)}</td>}
+            {discounted && (
+              <td>
+                {l.discount_minor > 0
+                  ? `${l.discount_bps / 100}% · ${money(l.discount_minor)}`
+                  : "—"}
+              </td>
+            )}
             <td>{money(l.taxable_minor)}</td>
             <td>
               {money(l.cgst_minor)} + {money(l.sgst_minor)} ({l.rate_ppm / 10000}%)
@@ -742,7 +754,7 @@ const ceilingSchema = z.object({
     .string()
     .trim()
     .regex(
-      /^(100|[0-9]{1,2})(\.[0-9]{1,2})?$/,
+      /^(100(\.0{1,2})?|[0-9]{1,2}(\.[0-9]{1,2})?)$/,
       "Enter a percentage from 0 to 100, at most two decimals",
     ),
   reason: z

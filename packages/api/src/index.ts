@@ -1,6 +1,7 @@
 export { ApiError, POLL_INTERVAL_MS, apiFetch } from "./client";
 export * from "./enrollment";
 export * from "./documents";
+export * from "./document-classification";
 export * from "./document-queries";
 export * from "./credentials";
 export * from "./login-links";

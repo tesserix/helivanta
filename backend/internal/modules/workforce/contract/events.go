@@ -397,3 +397,13 @@ type BenefitEnrollmentChangedData struct {
 }
 
 const SubjectAssignmentScopeVerified = "helivanta.in.workforce.assignment_scope_verified.v1"
+
+const SubjectDocumentClassificationChanged = "helivanta.in.workforce.document_classification_changed.v1"
+
+type DocumentClassificationChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	FileID     string `json:"file_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}

@@ -419,6 +419,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id":          "one outlet-private manufacturer lot, no child records",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet":                            "one outlet the subject may see, no child records",
 	"GET /workforce/hospitals/:hospital/staff/:id/document-records":                 "one staff enrollment's bounded evidence choices: enrollment plus at most 20 credentials and 20 qualifications",
+	"GET /workforce/hospitals/:hospital/staff/:id/documents/:file/classification":   "one grant-checked file's current optional classification; immutable history is separately cursor-paginated; ADR 0045",
 	"GET /workforce/hospitals/:hospital/staff/:id/documents/:file/content":          "one authorized generation-pinned binary object, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/credentials":                      "one staff member's credential validity, bounded by enrollment's 20 credentials",
 	"GET /workforce/hospitals/:hospital/staff/:id/enrollment":                       "single protected staff profile, with bounded child records",

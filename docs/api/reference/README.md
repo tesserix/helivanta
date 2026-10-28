@@ -797,6 +797,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent` | `workforce.benefits.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents` | `workforce.benefits.view` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/document-records` | `workforce.documents.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification/history` | `workforce.documents.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification` | `workforce.documents.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification` | `workforce.documents.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content` | `workforce.documents.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/retries/:attempt` | `workforce.documents.manage` | false | false |
@@ -832,6 +835,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.document_classification_changed.v1`
 - `helivanta.in.workforce.assignment_scope_verified.v1`
 - `helivanta.in.workforce.login_link_changed.v1`
 - `helivanta.in.workforce.enrollment_changed.v1`
@@ -914,6 +918,7 @@ Migration table declarations:
 - `0041_workforce_profile_master_indexes`: concurrent index `workforce_profile_contract_type_ref_idx` on `workforce_enrollment_profile (tenant_id, hospital_id, contract_type_revision_id)`.
 - `0043_workforce_qualification_master_index`: concurrent index `workforce_qualification_master_ref_idx` on `workforce_enrollment_qualifications (tenant_id, hospital_id, qualification_revision_id)`.
 - `0045_workforce_contact_master_index`: concurrent index `workforce_contact_master_ref_idx` on `workforce_enrollment_emergency_contacts (tenant_id, hospital_id, relationship_revision_id)`.
+- `0046_workforce_document_classification`: `workforce_document_classification_revisions`, `workforce_document_classifications`.
 
 ## workspace
 

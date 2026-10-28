@@ -132,7 +132,25 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 **Events and scope.**
 
 - `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
-- `sale_posted.v1` carries no buyer or prescription data. Prescription records and their scanned pages are B-2a; selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3.
+- `sale_posted.v1` carries no buyer or prescription data. Prescription records and their scanned pages are B-2a; selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3 (below).
+
+### Discounts (#1386 B-3)
+
+A discount recorded on the invoice at the time of supply is outside the value of supply (CGST Act 2017, s.15(3)(a), as published by CBIC; CBIC Circular 92/11/2019-GST), so GST is computed inside the discounted amount.
+
+| Route                             | Behaviour                                                                                                                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/discount-ceiling/{uuidv7}` | Records `{max_bps 0–10000, reason}`, the outlet's ceiling in basis points. Requires `pharmacy.discount.manage`, which the pharmacy owner holds. The latest record is in force, and every record is kept |
+| `GET …/discount-ceiling`          | Returns `{ceiling}`, or `null`. With no ceiling recorded the outlet allows no discount. Requires `pharmacy.sale.read`                                                                                   |
+
+- **Giving a discount.**
+  - A sale or quote line takes an optional `discount_bps` (1–10000). It needs `pharmacy.sale.discount`; without it the request is 403 before anything is priced.
+  - That permission has no system role; a tenant administrator assigns it.
+  - A discounted sale needs `discount_reason` (5–200 characters), and only a discounted sale may carry one.
+  - A discount above the ceiling, or one that leaves nothing to charge, is 409 `not_sellable`.
+- **Arithmetic.** Each batch line's discount is `floor(list amount × bps ÷ 10000)`, and the line charges the rest, with CGST and SGST inside it. The invoice shows each line's `list_amount_minor`, `discount_bps` and `discount_minor`, and the sale's `discount_minor` and `discount_reason`.
+- **Database guarantees.** A line's discount must be its rounded percentage, its list amount must be within MRP, and something must be charged. The discount must be within the ceiling in force when the line is written, so a ceiling lowered after a quote refuses that sale. A discounted sale must record its reason.
+- **Not covered.** Fixed-amount discounts, whole-sale discounts, approval by a second person, and promotions or schemes.
 
 ### Selling against a prescription (#1386 B-2b)
 

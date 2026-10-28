@@ -20,6 +20,8 @@ export type PharmacyDailyTotals = {
   net_minor: number;
   cash_minor: number;
   upi_minor: number;
+  /** UPI the system saw settle, apart from typed references (#1386 C-4b). */
+  upi_verified_minor: number;
   card_minor: number;
   cash_refund_minor: number;
   upi_refund_minor: number;

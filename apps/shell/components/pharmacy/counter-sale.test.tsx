@@ -66,9 +66,31 @@ function fixture(
     ceilingBps?: number;
     saveCeiling?: (init: RequestInit) => Response;
     saleLine?: typeof line & { prescription_id?: string; prescription_line?: number };
+    /** The status every counter-payment read answers (#1386 C-4b). */
+    counterPayment?: { status: string };
   } = {},
 ) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
+    if (url.endsWith("/counter-payments")) return new Response(JSON.stringify(page([])));
+    if (/\/counter-payments\/[0-9a-f-]{36}$/.test(url))
+      return new Response(
+        JSON.stringify({
+          id: url.slice(-36),
+          purpose: "counter_sale",
+          amount_minor: 10000,
+          currency: "INR",
+          status: options.counterPayment?.status ?? "awaiting_payment",
+          qr_image_url: "https://rzp.io/i/qr1",
+          expires_at: new Date(Date.now() + 300_000).toISOString(),
+          failure_reason: null,
+          provider_payment_id: null,
+          rrn: "123",
+          paid_at: null,
+          late: false,
+          created_at: new Date().toISOString(),
+        }),
+        { status: init.method === "PUT" ? 201 : 200 },
+      );
     if (url.includes("/invoice-profile/") && init.method === "PUT")
       return options.saveProfile?.(init) ?? new Response(JSON.stringify(profile), { status: 201 });
     if (url.endsWith("/invoice-profile"))
@@ -246,10 +268,43 @@ describe("CounterSale", () => {
       await screen.findByText("Enter a valid amount within the supported limit."),
     ).toBeVisible();
 
-    await chooseOption(user, screen.getByLabelText("Paid by"), "UPI");
+    await chooseOption(user, screen.getByLabelText("Paid by"), "UPI (reference only)");
     await user.click(screen.getByRole("button", { name: "Post sale" }));
     expect(await screen.findByText("Enter the payment reference")).toBeVisible();
     expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  });
+
+  it("posts verified UPI only once Razorpay has confirmed the payment", async () => {
+    const counterPayment = { status: "awaiting_payment" };
+    const fetcher = fixture({ counterPayment });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(await screen.findByRole("button", { name: "Price basket" }));
+    await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI (verified)");
+    await user.click(await screen.findByRole("button", { name: /Show UPI QR for/ }));
+    expect(await screen.findByText(/Waiting for payment of/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText("Wait for the UPI payment to be confirmed")).toBeVisible();
+    const salePut = () =>
+      fetcher.mock.calls.filter(
+        ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+      );
+    expect(salePut()).toHaveLength(0);
+
+    counterPayment.status = "paid";
+    expect(await screen.findByText(/^Paid .*RRN 123/, {}, { timeout: 6000 })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    await waitFor(() => expect(salePut()).toHaveLength(1));
+    const body = JSON.parse(String(salePut()[0][1]?.body));
+    expect(body.tenders).toEqual([
+      {
+        kind: "upi_verified",
+        amount_minor: 10000,
+        payment_request_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      },
+    ]);
   });
 
   it("shows the server's reason when a basket cannot be sold", async () => {
@@ -511,7 +566,7 @@ describe("CounterSale", () => {
     expect(await screen.findByRole("columnheader", { name: "Discount" })).toBeVisible();
     expect(screen.getByText("INR 100.00", { selector: "td" })).toBeVisible();
     expect(screen.getByText("10% · INR 10.00")).toBeVisible();
-    await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI");
+    await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI (reference only)");
     await user.type(screen.getByLabelText("Payment reference"), "TEST-UPI");
     await user.click(screen.getByRole("button", { name: "Post sale" }));
     expect(

@@ -91,10 +91,13 @@ func (b *saleBuyer) valid() bool {
 }
 
 type saleTenderInput struct {
-	Kind          string  `json:"kind" binding:"required,oneof=cash upi card"`
+	Kind          string  `json:"kind" binding:"required,oneof=cash upi card upi_verified"`
 	AmountMinor   int64   `json:"amount_minor" binding:"required,min=1,max=1000000000000"`
 	TenderedMinor *int64  `json:"tendered_minor" binding:"omitempty,min=1,max=1000000000000"`
 	Reference     *string `json:"reference" binding:"omitempty,max=64"`
+	// PaymentRequestID names the paid counter payment of a upi_verified
+	// tender (#1386 C-4b).
+	PaymentRequestID *uuid.UUID `json:"payment_request_id"`
 }
 
 type saleInput struct {
@@ -153,6 +156,9 @@ func (in saleInput) digest() string {
 			reference = *t.Reference
 		}
 		parts = append(parts, "t", t.Kind, strconv.FormatInt(t.AmountMinor, 10), tendered, reference)
+		if t.PaymentRequestID != nil {
+			parts = append(parts, "pr", t.PaymentRequestID.String())
+		}
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x1f")))
 	return hex.EncodeToString(sum[:])
@@ -166,10 +172,19 @@ func (in *saleInput) validTenders() bool {
 		t := &in.Tenders[i]
 		if t.Kind == "cash" {
 			cash++
-			if t.TenderedMinor == nil || *t.TenderedMinor < t.AmountMinor || t.Reference != nil {
+			if t.TenderedMinor == nil || *t.TenderedMinor < t.AmountMinor || t.Reference != nil || t.PaymentRequestID != nil {
 				return false
 			}
 			continue
+		}
+		if t.Kind == "upi_verified" {
+			if t.TenderedMinor != nil || t.Reference != nil || t.PaymentRequestID == nil {
+				return false
+			}
+			continue
+		}
+		if t.PaymentRequestID != nil {
+			return false
 		}
 		if t.TenderedMinor != nil || t.Reference == nil {
 			return false
@@ -249,6 +264,8 @@ type saleTender struct {
 	TenderedMinor *int64  `gorm:"column:tendered_minor" json:"tendered_minor"`
 	ChangeMinor   *int64  `gorm:"column:change_minor" json:"change_minor"`
 	Reference     *string `gorm:"column:reference" json:"reference"`
+	// The paid counter payment a upi_verified tender names (#1386 C-4b).
+	PaymentRequestID *uuid.UUID `gorm:"column:payment_request_id" json:"payment_request_id,omitempty"`
 }
 
 // priceLine prices qty units of a pack at mrp (spec B3, B4). The amount is
@@ -839,7 +856,7 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		return
 	}
 	if !in.validTenders() {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "at most one cash tender, with the amount handed over; UPI and card need a reference")
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "at most one cash tender, with the amount handed over; UPI and card need a reference; verified UPI names its paid payment")
 		return
 	}
 	if !in.Buyer.valid() {
@@ -940,8 +957,8 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 				v := *t.TenderedMinor - t.AmountMinor
 				change = &v
 			}
-			if err := tx.Exec(`INSERT INTO pharmacy_sale_tenders (tenant_id,outlet_id,sale_id,tender_number,kind,amount_minor,tendered_minor,change_minor,reference)
-				VALUES (?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, i+1, t.Kind, t.AmountMinor, t.TenderedMinor, change, t.Reference).Error; err != nil {
+			if err := tx.Exec(`INSERT INTO pharmacy_sale_tenders (tenant_id,outlet_id,sale_id,tender_number,kind,amount_minor,tendered_minor,change_minor,reference,payment_request_id)
+				VALUES (?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, i+1, t.Kind, t.AmountMinor, t.TenderedMinor, change, t.Reference, t.PaymentRequestID).Error; err != nil {
 				return err
 			}
 		}
@@ -965,6 +982,10 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
 	case prescriptionLimitError(err):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
+	case violated(err, "pharmacy_sale_tender_paid"), violated(err, "pharmacy_sale_tender_payment_request"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the UPI payment is not a paid payment of this outlet for this amount")
+	case violated(err, "pharmacy_sale_tender_payment_once"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "this UPI payment is already on another sale")
 	case violated(err, "pharmacy_sale_line_discount_ceiling"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the outlet's discount ceiling changed; price the basket again")
 	case err != nil:
@@ -992,7 +1013,7 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 		FROM pharmacy_sale_lines l WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
 		return err
 	}
-	if err := tx.Raw(`SELECT tender_number,kind,amount_minor,tendered_minor,change_minor,reference FROM pharmacy_sale_tenders
+	if err := tx.Raw(`SELECT tender_number,kind,amount_minor,tendered_minor,change_minor,reference,payment_request_id FROM pharmacy_sale_tenders
 		WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY tender_number`, tenant, outlet, id).Scan(&out.Tenders).Error; err != nil {
 		return err
 	}

@@ -225,7 +225,14 @@ intent_id)` pairs, through `WithAllTenants`. This is a reviewed entry in the
 - The cashier picks **UPI (verified)**. The page creates the counter payment
   for the UPI part of the bill and shows the QR. The image comes from Razorpay,
   so the CSP `img-src` gains `https://rzp.io https://*.razorpay.com`.
-- The page polls the request every 2 s through `useApiQuery`. It shows "Waiting
+- The page polls the request at the shared poll interval (3 s) through
+  `useApiQuery`. It stops only on `paid`, or on a failure before any QR
+  existed: an expired or cancelled request can still turn paid (late), and
+  the panel says so instead of "nothing was paid".
+- A QR the panel opened is cancelled when the panel goes away (another
+  tender, a re-priced basket), and earlier paid money is not offered while
+  the panel's own QR is open. A request's amount, and a paid request, never
+  change in the database (`pharmacy_payment_request_settled`). It shows "Waiting
   for payment", a countdown, "Paid ₹…", "Expired — take another tender" and
   "Couldn't start UPI — take another tender". It never shows paid on anything
   but `paid`.

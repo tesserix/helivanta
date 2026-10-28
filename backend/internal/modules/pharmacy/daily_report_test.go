@@ -15,28 +15,29 @@ import (
 // #1386 C-3 (#1060): the daily sales report.
 
 type dailyDay struct {
-	Day             string `json:"day"`
-	Currency        string `json:"currency"`
-	Sales           int64  `json:"sales"`
-	SalesMinor      int64  `json:"sales_minor"`
-	SalesTaxable    int64  `json:"sales_taxable_minor"`
-	SalesCGST       int64  `json:"sales_cgst_minor"`
-	SalesSGST       int64  `json:"sales_sgst_minor"`
-	DiscountMinor   int64  `json:"discount_minor"`
-	UnitsSold       int64  `json:"units_sold"`
-	CreditNotes     int64  `json:"credit_notes"`
-	CreditsMinor    int64  `json:"credits_minor"`
-	CreditsTaxable  int64  `json:"credits_taxable_minor"`
-	CreditsCGST     int64  `json:"credits_cgst_minor"`
-	CreditsSGST     int64  `json:"credits_sgst_minor"`
-	UnitsReturned   int64  `json:"units_returned"`
-	NetMinor        int64  `json:"net_minor"`
-	CashMinor       int64  `json:"cash_minor"`
-	UPIMinor        int64  `json:"upi_minor"`
-	CardMinor       int64  `json:"card_minor"`
-	CashRefundMinor int64  `json:"cash_refund_minor"`
-	UPIRefundMinor  int64  `json:"upi_refund_minor"`
-	CardRefundMinor int64  `json:"card_refund_minor"`
+	Day              string `json:"day"`
+	Currency         string `json:"currency"`
+	Sales            int64  `json:"sales"`
+	SalesMinor       int64  `json:"sales_minor"`
+	SalesTaxable     int64  `json:"sales_taxable_minor"`
+	SalesCGST        int64  `json:"sales_cgst_minor"`
+	SalesSGST        int64  `json:"sales_sgst_minor"`
+	DiscountMinor    int64  `json:"discount_minor"`
+	UnitsSold        int64  `json:"units_sold"`
+	CreditNotes      int64  `json:"credit_notes"`
+	CreditsMinor     int64  `json:"credits_minor"`
+	CreditsTaxable   int64  `json:"credits_taxable_minor"`
+	CreditsCGST      int64  `json:"credits_cgst_minor"`
+	CreditsSGST      int64  `json:"credits_sgst_minor"`
+	UnitsReturned    int64  `json:"units_returned"`
+	NetMinor         int64  `json:"net_minor"`
+	CashMinor        int64  `json:"cash_minor"`
+	UPIMinor         int64  `json:"upi_minor"`
+	UPIVerifiedMinor int64  `json:"upi_verified_minor"`
+	CardMinor        int64  `json:"card_minor"`
+	CashRefundMinor  int64  `json:"cash_refund_minor"`
+	UPIRefundMinor   int64  `json:"upi_refund_minor"`
+	CardRefundMinor  int64  `json:"card_refund_minor"`
 }
 
 func dailyReport(t *testing.T, w saleWorld, who, period string) (int, []dailyDay, string) {

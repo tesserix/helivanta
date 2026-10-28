@@ -25,7 +25,7 @@ onboarding and end-to-end acceptance rules before exposure.
 | [Machine-readable inventory](reference/inventory.json)                   | Tooling input with routes, grants, migrations, tables and directed-event metadata                 | Same registry; a route entry is not a complete request/response specification           |
 | [Clinical OpenAPI](../../contracts/api/clinical.openapi.json)            | Typed current visit, lab and legacy dispense HTTP interfaces                                      | Reviewed description of existing handlers; limited coverage is intentional and explicit |
 | [Current event envelope](../../contracts/api/event-envelope.schema.json) | JSON Schema for the existing event wire shape                                                     | Mirrors `backend/pkg/events/types.go`; not evidence of runtime schema enforcement       |
-| [Generated event payload schemas](reference/event-payloads.json)         | Registered published subjects with exact Go wire fields and source locations                          | Structural serialization schemas; semantic validation remains with producers/consumers  |
+| [Generated event payload schemas](reference/event-payloads.json)         | Registered published subjects with exact Go wire fields and source locations                      | Structural serialization schemas; semantic validation remains with producers/consumers  |
 | [Contract source index](../../contracts/README.md)                       | Existing Go/TypeScript contract generators and canonical model sources                            | Keep editing the existing source, not a copied model                                    |
 | [Architecture](../architecture/README.md)                                | Proposed independent product APIs, deployment and sizing                                          | Target architecture; not current runtime evidence                                       |
 
@@ -44,6 +44,7 @@ The [privacy casework API](privacy.md) owns authenticated tenant-local rights/gr
 | Patients and clinical work                             | [Patient identity and MediCore](domains/patients-and-clinical.md)                                                      |
 | Beds, admissions, transfers and discharge              | [Bed and inpatient specification](domains/beds-and-admissions.md)                                                      |
 | Pharmacy, stock and financial records                  | [PharmaConnect](domains/pharmacy.md)                                                                                   |
+| Payments                                               | [Payments core](domains/payments.md)                                                                                   |
 | Supply organizations and procurement                   | [SupplyConnect](domains/supply.md)                                                                                     |
 | Diagnostics                                            | [LabConnect](domains/laboratory.md)                                                                                    |
 | Staff and HR                                           | [Workforce](workforce.md) and [integration specification](domains/workforce.md)                                        |

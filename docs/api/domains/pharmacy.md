@@ -134,6 +134,27 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 - `sale_posted.v1` carries ids, the invoice number, currency, total, and each line's product, batch and units. It carries no buyer or prescription data.
 - `sale_posted.v1` carries no buyer or prescription data. Prescription records and their scanned pages are B-2a; selling against them and walk-in buyers are B-2b; registered patients are B-2c; discounts are B-3 (below).
 
+### Payment requests (#1386 C-4a)
+
+The pharmacy asks the [payments core](payments.md) to collect money and
+records what it is told; it never reads a payments table. `purpose` says
+what the money is for — `counter_sale` today — so later pharmacy flows add a
+purpose rather than a new event.
+
+| Route                                | Behaviour                                                                                                                                                                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/counter-payments/:id`         | Outlet editor with `pharmacy.sale.create`. Body `{amount_minor}`; currency from the outlet's country. Creates the request (`201`) and publishes `payment_requested.v1` in the same transaction; the same id with the same amount returns it (`200`), with another amount `409`. |
+| `GET …/counter-payments/:id`         | The request's state for the counter: `requested`, `awaiting_payment` (with the QR image URL and expiry), `cancelling`, `paid` (provider payment id, RRN, `late`), `failed` (reason), `expired` or `cancelled`.                                                                  |
+| `POST …/counter-payments/:id/cancel` | Only from `requested` or `awaiting_payment` (`409` otherwise). Moves to `cancelling` and publishes `payment_cancelled.v1`; payments answers cancelled, or paid if the money landed first.                                                                                       |
+
+Outcome events move a request with status-guarded updates: a redelivered or
+reordered event changes nothing it should not, `paid` is never undone, and a
+payment reported after expiry or cancel makes the request `paid` with
+`late=true` rather than going unrecorded. A paid report whose amount or
+currency differs from the request is ignored. Outcome consumers hold no
+outlet grant; each sees and writes only the request its event names
+(`app.pharmacy_payment_outcome`). Using a paid request on a sale is C-4b.
+
 ### The Schedule H1 register (#1386 C-2, #1062)
 
 Drugs Rules 1945, Rule 65(3)(h): an H1 supply is recorded in a separate register at the time of supply. The entry gives the prescriber's name and address, the patient's name, the drug and the quantity. The register is kept for three years and is open for inspection.

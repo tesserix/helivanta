@@ -37,7 +37,7 @@ func TestMountUnauthenticatedPanicsOnNilHandler(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			e := gin.New()
 			require.Panics(t, func() {
-				bootstrap.MountUnauthenticated(e, tc.login, tc.authRequest, tc.password, tc.factor, tc.enroll, tc.passwordChange, stubHandler)
+				bootstrap.MountUnauthenticated(e, tc.login, tc.authRequest, tc.password, tc.factor, tc.enroll, tc.passwordChange, stubHandler, stubHandler)
 			}, "a nil %s handler must panic at boot, not silently leave the route unregistered", tc.name)
 		})
 	}
@@ -54,7 +54,7 @@ func TestMountUnauthenticatedRegistersAllFiveRoutesWhenGivenRealHandlers(t *test
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
 	require.NotPanics(t, func() {
-		bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
+		bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
 	})
 
 	for _, tc := range []struct {
@@ -81,7 +81,7 @@ func TestMountUnauthenticatedRegistersAllFiveRoutesWhenGivenRealHandlers(t *test
 func TestHostedLoginHandoffRouteIsGone(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
+	bootstrap.MountUnauthenticated(e, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler, stubHandler)
 
 	w := httptest.NewRecorder()
 	e.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/auth/login/handoff/abc", nil))

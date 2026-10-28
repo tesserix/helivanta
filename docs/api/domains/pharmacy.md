@@ -2,6 +2,22 @@
 
 [Contract index](../README.md) · descriptive current slices plus outstanding contracts
 
+## What the domain covers
+
+The `pharmacy` module is pharmacy management, not a hospital add-on. It runs a
+standalone retail chemist with no hospital at all, and a hospital's own
+pharmacy, which is the same outlet with an optional affiliation. Selling,
+stock, registers, tax and payables work the same for both.
+
+How a patient pays differs, and the module does not own that difference:
+
+- **At the counter** (a retail chemist, or a hospital pharmacy's OTC counter),
+  the pharmacy asks for the payment itself, with `purpose=counter_sale`
+  ([payment requests](#payment-requests-1386-c-4a)).
+- **For an inpatient,** medicines are charged to the hospital bill and paid at
+  discharge. Hospital billing asks for that payment; the pharmacy reports what
+  was dispensed against the encounter and does not collect it.
+
 ## Scope and authority
 
 The hierarchy is tenant → pharmacy organization → outlet, with optional hospital affiliations. Independent pharmacies do not need a fake hospital. Route permission and a current explicit outlet grant are separate. An affiliation is neither patient consent nor prescription/stock authority. See [ADR-0024](../../adr/0024-pharmacy-ownership-and-outlet-tenancy.md), [country/trading boundaries](../../adr/0026-pharmaconnect-country-and-trading-boundaries.md) and [existing API detail](../../architecture/pharmaconnect-api.md).

@@ -22,7 +22,9 @@ require (
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342
 	go.temporal.io/api v1.64.0
 	go.temporal.io/sdk v1.50.0
+	golang.org/x/sync v0.24.0
 	golang.org/x/sys v0.49.0
+	golang.org/x/text v0.43.0
 	golang.org/x/tools v0.52.0
 	google.golang.org/api v0.305.0
 	gorm.io/driver/postgres v1.6.3
@@ -69,7 +71,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -165,9 +167,7 @@ require (
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect

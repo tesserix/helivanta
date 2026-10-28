@@ -143,3 +143,19 @@ type taxClassificationInput struct {
 	EffectiveFrom      string  `json:"effective_from"`
 	Reason             *string `json:"reason" binding:"omitempty,min=1,max=500"`
 }
+
+type StockOverviewFields struct {
+	OutletID                uuid.UUID `json:"outlet_id" binding:"required"`
+	OutletCode              string    `json:"outlet_code"`
+	OutletName              string    `json:"outlet_name"`
+	Currency                string    `json:"currency"`
+	ProductOnHandUnits      string    `json:"product_on_hand_units"`
+	KnownPurchaseValueMinor string    `json:"known_purchase_value_minor"`
+	UncostedUnits           string    `json:"uncosted_units"`
+}
+
+type StockOverviewValuationFields struct {
+	Currency                string `json:"currency"`
+	KnownPurchaseValueMinor string `json:"known_purchase_value_minor"`
+	UncostedProducts        string `json:"uncosted_products"`
+}

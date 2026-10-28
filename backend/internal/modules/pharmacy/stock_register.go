@@ -230,8 +230,9 @@ func (h *catalogueHandlers) getStockReconciliation(c *gin.Context) {
 // the register and the overview's counts (#576).
 func stockPositionsSource(tx *gorm.DB, tenant string, outlet uuid.UUID, asOf time.Time) *gorm.DB {
 	// The hash identifies a read-model bucket only; it never authorises an object or creates a stock master.
-	return tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
+	q := tx.Table("pharmacy_stock_movements m").Select(`md5(m.location_id::text||':'||m.batch_id::text)::uuid AS id,
    b.created_at,m.location_id,m.batch_id,b.product_id,l.code AS location_code,l.name AS location_name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,
+   m.outlet_id,o.code AS outlet_code,o.name AS outlet_name,p.currency,p.pack_size,b.purchase_cost_minor,
    p.sku,p.brand_name,p.unit_of_issue,b.lot_number,to_char(b.expires_on,'YYYY-MM-DD') AS expires_on,l.stock_status,
    CASE WHEN b.expires_on < snapshot.local_date THEN 'expired' ELSE 'unexpired' END AS expiry_status,
    o.timezone AS expiry_time_zone,to_char(snapshot.local_date,'YYYY-MM-DD') AS expiry_local_date,
@@ -248,13 +249,17 @@ func stockPositionsSource(tx *gorm.DB, tenant string, outlet uuid.UUID, asOf tim
    COALESCE(sum(m.quantity_units) FILTER (WHERE m.kind='correction'),0)::text AS correction_units,
    0::bigint AS dispensable_units`).
 		// Unique-key lookup bounds prevent repeated outlet-wide scans under fresh-table RLS estimates.
-		Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").
+		Joins("JOIN LATERAL (SELECT created_at,product_id,lot_number,expires_on,purchase_cost_minor FROM pharmacy_stock_batches WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.batch_id LIMIT 1) b ON true").
 		Joins("JOIN LATERAL (SELECT code,name,zone_code,aisle_code,rack_code,shelf_code,stock_status FROM pharmacy_stock_locations WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=m.location_id LIMIT 1) l ON true").
-		Joins("JOIN LATERAL (SELECT sku,brand_name,unit_of_issue,status,regulatory_status FROM pharmacy_catalogue_products WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=b.product_id LIMIT 1) p ON true").
+		Joins("JOIN LATERAL (SELECT sku,brand_name,unit_of_issue,status,regulatory_status,currency,pack_size FROM pharmacy_catalogue_products WHERE tenant_id=m.tenant_id AND outlet_id=m.outlet_id AND id=b.product_id LIMIT 1) p ON true").
 		Joins("JOIN pharmacy_outlets o ON o.tenant_id=m.tenant_id AND o.id=m.outlet_id").
 		Joins("CROSS JOIN LATERAL (SELECT timezone(o.timezone,?::timestamptz)::date AS local_date) snapshot", asOf).
-		Where("m.tenant_id=? AND m.outlet_id=? AND m.created_at<=?", tenant, outlet, asOf).
-		Group("b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
+		Where("m.tenant_id=? AND m.created_at<=?", tenant, asOf).
+		Group("m.outlet_id,o.code,o.name,p.currency,p.pack_size,b.purchase_cost_minor,b.created_at,m.location_id,m.batch_id,b.product_id,l.code,l.name,l.zone_code,l.aisle_code,l.rack_code,l.shelf_code,p.sku,p.brand_name,p.unit_of_issue,b.lot_number,b.expires_on,l.stock_status,o.timezone,snapshot.local_date,p.status,p.regulatory_status")
+	if outlet != uuid.Nil {
+		q = q.Where("m.outlet_id=?", outlet)
+	}
+	return q
 }
 
 // stockExpiryScope is the register's expiry and balance filter, applied to

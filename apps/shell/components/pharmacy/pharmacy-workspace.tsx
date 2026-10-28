@@ -31,6 +31,7 @@ import { OverviewTiles, WaitingTile } from "./overview-tiles";
 import { AccountsPanel } from "./accounts-panel";
 import { StockPanel } from "./stock-panel";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
+import { StockOverview } from "./stock-overview";
 import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
@@ -49,6 +50,7 @@ type PharmacyView =
   | "returns"
   | "daily-report"
   | "h1-register"
+  | "stock-overview"
   | "stock"
   | "receiving"
   | "safety"
@@ -63,6 +65,7 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
   "daily-report": "Each day's sales, credit notes, payments and refunds at this outlet.",
   "h1-register":
     "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
+  "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
   safety: "Batches nearing expiry or under a safety concern, and their release decisions.",
@@ -205,7 +208,7 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
               </div>
             )}
             {/* On Outlets & access the list below is the outlet chooser (#1303 E6). */}
-            {outlets.items.length > 0 && view !== "setup" && (
+            {outlets.items.length > 0 && view !== "setup" && view !== "stock-overview" && (
               <div data-picker>
                 <Field id="pharmacy-outlet" label="Outlet">
                   <SelectControl
@@ -240,6 +243,15 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
         <DirectoryEmpty selected={!!selection.pharmacyId} setup={view === "setup"} />
+      ) : view === "stock-overview" ? (
+        can("pharmacy.stock.read") ? (
+          <StockOverview
+            key={`${identity.tenant_id}:${pharmacy.id}`}
+            scope={{ tenantId: identity.tenant_id, pharmacyId: pharmacy.id }}
+          />
+        ) : (
+          <p>You do not have permission to read stock.</p>
+        )
       ) : view === "setup" ? (
         <OutletsSetup
           tenantId={identity.tenant_id}

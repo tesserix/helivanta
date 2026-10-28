@@ -55,5 +55,9 @@ and the `packages/ui/src/zones.ts` entry (`pharmacy.sale.read`).
 
 ## Task 3: contracts and docs
 
-Run `go run ./cmd/contractdocs` and `-check`; update the requirement map
-(`docs/requirements/pharmaconnect-india.md`) where it lists #1060's daily summary.
+Run `go run ./cmd/contractdocs` and `-check`; document the route in `docs/api/domains/pharmacy.md`.
+The requirement map lists #1060 only as a whole report family, so it is unchanged.
+
+Ruling (final review): migration `0020_pharmacy` indexes `pharmacy_sales (tenant_id,outlet_id,sale_date)`
+and `pharmacy_credit_notes (tenant_id,outlet_id,credit_note_date)`, so the report's work is bounded by
+the period, not the outlet's history. The H1 register gains the same bound.

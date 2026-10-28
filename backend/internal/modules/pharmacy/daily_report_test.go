@@ -119,6 +119,8 @@ func TestTheDailyReportIsBoundedAndScoped(t *testing.T) {
 	require.Empty(t, days)
 	require.Contains(t, out, `"days":[]`, "an empty period is an empty list, not a missing one")
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", licencePath("/reports/daily?from=2026-11-01&to=2026-11-01"), "foreign", "").Code)
+	require.Equal(t, http.StatusForbidden, do(w.r, "GET", licencePath("/reports/daily?from=2026-11-01&to=2026-11-01"), "stocker", "").Code,
+		"stock and catalogue readers do not see the takings")
 	for _, bad := range []string{"", "?from=2026-11-01", "?from=2026-11-02&to=2026-11-01", "?from=2025-10-31&to=2026-11-01"} {
 		code, _, _ := dailyReport(t, w, "owner", bad)
 		require.Equal(t, http.StatusBadRequest, code, bad)

@@ -3001,6 +3001,11 @@
             "pharmacy_credit_note_lines",
             "pharmacy_credit_note_refunds"
           ]
+        },
+        {
+          "id": "0020_pharmacy",
+          "sql_sha256": "6abbb6dfb983d3df0b7286bf08c9e914c8ac66c348a2611e0be6eb090b1d59ee",
+          "creates_tables": []
         }
       ]
     },

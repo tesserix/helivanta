@@ -38,18 +38,19 @@ func newSaleWorld(t *testing.T, ready bool) saleWorld {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "owner": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "owner": testutil.TenantA, "stocker": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"editor":     salePerms,
 			"pharmacist": salePerms,
 			"clerk":      {"pharmacy.catalogue.read", "pharmacy.stock.read", "pharmacy.sale.read"},
+			"stocker":    {"pharmacy.catalogue.read", "pharmacy.stock.read"},
 			// The owner's sale and catalogue reads, without prescriptions.
 			"owner":   {"pharmacy.catalogue.read", "pharmacy.sale.read", "pharmacy.tax.manage", "pharmacy.discount.manage"},
 			"foreign": salePerms,
 		}, Modules: []platform.Module{pharmacy.New()},
 	})
 	seedPharmacyOutlet(t, r)
-	for _, s := range []string{"user-editor", "user-pharmacist", "user-clerk", "user-owner"} {
+	for _, s := range []string{"user-editor", "user-pharmacist", "user-clerk", "user-owner", "user-stocker"} {
 		grantCatalogue(t, r, s, "editor")
 	}
 	w := saleWorld{r: r, db: db, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}

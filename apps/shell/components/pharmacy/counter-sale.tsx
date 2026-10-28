@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -182,6 +182,12 @@ function Counter({ scope }: { scope: PharmacyScope }) {
     `${pharmacyRoot(scope)}/prescriptions/open-lines?product_id=${encodeURIComponent(chosen)}`,
     { enabled: needsPrescription },
   );
+  // A prescription is chosen for one product; choosing a product starts over.
+  useEffect(() => {
+    form.setValue("prescription", "");
+  }, [chosen, form]);
+  // The class decides whether a prescription is needed, so a line waits for it.
+  const classKnown = chosen === "" || availability.data !== undefined;
   const price = useApiMutation(
     (lines: BasketLine[]) =>
       apiFetch<PharmacySaleQuote>(`${pharmacyRoot(scope)}/sales/quote`, {
@@ -228,7 +234,10 @@ function Counter({ scope }: { scope: PharmacyScope }) {
         onSubmit={form.handleSubmit((values) => {
           const product = products.items.find((p) => p.id === values.product_id);
           if (!product) return;
-          if (needsPrescription && !values.prescription) {
+          const offered = (openLines.data?.lines ?? []).some(
+            (l) => `${l.prescription_id}:${l.line_number}` === values.prescription,
+          );
+          if (needsPrescription && !offered) {
             form.setError("prescription", {
               message: `Schedule ${rxClass}: choose the prescription this is dispensed against`,
             });
@@ -273,7 +282,7 @@ function Counter({ scope }: { scope: PharmacyScope }) {
           />
         </Field>
         <div className="flex items-end">
-          <Button type="submit" variant="outline">
+          <Button type="submit" variant="outline" disabled={!classKnown}>
             Add to basket
           </Button>
         </div>

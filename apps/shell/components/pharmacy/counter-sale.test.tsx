@@ -400,4 +400,27 @@ describe("CounterSale", () => {
     );
     expect(JSON.parse(String(put?.[1]?.body)).buyer).toEqual({ name: "TEST Walk In" });
   });
+
+  it("adds no line before the product's class is known", async () => {
+    let releaseAvailability!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseAvailability = resolve;
+    });
+    const base = fixture({ rxClass: "H" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        if (url.includes("/sales/availability")) await gate;
+        return base(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await chooseOption(user, await screen.findByLabelText("Product"), /TEST-PCM-500/);
+    expect(screen.getByRole("button", { name: "Add to basket" })).toBeDisabled();
+    releaseAvailability();
+    expect(await screen.findByLabelText("Prescription (Schedule H)")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add to basket" })).toBeEnabled();
+  });
 });

@@ -138,6 +138,7 @@ func TestAPrescriptionIsRecordedOnceAndReadOnlyByThePharmacist(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(w.r, "PUT", prescriptionPath("/"+uuid.Must(uuid.NewV7()).String()), "viewer", body).Code, "a reader grant cannot record")
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", prescriptionPath("/"+id), "owner", "").Code, "the owner holds no prescription permission")
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", prescriptionPath(""), "owner", "").Code)
+	require.Equal(t, http.StatusForbidden, do(w.r, "GET", prescriptionPath("/open-lines?product_id="+w.product), "owner", "").Code)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", prescriptionPath("/"+id), "foreign", "").Code)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", prescriptionPath("/"+uuid.Must(uuid.NewV7()).String()), "viewer", "").Code)
 }

@@ -46,3 +46,23 @@
 - **CSP:** no change; `img-src` already allows `https:`.
 - **The QR is a plain `<img>`, not `next/image`:** `next/image` would proxy
   the payment QR through our server.
+
+## Final review fixes
+
+- **An open QR could be left payable when the cashier moved on.** It is now
+  cancelled on unmount. Test: `closes an open QR when the counter moves on`.
+- **A late payment after cancel or expiry was shown as "nothing was paid"
+  and polling had stopped.** Polling now continues until paid, and the
+  unused list polls too. Test: `keeps watching a cancelled QR and shows a
+late payment as paid`.
+- **"Paid is final" was a handler convention.** A `BEFORE UPDATE` trigger
+  now enforces it, and also keeps each request's amount and outlet fixed;
+  it is covered by `TestAVerifiedUPISaleNeedsItsOwnPaidPayment`.
+- **Minor fixes:**
+  - announcements: the ticking countdown is no longer announced;
+  - errors: a stale form error is cleared once paid;
+  - list freshness: posting a sale invalidates the unused list;
+  - schema: NULL-safe tender checks;
+  - docs: "counted page" corrected to "page".
+- **Not done:** concurrent-sale and foreign-outlet cases are enforced by the
+  unique index and the foreign key, and are not raced in tests.

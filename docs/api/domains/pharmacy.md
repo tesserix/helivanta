@@ -171,7 +171,7 @@ currency differs from the request is ignored. Outcome consumers hold no
 outlet grant; each sees and writes only the request its event names
 (`app.pharmacy_payment_outcome`).
 
-`GET …/counter-payments` (counted page, `pharmacy.sale.create`) lists the outlet's paid requests on no sale yet, newest first, so money taken for a sale that then failed to post can still be put on a sale of the same amount (#1386 C-4b).
+`GET …/counter-payments` (a page, `pharmacy.sale.create`) lists the outlet's paid requests on no sale yet, newest first, so money taken for a sale that then failed to post can still be put on a sale of the same amount (#1386 C-4b).
 
 ### The Schedule H1 register (#1386 C-2, #1062)
 

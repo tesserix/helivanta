@@ -15,6 +15,7 @@ import (
 	paymentscontract "github.com/tesserix/helivanta/internal/modules/payments/contract"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // #1386 C-4b: a sale paid by a UPI payment the system saw settle.
@@ -101,6 +102,22 @@ func TestAVerifiedUPISaleNeedsItsOwnPaidPayment(t *testing.T) {
 	code, _, out = w.sell(t, verifiedSale(p, 2, 2500, paid))
 	require.Equal(t, http.StatusConflict, code, out)
 	require.Contains(t, out, "already on another sale")
+
+	// Paid is final in the database, not only in the handlers.
+	err := w.db.WithTenant(tenantdb.WithActor(context.Background(), "test"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_payment_outcome',?,true)`, paid).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE pharmacy_payment_requests SET status='expired', provider_payment_id=NULL, paid_at=NULL WHERE id=?`, paid).Error
+	})
+	require.ErrorContains(t, err, "never change")
+	err = w.db.WithTenant(tenantdb.WithActor(context.Background(), "test"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_payment_outcome',?,true)`, waiting).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE pharmacy_payment_requests SET amount_minor=1 WHERE id=?`, waiting).Error
+	})
+	require.ErrorContains(t, err, "never change")
 
 	// The daily report keeps verified UPI apart from typed references.
 	_, days, _ := dailyReport(t, w, "pharmacist", "?from=2026-11-01&to=2026-11-01")

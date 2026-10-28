@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@tesserix/web";
 import {
   apiFetch,
@@ -21,7 +21,15 @@ import { formatPharmacyMoney } from "./currency-amount-field";
 // the queue; the cashier is told to take another tender (spec, Not covered).
 const startTimeoutMs = 60_000;
 
-const settled = new Set(["paid", "failed", "expired", "cancelled"]);
+// Expired and cancelled are not final: payments still looks for money that
+// landed as the QR closed, and reports it as paid (late). Only paid, or a
+// failure before any QR existed, can never change.
+const final = (p: PharmacyCounterPayment | undefined) =>
+  p !== undefined && (p.status === "paid" || (p.status === "failed" && p.qr_image_url === null));
+
+// An open request still has a payable QR.
+const open = (status: string | undefined) =>
+  status === "requested" || status === "awaiting_payment";
 
 function failureText(reason: PharmacyCounterPayment["failure_reason"]) {
   if (reason === "provider_not_configured")
@@ -51,7 +59,7 @@ export function VerifiedUpi({
   const [chosen, setChosen] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const now = useNow(1000);
-  // Polled until it settles; a settled payment never changes again here.
+  // Polled until it is final, for as long as the panel is shown.
   const payment = useApiQuery<PharmacyCounterPayment>(
     pharmacyKey(scope, "counter-payment", id ?? ""),
     id ? pharmacyCounterPaymentPath(scope, id) : "",
@@ -60,6 +68,8 @@ export function VerifiedUpi({
   const unused = useApiPagedQuery<PharmacyCounterPayment>(
     pharmacyKey(scope, "counter-payments", "unused"),
     pharmacyUnusedCounterPaymentsPath(scope),
+    // A late payment on a QR this counter let go of appears here.
+    { poll: true },
   );
   const start = useApiMutation(
     (next: string) =>
@@ -70,18 +80,39 @@ export function VerifiedUpi({
     { suppressErrorToast: true },
   );
   const cancel = useApiMutation(
-    () =>
-      apiFetch<PharmacyCounterPayment>(`${pharmacyCounterPaymentPath(scope, id ?? "")}/cancel`, {
+    (target: string) =>
+      apiFetch<PharmacyCounterPayment>(`${pharmacyCounterPaymentPath(scope, target)}/cancel`, {
         method: "POST",
       }),
-    { suppressErrorToast: true, invalidate: [pharmacyKey(scope, "counter-payment", id ?? "")] },
+    { suppressErrorToast: true, invalidate: [pharmacyKey(scope, "counter-payment")] },
   );
   const p = payment.data;
   const paidHere = p?.status === "paid" && p.amount_minor === amountMinor ? p.id : null;
   const usable = paidHere ?? chosen;
   useEffect(() => onPaid(usable), [usable, onPaid]);
-  // Adjusted during render, not in an effect: once settled, stop polling.
-  if (!done && settled.has(p?.status ?? "")) setDone(true);
+  // Adjusted during render, not in an effect: once final, stop polling.
+  if (!done && final(p)) setDone(true);
+  // A QR this panel opened is closed when the panel goes away (another
+  // tender, a re-priced basket), so the payer cannot pay a bill the counter
+  // no longer holds. The ref carries the latest request to the cleanup.
+  const openRef = useRef<{ id: string | null; status?: string; cancel: (id: string) => void }>({
+    id: null,
+    cancel: () => {},
+  });
+  useEffect(() => {
+    openRef.current = {
+      id,
+      status: p?.status ?? (id ? "requested" : undefined),
+      cancel: cancel.mutate,
+    };
+  });
+  useEffect(
+    () => () => {
+      const last = openRef.current;
+      if (last.id && open(last.status)) last.cancel(last.id);
+    },
+    [],
+  );
 
   const begin = () => {
     const next = newPharmacyId();
@@ -95,8 +126,8 @@ export function VerifiedUpi({
   const waiting = unused.items.filter((u) => u.amount_minor === amountMinor && u.id !== id);
 
   return (
-    <div className="space-y-3 sm:col-span-2" aria-live="polite">
-      {waiting.length > 0 && !usable && (
+    <div className="space-y-3 sm:col-span-2">
+      {waiting.length > 0 && !usable && !(id && open(p?.status ?? "requested")) && (
         <div className="rounded-md border p-3 text-sm">
           <p>A paid UPI payment of {money(amountMinor)} isn't on a sale yet.</p>
           {waiting.map((u) => (
@@ -135,7 +166,7 @@ export function VerifiedUpi({
           payment={p}
           now={now}
           money={money}
-          onCancel={() => cancel.mutate()}
+          onCancel={() => cancel.mutate(id)}
           cancelling={cancel.isPending}
           onRestart={begin}
         />
@@ -188,9 +219,13 @@ function PaymentState({
               className="h-56 w-56 rounded-md border"
             />
           )}
-          <p role="status" className="text-sm">
-            Waiting for payment of {money(p.amount_minor)} · {Math.floor(left / 60)}:
-            {String(left % 60).padStart(2, "0")} left
+          <p className="text-sm">
+            <span role="status">Waiting for payment of {money(p.amount_minor)}</span>
+            {/* Ticks every second, so it is not announced. */}
+            <span aria-live="off">
+              {" "}
+              · {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")} left
+            </span>
           </p>
           <p className="text-xs text-muted-foreground">
             The sale can be posted once Razorpay confirms the payment. A screenshot is not a
@@ -223,13 +258,19 @@ function PaymentState({
       return (
         <div role="alert" className="text-sm">
           <p>Expired. Take another tender, or show a new QR.</p>
+          <p className="text-xs text-muted-foreground">
+            If the payer still paid, it shows here as paid.
+          </p>
           {again}
         </div>
       );
     case "cancelled":
       return (
         <div className="text-sm">
-          <p role="status">UPI cancelled. Nothing was paid.</p>
+          <p role="status">UPI cancelled.</p>
+          <p className="text-xs text-muted-foreground">
+            If the payer still paid, it shows here as paid.
+          </p>
           {again}
         </div>
       );

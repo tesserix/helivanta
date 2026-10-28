@@ -3088,7 +3088,7 @@
         },
         {
           "id": "0022_pharmacy",
-          "sql_sha256": "1dbf588c2a408654ff9809d09b437c32c430c4305f996a770748a855790f42e3",
+          "sql_sha256": "31df2fe8f62383b6c76a8e50796784b9f5546b1f41f46f75206f534f82ab7032",
           "creates_tables": []
         }
       ]

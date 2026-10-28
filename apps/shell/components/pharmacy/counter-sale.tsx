@@ -564,11 +564,13 @@ function TenderForm({
     discount_reason: "",
   });
   const kind = form.watch("kind");
-  const { setValue } = form;
+  const { setValue, clearErrors } = form;
   const onPaid = useCallback(
-    (paymentRequestId: string | null) =>
-      setValue("payment_request_id", paymentRequestId ?? "", { shouldValidate: false }),
-    [setValue],
+    (paymentRequestId: string | null) => {
+      setValue("payment_request_id", paymentRequestId ?? "", { shouldValidate: false });
+      if (paymentRequestId) clearErrors("payment_request_id");
+    },
+    [setValue, clearErrors],
   );
 
   const post = useApiMutation(
@@ -609,7 +611,11 @@ function TenderForm({
       }),
     {
       successToast: "Sale posted",
-      invalidate: [pharmacyKey(scope, "counter"), pharmacyKey(scope, "stock")],
+      invalidate: [
+        pharmacyKey(scope, "counter"),
+        pharmacyKey(scope, "stock"),
+        pharmacyKey(scope, "counter-payments"),
+      ],
       onSuccess: (sale) => {
         setId(newPharmacyId());
         onPosted(sale);

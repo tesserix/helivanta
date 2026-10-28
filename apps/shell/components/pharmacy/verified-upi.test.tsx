@@ -11,7 +11,7 @@ const scope = {
 };
 const page = (data: unknown[]) => ({
   data,
-  page: { has_more: false, next_cursor: null, total: data.length, offset: 0 },
+  page: { has_more: false, next_cursor: null },
 });
 
 function payment(over: Partial<PharmacyCounterPayment>): PharmacyCounterPayment {
@@ -37,6 +37,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 /** The counter payment answers `state` to every read; `unused` lists paid money. */
 function stub(state: Partial<PharmacyCounterPayment>, unused: PharmacyCounterPayment[] = []) {
+  // Read on every request, so a test can move the payment on.
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.endsWith("/counter-payments")) return new Response(JSON.stringify(page(unused)));
     const id = /counter-payments\/([0-9a-f-]{36})/.exec(url)?.[1] ?? "";
@@ -132,5 +133,49 @@ describe("VerifiedUpi", () => {
     expect(screen.getAllByRole("button", { name: /Use the payment/ })).toHaveLength(1);
     await user.click(use);
     await waitFor(() => expect(onPaid).toHaveBeenLastCalledWith(earlier.id));
+  });
+
+  it("closes an open QR when the counter moves on, so the payer cannot pay a bill it let go", async () => {
+    const fetcher = stub({ status: "awaiting_payment" });
+    const { user, unmount } = render();
+    await user.click(await screen.findByRole("button", { name: /Show UPI QR for/ }));
+    await screen.findByRole("img", { name: /UPI QR for/ });
+    unmount();
+    await waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        expect.stringMatching(/\/counter-payments\/[0-9a-f-]{36}\/cancel$/),
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+  });
+
+  it("keeps watching a cancelled QR and shows a late payment as paid", async () => {
+    const state: Partial<PharmacyCounterPayment> = { status: "cancelled" };
+    stub(state);
+    const { user, onPaid } = render();
+    await user.click(await screen.findByRole("button", { name: /Show UPI QR for/ }));
+    expect(await screen.findByText("UPI cancelled.")).toBeVisible();
+    expect(screen.getByText(/If the payer still paid, it shows here as paid/)).toBeVisible();
+    Object.assign(state, { status: "paid", late: true, rrn: "77" });
+    expect(
+      await screen.findByText(/arrived after the QR closed/, {}, { timeout: 6000 }),
+    ).toBeVisible();
+    await waitFor(() =>
+      expect(onPaid).toHaveBeenLastCalledWith(expect.stringMatching(/^[0-9a-f-]{36}$/)),
+    );
+  });
+
+  it("does not offer earlier money while its own QR is open", async () => {
+    const earlier = payment({
+      id: "0199e000-0000-7000-8000-0000000000a1",
+      status: "paid",
+      paid_at: new Date().toISOString(),
+    });
+    stub({ status: "awaiting_payment" }, [earlier]);
+    const { user } = render();
+    await screen.findByRole("button", { name: /Use the payment paid/ });
+    await user.click(screen.getByRole("button", { name: /Show UPI QR for/ }));
+    await screen.findByRole("img", { name: /UPI QR for/ });
+    expect(screen.queryByRole("button", { name: /Use the payment paid/ })).toBeNull();
   });
 });

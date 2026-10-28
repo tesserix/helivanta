@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// One light sage palette for the public site and the app (#1255, spec D2).
+// One light slate palette for the public site and the app (#1255, spec D2).
 // Contrast is a property of colour pairs, so it is asserted here against the
 // tokens themselves (WCAG 2.2 AA) rather than reviewed by eye.
 const css = readFileSync(fileURLToPath(new URL("../styles.css", import.meta.url)), "utf8");
@@ -44,10 +44,10 @@ describe("contrast()", () => {
   });
 });
 
-it("is sage", () => {
-  expect(root["--background"]).toBe("#fbfcfa");
-  expect(root["--foreground"]).toBe("#173d3a");
-  expect(root["--primary"]).toBe("#23685d");
+it("is slate", () => {
+  expect(root["--background"]).toBe("#f8fafc");
+  expect(root["--foreground"]).toBe("#0f172a");
+  expect(root["--primary"]).toBe("#334155");
 });
 
 const PAIRS: [fg: string, bg: string, min: number][] = [

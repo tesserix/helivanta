@@ -400,13 +400,13 @@ an unlayered class with `!important` — rather than reaching for a
 `!important` inline style or a one-off Tailwind arbitrary value, which
 won't win against the unlayered base rule either.
 
-### One look: light, sage, modern enterprise (#1255)
+### One look: light, slate, modern enterprise (#1255)
 
 Design spec: `docs/superpowers/specs/2026-10-22-one-look-design.md`.
 
 - **Light only.** There is no dark theme, theme toggle or `dark:` utility.
   `packages/ui/src/light-only.test.ts` fails on any `data-theme="dark"` rule.
-- **One palette.** The public pages and the app read the same sage tokens in
+- **One palette.** The public pages and the app read the same slate tokens in
   `packages/ui/styles.css`. `packages/ui/src/contrast.test.ts` holds the
   pairs it lists to WCAG 2.2 AA: text on each surface, status and destructive
   text on cards and tinted tiles, each category tint, each brand theme, and

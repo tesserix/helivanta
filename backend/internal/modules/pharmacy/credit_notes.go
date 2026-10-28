@@ -166,11 +166,14 @@ func proRata(v, k, q int64) int64 {
 }
 
 // creditStep is a return of r units after k already returned, of a sale
-// line of q units charging amount with tax half half.
-func creditStep(amount, half, q, k, r int64) (credit, taxable, creditHalf int64) {
-	credit = proRata(amount, k+r, q) - proRata(amount, k, q)
+// line of q units with taxable value taxable and tax half half. The taxable
+// value and each half are prorated on their own and the credit is their sum,
+// so no step is negative, however small, and all of a line's returns
+// together credit exactly what it charged (decision 2).
+func creditStep(taxable, half, q, k, r int64) (credit, creditTaxable, creditHalf int64) {
+	creditTaxable = proRata(taxable, k+r, q) - proRata(taxable, k, q)
 	creditHalf = proRata(half, k+r, q) - proRata(half, k, q)
-	return credit, credit - 2*creditHalf, creditHalf
+	return creditTaxable + 2*creditHalf, creditTaxable, creditHalf
 }
 
 // returnDeadline is the last day a credit note may be issued for a sale of
@@ -301,10 +304,10 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 			BatchID       uuid.UUID
 			SKU           string
 			QuantityUnits int64
-			AmountMinor   int64
+			TaxableMinor  int64
 			CGSTMinor     int64
 		}
-		if err := tx.Raw(`SELECT l.product_id, l.batch_id, p.sku, l.quantity_units, l.amount_minor, l.cgst_minor FROM pharmacy_sale_lines l
+		if err := tx.Raw(`SELECT l.product_id, l.batch_id, p.sku, l.quantity_units, l.taxable_minor, l.cgst_minor FROM pharmacy_sale_lines l
 			JOIN pharmacy_catalogue_products p ON p.tenant_id=l.tenant_id AND p.outlet_id=l.outlet_id AND p.id=l.product_id
 			WHERE l.tenant_id=? AND l.outlet_id=? AND l.sale_id=? AND l.line_number=? FOR UPDATE OF l`, p.TenantID, outlet, in.SaleID, l.SaleLine).Scan(&rows).Error; err != nil {
 			return err
@@ -328,7 +331,7 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 		if status != "quarantine" {
 			return errNotReturnable{"returned medicine goes to a quarantine location; a pharmacist releases it to sell it again"}
 		}
-		amount, tax, h := creditStep(sold.AmountMinor, sold.CGSTMinor, sold.QuantityUnits, returned, l.QuantityUnits)
+		amount, tax, h := creditStep(sold.TaxableMinor, sold.CGSTMinor, sold.QuantityUnits, returned, l.QuantityUnits)
 		steps = append(steps, built{in: l, productID: sold.ProductID, batchID: sold.BatchID, amount: amount, taxable: tax, half: h})
 		total, taxable, half = total+amount, taxable+tax, half+h
 	}

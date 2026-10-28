@@ -160,13 +160,15 @@ CREATE TRIGGER pharmacy_credit_note_refund_sealed BEFORE INSERT ON pharmacy_cred
  FOR EACH ROW EXECUTE FUNCTION pharmacy_credit_note_sealed();
 
 -- A credit line reverses its sale line: the cumulative units stay within
--- those sold, and the amounts are the cumulative pro-rata step (decision 2),
--- so all returns of a line together credit exactly what it charged. The sale
--- line is locked first, so two returns of one line serialise.
+-- those sold, and the taxable value and each tax half are their cumulative
+-- pro-rata step (decision 2). Prorated apart, no step is negative and all
+-- returns of a line together credit exactly what it charged; the amount is
+-- their sum (the line CHECK). The sale line is locked first, so two returns
+-- of one line serialise.
 CREATE FUNCTION pharmacy_credit_note_line_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE sold record; before bigint; after bigint;
 BEGIN
- SELECT l.quantity_units, l.amount_minor, l.cgst_minor INTO sold FROM pharmacy_sale_lines l
+ SELECT l.quantity_units, l.taxable_minor, l.cgst_minor INTO sold FROM pharmacy_sale_lines l
   JOIN pharmacy_credit_notes n ON n.tenant_id=l.tenant_id AND n.outlet_id=l.outlet_id AND n.id=NEW.credit_note_id AND n.sale_id=l.sale_id
   WHERE l.tenant_id=NEW.tenant_id AND l.outlet_id=NEW.outlet_id AND l.sale_id=NEW.sale_id AND l.line_number=NEW.sale_line
   FOR UPDATE OF l;
@@ -177,7 +179,7 @@ BEGIN
   WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND sale_id=NEW.sale_id AND sale_line=NEW.sale_line;
  after := before + NEW.quantity_units;
  IF after > sold.quantity_units
-    OR NEW.amount_minor <> div(sold.amount_minor::numeric*after, sold.quantity_units) - div(sold.amount_minor::numeric*before, sold.quantity_units)
+    OR NEW.taxable_minor <> div(sold.taxable_minor::numeric*after, sold.quantity_units) - div(sold.taxable_minor::numeric*before, sold.quantity_units)
     OR NEW.cgst_minor <> div(sold.cgst_minor::numeric*after, sold.quantity_units) - div(sold.cgst_minor::numeric*before, sold.quantity_units)
     OR NOT EXISTS (SELECT 1 FROM pharmacy_stock_locations s WHERE s.tenant_id=NEW.tenant_id AND s.outlet_id=NEW.outlet_id
      AND s.id=NEW.location_id AND s.stock_status='quarantine') THEN

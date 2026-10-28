@@ -31,7 +31,7 @@ const line = {
   quantity_units: 10,
   // 124.99: a line whose pro rata does not divide evenly.
   amount_minor: 12499,
-  taxable_minor: 11160,
+  taxable_minor: 11159,
   cgst_minor: 670,
   sgst_minor: 670,
   prescription_id: null,
@@ -160,8 +160,8 @@ describe("Returns", () => {
     expect(screen.queryByRole("option", { name: /TEST-SHELF/ })).toBeNull();
     await user.clear(units);
     await user.type(units, "3");
-    // 3 more after 4 of 10 at 124.99: floor(87.493) - floor(49.996) = 87.49 - 49.99 = 37.50;
-    // counted from zero it would be 37.49.
+    // 3 more after 4 of 10: taxable floor(78.113) - floor(44.636) = 33.48 and each
+    // half floor(4.69) - floor(2.68) = 2.01, so 37.50; counted from zero it is 37.49.
     expect(screen.getByText("Refund INR 37.50")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Issue credit note" }));
     expect(await screen.findByRole("heading", { name: "Credit note TS/2627/C1" })).toBeVisible();

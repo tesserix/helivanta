@@ -87,11 +87,12 @@ func TestAReturnIssuesACreditNoteAndQuarantinesTheStock(t *testing.T) {
 	require.Equal(t, "2026-11-01", cn.InvoiceDate)
 	require.EqualValues(t, 5000, cn.TotalMinor)
 	require.Len(t, cn.Lines, 1)
-	// The sale line charged 125.00 with each tax half h; 4 of 10 units credit
-	// floor(4h/10) of each half and the rest of 50.00 as taxable value.
-	_, _, half := pharmacy.PriceLine(12500, 10, 10, "taxable", 120000)
+	// 4 of 10 units credit floor(4/10) of the line's taxable value and of
+	// each tax half, at the sale's own rate; the credit is their sum.
+	_, taxable, half := pharmacy.PriceLine(12500, 10, 10, "taxable", 120000)
 	require.EqualValues(t, half*4/10, cn.CGSTMinor, "tax reverses at the sale's rate, pro rata")
-	require.EqualValues(t, 5000-2*(half*4/10), cn.TaxableMinor, "taxable is the rest of the step")
+	require.EqualValues(t, taxable*4/10, cn.TaxableMinor)
+	require.EqualValues(t, taxable*4/10+2*(half*4/10), cn.TotalMinor)
 	require.Contains(t, out, `"recipient_name":"TEST Ravi Kumar"`)
 	require.Equal(t, before+4, w.onHand(t, w.quarantine), "returned units are in quarantine")
 
@@ -135,7 +136,7 @@ func TestPartialReturnsCreditExactlyTheLine(t *testing.T) {
 	var amount, taxable, cgst int64
 	cumulative := []int64{2, 5, 7}
 	for i, units := range []int{2, 3, 2} {
-		step := sold.AmountMinor*cumulative[i]/7 - amount
+		step := sold.TaxableMinor*cumulative[i]/7 + 2*(sold.CGSTMinor*cumulative[i]/7) - amount
 		code, cn, out := w.returnUnits(t, returnBody(sale, units, w.quarantine, step))
 		require.Equal(t, http.StatusCreated, code, out)
 		amount, taxable, cgst = amount+cn.TotalMinor, taxable+cn.TaxableMinor, cgst+cn.CGSTMinor
@@ -272,14 +273,15 @@ func TestTheDatabaseKeepsCreditNotesHonest(t *testing.T) {
 	}), "a credit note is immutable")
 	// A forged return of more units than are left, at amounts that are the
 	// exact pro-rata step for those units, is refused on units alone.
-	var line struct{ AmountMinor, CGSTMinor int64 }
+	var line struct{ TaxableMinor, CGSTMinor int64 }
 	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT amount_minor, cgst_minor FROM pharmacy_sale_lines WHERE sale_id=? AND line_number=1`, sale).Scan(&line).Error
+		return tx.Raw(`SELECT taxable_minor, cgst_minor FROM pharmacy_sale_lines WHERE sale_id=? AND line_number=1`, sale).Scan(&line).Error
 	}))
 	step := func(v int64) int64 { return v*11/10 - v*2/10 }
 	require.ErrorContains(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
 		id := uuid.Must(uuid.NewV7())
-		amount, half := step(line.AmountMinor), step(line.CGSTMinor)
+		half := step(line.CGSTMinor)
+		amount := step(line.TaxableMinor) + 2*half
 		if err := tx.Exec(`INSERT INTO pharmacy_credit_notes (id,tenant_id,outlet_id,sale_id,financial_year,sequence_number,credit_note_number,credit_note_date,currency,
 			total_minor,taxable_minor,cgst_minor,sgst_minor,reason,recipient_name,recipient_address,intent_sha256,actor_subject)
 			VALUES (?,?,?,?,'2627',98,'TS/2627/C98','2026-11-01','INR',?,?,?,?,'TEST forged','TEST','TEST',repeat('a',64),'user-editor')`,
@@ -301,4 +303,25 @@ func TestTheDatabaseKeepsCreditNotesHonest(t *testing.T) {
 		return tx.Exec(`INSERT INTO pharmacy_credit_note_lines (tenant_id,outlet_id,credit_note_id,line_number,sale_id,sale_line,location_id,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor)
 			VALUES (?,?,?,1,?,1,?,2,9999,9865,67,67)`, testutil.TenantA, pharmaOutlet, id, sale, w.quarantine).Error
 	}), "at its pro-rata amount")
+}
+
+// Review: prorating the taxable value and each tax half apart keeps every
+// credit step non-negative, even at under a paisa a unit, where prorating
+// the amount and deriving the taxable value went negative.
+func TestEveryReturnStepIsNonNegativeAndAllCreditExactly(t *testing.T) {
+	for _, c := range []struct{ taxable, half, q int64 }{
+		{19, 1, 21},  // 21 paise for 21 units at 5%: a unit is a paisa
+		{89, 6, 100}, // 1.01 for 100 units at 12%
+		{11160, 670, 10},
+		{0, 0, 7},
+	} {
+		var credit, taxable, half int64
+		for k := int64(0); k < c.q; k++ {
+			a, tx, h := pharmacy.CreditStep(c.taxable, c.half, c.q, k, 1)
+			require.True(t, a >= 0 && tx >= 0 && h >= 0, "%+v at %d: %d %d %d", c, k, a, tx, h)
+			require.Equal(t, a, tx+2*h)
+			credit, taxable, half = credit+a, taxable+tx, half+h
+		}
+		require.Equal(t, []int64{c.taxable + 2*c.half, c.taxable, c.half}, []int64{credit, taxable, half}, "%+v", c)
+	}
 }

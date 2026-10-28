@@ -352,11 +352,13 @@ quarantine for pharmacist re-release (#163, #202). Also:
 2. **Amounts reverse the original line, not today's prices or rates.** Credits are cumulative
    pro rata, so a full return credits exactly what was charged. With `k` units returned so far
    out of `q` sold:
-   - the amount credited so far is `floor(amount × k ÷ q)`;
+   - the taxable value credited so far is `floor(taxable × k ÷ q)`;
    - each tax half credited so far is `floor(half × k ÷ q)`;
-   - the taxable value is the rest.
+   - the amount is their sum.
 
-   Each credit line is the step from the previous cumulative total.
+   Each credit line is the step from the previous cumulative total. The taxable value and the
+   tax are prorated apart. Prorating the amount and deriving the taxable value as the rest made
+   it negative on steps worth a paisa or two (found in C-1 review).
 
 3. **The number** is `PREFIX/FY/Cn`, from a gap-free series per outlet and the financial year of
    the credit note's date. It is at most 16 characters; a full series refuses the return. The

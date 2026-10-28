@@ -347,17 +347,17 @@ function ReturnFormFor({
   );
 }
 
-// preview is the refund the server will credit: the cumulative pro-rata
-// step of each line's charged amount (#1386 C-1 decision 2), rounded down.
+// preview is the refund the server will credit: the cumulative pro-rata step
+// of each line's taxable value and of each tax half, rounded down, summed
+// (#1386 C-1 decision 2).
 function preview(sale: PharmacySale, units: string[]): number {
   return sale.lines.reduce((sum, l, i) => {
     const r = Number(units[i] || 0);
     const k = l.returned_units ?? 0;
     if (r <= 0) return sum;
-    const step =
-      Math.floor((l.amount_minor * (k + r)) / l.quantity_units) -
-      Math.floor((l.amount_minor * k) / l.quantity_units);
-    return sum + step;
+    const prorate = (v: number) =>
+      Math.floor((v * (k + r)) / l.quantity_units) - Math.floor((v * k) / l.quantity_units);
+    return sum + prorate(l.taxable_minor) + 2 * prorate(l.cgst_minor);
   }, 0);
 }
 

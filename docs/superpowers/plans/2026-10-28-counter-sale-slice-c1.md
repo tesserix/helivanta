@@ -48,13 +48,13 @@ has one movement per line. A line guard locks the sale line and checks:
 - **`GET …/credit-notes/:id`** and the paged **`GET …/credit-notes?sale_id=`**
   (`pharmacy.sale.read`).
 - **`GET …/sales/:id`** gains `returned_units` per line.
-- **Pro rata:** for a line with `q` units sold, `amount` A and tax half H, with `k` units
+- **Pro rata:** for a line with `q` units sold, taxable value T and tax half H, with `k` units
   returned before and `r` now:
 
   ```
-  credit amount = floor(A(k+r)/q) − floor(Ak/q)
-  credit half   = floor(H(k+r)/q) − floor(Hk/q)
-  credit taxable = credit amount − 2 × credit half
+  credit taxable = floor(T(k+r)/q) − floor(Tk/q)
+  credit half    = floor(H(k+r)/q) − floor(Hk/q)
+  credit amount  = credit taxable + 2 × credit half
   ```
 
 - **Number:** `PREFIX/FY/Cn`, where FY is from the credit note's outlet-local date.

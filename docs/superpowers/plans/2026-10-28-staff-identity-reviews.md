@@ -28,3 +28,12 @@ identity-source view are implemented as a preparation slice. Both HR templates
 can inspect the current source, with no legacy permission fallback. Evidence and
 limits are recorded in [local QA](../../qa/staff-identity-source-preparation.md).
 Case mutation/decision/evidence and card work above remain unfinished.
+
+## Draft preparation checkpoint — 2026-10-29
+
+Versioned draft create/edit/read/list/history is implemented as a bounded local
+slice with canonical models, current manager/reviewer guards, required account
+and tenant preconditions, forced-RLS snapshots and metadata-only outbox events.
+Migration 0049 is local only. Evidence binding, submission/decisions, photo
+processing/self-service and cards in steps 3–4 remain incomplete. Do not treat a
+draft receipt as a verification or close #1399.

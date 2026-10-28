@@ -175,6 +175,7 @@ type HarnessOptions struct {
 	OrganizationIdentity        *organizationidentity.Client
 	Documents                   *attachments.GCS
 	Transit                     *transit.Client
+	PaymentsProviderURL         string
 	CurrentClaims               *mediconnectclaims.Client
 	Tokens                      map[string]string
 	Perms                       map[string][]authz.Permission
@@ -315,6 +316,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		OrganizationIdentity:        opts.OrganizationIdentity,
 		Documents:                   opts.Documents,
 		Transit:                     opts.Transit,
+		PaymentsProviderURL:         opts.PaymentsProviderURL,
 		CurrentClaims:               opts.CurrentClaims,
 		DB:                          db, Bus: bus, Authz: writer, Roles: roles,
 		SessionSigner:       opts.SessionSigner,

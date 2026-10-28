@@ -32,7 +32,7 @@ type Config struct {
 
 var owners = map[string]string{
 	"privacy": "platform", "auth": "platform", "iam": "platform", "workspace": "platform", "patients": "platform", "reference": "platform", "drugmaster": "platform",
-	"mediconnect": "mediconnect", "medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "supply": "supply", "lab": "lab", "emergency": "emergency",
+	"mediconnect": "mediconnect", "medicore": "medicore", "workforce": "workforce", "pharmacy": "pharmacy", "payments": "platform", "supply": "supply", "lab": "lab", "emergency": "emergency",
 }
 
 // New keeps the owner's authentication, authorization and wire response intact.
@@ -113,7 +113,7 @@ func New(cfg Config) (http.Handler, error) {
 				// Allowlisted forwarding prevents client-supplied identity and proxy headers
 				// becoming authority at a subsequently extracted product API.
 				headers := make(http.Header)
-				for _, key := range []string{"Authorization", "Cookie", "Content-Type", "Accept", "Accept-Language", "If-Match", "If-None-Match", "Idempotency-Key", "X-Helivanta-Expected-Tenant", "Origin", "Sec-Fetch-Site", "Range", "If-Range"} {
+				for _, key := range []string{"Authorization", "Cookie", "Content-Type", "Accept", "Accept-Language", "If-Match", "If-None-Match", "Idempotency-Key", "X-Helivanta-Expected-Tenant", "X-Helivanta-Expected-Subject", "Origin", "Sec-Fetch-Site", "Range", "If-Range"} {
 					for _, value := range p.Out.Header.Values(key) {
 						headers.Add(key, value)
 					}

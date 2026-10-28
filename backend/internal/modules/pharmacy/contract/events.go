@@ -143,3 +143,33 @@ type CreditNoteIssuedLine struct {
 	BatchID       string `json:"batch_id"`
 	QuantityUnits int64  `json:"quantity_units"`
 }
+
+// SubjectPaymentRequested asks payments to collect money for something
+// the pharmacy domain sells (#1386 C-4a). Payments answers with its intent
+// events. Purpose says what for; the counter sale is the first.
+const SubjectPaymentRequested = "helivanta.in.pharmacy.payment_requested.v1"
+
+// SubjectPaymentCancelled asks payments to close a request's QR and settle
+// it; the answer is intent_paid or intent_cancelled, never silence.
+const SubjectPaymentCancelled = "helivanta.in.pharmacy.payment_cancelled.v1"
+
+// PaymentPurposeCounterSale is a payment taken at an outlet counter.
+const PaymentPurposeCounterSale = "counter_sale"
+
+// PaymentRequestedData carries the amount and its purpose, and nothing
+// about the patient or the basket.
+type PaymentRequestedData struct {
+	RequestID        string `json:"request_id"`
+	Purpose          string `json:"purpose"`
+	AmountMinor      int64  `json:"amount_minor"`
+	Currency         string `json:"currency"`
+	ExpiresInSeconds int    `json:"expires_in_seconds"`
+}
+
+// PaymentCancelledData names the request to close, with its amount so a
+// cancel that overtakes its request can stand in for it.
+type PaymentCancelledData struct {
+	RequestID   string `json:"request_id"`
+	AmountMinor int64  `json:"amount_minor"`
+	Currency    string `json:"currency"`
+}

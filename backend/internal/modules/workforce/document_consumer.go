@@ -68,7 +68,7 @@ func DocumentScanConsumer(c client.Client) events.Consumer {
 			}
 			_, err = c.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 				ID: id, TaskQueue: DocumentTaskQueue,
-				WorkflowExecutionTimeout:                 45 * time.Minute,
+				WorkflowExecutionTimeout:                 time.Duration(documentProcessingTimeoutSeconds) * time.Second,
 				WorkflowIDReusePolicy:                    enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 				WorkflowIDConflictPolicy:                 enums.WORKFLOW_ID_CONFLICT_POLICY_FAIL,
 				WorkflowExecutionErrorWhenAlreadyStarted: true,

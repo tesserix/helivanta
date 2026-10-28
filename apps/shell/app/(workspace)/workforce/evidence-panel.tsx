@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { Button } from "@tesserix/web";
 import { FileCheck2 } from "lucide-react";
 import {
   useApiMutation,
+  canRetryDocument,
   useEvidence,
   MAX_EVIDENCE,
   type Evidence,
@@ -49,6 +51,7 @@ export function EvidencePanel({
   attachable: boolean;
 }) {
   const evidence = useEvidence(client, scope);
+  const now = useNow();
   const form = useZodForm(client.fileSchema, { file: null });
   const file = form.watch("file");
   const fileID = useId();
@@ -149,7 +152,7 @@ export function EvidencePanel({
                         Download
                       </Button>
                     )}
-                    {f.status === "scan_error" && attachable && (
+                    {canRetryDocument(f, now) && attachable && (
                       <Button
                         type="button"
                         size="sm"

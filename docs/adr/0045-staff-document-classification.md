@@ -1,11 +1,10 @@
 # ADR 0045: Staff file classification beside evidence purpose
 
-Status: implementation candidate, 2026-10-28. Local route/schema, component and
-owner/reviewer UI acceptance are recorded in the Staff ledger. Full local web
-and backend race/coverage gates passed. Review, release and deployed acceptance
-remain open. Nothing in this
-slice is deployed. Related: #1035, #1105, #1399;
-[Staff acceptance](../qa/staff-management-acceptance.md).
+Status: merged implementation, 2026-10-28. PR #1411 merged as `19819f3` after all
+exact-head checks passed; main CI and image publication passed. Local route/schema,
+component and owner/reviewer UI acceptance are recorded in the Staff ledger.
+Production rollout and deployed acceptance remain open. Related: #1035, #1105,
+#1399; [Staff acceptance](../qa/staff-management-acceptance.md).
 
 ## Context and capacity
 

@@ -20,6 +20,7 @@ import {
   prepareDocumentUpload,
   submitDocumentUpload,
   retryDocumentScan,
+  canRetryDocument,
   revokeStaffDocument,
   downloadStaffDocument,
   staffDocumentSchema,
@@ -548,9 +549,9 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
                     upload.
                   </p>
                 )}
-                {document.status === "scan_error" && (
+                {canRetryDocument(document, now) && (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Processing could not finish. Try scanning again once the service is available.
+                    Processing has not completed. Try scanning again once the service is available.
                   </p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -584,7 +585,8 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
                       </Button>
                     </>
                   )}
-                  {document.status === "scan_error" && (
+                  {(canRetryDocument(document, now) ||
+                    (document.status === "scan_pending" && pendingRetries.has(document.id))) && (
                     <Button
                       size="sm"
                       variant="outline"

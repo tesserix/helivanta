@@ -86,5 +86,6 @@
     ["classification_name", "classification_label"],
     ["actor_subject", "actor"],
     ["created_at", "timestamp"]
-  ]
+  ],
+  "processing_timeout_seconds": 2700
 }

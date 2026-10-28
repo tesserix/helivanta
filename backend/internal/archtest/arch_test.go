@@ -310,8 +310,10 @@ func allDeclaredRoutes(t *testing.T) []platform.DeclaredRoute {
 var noTenantMembershipAllowlist = map[string]string{
 	"GET /iam/me/permissions": "reports what the caller resolved to; reveals nothing they did not already hold",
 	"GET /iam/me/tenants":     "answers 'where do I belong'; unusable if it required belonging",
-	"POST /iam/me/tenant":     "gates on membership itself before minting (iam/me.go switchTenant)",
-	"POST /iam/me/sign-out":   "a revoked member must still be able to end their own session (iam/signout.go signOut)",
+	"GET /iam/me/profile": "names the caller and their roles in the session tenant; a revoked member " +
+		"gets roles: [] rather than a refusal (#1428, iam/me.go profile)",
+	"POST /iam/me/tenant":   "gates on membership itself before minting (iam/me.go switchTenant)",
+	"POST /iam/me/sign-out": "a revoked member must still be able to end their own session (iam/signout.go signOut)",
 	"POST /auth/session/activity": "extends idle_deadline for a caller who is genuinely still present; " +
 		"has nothing to do with what they are a member of (#848 Task 4, iam/activity.go)",
 	"POST /auth/renew": "runs its OWN ListRoles/hasBindingForTenant membership re-check, the exact " +
@@ -450,6 +452,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/roles":          "bounded: the fixed system role set",
 	"GET /iam/me/tenants":     "bounded: one person's memberships",
 	"GET /iam/me/permissions": "bounded: one resolved permission set",
+	"GET /iam/me/profile":     "one person's profile with their roles in one tenant",
 	"GET /workforce/hospitals/:hospital/hr/roster-settings":                                                                   "single current hospital roster policy",
 	"GET /workforce/hospitals/:hospital/hr/credential-reminder-policy":                                                        "single current hospital credential reminder policy",
 	"GET /workforce/hospitals/:hospital/hr/leave-settings":                                                                    "single fixed hospital leave-year start",

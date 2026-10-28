@@ -96,6 +96,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/iam/me/profile",
+          "permission": "no_tenant_membership",
+          "authentication_required": true,
+          "membership_required": false,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/iam/me/sign-out",
           "permission": "no_tenant_membership",

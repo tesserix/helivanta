@@ -37,6 +37,7 @@ import {
 } from "./zitadel-session";
 import { createIdleTracker, WARNING_LEAD_MS, type IdleTracker } from "./idle-timer";
 import { IdleWarning } from "./idle-warning";
+import { AccountMenu } from "./account-menu";
 import { CHROME_FLAG_ATTRIBUTES, NAVIGATION_KEY, flagAttributeValue } from "./chrome-flags";
 
 // Navigation stays within the unified app. Sign-out remains a POST because
@@ -758,14 +759,7 @@ export function HmsShell({
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {tenantPicker}
-                  <form onSubmit={handleSignOut}>
-                    <button
-                      type="submit"
-                      className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-                    >
-                      Sign out
-                    </button>
-                  </form>
+                  <AccountMenu hospitalName={branding.display_name} onSignOut={handleSignOut} />
                 </div>
               </div>
             </header>

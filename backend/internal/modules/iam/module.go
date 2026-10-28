@@ -48,6 +48,8 @@ type Module struct {
 	// userState re-checks a subject's Zitadel state on renewal (#916,
 	// design spec D3). See SetUserStateChecker.
 	userState UserStateChecker
+	// profiles reads the caller's Zitadel profile for GET /me/profile.
+	profiles UserProfileReader
 }
 
 func New(checker *RevocationChecker) *Module { return &Module{checker: checker} }
@@ -64,6 +66,12 @@ func New(checker *RevocationChecker) *Module { return &Module{checker: checker} 
 // nil-userState branch.
 func (m *Module) SetUserStateChecker(u UserStateChecker) *Module {
 	m.userState = u
+	return m
+}
+
+// SetUserProfileReader wires GET /me/profile's Zitadel read; unset, the route answers 503.
+func (m *Module) SetUserProfileReader(r UserProfileReader) *Module {
+	m.profiles = r
 	return m
 }
 
@@ -88,6 +96,9 @@ func (m *Module) CheckerForTest() *RevocationChecker { return m.checker }
 // internal/bootstrap, which mirrors
 // TestNewRegistryGivesIAMTheExactCheckerPassedIn exactly.
 func (m *Module) UserStateCheckerForTest() UserStateChecker { return m.userState }
+
+// UserProfileReaderForTest exposes the profile reader for the same wiring assertion.
+func (m *Module) UserProfileReaderForTest() UserProfileReader { return m.profiles }
 
 // Permissions declares administrative membership, proposal and credential actions.
 // None lists a role: tenant_admin is implicit, and revoking a

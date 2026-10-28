@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
+  countryProfile,
   newPharmacyId,
   pharmacyKey,
   pharmacyRoot,
@@ -152,12 +153,15 @@ function ReturnForm({
   if (!sale.data || locations.isPending) return <p role="status">Loading invoice…</p>;
   return (
     <ReturnFormFor
+      // What is left to return seeds the form: new figures, a new form.
+      key={sale.data.lines.map((l) => l.returned_units ?? 0).join(",")}
       scope={scope}
       sale={sale.data}
       quarantine={locations.items.filter((l) => l.stock_status === "quarantine")}
       canReturn={canReturn}
       onIssued={onIssued}
       onBack={onBack}
+      onRefused={sale.refetch}
     />
   );
 }
@@ -169,6 +173,7 @@ function ReturnFormFor({
   canReturn,
   onIssued,
   onBack,
+  onRefused,
 }: {
   scope: PharmacyScope;
   sale: PharmacySale;
@@ -176,6 +181,7 @@ function ReturnFormFor({
   canReturn: boolean;
   onIssued: (note: PharmacyCreditNote) => void;
   onBack: () => void;
+  onRefused: () => unknown;
 }) {
   // One id per return being entered, so a retry after a lost response replays it.
   const [id, setId] = useState(() => newPharmacyId());
@@ -221,6 +227,11 @@ function ReturnFormFor({
     issue.error instanceof ApiError &&
     issue.error.status === 409 &&
     issue.error.code === "not_returnable";
+  // A refusal may mean another counter returned units since this loaded:
+  // reload what is left so the next attempt is priced on current figures.
+  useEffect(() => {
+    if (refused) onRefused();
+  }, [refused, onRefused]);
   const errors = form.formState.errors;
   const units = form.watch("units");
   const total = preview(sale, units);
@@ -382,7 +393,8 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
           {note.invoice_date}
         </p>
         <p className="text-sm">
-          Refunded to {note.recipient_name}, {note.recipient_address} · State {note.place_of_supply}
+          Refunded to {note.recipient_name}, {note.recipient_address} · State{" "}
+          {stateName(note.place_of_supply)} ({note.place_of_supply})
         </p>
         <table className="mt-4 w-full text-sm">
           <thead className="text-left text-muted-foreground">
@@ -428,4 +440,9 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
       </div>
     </Panel>
   );
+}
+
+// The state's name for the code a sale was supplied in; GST state codes are India's.
+function stateName(code: string): string {
+  return countryProfile("IN")?.tax?.jurisdictions.find((j) => j.code === code)?.name ?? code;
 }

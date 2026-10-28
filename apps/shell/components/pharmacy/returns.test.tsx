@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
@@ -167,6 +167,8 @@ describe("Returns", () => {
     expect(await screen.findByRole("heading", { name: "Credit note TS/2627/C1" })).toBeVisible();
     expect(screen.getByText(/Against invoice TS\/2627\/1 of 2026-11-01/)).toBeVisible();
     expect(screen.getByText("Total credited INR 37.50")).toBeVisible();
+    // Rule 53(1A)(f): an unregistered recipient's state, by name and code.
+    expect(screen.getByText(/State Maharashtra \(27\)/)).toBeVisible();
 
     const put = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(JSON.parse(String(put?.[1]?.body))).toEqual({
@@ -184,5 +186,41 @@ describe("Returns", () => {
     await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
     expect(await screen.findByText(/Taking a return needs the pharmacist role/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Issue credit note" })).toBeNull();
+  });
+
+  it("reloads what is left to return after another counter took a return", async () => {
+    let returnedSoFar = 4;
+    const base = fixture();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        if (url.endsWith(`/sales/${saleId}`))
+          return new Response(
+            JSON.stringify({ ...sale, lines: [{ ...line, returned_units: returnedSoFar }] }),
+          );
+        if (url.includes("/credit-notes/") && init.method === "PUT") {
+          returnedSoFar = 9;
+          return new Response(
+            JSON.stringify({
+              error: "not_returnable",
+              message: "TEST-PCM-500: 1 of 10 units are left to return",
+            }),
+            { status: 409 },
+          );
+        }
+        return base(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    await user.type(await screen.findByLabelText("Units returned on line 1"), "3");
+    await chooseOption(user, screen.getByLabelText("Quarantine location"), /TEST-Q/);
+    await user.type(screen.getByLabelText("Refunded to"), "TEST Ravi Kumar");
+    await user.type(screen.getByLabelText("Their address"), "TEST 4 Station Road");
+    await user.type(screen.getByLabelText("Reason"), "TEST prescription changed");
+    await user.click(screen.getByRole("button", { name: "Issue credit note" }));
+    // The form reloads with what is now left, so the next attempt is current.
+    // Line 1, batch TEST-LOT, 10 sold, now 1 left (it was 6).
+    await waitFor(() => expect(screen.getAllByRole("row")[1]).toHaveTextContent(/^1TEST-LOT101/));
   });
 });

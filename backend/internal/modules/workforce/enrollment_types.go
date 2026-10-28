@@ -44,12 +44,13 @@ type enrollmentAddress struct {
 }
 
 type enrollmentContact struct {
-	ID           string `json:"id" binding:"required,uuid"`
-	Name         string `json:"name" binding:"max=150"`
-	Relationship string `json:"relationship" binding:"max=60"`
-	Phone        string `json:"phone" binding:"omitempty,max=25"`
-	Email        string `json:"email" binding:"omitempty,max=254,email"`
-	Priority     int    `json:"priority" binding:"gte=1,lte=5"`
+	ID                     string `json:"id" binding:"required,uuid"`
+	Name                   string `json:"name" binding:"max=150"`
+	Relationship           string `json:"relationship" binding:"max=60"`
+	RelationshipRevisionID string `json:"relationship_revision_id" binding:"omitempty,uuid"`
+	Phone                  string `json:"phone" binding:"omitempty,max=25"`
+	Email                  string `json:"email" binding:"omitempty,max=254,email"`
+	Priority               int    `json:"priority" binding:"gte=1,lte=5"`
 }
 
 type enrollmentCredential struct {
@@ -136,8 +137,11 @@ func legacyEnrollmentProfile(in enrollmentProfile) map[string]any {
 
 const enrollmentQualificationMastersQuery = "qualification_masters"
 const enrollmentQualificationMastersVersion = "v1"
+const enrollmentContactMastersQuery = "contact_masters"
+const enrollmentContactMastersVersion = "v1"
+const enrollmentContactRelationshipMaxLength = 60
 
-func enrollmentResponse(in enrollment, profileMasters, qualificationMasters bool) map[string]any {
+func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, contactMasters bool) map[string]any {
 	result := map[string]any{"staff": in.Staff, "version": in.Version,
 		"profile":            in.Profile,
 		"addresses":          in.Addresses,
@@ -164,6 +168,21 @@ func enrollmentResponse(in enrollment, profileMasters, qualificationMasters bool
 			})
 		}
 		result["qualifications"] = rows
+	}
+	if contactMasters {
+		result["contact_masters_version"] = enrollmentContactMastersVersion
+	} else {
+		rows := make([]map[string]any, 0, len(in.EmergencyContacts))
+		for _, row := range in.EmergencyContacts {
+			rows = append(rows, map[string]any{"id": row.ID,
+				"name":         row.Name,
+				"relationship": row.Relationship,
+				"phone":        row.Phone,
+				"email":        row.Email,
+				"priority":     row.Priority,
+			})
+		}
+		result["emergency_contacts"] = rows
 	}
 	return result
 }

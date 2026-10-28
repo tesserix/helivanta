@@ -20,6 +20,8 @@ import {
   ENROLLMENT_PROFILE_MASTERS,
   ENROLLMENT_PROFILE_MASTERS_PROJECTION,
   ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION,
+  ENROLLMENT_CONTACT_MASTERS_PROJECTION,
+  ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH,
   EMPTY_ADDRESSES,
   EMPTY_EMERGENCY_CONTACTS,
   EMPTY_CREDENTIALS,
@@ -64,7 +66,7 @@ export function EnrollmentEditor({
 }) {
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
-  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}`;
+  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}&${ENROLLMENT_CONTACT_MASTERS_PROJECTION.query}=${ENROLLMENT_CONTACT_MASTERS_PROJECTION.version}`;
   const query = useApiQuery<StaffEnrollment>(
     [
       "workforce",
@@ -75,6 +77,8 @@ export function EnrollmentEditor({
       ENROLLMENT_PROFILE_MASTERS_PROJECTION.version,
       ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query,
       ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version,
+      ENROLLMENT_CONTACT_MASTERS_PROJECTION.query,
+      ENROLLMENT_CONTACT_MASTERS_PROJECTION.version,
     ],
     path,
     {
@@ -107,7 +111,8 @@ export function EnrollmentEditor({
     staff &&
     (query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version ||
       query.data?.qualification_masters_version !==
-        ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version)
+        ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version ||
+      query.data?.contact_masters_version !== ENROLLMENT_CONTACT_MASTERS_PROJECTION.version)
   )
     return (
       <section className="mt-6 rounded-2xl border bg-card p-8">
@@ -224,21 +229,36 @@ function EnrollmentForm({
     form.setFocus("staff.display_name");
   }, [form]);
 
-  const qualificationField = (index: number) => {
-    const nameKey = `qualifications.${index}.qualification` as const;
-    const revisionKey = `qualifications.${index}.qualification_revision_id` as const;
-    const rowID = form.watch(`qualifications.${index}.id`);
+  const childMasterField = (kind: "qualification" | "relationship", index: number) => {
+    const isContact = kind === "relationship";
+    const label = isContact ? "Relationship" : "Qualification";
+    const nameKey = isContact
+      ? (`emergency_contacts.${index}.relationship` as const)
+      : (`qualifications.${index}.qualification` as const);
+    const revisionKey = isContact
+      ? (`emergency_contacts.${index}.relationship_revision_id` as const)
+      : (`qualifications.${index}.qualification_revision_id` as const);
+    const rowID = form.watch(
+      isContact
+        ? (`emergency_contacts.${index}.id` as const)
+        : (`qualifications.${index}.id` as const),
+    );
     const revision = form.watch(revisionKey) ?? "";
     const name = form.watch(nameKey);
-    const choices = masters.items.filter((row) => row.kind === "qualification" && row.active);
-    if (!choices.length && !revision) return field(nameKey, "Qualification");
-    const recorded = value.qualifications.find((row) => row.id === rowID)?.qualification ?? name;
-    const id = `enrollment-qualification-${rowID}-choice`;
+    const choices = masters.items.filter((row) => row.kind === kind && row.active);
+    const tooLong = (row: HRMaster) =>
+      isContact && Array.from(row.name).length > ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH;
+    if (!choices.length && !revision) return field(nameKey, label);
+    const recorded =
+      (isContact
+        ? value.emergency_contacts.find((row) => row.id === rowID)?.relationship
+        : value.qualifications.find((row) => row.id === rowID)?.qualification) ?? name;
+    const id = `enrollment-${kind}-${rowID}-choice`;
     return (
       <>
         <Field
           id={id}
-          label="Qualification"
+          label={label}
           error={form.getFieldState(revisionKey, form.formState).error?.message}
         >
           <SelectControl
@@ -246,14 +266,16 @@ function EnrollmentForm({
             value={revision}
             onValueChange={(selected) => {
               const row = choices.find((choice) => choice.revision_id === selected);
+              if (row && tooLong(row)) return;
               form.setValue(revisionKey, row?.revision_id ?? "", { shouldDirty: true });
               form.setValue(nameKey, row?.name ?? name, { shouldDirty: true });
             }}
             options={[
-              { value: "", label: "Enter qualification text" },
+              { value: "", label: `Enter ${label.toLowerCase()} text` },
               ...choices.map((row) => ({
                 value: row.revision_id,
                 label: `${row.name} · ${row.code}`,
+                disabled: tooLong(row),
               })),
               ...(revision && !choices.some((row) => row.revision_id === revision)
                 ? [{ value: revision, label: `Recorded: ${recorded}` }]
@@ -261,7 +283,13 @@ function EnrollmentForm({
             ]}
           />
         </Field>
-        {!revision && field(nameKey, "Qualification text")}
+        {!revision && field(nameKey, `${label} text`)}
+        {choices.some(tooLong) && (
+          <p className="text-sm text-muted-foreground">
+            Names longer than {ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH} characters are
+            unavailable for emergency contacts.
+          </p>
+        )}
       </>
     );
   };
@@ -600,7 +628,7 @@ function EnrollmentForm({
               {contacts.fields.map((row, i) => (
                 <div key={row.fieldKey} className={rowClass}>
                   {field(`emergency_contacts.${i}.name`, "Contact name")}
-                  {field(`emergency_contacts.${i}.relationship`, "Relationship")}
+                  {childMasterField("relationship", i)}
                   {field(`emergency_contacts.${i}.phone`, "Emergency phone", "tel")}
                   {field(`emergency_contacts.${i}.email`, "Emergency email", "email")}
                   {field(`emergency_contacts.${i}.priority`, "Contact priority", "number")}
@@ -671,7 +699,7 @@ function EnrollmentForm({
             <div className="space-y-4">
               {qualifications.fields.map((row, i) => (
                 <div key={row.fieldKey} className={rowClass}>
-                  {qualificationField(i)}
+                  {childMasterField("qualification", i)}
                   {field(`qualifications.${i}.institution`, "Institution")}
                   {field(`qualifications.${i}.country`, "Qualification country")}
                   {field(`qualifications.${i}.completion_year`, "Completion year", "number")}

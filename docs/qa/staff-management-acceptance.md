@@ -46,7 +46,7 @@ evidence is a starting point, not proof of the full live workflow.
 | ----- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1     | Staff access `/workforce/access`                       | Identity creation and credential verification; tenant membership; reviewed staff/login binding; scoped assignment proposal, independent approve/reject, withdrawal, activation, expiry, revoke/renew; offboarding, reactivation, access removal and recovery                                                                      | PRs #1381/#1382/#1385 deployed; #1393 merged after full CI and local independent-admin/reviewer QA. Production remains at a8af648: consumer migrations and deployed browser QA are open. Wider account/lifecycle coverage and the production reviewer password handoff remain open. #417/#1053/#1132/#434                                                                                                                                                                                                                                                                                                                                                            |
 | 2     | Staff directory `/workforce`                           | Employee/consultant creation; proper staff/employee IDs; identity/background checks; protected photo and ID-card issuance; profile, contacts, qualifications, experience, credentials and private files; supervisory relationships; status changes, transfer, exit, reactivation; account linking, import/export and safe removal | Local admin profile editing, conditional validation, reload persistence, optional qualification removal and stale-tab recovery verified. A supervision cycle was reproduced and locally fixed with database/concurrency guards; release is pending. Identity/background/photo/cards (#1399), full lifecycle, related-role edit coverage and safe staff/account removal remain open. #1035/#417/#617/#1105/#1107                                                                                                                                                                                                                                                      |
-| 3     | HR setup `/workforce/setup`                            | Every master type, code/name uniqueness, dependent references, versions/history, effective dates, activation/inactivation and referenced-record removal                                                                                                                                                                           | Local department checks plus all eight other categories now cover creation, immutable code, retirement/reactivation and retained history. Designation/grade assignment and retirement preserve pinned enrollment revisions through unrelated edit and reload. Language, exit-reason and contract-type consumers now have local schema/API/UI evidence (unmerged); relationship, repeatable qualification and document-category connections remain open; legacy fallback, scoped-role negatives, further duplicate/concurrency/isolation cases and deployed QA remain open. #1035/#22/#287/#616/#429                                                                  |
+| 3     | HR setup `/workforce/setup`                            | Every master type, code/name uniqueness, dependent references, versions/history, effective dates, activation/inactivation and referenced-record removal                                                                                                                                                                           | Local department checks plus all eight other categories now cover creation, immutable code, retirement/reactivation and retained history. Designation/grade assignment and retirement preserve pinned enrollment revisions through unrelated edit and reload. Language, exit-reason and contract-type consumers merged in #1403; repeatable qualifications merged in #1405. Emergency relationships now have local schema/API/UI compatibility evidence (release pending); document-category connections remain open; legacy fallback, scoped-role negatives, further duplicate/concurrency/isolation cases and deployed QA remain open. #1035/#22/#287/#616/#429    |
 | 4     | Shifts `/workforce/shifts`                             | Day/night/overnight definitions, duration/break/grace/locum rules, changes/history, referenced shift inactivation and invalid timing                                                                                                                                                                                              | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 5     | Roster setup `/workforce/roster-setup`                 | Areas, groups, weekly templates, composition, applicability, version/effective-date rules and referenced-record removal                                                                                                                                                                                                           | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 6     | Roster policy `/workforce/roster-policy`               | Settings, staff/template assignments, effective dates, conflicts, history and inactive/transferred staff behavior                                                                                                                                                                                                                 | Not yet fully verified. #1036                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -748,3 +748,57 @@ award, grant clinical privileges, implement identity/background review or prove
 private-file upload/scanning/release. Those workflows and the other nineteen-area
 gates remain open. Emergency relationships and configurable document
 classification retain their recorded contract/security decisions.
+
+## Emergency-contact relationship masters — local QA, 2026-10-28
+
+The optional `relationship_revision_id` uses its own `contact_masters=v1`
+projection and response marker. The existing emergency relationship limit remains
+60 code points; valid HR names of 61–80 code points remain visible but disabled
+for this consumer. The server rejects an over-limit canonical label before writes.
+Free text remains supported. Historical references belong to the same contact row,
+tenant and hospital; omission preserves a recorded reference, explicit empty clears
+it and null is invalid. Migrations 0044/0045 add the typed foreign key, previous
+writer guard and concurrent reference index. No permission, route or event changed.
+
+Actual local UI QA used the synthetic hospital and employee through the Global
+API. All business changes below were made in the UI; bounded read-only SQL
+verified persistence. Schema checks confirmed the validated FK, enabled guard and
+ready/valid index.
+
+- Admin created a 61-character relationship master in HR setup. Enrollment showed
+  its complete label as unavailable with the 60-character explanation.
+- Admin selected active revision 3 of the bounded relationship master, saved and
+  reloaded it (staff version 17). Clearing the selection and entering free text
+  persisted a null reference at version 18. Selecting it again restored the same
+  reference at version 19.
+- Admin retired the master to revision 4. An unrelated amendment retained contact
+  row `691f05c9-b204-4824-ac8e-7426f102d63a` and recorded revision
+  `40aee186-bec6-4fcd-b280-9a7c6b44c6bf`. A QA input mistake had appended the
+  preferred name to the full-name field; both synthetic names were corrected
+  through exact-label UI controls, retaining the reference at version 21.
+- The new UI against the actual previous qualification-aware API displayed the
+  unavailable view with zero Save controls. Restoring the feature API and using
+  Try again recovered the editor and recorded reference without a write.
+- The actual previous qualification-aware UI saved an unrelated preferred-name
+  amendment against the feature API. Version 22 retained the same contact row,
+  relationship revision, qualification reference and profile pins. Restored feature
+  UI displayed the recorded retired relationship again.
+- Independent reviewer sign-in had no hospital staff access and no directory
+  Add/Edit controls or HR setup mutation controls. This account retains its prior
+  pharmacist membership: this is a negative scope check, not pure employee-persona
+  acceptance or an approval stage for enrollment/master edits.
+
+Final implementation gates passed: backend race/coverage across 55 packages
+(Workforce 384.011s/83.6%, Practitioner 132.469s/84.6%, Global API 37.468s/86.7%),
+Go vet, golangci-lint (zero issues), Go builds; all 30 web tasks (1042 shell,
+394 API, 236 UI, 62 config and 9 emergency-access tests); 16 Node tests;
+canonical generator/check and contractdocs generator/check. Real-DB suites cover
+scope/category mismatches, retired history, child-row identity, omission/null/clear,
+old-writer protection, bounded labels and projection combinations. The initial
+web run failed on an unsupported test-only matcher option; the corrected full run
+passed. Logs, screenshots and database snapshots remain in the restricted local
+evidence directory.
+
+This classification establishes neither kin consent nor authority for clinical
+or administrative decisions. Production rollout, document classification,
+identity/background/photo/cards and the wider Staff Management gates remain open.

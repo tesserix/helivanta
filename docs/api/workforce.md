@@ -234,6 +234,36 @@ and updated API fleet before exposing these controls; preserve the columns and
 guard on application rollback. This is source behavior, not evidence of
 production deployment. No new route, permission or event field is introduced.
 
+Emergency-contact relationship integration retains the existing 60-code-point
+consumer limit and the HR master's 80-code-point owner limit. A valid HR master
+with a 61–80-code-point name remains available in HR setup but cannot be newly
+assigned to an emergency contact: the selector explains its unavailable state,
+and the server rejects the assignment before writes. Names are never truncated,
+and v1 is not widened. Existing free-text relationships remain supported.
+Optional `relationship_revision_id` binds a same-tenant/hospital `relationship`
+revision; historical pins and older-client omission are preserved by contact row
+ID. This is contact information, not clinical authority or next-of-kin consent.
+
+Request `?contact_masters=v1` on enrollment GET/PUT to receive contact reference
+fields and `contact_masters_version: "v1"`. This selector is independent of the
+profile and qualification selectors; any combination is valid. Default and
+older opt-in responses retain their original contact shape. Empty, unsupported
+or repeated selectors return 400 before writes. Updated editors require all
+three response markers and a distinct cache identity. Omitted contact references
+preserve the existing row's pin; explicit empty clears it, null fails, and a
+different staff record cannot inherit a pin merely by supplying the same child
+ID. Supplied relationship labels are replaced by the scoped immutable revision's
+label before the consumer limit is checked.
+
+Migrations `0044_workforce_contact_masters` and
+`0045_workforce_contact_master_index` add the typed tenant/hospital/category
+reference, constant category check, concurrent index and a distinct contact
+writer marker. A qualification-aware older binary cannot delete/update a pinned
+contact with its existing support markers. Apply schema and updated APIs before
+exposing the UI; retain columns/guard on application rollback. No new permission,
+route or event field is introduced, and this source contract is not a production
+deployment claim.
+
 `helivanta.in.workforce.master_changed.v1` contains hospital/master/revision UUIDs, category and revision number only. Audit, master head, immutable revision and outbox intent commit together. Neither employee attributes nor master labels are broadcast. The existing JetStream relay publishes; no Valkey caching or Temporal workflow is required for this transaction.
 
 Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.

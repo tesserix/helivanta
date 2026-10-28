@@ -143,6 +143,7 @@ export const enrollmentContactSchema = z
       .trim()
       .max(60)
       .refine((value) => value !== "", "Complete this field."),
+    relationship_revision_id: z.union([z.literal(""), identifier]).optional(),
     phone: internationalPhone.refine((value) => value !== "", "Complete this field."),
     email: email,
     priority: z.number().int().min(1).max(5),
@@ -152,6 +153,7 @@ export type EnrollmentContact = z.infer<typeof enrollmentContactSchema>;
 export const EMPTY_EMERGENCY_CONTACTS = {
   name: "",
   relationship: "",
+  relationship_revision_id: "",
   phone: "",
   email: "",
   priority: 1,
@@ -269,3 +271,12 @@ export const ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION = {
 export type EnrollmentQualificationMastersProjection = {
   qualification_masters_version: typeof ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version;
 };
+export const ENROLLMENT_CONTACT_MASTERS_PROJECTION = {
+  query: "contact_masters",
+  version: "v1",
+  response_field: "contact_masters_version",
+} as const;
+export type EnrollmentContactMastersProjection = {
+  contact_masters_version: typeof ENROLLMENT_CONTACT_MASTERS_PROJECTION.version;
+};
+export const ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH = 60;

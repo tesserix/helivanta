@@ -38,7 +38,13 @@ const historyPage = z.object({ data: z.array(ProposalHistoryContract), page: pag
 const decisionPage = z
   .object({ data: z.array(ProposalDecisionRecordContract), page: pageInfo })
   .strict();
-type PageOptions = { cursor?: string; signal?: AbortSignal };
+export type StaffAssignmentFamily = "leave" | "identity";
+
+type PageOptions = {
+  family?: StaffAssignmentFamily;
+  cursor?: string;
+  signal?: AbortSignal;
+};
 const base = "/iam/assignment-proposals";
 export const staffAssignmentsKey = (scope: StaffAssignmentScope) => [
   "iam",
@@ -59,7 +65,10 @@ function query(page: PageOptions) {
 }
 export async function listStaffAssignments(scope: StaffAssignmentScope, page: PageOptions = {}) {
   return assignmentPage.parse(
-    await apiFetch(`${base}?${query(page)}`, { ...options(scope), signal: page.signal }),
+    await apiFetch(
+      `${page.family === "identity" ? "/iam/identity-assignment-proposals" : base}?${query(page)}`,
+      { ...options(scope), signal: page.signal },
+    ),
   );
 }
 function owned(id: string, response: unknown) {
@@ -97,11 +106,15 @@ export async function decideStaffAssignment(
     }),
   );
 }
-export function useStaffAssignments(scope: StaffAssignmentScope) {
+export function useStaffAssignments(
+  scope: StaffAssignmentScope,
+  family: StaffAssignmentFamily = "leave",
+) {
   return useInfiniteQuery({
-    queryKey: staffAssignmentsKey(scope),
+    queryKey: [...staffAssignmentsKey(scope), family],
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam, signal }) => listStaffAssignments(scope, { cursor: pageParam, signal }),
+    queryFn: ({ pageParam, signal }) =>
+      listStaffAssignments(scope, { cursor: pageParam, signal, family }),
     getNextPageParam: (last) =>
       last.page.has_more ? (last.page.next_cursor ?? undefined) : undefined,
     gcTime: 0,

@@ -75,3 +75,11 @@ type MemberGrantInput struct {
 type MemberGrantResult struct {
 	ID uuid.UUID `json:"id"`
 }
+
+type TemplateDefinition struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Family      string   `json:"family"`
+	Permissions []string `json:"permissions"`
+}

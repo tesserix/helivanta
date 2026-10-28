@@ -86,3 +86,12 @@ it("rejects unbounded validity before sending a proposal", async () => {
   ).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it("keeps identity assignments separate from the existing leave list", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(Response.json({ data: [], page: { has_more: false, next_cursor: null } }));
+  vi.stubGlobal("fetch", fetch);
+  await listStaffAssignments({ tenantId, subject: "reviewer" }, { family: "identity" });
+  expect(fetch.mock.calls[0]![0]).toContain("/api/v1/iam/identity-assignment-proposals?");
+});

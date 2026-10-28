@@ -20,6 +20,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/assignment-proposals/:id` | `public` | false | false |
 | PUT | `/v1/iam/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
 | GET | `/v1/iam/assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/tenant` | `no_tenant_membership` | false | false |
@@ -28,6 +29,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/members` | `iam.member.manage` | true | false |
 | POST | `/v1/iam/members` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
 
 Published subjects:
@@ -787,6 +789,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts/:id/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/shifts/:id` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/shifts` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |

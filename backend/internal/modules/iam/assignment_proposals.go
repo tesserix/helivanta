@@ -33,6 +33,9 @@ const PermAssignmentManage authz.Permission = "iam.assignment.manage"
 //go:embed assignment_proposals.sql
 var assignmentProposalsSchema string
 
+//go:embed assignment_templates_generated.sql
+var assignmentTemplatesSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`
@@ -130,7 +133,7 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 	}
 	in.ValidFrom = in.ValidFrom.UTC().Truncate(time.Microsecond)
 	in.ExpiresAt = in.ExpiresAt.UTC().Truncate(time.Microsecond)
-	if in.HospitalID == uuid.Nil || !proposalSubject(in.Subject) || !proposalSubject(p.Subject) || in.TemplateKey != "workforce.leave_reviewer.v1" || !utf8.ValidString(in.Reason) || strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 500 || strings.ContainsRune(in.Reason, 0) || in.ValidFrom.IsZero() || !in.ExpiresAt.After(in.ValidFrom) || in.ExpiresAt.Sub(in.ValidFrom) > 366*24*time.Hour || !in.ExpiresAt.After(time.Now()) {
+	if in.HospitalID == uuid.Nil || !proposalSubject(in.Subject) || !proposalSubject(p.Subject) || staffAccessTemplatePermissions(in.TemplateKey) == nil || !utf8.ValidString(in.Reason) || strings.TrimSpace(in.Reason) == "" || utf8.RuneCountInString(in.Reason) > 500 || strings.ContainsRune(in.Reason, 0) || in.ValidFrom.IsZero() || !in.ExpiresAt.After(in.ValidFrom) || in.ExpiresAt.Sub(in.ValidFrom) > 366*24*time.Hour || !in.ExpiresAt.After(time.Now()) {
 		respond.Error(c, 400, "invalid_request", "Provide a member, hospital, supported template, reason and bounded validity.")
 		return
 	}
@@ -296,22 +299,43 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	g.POST("/assignment-proposals/:id/decision", authz.Public, h.decide)
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)
 	platform.ListRoute(g, "/assignment-proposals", authz.Public, h.list)
+	platform.ListRoute(g, "/identity-assignment-proposals", authz.Public, h.listIdentity)
+	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
+		if _, _, ok := proposalScope(c); !ok {
+			return
+		}
+		respond.OK(c, staffAccessTemplates())
+	})
 	g.PUT("/assignment-proposals/:id", PermAssignmentManage, h.put)
 	g.GET("/assignment-proposals/:id", authz.Public, h.get)
 	platform.ListRoute(g, "/assignment-proposals/:id/history", authz.Public, h.history)
 }
 
 func (h *assignmentProposalHandlers) list(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "leave")
+}
+
+func (h *assignmentProposalHandlers) listIdentity(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "identity")
+}
+
+func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params pagination.Params, family string) ([]assignmentProposal, error) {
 	p, _, ok := proposalScope(c)
 	if !ok {
 		return nil, nil
 	}
 	var rows []assignmentProposal
+	var keys []string
+	for _, template := range staffAccessTemplates() {
+		if template.Family == family {
+			keys = append(keys, template.Key)
+		}
+	}
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 		if err := assignmentAccessFor(tx, p); err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyKeyset(tx, params).Where("tenant_id=?", p.TenantID).Find(&rows).Error; err != nil {
+		if err := tenantdb.ApplyKeyset(tx, params).Where("tenant_id=? AND template_key IN ?", p.TenantID, keys).Find(&rows).Error; err != nil {
 			return err
 		}
 		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'list','iam_assignment_proposals',?)`, p.TenantID, p.Subject, p.TenantID).Error

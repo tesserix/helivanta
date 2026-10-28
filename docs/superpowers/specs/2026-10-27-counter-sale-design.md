@@ -174,10 +174,11 @@ allowed to sell it. So this ships in three slices; each is correct on its own.
 | B-2c | B6 registered patients, through a pharmacy projection of patientmaster registrations |
 | B-3  | Discounts under the outlet ceiling (decision 3)                                      |
 
-Until B-2b, a product whose class in force is `G`, `H` or `H1` is refused at the counter with
-that reason; it is never sold without its evidence. Plans:
+From B-2b, a product whose class in force is `G`, `H` or `H1` is sold only against a recorded
+prescription line; it is never sold without its evidence. Plans:
 `docs/superpowers/plans/2026-10-28-counter-sale-slice-b1.md`,
-`docs/superpowers/plans/2026-10-28-counter-sale-slice-b2a.md`.
+`docs/superpowers/plans/2026-10-28-counter-sale-slice-b2a.md`,
+`docs/superpowers/plans/2026-10-28-counter-sale-slice-b2b.md`.
 
 B-2 was split (2026-10-28) because each part carries its own infrastructure:
 
@@ -208,6 +209,70 @@ B-2 was split (2026-10-28) because each part carries its own infrastructure:
   the pharmacist alone. The owner holds neither: a prescription is patient data, and nothing in
   the owner's work needs to read it. Both also need the outlet grant, `editor` to record.
 - **Events** carry ids, the scan attempt and a status, never prescriber or patient details.
+
+#### B-2b decisions (2026-10-28)
+
+**Source.** Drugs Rules 1945, Rule 65, from CDSCO's 2022 compilation (India knowledge source
+S09), read for this slice:
+
+- **65(9)(a):** Schedule H, H1 and X are sold by retail only on, and in accordance with, a
+  registered medical practitioner's prescription.
+- **65(10):** the prescription is written, signed and dated. It names the patient with
+  their address, and states the total quantity to be supplied and the dose.
+- **65(11)(a)–(b):** it is dispensed once, unless the prescriber states it may be dispensed
+  more often, and then only as stated.
+- **65(11)(c):** at dispensing, the seller's name and address and the date are noted on the
+  prescription.
+- **65(11A):** no other preparation may be supplied in its place.
+- **65(3):** every supply on prescription is entered in the prescription register (or
+  numbered cash memo books). The entry includes the prescriber's name and address, the
+  patient's name and address, the drug and quantity, and for Schedule C, H and H1 the
+  manufacturer, batch and expiry.
+- **The H1 register:** a separate register with the prescriber's name and address, the
+  patient's name, the drug and the quantity supplied, kept for three years.
+- **No validity period.** The rules state no age after which a prescription stops being
+  valid. They limit how often it is dispensed.
+
+**Decisions** (product owner, 2026-10-28):
+
+1. **What was prescribed is recorded.** A prescription has 1–20 lines. Each line holds:
+   - the drug as written;
+   - the catalogue product it is dispensed as;
+   - the total units to be supplied;
+   - the dispensings allowed: 1 unless the prescriber states more, at most 12.
+
+   Recording a prescription now needs at least one line. Prescriptions recorded in B-2a
+   have none and can never be sold against.
+
+2. **A prescription sale cites a prescription line.** A G, H or H1 sale line names the
+   prescription line it dispenses, and the database checks it:
+   - the line's product is the product sold, so there is no substitution (65(11A));
+   - the units sold against the line, across every sale, stay within its total;
+   - the sales citing it stay within its dispensings allowed (65(11)(a)–(b));
+   - the prescription is dated on or before the sale date.
+
+   An OTC line cites no prescription. Directions to dispense "at stated intervals" are not
+   modelled: the pharmacist records the number of dispensings and applies the intervals.
+
+3. **The prescriber's address is recorded.** H and H1 sales need both the prescriber's and
+   the patient's address on the prescription (65(3), 65(10)(b)). A prescription without
+   them can be read but not dispensed under H or H1. The pharmacist records a corrected
+   prescription.
+4. **No age limit.** The law sets none and none is invented. The counter shows the
+   prescription date. Whether an outlet wants its own limit is open for pharmacist review.
+5. **Schedule G needs a prescription.** This is our rule, stricter than 65(9), which covers
+   H, H1 and X only. A Schedule G pack is labelled "prescription drug – caution", and
+   treating it as OTC is the product owner's call to relax.
+6. **Endorsement.** Every dispensing is recorded against its prescription line, with the
+   sale, the outlet and the date. The counter reminds the pharmacist to note the seller's
+   name, address and date on the paper prescription (65(11)(c)).
+7. **Walk-in buyer.** The buyer's name and phone are optional on any sale, including H1.
+   The patient's identity comes from the prescription. They are pharmacy-owned data. They
+   never appear in events. They are shown with the invoice to `pharmacy.sale.read` holders
+   only.
+
+Not covered: Schedule X and NDPS (#165, #171), the H1 register report (#1062, slice C), and
+registered patients (B-2c). The data the register needs is captured from this slice on.
 
 ### Slice C: after the sale
 

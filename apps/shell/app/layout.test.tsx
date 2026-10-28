@@ -15,7 +15,10 @@ beforeEach(() => {
 });
 
 it("refuses to render without a nonce", async () => {
-  await expect(RootLayout({ children: null })).rejects.toThrow(/nonce/);
+  await expect(RootLayout({ children: null })).rejects.toMatchObject({
+    name: "Error",
+    message: expect.stringMatching(/nonce/),
+  });
 });
 
 it("stamps the nonce on the inline script", async () => {

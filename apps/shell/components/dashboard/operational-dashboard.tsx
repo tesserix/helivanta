@@ -27,6 +27,7 @@ import {
 import { TrendChart, type ChartCategory } from "./trend-chart";
 import { CohortBreakdown } from "./cohort-breakdown";
 import { WorkforceInsights } from "./workforce-insights";
+import { ClinicalCoverage } from "./clinical-coverage";
 
 const clinicalCategories: ChartCategory[] = [
   { key: "OPD", label: "OPD registrations", color: "var(--hms-accent)" },
@@ -211,6 +212,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
             ))}
         </TabsList>
       </Tabs>
+      {showClinical && can("medicore.visit.read") && <ClinicalCoverage />}
       {showClinical && can("medicore.visit.read") && (
         <AnalyticsPanel
           title="Patient activity"
@@ -223,7 +225,7 @@ export function OperationalDashboard({ now }: { now?: Date }) {
           }
           mode={mode}
           onModeChange={setMode}
-          description="Visit registrations by creation date. IPD registrations count admission visits, not unique patients, occupied beds or length of stay."
+          description="Visit registrations by creation date across the current tenant. The staff hospital selection does not filter these visits. IPD registrations count admission visits, not unique patients, occupied beds or length of stay."
           href="/medicore/ipd"
         >
           <div className="w-full sm:w-56">

@@ -21,10 +21,10 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.0",
-    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/jest-dom": "^7.0.1",
     "jsdom": "^26.0.0",
     "prettier": "^3.9.10",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.5"
   },
   "prettier": "@helivanta/config/prettier"
 }

@@ -1053,6 +1053,26 @@ describe("expandable navigation", () => {
     expect(within(panel).queryByRole("button")).toBeNull();
   });
 
+  it("titles a denied payroll page without exposing its navigation link", () => {
+    const permissions = ["patient.read", "lab.order.read"];
+    seedCache(permissions);
+    pathname.current = "/workforce/payroll-setup";
+    renderWithProviders(
+      <HmsShell>
+        <p>You do not have access to payroll.</p>
+      </HmsShell>,
+    );
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Payroll setup");
+    const navigation = screen.getByRole("navigation", { name: "Staff" });
+    expect(within(navigation).queryByRole("link", { name: "Payroll setup" })).toBeNull();
+    expect(within(navigation).getByRole("link", { name: "Staff directory" })).not.toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByText("You do not have access to payroll.")).toBeInTheDocument();
+  });
+
   it("titles a single-page zone by the zone", () => {
     pathname.current = "/dashboard";
     renderWithProviders(<HmsShell>content</HmsShell>);

@@ -620,7 +620,7 @@ export function HmsShell({
     await endZitadelSession(SIGNED_OUT_MARK);
   }
 
-  const currentPage = activePage(zone, pathname);
+  const currentPage = activePage(activeZone(pathname), pathname);
   const hasPagePanel = zone.pages.length > 1;
 
   return (

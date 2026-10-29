@@ -105,3 +105,5 @@ export * from "./identity-checks-contract";
 export * from "./identity-checks";
 
 export * from "./pharmacy-stock-overview";
+export * from "./staff-directory-contract";
+export * from "./staff-directory";

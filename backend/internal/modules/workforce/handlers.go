@@ -274,7 +274,11 @@ func (h *handlers) deleteAccess(c *gin.Context) {
 const staffColumns = "id, hospital_id, employee_code, display_name, job_category, employment_status, created_at, updated_at"
 
 func (h *handlers) putStaff(c *gin.Context) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
+	if !ok {
+		return
+	}
+	projection, ok := directoryContext(c)
 	if !ok {
 		return
 	}
@@ -283,8 +287,12 @@ func (h *handlers) putStaff(c *gin.Context) {
 		respond.NotFound(c, "staff")
 		return
 	}
-	var in staffInput
+	var in staffDirectoryInput
 	if !decode(c, &in) {
+		return
+	}
+	if (projection && (in.ExpectedVersion == nil || in.DirectoryContextVersion != staffDirectoryContextVersion)) || (!projection && in.metadataSupplied) {
+		respond.Error(c, 400, "invalid_request", "This Staff directory request is not supported. Refresh and retry.")
 		return
 	}
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
@@ -294,8 +302,13 @@ func (h *handlers) putStaff(c *gin.Context) {
 	}
 	var row staff
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := requireStaffAccess(tx, p.TenantID, hospital, true); err != nil {
+		if err := lockDirectoryManager(tx, p, hospital); err != nil {
 			return err
+		}
+		if projection {
+			if err := checkDirectoryVersion(tx, p, hospital, id, in); err != nil {
+				return err
+			}
 		}
 		if err := tx.Exec(`INSERT INTO workforce_staff (tenant_id, hospital_id, id, employee_code, display_name, job_category, employment_status)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -311,17 +324,25 @@ func (h *handlers) putStaff(c *gin.Context) {
 				return err
 			}
 		}
-		return tx.Select(staffColumns).Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
+		return tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
 	})
+	if errors.Is(err, errStaffDirectoryVersion) {
+		respond.Error(c, 409, "staff_version_conflict", "This Staff record changed. Your draft has been kept. Reload the current record before saving.")
+		return
+	}
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	respond.OK(c, row)
+	respondDirectoryStaff(c, row, projection)
 }
 
 func (h *handlers) getStaff(c *gin.Context) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
+	if !ok {
+		return
+	}
+	projection, ok := directoryContext(c)
 	if !ok {
 		return
 	}
@@ -332,13 +353,13 @@ func (h *handlers) getStaff(c *gin.Context) {
 	}
 	var row staff
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		return tx.Select(staffColumns).Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
+		return tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
 	})
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	respond.OK(c, row)
+	respondDirectoryStaff(c, row, projection)
 }
 
 func (h *handlers) listStaff(c *gin.Context, params pagination.Params) ([]staff, error) {

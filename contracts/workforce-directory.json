@@ -1,0 +1,36 @@
+{
+  "projection": {
+    "query": "directory_context",
+    "version": "v1"
+  },
+  "models": {
+    "staffDirectoryWriteMetadata": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 9007199254740991,
+        "binding": "omitempty,gte=0,lte=9007199254740991"
+      },
+      {
+        "name": "directory_context_version",
+        "type": "string",
+        "projection_version": true
+      }
+    ],
+    "staffDirectoryReadMetadata": [
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "directory_context_version",
+        "type": "string",
+        "projection_version": true
+      }
+    ]
+  }
+}

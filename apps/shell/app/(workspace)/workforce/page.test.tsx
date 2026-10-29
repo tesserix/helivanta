@@ -8,7 +8,7 @@ const hospital = "11111111-1111-4111-8111-111111111111";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
 it("lets a hospital manager without static permissions save basic staff", async () => {
-  let saved: Record<string, string> | null = null;
+  let saved: Record<string, unknown> | null = null;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     let body: unknown = { data: [] };
     if (url.includes("/iam/me/permissions"))
@@ -22,7 +22,18 @@ it("lets a hospital manager without static permissions save basic staff", async 
     if (url.includes("/staff")) body = page(saved ? [{ id: "staff-1", ...saved }] : []);
     if (init?.method === "PUT") {
       saved = JSON.parse(String(init.body));
-      body = saved;
+      body = {
+        id: url.split("/staff/")[1]?.split("?")[0],
+        hospital_id: hospital,
+        employee_code: saved?.employee_code,
+        display_name: saved?.display_name,
+        job_category: saved?.job_category,
+        employment_status: saved?.employment_status,
+        created_at: "2026-10-29T00:00:00Z",
+        updated_at: "2026-10-29T00:00:00Z",
+        version: 1,
+        directory_context_version: "v1",
+      };
     }
     return new Response(JSON.stringify(body), { status: 200 });
   });
@@ -45,6 +56,8 @@ it("lets a hospital manager without static permissions save basic staff", async 
     employee_code: "YES-101",
     job_category: "nurse",
     employment_status: "active",
+    expected_version: 0,
+    directory_context_version: "v1",
   });
   expect(await screen.findByText("Synthetic Nurse")).toBeInTheDocument();
 });

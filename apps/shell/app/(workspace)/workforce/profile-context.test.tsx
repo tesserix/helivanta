@@ -83,6 +83,15 @@ function setup(
           ...(options.context === false ? {} : { request_context_version: "v1" }),
         });
       }
+      if (url.includes(`/staff/${employee.id}`))
+        return Response.json({
+          ...employee,
+          hospital_id: hospital,
+          created_at: "2026-10-29T00:00:00Z",
+          updated_at: "2026-10-29T00:00:00Z",
+          version: 1,
+          directory_context_version: "v1",
+        });
       if (url.includes("/hr/masters"))
         return options.choiceCode
           ? Response.json({ error: options.choiceCode }, { status: 409 })
@@ -151,7 +160,7 @@ it("lets a hospital manager edit directory fields without private enrollment acc
   const requests = setup({ permissions: [] });
   const { user } = renderWithProviders(<Workforce />);
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
-  expect(screen.getByLabelText("Full name")).toHaveValue(employee.display_name);
+  expect(await screen.findByLabelText("Full name")).toHaveValue(employee.display_name);
   expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
   expect(requests.some((request) => request.url.includes("/enrollment"))).toBe(false);
   expect(screen.getByRole("button", { name: "Save staff" })).toBeInTheDocument();
@@ -214,7 +223,7 @@ it("preserves document management and basic editing without private enrollment a
     await screen.findByRole("button", { name: "Documents for Synthetic profile employee" }),
   ).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Edit Synthetic profile employee" }));
-  expect(screen.getByLabelText("Full name")).toHaveValue(employee.display_name);
+  expect(await screen.findByLabelText("Full name")).toHaveValue(employee.display_name);
   expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
   expect(requests.some((request) => request.url.includes("/enrollment"))).toBe(false);
 });

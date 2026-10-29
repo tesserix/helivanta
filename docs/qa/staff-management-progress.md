@@ -219,3 +219,24 @@ This completes the released context/supervision slice, not full Staff profiles,
 Access/RBAC, transfers, employment lifecycle or safe offboarding acceptance.
 The next transfer dependency is the platform department owner in ADR-0044, then
 Workforce-owned effective-dated postings and acknowledged access cutoffs.
+
+## Lifecycle continuation checkpoint — 2026-10-29
+
+The safe basic-editing prerequisite now has owner HTTP/database, concurrency,
+replay, independent link-review and real two-tab local UI evidence. It binds the
+opening account and revision, retains conflicted drafts, and refreshes the form
+and table only after confirmed discard. This adds no employment state machine,
+new Staff migration or automatic authority restoration.
+
+The owner accepted [ADR-0049](../adr/0049-reviewed-employment-access.md): hospital
+operational access requires reviewed Staff/employment links; legacy grants must
+be reviewed before enforcement; governance/recovery is separate. This is a new
+lifecycle policy decision, distinct from ORG-D6 (tenant-defined permissions).
+
+The [delivery plan](../superpowers/plans/2026-10-29-staff-employment-lifecycle.md)
+explicitly includes individual and agency contractors, contract expiry/extension,
+suspension/resumption, notice/resignation, termination and rehire, plus dependent
+handover, card, leave/attendance/payroll and settlement gates. All remain open
+until their real owner/consumer journeys pass. The quantitative area statuses
+remain 8 partial, 12 audit pending, 1 research and 0 fully accepted; no overall
+coding-effort completion percentage is inferred from these counts.

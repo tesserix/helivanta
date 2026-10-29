@@ -209,3 +209,13 @@ The model maps onto existing components; the implementation plan decides the ord
 5. Add posting-based proposals, delegation, attestation and break-glass in their own slices.
 
 Each step is a complete slice with its own tests for out-of-scope 404, missing-permission 403 and dependency-unavailable 503.
+
+## Reviewed employment basis — accepted policy, implementation pending
+
+[ADR-0049](../../adr/0049-reviewed-employment-access.md) requires a reviewed
+Staff/employment basis for hospital operational access and an attributable review
+queue for legacy grants before enforcement. Governance/recovery authority is
+separate. Effective suspension, exit and contractor expiry must deny old
+employment authority; resumption/rehire requires current reviewed links and fresh
+assignments. This policy does not itself activate a migration, implement the
+review queue or prove every legacy route enforces current employment.

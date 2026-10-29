@@ -1193,3 +1193,57 @@ packages). The earlier simultaneous filtered Staff run hit one 5-second payroll
 form timeout; that unchanged test passed in the complete web run. No assertion
 or timeout was relaxed. The focused real-backend authority test also passed.
 CI, merge and production rollout are separate gates from this local evidence.
+
+## Lifecycle prerequisite: safe basic Staff saves — 2026-10-29
+
+The basic manager editor now uses an additive, account-bound/versioned owner
+protocol. Regression tests first observed basic GET/PUT accepting mismatched
+opening account assertions (200 rather than 409), and the UI using stale list
+values without safe reload. A second browser finding showed an old table status
+after loading a new editor snapshot; its regression was observed failing before
+adding explicit directory refresh.
+
+New real-PostgreSQL tests cover required context/projection metadata, malformed
+and duplicate assertions, legacy response compatibility, stale different edits,
+identical replay with unchanged revision/timestamps/audit count, and concurrent
+UUID creation without overwrite. Reviewed-link tests exercise independent
+proposal/approval, atomic inactivation, exact replay, reactivation without restoring
+old links, and rejection of an attempted historical-link approval. This does not
+prove complete IAM/clinical/card employment cutoff.
+
+Synthetic local UI used the existing approved reviewer account with a temporary
+recorded hospital-manager fixture. Blank creation rejected mandatory name/code;
+creation used the new acknowledged protocol. In two tabs, a newer inactive save
+caused an old active-state/different-name draft to fail without overwriting the
+record. Canceling reload retained the draft; confirmed discard loaded the current
+inactive record. A subsequent concurrent name edit proved confirmed reload updates
+both the form and directory table. Shared Panel/Input components preserve the
+workspace design system; no lint exception was added.
+
+Cleanup through UI restored the new synthetic row's original name and retained it
+inactive. Read-only PostgreSQL verification confirmed `SYN-LIFECYCLE-SAFE-20261029`
+at version 4 and the fixture restored to its original reader grant. A full UI
+reload showed no Add/Edit controls. No pre-existing Staff record was changed.
+Screenshots, credentials and fixture restoration evidence remain private outside
+Git. No production mutation was performed.
+
+Validation: complete Workforce `go test -race -cover -count=1 -timeout=25m`
+passed in 541.007 seconds at 83.9% statement coverage; focused strengthened audit
+and authority regressions were also run. Contractdocs generation/check, Go vet,
+scoped GolangCI-Lint (0 issues), generated directory parity and full web
+lint/format/type-check/test/build passed (30 tasks; 1,918 unit tests). Initial web
+lint caught extracted bespoke card/input styles; those were replaced by shared
+components and the complete gate rerun successfully. CI/merge/deployment remain
+separate gates.
+
+[ADR-0049](../adr/0049-reviewed-employment-access.md) records the product owner's
+accepted migration recommendation: reviewed Staff/employment basis for hospital
+operational access, legacy review before enforcement, governance/recovery kept
+separate. The earlier conversational ORG-D6 reference was incorrect; ORG-D6 is
+about tenant-defined permissions and remains separate.
+
+Full contractor/agency employment periods, suspension/resumption, notice and
+resignation, termination, contract expiry/renewal, rehire, review-queue migration,
+consumer cutoff, handover and settlement are still open implementation/acceptance
+work in the [lifecycle plan](../superpowers/plans/2026-10-29-staff-employment-lifecycle.md).
+The directory's inactive flag is not completion of any of those journeys.

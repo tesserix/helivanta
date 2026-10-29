@@ -95,6 +95,14 @@ Agents must not settle these silently. Record the decision in an ADR before buil
 | ORG-D6 | Whether tenants may define new permissions                                                                                 | No. Tenants compose templates from platform-declared permissions; new actions arrive with code                                                       |
 | ORG-D7 | How a tenant with a single owner satisfies second-person approval for privileged grants, and how owner access is recovered | Accepted: Require two owners for multi-hospital tenants; single-owner grants notify every owner and enter review, and recovery uses verified support |
 
+## Accepted Staff lifecycle migration policy
+
+[ADR-0049](../../adr/0049-reviewed-employment-access.md) records the product owner’s
+2026-10-29 decision: require reviewed Staff/employment links for hospital
+operational access and review legacy grants before enforcement. Governance and
+recovery remain separate. This is not ORG-D6 and does not close the open decisions
+above or establish runtime migration/enforcement.
+
 ## Related issues
 
 Access: #40 (RBAC), #417–#421 (accounts), #426–#434 (ABAC, care relationship, facility, department, temporary grants, break-glass, privileged access, approval workflows), #443 and #445 (audit), #798 (platform operator binding). Structure: #22, #287, #616. Workflows and configuration: #6, #455, #562, #563, #592, #706. Public sector: #243, #250, #489.

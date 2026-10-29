@@ -10,15 +10,14 @@ import {
   type PermissionsResponse,
   useApiQuery,
   useApiMutation,
-  staffSchema,
   JOB_LABELS,
   type Hospital,
   type Staff,
-  type StaffInput,
   type Page,
 } from "@helivanta/api";
-import { Field, FormSelectField, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
 import { EnrollmentEditor } from "./enrollment-editor";
+import { StaffDirectoryEditor } from "./directory-editor";
 import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
 import { StaffIdentitySourcePanel } from "./identity-source-panel";
@@ -465,9 +464,12 @@ function Directory({
       ) : (
         editing &&
         writable && (
-          <StaffEditor
+          <StaffDirectoryEditor
             key={editing === "new" ? "new" : editing.id}
             hospital={hospital}
+            onReloadDirectory={() => void query.refetch()}
+            scope={scope}
+            onContextChanged={onContextChanged}
             staff={editing === "new" ? undefined : editing}
             onClose={() => setEditing(null)}
           />
@@ -476,114 +478,6 @@ function Directory({
     </>
   );
 }
-function StaffEditor({
-  hospital,
-  staff,
-  onClose,
-}: {
-  hospital: Hospital;
-  staff?: Staff;
-  onClose: () => void;
-}) {
-  const [id] = useState(() => staff?.id ?? crypto.randomUUID());
-  const form = useZodForm(
-    staffSchema,
-    staff ?? {
-      employee_code: "",
-      display_name: "",
-      job_category: "other",
-      employment_status: "active",
-    },
-  );
-  const save = useApiMutation(
-    (value: StaffInput) =>
-      apiFetch<Staff>(`/workforce/hospitals/${hospital.id}/staff/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(value),
-      }),
-    {
-      invalidate: [["workforce", "staff", hospital.id]],
-      onSuccess: onClose,
-      suppressErrorToast: true,
-    },
-  );
-  return (
-    <section
-      aria-labelledby="staff-editor-heading"
-      className="mt-6 rounded-2xl border bg-card p-6 shadow-sm"
-    >
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h3 id="staff-editor-heading" className="text-lg font-semibold">
-            {staff ? "Edit staff member" : "Add staff member"}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">{hospital.name} · Staff profile</p>
-        </div>
-        <Button variant="ghost" onClick={onClose} disabled={save.isPending}>
-          Cancel
-        </Button>
-      </div>
-      <form
-        noValidate
-        onSubmit={form.handleSubmit((value) => save.mutate(value))}
-        className="grid gap-5 sm:grid-cols-2"
-      >
-        <Field
-          id="staff-name"
-          label="Full name"
-          error={form.formState.errors.display_name?.message}
-        >
-          <input
-            id="staff-name"
-            className={inputClass}
-            autoComplete="off"
-            {...form.register("display_name")}
-          />
-        </Field>
-        <Field
-          id="staff-code"
-          label="Employee code"
-          error={form.formState.errors.employee_code?.message}
-        >
-          <input
-            id="staff-code"
-            className={inputClass}
-            autoComplete="off"
-            {...form.register("employee_code")}
-          />
-        </Field>
-        <FormSelectField
-          control={form.control}
-          name="job_category"
-          id="staff-category"
-          label="Job category"
-          options={Object.entries(JOB_LABELS).map(([value, label]) => ({ value, label }))}
-        />
-        <FormSelectField
-          control={form.control}
-          name="employment_status"
-          id="staff-status"
-          label="Employment status"
-          options={[
-            { value: "active", label: "Active" },
-            { value: "inactive", label: "Inactive" },
-          ]}
-        />
-        {save.isError && (
-          <p role="alert" className="text-sm text-destructive sm:col-span-2">
-            {save.error.message}
-          </p>
-        )}
-        <div className="flex justify-end border-t pt-5 sm:col-span-2">
-          <Button type="submit" disabled={save.isPending}>
-            {save.isPending ? "Saving…" : "Save staff"}
-          </Button>
-        </div>
-      </form>
-    </section>
-  );
-}
-
 const hospitalSchema = z.object({
   name: z.string().trim().min(1, "Enter a hospital name.").max(150),
   grant: z.literal(true, { error: "Confirm your hospital access grant." }),

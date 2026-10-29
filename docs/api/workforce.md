@@ -66,7 +66,7 @@ Tenant creation remains with the existing onboarding service's `POST /v1/orgs` c
 
 Hospital and staff IDs are non-nil UUIDs. Subject is the immutable identity subject, not an email address. Access grants do not create identity accounts or grant tenant membership. Tenant administrators can explicitly administer grants, but have no implicit staff-data access. Job category and employment status never confer permissions. Inactivating an employment record does not revoke a separate login or grant; access revocation is explicit in this slice.
 
-POST is intentionally absent: clients choose UUIDs once and retry the same PUT URI after a timeout. Identical retries keep the original timestamps and do not add a second mutation audit. Changed PUTs replace the listed mutable fields; concurrent different updates currently use last-commit-wins semantics. Consumers requiring optimistic concurrency must wait for a versioned update contract. Codes are unique within a hospital and can repeat in isolated sibling hospitals.
+POST is intentionally absent: clients choose UUIDs once and retry the same PUT URI after a timeout. Identical retries keep the original timestamps and do not add a second mutation audit. Changed PUTs replace the listed mutable fields; concurrent different updates currently use last-commit-wins semantics. Legacy consumers retain last-commit-wins behavior; the basic Staff editor uses the opt-in versioned directory contract below. Codes are unique within a hospital and can repeat in isolated sibling hospitals.
 
 The basic directory UI follows the same explicit hospital manager grant as the
 owner API. It does not require an additional `workforce.staff.manage` permission
@@ -74,6 +74,37 @@ owner API. It does not require an additional `workforce.staff.manage` permission
 `workforce.enrollment.manage` and the hospital manager grant. A reader grant
 never permits basic Staff writes, including when global enrollment permission
 is present.
+
+## Versioned basic directory editing
+
+Design: [safe basic editing](../superpowers/specs/2026-10-29-staff-directory-safe-editing.md).
+GET/PUT on the basic Staff resource may opt into `directory_context=v1`.
+Exactly one expected-tenant and expected-subject header must match the verified
+session; missing/mismatched/duplicate assertions return `409 session_changed`.
+Responses add `version` and `directory_context_version: "v1"`. Legacy responses
+omit both. The basic editor requires this acknowledgment and matching hospital
+and Staff IDs before opening the form; a successful list read is insufficient.
+
+Projected PUT requires the same body marker plus `expected_version`, a safe
+nonnegative integer (0 for creation). Canonical metadata is generated from
+`workforce-directory.json`. Missing/null/invalid metadata, duplicate/unsupported
+projection and metadata without projection return 400. Older strict owners
+reject the new fields before mutation. All basic GET/PUT operations now also
+honor optional account assertions without the projection.
+
+The owner locks the current hospital manager grant and Staff row before changing
+state. A stale different edit returns `409 staff_version_conflict` without writes.
+An identical current value is an authorized replay: timestamps, revision and
+audit count remain unchanged. Concurrent creation under one Staff UUID cannot
+overwrite another payload. Legacy PUT still replaces its four fields; it cannot
+claim the new optimistic guarantee. Other protected enrollment APIs retain their
+own documented contracts.
+
+On ordinary conflicts/errors the UI keeps the draft. Reloading requires explicit
+discard confirmation and fetches a newly acknowledged snapshot. Account/access
+loss removes the workspace. Inactivation still revokes reviewed Staff links in
+the existing transaction; it is not suspension, termination, contractor expiry,
+rehire or complete cross-owner offboarding.
 
 ## Payloads
 

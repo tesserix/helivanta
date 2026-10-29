@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 import {
   apiFetch,
+  enrollmentRequestOptions,
+  isEnrollmentAccessChanged,
+  ENROLLMENT_REQUEST_CONTEXT_PROJECTION,
+  type EnrollmentRequestScope,
   useApiQuery,
   useApiPagedQuery,
   useApiMutation,
@@ -59,18 +63,24 @@ export function EnrollmentEditor({
   hospital,
   staff,
   onClose,
+  scope,
+  onContextChanged,
 }: {
   hospital: Hospital;
   staff?: Staff;
   onClose: () => void;
+  scope: EnrollmentRequestScope;
+  onContextChanged: () => void;
 }) {
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
-  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}&${ENROLLMENT_CONTACT_MASTERS_PROJECTION.query}=${ENROLLMENT_CONTACT_MASTERS_PROJECTION.version}`;
+  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}&${ENROLLMENT_CONTACT_MASTERS_PROJECTION.query}=${ENROLLMENT_CONTACT_MASTERS_PROJECTION.version}&${ENROLLMENT_REQUEST_CONTEXT_PROJECTION.query}=${ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version}`;
   const query = useApiQuery<StaffEnrollment>(
     [
       "workforce",
       "enrollment",
+      scope.tenantId,
+      scope.subject,
       hospital.id,
       id,
       reload,
@@ -85,8 +95,12 @@ export function EnrollmentEditor({
       enabled: !!staff,
       gcTime: 0,
       refetchOnWindowFocus: false,
+      request: enrollmentRequestOptions(scope),
     },
   );
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(query.error)) onContextChanged();
+  }, [query.error, onContextChanged]);
   if (staff && query.isPending)
     return (
       <section className="mt-6 rounded-2xl border bg-card p-8" role="status">
@@ -109,7 +123,9 @@ export function EnrollmentEditor({
     );
   if (
     staff &&
-    (query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version ||
+    (query.data?.staff?.id !== id ||
+      query.data?.request_context_version !== ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version ||
+      query.data?.profile_masters_version !== ENROLLMENT_PROFILE_MASTERS_PROJECTION.version ||
       query.data?.qualification_masters_version !==
         ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version ||
       query.data?.contact_masters_version !== ENROLLMENT_CONTACT_MASTERS_PROJECTION.version)
@@ -148,6 +164,8 @@ export function EnrollmentEditor({
     <EnrollmentForm
       key={`${id}:${reload}`}
       hospital={hospital}
+      scope={scope}
+      onContextChanged={onContextChanged}
       path={path}
       editing={!!staff}
       value={value}
@@ -164,8 +182,12 @@ function EnrollmentForm({
   value,
   onClose,
   onReload,
+  scope,
+  onContextChanged,
 }: {
   hospital: Hospital;
+  scope: EnrollmentRequestScope;
+  onContextChanged: () => void;
   path: string;
   editing: boolean;
   value: EnrollmentInput;
@@ -176,13 +198,19 @@ function EnrollmentForm({
   const firstAddressUse = form.watch("addresses.0.use") ?? "current";
   const [confirmReload, setConfirmReload] = useState(false);
   const supervisors = useApiPagedQuery<Staff>(
-    ["workforce", "supervisors", hospital.id],
+    ["workforce", "supervisors", scope.tenantId, scope.subject, hospital.id],
     `/workforce/hospitals/${hospital.id}/staff`,
+    { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
   const masters = useApiPagedQuery<HRMaster>(
-    ["workforce", "master-choices", hospital.id],
+    ["workforce", "master-choices", scope.tenantId, scope.subject, hospital.id],
     `/workforce/hospitals/${hospital.id}/hr/masters`,
+    { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(supervisors.error) || isEnrollmentAccessChanged(masters.error))
+      onContextChanged();
+  }, [supervisors.error, masters.error, onContextChanged]);
   const sectionRef = useRef<HTMLElement>(null);
   const addresses = useFieldArray({
     control: form.control,
@@ -211,7 +239,14 @@ function EnrollmentForm({
   });
   const save = useApiMutation(
     (input: EnrollmentInput) =>
-      apiFetch<StaffEnrollment>(path, { method: "PUT", body: JSON.stringify(input) }),
+      apiFetch<StaffEnrollment>(path, {
+        ...enrollmentRequestOptions(scope),
+        method: "PUT",
+        body: JSON.stringify({
+          ...input,
+          request_context_version: ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version,
+        }),
+      }),
     {
       invalidate: [["workforce", "staff", hospital.id]],
       successToast: "Staff enrollment saved",
@@ -219,6 +254,9 @@ function EnrollmentForm({
       suppressErrorToast: true,
     },
   );
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(save.error)) onContextChanged();
+  }, [save.error, onContextChanged]);
   useEffect(() => {
     sectionRef.current?.scrollIntoView?.({
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
@@ -395,6 +433,12 @@ function EnrollmentForm({
   };
   const cardClass = "scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-6";
   const rowClass = "grid gap-4 rounded-xl border bg-muted/15 p-4 sm:grid-cols-2 lg:grid-cols-3";
+  if (
+    isEnrollmentAccessChanged(save.error) ||
+    isEnrollmentAccessChanged(supervisors.error) ||
+    isEnrollmentAccessChanged(masters.error)
+  )
+    return null;
   return (
     <section ref={sectionRef} aria-labelledby="staff-editor-heading" className="mt-8 scroll-mt-24">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -502,7 +546,7 @@ function EnrollmentForm({
                   .filter((row) => !path.includes(`/staff/${row.id}/`))
                   .map((row) => ({
                     value: row.id,
-                    label: `${row.display_name} · ${row.employee_code}`,
+                    label: `${row.display_name} · ${row.employee_code}${row.employment_status === "inactive" ? " · Inactive" : ""}`,
                   })),
                 ...(value.profile.supervisor_id &&
                 !supervisors.items.some((row) => row.id === value.profile.supervisor_id)

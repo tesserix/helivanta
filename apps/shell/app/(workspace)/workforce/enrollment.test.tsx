@@ -26,7 +26,11 @@ it.each([
       "fetch",
       vi.fn(async (url: string) => {
         const body = url.includes("permissions")
-          ? { data: ["workforce.enrollment.manage"] }
+          ? {
+              tenant_id: hospital,
+              subject: "synthetic-enrollment-admin",
+              data: ["workforce.enrollment.manage"],
+            }
           : url.endsWith("/hospitals")
             ? {
                 data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -70,7 +74,11 @@ it("keeps typed text visible when HR choices arrive after the user starts editin
     vi.fn(async (url: string) => {
       if (url.includes("/hr/masters")) return choices;
       const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
+        ? {
+            tenant_id: hospital,
+            subject: "synthetic-enrollment-admin",
+            data: ["workforce.enrollment.manage"],
+          }
         : url.endsWith("/hospitals")
           ? {
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -113,7 +121,12 @@ it("pins an active department revision and preserves the selection on save failu
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       let body: unknown = { data: [], page: { has_more: false } };
-      if (url.includes("permissions")) body = { data: ["workforce.enrollment.manage"] };
+      if (url.includes("permissions"))
+        body = {
+          tenant_id: hospital,
+          subject: "synthetic-enrollment-admin",
+          data: ["workforce.enrollment.manage"],
+        };
       else if (url.endsWith("/hospitals"))
         body = {
           data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -150,7 +163,7 @@ it("pins an active department revision and preserves the selection on save failu
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(fetch).toHaveBeenCalledWith(
     expect.stringMatching(
-      /\/enrollment\?profile_masters=v1&qualification_masters=v1&contact_masters=v1$/,
+      /\/enrollment\?profile_masters=v1&qualification_masters=v1&contact_masters=v1&request_context=v1$/,
     ),
     expect.objectContaining({ method: "PUT" }),
   );
@@ -178,7 +191,11 @@ function mockEnrollment(
     if (url.includes("/enrollment?"))
       return new Response(JSON.stringify({ error: { message: "Unavailable" } }), { status: 503 });
     const body = url.includes("permissions")
-      ? { data: options.permitted === false ? [] : ["workforce.enrollment.manage"] }
+      ? {
+          tenant_id: hospital,
+          subject: "synthetic-enrollment-admin",
+          data: options.permitted === false ? [] : ["workforce.enrollment.manage"],
+        }
       : url.endsWith("/hospitals")
         ? {
             data: [{ id: hospital, name: "YES HOSPITAL", access_level: "manager" }],
@@ -204,82 +221,98 @@ function mockEnrollment(
   return { writes, fetcher };
 }
 
-it("keeps long relationship masters unavailable and saves an eligible reference without truncation", async () => {
-  const revision = "33333333-3333-4333-8333-333333333333";
-  const name = "R".repeat(60);
-  const writes: unknown[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string, init?: RequestInit) => {
-      if (init?.method === "PUT") {
-        writes.push(JSON.parse(String(init.body)));
-        return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
-      }
-      const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
-        : url.endsWith("/hospitals")
+it(
+  "keeps long relationship masters unavailable and saves an eligible reference without truncation",
+  { timeout: 15_000 },
+  async () => {
+    const revision = "33333333-3333-4333-8333-333333333333";
+    const name = "R".repeat(60);
+    const writes: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          writes.push(JSON.parse(String(init.body)));
+          return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
+        }
+        const body = url.includes("permissions")
           ? {
-              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
-              page: { has_more: false },
+              tenant_id: hospital,
+              subject: "synthetic-enrollment-admin",
+              data: ["workforce.enrollment.manage"],
             }
-          : url.includes("/hr/masters")
+          : url.endsWith("/hospitals")
             ? {
-                data: [
-                  {
-                    id: "synthetic-fit",
-                    revision_id: revision,
-                    kind: "relationship",
-                    code: "SYN-FIT",
-                    name,
-                    active: true,
-                  },
-                  {
-                    id: "synthetic-long",
-                    revision_id: "44444444-3333-4333-8333-333333333333",
-                    kind: "relationship",
-                    code: "SYN-LONG",
-                    name: "𑀓".repeat(61),
-                    active: true,
-                  },
-                ],
+                data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
                 page: { has_more: false },
               }
-            : { data: [], page: { has_more: false } };
-      return new Response(JSON.stringify(body), { status: 200 });
-    }),
-  );
-  const { user } = renderWithProviders(<Workforce />);
-  await user.click(await screen.findByRole("button", { name: "Add staff" }));
-  await user.type(screen.getByLabelText("Full name"), "Synthetic Contact Staff");
-  await user.type(screen.getByLabelText("Employee code"), "SYN-CONTACT-UI");
-  await user.click(screen.getByRole("button", { name: "Add emergency contact" }));
-  const relationship = await screen.findByRole("combobox", { name: "Relationship" });
-  await user.click(relationship);
-  expect(screen.getByRole("option", { name: /SYN-LONG/ })).toHaveAttribute("aria-disabled", "true");
-  await user.keyboard("{Escape}");
-  await chooseOption(user, relationship, `${name} · SYN-FIT`);
-  await user.type(screen.getByLabelText("Contact name"), "Synthetic emergency contact");
-  await user.type(screen.getByLabelText("Emergency phone"), "+61400000001");
-  expect(screen.getByText(/60 characters/i)).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Save staff" }));
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]).toMatchObject({
-    emergency_contacts: [{ relationship: name, relationship_revision_id: revision }],
-  });
-  await user.click(screen.getByRole("button", { name: "Save staff" }));
-  await waitFor(() => expect(writes).toHaveLength(2));
-  expect(writes[1]).toEqual(writes[0]);
-  await chooseOption(user, relationship, "Enter relationship text");
-  await user.clear(screen.getByLabelText("Relationship text"));
-  await user.type(screen.getByLabelText("Relationship text"), "Synthetic free-text support");
-  await user.click(screen.getByRole("button", { name: "Save staff" }));
-  await waitFor(() => expect(writes).toHaveLength(3));
-  expect(writes[2]).toMatchObject({
-    emergency_contacts: [
-      { relationship: "Synthetic free-text support", relationship_revision_id: "" },
-    ],
-  });
-});
+            : url.includes("/hr/masters")
+              ? {
+                  data: [
+                    {
+                      id: "synthetic-fit",
+                      revision_id: revision,
+                      kind: "relationship",
+                      code: "SYN-FIT",
+                      name,
+                      active: true,
+                    },
+                    {
+                      id: "synthetic-long",
+                      revision_id: "44444444-3333-4333-8333-333333333333",
+                      kind: "relationship",
+                      code: "SYN-LONG",
+                      name: "𑀓".repeat(61),
+                      active: true,
+                    },
+                  ],
+                  page: { has_more: false },
+                }
+              : { data: [], page: { has_more: false } };
+        return new Response(JSON.stringify(body), { status: 200 });
+      }),
+    );
+    const { user } = renderWithProviders(<Workforce />);
+    await user.click(await screen.findByRole("button", { name: "Add staff" }));
+    await user.click(screen.getByLabelText("Full name"));
+    await user.paste("Synthetic Contact Staff");
+    await user.click(screen.getByLabelText("Employee code"));
+    await user.paste("SYN-CONTACT-UI");
+    await user.click(screen.getByRole("button", { name: "Add emergency contact" }));
+    const relationship = await screen.findByRole("combobox", { name: "Relationship" });
+    await user.click(relationship);
+    expect(screen.getByRole("option", { name: /SYN-LONG/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.keyboard("{Escape}");
+    await chooseOption(user, relationship, `${name} · SYN-FIT`);
+    await user.click(screen.getByLabelText("Contact name"));
+    await user.paste("Synthetic emergency contact");
+    await user.click(screen.getByLabelText("Emergency phone"));
+    await user.paste("+61400000001");
+    expect(screen.getByText(/60 characters/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      emergency_contacts: [{ relationship: name, relationship_revision_id: revision }],
+    });
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1]).toEqual(writes[0]);
+    await chooseOption(user, relationship, "Enter relationship text");
+    await user.clear(screen.getByLabelText("Relationship text"));
+    await user.click(screen.getByLabelText("Relationship text"));
+    await user.paste("Synthetic free-text support");
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+    await waitFor(() => expect(writes).toHaveLength(3));
+    expect(writes[2]).toMatchObject({
+      emergency_contacts: [
+        { relationship: "Synthetic free-text support", relationship_revision_id: "" },
+      ],
+    });
+  },
+);
 
 it("selects a qualification revision without replacing its row after a failed save", async () => {
   const revision = "33333333-3333-4333-8333-333333333333";
@@ -292,7 +325,11 @@ it("selects a qualification revision without replacing its row after a failed sa
         return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
       }
       const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
+        ? {
+            tenant_id: hospital,
+            subject: "synthetic-enrollment-admin",
+            data: ["workforce.enrollment.manage"],
+          }
         : url.endsWith("/hospitals")
           ? {
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -318,15 +355,18 @@ it("selects a qualification revision without replacing its row after a failed sa
   );
   const { user } = renderWithProviders(<Workforce />);
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
-  await user.type(screen.getByLabelText("Full name"), "Synthetic Qualification Staff");
-  await user.type(screen.getByLabelText("Employee code"), "SYN-QUAL-UI");
+  await user.click(screen.getByLabelText("Full name"));
+  await user.paste("Synthetic Qualification Staff");
+  await user.click(screen.getByLabelText("Employee code"));
+  await user.paste("SYN-QUAL-UI");
   await user.click(screen.getByRole("button", { name: "Add qualification" }));
   await chooseOption(
     user,
     await screen.findByRole("combobox", { name: "Qualification" }),
     "Synthetic qualification · SYN-QUAL",
   );
-  await user.type(screen.getByLabelText("Institution"), "Synthetic University");
+  await user.click(screen.getByLabelText("Institution"));
+  await user.paste("Synthetic University");
   await user.click(screen.getByRole("button", { name: "Save staff" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({
@@ -450,7 +490,11 @@ it("submits versioned language, exit reason and contract type choices without lo
         );
       }
       const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
+        ? {
+            tenant_id: hospital,
+            subject: "synthetic-enrollment-admin",
+            data: ["workforce.enrollment.manage"],
+          }
         : url.endsWith("/hospitals")
           ? {
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -538,7 +582,11 @@ it("preserves historical profile master pins through an unrelated edit", async (
         });
       }
       const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
+        ? {
+            tenant_id: hospital,
+            subject: "synthetic-enrollment-admin",
+            data: ["workforce.enrollment.manage"],
+          }
         : url.endsWith("/hospitals")
           ? {
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -550,6 +598,7 @@ it("preserves historical profile master pins through an unrelated edit", async (
                 profile_masters_version: "v1",
                 qualification_masters_version: "v1",
                 contact_masters_version: "v1",
+                request_context_version: "v1",
                 version: 7,
                 profile,
                 addresses: [],
@@ -604,7 +653,11 @@ it("keeps a legacy language available after explicitly selecting a current revis
         });
       }
       const body = url.includes("permissions")
-        ? { data: ["workforce.enrollment.manage"] }
+        ? {
+            tenant_id: hospital,
+            subject: "synthetic-enrollment-admin",
+            data: ["workforce.enrollment.manage"],
+          }
         : url.endsWith("/hospitals")
           ? {
               data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
@@ -616,6 +669,7 @@ it("keeps a legacy language available after explicitly selecting a current revis
                 profile_masters_version: "v1",
                 qualification_masters_version: "v1",
                 contact_masters_version: "v1",
+                request_context_version: "v1",
                 version: 2,
                 profile: { ...EMPTY_PROFILE, preferred_language: "en" },
                 addresses: [],

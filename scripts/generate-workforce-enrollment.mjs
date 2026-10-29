@@ -9,18 +9,24 @@ const {
   profile_masters_projection: profileMastersProjection,
   qualification_masters_projection: qualificationMastersProjection,
   contact_masters_projection: contactMastersProjection,
+  request_context_projection: requestContextProjection,
   ...groups
 } = JSON.parse(await readFile(path.join(root, "contracts/workforce-enrollment.json"), "utf8"));
-if (
-  !profileMastersProjection ||
-  typeof profileMastersProjection !== "object" ||
-  Array.isArray(profileMastersProjection) ||
-  Object.keys(profileMastersProjection).sort().join(",") !== "query,response_field,version" ||
-  !/^[a-z][a-z_]*$/.test(profileMastersProjection.query) ||
-  !/^[a-z][a-z_]*$/.test(profileMastersProjection.response_field) ||
-  !/^v[1-9][0-9]*$/.test(profileMastersProjection.version)
-)
-  throw new Error("Invalid enrollment profile master projection");
+for (const [name, projection] of [
+  ["profile master", profileMastersProjection],
+  ["request context", requestContextProjection],
+]) {
+  if (
+    !projection ||
+    typeof projection !== "object" ||
+    Array.isArray(projection) ||
+    Object.keys(projection).sort().join(",") !== "query,response_field,version" ||
+    !/^[a-z][a-z_]*$/.test(projection.query) ||
+    !/^[a-z][a-z_]*$/.test(projection.response_field) ||
+    !/^v[1-9][0-9]*$/.test(projection.version)
+  )
+    throw new Error(`Invalid ${name} projection metadata.`);
+}
 const childProjections = [
   ["Qualification", "qualifications", qualificationMastersProjection],
   ["Contact", "emergency_contacts", contactMastersProjection],
@@ -206,9 +212,16 @@ const enrollment${name}MastersVersion = ${JSON.stringify(projection.version)}\n`
   ts += `export const ENROLLMENT_${name.toUpperCase()}_MASTERS_PROJECTION = ${JSON.stringify(projection)} as const;\n`;
   ts += `export type Enrollment${name}MastersProjection = { ${JSON.stringify(projection.response_field)}: typeof ENROLLMENT_${name.toUpperCase()}_MASTERS_PROJECTION.version };\n`;
 }
+go += `const enrollmentRequestContextQuery = ${JSON.stringify(requestContextProjection.query)}
+const enrollmentRequestContextVersion = ${JSON.stringify(requestContextProjection.version)}
+type enrollmentRequestContextMetadata struct { ${pascal(requestContextProjection.response_field)} string \`json:"${requestContextProjection.response_field},omitempty"\` }
+`;
+ts += `export const ENROLLMENT_REQUEST_CONTEXT_PROJECTION = ${JSON.stringify(requestContextProjection)} as const;\n`;
+ts += `export type EnrollmentRequestContextProjection = { ${JSON.stringify(requestContextProjection.response_field)}: typeof ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version };\n`;
+ts += `export const enrollmentRequestContextSchema = z.object({ ${JSON.stringify(requestContextProjection.response_field)}: z.literal(ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version).optional() });\n`;
 go += `const enrollmentContactRelationshipMaxLength = ${relationshipLimit}\n`;
 ts += `export const ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH = ${relationshipLimit};\n`;
-go += `func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, contactMasters bool) map[string]any {
+go += `func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, contactMasters, requestContext bool) map[string]any {
  result := map[string]any{"staff":in.Staff,"version":in.Version,
 ${Object.keys(groups)
   .map(
@@ -217,7 +230,8 @@ ${Object.keys(groups)
   )
   .join("\n")}
  }
- if profileMasters { result[${JSON.stringify(profileMastersProjection.response_field)}] = enrollmentProfileMastersVersion } else { result["profile"] = legacyEnrollmentProfile(in.Profile) }
+ if requestContext { result[${JSON.stringify(requestContextProjection.response_field)}] = enrollmentRequestContextVersion };
+if profileMasters { result[${JSON.stringify(profileMastersProjection.response_field)}] = enrollmentProfileMastersVersion } else { result["profile"] = legacyEnrollmentProfile(in.Profile) }
 `;
 for (const [name, group, projection] of childProjections) {
   const field = group === "emergency_contacts" ? "EmergencyContacts" : pascal(group);

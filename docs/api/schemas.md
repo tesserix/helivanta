@@ -42,6 +42,12 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 
 Also inspect module-local catalogues such as `backend/internal/modules/emergency/contract/intake.json`; the top-level directory is not the complete schema universe. Existing generators often encode additional checks such as date ordering, normalization, safe integer bounds and scope constraints. Reusing field names while dropping those checks is a breaking validation change.
 
+Enrollment `request_context_projection` metadata also owns the opt-in query,
+version and response acknowledgment. Its generated optional body marker is
+required by the owner for projected PUTs and rejected without that query; the
+strict decoder in older owners rejects it before writes. SDK parsing preserves
+legacy inputs that omit the marker.
+
 `workforce-enrollment.json` field tuples are `[name, typeOrLimit, optional?]`.
 The optional input flag preserves omitted properties through SDK parsing rather
 than synthesizing empty-string clears. Its `profile_masters` tuples are

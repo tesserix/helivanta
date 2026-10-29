@@ -90,5 +90,10 @@
     "query": "contact_masters",
     "version": "v1",
     "response_field": "contact_masters_version"
+  },
+  "request_context_projection": {
+    "query": "request_context",
+    "version": "v1",
+    "response_field": "request_context_version"
   }
 }

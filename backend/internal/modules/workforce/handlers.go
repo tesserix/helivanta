@@ -48,7 +48,7 @@ func (h hospital) PageKey() (time.Time, uuid.UUID) { return h.CreatedAt, h.ID }
 
 func (h *handlers) listHospitals(c *gin.Context, params pagination.Params) ([]hospital, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := staffPrincipal(c)
 	if !ok {
 		return nil, nil
 	}
@@ -115,6 +115,19 @@ func decodeSized(c *gin.Context, into any, limit int64) bool {
 	return true
 }
 
+func staffPrincipal(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
+	c.Header("Cache-Control", "no-store")
+	p, tenant, ok := authn.ExpectedTenantPrincipal(c)
+	if !ok {
+		return p, tenant, false
+	}
+	if expected := c.Request.Header.Values("X-Helivanta-Expected-Subject"); len(expected) > 0 && (len(expected) != 1 || expected[0] != p.Subject) {
+		respond.Error(c, 409, "session_changed", "Your signed-in account changed. Refresh before continuing.")
+		return p, tenant, false
+	}
+	return p, tenant, true
+}
+
 func scope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	c.Header("Cache-Control", "no-store")
 	p, _, ok := authn.TenantPrincipal(c)
@@ -127,6 +140,14 @@ func scope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 		return p, uuid.Nil, false
 	}
 	return p, hospital, true
+}
+
+func profileScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
+	p, _, ok := staffPrincipal(c)
+	if !ok {
+		return p, uuid.Nil, false
+	}
+	return scope(c)
 }
 
 func (h *handlers) transaction(ctx context.Context, p authn.Principal, hospital uuid.UUID, fn func(*gorm.DB) error) error {
@@ -322,7 +343,7 @@ func (h *handlers) getStaff(c *gin.Context) {
 
 func (h *handlers) listStaff(c *gin.Context, params pagination.Params) ([]staff, error) {
 	c.Header("Cache-Control", "no-store")
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := staffPrincipal(c)
 	if !ok {
 		return nil, nil
 	}

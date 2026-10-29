@@ -139,9 +139,16 @@ const enrollmentQualificationMastersQuery = "qualification_masters"
 const enrollmentQualificationMastersVersion = "v1"
 const enrollmentContactMastersQuery = "contact_masters"
 const enrollmentContactMastersVersion = "v1"
+const enrollmentRequestContextQuery = "request_context"
+const enrollmentRequestContextVersion = "v1"
+
+type enrollmentRequestContextMetadata struct {
+	RequestContextVersion string `json:"request_context_version,omitempty"`
+}
+
 const enrollmentContactRelationshipMaxLength = 60
 
-func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, contactMasters bool) map[string]any {
+func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, contactMasters, requestContext bool) map[string]any {
 	result := map[string]any{"staff": in.Staff, "version": in.Version,
 		"profile":            in.Profile,
 		"addresses":          in.Addresses,
@@ -149,6 +156,9 @@ func enrollmentResponse(in enrollment, profileMasters, qualificationMasters, con
 		"credentials":        in.Credentials,
 		"qualifications":     in.Qualifications,
 		"experiences":        in.Experiences,
+	}
+	if requestContext {
+		result["request_context_version"] = enrollmentRequestContextVersion
 	}
 	if profileMasters {
 		result["profile_masters_version"] = enrollmentProfileMastersVersion

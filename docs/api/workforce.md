@@ -135,6 +135,30 @@ Production rollout uses the existing image pipeline and `helivanta-api` Argo CD 
 
 `GET` and `PUT /v1/workforce/hospitals/{hospital}/staff/{id}/enrollment` require `workforce.enrollment.manage` (tenant administrator initially) **and** a hospital manager grant. Ordinary directory managers/readers cannot access private profiles. Foreign-tenant/hospital objects return 404; a missing route permission returns 403. Every protected GET is audited. No personal profile is included in directory lists, outbox events, error bodies or persisted browser caches.
 
+The current Staff workspace opts into `?request_context=v1`. Both reads and writes
+then require exactly one `X-Helivanta-Expected-Tenant` and
+`X-Helivanta-Expected-Subject`, matching the verified account. A missing or mismatched
+assertion returns `409 session_changed` before private reads or writes. These
+assertions never select a tenant or grant permission. Enrollment, directory lists, HR masters and identity handlers also honor
+assertions when supplied without the projection. Existing document and account-link
+workspace mismatches retain their opaque 404 contract. Duplicate, empty or
+unsupported projection values return `400 invalid_request`.
+
+A projected PUT additionally carries `request_context_version: "v1"` in its JSON
+body. The query and body marker must agree; a marker without the query is invalid.
+Older owners reject the unknown body field before mutation, including when a GET
+in a mixed deployment reached a newer owner. Successful projected responses
+acknowledge `request_context_version: "v1"`; legacy responses omit it. Legacy
+requests without projection/marker preserve optional-header compatibility.
+
+The browser captures the account before loading Staff hospitals, pins enrollment
+and choice requests to it, and requires the acknowledgment and matching Staff ID
+before displaying private fields. Account/scope/access loss closes the private
+workspace; reopening resolves the current account explicitly. Ordinary optimistic
+conflicts and temporary failures retain the draft. Directory Add/Edit also require
+the corresponding Staff/enrollment permission in addition to hospital management;
+document-only roles retain their independent document controls.
+
 PUT carries `expected_version`, the existing `staff` directory fields, `profile`, and bounded arrays `addresses` (2), `emergency_contacts` (5), `credentials`, `qualifications`, `experiences` (20 each). Use version 0 for a new UUID; an edit uses the response `version`. Identical retries succeed without changing version/timestamps or appending an audit/event, even after the original write committed. Different stale content returns 409; reload explicitly rather than overwriting another editor. Staff codes are unique case-insensitively within their tenant and hospital. Child UUIDs must be stable across retries; duplicate IDs/natural keys are rejected.
 
 The profile supports structured/preferred names, optional DOB/gender, separate work/personal email, E.164 mobile/work phone, communication language, optional **reported** blood group, engagement type, department/designation/grade, same-hospital supervisor and employment/probation/confirmation/end dates. Addresses use country/region/postal fields. Emergency contacts have name, relationship, international phone, optional email and distinct priorities 1–5. Credentials carry type/number/issuer/country/specialty and validity. Qualifications and prior employment are repeatable. No government ID, salary, scanned document URL or clinical verification fields are accepted.
@@ -154,8 +178,12 @@ supervision lock returns 503 `supervision_busy`; retain the draft and retry afte
 refresh. Unsupported snapshot isolation modes fail closed with 503
 `supervision_unavailable`; non-null supervisor writes require PostgreSQL
 read-committed semantics. Supervisor selection grants no access or clinical authority. Migration
-`0039_workforce_supervision` is unreleased; pre-rollout owner review must identify
-and correct existing cycles through attributable HR commands.
+`0039_workforce_supervision` is included in the owner registry deployed with
+`e0a9e6af4a56ccb796a82e06914ef654490b030b`; that rollout's migration job succeeded.
+This is rollout evidence, not a per-migration database audit. Existing-cycle
+review and correction must use attributable HR commands. Inactive supervisor
+choices are labeled; profile relationships do not implement dated postings or
+employment offboarding.
 
 ## Versioned HR setup
 

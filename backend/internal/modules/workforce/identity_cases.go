@@ -49,15 +49,12 @@ type identityCaseHistory struct{ IdentityCase }
 func (c identityCaseHistory) PageKey() (time.Time, uuid.UUID) { return c.UpdatedAt, c.ID }
 
 func identityCaseStaffScope(c *gin.Context) (authn.Principal, uuid.UUID, uuid.UUID, bool) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
 		return p, hospital, uuid.Nil, false
 	}
 	if len(c.Request.Header.Values("X-Helivanta-Expected-Tenant")) != 1 || len(c.Request.Header.Values("X-Helivanta-Expected-Subject")) != 1 {
 		respond.Error(c, 409, "session_changed", "Refresh your current workspace before opening or changing identity cases.")
-		return p, hospital, uuid.Nil, false
-	}
-	if !identityWorkspaceMatches(c, p) {
 		return p, hospital, uuid.Nil, false
 	}
 	staff, err := uuid.Parse(c.Param("id"))

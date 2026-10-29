@@ -279,4 +279,15 @@ export const ENROLLMENT_CONTACT_MASTERS_PROJECTION = {
 export type EnrollmentContactMastersProjection = {
   contact_masters_version: typeof ENROLLMENT_CONTACT_MASTERS_PROJECTION.version;
 };
+export const ENROLLMENT_REQUEST_CONTEXT_PROJECTION = {
+  query: "request_context",
+  version: "v1",
+  response_field: "request_context_version",
+} as const;
+export type EnrollmentRequestContextProjection = {
+  request_context_version: typeof ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version;
+};
+export const enrollmentRequestContextSchema = z.object({
+  request_context_version: z.literal(ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version).optional(),
+});
 export const ENROLLMENT_CONTACT_RELATIONSHIP_MAX_LENGTH = 60;

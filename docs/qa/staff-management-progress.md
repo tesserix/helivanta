@@ -442,11 +442,16 @@ historical downloads and denying an unauthorized reader.
 
 Migration `0052_workforce_employment_withdrawal` is implemented locally; it has
 not been approved or run in production. Full validation/release evidence is
-recorded with the candidate PR. The initial parallel full backend run encountered
-shared Docker dependency readiness/connection failures and is being rerun with
-bounded package parallelism; no test is skipped or acceptance exception granted.
+recorded in [PR #1463](https://github.com/tesserix/helivanta/pull/1463). The initial parallel full backend run encountered
+shared Docker dependency readiness/connection failures; the rerun uses bounded
+package parallelism and its result is recorded in the PR; no test is skipped or acceptance exception granted.
 The initial combined web run found a panel lint violation (corrected) and sign-in
-test timeouts; the final web gate is rerun in CI task order.
+test timeouts. The subsequent complete gate passed all 30 tasks, including
+1,200 shell tests and 409 API tests; the final form-control regression also passed.
+CI subsequently detected the newly published query-decoding advisory. Its
+compatible dependency correction and actual-consumer regression are documented
+in the [vulnerability runbook](../runbooks/vulnerability-management.md#expo-query-decoding-2026-10-30);
+no advisory exception was added.
 
 All broad acceptance counts remain 8 partial, 12 audit pending, 1 research and
 0 fully accepted. The scoped HR intake role still needs the action/route and

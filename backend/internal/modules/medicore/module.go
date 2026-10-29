@@ -23,6 +23,11 @@ const (
 	// PermAccessManage administers who may see a hospital's encounters
 	// (#80 E3); tenant admins only, so no one grants themselves access.
 	PermAccessManage authz.Permission = "medicore.access.manage"
+	// PermBedConfigure records a hospital's wards, rooms and beds (#106).
+	PermBedConfigure authz.Permission = "medicore.bed.configure"
+	// PermAdmissionManage admits a patient to a bed, transfers and releases
+	// them, and moves beds between ready, cleaning and out of service (#106).
+	PermAdmissionManage authz.Permission = "medicore.admission.manage"
 	// Allergies and observations (#1373 A10): doctor and nurse.
 	PermAllergyRead       authz.Permission = "medicore.allergy.read"
 	PermAllergyRecord     authz.Permission = "medicore.allergy.record"
@@ -36,6 +41,9 @@ var encountersSchema string
 //go:embed allergies.sql
 var allergiesSchema string
 
+//go:embed beds.sql
+var bedsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -48,6 +56,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermVisitRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
 		{Permission: PermVisitUpdate, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
 		{Permission: PermAccessManage},
+		{Permission: PermBedConfigure},
+		{Permission: PermAdmissionManage, Roles: []authz.Role{authz.RoleReceptionist, authz.RoleNurse}},
 		{Permission: PermAllergyRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
 		{Permission: PermAllergyRecord, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
 		{Permission: PermObservationRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
@@ -103,6 +113,10 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		// Allergies, weight and the drug molecule projection (#1373).
 		ID:  "0006_medicore",
 		SQL: allergiesSchema,
+	}, {
+		// Wards, rooms, beds, admissions and occupancy intervals (#106).
+		ID:  "0007_medicore",
+		SQL: bedsSchema,
 	}}
 }
 
@@ -122,6 +136,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/hospitals/:hospital/encounters", PermVisitRead, encounters.list)
 	g.GET("/hospitals/:hospital/encounters/:id", PermVisitRead, encounters.get)
 	g.POST("/hospitals/:hospital/encounters/:id/transitions", PermVisitUpdate, encounters.transition)
+	bedRoutes(g, encounters)
 
 	clinical := &clinicalHandlers{encounterHandlers: encounters, allergyRecording: deps.AllergyRecordingEnabled}
 	patient := "/hospitals/:hospital/patients/:patient"
@@ -141,7 +156,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // the encounter events (#80 E6).
 func (m *Module) Publishes() []string {
 	return []string{medicorecontract.SubjectVisitCreated, medicorecontract.SubjectEncounterOpened, medicorecontract.SubjectEncounterStatusChanged,
-		medicorecontract.SubjectAllergyChanged, medicorecontract.SubjectWeightRecorded}
+		medicorecontract.SubjectAllergyChanged, medicorecontract.SubjectWeightRecorded,
+		medicorecontract.SubjectBedOccupancyStarted, medicorecontract.SubjectBedOccupancyEnded, medicorecontract.SubjectAdmissionReleased}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

@@ -1212,6 +1212,69 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/release",
+          "permission": "medicore.admission.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/transfers/:transfer",
+          "permission": "medicore.admission.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/admissions/:admission",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/admissions/:admission",
+          "permission": "medicore.admission.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/beds/:bed/occupant",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/beds/:bed/transitions/:transition",
+          "permission": "medicore.admission.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/beds",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/medicore/hospitals/:hospital/encounters/:id/transitions",
           "permission": "medicore.visit.update",
@@ -1338,6 +1401,60 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/rooms/:room/beds/:bed",
+          "permission": "medicore.bed.configure",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/rooms/:room/occupant",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/rooms",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/wards/:ward/rooms/:room",
+          "permission": "medicore.bed.configure",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/wards/:ward",
+          "permission": "medicore.bed.configure",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/medicore/hospitals/:hospital/wards",
+          "permission": "medicore.visit.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/medicore/insights",
           "permission": "medicore.visit.read",
@@ -1391,6 +1508,17 @@
           "roles": []
         },
         {
+          "permission": "medicore.bed.configure",
+          "roles": []
+        },
+        {
+          "permission": "medicore.admission.manage",
+          "roles": [
+            "receptionist",
+            "nurse"
+          ]
+        },
+        {
           "permission": "medicore.allergy.read",
           "roles": [
             "doctor",
@@ -1424,7 +1552,10 @@
         "helivanta.in.medicore.encounter_opened.v1",
         "helivanta.in.medicore.encounter_status_changed.v1",
         "helivanta.in.medicore.allergy_changed.v1",
-        "helivanta.in.medicore.weight_recorded.v1"
+        "helivanta.in.medicore.weight_recorded.v1",
+        "helivanta.in.medicore.bed_occupancy_started.v1",
+        "helivanta.in.medicore.bed_occupancy_ended.v1",
+        "helivanta.in.medicore.admission_released.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -1484,6 +1615,19 @@
             "medicore_weight_observations",
             "medicore_weight_errors",
             "medicore_clinical_read_audit"
+          ]
+        },
+        {
+          "id": "0007_medicore",
+          "sql_sha256": "434331aa78c4c7c1622971e7a4988858afd2c82b084c69ca8f7e5e27f89105c9",
+          "creates_tables": [
+            "medicore_wards",
+            "medicore_rooms",
+            "medicore_beds",
+            "medicore_bed_transitions",
+            "medicore_admissions",
+            "medicore_bed_occupancies",
+            "medicore_admission_transfers"
           ]
         }
       ]

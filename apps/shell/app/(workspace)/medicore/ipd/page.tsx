@@ -1,5 +1,5 @@
-import { PingPanel } from "@/components/medicore/ping-panel";
+import { WardBoard } from "@/components/medicore/ward-board";
 
 export default function IpdPage() {
-  return <PingPanel department="IPD" />;
+  return <WardBoard />;
 }

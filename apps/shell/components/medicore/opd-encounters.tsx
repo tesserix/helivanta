@@ -181,7 +181,7 @@ function HospitalEncounters({ hospital }: { hospital: Hospital }) {
 
 // The patient's name, read from the patient registry under the caller's own
 // grant there; the encounter carries only the patient's id.
-function PatientName({ hospital, id }: { hospital: Hospital; id: string }) {
+export function PatientName({ hospital, id }: { hospital: Hospital; id: string }) {
   // Each read is an audited disclosure, so a name is read once per page
   // visit, not on every remount. shortcut: one request per row; a batched,
   // audited name lookup in patientmaster is #1378.

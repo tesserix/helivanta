@@ -9,7 +9,7 @@ No row below is complete merely because a UI status exists.
       synthetic manager/reader UI and preserved inactivation/link history.
       Merged as `1be494b0d6def7341ec28c10d4c3596cbe7afc9b` in
       [PR #1454](https://github.com/tesserix/helivanta/pull/1454); full PR CI, local
-      Workforce race/coverage and web gates passed. Production rollout remains open.
+      Workforce race/coverage and web gates passed. Production rollout is now verified on `22b6241`; see the current Staff tracker. Broader manager/reader and complete lifecycle acceptance remain separate gates.
 - [ ] Model employment periods and distinct employee, consultant, individual
       contractor and agency/outsourced-worker relationships. Reconcile #1035 with
       facility contractor/vendor work in #298; a service vendor is not automatically

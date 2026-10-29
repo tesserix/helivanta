@@ -763,6 +763,66 @@
       "type": "object"
     }
   },
+  "helivanta.in.patientmaster.pharmacy_affiliation_decided.v1": {
+    "source": "backend/internal/modules/patientmaster/contract/events.go:86",
+    "go_type": "PharmacyAffiliationDecidedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "affiliation_id": {
+          "type": "string"
+        },
+        "decided_at": {
+          "type": "string"
+        },
+        "decision_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "affiliation_id",
+        "hospital_id",
+        "decision_id",
+        "outcome",
+        "decided_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.patientmaster.pharmacy_affiliation_received.v1": {
+    "source": "backend/internal/modules/patientmaster/contract/events.go:100",
+    "go_type": "PharmacyAffiliationReceivedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "affiliation_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "affiliation_id",
+        "state"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.patientmaster.proxy_authority_changed.v1": {
     "source": "backend/internal/modules/patientmaster/contract/events.go:75",
     "go_type": "ProxyAuthorityChangedData",
@@ -1037,6 +1097,110 @@
         "rrn",
         "paid_at",
         "late"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.affiliation_decision_received.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:203",
+    "go_type": "AffiliationDecisionReceivedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "decision_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "hospital_id",
+        "decision_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.affiliation_verification_requested.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:187",
+    "go_type": "AffiliationVerificationData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "affiliation_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "pharmacy_id": {
+          "type": "string"
+        },
+        "pharmacy_name": {
+          "type": "string"
+        },
+        "relationship": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "requester_subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "affiliation_id",
+        "pharmacy_id",
+        "pharmacy_name",
+        "hospital_id",
+        "relationship",
+        "requester_subject"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:187",
+    "go_type": "AffiliationVerificationData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "affiliation_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "pharmacy_id": {
+          "type": "string"
+        },
+        "pharmacy_name": {
+          "type": "string"
+        },
+        "relationship": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "requester_subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "affiliation_id",
+        "pharmacy_id",
+        "pharmacy_name",
+        "hospital_id",
+        "relationship",
+        "requester_subject"
       ],
       "type": "object"
     }

@@ -12,4 +12,6 @@ Hospital-owned pharmacy still uses pharmacy/outlet scope. A hospital encounter/p
 
 The initial API/database implementation supports organization/outlet registration, outlet grants, outlet-private product revisions and quarantine receiving. Affiliations are onboarding declarations, not approved data-sharing or dispensing authority. Licence/credential verification, country policy, clinical fulfilment and real hospital integrations remain explicit subsequent acceptance gates. Existing basic free-text dispensing is not the governed fulfilment workflow.
 
+Update (2026-10-29, #1416): a same-tenant affiliation can now be verified. The hospital's registrar-administrator accepts, declines or revokes it in patientmaster, the pharmacy can withdraw it, and both sides keep append-only history. A verified affiliation is the precondition for hospital-scoped patient lookup, which is a separate slice (#1416b). It is still not patient, prescription or stock authority by itself. Cross-tenant affiliation remains unimplemented.
+
 The prior unmerged hospital-mandatory draft is replaced before release. No production pharmacy migration or rollout has happened. Clinical hospital boundaries elsewhere in HMS remain unchanged.

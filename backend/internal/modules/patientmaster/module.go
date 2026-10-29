@@ -7,6 +7,7 @@ import (
 
 	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
+	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -19,8 +20,11 @@ const (
 	PermProxyAuthorityReview   authz.Permission = "patient.proxy-authority.review"
 	PermConsentAuthorityReview authz.Permission = "patient.consent-authority.review"
 	PermPatientAccessManage    authz.Permission = "patient.access.manage"
-	PermPatientRead            authz.Permission = "patient.read"
-	PermPatientRegister        authz.Permission = "patient.register"
+	// PermPharmacyAffiliationReview accepts, declines or revokes a pharmacy's
+	// affiliation with a hospital (#1416); held with a registrar grant.
+	PermPharmacyAffiliationReview authz.Permission = "patient.pharmacy-affiliation.review"
+	PermPatientRead               authz.Permission = "patient.read"
+	PermPatientRegister           authz.Permission = "patient.register"
 	// PermRegistrationReplay re-announces existing registrations to
 	// consumers that started after them (#1377); tenant admins only.
 	PermRegistrationReplay authz.Permission = "patient.registration.replay"
@@ -53,6 +57,9 @@ var proxyAuthoritySchema string
 //go:embed proxy_clinical_consent.sql
 var proxyClinicalConsentSchema string
 
+//go:embed pharmacy_affiliations.sql
+var pharmacyAffiliationSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -68,6 +75,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermProxyAuthorityReview},
 		{Permission: PermSharingNoticeReview},
 		{Permission: PermSharingRecipientReview},
+		{Permission: PermPharmacyAffiliationReview},
 		{Permission: PermPatientRead, Roles: []authz.Role{
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
@@ -236,7 +244,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		{ID: "0011_patientmaster", ConcurrentIndexes: []tenantdb.ConcurrentIndex{
 			{Name: "patient_clinical_consent_proxy_authority", Table: "patient_clinical_consents", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "proxy_authority_id"}}},
 			{Name: "patient_sharing_notice_capacity_page", Table: "patient_sharing_notices", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "authority_kind"}, {Name: "status"}, {Name: "purpose"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
-		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}}
+		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}, {ID: "0013_patientmaster", SQL: pharmacyAffiliationSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -285,6 +293,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, "/link-reviews", PermPatientRegister, patients.listLinkReviews)
 	g.PUT("/link-reviews/:request/decision/:decision", PermPatientRegister, patients.decideLinkReview)
 	g.GET("/link-reviews/:request", PermPatientRegister, patients.getLinkReview)
+	platform.ListRoute(g, "/pharmacy-affiliations", PermPharmacyAffiliationReview, patients.listPharmacyAffiliations)
+	g.PUT("/pharmacy-affiliations/:request/decision/:decision", PermPharmacyAffiliationReview, patients.decidePharmacyAffiliation)
 	g.GET("/:id/registration-reference", PermPatientRead, patients.registrationReference)
 	g.GET("/:id", PermPatientRead, patients.get)
 	platform.ListRoute(g, "", PermPatientRead, patients.list)
@@ -293,7 +303,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectProxyAuthorityChanged, patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged}
+	return []string{patientmastercontract.SubjectProxyAuthorityChanged, patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged, patientmastercontract.SubjectPharmacyAffiliationDecided, patientmastercontract.SubjectPharmacyAffiliationReceived}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that
@@ -306,7 +316,10 @@ func (m *Module) DirectedWriteTables() []string { return nil }
 
 // Consumers ingests account review submissions and terminal withdrawals.
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
-	return []events.Consumer{reviewConsumer(mediconnectcontract.SubjectReviewRequested, "patient-registration-review"), reviewConsumer(mediconnectcontract.SubjectReviewWithdrawn, "patient-registration-review-withdrawal")}
+	return []events.Consumer{reviewConsumer(mediconnectcontract.SubjectReviewRequested, "patient-registration-review"), reviewConsumer(mediconnectcontract.SubjectReviewWithdrawn, "patient-registration-review-withdrawal"),
+		pharmacyAffiliationConsumer(pharmacycontract.SubjectAffiliationVerificationRequested, "patient-pharmacy-affiliation-request"),
+		pharmacyAffiliationConsumer(pharmacycontract.SubjectAffiliationVerificationWithdrawn, "patient-pharmacy-affiliation-withdrawal"),
+		decisionReceiptConsumer()}
 }
 
 // Broadcasts declares none: patientmaster has no per-replica cache to

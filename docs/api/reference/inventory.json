@@ -1959,6 +1959,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request/withdraw",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verification-requests/:request",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id/verifications",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/hospital-affiliations/:id",
           "permission": "pharmacy.access.manage",
@@ -2887,7 +2914,10 @@
         "helivanta.in.pharmacy.prescription_image_changed.v1",
         "helivanta.in.pharmacy.credit_note_issued.v1",
         "helivanta.in.pharmacy.payment_requested.v1",
-        "helivanta.in.pharmacy.payment_cancelled.v1"
+        "helivanta.in.pharmacy.payment_cancelled.v1",
+        "helivanta.in.pharmacy.affiliation_verification_requested.v1",
+        "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1",
+        "helivanta.in.pharmacy.affiliation_decision_received.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -2925,6 +2955,16 @@
         {
           "name": "pharmacy-payment-cancelled",
           "subject": "helivanta.in.payments.intent_cancelled.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-affiliation-decision",
+          "subject": "helivanta.in.patientmaster.pharmacy_affiliation_decided.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-affiliation-receipt",
+          "subject": "helivanta.in.patientmaster.pharmacy_affiliation_received.v1",
           "after_commit": false
         }
       ],
@@ -3090,6 +3130,14 @@
           "id": "0022_pharmacy",
           "sql_sha256": "31df2fe8f62383b6c76a8e50796784b9f5546b1f41f46f75206f534f82ab7032",
           "creates_tables": []
+        },
+        {
+          "id": "0023_pharmacy",
+          "sql_sha256": "46080054575ccd57e3ec826ac0d4006518fce77f6d25745f2468016688555eca",
+          "creates_tables": [
+            "pharmacy_affiliation_verifications",
+            "pharmacy_affiliation_deliveries"
+          ]
         }
       ]
     },
@@ -4452,6 +4500,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/patients/pharmacy-affiliations/:request/decision/:decision",
+          "permission": "patient.pharmacy-affiliation.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/pharmacy-affiliations",
+          "permission": "patient.pharmacy-affiliation.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/patients/proxy-authorities/:authority/revoke",
           "permission": "patient.proxy-authority.review",
@@ -4600,6 +4666,10 @@
           "roles": []
         },
         {
+          "permission": "patient.pharmacy-affiliation.review",
+          "roles": []
+        },
+        {
           "permission": "patient.read",
           "roles": [
             "receptionist",
@@ -4627,7 +4697,9 @@
         "helivanta.in.patientmaster.consent_authority_changed.v1",
         "helivanta.in.patientmaster.sharing_notice_changed.v1",
         "helivanta.in.patientmaster.sharing_recipient_changed.v1",
-        "helivanta.in.patientmaster.clinical_consent_changed.v1"
+        "helivanta.in.patientmaster.clinical_consent_changed.v1",
+        "helivanta.in.patientmaster.pharmacy_affiliation_decided.v1",
+        "helivanta.in.patientmaster.pharmacy_affiliation_received.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -4640,6 +4712,21 @@
         {
           "name": "patient-registration-review-withdrawal",
           "subject": "helivanta.in.mediconnect.registration_review_withdrawn.v1",
+          "after_commit": false
+        },
+        {
+          "name": "patient-pharmacy-affiliation-request",
+          "subject": "helivanta.in.pharmacy.affiliation_verification_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "patient-pharmacy-affiliation-withdrawal",
+          "subject": "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1",
+          "after_commit": false
+        },
+        {
+          "name": "patient-pharmacy-affiliation-decision-receipt",
+          "subject": "helivanta.in.pharmacy.affiliation_decision_received.v1",
           "after_commit": false
         }
       ],
@@ -4778,6 +4865,15 @@
           "id": "0012_patientmaster",
           "sql_sha256": "fd75d486875bbc6983ef3a6cc811c28eda0cfb670adb47e0ab95811de50bb25c",
           "creates_tables": []
+        },
+        {
+          "id": "0013_patientmaster",
+          "sql_sha256": "b582f4016aded529fd07cf68f0261b28ba108d0500e8ad477628764c7227ada8",
+          "creates_tables": [
+            "patient_pharmacy_affiliation_reviews",
+            "patient_pharmacy_affiliation_decisions",
+            "patient_pharmacy_affiliation_deliveries"
+          ]
         }
       ]
     },

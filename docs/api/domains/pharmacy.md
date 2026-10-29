@@ -406,3 +406,21 @@ Supply transfer requires a source dispatch, destination receipt, quantities/unit
 Trace requirements to [#1133](https://github.com/tesserix/helivanta/issues/1133), [#159](https://github.com/tesserix/helivanta/issues/159), [#162](https://github.com/tesserix/helivanta/issues/162), [#166](https://github.com/tesserix/helivanta/issues/166), [#167](https://github.com/tesserix/helivanta/issues/167), [#987](https://github.com/tesserix/helivanta/issues/987), [#1060](https://github.com/tesserix/helivanta/issues/1060) and the [reconciled backlog](../../delivery/2026-10-18-pharmaconnect-backlog.md). Do not label these whole stories complete because a foundation exists.
 
 Approve full sales/returns/recalls/expiry release, signed prescription fulfillment, GST/tax policy beyond the tax setup above, price schemes and regulated reporting per country before defining stable external contracts. Required tests include negative/overflow quantity, concurrent receipt/correction, duplicate command with changed content, expired/blocked batch, cross-outlet grants, stale tenant, local midnight expiry, export scope, settlement reversal and consumer retry after commit. Database failure denies a stock/financial mutation; broker lag leaves outbox work pending; a report must expose unavailable data rather than show a false zero.
+
+### Registration envelope compatibility
+
+Patientmaster publishes its existing ID-only registration payload on
+`helivanta.in.patientmaster.registered.v1` with envelope type `PatientRegistered`.
+The subject routes delivery; it is not the envelope type. Both owner publication
+paths and Pharmacy's registered-patient consumer use the public
+`TypePatientRegistered` contract constant. Other types, unsupported versions,
+directed envelopes and malformed payloads remain rejected.
+
+A real-owner integration test registers a synthetic patient through the owner
+HTTP route, reads the actual durable outbox envelope, and delivers those bytes to
+the Pharmacy consumer. It verifies no name/date of birth in the payload, exact
+hospital retention, idempotent replay and zero foreign-tenant rows. This proves
+producer/consumer serialization compatibility; broader broker/UI and deployment
+acceptance remain separate gates. The consumer still grants no dispensing or
+hospital affiliation authority; sales independently require current verified
+scope and all existing stock/financial controls.

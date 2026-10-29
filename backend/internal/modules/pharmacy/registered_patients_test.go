@@ -28,7 +28,7 @@ func TestPharmacyKeepsRegisteredPatientIds(t *testing.T) {
 		data, err := json.Marshal(raw)
 		require.NoError(t, err)
 		return db.WithTenant(t.Context(), tenant, func(tx *gorm.DB) error {
-			return consumer.Handle(t.Context(), tx, events.Event{Type: consumer.Subject, Version: 1, TenantID: tenant, Data: data})
+			return consumer.Handle(t.Context(), tx, events.Event{Type: patientmastercontract.TypePatientRegistered, Version: 1, TenantID: tenant, Data: data})
 		})
 	}
 	held := func(tenant, patient string) []string {
@@ -51,4 +51,39 @@ func TestPharmacyKeepsRegisteredPatientIds(t *testing.T) {
 	require.Error(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE pharmacy_registered_patients SET hospital_id=? WHERE patient_id=?`, uuid.NewString(), patient).Error
 	}), "a registration's hospital never changes")
+}
+
+func TestRegisteredPatientProjectionRejectsInvalidOwnerEnvelopes(t *testing.T) {
+	_, db := catalogueHarness(t)
+	var consumer events.Consumer
+	for _, c := range pharmacy.New().Consumers(platform.Deps{}) {
+		if c.Name == "pharmacy-patient-registered" {
+			consumer = c
+		}
+	}
+	patient, hospital := uuid.NewString(), uuid.NewString()
+	data, err := json.Marshal(patientmastercontract.PatientRegisteredData{PatientID: patient, HospitalID: hospital})
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, kind, destination string
+		version                 int
+		data                    json.RawMessage
+	}{
+		{"routing subject is not type", consumer.Subject, "", 1, data},
+		{"unknown type", "UnknownRegistration", "", 1, data},
+		{"unsupported version", patientmastercontract.TypePatientRegistered, "", 2, data},
+		{"directed event", patientmastercontract.TypePatientRegistered, testutil.TenantB, 1, data},
+		{"malformed payload", patientmastercontract.TypePatientRegistered, "", 1, json.RawMessage(`{"patient_id":`)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Error(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+				return consumer.Handle(t.Context(), tx, events.Event{Type: tc.kind, Version: tc.version, TenantID: testutil.TenantA, DestinationTenantID: tc.destination, Data: tc.data})
+			}))
+		})
+	}
+	var count int64
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Table("pharmacy_registered_patients").Where("patient_id=?", patient).Count(&count).Error
+	}))
+	require.Zero(t, count)
 }

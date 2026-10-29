@@ -5,6 +5,9 @@ package contract
 // SubjectPatientRegistered is published when a patient is registered.
 const SubjectPatientRegistered = "helivanta.in.patientmaster.registered.v1"
 
+// TypePatientRegistered is the envelope type carried on SubjectPatientRegistered.
+const TypePatientRegistered = "PatientRegistered"
+
 // PatientRegisteredData is the v1 payload.
 //
 // It carries the id and NOTHING identifying — no name, date of birth,

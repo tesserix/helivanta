@@ -10,6 +10,23 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
 - Record local positive UI QA separately from production positive or denial QA. A test count, route, screenshot, migration job or published release alone does not establish workflow completion.
 - Keep issues open until their actual acceptance criteria pass. Legacy issue references to Keycloak or proposed tables must be reconciled with current Zitadel/IAM/Workforce ownership before implementation.
 
+## Quantitative checkpoint — 2026-10-29
+
+The 21 tracked areas currently comprise **8 partial (38.1%)**, **12 audit pending
+(57.1%)** and **1 research/proposal (4.8%)**. **0/21 are fully accepted (0%)**;
+all 21 still have acceptance work. These are area-status percentages, not an
+estimate that 38.1% of engineering effort is complete. The remaining scenarios
+vary substantially in size, so no defensible overall effort or time percentage
+is available yet.
+
+The next directory slice corrects a UI authority mismatch: basic directory
+writes use the explicit hospital manager grant defined by ADR-0009, whereas
+private enrollment additionally requires `workforce.enrollment.manage`.
+`workforce.staff.manage` is not a registered permission and must not gate basic
+editing. This does not complete scoped HR role templates, dated transfers,
+offboarding, account-bound basic saves or optimistic basic-directory updates.
+The legacy basic update contract still uses last-commit-wins semantics.
+
 ## Full scope
 
 | Area                            | Status                                      | Verified work / evidence                                                                                                                                                                                        | Remaining acceptance                                                                                                                                                                                                |

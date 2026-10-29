@@ -203,7 +203,7 @@ function Directory({
       .includes(filter.toLowerCase()),
   );
   const manager = hospital.access_level === "manager";
-  const writable = manager && (can("workforce.staff.manage") || can("workforce.enrollment.manage"));
+  const writable = manager;
   return (
     <>
       <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">

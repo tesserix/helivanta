@@ -68,6 +68,13 @@ Hospital and staff IDs are non-nil UUIDs. Subject is the immutable identity subj
 
 POST is intentionally absent: clients choose UUIDs once and retry the same PUT URI after a timeout. Identical retries keep the original timestamps and do not add a second mutation audit. Changed PUTs replace the listed mutable fields; concurrent different updates currently use last-commit-wins semantics. Consumers requiring optimistic concurrency must wait for a versioned update contract. Codes are unique within a hospital and can repeat in isolated sibling hospitals.
 
+The basic directory UI follows the same explicit hospital manager grant as the
+owner API. It does not require an additional `workforce.staff.manage` permission
+(which is not registered). Private enrollment remains separately gated by
+`workforce.enrollment.manage` and the hospital manager grant. A reader grant
+never permits basic Staff writes, including when global enrollment permission
+is present.
+
 ## Payloads
 
 Hospital:

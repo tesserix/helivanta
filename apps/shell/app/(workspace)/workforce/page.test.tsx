@@ -7,7 +7,7 @@ import Workforce from "./page";
 const hospital = "11111111-1111-4111-8111-111111111111";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
-it("loads the granted hospital and saves staff through its API", async () => {
+it("lets a hospital manager without static permissions save basic staff", async () => {
   let saved: Record<string, string> | null = null;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     let body: unknown = { data: [] };
@@ -15,7 +15,7 @@ it("loads the granted hospital and saves staff through its API", async () => {
       body = {
         tenant_id: hospital,
         subject: "synthetic-staff-admin",
-        data: ["workforce.staff.manage"],
+        data: [],
       };
     if (url.endsWith("/workforce/hospitals"))
       body = page([{ id: hospital, name: "YES HOSPITAL", access_level: "manager" }]);
@@ -29,6 +29,7 @@ it("loads the granted hospital and saves staff through its API", async () => {
   vi.stubGlobal("fetch", fetcher);
   const { user } = renderWithProviders(<Workforce />);
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
+  expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
   await user.type(screen.getByLabelText("Full name"), "Synthetic Nurse");
   await user.type(screen.getByLabelText("Employee code"), "YES-101");
   await chooseOption(user, screen.getByLabelText("Job category"), "Nurse");
@@ -39,6 +40,12 @@ it("loads the granted hospital and saves staff through its API", async () => {
       expect.objectContaining({ method: "PUT" }),
     ),
   );
+  expect(saved).toEqual({
+    display_name: "Synthetic Nurse",
+    employee_code: "YES-101",
+    job_category: "nurse",
+    employment_status: "active",
+  });
   expect(await screen.findByText("Synthetic Nurse")).toBeInTheDocument();
 });
 it("shows an actionable API failure rather than an empty directory", async () => {
@@ -49,7 +56,7 @@ it("shows an actionable API failure rather than an empty directory", async () =>
         ? Response.json({
             tenant_id: hospital,
             subject: "synthetic-staff-admin",
-            data: ["workforce.staff.manage"],
+            data: [],
           })
         : new Response(JSON.stringify({ message: "Unavailable" }), { status: 503 }),
     ),

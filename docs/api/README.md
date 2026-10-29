@@ -45,6 +45,7 @@ The [privacy casework API](privacy.md) owns authenticated tenant-local rights/gr
 | Beds, admissions, transfers and discharge              | [Bed and inpatient specification](domains/beds-and-admissions.md)                                                      |
 | Pharmacy, stock and financial records                  | [PharmaConnect](domains/pharmacy.md)                                                                                   |
 | Payments                                               | [Payments core](domains/payments.md)                                                                                   |
+| Hospital billing                                       | [Billing](domains/billing.md)                                                                                          |
 | Supply organizations and procurement                   | [SupplyConnect](domains/supply.md)                                                                                     |
 | Diagnostics                                            | [LabConnect](domains/laboratory.md)                                                                                    |
 | Staff and HR                                           | [Workforce](workforce.md) and [integration specification](domains/workforce.md)                                        |

@@ -2257,6 +2257,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -3079,7 +3088,9 @@
         "helivanta.in.pharmacy.payment_cancelled.v1",
         "helivanta.in.pharmacy.affiliation_verification_requested.v1",
         "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1",
-        "helivanta.in.pharmacy.affiliation_decision_received.v1"
+        "helivanta.in.pharmacy.affiliation_decision_received.v1",
+        "helivanta.in.pharmacy.admission_charge_posted.v1",
+        "helivanta.in.pharmacy.admission_charge_reversed.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -3132,6 +3143,16 @@
         {
           "name": "pharmacy-patient-registered",
           "subject": "helivanta.in.patientmaster.registered.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-bed-occupancy-started",
+          "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-bed-occupancy-ended",
+          "subject": "helivanta.in.medicore.bed_occupancy_ended.v1",
           "after_commit": false
         }
       ],
@@ -3322,6 +3343,13 @@
           "id": "0026_pharmacy",
           "sql_sha256": "a8372894f7f3c5f33e11d65bfba89af9abd26832fc27c7f6f2b34bd80fa9df66",
           "creates_tables": []
+        },
+        {
+          "id": "0027_pharmacy",
+          "sql_sha256": "5a48a0176bcc6c394f26f4a08a42dbaaa2836ecf9be9d28f41b9f63d4910e4b2",
+          "creates_tables": [
+            "pharmacy_bed_occupancies"
+          ]
         }
       ]
     },
@@ -3386,6 +3414,108 @@
             "payment_intent_transitions",
             "payment_provider_payments",
             "payment_webhook_deliveries"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing",
+      "source": "backend/internal/modules/billing/module.go",
+      "routes": [
+        {
+          "method": "DELETE",
+          "path": "/v1/billing/hospitals/:hospital/access/:subject",
+          "permission": "billing.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/access/:subject",
+          "permission": "billing.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/access",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/account",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/entries",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "billing.account.read",
+          "roles": [
+            "nurse",
+            "receptionist"
+          ]
+        },
+        {
+          "permission": "billing.access.manage",
+          "roles": []
+        }
+      ],
+      "publishes": [],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [
+        {
+          "name": "billing-bed-occupancy-started",
+          "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-admission-released",
+          "subject": "helivanta.in.medicore.admission_released.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-pharmacy-admission-charge",
+          "subject": "helivanta.in.pharmacy.admission_charge_posted.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-pharmacy-admission-reversal",
+          "subject": "helivanta.in.pharmacy.admission_charge_reversed.v1",
+          "after_commit": false
+        }
+      ],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_billing",
+          "sql_sha256": "14733fd026c058feb6f82c0b79cbd065fba087718231ae80023daf264d6e51ed",
+          "creates_tables": [
+            "billing_hospital_access",
+            "billing_admission_accounts",
+            "billing_account_entries",
+            "billing_parked_reversals"
           ]
         }
       ]
@@ -5108,6 +5238,11 @@
             "patient_pharmacy_links",
             "patient_pharmacy_lookup_access"
           ]
+        },
+        {
+          "id": "0015_patientmaster",
+          "sql_sha256": "338e9dd96a44c5c3fa3f19061d9bb9412bb4bf91218b2b8e516798d6fc94a9dd",
+          "creates_tables": []
         }
       ]
     },

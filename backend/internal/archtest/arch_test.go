@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/billing"
 	"github.com/tesserix/helivanta/internal/modules/drugmaster"
 	"github.com/tesserix/helivanta/internal/modules/emergency"
 	"github.com/tesserix/helivanta/internal/modules/iam"
@@ -55,7 +56,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -399,6 +400,9 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /emergency/bases/:base/cases/:case":                                    "one audited base-scoped encrypted case; queue and timeline use cursor pagination",
 	"GET /workforce/hospitals/:hospital/insights":                               "one explicitly hospital-grant-checked snapshot, bounded to seven job categories and two employment statuses",
 	"GET /medicore/hospitals/:hospital/access":                                  "the caller's own grant at one hospital; no other subject or patient data",
+	"GET /billing/hospitals/:hospital/access":                                   "the caller's own billing grant at one hospital; no other subject",
+	"GET /billing/hospitals/:hospital/admissions/:admission/account":            "one admission's account totals; its entries are a paginated list",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant":     "one bed's or room's single open stay, or 404/409 ambiguous; never a collection",
 	"GET /medicore/hospitals/:hospital/encounters/:id":                          "one grant-checked encounter; the hospital's encounters use cursor pagination",
 	"GET /medicore/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
 	"GET /pharmacy/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two dispense statuses; no patient rows",

@@ -24,6 +24,7 @@ import {
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
+import { CounterAdmissionLookup, type CounterAdmission } from "./counter-admission";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 import { VerifiedUpi } from "./verified-upi";
 
@@ -508,8 +509,10 @@ const tenderSchema = z
     discounted: z.boolean(),
     discount_reason: z.string().trim().max(200, "At most 200 characters"),
     // A sale names a registered patient or an optional walk-in buyer (#1386 B-2c).
-    customer: z.enum(["walk_in", "patient"]),
+    // Or bills the sale to the admission in a bed (#1387), collecting nothing.
+    customer: z.enum(["walk_in", "patient", "admission"]),
     patient_id: z.string(),
+    occupancy_id: z.string(),
     // The walk-in buyer is optional on every sale (#1386 B-2b decision 7).
     buyer_name: z.string().trim().max(200, "At most 200 characters"),
     buyer_phone: z
@@ -521,6 +524,22 @@ const tenderSchema = z
       ),
   })
   .superRefine((v, ctx) => {
+    if (v.customer === "admission") {
+      if (v.occupancy_id === "")
+        ctx.addIssue({
+          code: "custom",
+          path: ["occupancy_id"],
+          message: "Find the admission and confirm the patient",
+        });
+      // Billed to the account: no tender is taken at the counter.
+      if (v.discounted && v.discount_reason.length < 5)
+        ctx.addIssue({
+          code: "custom",
+          path: ["discount_reason"],
+          message: "Give the reason for the discount, at least 5 characters",
+        });
+      return;
+    }
     if (
       v.kind === "cash" &&
       !(Number.isSafeInteger(v.tendered_minor) && v.tendered_minor >= v.total)
@@ -570,6 +589,7 @@ function TenderForm({
     total: quote.total_minor,
     customer: "walk_in",
     patient_id: "",
+    occupancy_id: "",
     buyer_name: "",
     buyer_phone: "",
     discounted: basket.some((l) => l.discount_bps),
@@ -578,6 +598,12 @@ function TenderForm({
   const kind = form.watch("kind");
   const customer = form.watch("customer");
   const [patient, setPatient] = useState<CounterPatient | null>(null);
+  const [admission, setAdmission] = useState<CounterAdmission | null>(null);
+  const chooseAdmission = (next: CounterAdmission | null) => {
+    setAdmission(next);
+    form.setValue("occupancy_id", next?.occupancy_id ?? "", { shouldValidate: false });
+    if (next) form.clearErrors("occupancy_id");
+  };
   const choosePatient = (next: CounterPatient | null) => {
     setPatient(next);
     form.setValue("patient_id", next?.patient_id ?? "", { shouldValidate: false });
@@ -599,27 +625,32 @@ function TenderForm({
         body: JSON.stringify({
           lines: basket.map(lineBody),
           tenders: [
-            values.kind === "cash"
-              ? {
-                  kind: "cash",
-                  amount_minor: quote.total_minor,
-                  tendered_minor: values.tendered_minor,
-                }
-              : values.kind === "upi_verified"
+            values.customer === "admission"
+              ? { kind: "admission_account", amount_minor: quote.total_minor }
+              : values.kind === "cash"
                 ? {
-                    kind: "upi_verified",
+                    kind: "cash",
                     amount_minor: quote.total_minor,
-                    payment_request_id: values.payment_request_id,
+                    tendered_minor: values.tendered_minor,
                   }
-                : {
-                    kind: values.kind,
-                    amount_minor: quote.total_minor,
-                    reference: values.reference,
-                  },
+                : values.kind === "upi_verified"
+                  ? {
+                      kind: "upi_verified",
+                      amount_minor: quote.total_minor,
+                      payment_request_id: values.payment_request_id,
+                    }
+                  : {
+                      kind: values.kind,
+                      amount_minor: quote.total_minor,
+                      reference: values.reference,
+                    },
           ],
           ...(values.discounted ? { discount_reason: values.discount_reason } : {}),
           ...(values.customer === "patient" && patient
             ? { patient: { patient_id: patient.patient_id, hospital_id: patient.hospital_id } }
+            : {}),
+          ...(values.customer === "admission" && admission
+            ? { admission: { occupancy_id: admission.occupancy_id } }
             : {}),
           ...(values.customer === "walk_in" && (values.buyer_name || values.buyer_phone)
             ? {
@@ -658,57 +689,65 @@ function TenderForm({
       onSubmit={form.handleSubmit((values) => post.mutate(values))}
     >
       <h4 className="font-medium">Payment</h4>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <FormSelectField
-          control={form.control}
-          name="kind"
-          id="tender-kind"
-          label="Paid by"
-          options={[
-            { value: "cash", label: "Cash" },
-            { value: "upi_verified", label: "UPI (verified)" },
-            { value: "upi", label: "UPI (reference only)" },
-            { value: "card", label: "Card" },
-          ]}
-        />
-        {kind === "cash" ? (
-          <div>
-            <CurrencyAmountField
-              id="tender-received"
-              label="Amount received"
-              currency={quote.currency}
-              initialMinor={quote.total_minor}
-              error={form.formState.errors.tendered_minor?.message}
-              onChange={(minor) => form.setValue("tendered_minor", minor, { shouldValidate: true })}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
-            </p>
-          </div>
-        ) : kind === "upi_verified" ? (
-          <div className="sm:col-span-2">
-            <VerifiedUpi
-              scope={scope}
-              amountMinor={quote.total_minor}
-              currency={quote.currency}
-              onPaid={onPaid}
-            />
-            {form.formState.errors.payment_request_id && (
-              <p className="mt-1 text-sm text-destructive">
-                {form.formState.errors.payment_request_id.message}
+      {customer === "admission" ? (
+        <p className="text-sm">
+          Billed to the admission account. Nothing is collected at the counter.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormSelectField
+            control={form.control}
+            name="kind"
+            id="tender-kind"
+            label="Paid by"
+            options={[
+              { value: "cash", label: "Cash" },
+              { value: "upi_verified", label: "UPI (verified)" },
+              { value: "upi", label: "UPI (reference only)" },
+              { value: "card", label: "Card" },
+            ]}
+          />
+          {kind === "cash" ? (
+            <div>
+              <CurrencyAmountField
+                id="tender-received"
+                label="Amount received"
+                currency={quote.currency}
+                initialMinor={quote.total_minor}
+                error={form.formState.errors.tendered_minor?.message}
+                onChange={(minor) =>
+                  form.setValue("tendered_minor", minor, { shouldValidate: true })
+                }
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
               </p>
-            )}
-          </div>
-        ) : (
-          <Field
-            id="tender-reference"
-            label="Payment reference"
-            error={form.formState.errors.reference?.message}
-          >
-            <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
-          </Field>
-        )}
-      </div>
+            </div>
+          ) : kind === "upi_verified" ? (
+            <div className="sm:col-span-2">
+              <VerifiedUpi
+                scope={scope}
+                amountMinor={quote.total_minor}
+                currency={quote.currency}
+                onPaid={onPaid}
+              />
+              {form.formState.errors.payment_request_id && (
+                <p className="mt-1 text-sm text-destructive">
+                  {form.formState.errors.payment_request_id.message}
+                </p>
+              )}
+            </div>
+          ) : (
+            <Field
+              id="tender-reference"
+              label="Payment reference"
+              error={form.formState.errors.reference?.message}
+            >
+              <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
+            </Field>
+          )}
+        </div>
+      )}
       {form.getValues("discounted") && (
         <Field
           id="discount-reason"
@@ -726,9 +765,19 @@ function TenderForm({
         options={[
           { value: "walk_in", label: "Walk-in buyer" },
           { value: "patient", label: "Registered patient" },
+          { value: "admission", label: "Bill to admission" },
         ]}
       />
-      {customer === "patient" ? (
+      {customer === "admission" ? (
+        <div>
+          <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
+          {form.formState.errors.occupancy_id && (
+            <p className="mt-1 text-sm text-destructive">
+              {form.formState.errors.occupancy_id.message}
+            </p>
+          )}
+        </div>
+      ) : customer === "patient" ? (
         <div>
           <CounterPatientLookup scope={scope} value={patient} onChange={choosePatient} />
           {form.formState.errors.patient_id && (
@@ -800,7 +849,12 @@ function Invoice({
         <Totals sale={sale} />
         {sale.tenders.map((t) => (
           <p key={t.tender_number} className="mt-2 text-sm">
-            Paid by {t.kind === "upi_verified" ? "UPI (verified)" : t.kind.toUpperCase()}{" "}
+            {t.kind === "admission_account" ? "To the admission account" : "Paid by"}{" "}
+            {t.kind === "upi_verified"
+              ? "UPI (verified)"
+              : t.kind === "admission_account"
+                ? ""
+                : t.kind.toUpperCase()}{" "}
             {money(t.amount_minor)}
             {t.kind === "cash" && t.tendered_minor !== null && t.change_minor !== null
               ? ` · received ${money(t.tendered_minor)} · change ${money(t.change_minor)}`
@@ -815,8 +869,16 @@ function Invoice({
             {sale.discount_reason ? ` · ${sale.discount_reason}` : ""}
           </p>
         )}
-        {sale.patient_id && sale.patient_hospital_id && (
-          <p className="mt-2 text-sm">Registered patient · hospital {sale.patient_hospital_id}</p>
+        {sale.admission_id ? (
+          <p className="mt-2 text-sm">
+            Billed to the admission account · bed {sale.admission_bed_code} · hospital{" "}
+            {sale.patient_hospital_id}
+          </p>
+        ) : (
+          sale.patient_id &&
+          sale.patient_hospital_id && (
+            <p className="mt-2 text-sm">Registered patient · hospital {sale.patient_hospital_id}</p>
+          )
         )}
         {(sale.buyer_name || sale.buyer_phone) && (
           <p className="mt-2 text-sm">

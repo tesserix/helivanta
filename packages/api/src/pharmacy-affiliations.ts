@@ -75,3 +75,42 @@ export const pharmacyPatientLookupSchema = z.object({
   hospital_id: z.string().min(1, "Choose the hospital"),
   mrn: z.string().trim().min(1, "Enter the MRN").max(64, "At most 64 characters"),
 });
+
+/** The one open stay a bed or room resolves to (#1387). */
+export type AdmissionStay = {
+  occupancy_id: string;
+  admission_id: string;
+  patient_id: string;
+  hospital_id: string;
+  ward_code: string;
+  room_code: string;
+  bed_code: string;
+  started_at: string;
+};
+
+export const admissionResolveSchema = z.object({
+  hospital_id: z.string().min(1, "Choose the hospital"),
+  by: z.enum(["bed", "room"]),
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9][A-Z0-9-]{0,19}$/, "Up to 20 letters, digits and dashes"),
+});
+
+/** An admission's account at the hospital (#197 slice 1). */
+export type AdmissionAccount = {
+  admission_id: string;
+  hospital_id: string;
+  patient_id: string;
+  status: "open" | "closed";
+  opened_at: string | null;
+  closed_at: string | null;
+  totals: {
+    currency: string;
+    charged_minor: number;
+    reversed_minor: number;
+    outstanding_minor: number;
+  }[];
+  entry_count: number;
+};

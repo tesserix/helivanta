@@ -66,6 +66,9 @@ var pharmacyAffiliationSchema string
 //go:embed pharmacy_lookup.sql
 var pharmacyLookupSchema string
 
+//go:embed pharmacy_lookup_by_id.sql
+var pharmacyLookupByIDSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -251,7 +254,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		{ID: "0011_patientmaster", ConcurrentIndexes: []tenantdb.ConcurrentIndex{
 			{Name: "patient_clinical_consent_proxy_authority", Table: "patient_clinical_consents", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "proxy_authority_id"}}},
 			{Name: "patient_sharing_notice_capacity_page", Table: "patient_sharing_notices", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "authority_kind"}, {Name: "status"}, {Name: "purpose"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
-		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}, {ID: "0013_patientmaster", SQL: pharmacyAffiliationSchema}, {ID: "0014_patientmaster", SQL: pharmacyLookupSchema}}
+		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}, {ID: "0013_patientmaster", SQL: pharmacyAffiliationSchema}, {ID: "0014_patientmaster", SQL: pharmacyLookupSchema}, {ID: "0015_patientmaster", SQL: pharmacyLookupByIDSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the

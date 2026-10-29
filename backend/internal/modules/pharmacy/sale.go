@@ -88,6 +88,12 @@ type salePatient struct {
 	HospitalID uuid.UUID `json:"hospital_id" binding:"required"`
 }
 
+// saleAdmission names the stay the counter resolved from a bed. The sale
+// re-resolves it when it posts: the stay must still be open.
+type saleAdmission struct {
+	OccupancyID uuid.UUID `json:"occupancy_id" binding:"required"`
+}
+
 var buyerPhonePattern = regexp.MustCompile(`^\+?[0-9]{6,15}$`)
 
 func (b *saleBuyer) valid() bool {
@@ -98,7 +104,7 @@ func (b *saleBuyer) valid() bool {
 }
 
 type saleTenderInput struct {
-	Kind          string  `json:"kind" binding:"required,oneof=cash upi card upi_verified"`
+	Kind          string  `json:"kind" binding:"required,oneof=cash upi card upi_verified admission_account"`
 	AmountMinor   int64   `json:"amount_minor" binding:"required,min=1,max=1000000000000"`
 	TenderedMinor *int64  `json:"tendered_minor" binding:"omitempty,min=1,max=1000000000000"`
 	Reference     *string `json:"reference" binding:"omitempty,max=64"`
@@ -112,6 +118,8 @@ type saleInput struct {
 	Tenders []saleTenderInput `json:"tenders" binding:"required,min=1,max=5,dive"`
 	Buyer   *saleBuyer        `json:"buyer"`
 	Patient *salePatient      `json:"patient"`
+	// Admission bills the sale to the admission occupying a bed (#1387).
+	Admission *saleAdmission `json:"admission"`
 	// Required exactly when a line is discounted (B-3 decision 2).
 	DiscountReason *string `json:"discount_reason"`
 }
@@ -158,6 +166,9 @@ func (in saleInput) digest() string {
 	if in.Patient != nil {
 		parts = append(parts, "p", in.Patient.PatientID.String(), in.Patient.HospitalID.String())
 	}
+	if in.Admission != nil {
+		parts = append(parts, "a", in.Admission.OccupancyID.String())
+	}
 	for _, t := range in.Tenders {
 		tendered, reference := "", ""
 		if t.TenderedMinor != nil {
@@ -184,6 +195,14 @@ func (in *saleInput) validTenders() bool {
 		if t.Kind == "cash" {
 			cash++
 			if t.TenderedMinor == nil || *t.TenderedMinor < t.AmountMinor || t.Reference != nil || t.PaymentRequestID != nil {
+				return false
+			}
+			continue
+		}
+		if t.Kind == "admission_account" {
+			// Billed to the admission (#1387): nothing is collected, and only an
+			// admitted sale takes it, as its one tender.
+			if in.Admission == nil || len(in.Tenders) != 1 || t.TenderedMinor != nil || t.Reference != nil || t.PaymentRequestID != nil {
 				return false
 			}
 			continue
@@ -227,21 +246,26 @@ type saleRecord struct {
 	BuyerName       *string   `gorm:"column:buyer_name" json:"buyer_name"`
 	BuyerPhone      *string   `gorm:"column:buyer_phone" json:"buyer_phone"`
 	// A registered patient's ids (#1386 B-2c); pharmacy holds nothing else of them.
-	PatientID         *uuid.UUID   `gorm:"column:patient_id" json:"patient_id"`
-	PatientHospitalID *uuid.UUID   `gorm:"column:patient_hospital_id" json:"patient_hospital_id"`
-	DiscountReason    *string      `gorm:"column:discount_reason" json:"discount_reason"`
-	DiscountMinor     int64        `gorm:"-" json:"discount_minor"`
-	CreatedAt         time.Time    `gorm:"column:created_at" json:"created_at"`
-	Lines             []saleLine   `gorm:"-" json:"lines,omitempty"`
-	Tenders           []saleTender `gorm:"-" json:"tenders,omitempty"`
-	ClassOrigin       string       `gorm:"-" json:"class_origin,omitempty"`
-	CeilingChecked    bool         `gorm:"-" json:"nppa_ceiling_checked"`
+	PatientID         *uuid.UUID `gorm:"column:patient_id" json:"patient_id"`
+	PatientHospitalID *uuid.UUID `gorm:"column:patient_hospital_id" json:"patient_hospital_id"`
+	// The admission billed and what it was resolved through (#1387).
+	AdmissionID          *uuid.UUID   `gorm:"column:admission_id" json:"admission_id"`
+	AdmissionOccupancyID *uuid.UUID   `gorm:"column:admission_occupancy_id" json:"admission_occupancy_id"`
+	AdmissionBedCode     *string      `gorm:"column:admission_bed_code" json:"admission_bed_code"`
+	AdmissionResolvedAt  *time.Time   `gorm:"column:admission_resolved_at" json:"admission_resolved_at"`
+	DiscountReason       *string      `gorm:"column:discount_reason" json:"discount_reason"`
+	DiscountMinor        int64        `gorm:"-" json:"discount_minor"`
+	CreatedAt            time.Time    `gorm:"column:created_at" json:"created_at"`
+	Lines                []saleLine   `gorm:"-" json:"lines,omitempty"`
+	Tenders              []saleTender `gorm:"-" json:"tenders,omitempty"`
+	ClassOrigin          string       `gorm:"-" json:"class_origin,omitempty"`
+	CeilingChecked       bool         `gorm:"-" json:"nppa_ceiling_checked"`
 }
 
 func (saleRecord) TableName() string                 { return "pharmacy_sales" }
 func (r saleRecord) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason,created_at"
+const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,admission_id,admission_occupancy_id,admission_bed_code,admission_resolved_at,discount_reason,created_at"
 
 type saleLine struct {
 	LineNumber         int        `gorm:"column:line_number" json:"line_number"`
@@ -877,8 +901,12 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a buyer has a name of up to 200 characters, a phone of 6 to 15 digits, or both")
 		return
 	}
-	if in.Patient != nil && in.Buyer != nil {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "a sale names a registered patient or a walk-in buyer, not both")
+	if (in.Patient != nil && in.Buyer != nil) || (in.Admission != nil && (in.Patient != nil || in.Buyer != nil)) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a sale names a registered patient, an admission, or a walk-in buyer: one of them")
+		return
+	}
+	if in.Admission != nil && (len(in.Tenders) != 1 || in.Tenders[0].Kind != "admission_account") {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a sale billed to an admission is paid by the admission account alone")
 		return
 	}
 	if !mayDiscount(c, in.Lines) {
@@ -916,6 +944,18 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return loadSale(tx, p.TenantID, outlet, id, &result)
 		}
 		created = true
+		var stay *admittedStay
+		if in.Admission != nil {
+			resolved, err := resolveStay(tx, p.TenantID, outlet, in.Admission.OccupancyID)
+			if err != nil {
+				return err
+			}
+			stay = resolved
+			patientID, patientHospital = &stay.PatientID, &stay.HospitalID
+			if err := lockPatientAffiliation(tx, p.TenantID, outlet, stay.HospitalID); err != nil {
+				return err
+			}
+		}
 		if in.Patient != nil {
 			if err := lockPatientAffiliation(tx, p.TenantID, outlet, in.Patient.HospitalID); err != nil {
 				return err
@@ -949,9 +989,11 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return errNotSellable{"this year's invoice series is full; record a shorter invoice prefix"}
 		}
 		if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,
-			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason)
-			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
-			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone, patientID, patientHospital, in.DiscountReason).Error; err != nil {
+			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason,
+			admission_id,admission_occupancy_id,admission_bed_code,admission_resolved_at)
+			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
+			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone, patientID, patientHospital, in.DiscountReason,
+			stay.admissionID(), stay.occupancyID(), stay.bedCode(), stay.resolvedAt()).Error; err != nil {
 			return err
 		}
 		for _, l := range lines {
@@ -1001,6 +1043,17 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		if err := h.bus.Publish(tx, pharmacycontract.SubjectSalePosted, events.Event{Type: "SalePosted", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
 			return err
 		}
+		if stay != nil {
+			charge, err := json.Marshal(pharmacycontract.AdmissionChargePostedData{SaleID: id.String(), InvoiceNumber: invoice, AdmissionID: stay.AdmissionID.String(),
+				HospitalID: stay.HospitalID.String(), PatientID: stay.PatientID.String(), OutletID: outlet.String(), AmountMinor: total, Currency: seller.currency,
+				PostedAt: stay.ResolvedAt.UTC().Format(time.RFC3339Nano)})
+			if err != nil {
+				return err
+			}
+			if err := h.bus.Publish(tx, pharmacycontract.SubjectAdmissionChargePosted, events.Event{Type: "AdmissionChargePosted", Version: 1, TenantID: p.TenantID, Data: charge}); err != nil {
+				return err
+			}
+		}
 		return loadSale(tx, p.TenantID, outlet, id, &result)
 	})
 	var refusal errNotSellable
@@ -1013,6 +1066,10 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", "the UPI payment is not a paid payment of this outlet for this amount")
 	case violated(err, "pharmacy_sale_tender_payment_once"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "this UPI payment is already on another sale")
+	case violated(err, "pharmacy_sale_admission_open"), errors.Is(err, errStayEnded):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the patient is no longer in that bed; find the bed again")
+	case violated(err, "pharmacy_sale_admission_tendered"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "a sale billed to an admission is paid by the admission account alone")
 	case violated(err, "pharmacy_sale_registered_patient"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "this patient is not a registration at that hospital that the pharmacy has received")
 	case violated(err, "pharmacy_sale_patient_affiliated"):

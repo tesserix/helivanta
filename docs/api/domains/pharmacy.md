@@ -248,6 +248,28 @@ A discount recorded on the invoice at the time of supply is outside the value of
 - **Database guarantees.** A line's discount must be its rounded percentage, its list amount must be within MRP, and something must be charged. The discount must be within the ceiling in force when the line is written, so a ceiling lowered after a quote refuses that sale. A discounted sale must record its reason.
 - **Not covered.** Fixed-amount discounts, whole-sale discounts, approval by a second person, and promotions or schemes.
 
+### Ward medicine billed to the admission (#1387)
+
+A sale may be billed to the admission occupying a bed instead of collected at the counter. See the [design](../../superpowers/specs/2026-10-29-inpatient-medicines-to-admission-account-design.md).
+
+- **Pharmacy's copy of who is in which bed.** `pharmacy_bed_occupancies` is fed by `pharmacy-bed-occupancy-started` and `-ended`, from MediCore's events. It holds ids and the ward, room and bed codes. Either event may arrive first, and a stay starts and ends once.
+- **Resolve.** `GET …/outlets/:outlet/admission-occupant?hospital_id=&bed_code=` (or `room_code=`) needs `pharmacy.sale.create`, at a hospital that has verified the pharmacy (otherwise `404`).
+  - It answers the one open stay, as ids and location codes, without when the stay began.
+  - An empty bed is `404 no_occupant`; a room with several occupied beds is `409 ambiguous`.
+  - Every resolve is audited (`audit_events`, `pharmacy_admission_resolve`), a miss included.
+- **Confirm.** The counter confirms the patient with patientmaster's lookup by `patient_id`.
+- **Post.** The sale carries `admission: {occupancy_id}` and one `admission_account` tender for the total. Nothing is collected. The sale is re-resolved under a lock, and it stores:
+  - the admission, the stay, the bed code and the resolution time;
+  - the occupant as its registered patient, so the B-2c rules apply too.
+
+  It publishes `admission_charge_posted.v1`. The database refuses:
+  - a sale on a stay that is no longer open;
+  - an admitted sale with any other tender;
+  - an `admission_account` tender on any other sale.
+
+- **Daily report.** It shows `admission_account_minor` and `admission_account_refund_minor`, billed and returned to admission accounts rather than collected or paid out, so sales still reconcile to tenders.
+- **Returns.** A credit note on an admitted sale refunds only through `admission_account`, and publishes `admission_charge_reversed.v1`. A wrong-bed sale is corrected by a full credit note and a new sale. Migration `0027_pharmacy`.
+
 ### Registered patients at the counter (#1386 B-2c)
 
 A sale may name a registered patient instead of a walk-in buyer: `patient: {patient_id, hospital_id}`, never with `buyer` (`400`). The pharmacist finds the patient with patientmaster's [pharmacy lookup](patients-and-clinical.md#pharmacy-patient-lookup-1416b) by exact MRN at a hospital that has verified the pharmacy, and confirms the name, age and sex shown.

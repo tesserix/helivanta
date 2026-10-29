@@ -112,6 +112,7 @@ A named pharmacist can find one of a hospital's patients by exact MRN, for a pha
   - The grant table is never consulted for registry access.
 - **Lookup.** `GET /patients/pharmacy-lookup?hospital_id=&pharmacy_id=&mrn=` needs `patient.pharmacy-lookup` (pharmacist).
   - It locks the grant and the link, then matches the exact MRN (trimmed, upper-cased). It returns `{patient_id, name, age_years, age_estimated, sex}`.
+  - Or it takes `patient_id` instead of `mrn`, never both (#1387), for a stay pharmacy resolved from a bed. The same grant, link, answer and audit apply. Row security admits the one patient the session names by MRN or by id, and a session naming both sees nothing.
   - No grant, no active link, another pharmacy or tenant, and no match all return the same `404`.
   - A lookup session sees at most the one `patients` row its MRN names, through `patient_pharmacy_lookup_allowed`. It needs the session subject's grant in the link's current round. Consents, identifiers, duplicate overrides and blood groups are refused to it outright.
   - Every lookup, a miss included, writes `patient_access_audit` (`pharmacy_lookup`, with `pharmacy_id`). If that write fails, the lookup fails without answering.

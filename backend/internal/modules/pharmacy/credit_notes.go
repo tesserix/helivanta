@@ -73,7 +73,11 @@ func (in *creditNoteInput) validRefunds() bool {
 		if t.TenderedMinor != nil {
 			return false
 		}
-		if t.Kind == "cash" {
+		if t.PaymentRequestID != nil || t.Kind == "upi_verified" {
+			return false
+		}
+		// Cash, and a return to the admission account (#1387), carry no reference.
+		if t.Kind == "cash" || t.Kind == "admission_account" {
 			if t.Reference != nil {
 				return false
 			}
@@ -211,7 +215,7 @@ func (h *catalogueHandlers) putCreditNote(c *gin.Context) {
 	}
 	if !prescriptionText(in.Reason, 200) || len([]rune(in.Reason)) < 5 || !prescriptionText(in.Recipient.Name, 200) ||
 		!prescriptionText(in.Recipient.Address, 500) || !in.validRefunds() {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "a return gives a reason of 5 to 200 characters, the name and address of the person refunded, and refunds in cash or by UPI or card with a reference")
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a return gives a reason of 5 to 200 characters, the name and address of the person refunded, and refunds in cash, to the admission account, or by UPI or card with a reference")
 		return
 	}
 	digest := in.digest()
@@ -253,11 +257,14 @@ func (h *catalogueHandlers) putCreditNote(c *gin.Context) {
 func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet, id uuid.UUID, in creditNoteInput, digest string, out *creditNote) error {
 	p, _, _ := pharmacyPrincipal(c)
 	var sales []struct {
-		FinancialYear string
-		SaleDate      string
-		Currency      string
+		FinancialYear     string
+		SaleDate          string
+		Currency          string
+		AdmissionID       *uuid.UUID
+		PatientID         *uuid.UUID
+		PatientHospitalID *uuid.UUID
 	}
-	if err := tx.Raw(`SELECT financial_year, to_char(sale_date,'YYYY-MM-DD') AS sale_date, currency FROM pharmacy_sales WHERE tenant_id=? AND outlet_id=? AND id=?`,
+	if err := tx.Raw(`SELECT financial_year, to_char(sale_date,'YYYY-MM-DD') AS sale_date, currency, admission_id, patient_id, patient_hospital_id FROM pharmacy_sales WHERE tenant_id=? AND outlet_id=? AND id=?`,
 		p.TenantID, outlet, in.SaleID).Scan(&sales).Error; err != nil {
 		return err
 	}
@@ -345,6 +352,11 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 	if refunded != total {
 		return errNotReturnable{fmt.Sprintf("the refunds come to %d but the credit note is %d (minor units)", refunded, total)}
 	}
+	for _, t := range in.Refunds {
+		if (sale.AdmissionID != nil) != (t.Kind == "admission_account") {
+			return errNotReturnable{"a return of a sale billed to an admission goes back to the admission account, and only such a return does"}
+		}
+	}
 	if err := tx.Exec(`INSERT INTO pharmacy_credit_note_series (tenant_id,outlet_id,financial_year) VALUES (?,?,?) ON CONFLICT DO NOTHING`, p.TenantID, outlet, fy).Error; err != nil {
 		return err
 	}
@@ -400,6 +412,21 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 	}
 	if err := h.bus.Publish(tx, pharmacycontract.SubjectCreditNoteIssued, events.Event{Type: "CreditNoteIssued", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
 		return err
+	}
+	if sale.AdmissionID != nil {
+		at, err := transactionTime(tx)
+		if err != nil {
+			return err
+		}
+		reversed, err := json.Marshal(pharmacycontract.AdmissionChargeReversedData{CreditNoteID: id.String(), CreditNoteNumber: numberText, SaleID: in.SaleID.String(),
+			AdmissionID: sale.AdmissionID.String(), HospitalID: sale.PatientHospitalID.String(), PatientID: sale.PatientID.String(),
+			AmountMinor: total, Currency: sale.Currency, ReversedAt: at.UTC().Format(time.RFC3339Nano)})
+		if err != nil {
+			return err
+		}
+		if err := h.bus.Publish(tx, pharmacycontract.SubjectAdmissionChargeReversed, events.Event{Type: "AdmissionChargeReversed", Version: 1, TenantID: p.TenantID, Data: reversed}); err != nil {
+			return err
+		}
 	}
 	return loadCreditNote(tx, p.TenantID, outlet, id, out)
 }

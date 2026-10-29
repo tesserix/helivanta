@@ -580,7 +580,7 @@
     }
   },
   "helivanta.in.medicore.admission_released.v1": {
-    "source": "backend/internal/modules/medicore/contract/events.go:132",
+    "source": "backend/internal/modules/medicore/contract/events.go:137",
     "go_type": "AdmissionReleasedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -644,7 +644,7 @@
     }
   },
   "helivanta.in.medicore.bed_occupancy_ended.v1": {
-    "source": "backend/internal/modules/medicore/contract/events.go:118",
+    "source": "backend/internal/modules/medicore/contract/events.go:123",
     "go_type": "BedOccupancyEndedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -688,6 +688,9 @@
         "admission_id": {
           "type": "string"
         },
+        "bed_code": {
+          "type": "string"
+        },
         "bed_id": {
           "type": "string"
         },
@@ -700,10 +703,16 @@
         "patient_id": {
           "type": "string"
         },
+        "room_code": {
+          "type": "string"
+        },
         "room_id": {
           "type": "string"
         },
         "started_at": {
+          "type": "string"
+        },
+        "ward_code": {
           "type": "string"
         },
         "ward_id": {
@@ -718,6 +727,9 @@
         "ward_id",
         "room_id",
         "bed_id",
+        "ward_code",
+        "room_code",
+        "bed_code",
         "started_at"
       ],
       "type": "object"
@@ -1209,6 +1221,102 @@
         "rrn",
         "paid_at",
         "late"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.admission_charge_posted.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:220",
+    "go_type": "AdmissionChargePostedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        },
+        "posted_at": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sale_id",
+        "invoice_number",
+        "admission_id",
+        "hospital_id",
+        "patient_id",
+        "outlet_id",
+        "amount_minor",
+        "currency",
+        "posted_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.admission_charge_reversed.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:237",
+    "go_type": "AdmissionChargeReversedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "amount_minor": {
+          "type": "integer"
+        },
+        "credit_note_id": {
+          "type": "string"
+        },
+        "credit_note_number": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        },
+        "reversed_at": {
+          "type": "string"
+        },
+        "sale_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "credit_note_id",
+        "credit_note_number",
+        "sale_id",
+        "admission_id",
+        "hospital_id",
+        "patient_id",
+        "amount_minor",
+        "currency",
+        "reversed_at"
       ],
       "type": "object"
     }

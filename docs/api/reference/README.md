@@ -370,6 +370,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review` | `pharmacy.schedule.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration` | `pharmacy.schedule.declare` | false | false |
@@ -457,6 +458,8 @@ Published subjects:
 - `helivanta.in.pharmacy.affiliation_verification_requested.v1`
 - `helivanta.in.pharmacy.affiliation_verification_withdrawn.v1`
 - `helivanta.in.pharmacy.affiliation_decision_received.v1`
+- `helivanta.in.pharmacy.admission_charge_posted.v1`
+- `helivanta.in.pharmacy.admission_charge_reversed.v1`
 
 Subscriptions:
 
@@ -470,6 +473,8 @@ Subscriptions:
 - `pharmacy-affiliation-decision` ← `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`; after-commit hook: false.
 - `pharmacy-affiliation-receipt` ← `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`; after-commit hook: false.
 - `pharmacy-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
+- `pharmacy-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
+- `pharmacy-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
 
 Migration table declarations:
 
@@ -490,6 +495,7 @@ Migration table declarations:
 - `0021_pharmacy`: `pharmacy_payment_requests`.
 - `0023_pharmacy`: `pharmacy_affiliation_verifications`, `pharmacy_affiliation_deliveries`.
 - `0025_pharmacy`: `pharmacy_registered_patients`.
+- `0027_pharmacy`: `pharmacy_bed_occupancies`.
 
 ## payments
 
@@ -516,6 +522,33 @@ Subscriptions:
 Migration table declarations:
 
 - `0001_payments`: `payment_accounts`, `payment_intents`, `payment_intent_transitions`, `payment_provider_payments`, `payment_webhook_deliveries`.
+
+## billing
+
+Source: [backend/internal/modules/billing/module.go](../../../backend/internal/modules/billing/module.go). Payloads: `backend/internal/modules/billing/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| DELETE | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/access` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/account` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
+
+Published subjects:
+
+None.
+
+Subscriptions:
+
+- `billing-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
+- `billing-admission-released` ← `helivanta.in.medicore.admission_released.v1`; after-commit hook: false.
+- `billing-pharmacy-admission-charge` ← `helivanta.in.pharmacy.admission_charge_posted.v1`; after-commit hook: false.
+- `billing-pharmacy-admission-reversal` ← `helivanta.in.pharmacy.admission_charge_reversed.v1`; after-commit hook: false.
+
+Migration table declarations:
+
+- `0001_billing`: `billing_hospital_access`, `billing_admission_accounts`, `billing_account_entries`, `billing_parked_reversals`.
 
 ## supply
 

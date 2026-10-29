@@ -14,7 +14,6 @@ import (
 	"gorm.io/gorm"
 
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
-	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -200,7 +199,7 @@ func (h *catalogueHandlers) requestVerification(c *gin.Context) {
 		if err := tx.Create(&affiliationVerification{ID: uuid.Must(uuid.NewV7()), TenantID: a.TenantID, AffiliationID: a.ID, Sequence: sequence, Kind: "requested", RequestID: request, ActorSubject: &subject}).Error; err != nil {
 			return err
 		}
-		return publishVerification(h.bus, tx, pharmacycontract.SubjectAffiliationVerificationRequested, p.TenantID, request, a, org.Name, subject)
+		return sendRound(tx, p.TenantID, a.ID, request, "requested")
 	})
 }
 
@@ -235,22 +234,8 @@ func (h *catalogueHandlers) withdrawVerification(c *gin.Context) {
 		if err := tx.Create(&affiliationVerification{ID: uuid.Must(uuid.NewV7()), TenantID: a.TenantID, AffiliationID: a.ID, Sequence: prev.Sequence + 1, Kind: "withdrawn", RequestID: request, ActorSubject: &subject, Reason: &reason}).Error; err != nil {
 			return err
 		}
-		// The original requester stays in the claim, so a withdrawal that
-		// reaches patientmaster first matches the request that follows it.
-		var opened affiliationVerification
-		if err := tx.Select(verificationColumns).Where("tenant_id=? AND request_id=? AND kind='requested'", p.TenantID, request).Take(&opened).Error; err != nil {
-			return err
-		}
-		return publishVerification(h.bus, tx, pharmacycontract.SubjectAffiliationVerificationWithdrawn, p.TenantID, request, a, org.Name, *opened.ActorSubject)
+		return sendRound(tx, p.TenantID, a.ID, request, "withdrawn")
 	})
-}
-
-func publishVerification(bus *events.Bus, tx *gorm.DB, subject, tenant string, request uuid.UUID, a hospitalAffiliation, pharmacyName, requester string) error {
-	data, err := json.Marshal(pharmacycontract.AffiliationVerificationData{RequestID: request.String(), AffiliationID: a.ID.String(), PharmacyID: a.PharmacyID.String(), PharmacyName: pharmacyName, HospitalID: a.HospitalID.String(), Relationship: a.Relationship, RequesterSubject: requester})
-	if err != nil {
-		return err
-	}
-	return bus.Publish(tx, subject, events.Event{Type: subject, Version: 1, TenantID: tenant, Data: data})
 }
 
 func (h *catalogueHandlers) listVerifications(c *gin.Context, params pagination.Params) ([]affiliationVerification, error) {
@@ -317,7 +302,7 @@ func affiliationDecisionConsumer() events.Consumer {
 			return err
 		}
 		if seen != 0 {
-			return nil
+			return confirmDecision(tx, evt.TenantID, d)
 		}
 		var a hospitalAffiliation
 		if err := tx.Select(affiliationColumns).Where("tenant_id=? AND id=?", evt.TenantID, affiliation).Take(&a).Error; err != nil {
@@ -331,10 +316,13 @@ func affiliationDecisionConsumer() events.Consumer {
 			return err
 		}
 		open := prev != nil && prev.RequestID == request && (prev.Kind == "requested" || (prev.Kind == "accepted" && d.Outcome == "revoked"))
-		if !open {
-			return nil
+		if open {
+			step := affiliationVerification{ID: uuid.Must(uuid.NewV7()), TenantID: a.TenantID, AffiliationID: affiliation, Sequence: prev.Sequence + 1, Kind: d.Outcome, RequestID: request, DecisionID: &decision}
+			if err := tx.Create(&step).Error; err != nil {
+				return err
+			}
 		}
-		step := affiliationVerification{ID: uuid.Must(uuid.NewV7()), TenantID: a.TenantID, AffiliationID: affiliation, Sequence: prev.Sequence + 1, Kind: d.Outcome, RequestID: request, DecisionID: &decision}
-		return tx.Create(&step).Error
+		// A no-op is still handled: patientmaster stops re-sending either way.
+		return confirmDecision(tx, evt.TenantID, d)
 	}}
 }

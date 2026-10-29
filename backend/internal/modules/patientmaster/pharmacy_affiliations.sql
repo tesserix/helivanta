@@ -29,8 +29,16 @@ CREATE FUNCTION patient_pharmacy_affiliation_delivery_allowed(row_tenant uuid,ro
  AND row_request=NULLIF(current_setting('app.pharmacy_affiliation_request',true),'')::uuid
  AND current_setting('app.actor_subject',true) IN ('system:patient-pharmacy-affiliation-request','system:patient-pharmacy-affiliation-withdrawal')
 $$;
+-- The decision redelivery loop and its confirmation consumer (see the
+-- deliveries table below) read one named request, never write a review.
+CREATE FUNCTION patient_pharmacy_affiliation_system_allowed(row_tenant uuid,row_hospital uuid,row_request uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT row_tenant=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+ AND row_hospital=NULLIF(current_setting('app.pharmacy_affiliation_hospital',true),'')::uuid
+ AND row_request=NULLIF(current_setting('app.pharmacy_affiliation_request',true),'')::uuid
+ AND current_setting('app.actor_subject',true) IN ('system:patient-pharmacy-affiliation-decision-receipt','system:patient-pharmacy-affiliation-redelivery')
+$$;
 CREATE POLICY tenant_isolation ON patient_pharmacy_affiliation_reviews
- USING (hms_tenant_visible(tenant_id) AND (patient_hospital_allowed(tenant_id,hospital_id,true) OR patient_pharmacy_affiliation_delivery_allowed(tenant_id,hospital_id,request_id)))
+ USING (hms_tenant_visible(tenant_id) AND (patient_hospital_allowed(tenant_id,hospital_id,true) OR patient_pharmacy_affiliation_delivery_allowed(tenant_id,hospital_id,request_id) OR patient_pharmacy_affiliation_system_allowed(tenant_id,hospital_id,request_id)))
  WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND (patient_hospital_allowed(tenant_id,hospital_id,true) OR patient_pharmacy_affiliation_delivery_allowed(tenant_id,hospital_id,request_id)));
 
 -- Every accept, decline and revoke, with who decided and why. Append-only.
@@ -52,7 +60,7 @@ CREATE TABLE patient_pharmacy_affiliation_decisions (
 ALTER TABLE patient_pharmacy_affiliation_decisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_pharmacy_affiliation_decisions FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON patient_pharmacy_affiliation_decisions
- USING (hms_tenant_visible(tenant_id) AND patient_hospital_allowed(tenant_id,hospital_id,true))
+ USING (hms_tenant_visible(tenant_id) AND (patient_hospital_allowed(tenant_id,hospital_id,true) OR patient_pharmacy_affiliation_system_allowed(tenant_id,hospital_id,request_id)))
  WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND patient_hospital_allowed(tenant_id,hospital_id,true));
 
 -- A decision is the session's own, by a registrar of that hospital, from a
@@ -113,3 +121,30 @@ END $$;
 CREATE TRIGGER patient_pharmacy_affiliation_review_guard BEFORE INSERT OR UPDATE OR DELETE ON patient_pharmacy_affiliation_reviews FOR EACH ROW EXECUTE FUNCTION patient_pharmacy_affiliation_review_guard();
 CREATE TRIGGER patient_pharmacy_affiliation_review_no_truncate BEFORE TRUNCATE ON patient_pharmacy_affiliation_reviews FOR EACH STATEMENT EXECUTE FUNCTION patient_pharmacy_affiliation_history();
 CREATE TRIGGER patient_pharmacy_affiliation_review_audit AFTER INSERT OR UPDATE ON patient_pharmacy_affiliation_reviews FOR EACH ROW EXECUTE FUNCTION audit_record_change();
+
+-- The round's latest decision, re-sent until pharmacy confirms it. The bus
+-- dead-letters after five failures and nothing replays the dead-letter
+-- subject, so a lost revocation would leave pharmacy holding a link the
+-- hospital has ended.
+CREATE TABLE patient_pharmacy_affiliation_deliveries (
+ tenant_id uuid NOT NULL,
+ request_id uuid NOT NULL,
+ hospital_id uuid NOT NULL,
+ decision_id uuid NOT NULL,
+ attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+ -- NULL once the current decision is confirmed.
+ next_attempt_at timestamptz,
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY (tenant_id,request_id),
+ FOREIGN KEY (tenant_id,hospital_id,request_id) REFERENCES patient_pharmacy_affiliation_reviews (tenant_id,hospital_id,request_id),
+ FOREIGN KEY (tenant_id,decision_id) REFERENCES patient_pharmacy_affiliation_decisions (tenant_id,id)
+);
+CREATE INDEX patient_pharmacy_affiliation_deliveries_due ON patient_pharmacy_affiliation_deliveries (next_attempt_at) WHERE next_attempt_at IS NOT NULL;
+ALTER TABLE patient_pharmacy_affiliation_deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_pharmacy_affiliation_deliveries FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON patient_pharmacy_affiliation_deliveries
+ USING (hms_tenant_visible(tenant_id) AND (patient_hospital_allowed(tenant_id,hospital_id,true) OR patient_pharmacy_affiliation_system_allowed(tenant_id,hospital_id,request_id)))
+ WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND (patient_hospital_allowed(tenant_id,hospital_id,true) OR patient_pharmacy_affiliation_system_allowed(tenant_id,hospital_id,request_id)));
+-- The redelivery loop's one cross-tenant read: which rounds are due, and the
+-- hospital that scopes them; nothing else.
+GRANT SELECT (tenant_id, request_id, hospital_id, next_attempt_at) ON patient_pharmacy_affiliation_deliveries TO helivanta_system;

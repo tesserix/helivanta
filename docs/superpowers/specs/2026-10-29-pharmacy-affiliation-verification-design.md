@@ -69,6 +69,39 @@ pending_validation ──request──▶ requested ──accept──▶ verifi
   closed. A database trigger enforces the transitions and the numbering, so no code
   path can skip a step.
 
+## Delivery guarantee
+
+The bus dead-letters an event after 5 failed deliveries (about 2.5 minutes). Nothing replays
+the dead-letter subject, so a lost step would leave the two sides disagreeing:
+
+- **A withdrawal is lost.** Patientmaster keeps an accepted link the pharmacy has ended, and the
+  #1416b lookup would still answer.
+- **A revocation is lost.** Pharmacy keeps a verified link the hospital has ended, and B-2c would
+  still accept the hospital's patients.
+
+Both are unsafe. So every step is re-sent until the other side confirms it:
+
+- Each side keeps one mutable delivery row per round. Pharmacy keeps
+  `pharmacy_affiliation_deliveries` (the round's latest pharmacy step: `requested` or
+  `withdrawn`). Patientmaster keeps `patient_pharmacy_affiliation_deliveries` (the round's latest
+  decision). Writing a step sets `next_attempt_at` in the same transaction as the step and its
+  event.
+- The receiving consumer confirms each step it has handled, including a duplicate or a no-op.
+  Patientmaster publishes `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`
+  `{request_id, affiliation_id, state}`. Pharmacy publishes
+  `helivanta.in.pharmacy.affiliation_decision_received.v1`
+  `{request_id, hospital_id, decision_id}`. A confirmation clears `next_attempt_at` only if it
+  names the step still current. A confirmation of a superseded step changes nothing.
+- A reconciler in each module (30 s tick, 50 rows a pass) re-publishes any due step. Each
+  re-send pushes `next_attempt_at` back exponentially, from 2 minutes up to 60. A step is never
+  given up on. The only cross-tenant read is ids and `next_attempt_at`; the re-send itself runs
+  under the row's tenant, as the named system actor.
+- A step that can never be applied (a malformed or mismatched event) is never confirmed. It is
+  re-sent hourly and logged each time, rather than silently dropped.
+
+Disagreement lasts only until a re-send is confirmed: minutes while both sides are up, not
+forever.
+
 ## Event payloads
 
 All same-tenant, no patient data.
@@ -144,5 +177,8 @@ Patientmaster (`/v1/patients`, `?hospital_id=` selector, checked server-side):
   decision id with different input is 409.
 - Database: the history is immutable, transitions are enforced, numbering has no
   gaps, and two concurrent requests cannot both open a round.
+- Delivery: a step whose event is lost is re-sent by the reconciler until it is
+  confirmed. Confirming it stops the re-sends; confirming a superseded step does not.
+  This holds in both directions.
 - Frontend: the status labels; request and withdraw in the registry; accept,
   decline and revoke in the hospital queue.

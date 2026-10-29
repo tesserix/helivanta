@@ -27,7 +27,9 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	mediconnectcontract "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
+	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
@@ -594,6 +596,10 @@ func run() error {
 	go bus.RunDispatcher(ctx, db)
 	// #1386 C-4a: converges payment intents whose webhook never arrived.
 	go payments.RunReconciler(ctx, deps)
+	// #1416: re-send affiliation steps the other side has not confirmed;
+	// the bus dead-letters after five failures and nothing replays them.
+	go pharmacy.RunAffiliationRedelivery(ctx, deps)
+	go patientmaster.RunPharmacyAffiliationRedelivery(ctx, deps)
 	// A separate loop and ticker from the dispatcher's 500ms tick (#835
 	// Task 2, spec D3): pruning belongs on its own hourly cadence, not
 	// coupled to publish throughput.

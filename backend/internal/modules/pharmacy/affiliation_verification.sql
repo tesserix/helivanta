@@ -56,3 +56,25 @@ END $$;
 CREATE TRIGGER pharmacy_affiliation_verification_step BEFORE INSERT ON pharmacy_affiliation_verifications FOR EACH ROW EXECUTE FUNCTION pharmacy_affiliation_verification_step();
 CREATE TRIGGER pharmacy_affiliation_verification_audit AFTER INSERT ON pharmacy_affiliation_verifications FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 CREATE TRIGGER pharmacy_affiliation_verification_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_affiliation_verifications FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
+
+-- The round's latest pharmacy step, re-sent until patientmaster confirms
+-- it (#1416): the bus dead-letters after five failures and nothing replays
+-- the dead-letter subject, so a lost withdrawal would otherwise last.
+CREATE TABLE pharmacy_affiliation_deliveries (
+ tenant_id uuid NOT NULL,
+ request_id uuid NOT NULL,
+ affiliation_id uuid NOT NULL,
+ state text NOT NULL CHECK (state IN ('requested','withdrawn')),
+ attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+ -- NULL once the current state is confirmed.
+ next_attempt_at timestamptz,
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY (tenant_id,request_id),
+ FOREIGN KEY (tenant_id,affiliation_id) REFERENCES pharmacy_hospital_affiliations (tenant_id,id)
+);
+CREATE INDEX pharmacy_affiliation_deliveries_due ON pharmacy_affiliation_deliveries (next_attempt_at) WHERE next_attempt_at IS NOT NULL;
+ALTER TABLE pharmacy_affiliation_deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pharmacy_affiliation_deliveries FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON pharmacy_affiliation_deliveries USING (hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
+-- The reconciler's one cross-tenant read: which rounds are due, nothing else.
+GRANT SELECT (tenant_id, request_id, next_attempt_at) ON pharmacy_affiliation_deliveries TO helivanta_system;

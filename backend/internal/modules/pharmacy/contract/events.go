@@ -193,3 +193,15 @@ type AffiliationVerificationData struct {
 	Relationship     string `json:"relationship"`
 	RequesterSubject string `json:"requester_subject"`
 }
+
+// SubjectAffiliationDecisionReceived confirms pharmacy has handled a
+// hospital decision, so patientmaster stops re-sending it.
+const SubjectAffiliationDecisionReceived = "helivanta.in.pharmacy.affiliation_decision_received.v1"
+
+// AffiliationDecisionReceivedData names the decision handled; hospital_id
+// scopes patientmaster's delivery row.
+type AffiliationDecisionReceivedData struct {
+	RequestID  string `json:"request_id"`
+	HospitalID string `json:"hospital_id"`
+	DecisionID string `json:"decision_id"`
+}

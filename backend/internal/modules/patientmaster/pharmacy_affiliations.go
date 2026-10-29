@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
@@ -105,7 +104,12 @@ func pharmacyAffiliationConsumer(subject, name string) events.Consumer {
 				return errors.New("pharmacy affiliation withdrawal unavailable")
 			}
 		}
-		return nil
+		// Confirmed even when nothing changed, so pharmacy stops re-sending.
+		state := "requested"
+		if status == "withdrawn" {
+			state = "withdrawn"
+		}
+		return confirmPharmacyStep(tx, evt.TenantID, d.RequestID, d.AffiliationID, state)
 	}}
 }
 
@@ -235,11 +239,7 @@ func (h *patientHandlers) decidePharmacyAffiliation(c *gin.Context) {
 		if err := tx.Select(pharmacyDecisionColumns).Where("tenant_id=? AND id=?", p.TenantID, decision.ID).Take(&decision).Error; err != nil {
 			return err
 		}
-		data, err := json.Marshal(patientmastercontract.PharmacyAffiliationDecidedData{RequestID: row.RequestID.String(), AffiliationID: row.AffiliationID.String(), HospitalID: row.HospitalID.String(), DecisionID: decision.ID.String(), Outcome: decision.Outcome, DecidedAt: decision.CreatedAt.UTC().Format(time.RFC3339Nano)})
-		if err != nil {
-			return err
-		}
-		if err := h.bus.Publish(tx, patientmastercontract.SubjectPharmacyAffiliationDecided, events.Event{Type: patientmastercontract.SubjectPharmacyAffiliationDecided, Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+		if err := sendDecision(tx, p.TenantID, row, decision); err != nil {
 			return err
 		}
 		return h.readPharmacyAffiliation(tx, p, &row)

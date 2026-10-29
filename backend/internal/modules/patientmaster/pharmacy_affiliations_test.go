@@ -11,11 +11,13 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/patientmaster" //nolint:depguard // module under test
+	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestPharmacyAffiliationReview(t *testing.T) {
@@ -236,6 +238,119 @@ func TestPharmacyAffiliationReview(t *testing.T) {
 			return tx.Exec(`DELETE FROM patient_pharmacy_affiliation_reviews WHERE tenant_id=? AND request_id=?`, testutil.TenantA, data.RequestID).Error
 		}), "reviews are retained")
 	})
+}
+
+func TestPharmacyAffiliationDecisionsAreResentUntilConfirmed(t *testing.T) {
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"tokA": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"tokA": {patientmaster.PermPharmacyAffiliationReview}},
+		Modules: []platform.Module{patientmaster.New()},
+	})
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO patient_hospital_access (tenant_id,hospital_id,subject,level) VALUES (?,?,'user-tokA','registrar')`, testutil.TenantA, testHospital).Error
+	}))
+	byName := map[string]events.Consumer{}
+	for _, c := range patientmaster.New().Consumers(platform.Deps{}) {
+		byName[c.Name] = c
+	}
+	deliver := func(consumer events.Consumer, v any) error {
+		encoded, err := json.Marshal(v)
+		require.NoError(t, err)
+		return db.WithTenant(tenantdb.WithActor(ctx, "system:"+consumer.Name), testutil.TenantA, func(tx *gorm.DB) error {
+			return consumer.Handle(ctx, tx, events.Event{Type: consumer.Subject, Version: 1, TenantID: testutil.TenantA, Data: encoded})
+		})
+	}
+	newID := func() string { return uuid.Must(uuid.NewV7()).String() }
+	data := pharmacycontract.AffiliationVerificationData{RequestID: newID(), AffiliationID: newID(), PharmacyID: newID(), PharmacyName: "Synthetic Ward Pharmacy", HospitalID: testHospital, Relationship: "owner", RequesterSubject: "user-asker"}
+	outbox := func(subject string) []map[string]string {
+		var raw []string
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT (payload->'data')::text FROM outbox_events WHERE subject=? AND payload->'data'->>'request_id'=? ORDER BY created_at,id`, subject, data.RequestID).Scan(&raw).Error
+		}))
+		out := make([]map[string]string, len(raw))
+		for i, s := range raw {
+			require.NoError(t, json.Unmarshal([]byte(s), &out[i]))
+		}
+		return out
+	}
+	asRegistrar := func(fn func(tx *gorm.DB) error) error {
+		return db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.patient_subject','user-tokA',true),set_config('app.patient_hospital',?,true)`, testHospital).Error; err != nil {
+				return err
+			}
+			return fn(tx)
+		})
+	}
+	delivery := func() (decision string, attempts int, due *float64) {
+		var row struct {
+			DecisionID string
+			Attempts   int
+			Wait       *float64
+		}
+		require.NoError(t, asRegistrar(func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT decision_id::text,attempts,EXTRACT(EPOCH FROM next_attempt_at-clock_timestamp()) AS wait FROM patient_pharmacy_affiliation_deliveries WHERE tenant_id=? AND request_id=?`, testutil.TenantA, data.RequestID).Scan(&row).Error
+		}))
+		return row.DecisionID, row.Attempts, row.Wait
+	}
+	lapse := func() {
+		require.NoError(t, asRegistrar(func(tx *gorm.DB) error {
+			return tx.Exec(`UPDATE patient_pharmacy_affiliation_deliveries SET next_attempt_at=clock_timestamp()-interval '1 second' WHERE tenant_id=? AND request_id=? AND next_attempt_at IS NOT NULL`, testutil.TenantA, data.RequestID).Error
+		}))
+	}
+	redeliver := func() { require.NoError(t, patientmaster.RedeliverPharmacyAffiliationsOnce(ctx, db)) }
+	received := patientmastercontract.SubjectPharmacyAffiliationReceived
+	decided := patientmastercontract.SubjectPharmacyAffiliationDecided
+
+	// Each pharmacy step handled is confirmed, a duplicate included.
+	require.NoError(t, deliver(byName["patient-pharmacy-affiliation-request"], data))
+	require.NoError(t, deliver(byName["patient-pharmacy-affiliation-request"], data))
+	confirmations := outbox(received)
+	require.Len(t, confirmations, 2)
+	require.Equal(t, map[string]string{"request_id": data.RequestID, "affiliation_id": data.AffiliationID, "state": "requested"}, confirmations[0])
+
+	accept := newID()
+	w := scopedDo(r, "PUT", "/v1/patients/pharmacy-affiliations/"+data.RequestID+"/decision/"+accept, "tokA", `{"outcome":"accepted","reason":"Owned"}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	current, attempts, due := delivery()
+	require.Equal(t, accept, current)
+	require.Zero(t, attempts)
+	require.NotNil(t, due)
+	require.InDelta(t, 120, *due, 5)
+	redeliver()
+	require.Len(t, outbox(decided), 1, "nothing is re-sent before it is due")
+	lapse()
+	redeliver()
+	require.Len(t, outbox(decided), 2, "an unconfirmed acceptance is re-sent")
+	require.Equal(t, outbox(decided)[0], outbox(decided)[1])
+	_, attempts, _ = delivery()
+	require.Equal(t, 1, attempts)
+
+	revoke := newID()
+	w = scopedDo(r, "PUT", "/v1/patients/pharmacy-affiliations/"+data.RequestID+"/decision/"+revoke, "tokA", `{"outcome":"revoked","reason":"Sold"}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	current, attempts, _ = delivery()
+	require.Equal(t, revoke, current, "the revocation replaces the unconfirmed acceptance")
+	require.Zero(t, attempts)
+	receipt := byName["patient-pharmacy-affiliation-decision-receipt"]
+	require.NoError(t, deliver(receipt, pharmacycontract.AffiliationDecisionReceivedData{RequestID: data.RequestID, HospitalID: testHospital, DecisionID: accept}))
+	_, _, due = delivery()
+	require.NotNil(t, due, "confirming the superseded acceptance does not confirm the revocation")
+	lapse()
+	redeliver()
+	sentDecisions := outbox(decided)
+	require.Len(t, sentDecisions, 4)
+	require.Equal(t, revoke, sentDecisions[3]["decision_id"])
+	require.Equal(t, "revoked", sentDecisions[3]["outcome"])
+	require.NoError(t, deliver(receipt, pharmacycontract.AffiliationDecisionReceivedData{RequestID: data.RequestID, HospitalID: testHospital, DecisionID: revoke}))
+	_, _, due = delivery()
+	require.Nil(t, due, "a confirmed decision is no longer due")
+	redeliver()
+	require.Len(t, outbox(decided), 4)
+
+	require.NoError(t, deliver(byName["patient-pharmacy-affiliation-withdrawal"], data))
+	confirmations = outbox(received)
+	require.Len(t, confirmations, 3)
+	require.Equal(t, "withdrawn", confirmations[2]["state"], "a withdrawal is confirmed even when the link was already revoked")
 }
 
 type pharmacyDecided struct {

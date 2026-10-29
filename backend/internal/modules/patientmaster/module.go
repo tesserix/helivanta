@@ -303,7 +303,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 // Publishes declares patient.registered, published inside the same
 // transaction as the patient and consent inserts (Task 6, spec D6).
 func (m *Module) Publishes() []string {
-	return []string{patientmastercontract.SubjectProxyAuthorityChanged, patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged, patientmastercontract.SubjectPharmacyAffiliationDecided}
+	return []string{patientmastercontract.SubjectProxyAuthorityChanged, patientmastercontract.SubjectPatientRegistered, patientmastercontract.SubjectRegistrationReviewed, patientmastercontract.SubjectConsentAuthorityChanged, patientmastercontract.SubjectSharingNoticeChanged, patientmastercontract.SubjectSharingRecipientChanged, patientmastercontract.SubjectClinicalConsentChanged, patientmastercontract.SubjectPharmacyAffiliationDecided, patientmastercontract.SubjectPharmacyAffiliationReceived}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that
@@ -318,7 +318,8 @@ func (m *Module) DirectedWriteTables() []string { return nil }
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	return []events.Consumer{reviewConsumer(mediconnectcontract.SubjectReviewRequested, "patient-registration-review"), reviewConsumer(mediconnectcontract.SubjectReviewWithdrawn, "patient-registration-review-withdrawal"),
 		pharmacyAffiliationConsumer(pharmacycontract.SubjectAffiliationVerificationRequested, "patient-pharmacy-affiliation-request"),
-		pharmacyAffiliationConsumer(pharmacycontract.SubjectAffiliationVerificationWithdrawn, "patient-pharmacy-affiliation-withdrawal")}
+		pharmacyAffiliationConsumer(pharmacycontract.SubjectAffiliationVerificationWithdrawn, "patient-pharmacy-affiliation-withdrawal"),
+		decisionReceiptConsumer()}
 }
 
 // Broadcasts declares none: patientmaster has no per-replica cache to

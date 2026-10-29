@@ -91,3 +91,14 @@ type PharmacyAffiliationDecidedData struct {
 	Outcome       string `json:"outcome"`
 	DecidedAt     string `json:"decided_at"`
 }
+
+// SubjectPharmacyAffiliationReceived confirms patientmaster has handled a
+// pharmacy's request or withdrawal, so pharmacy stops re-sending it.
+const SubjectPharmacyAffiliationReceived = "helivanta.in.patientmaster.pharmacy_affiliation_received.v1"
+
+// PharmacyAffiliationReceivedData names the step handled: requested or withdrawn.
+type PharmacyAffiliationReceivedData struct {
+	RequestID     string `json:"request_id"`
+	AffiliationID string `json:"affiliation_id"`
+	State         string `json:"state"`
+}

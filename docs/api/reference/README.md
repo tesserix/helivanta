@@ -437,6 +437,7 @@ Published subjects:
 - `helivanta.in.pharmacy.payment_cancelled.v1`
 - `helivanta.in.pharmacy.affiliation_verification_requested.v1`
 - `helivanta.in.pharmacy.affiliation_verification_withdrawn.v1`
+- `helivanta.in.pharmacy.affiliation_decision_received.v1`
 
 Subscriptions:
 
@@ -448,6 +449,7 @@ Subscriptions:
 - `pharmacy-payment-expired` ← `helivanta.in.payments.intent_expired.v1`; after-commit hook: false.
 - `pharmacy-payment-cancelled` ← `helivanta.in.payments.intent_cancelled.v1`; after-commit hook: false.
 - `pharmacy-affiliation-decision` ← `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`; after-commit hook: false.
+- `pharmacy-affiliation-receipt` ← `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`; after-commit hook: false.
 
 Migration table declarations:
 
@@ -466,7 +468,7 @@ Migration table declarations:
 - `0018_pharmacy`: `pharmacy_outlet_discount_ceilings`.
 - `0019_pharmacy`: `pharmacy_credit_note_series`, `pharmacy_credit_notes`, `pharmacy_credit_note_lines`, `pharmacy_credit_note_refunds`.
 - `0021_pharmacy`: `pharmacy_payment_requests`.
-- `0023_pharmacy`: `pharmacy_affiliation_verifications`.
+- `0023_pharmacy`: `pharmacy_affiliation_verifications`, `pharmacy_affiliation_deliveries`.
 
 ## payments
 
@@ -680,6 +682,7 @@ Published subjects:
 - `helivanta.in.patientmaster.sharing_recipient_changed.v1`
 - `helivanta.in.patientmaster.clinical_consent_changed.v1`
 - `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`
+- `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`
 
 Subscriptions:
 
@@ -687,6 +690,7 @@ Subscriptions:
 - `patient-registration-review-withdrawal` ← `helivanta.in.mediconnect.registration_review_withdrawn.v1`; after-commit hook: false.
 - `patient-pharmacy-affiliation-request` ← `helivanta.in.pharmacy.affiliation_verification_requested.v1`; after-commit hook: false.
 - `patient-pharmacy-affiliation-withdrawal` ← `helivanta.in.pharmacy.affiliation_verification_withdrawn.v1`; after-commit hook: false.
+- `patient-pharmacy-affiliation-decision-receipt` ← `helivanta.in.pharmacy.affiliation_decision_received.v1`; after-commit hook: false.
 
 Migration table declarations:
 
@@ -700,7 +704,7 @@ Migration table declarations:
 - `0009_patientmaster`: `patient_proxy_authorities`.
 - `0011_patientmaster`: concurrent index `patient_clinical_consent_proxy_authority` on `patient_clinical_consents (tenant_id, proxy_authority_id)`.
 - `0011_patientmaster`: concurrent index `patient_sharing_notice_capacity_page` on `patient_sharing_notices (tenant_id, hospital_id, authority_kind, status, purpose, created_at DESC, id DESC)`.
-- `0013_patientmaster`: `patient_pharmacy_affiliation_reviews`, `patient_pharmacy_affiliation_decisions`.
+- `0013_patientmaster`: `patient_pharmacy_affiliation_reviews`, `patient_pharmacy_affiliation_decisions`, `patient_pharmacy_affiliation_deliveries`.
 
 ## workforce
 

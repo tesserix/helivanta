@@ -569,6 +569,7 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"medicore.AdmissionReleasedData.PatientID":        "an internally-minted opaque row id, meaningless outside this platform, resolvable only by a caller already authorized for that row",
 	"medicore.AdmissionReleasedData.HospitalID":       "an internally-minted opaque row id, meaningless outside this platform, resolvable only by a caller already authorized for that row",
 	"medicore.BedOccupancyStartedData.StartedAt":      "when the stay in the bed began; billing resolves the occupant at an instant",
+	"medicore.BedOccupancyStartedData.BedClass":       "the class of bed (general, ICU, ...); a property of the bed, not of the patient",
 	"medicore.BedOccupancyStartedData.WardCode":       "the ward code staff use for the location; a label, not patient data",
 	"medicore.BedOccupancyStartedData.RoomCode":       "the room code staff use for the location; a label, not patient data",
 	"medicore.BedOccupancyStartedData.BedCode":        "the bed code staff use for the location; a label, not patient data",

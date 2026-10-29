@@ -125,7 +125,24 @@ type accountView struct {
 	OpenedAt    *time.Time `json:"opened_at"`
 	ClosedAt    *time.Time `json:"closed_at"`
 	Totals      []total    `json:"totals" gorm:"-"`
+	Sources     []source   `json:"sources" gorm:"-"`
+	BedDays     bedDayView `json:"bed_days" gorm:"-"`
 	EntryCount  int64      `json:"entry_count" gorm:"-"`
+}
+
+// source is what is outstanding from one module, in one currency.
+type source struct {
+	SourceModule     string `json:"source_module"`
+	Currency         string `json:"currency"`
+	OutstandingMinor int64  `json:"outstanding_minor"`
+}
+
+// bedDayView counts the stay's live days. A day not priced has no amount
+// and is reported as such, never as zero.
+type bedDayView struct {
+	Configured bool  `json:"configured"`
+	Priced     int64 `json:"priced"`
+	NotPriced  int64 `json:"not_priced"`
 }
 
 // account is the running position: charges less reversals, per currency.
@@ -155,6 +172,16 @@ func (h *handlers) account(c *gin.Context) {
 		}
 		for i := range row.Totals {
 			row.Totals[i].OutstandingMinor = row.Totals[i].ChargedMinor - row.Totals[i].ReversedMinor
+		}
+		row.Sources = []source{}
+		if err := tx.Raw(`SELECT source_module,currency,COALESCE(sum(CASE kind WHEN 'charge' THEN amount_minor ELSE -amount_minor END),0) AS outstanding_minor
+ FROM billing_account_entries WHERE tenant_id=? AND admission_id=? GROUP BY source_module,currency ORDER BY source_module,currency`, p.TenantID, admission).Scan(&row.Sources).Error; err != nil {
+			return err
+		}
+		if err := tx.Raw(`SELECT EXISTS (SELECT 1 FROM billing_bed_charging WHERE tenant_id=? AND hospital_id=?) AS configured,
+ count(*) FILTER (WHERE d.priced_at IS NOT NULL) AS priced, count(*) FILTER (WHERE d.priced_at IS NULL) AS not_priced
+ FROM billing_bed_days d WHERE d.tenant_id=? AND d.admission_id=? AND d.voided_at IS NULL`, p.TenantID, hospital, p.TenantID, admission).Scan(&row.BedDays).Error; err != nil {
+			return err
 		}
 		return tx.Table("billing_account_entries").Where("tenant_id=? AND admission_id=?", p.TenantID, admission).Count(&row.EntryCount).Error
 	})
@@ -244,17 +271,24 @@ func consumers() []events.Consumer {
 			if evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &d) != nil {
 				return errors.New("invalid bed occupancy event")
 			}
-			v, ok := ids(d.HospitalID, d.AdmissionID, d.PatientID)
+			v, ok := ids(d.HospitalID, d.AdmissionID, d.PatientID, d.OccupancyID, d.BedID)
 			at, err := time.Parse(time.RFC3339Nano, d.StartedAt)
-			if !ok || err != nil {
+			// A stay without its bed's class cannot be priced; refused, not guessed.
+			if !ok || err != nil || !medicorecontract.BedClasses[d.BedClass] {
 				return errors.New("invalid bed occupancy event")
 			}
 			if err := openAccount(tx, evt.TenantID, v[0], v[1], v[2]); err != nil {
 				return err
 			}
 			// The first stay is when the account opened; a transfer changes nothing.
-			return tx.Exec(`UPDATE billing_admission_accounts SET opened_at=? WHERE tenant_id=? AND admission_id=? AND (opened_at IS NULL OR opened_at>?)`,
-				at, evt.TenantID, v[1], at).Error
+			if err := tx.Exec(`UPDATE billing_admission_accounts SET opened_at=? WHERE tenant_id=? AND admission_id=? AND (opened_at IS NULL OR opened_at>?)`,
+				at, evt.TenantID, v[1], at).Error; err != nil {
+				return err
+			}
+			if err := recordStayStart(tx, evt.TenantID, d, v, at); err != nil {
+				return err
+			}
+			return reconcileBedDays(tx, evt.TenantID, v[1])
 		}},
 		{Name: "billing-admission-released", Subject: medicorecontract.SubjectAdmissionReleased, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var d medicorecontract.AdmissionReleasedData
@@ -269,8 +303,13 @@ func consumers() []events.Consumer {
 			if err := openAccount(tx, evt.TenantID, v[0], v[1], v[2]); err != nil {
 				return err
 			}
-			return tx.Exec(`UPDATE billing_admission_accounts SET status='closed',closed_at=? WHERE tenant_id=? AND admission_id=? AND status='open'`, at, evt.TenantID, v[1]).Error
+			if err := tx.Exec(`UPDATE billing_admission_accounts SET status='closed',closed_at=? WHERE tenant_id=? AND admission_id=? AND status='open'`, at, evt.TenantID, v[1]).Error; err != nil {
+				return err
+			}
+			// Release settles the minimum day of a stay that crossed no midnight.
+			return reconcileBedDays(tx, evt.TenantID, v[1])
 		}},
+		stayEndedConsumer(),
 		{Name: "billing-pharmacy-admission-charge", Subject: pharmacycontract.SubjectAdmissionChargePosted, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var d pharmacycontract.AdmissionChargePostedData
 			if evt.Type != "AdmissionChargePosted" || evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &d) != nil {
@@ -287,7 +326,7 @@ func consumers() []events.Consumer {
 			if err := lockCharge(tx, evt.TenantID, v[3]); err != nil {
 				return err
 			}
-			if err := postEntry(tx, evt.TenantID, v[0], v[1], "charge", v[3], v[3], d.InvoiceNumber, d.AmountMinor, d.Currency, at); err != nil {
+			if err := postEntry(tx, evt.TenantID, v[0], v[1], "pharmacy", "charge", v[3], v[3], d.InvoiceNumber, d.AmountMinor, d.Currency, at); err != nil {
 				return err
 			}
 			return applyParked(tx, evt.TenantID, v[3])
@@ -318,38 +357,38 @@ func consumers() []events.Consumer {
 			if charged == 0 {
 				return parkReversal(tx, evt.TenantID, v[0], v[1], v[3], v[4], d.CreditNoteNumber, d.AmountMinor, d.Currency, at)
 			}
-			return postEntry(tx, evt.TenantID, v[0], v[1], "reversal", v[3], v[4], d.CreditNoteNumber, d.AmountMinor, d.Currency, at)
+			return postEntry(tx, evt.TenantID, v[0], v[1], "pharmacy", "reversal", v[3], v[4], d.CreditNoteNumber, d.AmountMinor, d.Currency, at)
 		}},
 	}
 }
 
 // postEntry records an entry once: a replay finds it and must match it.
-func postEntry(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, kind string, source, charge uuid.UUID, document string, amount int64, currency string, at time.Time) error {
+func postEntry(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, module, kind string, source, charge uuid.UUID, document string, amount int64, currency string, at time.Time) error {
 	// A replay is answered from the record before the insert, whose bound
 	// check would otherwise count the recorded reversal against itself.
-	if done, err := sameEntry(tx, tenant, admission, kind, source, amount, currency); done || err != nil {
+	if done, err := sameEntry(tx, tenant, admission, module, kind, source, amount, currency); done || err != nil {
 		return err
 	}
 	res := tx.Exec(`INSERT INTO billing_account_entries (tenant_id,hospital_id,id,admission_id,kind,source_module,source_reference,source_document,charge_reference,amount_minor,currency,occurred_at)
- VALUES (?,?,?,?,?,'pharmacy',?,?,?,?,?,?) ON CONFLICT (tenant_id,source_module,source_reference,kind) DO NOTHING`,
-		tenant, hospital, uuid.Must(uuid.NewV7()), admission, kind, source, document, charge, amount, currency, at)
+ VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (tenant_id,source_module,source_reference,kind) DO NOTHING`,
+		tenant, hospital, uuid.Must(uuid.NewV7()), admission, kind, module, source, document, charge, amount, currency, at)
 	if res.Error != nil || res.RowsAffected == 1 {
 		return res.Error
 	}
-	_, err := sameEntry(tx, tenant, admission, kind, source, amount, currency)
+	_, err := sameEntry(tx, tenant, admission, module, kind, source, amount, currency)
 	return err
 }
 
 // sameEntry reports whether the entry is already recorded, and refuses a
 // replay that says something else.
-func sameEntry(tx *gorm.DB, tenant string, admission uuid.UUID, kind string, source uuid.UUID, amount int64, currency string) (bool, error) {
+func sameEntry(tx *gorm.DB, tenant string, admission uuid.UUID, module, kind string, source uuid.UUID, amount int64, currency string) (bool, error) {
 	var held []struct {
 		AdmissionID uuid.UUID
 		AmountMinor int64
 		Currency    string
 	}
-	if err := tx.Raw(`SELECT admission_id,amount_minor,currency FROM billing_account_entries WHERE tenant_id=? AND source_module='pharmacy' AND source_reference=? AND kind=?`,
-		tenant, source, kind).Scan(&held).Error; err != nil {
+	if err := tx.Raw(`SELECT admission_id,amount_minor,currency FROM billing_account_entries WHERE tenant_id=? AND source_module=? AND source_reference=? AND kind=?`,
+		tenant, module, source, kind).Scan(&held).Error; err != nil {
 		return false, err
 	}
 	if len(held) == 0 {
@@ -401,7 +440,7 @@ func applyParked(tx *gorm.DB, tenant string, charge uuid.UUID) error {
 		return err
 	}
 	for _, r := range parked {
-		if err := postEntry(tx, tenant, r.HospitalID, r.AdmissionID, "reversal", r.SourceReference, charge, r.SourceDocument, r.AmountMinor, r.Currency, r.OccurredAt); err != nil {
+		if err := postEntry(tx, tenant, r.HospitalID, r.AdmissionID, "pharmacy", "reversal", r.SourceReference, charge, r.SourceDocument, r.AmountMinor, r.Currency, r.OccurredAt); err != nil {
 			return err
 		}
 		if err := tx.Exec(`UPDATE billing_parked_reversals SET applied_at=clock_timestamp() WHERE tenant_id=? AND source_reference=?`, tenant, r.SourceReference).Error; err != nil {

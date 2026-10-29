@@ -112,5 +112,9 @@ export type AdmissionAccount = {
     reversed_minor: number;
     outstanding_minor: number;
   }[];
+  /** What each source still owes, e.g. pharmacy or bed (#197). */
+  sources: { source_module: string; currency: string; outstanding_minor: number }[];
+  /** Bed days counted so far; a day not priced has no amount, never zero. */
+  bed_days: { configured: boolean; priced: number; not_priced: number };
   entry_count: number;
 };

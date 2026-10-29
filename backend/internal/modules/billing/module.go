@@ -19,10 +19,15 @@ const (
 	PermAccountRead authz.Permission = "billing.account.read"
 	// PermAccessManage grants and revokes billing access at a hospital.
 	PermAccessManage authz.Permission = "billing.access.manage"
+	// PermRateManage sets a hospital's bed-charging timezone and bed rates.
+	PermRateManage authz.Permission = "billing.rate.manage"
 )
 
 //go:embed accounts.sql
 var accountsSchema string
+
+//go:embed bed_days.sql
+var bedDaysSchema string
 
 type Module struct{}
 
@@ -31,16 +36,17 @@ func New() *Module { return &Module{} }
 func (m *Module) Name() string { return "billing" }
 
 // Permissions: ward nurses and the front desk read accounts; only tenant
-// administrators (implicitly) manage access.
+// administrators (implicitly) manage access and rates.
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
 		{Permission: PermAccountRead, Roles: []authz.Role{authz.RoleNurse, authz.RoleReceptionist}},
 		{Permission: PermAccessManage},
+		{Permission: PermRateManage},
 	}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -52,6 +58,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET(hp+"/access", PermAccountRead, h.myAccess)
 	g.GET(hp+"/admissions/:admission/account", PermAccountRead, h.account)
 	platform.ListRoute(g, hp+"/admissions/:admission/entries", PermAccountRead, h.entries)
+	g.PUT(hp+"/bed-charging", PermRateManage, h.setBedCharging)
+	g.GET(hp+"/bed-charging", PermAccountRead, h.bedChargingSetup)
+	g.PUT(hp+"/bed-rates/:class/:effective_from", PermRateManage, h.setBedRate)
+	platform.ListRoute(g, hp+"/bed-rates", PermAccountRead, h.bedRates)
 }
 
 // Publishes declares none in this slice: nothing consumes billing yet.

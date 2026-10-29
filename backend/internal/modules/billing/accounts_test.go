@@ -83,7 +83,7 @@ func TestAdmissionAccountsTakePharmacyChargesOnce(t *testing.T) {
 	}))
 	require.EqualValues(t, 1000, applied.Reversed, "the parked reversal is applied when its charge arrives")
 	require.NoError(t, deliver("billing-bed-occupancy-started", medicorecontract.BedOccupancyStartedData{OccupancyID: uuid.NewString(), AdmissionID: admission, PatientID: patient,
-		HospitalID: hospital, WardID: uuid.NewString(), RoomID: uuid.NewString(), BedID: uuid.NewString(), WardCode: "W-A", RoomCode: "R-1", BedCode: "A-1", StartedAt: now()}))
+		HospitalID: hospital, WardID: uuid.NewString(), RoomID: uuid.NewString(), BedID: uuid.NewString(), WardCode: "W-A", RoomCode: "R-1", BedCode: "A-1", BedClass: "general", StartedAt: now()}))
 	require.NoError(t, deliver("billing-pharmacy-admission-reversal", reversal), "a replay after the parked reversal was applied is idempotent")
 	over := reversal
 	over.CreditNoteID, over.AmountMinor = uuid.NewString(), 1600
@@ -238,7 +238,7 @@ func TestReleaseBeforeTheFirstStayStillClosesTheAccount(t *testing.T) {
 	at := time.Now().UTC()
 	deliver("billing-admission-released", medicorecontract.AdmissionReleasedData{AdmissionID: admission, PatientID: patient, HospitalID: hospital, ReleasedAt: at.Format(time.RFC3339Nano), Reason: "discharged"})
 	deliver("billing-bed-occupancy-started", medicorecontract.BedOccupancyStartedData{OccupancyID: uuid.NewString(), AdmissionID: admission, PatientID: patient, HospitalID: hospital,
-		WardID: uuid.NewString(), RoomID: uuid.NewString(), BedID: uuid.NewString(), WardCode: "W-A", RoomCode: "R-1", BedCode: "A-1", StartedAt: at.Add(-time.Hour).Format(time.RFC3339Nano)})
+		WardID: uuid.NewString(), RoomID: uuid.NewString(), BedID: uuid.NewString(), WardCode: "W-A", RoomCode: "R-1", BedCode: "A-1", BedClass: "general", StartedAt: at.Add(-time.Hour).Format(time.RFC3339Nano)})
 	account := do(r, "GET", "/v1/billing/hospitals/"+hospital+"/admissions/"+admission+"/account", "admin", "")
 	require.Equal(t, http.StatusOK, account.Code, account.Body.String())
 	require.Contains(t, account.Body.String(), `"status":"closed"`, "a start that arrives after release does not reopen the account")

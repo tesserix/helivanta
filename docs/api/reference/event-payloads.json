@@ -580,7 +580,7 @@
     }
   },
   "helivanta.in.medicore.admission_released.v1": {
-    "source": "backend/internal/modules/medicore/contract/events.go:137",
+    "source": "backend/internal/modules/medicore/contract/events.go:143",
     "go_type": "AdmissionReleasedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -644,7 +644,7 @@
     }
   },
   "helivanta.in.medicore.bed_occupancy_ended.v1": {
-    "source": "backend/internal/modules/medicore/contract/events.go:123",
+    "source": "backend/internal/modules/medicore/contract/events.go:129",
     "go_type": "BedOccupancyEndedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -686,6 +686,9 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "admission_id": {
+          "type": "string"
+        },
+        "bed_class": {
           "type": "string"
         },
         "bed_code": {
@@ -730,6 +733,7 @@
         "ward_code",
         "room_code",
         "bed_code",
+        "bed_class",
         "started_at"
       ],
       "type": "object"

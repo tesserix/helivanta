@@ -3466,6 +3466,42 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/bed-charging",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/bed-charging",
+          "permission": "billing.rate.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from",
+          "permission": "billing.rate.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/bed-rates",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
@@ -3478,6 +3514,10 @@
         },
         {
           "permission": "billing.access.manage",
+          "roles": []
+        },
+        {
+          "permission": "billing.rate.manage",
           "roles": []
         }
       ],
@@ -3493,6 +3533,11 @@
         {
           "name": "billing-admission-released",
           "subject": "helivanta.in.medicore.admission_released.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-bed-occupancy-ended",
+          "subject": "helivanta.in.medicore.bed_occupancy_ended.v1",
           "after_commit": false
         },
         {
@@ -3516,6 +3561,16 @@
             "billing_admission_accounts",
             "billing_account_entries",
             "billing_parked_reversals"
+          ]
+        },
+        {
+          "id": "0002_billing",
+          "sql_sha256": "825c8b5d2aa17119eab0956e3dbbbcfcc39c0ead897f4eb419f5f3af4e96147c",
+          "creates_tables": [
+            "billing_bed_charging",
+            "billing_bed_rates",
+            "billing_bed_stays",
+            "billing_bed_days"
           ]
         }
       ]

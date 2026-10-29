@@ -406,6 +406,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /medicore/hospitals/:hospital/access":                                  "the caller's own grant at one hospital; no other subject or patient data",
 	"GET /billing/hospitals/:hospital/access":                                   "the caller's own billing grant at one hospital; no other subject",
 	"GET /billing/hospitals/:hospital/admissions/:admission/account":            "one admission's account totals; its entries are a paginated list",
+	"GET /billing/hospitals/:hospital/bed-charging":                             "one hospital's bed-charging timezone; its rates are a paginated list",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant":     "one bed's or room's single open stay, or 404/409 ambiguous; never a collection",
 	"GET /medicore/hospitals/:hospital/encounters/:id":                          "one grant-checked encounter; the hospital's encounters use cursor pagination",
 	"GET /medicore/insights":                                                    "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",
@@ -582,8 +583,11 @@ var withAllTenantsAllowlist = map[string]bool{
 	"internal/modules/payments/reconciler.go":                         true,
 	"internal/modules/pharmacy/affiliation_delivery.go":               true,
 	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
-	"pkg/events/bus.go":       true,
-	"pkg/events/retention.go": true,
+	// #197: the bed census finds due stays and unapplied setup across
+	// tenants by key columns alone, and reconciles each under WithTenant.
+	"internal/modules/billing/bed_days.go": true,
+	"pkg/events/bus.go":                    true,
+	"pkg/events/retention.go":              true,
 	// The one _test.go entry, here because the ASSERTIONS need the bypass
 	// rather than the code under test. cmd/bootstrap/main.go uses
 	// WithTenant — its write is scoped by the policy, not exempt from it —

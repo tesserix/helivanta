@@ -80,7 +80,11 @@ func publishRound(tx *gorm.DB, tenant string, request uuid.UUID, state string) e
 
 // confirmDecision tells patientmaster this decision is handled.
 func confirmDecision(tx *gorm.DB, tenant string, d patientmastercontract.PharmacyAffiliationDecidedData) error {
-	data, err := json.Marshal(pharmacycontract.AffiliationDecisionReceivedData{RequestID: d.RequestID, HospitalID: d.HospitalID, DecisionID: d.DecisionID})
+	var applied int64
+	if err := tx.Table("pharmacy_affiliation_verifications").Where("tenant_id=? AND decision_id=?", tenant, d.DecisionID).Count(&applied).Error; err != nil {
+		return err
+	}
+	data, err := json.Marshal(pharmacycontract.AffiliationDecisionReceivedData{RequestID: d.RequestID, HospitalID: d.HospitalID, DecisionID: d.DecisionID, Applied: applied == 1})
 	if err != nil {
 		return err
 	}

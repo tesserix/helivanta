@@ -285,7 +285,7 @@ authority to read or cite a hospital's patients, so B-2c waits for affiliation v
 Update (2026-10-29): affiliation verification is #1416. Its first slice lets the hospital
 verify, decline or revoke a same-tenant link
 ([design](2026-10-29-pharmacy-affiliation-verification-design.md)). B-2c still waits for
-#1416b, the pharmacy's patient-id projection and the audited MRN lookup.
+#1416b, the pharmacy's patient-id projection and the audited MRN lookup. Both are now built; B-2c can start.
 
 #### B-3 decisions (2026-10-28)
 

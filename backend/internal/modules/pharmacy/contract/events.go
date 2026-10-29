@@ -199,9 +199,13 @@ type AffiliationVerificationData struct {
 const SubjectAffiliationDecisionReceived = "helivanta.in.pharmacy.affiliation_decision_received.v1"
 
 // AffiliationDecisionReceivedData names the decision handled; hospital_id
-// scopes patientmaster's delivery row.
+// scopes patientmaster's delivery row. Applied says the decision is in
+// pharmacy's history: a decision for a round pharmacy had already closed is
+// confirmed too, so redelivery stops, but with Applied false. Absent means
+// false, so an older sender can never open a link.
 type AffiliationDecisionReceivedData struct {
 	RequestID  string `json:"request_id"`
 	HospitalID string `json:"hospital_id"`
 	DecisionID string `json:"decision_id"`
+	Applied    bool   `json:"applied"`
 }

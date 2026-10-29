@@ -27,6 +27,10 @@ afterEach(() => vi.unstubAllGlobals());
 function stub(rows: PharmacyAffiliationReview[]) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (init.method === "PUT") return new Response(JSON.stringify(rows[0]));
+    if (!url.includes("/patients/pharmacy-affiliations?"))
+      return new Response(
+        JSON.stringify({ data: [], page: { has_more: false, next_cursor: null } }),
+      );
     expect(url).toContain(`/patients/pharmacy-affiliations?hospital_id=${hospital.id}`);
     return new Response(
       JSON.stringify({ data: rows, page: { has_more: false, next_cursor: null } }),
@@ -90,6 +94,7 @@ describe("PharmacyAffiliationReviews", () => {
     ]);
     const { user } = renderWithProviders(<PharmacyAffiliationReviews hospital={hospital} />);
     expect(await screen.findByText(/Verified · Owned/)).toBeInTheDocument();
+    expect(screen.getByText("Patient lookup by MRN")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Verify" })).toBeNull();
     await user.type(screen.getByLabelText("Reason"), "Sold");
     await user.click(screen.getByRole("button", { name: "Revoke" }));
@@ -139,6 +144,7 @@ describe("PharmacyAffiliationReviews", () => {
     stub([review({ status: "withdrawn" })]);
     renderWithProviders(<PharmacyAffiliationReviews hospital={hospital} />);
     expect(await screen.findByText(/Withdrawn by the pharmacy/)).toBeInTheDocument();
+    expect(screen.queryByText("Patient lookup by MRN")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });
 });

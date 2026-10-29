@@ -1102,11 +1102,14 @@
     }
   },
   "helivanta.in.pharmacy.affiliation_decision_received.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:203",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:206",
     "go_type": "AffiliationDecisionReceivedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "applied": {
+          "type": "boolean"
+        },
         "decision_id": {
           "type": "string"
         },
@@ -1120,7 +1123,8 @@
       "required": [
         "request_id",
         "hospital_id",
-        "decision_id"
+        "decision_id",
+        "applied"
       ],
       "type": "object"
     }

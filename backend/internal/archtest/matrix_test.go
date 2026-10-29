@@ -332,6 +332,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	patientmaster.PermSharingNoticeReview:       {authz.RoleTenantAdmin},
 	patientmaster.PermSharingRecipientReview:    {authz.RoleTenantAdmin},
 	patientmaster.PermPharmacyAffiliationReview: {authz.RoleTenantAdmin},
+	patientmaster.PermPharmacyLookup:            {authz.RolePharmacist, authz.RoleTenantAdmin},
 }
 
 // TestDeclaredPermissionsMatchTheApprovedMatrix is the independent-oracle

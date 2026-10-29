@@ -85,8 +85,34 @@ func decisionReceiptConsumer() events.Consumer {
 		if err := tx.Exec(`SELECT set_config('app.pharmacy_affiliation_hospital',?,true),set_config('app.pharmacy_affiliation_request',?,true)`, d.HospitalID, d.RequestID).Error; err != nil {
 			return errors.New("pharmacy affiliation scope unavailable")
 		}
-		return tx.Exec(`UPDATE patient_pharmacy_affiliation_deliveries SET next_attempt_at=NULL,updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND request_id=? AND decision_id=? AND next_attempt_at IS NOT NULL`,
-			evt.TenantID, d.HospitalID, d.RequestID, d.DecisionID).Error
+		if err := tx.Exec(`UPDATE patient_pharmacy_affiliation_deliveries SET next_attempt_at=NULL,updated_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND request_id=? AND decision_id=? AND next_attempt_at IS NOT NULL`,
+			evt.TenantID, d.HospitalID, d.RequestID, d.DecisionID).Error; err != nil {
+			return err
+		}
+		if !d.Applied {
+			// Pharmacy handled the decision without applying it (its round was
+			// already closed): the re-sends stop, but no link opens.
+			return nil
+		}
+		// Pharmacy now agrees the link is verified: lookups may start (#1416b).
+		// The review row is locked first, so a revocation or withdrawal in
+		// flight is waited for and then seen; a statement snapshot alone would
+		// still read it as accepted and open a link nothing would ever close.
+		var standing int64
+		if err := tx.Raw(`SELECT count(*) FROM (SELECT 1 FROM patient_pharmacy_affiliation_reviews r
+ JOIN patient_pharmacy_affiliation_decisions d ON d.tenant_id=r.tenant_id AND d.request_id=r.request_id AND d.id=? AND d.outcome='accepted'
+ WHERE r.tenant_id=? AND r.hospital_id=? AND r.request_id=? AND r.status='accepted' FOR SHARE OF r) standing`, d.DecisionID, evt.TenantID, d.HospitalID, d.RequestID).Scan(&standing).Error; err != nil {
+			return err
+		}
+		if standing != 1 {
+			return nil
+		}
+		// One link per pharmacy and hospital: while an older round's link still
+		// stands (its withdrawal not yet here) this fails, and patientmaster's
+		// re-send of the decision tries again until the slot is free.
+		return tx.Exec(`INSERT INTO patient_pharmacy_links (tenant_id,hospital_id,pharmacy_id,request_id)
+ SELECT tenant_id,hospital_id,pharmacy_id,request_id FROM patient_pharmacy_affiliation_reviews WHERE tenant_id=? AND request_id=?
+ ON CONFLICT (tenant_id,request_id) DO NOTHING`, evt.TenantID, d.RequestID).Error
 	}}
 }
 

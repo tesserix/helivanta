@@ -23,8 +23,11 @@ const (
 	// PermPharmacyAffiliationReview accepts, declines or revokes a pharmacy's
 	// affiliation with a hospital (#1416); held with a registrar grant.
 	PermPharmacyAffiliationReview authz.Permission = "patient.pharmacy-affiliation.review"
-	PermPatientRead               authz.Permission = "patient.read"
-	PermPatientRegister           authz.Permission = "patient.register"
+	// PermPharmacyLookup finds one patient by exact MRN for a pharmacist the
+	// hospital has named, while the pharmacy's link is active (#1416b).
+	PermPharmacyLookup  authz.Permission = "patient.pharmacy-lookup"
+	PermPatientRead     authz.Permission = "patient.read"
+	PermPatientRegister authz.Permission = "patient.register"
 	// PermRegistrationReplay re-announces existing registrations to
 	// consumers that started after them (#1377); tenant admins only.
 	PermRegistrationReplay authz.Permission = "patient.registration.replay"
@@ -60,6 +63,9 @@ var proxyClinicalConsentSchema string
 //go:embed pharmacy_affiliations.sql
 var pharmacyAffiliationSchema string
 
+//go:embed pharmacy_lookup.sql
+var pharmacyLookupSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -76,6 +82,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermSharingNoticeReview},
 		{Permission: PermSharingRecipientReview},
 		{Permission: PermPharmacyAffiliationReview},
+		{Permission: PermPharmacyLookup, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermPatientRead, Roles: []authz.Role{
 			authz.RoleReceptionist, authz.RoleDoctor, authz.RoleNurse,
 			authz.RolePharmacist, authz.RoleLabTech}},
@@ -244,7 +251,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		{ID: "0011_patientmaster", ConcurrentIndexes: []tenantdb.ConcurrentIndex{
 			{Name: "patient_clinical_consent_proxy_authority", Table: "patient_clinical_consents", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "proxy_authority_id"}}},
 			{Name: "patient_sharing_notice_capacity_page", Table: "patient_sharing_notices", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "authority_kind"}, {Name: "status"}, {Name: "purpose"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}},
-		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}, {ID: "0013_patientmaster", SQL: pharmacyAffiliationSchema}}
+		}}, {ID: "0012_patientmaster", SQL: registrationReplaySchema}, {ID: "0013_patientmaster", SQL: pharmacyAffiliationSchema}, {ID: "0014_patientmaster", SQL: pharmacyLookupSchema}}
 }
 
 // Routes mounts registration (spec D4/D5), single lookup, and the
@@ -295,6 +302,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET("/link-reviews/:request", PermPatientRegister, patients.getLinkReview)
 	platform.ListRoute(g, "/pharmacy-affiliations", PermPharmacyAffiliationReview, patients.listPharmacyAffiliations)
 	g.PUT("/pharmacy-affiliations/:request/decision/:decision", PermPharmacyAffiliationReview, patients.decidePharmacyAffiliation)
+	g.PUT("/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject", PermPharmacyAffiliationReview, patients.putPharmacyLookupAccess)
+	g.DELETE("/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject", PermPharmacyAffiliationReview, patients.deletePharmacyLookupAccess)
+	platform.ListRoute(g, "/hospitals/:hospital/pharmacy-lookup-access", PermPharmacyAffiliationReview, patients.listPharmacyLookupAccess)
+	g.GET("/pharmacy-lookup", PermPharmacyLookup, patients.pharmacyLookup)
 	g.GET("/:id/registration-reference", PermPatientRead, patients.registrationReference)
 	g.GET("/:id", PermPatientRead, patients.get)
 	platform.ListRoute(g, "", PermPatientRead, patients.list)

@@ -452,6 +452,7 @@ Subscriptions:
 - `pharmacy-payment-cancelled` ← `helivanta.in.payments.intent_cancelled.v1`; after-commit hook: false.
 - `pharmacy-affiliation-decision` ← `helivanta.in.patientmaster.pharmacy_affiliation_decided.v1`; after-commit hook: false.
 - `pharmacy-affiliation-receipt` ← `helivanta.in.patientmaster.pharmacy_affiliation_received.v1`; after-commit hook: false.
+- `pharmacy-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
 
 Migration table declarations:
 
@@ -471,6 +472,7 @@ Migration table declarations:
 - `0019_pharmacy`: `pharmacy_credit_note_series`, `pharmacy_credit_notes`, `pharmacy_credit_note_lines`, `pharmacy_credit_note_refunds`.
 - `0021_pharmacy`: `pharmacy_payment_requests`.
 - `0023_pharmacy`: `pharmacy_affiliation_verifications`, `pharmacy_affiliation_deliveries`.
+- `0025_pharmacy`: `pharmacy_registered_patients`.
 
 ## payments
 
@@ -636,6 +638,9 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | DELETE | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | PUT | `/v1/patients/hospitals/:hospital/access/:subject` | `patient.access.manage` | false | false |
 | GET | `/v1/patients/hospitals/:hospital/access` | `patient.read` | false | false |
+| DELETE | `/v1/patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject` | `patient.pharmacy-affiliation.review` | false | false |
+| PUT | `/v1/patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject` | `patient.pharmacy-affiliation.review` | false | false |
+| GET | `/v1/patients/hospitals/:hospital/pharmacy-lookup-access` | `patient.pharmacy-affiliation.review` | true | false |
 | POST | `/v1/patients/hospitals/:hospital/registration-replays` | `patient.registration.replay` | true | false |
 | PUT | `/v1/patients/link-reviews/:request/decision/:decision` | `patient.register` | false | false |
 | GET | `/v1/patients/link-reviews/:request` | `patient.register` | false | false |
@@ -659,6 +664,7 @@ Source: [backend/internal/modules/patientmaster/module.go](../../../backend/inte
 | PUT | `/v1/patients/my/proxy-clinical-consents/:consent` | `public` | false | false |
 | PUT | `/v1/patients/pharmacy-affiliations/:request/decision/:decision` | `patient.pharmacy-affiliation.review` | false | false |
 | GET | `/v1/patients/pharmacy-affiliations` | `patient.pharmacy-affiliation.review` | true | false |
+| GET | `/v1/patients/pharmacy-lookup` | `patient.pharmacy-lookup` | false | false |
 | POST | `/v1/patients/proxy-authorities/:authority/revoke` | `patient.proxy-authority.review` | false | false |
 | GET | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
 | PUT | `/v1/patients/proxy-authorities/:authority` | `patient.proxy-authority.review` | false | false |
@@ -707,6 +713,7 @@ Migration table declarations:
 - `0011_patientmaster`: concurrent index `patient_clinical_consent_proxy_authority` on `patient_clinical_consents (tenant_id, proxy_authority_id)`.
 - `0011_patientmaster`: concurrent index `patient_sharing_notice_capacity_page` on `patient_sharing_notices (tenant_id, hospital_id, authority_kind, status, purpose, created_at DESC, id DESC)`.
 - `0013_patientmaster`: `patient_pharmacy_affiliation_reviews`, `patient_pharmacy_affiliation_decisions`, `patient_pharmacy_affiliation_deliveries`.
+- `0014_patientmaster`: `patient_pharmacy_links`, `patient_pharmacy_lookup_access`.
 
 ## workforce
 

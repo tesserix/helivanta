@@ -2984,6 +2984,11 @@
           "name": "pharmacy-affiliation-receipt",
           "subject": "helivanta.in.patientmaster.pharmacy_affiliation_received.v1",
           "after_commit": false
+        },
+        {
+          "name": "pharmacy-patient-registered",
+          "subject": "helivanta.in.patientmaster.registered.v1",
+          "after_commit": false
         }
       ],
       "broadcasts": [],
@@ -3161,6 +3166,13 @@
           "id": "0024_pharmacy",
           "sql_sha256": "8546537c30d884206a27efd0b196344da942059e3a44f95f87641165853c91ab",
           "creates_tables": []
+        },
+        {
+          "id": "0025_pharmacy",
+          "sql_sha256": "d079b32fe62cb49c8f7fd9a890161535817388198945d379c4beefe47e25b1e0",
+          "creates_tables": [
+            "pharmacy_registered_patients"
+          ]
         }
       ]
     },
@@ -4334,6 +4346,33 @@
           "counted": false
         },
         {
+          "method": "DELETE",
+          "path": "/v1/patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject",
+          "permission": "patient.pharmacy-affiliation.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject",
+          "permission": "patient.pharmacy-affiliation.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/patients/hospitals/:hospital/pharmacy-lookup-access",
+          "permission": "patient.pharmacy-affiliation.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/patients/hospitals/:hospital/registration-replays",
           "permission": "patient.registration.replay",
@@ -4541,6 +4580,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/patients/pharmacy-lookup",
+          "permission": "patient.pharmacy-lookup",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/patients/proxy-authorities/:authority/revoke",
           "permission": "patient.proxy-authority.review",
@@ -4691,6 +4739,12 @@
         {
           "permission": "patient.pharmacy-affiliation.review",
           "roles": []
+        },
+        {
+          "permission": "patient.pharmacy-lookup",
+          "roles": [
+            "pharmacist"
+          ]
         },
         {
           "permission": "patient.read",
@@ -4896,6 +4950,14 @@
             "patient_pharmacy_affiliation_reviews",
             "patient_pharmacy_affiliation_decisions",
             "patient_pharmacy_affiliation_deliveries"
+          ]
+        },
+        {
+          "id": "0014_patientmaster",
+          "sql_sha256": "056631dc9122de5c92e005b2583e0f1980274c43d9da0b93a26f7fb36b33d05e",
+          "creates_tables": [
+            "patient_pharmacy_links",
+            "patient_pharmacy_lookup_access"
           ]
         }
       ]

@@ -36,7 +36,11 @@ func newWard(t *testing.T, w saleWorld) ward {
 	for _, c := range pharmacy.New().Consumers(platform.Deps{}) {
 		consumers[c.Name] = c
 	}
-	types := map[string]string{"pharmacy-bed-occupancy-started": "BedOccupancyStarted", "pharmacy-bed-occupancy-ended": "BedOccupancyEnded"}
+	types := map[string]string{
+		"pharmacy-patient-registered":    patientmastercontract.TypePatientRegistered,
+		"pharmacy-bed-occupancy-started": "BedOccupancyStarted",
+		"pharmacy-bed-occupancy-ended":   "BedOccupancyEnded",
+	}
 	handle := func(name string, v any) error {
 		data, err := json.Marshal(v)
 		require.NoError(t, err)

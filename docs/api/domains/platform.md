@@ -75,6 +75,12 @@ identical retry and republishes the event for graph repair. The form retains its
 original subject and tenant after an uncertain result. A rejected workspace or
 access check requires refreshing before another attempt.
 
+### Membership-removal workspace precondition
+
+`DELETE /v1/iam/members/:subject/:role` now honors the same optional `X-Helivanta-Expected-Tenant` precondition as member enrollment. If supplied, it must be exactly one nonzero UUID matching the verified session tenant. Empty, malformed, changed, duplicate or comma-joined values return `409 session_changed` with `Cache-Control: no-store` before membership mutation or outbox publication. The header never selects a tenant or grants permission: `iam.member.manage`, current authenticated tenant and forced RLS remain authoritative. Omitting the header preserves the existing `202` deletion/tuple-repair contract, including replay when the role row is already absent.
+
+This does not add actor or membership-incarnation preconditions, a versioned removal command, global identity deletion, employment suspension/offboarding or an admin removal UI. Role removal remains distinct from hospital employment and global login state. A future removal UI must reconcile uncertain outcomes and re-enrollment rather than treating this optional tenant guard as a complete offboarding workflow.
+
 ### Assignment proposals and independent decisions
 
 The Staff access page at `/workforce/access` uses the existing contracts below for

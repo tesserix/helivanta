@@ -1143,3 +1143,7 @@ layout/access releases complete Staff Management or issue #1399.
 ### Staff scope tracker and renewal preparation — 2026-10-29
 
 The [delivery tracker](staff-management-progress.md) consolidates the complete requested Staff scope, current evidence, remaining acceptance and the ordered A01–A12 Access/RBAC journeys. Its renewal checkpoint records new-proposal preparation, local independent maker/checker activation, recipient access, withdrawal/history preservation and fresh-login denial. All 30 frontend tasks passed. This does not complete the Access area or employment suspension/exit/rehire, and no production rollout of this UI slice is claimed.
+
+### Membership workspace precondition checkpoint — 2026-10-29
+
+Renewal preparation #1442 merged after full CI/E2E as `4a6c6528d65a4a10a3fefcf1e5783884205c1518`; production acceptance remains open. The subsequent Access audit reproduced removal ignoring changed/ambiguous expected-tenant headers. A one-line reuse of the enrollment guard now rejects them before writes; the [delivery tracker](staff-management-progress.md#membership-removal-request-guard-and-provisioning-audit--2026-10-29) records red/green and full local IAM/authentication race evidence, compatibility limits and pending delivery gates. This is not a membership-removal UI or complete provisioning/offboarding.

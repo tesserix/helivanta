@@ -270,3 +270,25 @@ export const pharmacyTaxClassificationInputSchema = z
     reason: z.string().trim().min(1).max(500).nullable().optional(),
   })
   .strict();
+
+export const pharmacyStockOverviewFieldsSchema = z
+  .object({
+    outlet_id: identifier,
+    outlet_code: z.string(),
+    outlet_name: z.string(),
+    currency: z.string(),
+    product_on_hand_units: z.string(),
+    known_purchase_value_minor: z.string(),
+    uncosted_units: z.string(),
+  })
+  .strict();
+
+export const pharmacyStockOverviewValuationFieldsSchema = z
+  .object({
+    currency: z.string(),
+    known_purchase_value_minor: z
+      .string()
+      .regex(new RegExp("^[0-9]+$"), "Use the required format."),
+    uncosted_products: z.string().regex(new RegExp("^[0-9]+$"), "Use the required format."),
+  })
+  .strict();

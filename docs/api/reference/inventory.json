@@ -2697,6 +2697,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/stock/positions.csv",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/stock/positions",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy",
           "permission": "pharmacy.access.manage",
@@ -3138,6 +3156,11 @@
             "pharmacy_affiliation_verifications",
             "pharmacy_affiliation_deliveries"
           ]
+        },
+        {
+          "id": "0024_pharmacy",
+          "sql_sha256": "8546537c30d884206a27efd0b196344da942059e3a44f95f87641165853c91ab",
+          "creates_tables": []
         }
       ]
     },

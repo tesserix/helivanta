@@ -102,3 +102,5 @@ export * from "./staff-access-templates";
 export * from "./identity-checks-contract";
 
 export * from "./identity-checks";
+
+export * from "./pharmacy-stock-overview";

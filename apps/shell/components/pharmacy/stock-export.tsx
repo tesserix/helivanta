@@ -4,14 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import {
   ApiError,
   fetchPharmacyStockCSV,
+  fetchPharmacyStockOverviewCSV,
+  type PharmacyStockOverviewScope,
   tenantTransitionPending,
   type PharmacyScope,
 } from "@helivanta/api";
 import { Button } from "@tesserix/web";
 
-type Props = { scope: PharmacyScope; filters: string; disabled: boolean };
+type Props = { filters: string; disabled: boolean } & (
+  { scope: PharmacyScope; overview?: false } | { scope: PharmacyStockOverviewScope; overview: true }
+);
 
-export function StockExport({ scope, filters, disabled }: Props) {
+export function StockExport(props: Props) {
+  const { filters, disabled } = props;
   const controller = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,7 +32,9 @@ export function StockExport({ scope, filters, disabled }: Props) {
     setError("");
     try {
       const signal = AbortSignal.any([current.signal, AbortSignal.timeout(20_000)]);
-      const file = await fetchPharmacyStockCSV(scope, filters, signal);
+      const file = await (props.overview
+        ? fetchPharmacyStockOverviewCSV(props.scope, filters, signal)
+        : fetchPharmacyStockCSV(props.scope, filters, signal));
       signal.throwIfAborted();
       if (tenantTransitionPending()) return;
       const objectURL = URL.createObjectURL(file.blob);

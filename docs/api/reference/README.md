@@ -418,6 +418,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/stock/positions.csv` | `pharmacy.stock.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/stock/positions` | `pharmacy.stock.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies` | `pharmacy.catalogue.read` | true | false |
 

@@ -428,6 +428,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance":              "one explicitly scoped location/batch quarantine balance; not a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/reconciliation":       "one explicitly scoped location/batch period aggregate; positions and movement history are cursor-paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/positions.csv":        "explicit file export; refuses more than 1000 rows or 8 MiB before sending any attachment; normal JSON positions remain cursor-paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/stock/positions.csv":                        "CSV export is bounded to 1000 positions and 8 MiB; larger results are refused, never truncated (#1372)",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id":     "one outlet-private product, with at most twenty composition ingredients",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id":          "one outlet-private manufacturer lot, no child records",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet":                            "one outlet the subject may see, no child records",

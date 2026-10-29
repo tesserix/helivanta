@@ -283,6 +283,71 @@ The outlet's record of a prescription, and its scanned pages. Nothing sells agai
 
 Until the worker is rolled out (#1406), uploaded pages stay `scan_pending` and are never downloadable.
 
+### Stock across outlets (#1372)
+
+`GET /v1/pharmacy/pharmacies/{pharmacy}/stock/positions` is a read-only,
+pharmacy-level view of the existing outlet-owned stock ledger. It requires
+`pharmacy.stock.read` **and a current explicit grant on every included outlet**;
+a directory manager or tenant administrator receives no implicit stock grant.
+No granted outlet in this pharmacy is 404; missing route permission is 403;
+unavailable outlet authorization is 503. No hospital affiliation grants access.
+The staff page is `/pharmacy/stock-overview`, through the Global API as usual.
+
+- **Filters and paging.** An explicit `as_of` (RFC3339, microsecond precision,
+  not future), `expiry=all|expired|unexpired|today|due_30|due_90|due_180`,
+  `balance=all|on_hand`, and optional `outlet_id`. Unknown, repeated and empty
+  filters are 400. A requested outlet outside the caller's grants or pharmacy
+  is 404. Standard `limit`/`cursor` paging is bounded across the combined result,
+  newest batch first with a scoped position hash as tie-breaker. Each outlet
+  evaluates expiry in its own timezone, using the same source and filters as
+  its stock register. Physical units include quarantine/expired stock;
+  `dispensable_units=0` remains deliberately non-authoritative.
+- **Scope disclosure.** `X-Pharmacy-Stock-Coverage` is `all_accessible` or
+  `restricted_outlets_excluded`, including empty pages. The latter explicitly
+  means that totals do not cover the whole pharmacy. Excluded outlet names,
+  quantities and values are never disclosed. Coverage, totals, current grants
+  and rows use one read-only REPEATABLE READ snapshot with an eight-second SQL
+  statement timeout and ten-second request query budget. Every page/export
+  reauthorizes; `as_of` freezes the movement cutoff, not future grant changes.
+- **Product totals.** Each position includes the owning outlet ID/code/name,
+  currency, `product_on_hand_units`, `known_purchase_value_minor` and
+  `uncosted_units`. The last three are exact decimal strings and cover every
+  matching position of that **outlet/product/unit**, before pagination. They
+  repeat on each position and **must not be added together**. Catalogue product
+  IDs are outlet-owned; identical SKUs or names are not a shared formulation
+  identifier. Cross-outlet identity consolidation awaits an authoritative
+  shared product linkage; this view never invents one or sums different units.
+- **Valuation.** Existing batch `purchase_cost_minor` is the recorded purchase
+  cost **per pack**, as on the receiving form. For each product, known purchase
+  value is `floor(sum(on_hand_units × known batch pack cost) / pack_size)`.
+  All arithmetic is PostgreSQL numeric; rounding happens once per product,
+  so splitting a batch between locations cannot change its value. Missing
+  cost contributes to `uncosted_units`, not a fabricated zero cost. Recorded
+  zero cost is a known zero. Landed cost, freight, tax adjustments, margin and
+  sale/NPPA price compliance are not inferred by this report.
+- **Combined value.** `X-Pharmacy-Stock-Valuation` is a JSON array, bounded to
+  20 currencies, with `{currency, known_purchase_value_minor, uncosted_products}`
+  (the latter two exact decimal strings). It sums each product value **once**
+  within its currency, and identifies incomplete valuation. Currencies and
+  quantities in different units are never combined. An empty filtered result
+  returns `[]`, not a fabricated currency/value row. The UI validates both
+  metadata headers and refuses to present unconfirmed coverage/value as stock.
+- **CSV.** `GET …/stock/positions.csv` uses the same filters, without pagination
+  parameters. It exports all matching accessible positions, with outlet scope,
+  coverage, product totals and the existing register fields; it refuses over
+  1000 positions or 8 MiB, never truncates. Product totals repeat per position.
+  Formula-like text is neutralised, downloads are `no-store`/`nosniff`, and
+  successful exports log actor, tenant/pharmacy, cutoff, row count and SHA-256
+  without cell values. Row count and digest are also response headers.
+
+Canonical additional fields are in `contracts/pharmacy.json` (generated Go/Zod).
+Migration `0024_pharmacy` changes the read predicates on four inventory tables
+only. Existing single-outlet editor `WITH CHECK` predicates remain intact;
+prescription, sales, financial and other private tables gain no overview access.
+This implements the operational read aspects of IN-PH-01/03 and ORG-AC-01/02/07/08 explicit
+scope/fail-closed principles, not a new stock master, transfer, legal valuation
+policy or clinical access path. There are no new events or consumers.
+
 ### Hospital affiliation verification (#1416)
 
 A declared hospital link grants nothing until that hospital verifies it. The declaration stays immutable. Each step is a new row in `pharmacy_affiliation_verifications`, and the latest step is the link's `verification_status`: `pending_validation`, `requested`, `verified`, `declined`, `revoked` or `withdrawn`. Same tenant only. A link to another customer's hospital needs a separate data-sharing agreement. See the [design](../../superpowers/specs/2026-10-29-pharmacy-affiliation-verification-design.md).

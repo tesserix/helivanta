@@ -80,6 +80,7 @@ var errStockIdentity = errors.New("stock identity is immutable")
 
 func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
+	stockOverviewRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	s.PUT("/locations/:id", PermStockReceive, h.putLocation)
 	s.PUT("/batches/:id", PermStockReceive, h.putBatch)

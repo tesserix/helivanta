@@ -1,4 +1,6 @@
 import { apiFetchResponse } from "./client";
+import type { PharmacyStockOverviewScope } from "./pharmacy-stock-overview";
+import { pharmacyStockOverviewPath } from "./pharmacy-stock-overview";
 import { pharmacyRoot, type PharmacyScope } from "./pharmacy";
 
 export async function fetchPharmacyStockCSV(
@@ -6,8 +8,24 @@ export async function fetchPharmacyStockCSV(
   filters: string,
   signal: AbortSignal,
 ): Promise<{ blob: Blob; filename: string }> {
+  return fetchStockCSV(scope, `${pharmacyRoot(scope)}/stock/positions.csv?${filters}`, signal);
+}
+
+export async function fetchPharmacyStockOverviewCSV(
+  scope: PharmacyStockOverviewScope,
+  filters: string,
+  signal: AbortSignal,
+) {
+  return fetchStockCSV(scope, `${pharmacyStockOverviewPath(scope)}.csv?${filters}`, signal);
+}
+
+async function fetchStockCSV(
+  scope: PharmacyStockOverviewScope,
+  path: string,
+  signal: AbortSignal,
+): Promise<{ blob: Blob; filename: string }> {
   signal.throwIfAborted();
-  const response = await apiFetchResponse(`${pharmacyRoot(scope)}/stock/positions.csv?${filters}`, {
+  const response = await apiFetchResponse(path, {
     headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
     cache: "no-store",
     signal,

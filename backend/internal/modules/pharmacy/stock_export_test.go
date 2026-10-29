@@ -137,12 +137,18 @@ func TestStockExportIncludesUnloadedPagesAndRefusesRowOverflow(t *testing.T) {
 		require.False(t, seen[row[1]])
 		seen[row[1]] = true
 	}
+	combined := do(r, "GET", overviewPath()+".csv?as_of=2026-10-01T00:00:00Z", "editor", "")
+	require.Equal(t, 200, combined.Code, combined.Body.String())
+	require.Equal(t, "1000", combined.Header().Get("X-Export-Row-Count"))
 	seed(1001, 1001)
 	w = do(r, "GET", path, "editor", "")
 	require.Equal(t, 413, w.Code, w.Body.String())
 	require.Empty(t, w.Header().Get("Content-Disposition"))
 	require.NotContains(t, w.Body.String(), "TEST-EXPORT-")
 	require.Contains(t, w.Body.String(), "stock_export_too_large")
+	combined = do(r, "GET", overviewPath()+".csv?as_of=2026-10-01T00:00:00Z", "editor", "")
+	require.Equal(t, 413, combined.Code, combined.Body.String())
+	require.Empty(t, combined.Header().Get("Content-Disposition"))
 	w = do(r, "GET", path+"&location_id=0199e0ab-0000-7000-8000-000000000001", "editor", "")
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.Equal(t, "1", w.Header().Get("X-Export-Row-Count"))

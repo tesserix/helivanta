@@ -685,6 +685,60 @@
           "optional": true
         }
       ]
+    },
+    {
+      "name": "StockOverviewFields",
+      "schema": "pharmacyStockOverviewFieldsSchema",
+      "fields": [
+        {
+          "name": "outlet_id",
+          "type": "uuid"
+        },
+        {
+          "name": "outlet_code",
+          "type": "string"
+        },
+        {
+          "name": "outlet_name",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "product_on_hand_units",
+          "type": "string"
+        },
+        {
+          "name": "known_purchase_value_minor",
+          "type": "string"
+        },
+        {
+          "name": "uncosted_units",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "StockOverviewValuationFields",
+      "schema": "pharmacyStockOverviewValuationFieldsSchema",
+      "fields": [
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "known_purchase_value_minor",
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        {
+          "name": "uncosted_products",
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      ]
     }
   ]
 }

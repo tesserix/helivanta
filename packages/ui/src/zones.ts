@@ -6,6 +6,7 @@ import {
   BellRing,
   BookOpen,
   Boxes,
+  Warehouse,
   Building,
   Building2,
   CalendarCog,
@@ -202,6 +203,13 @@ export const ZONES: Zone[] = [
         href: "/pharmacy/medications",
         icon: Tablets,
         permission: "pharmacy.medication.read",
+      },
+      {
+        section: "Inventory",
+        label: "Stock across outlets",
+        href: "/pharmacy/stock-overview",
+        icon: Warehouse,
+        permission: "pharmacy.stock.read",
       },
       {
         section: "Inventory",

@@ -81,6 +81,13 @@ type saleBuyer struct {
 	Phone *string `json:"phone" binding:"omitempty"`
 }
 
+// salePatient is a registered patient found by the #1416b lookup: the two
+// ids only (#1386 B-2c). Never with a walk-in buyer.
+type salePatient struct {
+	PatientID  uuid.UUID `json:"patient_id" binding:"required"`
+	HospitalID uuid.UUID `json:"hospital_id" binding:"required"`
+}
+
 var buyerPhonePattern = regexp.MustCompile(`^\+?[0-9]{6,15}$`)
 
 func (b *saleBuyer) valid() bool {
@@ -104,6 +111,7 @@ type saleInput struct {
 	Lines   []saleLineInput   `json:"lines" binding:"required,min=1,max=50,dive"`
 	Tenders []saleTenderInput `json:"tenders" binding:"required,min=1,max=5,dive"`
 	Buyer   *saleBuyer        `json:"buyer"`
+	Patient *salePatient      `json:"patient"`
 	// Required exactly when a line is discounted (B-3 decision 2).
 	DiscountReason *string `json:"discount_reason"`
 }
@@ -146,6 +154,9 @@ func (in saleInput) digest() string {
 			phone = "\x1e" + *in.Buyer.Phone
 		}
 		parts = append(parts, "b", name, phone)
+	}
+	if in.Patient != nil {
+		parts = append(parts, "p", in.Patient.PatientID.String(), in.Patient.HospitalID.String())
 	}
 	for _, t := range in.Tenders {
 		tendered, reference := "", ""
@@ -199,35 +210,38 @@ func (in *saleInput) validTenders() bool {
 }
 
 type saleRecord struct {
-	ID              uuid.UUID    `gorm:"column:id" json:"id"`
-	InvoiceNumber   string       `gorm:"column:invoice_number" json:"invoice_number"`
-	FinancialYear   string       `gorm:"column:financial_year" json:"financial_year"`
-	SaleDate        string       `gorm:"column:sale_date" json:"sale_date"`
-	SellerLegalName string       `gorm:"column:seller_legal_name" json:"seller_legal_name"`
-	SellerAddress   string       `gorm:"column:seller_address" json:"seller_address"`
-	SellerGSTIN     string       `gorm:"column:seller_gstin" json:"seller_gstin"`
-	PlaceOfSupply   string       `gorm:"column:place_of_supply" json:"place_of_supply"`
-	Currency        string       `gorm:"column:currency" json:"currency"`
-	TotalMinor      int64        `gorm:"column:total_minor" json:"total_minor"`
-	TaxableMinor    int64        `gorm:"column:taxable_minor" json:"taxable_minor"`
-	CGSTMinor       int64        `gorm:"column:cgst_minor" json:"cgst_minor"`
-	SGSTMinor       int64        `gorm:"column:sgst_minor" json:"sgst_minor"`
-	ActorSubject    string       `gorm:"column:actor_subject" json:"actor_subject"`
-	BuyerName       *string      `gorm:"column:buyer_name" json:"buyer_name"`
-	BuyerPhone      *string      `gorm:"column:buyer_phone" json:"buyer_phone"`
-	DiscountReason  *string      `gorm:"column:discount_reason" json:"discount_reason"`
-	DiscountMinor   int64        `gorm:"-" json:"discount_minor"`
-	CreatedAt       time.Time    `gorm:"column:created_at" json:"created_at"`
-	Lines           []saleLine   `gorm:"-" json:"lines,omitempty"`
-	Tenders         []saleTender `gorm:"-" json:"tenders,omitempty"`
-	ClassOrigin     string       `gorm:"-" json:"class_origin,omitempty"`
-	CeilingChecked  bool         `gorm:"-" json:"nppa_ceiling_checked"`
+	ID              uuid.UUID `gorm:"column:id" json:"id"`
+	InvoiceNumber   string    `gorm:"column:invoice_number" json:"invoice_number"`
+	FinancialYear   string    `gorm:"column:financial_year" json:"financial_year"`
+	SaleDate        string    `gorm:"column:sale_date" json:"sale_date"`
+	SellerLegalName string    `gorm:"column:seller_legal_name" json:"seller_legal_name"`
+	SellerAddress   string    `gorm:"column:seller_address" json:"seller_address"`
+	SellerGSTIN     string    `gorm:"column:seller_gstin" json:"seller_gstin"`
+	PlaceOfSupply   string    `gorm:"column:place_of_supply" json:"place_of_supply"`
+	Currency        string    `gorm:"column:currency" json:"currency"`
+	TotalMinor      int64     `gorm:"column:total_minor" json:"total_minor"`
+	TaxableMinor    int64     `gorm:"column:taxable_minor" json:"taxable_minor"`
+	CGSTMinor       int64     `gorm:"column:cgst_minor" json:"cgst_minor"`
+	SGSTMinor       int64     `gorm:"column:sgst_minor" json:"sgst_minor"`
+	ActorSubject    string    `gorm:"column:actor_subject" json:"actor_subject"`
+	BuyerName       *string   `gorm:"column:buyer_name" json:"buyer_name"`
+	BuyerPhone      *string   `gorm:"column:buyer_phone" json:"buyer_phone"`
+	// A registered patient's ids (#1386 B-2c); pharmacy holds nothing else of them.
+	PatientID         *uuid.UUID   `gorm:"column:patient_id" json:"patient_id"`
+	PatientHospitalID *uuid.UUID   `gorm:"column:patient_hospital_id" json:"patient_hospital_id"`
+	DiscountReason    *string      `gorm:"column:discount_reason" json:"discount_reason"`
+	DiscountMinor     int64        `gorm:"-" json:"discount_minor"`
+	CreatedAt         time.Time    `gorm:"column:created_at" json:"created_at"`
+	Lines             []saleLine   `gorm:"-" json:"lines,omitempty"`
+	Tenders           []saleTender `gorm:"-" json:"tenders,omitempty"`
+	ClassOrigin       string       `gorm:"-" json:"class_origin,omitempty"`
+	CeilingChecked    bool         `gorm:"-" json:"nppa_ceiling_checked"`
 }
 
 func (saleRecord) TableName() string                 { return "pharmacy_sales" }
 func (r saleRecord) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,discount_reason,created_at"
+const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason,created_at"
 
 type saleLine struct {
 	LineNumber         int        `gorm:"column:line_number" json:"line_number"`
@@ -863,6 +877,10 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a buyer has a name of up to 200 characters, a phone of 6 to 15 digits, or both")
 		return
 	}
+	if in.Patient != nil && in.Buyer != nil {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a sale names a registered patient or a walk-in buyer, not both")
+		return
+	}
 	if !mayDiscount(c, in.Lines) {
 		return
 	}
@@ -874,6 +892,10 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 	var buyerName, buyerPhone *string
 	if in.Buyer != nil {
 		buyerName, buyerPhone = in.Buyer.Name, in.Buyer.Phone
+	}
+	var patientID, patientHospital *uuid.UUID
+	if in.Patient != nil {
+		patientID, patientHospital = &in.Patient.PatientID, &in.Patient.HospitalID
 	}
 	digest := in.digest()
 	var result saleRecord
@@ -894,6 +916,11 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return loadSale(tx, p.TenantID, outlet, id, &result)
 		}
 		created = true
+		if in.Patient != nil {
+			if err := lockPatientAffiliation(tx, p.TenantID, outlet, in.Patient.HospitalID); err != nil {
+				return err
+			}
+		}
 		seller, lines, err := priceSale(tx, p.TenantID, outlet, in.Lines)
 		if err != nil {
 			return err
@@ -922,9 +949,9 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return errNotSellable{"this year's invoice series is full; record a shorter invoice prefix"}
 		}
 		if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,
-			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,discount_reason)
-			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
-			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone, in.DiscountReason).Error; err != nil {
+			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason)
+			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
+			seller.profile.LegalName, seller.profile.Address, seller.gstin, seller.state, seller.currency, total, taxable, half, half, digest, p.Subject, buyerName, buyerPhone, patientID, patientHospital, in.DiscountReason).Error; err != nil {
 			return err
 		}
 		for _, l := range lines {
@@ -986,6 +1013,10 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", "the UPI payment is not a paid payment of this outlet for this amount")
 	case violated(err, "pharmacy_sale_tender_payment_once"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "this UPI payment is already on another sale")
+	case violated(err, "pharmacy_sale_registered_patient"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "this patient is not a registration at that hospital that the pharmacy has received")
+	case violated(err, "pharmacy_sale_patient_affiliated"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the patient's hospital has not verified this pharmacy")
 	case violated(err, "pharmacy_sale_line_discount_ceiling"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the outlet's discount ceiling changed; price the basket again")
 	case err != nil:
@@ -1125,4 +1156,21 @@ func mayDiscount(c *gin.Context, lines []saleLineInput) bool {
 		return false
 	}
 	return true
+}
+
+// lockPatientAffiliation takes the lock every verification step takes, so a
+// sale to a hospital's patient is ordered wholly before or after a decision
+// pharmacy is applying for that hospital. The insert trigger then checks it.
+func lockPatientAffiliation(tx *gorm.DB, tenant string, outlet, hospital uuid.UUID) error {
+	var ids []struct{ ID uuid.UUID }
+	if err := tx.Raw(`SELECT a.id FROM pharmacy_outlets o JOIN pharmacy_hospital_affiliations a ON a.tenant_id=o.tenant_id AND a.pharmacy_id=o.pharmacy_id
+ WHERE o.tenant_id=? AND o.id=? AND a.hospital_id=? ORDER BY a.id`, tenant, outlet, hospital).Scan(&ids).Error; err != nil {
+		return err
+	}
+	for _, a := range ids {
+		if err := stockLock(tx, tenant+":affiliation:"+a.ID.String()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

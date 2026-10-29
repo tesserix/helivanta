@@ -248,6 +248,17 @@ A discount recorded on the invoice at the time of supply is outside the value of
 - **Database guarantees.** A line's discount must be its rounded percentage, its list amount must be within MRP, and something must be charged. The discount must be within the ceiling in force when the line is written, so a ceiling lowered after a quote refuses that sale. A discounted sale must record its reason.
 - **Not covered.** Fixed-amount discounts, whole-sale discounts, approval by a second person, and promotions or schemes.
 
+### Registered patients at the counter (#1386 B-2c)
+
+A sale may name a registered patient instead of a walk-in buyer: `patient: {patient_id, hospital_id}`, never with `buyer` (`400`). The pharmacist finds the patient with patientmaster's [pharmacy lookup](patients-and-clinical.md#pharmacy-patient-lookup-1416b) by exact MRN at a hospital that has verified the pharmacy, and confirms the name, age and sex shown.
+
+The sale posts only if the database accepts both conditions; otherwise it is `409 not_sellable`:
+
+- `(patient_id, hospital_id)` is in `pharmacy_registered_patients` (a foreign key);
+- the outlet's pharmacy holds an affiliation with that hospital whose latest verification step is `accepted` (trigger `pharmacy_sale_patient_affiliated`).
+
+The sale takes the affiliation's lock, so a verification step being applied is ordered wholly before or after it. Pharmacy stores only the two ids (`patient_id` and `patient_hospital_id` on the sale read). `sale_posted.v1` carries no patient. The invoice says "Registered patient" with the hospital. Migration `0026_pharmacy`.
+
 ### Selling against a prescription (#1386 B-2b)
 
 The source is Drugs Rules 1945, Rule 65 (CDSCO 2022 compilation): Schedule H and H1 are sold only on a prescription (65(9)), which names the patient's address and the total quantity (65(10)). It is dispensed only as often as the prescriber allows (65(11)), and nothing is supplied in its place (65(11A)). Schedule G is held to the same rule by product decision; that is stricter than Rule 65.

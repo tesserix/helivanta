@@ -72,6 +72,33 @@ function fixture(
 ) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.endsWith("/counter-payments")) return new Response(JSON.stringify(page([])));
+    if (url.endsWith("/hospital-affiliations"))
+      return new Response(
+        JSON.stringify(
+          page([
+            {
+              id: "a1",
+              pharmacy_id: scope.pharmacyId,
+              hospital_id: "22222222-2222-4222-8222-222222222222",
+              relationship: "owner",
+              verification_status: "verified",
+              verification_request_id: "r1",
+              verified_at: "",
+              created_at: "",
+            },
+          ]),
+        ),
+      );
+    if (url.includes("/patients/pharmacy-lookup"))
+      return new Response(
+        JSON.stringify({
+          patient_id: "33333333-3333-4333-8333-333333333333",
+          name: "TEST Asha Rao",
+          age_years: 41,
+          age_estimated: false,
+          sex: "female",
+        }),
+      );
     if (/\/counter-payments\/[0-9a-f-]{36}$/.test(url))
       return new Response(
         JSON.stringify({
@@ -473,6 +500,43 @@ describe("CounterSale", () => {
       ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
     );
     expect(JSON.parse(String(put?.[1]?.body)).buyer).toEqual({ name: "TEST Walk In" });
+  });
+
+  it("names a registered patient only once the pharmacist confirms them", async () => {
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    // A buyer typed before choosing a patient is not sent.
+    await user.type(await screen.findByLabelText("Buyer name (optional)"), "TEST Walk In");
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "Customer" }),
+      "Registered patient",
+    );
+    expect(screen.queryByLabelText("Buyer name (optional)")).toBeNull();
+    // Enter in the MRN looks the patient up; it never submits the sale.
+    await user.type(await screen.findByLabelText("MRN"), "MRN-42{Enter}");
+    expect(await screen.findByText("TEST Asha Rao")).toBeVisible();
+    expect(screen.queryByText("Find the patient and confirm it is them")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText("Find the patient and confirm it is them")).toBeVisible();
+    const puts = () =>
+      fetcher.mock.calls.filter(
+        ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+      );
+    expect(puts()).toHaveLength(0);
+    await user.click(await screen.findByRole("button", { name: "This is the patient" }));
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
+    const body = JSON.parse(String(puts()[0][1]?.body));
+    expect(body.patient).toEqual({
+      patient_id: "33333333-3333-4333-8333-333333333333",
+      hospital_id: "22222222-2222-4222-8222-222222222222",
+    });
+    expect(body.buyer).toBeUndefined();
   });
 
   it("adds no line before the product's class is known", async () => {

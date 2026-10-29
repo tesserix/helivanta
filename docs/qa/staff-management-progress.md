@@ -388,3 +388,21 @@ Workforce/architecture/contractdocs; the additional document/evidence race suite
 `go vet`, API/worker builds, `golangci-lint`; contractdocs generation/check;
 canonical employment contract generation/check; and
 `API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo lint format:check type-check test build`.
+
+## Denied payroll page heading — 2026-10-30
+
+Production reviewer QA on release `22b6241` found that a denied payroll page
+incorrectly displayed “Staff directory” in the shell header. Permission-filtered
+navigation had hidden the payroll entry before the shell selected its title.
+The correction selects requested-page metadata from the route catalogue while
+retaining permission-filtered navigation and the existing payroll denial.
+
+The regression first failed with expected “Payroll setup”, received “Staff
+directory”; after the correction all 50 shell navigation tests passed. Local
+browser QA used the existing restricted `pharmacist Seed` fixture through normal
+sign-in: the heading was “Payroll setup”, payroll navigation was absent, the
+Staff directory link had no current-page marker, and the page denied payroll
+access. This local fixture is separate from the production Staff reviewer.
+No roles, grants, credentials, backend contracts or migrations changed in this
+UI fix. It has not yet been rolled out to production. The broad acceptance counts
+above are unchanged; a corrected denial heading does not complete a Staff domain.

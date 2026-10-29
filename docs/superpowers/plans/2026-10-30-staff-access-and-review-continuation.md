@@ -28,6 +28,15 @@ by adding a template or claiming a workflow engine exists.
   new employment can create a circular prerequisite. Non-digital workers must
   remain supported without creating a global login solely to issue an ID/card.
 
+The registered source inventory has 207 Workforce routes: 22 declare enrollment
+management and 10 document management as their primary permission. These 32
+entries are not the full compound authorization contract. The enrollment helper
+also has credential/reminder and leave-standing/report consumers; changing it
+globally could alter those journeys. A scoped-intake change needs an action/route
+inventory and tests for these existing consumers, not a blanket helper replacement.
+The graph baseline omits newer employment call sites, so confirm against current
+source and the generated inventory before implementation.
+
 Workforce owns private Staff/profile, HR classifications, login-link facts,
 identity cases, employment terms and evidence. IAM owns membership, reviewed
 assignments, scope epochs and authorization projections; the identity provider

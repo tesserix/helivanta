@@ -222,6 +222,9 @@ export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
   actor_subject: string;
   buyer_name: string | null;
   buyer_phone: string | null;
+  /** A registered patient's ids (#1386 B-2c); pharmacy holds nothing else of them. */
+  patient_id: string | null;
+  patient_hospital_id: string | null;
   discount_reason: string | null;
   discount_minor: number;
   created_at: string;

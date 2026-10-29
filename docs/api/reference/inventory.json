@@ -3173,6 +3173,11 @@
           "creates_tables": [
             "pharmacy_registered_patients"
           ]
+        },
+        {
+          "id": "0026_pharmacy",
+          "sql_sha256": "a8372894f7f3c5f33e11d65bfba89af9abd26832fc27c7f6f2b34bd80fa9df66",
+          "creates_tables": []
         }
       ]
     },

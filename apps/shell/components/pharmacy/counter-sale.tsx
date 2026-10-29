@@ -23,6 +23,7 @@ import {
   type PharmacyScope,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 import { VerifiedUpi } from "./verified-upi";
 
@@ -506,6 +507,9 @@ const tenderSchema = z
     total: z.number(),
     discounted: z.boolean(),
     discount_reason: z.string().trim().max(200, "At most 200 characters"),
+    // A sale names a registered patient or an optional walk-in buyer (#1386 B-2c).
+    customer: z.enum(["walk_in", "patient"]),
+    patient_id: z.string(),
     // The walk-in buyer is optional on every sale (#1386 B-2b decision 7).
     buyer_name: z.string().trim().max(200, "At most 200 characters"),
     buyer_phone: z
@@ -530,6 +534,12 @@ const tenderSchema = z
       });
     if ((v.kind === "upi" || v.kind === "card") && v.reference === "")
       ctx.addIssue({ code: "custom", path: ["reference"], message: "Enter the payment reference" });
+    if (v.customer === "patient" && v.patient_id === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["patient_id"],
+        message: "Find the patient and confirm it is them",
+      });
     if (v.discounted && v.discount_reason.length < 5)
       ctx.addIssue({
         code: "custom",
@@ -558,12 +568,21 @@ function TenderForm({
     reference: "",
     payment_request_id: "",
     total: quote.total_minor,
+    customer: "walk_in",
+    patient_id: "",
     buyer_name: "",
     buyer_phone: "",
     discounted: basket.some((l) => l.discount_bps),
     discount_reason: "",
   });
   const kind = form.watch("kind");
+  const customer = form.watch("customer");
+  const [patient, setPatient] = useState<CounterPatient | null>(null);
+  const choosePatient = (next: CounterPatient | null) => {
+    setPatient(next);
+    form.setValue("patient_id", next?.patient_id ?? "", { shouldValidate: false });
+    if (next) form.clearErrors("patient_id");
+  };
   const { setValue, clearErrors } = form;
   const onPaid = useCallback(
     (paymentRequestId: string | null) => {
@@ -599,7 +618,10 @@ function TenderForm({
                   },
           ],
           ...(values.discounted ? { discount_reason: values.discount_reason } : {}),
-          ...(values.buyer_name || values.buyer_phone
+          ...(values.customer === "patient" && patient
+            ? { patient: { patient_id: patient.patient_id, hospital_id: patient.hospital_id } }
+            : {}),
+          ...(values.customer === "walk_in" && (values.buyer_name || values.buyer_phone)
             ? {
                 buyer: {
                   ...(values.buyer_name ? { name: values.buyer_name } : {}),
@@ -696,22 +718,43 @@ function TenderForm({
           <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
         </Field>
       )}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field
-          id="buyer-name"
-          label="Buyer name (optional)"
-          error={form.formState.errors.buyer_name?.message}
-        >
-          <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
-        </Field>
-        <Field
-          id="buyer-phone"
-          label="Buyer phone (optional)"
-          error={form.formState.errors.buyer_phone?.message}
-        >
-          <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
-        </Field>
-      </div>
+      <FormSelectField
+        control={form.control}
+        name="customer"
+        id="sale-customer"
+        label="Customer"
+        options={[
+          { value: "walk_in", label: "Walk-in buyer" },
+          { value: "patient", label: "Registered patient" },
+        ]}
+      />
+      {customer === "patient" ? (
+        <div>
+          <CounterPatientLookup scope={scope} value={patient} onChange={choosePatient} />
+          {form.formState.errors.patient_id && (
+            <p className="mt-1 text-sm text-destructive">
+              {form.formState.errors.patient_id.message}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            id="buyer-name"
+            label="Buyer name (optional)"
+            error={form.formState.errors.buyer_name?.message}
+          >
+            <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+          </Field>
+          <Field
+            id="buyer-phone"
+            label="Buyer phone (optional)"
+            error={form.formState.errors.buyer_phone?.message}
+          >
+            <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
+          </Field>
+        </div>
+      )}
       {post.isError && (
         <div role="alert" className="text-sm text-destructive">
           <p>{post.error.message}</p>
@@ -771,6 +814,9 @@ function Invoice({
             Discount {money(sale.discount_minor)}
             {sale.discount_reason ? ` · ${sale.discount_reason}` : ""}
           </p>
+        )}
+        {sale.patient_id && sale.patient_hospital_id && (
+          <p className="mt-2 text-sm">Registered patient · hospital {sale.patient_hospital_id}</p>
         )}
         {(sale.buyer_name || sale.buyer_phone) && (
           <p className="mt-2 text-sm">

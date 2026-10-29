@@ -61,3 +61,17 @@ export type PharmacyLookupGrant = {
 export const pharmacyLookupGrantSchema = z.object({
   subject: z.string().trim().min(1, "Choose a member").max(200),
 });
+
+/** What the #1416b lookup returns: just enough to recognise the person. */
+export type PharmacyPatientLookupResult = {
+  patient_id: string;
+  name: string;
+  age_years: number;
+  age_estimated: boolean;
+  sex: "" | "male" | "female" | "other";
+};
+
+export const pharmacyPatientLookupSchema = z.object({
+  hospital_id: z.string().min(1, "Choose the hospital"),
+  mrn: z.string().trim().min(1, "Enter the MRN").max(64, "At most 64 characters"),
+});

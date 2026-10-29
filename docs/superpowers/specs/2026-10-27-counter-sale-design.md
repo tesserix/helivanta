@@ -287,6 +287,35 @@ verify, decline or revoke a same-tenant link
 ([design](2026-10-29-pharmacy-affiliation-verification-design.md)). B-2c still waits for
 #1416b, the pharmacy's patient-id projection and the audited MRN lookup. Both are now built; B-2c can start.
 
+#### B-2c decisions (2026-10-29)
+
+1. **A sale names either a registered patient or a walk-in buyer, never both** (B6). A registered
+   patient is `{patient_id, hospital_id}`; pharmacy stores those two ids on the sale and
+   nothing else about the patient.
+2. **The patient must be real and the link verified when the sale posts.** The database refuses
+   the sale (`409 not_sellable`) unless:
+   - `(patient_id, hospital_id)` is in `pharmacy_registered_patients` (a foreign key);
+   - the outlet's pharmacy holds an affiliation with that hospital whose latest verification step
+     in pharmacy's own history is `accepted` (an insert trigger).
+
+   The sale takes the affiliation's lock, so a revocation arriving at that moment is ordered
+   before or after it, never half-applied. Pharmacy may learn of a hospital revocation up to the
+   redelivery window late (#1416); a sale in that window is still a sale to a real patient of a
+   hospital that verified the link when it was made.
+
+3. **The pharmacist finds the patient with the #1416b lookup.**
+   - The counter offers the pharmacy's verified hospitals, then takes an exact MRN and shows the
+     lookup's name, age and sex for the pharmacist to confirm.
+   - Only a confirmed patient goes on the sale.
+   - A pharmacist without a lookup grant gets the same "not found" answer as a wrong MRN; the
+     counter says to ask the hospital for lookup access.
+4. **Nothing about the patient leaves pharmacy.** `sale_posted.v1` is unchanged: no patient id
+   in events. The invoice shows "Registered patient" and the hospital, not the name, because
+   pharmacy does not hold it. The sale read returns the two ids to `pharmacy.sale.read` holders.
+
+Not covered: billing the sale to an admission (#1387), and showing hospital names. Pharmacy
+holds only hospital ids, so the counter shows the id and the link's relationship.
+
 #### B-3 decisions (2026-10-28)
 
 **Source.** CGST Act 2017, s.15(3)(a), as published on CBIC's tax information portal: the

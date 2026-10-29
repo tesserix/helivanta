@@ -34,11 +34,13 @@
     "auditConfig": {
       "ignoreGhsas": [
         "GHSA-vfj7-8cjw-p6xm",
-        "GHSA-86w9-cpqp-85rv"
+        "GHSA-86w9-cpqp-85rv",
+        "GHSA-qr28-fpjm-wq7f"
       ]
     },
     "patchedDependencies": {
-      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch"
+      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
+      "decode-uri-component@0.2.2": "patches/decode-uri-component@0.2.2.patch"
     }
   }
 }

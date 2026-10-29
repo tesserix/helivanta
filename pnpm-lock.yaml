@@ -16,6 +16,9 @@ overrides:
   eslint-plugin-react-hooks@7.1.1>zod: 4.6.6
 
 patchedDependencies:
+  decode-uri-component@0.2.2:
+    hash: e6c6450c91ce60512d4d8664b4d6b13356775a9b2c6ad43942c871d31c35c112
+    path: patches/decode-uri-component@0.2.2.patch
   node-forge@1.4.0:
     hash: b6876574a5de19521a766856b293aeae2689848c5d8dab03f93040be0a64b8b4
     path: patches/node-forge@1.4.0.patch
@@ -11443,7 +11446,7 @@ snapshots:
 
   decimal.js@10.6.0: {}
 
-  decode-uri-component@0.2.2: {}
+  decode-uri-component@0.2.2(patch_hash=e6c6450c91ce60512d4d8664b4d6b13356775a9b2c6ad43942c871d31c35c112): {}
 
   dedent@1.7.2: {}
 
@@ -14601,7 +14604,7 @@ snapshots:
 
   query-string@7.1.3:
     dependencies:
-      decode-uri-component: 0.2.2
+      decode-uri-component: 0.2.2(patch_hash=e6c6450c91ce60512d4d8664b4d6b13356775a9b2c6ad43942c871d31c35c112)
       filter-obj: 1.1.0
       split-on-first: 1.1.0
       strict-uri-encode: 2.0.0

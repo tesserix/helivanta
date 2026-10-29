@@ -15,12 +15,13 @@ import {
   type Staff,
   type Page,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, useZodForm, useConfirmLeave } from "@helivanta/ui";
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDirectoryEditor } from "./directory-editor";
 import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
 import { StaffIdentitySourcePanel } from "./identity-source-panel";
+import { StaffEmploymentPeriods } from "./employment-periods-panel";
 import { StaffLoginLinkPanel } from "./login-link-panel";
 
 const inputClass =
@@ -82,6 +83,7 @@ type WorkspaceProps = {
 };
 
 function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceProps) {
+  const confirmLeave = useConfirmLeave();
   const can = (permission: string) => permissions.includes(permission);
   const [hospitalId, setHospitalId] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
@@ -105,7 +107,7 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
                 <SelectControl
                   id="workforce-hospital"
                   value={hospital.id}
-                  onValueChange={setHospitalId}
+                  onValueChange={(next) => confirmLeave(() => setHospitalId(next))}
                   options={(hospitals.data?.data ?? []).map((item) => ({
                     value: item.id,
                     label: item.name,
@@ -146,10 +148,12 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
         <Button
           className="mt-4"
           variant="outline"
-          onClick={() => {
-            setCursor(hospitals.data?.page.next_cursor ?? null);
-            setHospitalId("");
-          }}
+          onClick={() =>
+            confirmLeave(() => {
+              setCursor(hospitals.data?.page.next_cursor ?? null);
+              setHospitalId("");
+            })
+          }
         >
           More hospitals
         </Button>
@@ -158,10 +162,12 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
         <Button
           className="ml-3 mt-4"
           variant="ghost"
-          onClick={() => {
-            setCursor(null);
-            setHospitalId("");
-          }}
+          onClick={() =>
+            confirmLeave(() => {
+              setCursor(null);
+              setHospitalId("");
+            })
+          }
         >
           First hospitals
         </Button>
@@ -175,6 +181,7 @@ function Directory({
   permissions,
   onContextChanged,
 }: { hospital: Hospital } & WorkspaceProps) {
+  const confirmLeave = useConfirmLeave();
   const can = (permission: string) => permissions.includes(permission);
   const opener = useRef<HTMLButtonElement>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -183,6 +190,7 @@ function Directory({
   const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
   const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
   const [identityStaff, setIdentityStaff] = useState<Staff | null>(null);
+  const [employmentStaff, setEmploymentStaff] = useState<Staff | null>(null);
   const [linkStaff, setLinkStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
@@ -216,12 +224,16 @@ function Directory({
           {writable && (
             <Button
               onClick={(event) => {
-                opener.current = event.currentTarget;
-                setDocumentStaff(null);
-                setCredentialStaff(null);
-                setLinkStaff(null);
-                setIdentityStaff(null);
-                setEditing("new");
+                const button = event.currentTarget;
+                confirmLeave(() => {
+                  opener.current = button;
+                  setDocumentStaff(null);
+                  setCredentialStaff(null);
+                  setLinkStaff(null);
+                  setIdentityStaff(null);
+                  setEmploymentStaff(null);
+                  setEditing("new");
+                });
               }}
             >
               Add staff
@@ -308,16 +320,41 @@ function Directory({
                         size="sm"
                         aria-label={`Identity details for ${row.display_name}`}
                         onClick={(event) => {
-                          opener.current = event.currentTarget;
-                          setEditing(null);
-                          setDocumentStaff(null);
-                          setCredentialStaff(null);
-                          setLinkStaff(null);
-                          setIdentityStaff(row);
+                          const button = event.currentTarget;
+                          confirmLeave(() => {
+                            opener.current = button;
+                            setEditing(null);
+                            setDocumentStaff(null);
+                            setCredentialStaff(null);
+                            setLinkStaff(null);
+                            setIdentityStaff(row);
+                            setEmploymentStaff(null);
+                          });
                         }}
                       >
                         Identity details
                       </Button>
+                      {writable && can("workforce.enrollment.manage") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Employment terms for ${row.display_name}`}
+                          onClick={(event) => {
+                            const button = event.currentTarget;
+                            confirmLeave(() => {
+                              opener.current = button;
+                              setEditing(null);
+                              setDocumentStaff(null);
+                              setCredentialStaff(null);
+                              setLinkStaff(null);
+                              setIdentityStaff(null);
+                              setEmploymentStaff(row);
+                            });
+                          }}
+                        >
+                          Employment terms
+                        </Button>
+                      )}
                       {manager && (
                         <>
                           {writable && (
@@ -325,12 +362,16 @@ function Directory({
                               variant="ghost"
                               size="sm"
                               onClick={(event) => {
-                                opener.current = event.currentTarget;
-                                setDocumentStaff(null);
-                                setCredentialStaff(null);
-                                setLinkStaff(null);
-                                setIdentityStaff(null);
-                                setEditing(row);
+                                const button = event.currentTarget;
+                                confirmLeave(() => {
+                                  opener.current = button;
+                                  setDocumentStaff(null);
+                                  setCredentialStaff(null);
+                                  setLinkStaff(null);
+                                  setIdentityStaff(null);
+                                  setEmploymentStaff(null);
+                                  setEditing(row);
+                                });
                               }}
                               aria-label={`Edit ${row.display_name}`}
                             >
@@ -342,13 +383,16 @@ function Directory({
                               variant="ghost"
                               size="sm"
                               aria-label={`Documents for ${row.display_name}`}
-                              onClick={() => {
-                                setEditing(null);
-                                setCredentialStaff(null);
-                                setLinkStaff(null);
-                                setIdentityStaff(null);
-                                setDocumentStaff(row);
-                              }}
+                              onClick={() =>
+                                confirmLeave(() => {
+                                  setEditing(null);
+                                  setCredentialStaff(null);
+                                  setLinkStaff(null);
+                                  setIdentityStaff(null);
+                                  setEmploymentStaff(null);
+                                  setDocumentStaff(row);
+                                })
+                              }
                             >
                               Documents
                             </Button>
@@ -359,13 +403,16 @@ function Directory({
                               variant="ghost"
                               size="sm"
                               aria-label={`Account link for ${row.display_name}`}
-                              onClick={() => {
-                                setEditing(null);
-                                setDocumentStaff(null);
-                                setCredentialStaff(null);
-                                setIdentityStaff(null);
-                                setLinkStaff(row);
-                              }}
+                              onClick={() =>
+                                confirmLeave(() => {
+                                  setEditing(null);
+                                  setDocumentStaff(null);
+                                  setCredentialStaff(null);
+                                  setIdentityStaff(null);
+                                  setEmploymentStaff(null);
+                                  setLinkStaff(row);
+                                })
+                              }
                             >
                               Account link
                             </Button>
@@ -375,13 +422,16 @@ function Directory({
                               variant="ghost"
                               size="sm"
                               aria-label={`Credentials for ${row.display_name}`}
-                              onClick={() => {
-                                setEditing(null);
-                                setDocumentStaff(null);
-                                setIdentityStaff(null);
-                                setCredentialStaff(row);
-                                setLinkStaff(null);
-                              }}
+                              onClick={() =>
+                                confirmLeave(() => {
+                                  setEditing(null);
+                                  setDocumentStaff(null);
+                                  setIdentityStaff(null);
+                                  setEmploymentStaff(null);
+                                  setCredentialStaff(row);
+                                  setLinkStaff(null);
+                                })
+                              }
                             >
                               Credentials
                             </Button>
@@ -417,12 +467,21 @@ function Directory({
           </div>
         </div>
       </section>
+      {employmentStaff && writable && can("workforce.enrollment.manage") && (
+        <StaffEmploymentPeriods
+          staffLabel={`${employmentStaff.display_name} · ${employmentStaff.employee_code}`}
+          key={employmentStaff.id}
+          scope={{ ...scope, hospitalId: hospital.id, staffId: employmentStaff.id }}
+          onClose={() => setEmploymentStaff(null)}
+        />
+      )}
       {identityStaff && (
         <StaffIdentitySourcePanel
           hospitalId={hospital.id}
           staffId={identityStaff.id}
           onClose={() => {
             setIdentityStaff(null);
+            setEmploymentStaff(null);
             opener.current?.focus();
           }}
         />
@@ -483,6 +542,7 @@ const hospitalSchema = z.object({
   grant: z.literal(true, { error: "Confirm your hospital access grant." }),
 });
 function HospitalSetup() {
+  const confirmLeave = useConfirmLeave();
   const [id, setId] = useState(() => crypto.randomUUID());
   const identity = useApiQuery<{ subject: string }>(
     ["iam", "me", "permissions"],
@@ -517,7 +577,7 @@ function HospitalSetup() {
       <summary className="cursor-pointer text-sm font-medium">Add a hospital</summary>
       <form
         noValidate
-        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        onSubmit={form.handleSubmit((value) => confirmLeave(() => save.mutate(value)))}
         className="mt-5 max-w-lg space-y-4"
       >
         <Field id="hospital-name" label="Hospital name" error={form.formState.errors.name?.message}>

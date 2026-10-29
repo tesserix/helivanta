@@ -1,7 +1,8 @@
 # Reviewed employment periods and contractor relationships
 
-Status: implementation design; no endpoint/schema or lifecycle activation is
-established by this document. Parent prerequisite: PR #1454. Accepted access
+Status: reviewed lifecycle design. Private draft preparation has an owner implementation and local validation; independent decisions and lifecycle activation remain open. See the [draft API](../../api/workforce.md#employment-term-draft-preparation) and the delivery tracker for separate CI/release gates.
+
+Parent prerequisite: PR #1454. Accepted access
 migration policy: ADR-0049. Scope: #1035, #417, Staff lifecycle A07–A10; distinguish
 facility vendor/service-contract work in #298.
 

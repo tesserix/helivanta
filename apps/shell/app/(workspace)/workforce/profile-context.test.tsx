@@ -1,3 +1,4 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { afterEach, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { chooseOption } from "@/test/select";
@@ -112,7 +113,11 @@ function setup(
 }
 it("pins private profile and supervisor choice requests to the opening account", async () => {
   const requests = setup();
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
   await chooseOption(
     user,
@@ -136,7 +141,11 @@ it("pins private profile and supervisor choice requests to the opening account",
 });
 it("removes private form values when the signed-in account changes during save", async () => {
   setup({ code: "session_changed" });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
   expect(await screen.findByLabelText("Given name")).toHaveValue("Private synthetic name");
   await user.click(screen.getByRole("button", { name: "Save staff" }));
@@ -148,7 +157,11 @@ it.each([{ context: false }, { wrongRecord: true }])(
   "keeps editing closed without a matching context acknowledgment and record: %j",
   async (options) => {
     setup(options);
-    const { user } = renderWithProviders(<Workforce />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Workforce />
+      </NavigationGuardProvider>,
+    );
     await user.click(
       await screen.findByRole("button", { name: "Edit Synthetic profile employee" }),
     );
@@ -158,7 +171,11 @@ it.each([{ context: false }, { wrongRecord: true }])(
 );
 it("lets a hospital manager edit directory fields without private enrollment access", async () => {
   const requests = setup({ permissions: [] });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
   expect(await screen.findByLabelText("Full name")).toHaveValue(employee.display_name);
   expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
@@ -168,14 +185,22 @@ it("lets a hospital manager edit directory fields without private enrollment acc
 
 it("closes protected editing when choice loading detects an account change", async () => {
   setup({ choiceCode: "session_changed" });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
   await screen.findByText(/account or workspace changed/i);
   expect(screen.queryByDisplayValue("Private synthetic name")).not.toBeInTheDocument();
 });
 it("labels inactive supervisors without silently excluding recorded relationships", async () => {
   setup({ inactiveSupervisor: true });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
   await chooseOption(
     user,
@@ -188,7 +213,11 @@ it.each([401, 403, 404])(
   "removes private values when save loses access with %i",
   async (status) => {
     setup({ status });
-    const { user } = renderWithProviders(<Workforce />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Workforce />
+      </NavigationGuardProvider>,
+    );
     await user.click(
       await screen.findByRole("button", { name: "Edit Synthetic profile employee" }),
     );
@@ -202,7 +231,11 @@ it.each([{ status: 409, code: "version_conflict" }, { status: 503 }])(
   "retains the draft after an ordinary conflict or temporary failure: %j",
   async (options) => {
     setup(options);
-    const { user } = renderWithProviders(<Workforce />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Workforce />
+      </NavigationGuardProvider>,
+    );
     await user.click(
       await screen.findByRole("button", { name: "Edit Synthetic profile employee" }),
     );
@@ -218,7 +251,11 @@ it.each([{ status: 409, code: "version_conflict" }, { status: 503 }])(
 
 it("preserves document management and basic editing without private enrollment access", async () => {
   const requests = setup({ permissions: ["workforce.documents.manage"] });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   expect(
     await screen.findByRole("button", { name: "Documents for Synthetic profile employee" }),
   ).toBeEnabled();

@@ -1,3 +1,4 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import "@/test/select";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -257,7 +258,11 @@ it("opens documents with document and staff permissions and closes them before a
       return documentFetch(url, init);
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Documents for Avery Synthetic" }));
   const heading = await screen.findByRole("heading", { name: "Staff documents" });
   expect(heading).toHaveFocus();
@@ -355,7 +360,11 @@ it("cancels file preparation when another staff workspace opens", async () => {
       </>
     );
   }
-  const { user } = renderWithProviders(<SwitchableWorkspace />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <SwitchableWorkspace />
+    </NavigationGuardProvider>,
+  );
   await screen.findByRole("combobox", { name: "Evidence purpose" });
   await user.upload(screen.getByLabelText("Choose file"), file);
   await user.click(screen.getByRole("button", { name: "Upload file" }));

@@ -250,3 +250,70 @@ The [next employment-period design](../superpowers/specs/2026-10-29-reviewed-emp
 keeps contractor/agency relationships, immutable renewal history, future cutoff,
 no-login workers and governance/recovery boundaries explicit. Those are design
 requirements, not newly implemented lifecycle endpoints.
+
+## Employment-term intake continuation — 2026-10-29
+
+The next implementation is a separately gated private draft-preparation slice.
+It adds fixed/ongoing terms, individual/agency contractor classification,
+contracting party, active hospital sponsor, appointment/contract reference and
+attributable immutable revisions. Existing profiles are not silently migrated
+or treated as reviewed employment. No login, operational access, payroll, card,
+suspension, contract extension or exit is activated by a draft.
+
+Local Admin UI evidence: incomplete intake refused; agency-worker fixed terms,
+named contracting party and active named sponsor saved as a draft while the
+existing synthetic Staff member remained inactive. Automated owner tests cover
+exact replay after edit, stale source/version, required terms, foreign/reader
+denial, private immutable history and no directory-state side effect. Client
+tests cover opening-workspace headers, scoped receipt validation and the same
+command after uncertain save. Full package/build/CI/release and remaining local
+UI gates must be recorded before marking this slice accepted.
+
+Independent immutable submission/approval, protected evidence binding, future
+cutoffs, consumer inventory/migration and all A07–A10 lifecycle journeys remain
+open. The 21-area acceptance count remains unchanged.
+
+## Approved production editing release — 2026-10-29
+
+PR #1456 merged as `5fb03897dd0c2d7afca580c44edc21b987909b52`; its tree is
+identical to the fully passing PR CI run 40842867894. Image publication run
+40846568679 passed. The user explicitly approved this exact combined revision
+and all five inherited migrations (`0001_billing`, `0007_medicore`,
+`0015_patientmaster`, `0026_pharmacy`, `0027_pharmacy`).
+Kargo promotion `prod.01m63et279fjtcw6kgrff5jvcd.48423ff` succeeded. All six
+application deployments reached two updated/ready/available replicas on the
+exact revision; API, Global API and shell are Synced/Healthy. The migration job
+succeeded, read-only checks found all five migration IDs, and all 12 inspected
+new/projection tables had enabled and forced RLS. New employment-draft migration
+0050 was explicitly excluded and is absent in production.
+
+Production UI smoke used the existing Staff Admin and designated synthetic
+hospital: directory access, protected synthetic profile edit/save/reopen, then
+restoration and reopening of the original blank preferred-name value. The Staff
+record remained inactive. No production employment, membership, role or login
+grant was changed. See the [release record](https://github.com/tesserix/helivanta/releases/tag/2026-10-29-staff-profile-editing).
+
+The separate employment draft slice passed all 30 Node 24 web gates: lint,
+formatting, typechecking, tests and builds. Tests included 1,191 shell, 406 API,
+263 UI, 72 configuration and nine emergency-access tests. Local UI verified
+fixed agency terms, named sponsor, save, full reload persistence, edit to
+revision 2 and retention of revision 1. A reproduced JSON-null start-time
+validation defect was fixed in the canonical input binding; focused owner
+regression tests pass. Full final Go/CI and release gates remain separately
+recorded before acceptance.
+
+Final owner validation after the null-time fix: full Workforce race/coverage
+passed again (83.8%, 535.017s). The full architecture run required classifying
+the two singleton GET resources in its pagination register; collection/history
+routes remain cursor-paginated. Contractdocs tests passed (80.7% coverage).
+
+Local concurrency continuation: two Admin tabs opened the same draft. The second
+saved revision 3; the first tab's stale save was refused while its text remained
+visible. QA then reproduced a missing discard confirmation. The form now uses
+the shell navigation guard, with voluntary Staff/hospital changes and hospital
+creation routed through that guard. Forced account/access loss still clears
+private data immediately. Regression tests verify close/keep-editing/discard and
+switching Staff records. The real local UI confirmed the same behavior; saved
+revision 3 was retained and only explicitly discarded unsaved text was removed.
+All 30 Node 24 web gates passed again after this frontend-only fix. No backend,
+SQL, permission or event changed after the final owner/architecture Go checks.

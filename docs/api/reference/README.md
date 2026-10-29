@@ -941,6 +941,11 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/revocation` | `workforce.documents.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file` | `workforce.documents.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents` | `workforce.documents.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/history` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-source` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-assignment/history` | `public` | true | false |
@@ -1056,6 +1061,7 @@ Migration table declarations:
 - `0045_workforce_contact_master_index`: concurrent index `workforce_contact_master_ref_idx` on `workforce_enrollment_emergency_contacts (tenant_id, hospital_id, relationship_revision_id)`.
 - `0046_workforce_document_classification`: `workforce_document_classification_revisions`, `workforce_document_classifications`.
 - `0049_workforce_identity_cases`: `workforce_identity_cases`, `workforce_identity_case_history`.
+- `0050_workforce_employment_period_drafts`: `workforce_employment_period_drafts`, `workforce_employment_period_history`.
 
 ## workspace
 

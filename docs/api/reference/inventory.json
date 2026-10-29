@@ -6784,6 +6784,51 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/history",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-source",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/enrollment",
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
@@ -7760,6 +7805,14 @@
           "creates_tables": [
             "workforce_identity_cases",
             "workforce_identity_case_history"
+          ]
+        },
+        {
+          "id": "0050_workforce_employment_period_drafts",
+          "sql_sha256": "24212eeae2ebe9ee4cb2cd0d394936f6743936fffa5ef17ee47ff0468a72dd29",
+          "creates_tables": [
+            "workforce_employment_period_drafts",
+            "workforce_employment_period_history"
           ]
         }
       ]

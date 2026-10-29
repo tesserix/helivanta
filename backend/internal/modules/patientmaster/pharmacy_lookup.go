@@ -172,17 +172,31 @@ func (h *patientHandlers) pharmacyLookup(c *gin.Context) {
 	hospital, err1 := uuid.Parse(c.Query("hospital_id"))
 	pharmacy, err2 := uuid.Parse(c.Query("pharmacy_id"))
 	mrn := strings.ToUpper(strings.TrimSpace(c.Query("mrn")))
+	// Or the patient id, for a stay resolved from a bed (#1387): exactly one.
+	var patientID *uuid.UUID
+	if raw := c.Query("patient_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil || id == uuid.Nil {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "patient_id must be a patient id")
+			return
+		}
+		patientID = &id
+	}
 	// Age uses the same UTC calendar registration checks dates of birth
 	// against: patientmaster holds no hospital time zone. It is an aid to
 	// recognising the person, never a dosing or eligibility input.
-	if err1 != nil || err2 != nil || hospital == uuid.Nil || pharmacy == uuid.Nil || mrn == "" || len(mrn) > 64 {
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "hospital_id, pharmacy_id and mrn are required")
+	if err1 != nil || err2 != nil || hospital == uuid.Nil || pharmacy == uuid.Nil || (mrn == "") == (patientID == nil) || len(mrn) > 64 {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "hospital_id, pharmacy_id and exactly one of mrn or patient_id are required")
 		return
+	}
+	patientSetting := ""
+	if patientID != nil {
+		patientSetting = patientID.String()
 	}
 	var found []pharmacyLookupResult
 	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.pharmacy_lookup_subject',?,true),set_config('app.pharmacy_lookup_hospital',?,true),set_config('app.pharmacy_lookup_pharmacy',?,true),set_config('app.pharmacy_lookup_mrn',?,true)`,
-			p.Subject, hospital.String(), pharmacy.String(), mrn).Error; err != nil {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_lookup_subject',?,true),set_config('app.pharmacy_lookup_hospital',?,true),set_config('app.pharmacy_lookup_pharmacy',?,true),set_config('app.pharmacy_lookup_mrn',?,true),set_config('app.pharmacy_lookup_patient',?,true)`,
+			p.Subject, hospital.String(), pharmacy.String(), mrn, patientSetting).Error; err != nil {
 			return err
 		}
 		// Lock the grant and the link until commit, so a revocation or a
@@ -196,7 +210,7 @@ func (h *patientHandlers) pharmacyLookup(c *gin.Context) {
 		if held == 1 {
 			if err := tx.Raw(`SELECT id AS patient_id, btrim(given_name||' '||family_name) AS name,
  date_part('year', age(current_date, dob))::int AS age_years, dob_estimated AS age_estimated, sex
- FROM patients WHERE tenant_id=? AND hospital_id=? AND mrn=?`, p.TenantID, hospital, mrn).Scan(&found).Error; err != nil {
+ FROM patients WHERE tenant_id=? AND hospital_id=? AND (mrn=NULLIF(?,'') OR id=NULLIF(?,'')::uuid)`, p.TenantID, hospital, mrn, patientSetting).Scan(&found).Error; err != nil {
 				return err
 			}
 		}

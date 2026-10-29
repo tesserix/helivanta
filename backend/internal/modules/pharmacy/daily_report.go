@@ -37,6 +37,9 @@ type dailyRow struct {
 	CashRefundMinor  int64 `gorm:"column:cash_refund_minor" json:"cash_refund_minor"`
 	UPIRefundMinor   int64 `gorm:"column:upi_refund_minor" json:"upi_refund_minor"`
 	CardRefundMinor  int64 `gorm:"column:card_refund_minor" json:"card_refund_minor"`
+	// Billed to an admission account, and returned to it (#1387): not collected or paid out.
+	AdmissionAccountMinor       int64 `gorm:"column:admission_account_minor" json:"admission_account_minor"`
+	AdmissionAccountRefundMinor int64 `gorm:"column:admission_account_refund_minor" json:"admission_account_refund_minor"`
 }
 
 type dailyReport struct {
@@ -56,7 +59,8 @@ const dailyTotals = `WITH
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
   WHERE s.tenant_id=@tenant AND s.outlet_id=@outlet AND s.sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  st AS (SELECT s.sale_date AS day, s.currency, sum(t.amount_minor) FILTER (WHERE t.kind='cash') AS cash_minor,
-   sum(t.amount_minor) FILTER (WHERE t.kind='upi') AS upi_minor, sum(t.amount_minor) FILTER (WHERE t.kind='upi_verified') AS upi_verified_minor, sum(t.amount_minor) FILTER (WHERE t.kind='card') AS card_minor
+   sum(t.amount_minor) FILTER (WHERE t.kind='upi') AS upi_minor, sum(t.amount_minor) FILTER (WHERE t.kind='upi_verified') AS upi_verified_minor, sum(t.amount_minor) FILTER (WHERE t.kind='card') AS card_minor,
+   sum(t.amount_minor) FILTER (WHERE t.kind='admission_account') AS admission_account_minor
   FROM pharmacy_sale_tenders t JOIN pharmacy_sales s ON s.tenant_id=t.tenant_id AND s.outlet_id=t.outlet_id AND s.id=t.sale_id
   WHERE s.tenant_id=@tenant AND s.outlet_id=@outlet AND s.sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  c AS (SELECT credit_note_date AS day, currency, count(*) AS credit_notes, sum(total_minor) AS credits_minor, sum(taxable_minor) AS credits_taxable_minor,
@@ -66,7 +70,8 @@ const dailyTotals = `WITH
   FROM pharmacy_credit_note_lines l JOIN pharmacy_credit_notes n ON n.tenant_id=l.tenant_id AND n.outlet_id=l.outlet_id AND n.id=l.credit_note_id
   WHERE n.tenant_id=@tenant AND n.outlet_id=@outlet AND n.credit_note_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  cr AS (SELECT n.credit_note_date AS day, n.currency, sum(r.amount_minor) FILTER (WHERE r.kind='cash') AS cash_refund_minor,
-   sum(r.amount_minor) FILTER (WHERE r.kind='upi') AS upi_refund_minor, sum(r.amount_minor) FILTER (WHERE r.kind='card') AS card_refund_minor
+   sum(r.amount_minor) FILTER (WHERE r.kind='upi') AS upi_refund_minor, sum(r.amount_minor) FILTER (WHERE r.kind='card') AS card_refund_minor,
+   sum(r.amount_minor) FILTER (WHERE r.kind='admission_account') AS admission_account_refund_minor
   FROM pharmacy_credit_note_refunds r JOIN pharmacy_credit_notes n ON n.tenant_id=r.tenant_id AND n.outlet_id=r.outlet_id AND n.id=r.credit_note_id
   WHERE n.tenant_id=@tenant AND n.outlet_id=@outlet AND n.credit_note_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  k AS (SELECT day, currency FROM s UNION SELECT day, currency FROM c)
@@ -80,7 +85,8 @@ SELECT to_char(k.day,'YYYY-MM-DD') AS day, k.currency,
  (COALESCE(s.sales_minor,0)-COALESCE(c.credits_minor,0))::bigint AS net_minor,
  COALESCE(st.cash_minor,0)::bigint AS cash_minor, COALESCE(st.upi_minor,0)::bigint AS upi_minor, COALESCE(st.upi_verified_minor,0)::bigint AS upi_verified_minor, COALESCE(st.card_minor,0)::bigint AS card_minor,
  COALESCE(cr.cash_refund_minor,0)::bigint AS cash_refund_minor, COALESCE(cr.upi_refund_minor,0)::bigint AS upi_refund_minor,
- COALESCE(cr.card_refund_minor,0)::bigint AS card_refund_minor
+ COALESCE(cr.card_refund_minor,0)::bigint AS card_refund_minor,
+ COALESCE(st.admission_account_minor,0)::bigint AS admission_account_minor, COALESCE(cr.admission_account_refund_minor,0)::bigint AS admission_account_refund_minor
 FROM k
  LEFT JOIN s USING (day, currency) LEFT JOIN sl USING (day, currency) LEFT JOIN st USING (day, currency)
  LEFT JOIN c USING (day, currency) LEFT JOIN cl USING (day, currency) LEFT JOIN cr USING (day, currency)

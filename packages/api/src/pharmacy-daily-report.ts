@@ -26,6 +26,9 @@ export type PharmacyDailyTotals = {
   cash_refund_minor: number;
   upi_refund_minor: number;
   card_refund_minor: number;
+  /** Billed to an admission account, and returned to it (#1387): not collected or paid out. */
+  admission_account_minor: number;
+  admission_account_refund_minor: number;
 };
 
 export type PharmacyDailyReport = { from: string; to: string; days: PharmacyDailyTotals[] };

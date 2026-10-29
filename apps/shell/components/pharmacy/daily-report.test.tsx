@@ -30,6 +30,8 @@ const zero = {
   cash_refund_minor: 0,
   upi_refund_minor: 0,
   card_refund_minor: 0,
+  admission_account_minor: 0,
+  admission_account_refund_minor: 0,
 };
 const days = [
   {
@@ -46,6 +48,7 @@ const days = [
     cash_minor: 12500,
     upi_minor: 2500,
     upi_verified_minor: 68000,
+    admission_account_minor: 4000,
   },
   {
     ...zero,
@@ -56,6 +59,7 @@ const days = [
     units_returned: 4,
     net_minor: -5000,
     cash_refund_minor: 5000,
+    admission_account_refund_minor: 1000,
   },
 ];
 
@@ -88,7 +92,9 @@ describe("DailyReport", () => {
     const first = screen.getByRole("row", { name: /2026-11-01/ });
     expect(first).toHaveTextContent("2 for INR 150.00");
     expect(first).toHaveTextContent("12 units");
-    expect(first).toHaveTextContent("Cash INR 125.00, UPI (verified) INR 680.00, UPI INR 25.00");
+    expect(first).toHaveTextContent(
+      "Cash INR 125.00, UPI (verified) INR 680.00, UPI INR 25.00, Admission account INR 40.00",
+    );
     const second = screen.getByRole("row", { name: /2026-11-02/ });
     expect(second).toHaveTextContent("1 for INR 50.00");
     expect(second).toHaveTextContent("INR -50.00");
@@ -96,7 +102,9 @@ describe("DailyReport", () => {
     // Taken and refunded name only the kinds used.
     expect(within(first).getAllByRole("cell")[4]).toHaveTextContent(/^—$/);
     expect(within(second).getAllByRole("cell")[3]).toHaveTextContent(/^—$/);
-    expect(within(second).getAllByRole("cell")[4]).toHaveTextContent(/^Cash INR 50.00$/);
+    expect(within(second).getAllByRole("cell")[4]).toHaveTextContent(
+      /^Cash INR 50.00, Admission account INR 10.00$/,
+    );
     expect(table).toBeVisible();
   });
 

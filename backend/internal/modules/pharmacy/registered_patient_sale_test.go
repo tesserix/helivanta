@@ -110,7 +110,7 @@ func TestARegisteredPatientSaleNeedsAVerifiedLink(t *testing.T) {
 	both := strings.Replace(sale(patient, hospital), `"patient":`, `"buyer":{"name":"TEST Walk In"},"patient":`, 1)
 	code, _, out = w.sell(t, both)
 	require.Equal(t, http.StatusBadRequest, code, out)
-	require.Contains(t, out, "a registered patient or a walk-in buyer, not both")
+	require.Contains(t, out, "a registered patient, an admission, or a walk-in buyer: one of them")
 
 	decide(affiliation, hospital, round, "revoked")
 	code, _, out = w.sell(t, sale(patient, hospital))

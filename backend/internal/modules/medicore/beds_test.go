@@ -241,6 +241,11 @@ func TestBedsAdmitTransferAndRelease(t *testing.T) {
 	require.EqualValues(t, 3, outboxCount(t, w.db, w.ctx, "helivanta.in.medicore.bed_occupancy_started.v1"), "two admissions and one transfer in")
 	require.EqualValues(t, 2, outboxCount(t, w.db, w.ctx, "helivanta.in.medicore.bed_occupancy_ended.v1"))
 	require.EqualValues(t, 1, outboxCount(t, w.db, w.ctx, "helivanta.in.medicore.admission_released.v1"))
+	var started []string
+	require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT payload->'data'->>'bed_code' FROM outbox_events WHERE subject='helivanta.in.medicore.bed_occupancy_started.v1' AND payload->'data'->>'admission_id'=? ORDER BY created_at`, admission).Scan(&started).Error
+	}))
+	require.Equal(t, []string{"A-1", "B-1"}, started, "each stay names the bed code staff use")
 
 	// Another tenant, and a reader without a grant, see nothing.
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", w.url("/beds"), "deskB", "").Code)

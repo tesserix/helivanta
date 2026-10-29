@@ -393,18 +393,23 @@ func (h *encounterHandlers) listBeds(c *gin.Context, params pagination.Params) (
 // the same beds never deadlock, and returns them by id.
 func lockBeds(tx *gorm.DB, tenant string, hospital uuid.UUID, ids ...uuid.UUID) (map[uuid.UUID]bedView, error) {
 	var rows []struct {
-		ID      uuid.UUID
-		WardID  uuid.UUID
-		RoomID  uuid.UUID
-		State   string
-		Version int
+		ID       uuid.UUID
+		WardID   uuid.UUID
+		RoomID   uuid.UUID
+		Code     string
+		WardCode string
+		RoomCode string
+		State    string
+		Version  int
 	}
-	if err := tx.Raw(`SELECT id,ward_id,room_id,state,version FROM medicore_beds WHERE tenant_id=? AND hospital_id=? AND id IN ? ORDER BY id FOR UPDATE`, tenant, hospital, ids).Scan(&rows).Error; err != nil {
+	if err := tx.Raw(`SELECT b.id,b.ward_id,b.room_id,b.code,w.code AS ward_code,r.code AS room_code,b.state,b.version FROM medicore_beds b
+ JOIN medicore_wards w ON w.tenant_id=b.tenant_id AND w.id=b.ward_id JOIN medicore_rooms r ON r.tenant_id=b.tenant_id AND r.id=b.room_id
+ WHERE b.tenant_id=? AND b.hospital_id=? AND b.id IN ? ORDER BY b.id FOR UPDATE OF b`, tenant, hospital, ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := map[uuid.UUID]bedView{}
 	for _, r := range rows {
-		out[r.ID] = bedView{ID: r.ID, WardID: r.WardID, RoomID: r.RoomID, State: r.State, Version: r.Version}
+		out[r.ID] = bedView{ID: r.ID, WardID: r.WardID, RoomID: r.RoomID, Code: r.Code, WardCode: r.WardCode, RoomCode: r.RoomCode, State: r.State, Version: r.Version}
 	}
 	if len(out) != len(ids) {
 		return nil, errNoBed
@@ -430,7 +435,8 @@ func openOccupancy(tx *gorm.DB, tenant string, hospital uuid.UUID, b bedView, ad
 	}
 	return publish(tx, tenant, medicorecontract.SubjectBedOccupancyStarted, "BedOccupancyStarted", medicorecontract.BedOccupancyStartedData{
 		OccupancyID: occupancy.String(), AdmissionID: admissionID.String(), PatientID: patient.String(), HospitalID: hospital.String(),
-		WardID: b.WardID.String(), RoomID: b.RoomID.String(), BedID: b.ID.String(), StartedAt: at.UTC().Format(time.RFC3339Nano),
+		WardID: b.WardID.String(), RoomID: b.RoomID.String(), BedID: b.ID.String(),
+		WardCode: b.WardCode, RoomCode: b.RoomCode, BedCode: b.Code, StartedAt: at.UTC().Format(time.RFC3339Nano),
 	})
 }
 

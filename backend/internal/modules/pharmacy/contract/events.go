@@ -209,3 +209,39 @@ type AffiliationDecisionReceivedData struct {
 	DecisionID string `json:"decision_id"`
 	Applied    bool   `json:"applied"`
 }
+
+// SubjectAdmissionChargePosted is published when a sale is billed to a
+// hospital admission instead of collected at the counter (#1387). The
+// pharmacy GST invoice stays the tax document; the hospital's admission
+// account records that the patient owes this amount against it.
+const SubjectAdmissionChargePosted = "helivanta.in.pharmacy.admission_charge_posted.v1"
+
+// AdmissionChargePostedData is the v1 payload of SubjectAdmissionChargePosted.
+type AdmissionChargePostedData struct {
+	SaleID        string `json:"sale_id"`
+	InvoiceNumber string `json:"invoice_number"`
+	AdmissionID   string `json:"admission_id"`
+	HospitalID    string `json:"hospital_id"`
+	PatientID     string `json:"patient_id"`
+	OutletID      string `json:"outlet_id"`
+	AmountMinor   int64  `json:"amount_minor"`
+	Currency      string `json:"currency"`
+	PostedAt      string `json:"posted_at"`
+}
+
+// SubjectAdmissionChargeReversed is published when a credit note on a sale
+// billed to an admission reverses (part of) that charge.
+const SubjectAdmissionChargeReversed = "helivanta.in.pharmacy.admission_charge_reversed.v1"
+
+// AdmissionChargeReversedData is the v1 payload of SubjectAdmissionChargeReversed.
+type AdmissionChargeReversedData struct {
+	CreditNoteID     string `json:"credit_note_id"`
+	CreditNoteNumber string `json:"credit_note_number"`
+	SaleID           string `json:"sale_id"`
+	AdmissionID      string `json:"admission_id"`
+	HospitalID       string `json:"hospital_id"`
+	PatientID        string `json:"patient_id"`
+	AmountMinor      int64  `json:"amount_minor"`
+	Currency         string `json:"currency"`
+	ReversedAt       string `json:"reversed_at"`
+}

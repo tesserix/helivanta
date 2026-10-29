@@ -55,14 +55,28 @@ const page = (data: unknown[]) => ({ data, page: { next_cursor: null, has_more: 
 
 function server(
   permissions = ["medicore.visit.read", "medicore.admission.manage"],
-  opts: { beds?: () => unknown[]; put?: () => Promise<Response> } = {},
+  opts: { beds?: () => unknown[]; put?: () => Promise<Response>; account?: number } = {},
 ) {
   const calls: { url: string; init?: RequestInit }[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       calls.push({ url, init });
-      if (url.includes("/iam/me/permissions")) return json(200, { data: permissions });
+      if (url.includes("/iam/me/permissions"))
+        return json(200, { subject: "user-admin", data: permissions });
+      if (url.endsWith(`/billing/hospitals/${hospital.id}/access`))
+        return json(200, { granted: true });
+      if (url.includes("/billing/") && url.endsWith("/account") && opts.account)
+        return json(opts.account, { error: "x", message: "x" });
+      if (url.includes("/billing/") && url.endsWith("/account"))
+        return json(200, {
+          admission_id: occupied.admission_id,
+          status: "open",
+          totals: [
+            { currency: "INR", charged_minor: 2500, reversed_minor: 1000, outstanding_minor: 1500 },
+          ],
+          entry_count: 2,
+        });
       if (url.includes("/workforce/hospitals")) return json(200, page([hospital]));
       if (url.endsWith(`/medicore/hospitals/${hospital.id}/access`))
         return json(200, { granted: true });
@@ -215,5 +229,32 @@ describe("WardBoard", () => {
     await user.click(screen.getByRole("button", { name: "Admit" }));
     expect(await screen.findByText("That bed was just taken. Choose another.")).toBeInTheDocument();
     expect(puts(calls)).toHaveLength(2);
+  });
+
+  it("shows what an occupied bed's admission owes, for a billing reader", async () => {
+    server(["medicore.visit.read", "billing.account.read"]);
+    renderWithProviders(<WardBoard />);
+    expect(await screen.findByText(/Pharmacy charges owed/)).toHaveTextContent(
+      "Pharmacy charges owed INR 15.00",
+    );
+  });
+
+  it("reads no account without billing access", async () => {
+    const calls = server(["medicore.visit.read"]);
+    renderWithProviders(<WardBoard />);
+    const room = await screen.findByRole("list", { name: "Room R-1" });
+    await within(room).findByText(/Asha Rao/);
+    expect(screen.queryByText(/Pharmacy charges owed/)).toBeNull();
+    expect(calls.some((c) => c.url.includes("/billing/"))).toBe(false);
+  });
+
+  it.each([
+    [404, "No pharmacy charges posted yet"],
+    [503, "Could not load the account"],
+  ])("shows an account answering %i honestly, never as zero", async (status, text) => {
+    server(["medicore.visit.read", "billing.account.read"], { account: status });
+    renderWithProviders(<WardBoard />);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+    expect(screen.queryByText("No pharmacy charges owed")).toBeNull();
   });
 });

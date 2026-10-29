@@ -89,6 +89,19 @@ function fixture(
           ]),
         ),
       );
+    if (url.includes("/admission-occupant"))
+      return new Response(
+        JSON.stringify({
+          occupancy_id: "0199e000-0000-7000-8000-0000000000c1",
+          admission_id: "0199e000-0000-7000-8000-0000000000c2",
+          patient_id: "33333333-3333-4333-8333-333333333333",
+          hospital_id: "22222222-2222-4222-8222-222222222222",
+          ward_code: "W-A",
+          room_code: "R-1",
+          bed_code: "A-1",
+          started_at: "",
+        }),
+      );
     if (url.includes("/patients/pharmacy-lookup"))
       return new Response(
         JSON.stringify({
@@ -536,6 +549,40 @@ describe("CounterSale", () => {
       patient_id: "33333333-3333-4333-8333-333333333333",
       hospital_id: "22222222-2222-4222-8222-222222222222",
     });
+    expect(body.buyer).toBeUndefined();
+  });
+
+  it("bills a confirmed admission and collects nothing", async () => {
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "Customer" }),
+      "Bill to admission",
+    );
+    expect(screen.getByText(/Billed to the admission account. Nothing is collected/)).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Paid by" })).toBeNull();
+    const puts = () =>
+      fetcher.mock.calls.filter(
+        ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+      );
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText("Find the admission and confirm the patient")).toBeVisible();
+    expect(puts()).toHaveLength(0);
+    await user.type(screen.getByLabelText("Code"), "A-1{Enter}");
+    await user.click(await screen.findByRole("button", { name: "Bill this admission" }));
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
+    const body = JSON.parse(String(puts()[0][1]?.body));
+    expect(body.admission).toEqual({ occupancy_id: "0199e000-0000-7000-8000-0000000000c1" });
+    expect(body.tenders).toEqual([
+      { kind: "admission_account", amount_minor: body.tenders[0].amount_minor },
+    ]);
+    expect(body.patient).toBeUndefined();
     expect(body.buyer).toBeUndefined();
   });
 

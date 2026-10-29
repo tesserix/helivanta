@@ -107,7 +107,12 @@ type BedOccupancyStartedData struct {
 	WardID      string `json:"ward_id"`
 	RoomID      string `json:"room_id"`
 	BedID       string `json:"bed_id"`
-	StartedAt   string `json:"started_at"`
+	// The codes ward staff say aloud, so a consumer can resolve "bed A-1"
+	// without reading MediCore's tables. Location labels, not patient data.
+	WardCode  string `json:"ward_code"`
+	RoomCode  string `json:"room_code"`
+	BedCode   string `json:"bed_code"`
+	StartedAt string `json:"started_at"`
 }
 
 // SubjectBedOccupancyEnded is published when a stay in a bed ends, by

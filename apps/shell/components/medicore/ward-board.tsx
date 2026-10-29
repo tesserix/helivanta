@@ -35,6 +35,7 @@ import {
 } from "@helivanta/ui";
 import { PatientName } from "./opd-encounters";
 import { BedSetup } from "./bed-setup";
+import { AdmissionBalance, BillingAccessSetup, useBillingAccess } from "./admission-account";
 
 const stateLabel: Record<BedState, string> = {
   available: "Available",
@@ -92,6 +93,7 @@ export function WardBoard() {
 
 function HospitalBeds({ hospital }: { hospital: Hospital }) {
   const { can } = usePermissions();
+  const billing = useBillingAccess(hospital);
   const access = useApiQuery<{ granted: boolean }>(
     ["medicore", "access", hospital.id],
     `/medicore/hospitals/${hospital.id}/access`,
@@ -122,6 +124,7 @@ function HospitalBeds({ hospital }: { hospital: Hospital }) {
   }
   return (
     <div className="space-y-6">
+      <BillingAccessSetup hospital={hospital} />
       {manage && <AdmitPatient hospital={hospital} available={available} />}
       <Panel aria-labelledby="ward-board-heading" className="p-0">
         <h3 id="ward-board-heading" className="px-5 pt-4 font-semibold">
@@ -152,6 +155,7 @@ function HospitalBeds({ hospital }: { hospital: Hospital }) {
                       bed={bed}
                       available={available.filter((b) => b.id !== bed.id)}
                       manage={manage}
+                      billing={billing}
                     />
                   ))}
                 </ul>
@@ -180,11 +184,13 @@ function BedRow({
   bed,
   available,
   manage,
+  billing,
 }: {
   hospital: Hospital;
   bed: Bed;
   available: Bed[];
   manage: boolean;
+  billing: boolean;
 }) {
   const [action, setAction] = useState<Action>(null);
   // One id per command on this version of the bed: a retried click repeats
@@ -217,6 +223,11 @@ function BedRow({
           {bed.patient_id && (
             <p className="mt-0.5 text-sm">
               <PatientName hospital={hospital} id={bed.patient_id} />
+            </p>
+          )}
+          {billing && bed.admission_id && (
+            <p className="mt-0.5">
+              <AdmissionBalance hospital={hospital} admissionId={bed.admission_id} />
             </p>
           )}
         </div>

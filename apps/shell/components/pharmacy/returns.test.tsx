@@ -223,4 +223,37 @@ describe("Returns", () => {
     // Line 1, batch TEST-LOT, 10 sold, now 1 left (it was 6).
     await waitFor(() => expect(screen.getAllByRole("row")[1]).toHaveTextContent(/^1TEST-LOT101/));
   });
+
+  it("returns a sale billed to an admission to its account, with nothing paid out", async () => {
+    const admitted = {
+      ...sale,
+      admission_id: "0199e000-0000-7000-8000-0000000000c2",
+      admission_bed_code: "A-1",
+    };
+    const fetcher = fixture();
+    const base = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation(async (url: string, init: RequestInit = {}) => {
+      if (url.includes("/sales?")) return new Response(JSON.stringify(page([admitted])));
+      if (url.endsWith(`/sales/${saleId}`)) return new Response(JSON.stringify(admitted));
+      return base(url, init);
+    });
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    expect(
+      await screen.findByText(/Returned to the admission account it was billed to \(bed A-1\)/),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Refund by")).toBeNull();
+    expect(screen.queryByLabelText("Refund reference")).toBeNull();
+    await user.type(screen.getByLabelText("Units returned on line 1"), "3");
+    await chooseOption(user, screen.getByLabelText("Quarantine location"), /TEST-Q/);
+    await user.type(screen.getByLabelText("Refunded to"), "TEST Ward 4");
+    await user.type(screen.getByLabelText("Their address"), "TEST General Hospital");
+    await user.type(screen.getByLabelText("Reason"), "TEST wrong bed");
+    await user.click(screen.getByRole("button", { name: "Issue credit note" }));
+    await waitFor(() => expect(fetcher.mock.calls.some(([, i]) => i?.method === "PUT")).toBe(true));
+    const put = fetcher.mock.calls.find(([, i]) => i?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body)).refunds).toEqual([
+      { kind: "admission_account", amount_minor: 3750 },
+    ]);
+  });
 });

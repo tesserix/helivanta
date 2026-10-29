@@ -202,7 +202,7 @@ export type PharmacySaleQuote = {
 };
 export type PharmacySaleTender = {
   tender_number: number;
-  kind: "cash" | "upi" | "card" | "upi_verified";
+  kind: "cash" | "upi" | "card" | "upi_verified" | "admission_account";
   amount_minor: number;
   tendered_minor: number | null;
   change_minor: number | null;
@@ -225,6 +225,11 @@ export type PharmacySale = Omit<PharmacySaleQuote, "lines"> & {
   /** A registered patient's ids (#1386 B-2c); pharmacy holds nothing else of them. */
   patient_id: string | null;
   patient_hospital_id: string | null;
+  /** The admission billed and what it was resolved through (#1387). */
+  admission_id: string | null;
+  admission_occupancy_id: string | null;
+  admission_bed_code: string | null;
+  admission_resolved_at: string | null;
   discount_reason: string | null;
   discount_minor: number;
   created_at: string;

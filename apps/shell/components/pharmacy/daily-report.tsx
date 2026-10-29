@@ -86,13 +86,14 @@ function Days({ scope, period }: { scope: PharmacyScope; period: Period }) {
 
 function DayRow({ day: d }: { day: PharmacyDailyTotals }) {
   const money = (minor: number) => formatPharmacyMoney(minor, d.currency);
-  const byKind = (cash: number, upiVerified: number, upi: number, card: number) =>
+  const byKind = (cash: number, upiVerified: number, upi: number, card: number, account: number) =>
     (
       [
         ["Cash", cash],
         ["UPI (verified)", upiVerified],
         ["UPI", upi],
         ["Card", card],
+        ["Admission account", account],
       ] as const
     )
       .filter(([, minor]) => minor > 0)
@@ -118,8 +119,24 @@ function DayRow({ day: d }: { day: PharmacyDailyTotals }) {
         </span>
       </td>
       <td>{money(d.net_minor)}</td>
-      <td>{byKind(d.cash_minor, d.upi_verified_minor, d.upi_minor, d.card_minor)}</td>
-      <td>{byKind(d.cash_refund_minor, 0, d.upi_refund_minor, d.card_refund_minor)}</td>
+      <td>
+        {byKind(
+          d.cash_minor,
+          d.upi_verified_minor,
+          d.upi_minor,
+          d.card_minor,
+          d.admission_account_minor,
+        )}
+      </td>
+      <td>
+        {byKind(
+          d.cash_refund_minor,
+          0,
+          d.upi_refund_minor,
+          d.card_refund_minor,
+          d.admission_account_refund_minor,
+        )}
+      </td>
     </tr>
   );
 }

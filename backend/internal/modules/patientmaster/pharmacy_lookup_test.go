@@ -128,10 +128,30 @@ func TestPharmacyPatientLookup(t *testing.T) {
 	}
 	require.Equal(t, 400, do(r, "GET", "/v1/patients/pharmacy-lookup?hospital_id="+testHospital+"&pharmacy_id="+pharmacy, "tokPharm", "").Code)
 
+	// By patient id (#1387): the same answer, grant, link and audit as by MRN.
+	byID := func(token, pharmacyID, id string) (int, string) {
+		w := do(r, "GET", "/v1/patients/pharmacy-lookup?hospital_id="+testHospital+"&pharmacy_id="+pharmacyID+"&patient_id="+id, token, "")
+		return w.Code, w.Body.String()
+	}
+	code, body = byID("tokPharm", pharmacy, patient)
+	require.Equal(t, 200, code, body)
+	require.Contains(t, body, `"name":"Synthetic Lookup"`)
+	for name, attempt := range map[string]func() (int, string){
+		"unknown id":     func() (int, string) { return byID("tokPharm", pharmacy, newID()) },
+		"not granted":    func() (int, string) { return byID("tokOther", pharmacy, patient) },
+		"other pharmacy": func() (int, string) { return byID("tokPharm", newID(), patient) },
+	} {
+		code, body := attempt()
+		require.Equal(t, 404, code, name)
+		require.JSONEq(t, refusal, body, "%s answers exactly like a miss", name)
+	}
+	both := do(r, "GET", "/v1/patients/pharmacy-lookup?hospital_id="+testHospital+"&pharmacy_id="+pharmacy+"&patient_id="+patient+"&mrn="+mrn, "tokPharm", "")
+	require.Equal(t, 400, both.Code, "an MRN or a patient id, not both")
+
 	require.Equal(t, 404, scopedDo(r, "GET", "/v1/patients/"+patient, "tokPharm", "").Code, "a lookup grant opens no registry read")
 	require.Equal(t, 404, scopedDo(r, "GET", "/v1/patients", "tokPharm", "").Code)
 
-	require.Equal(t, []string{`["` + patient + `"]`, "[]", "[]"}, audited(), "every lookup by the pharmacist for this pharmacy is audited, a miss included")
+	require.Equal(t, []string{`["` + patient + `"]`, "[]", "[]", `["` + patient + `"]`, "[]"}, audited(), "every lookup by the pharmacist for this pharmacy is audited, a miss included")
 
 	// The hospital revokes: lookups stop at once.
 	w = scopedDo(r, "PUT", "/v1/patients/pharmacy-affiliations/"+first.RequestID+"/decision/"+newID(), "tokAdmin", `{"outcome":"revoked","reason":"Sold"}`)
@@ -244,6 +264,21 @@ func TestPharmacyPatientLookup(t *testing.T) {
 			return tx.Raw(`SELECT (SELECT count(*) FROM patients) AS patients,(SELECT count(*) FROM patient_identifiers) AS identifiers,(SELECT count(*) FROM patient_consents) AS consents,(SELECT count(*) FROM patient_reported_blood_groups) AS groups`).Scan(&scope).Error
 		}))
 		require.EqualValues(t, 1, scope.Patients, "only the patient the MRN names")
+		var byIDScope, bothSet int64
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_lookup_subject','user-tokPharm',true),set_config('app.pharmacy_lookup_hospital',?,true),set_config('app.pharmacy_lookup_pharmacy',?,true),set_config('app.pharmacy_lookup_patient',?,true)`, testHospital, pharmacy, patient).Error; err != nil {
+				return err
+			}
+			if err := tx.Raw(`SELECT count(*) FROM patients`).Scan(&byIDScope).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`SELECT set_config('app.pharmacy_lookup_mrn',?,true)`, mrn).Error; err != nil {
+				return err
+			}
+			return tx.Raw(`SELECT count(*) FROM patients`).Scan(&bothSet).Error
+		}))
+		require.EqualValues(t, 1, byIDScope, "only the patient the id names")
+		require.Zero(t, bothSet, "a session naming both an MRN and an id sees nothing")
 		require.Zero(t, scope.Identifiers, "no identifiers")
 		require.Zero(t, scope.Consents, "no consent receipts")
 		require.Zero(t, scope.Groups)

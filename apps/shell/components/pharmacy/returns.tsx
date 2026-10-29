@@ -105,7 +105,8 @@ const returnSchema = z
     name: z.string().trim().min(1, "Enter the name of the person refunded").max(200),
     address: z.string().trim().min(1, "Enter their address").max(500),
     reason: z.string().trim().min(5, "Give the reason, at least 5 characters").max(200),
-    kind: z.enum(["cash", "upi", "card"]),
+    // A sale billed to an admission is returned to the admission account (#1387).
+    kind: z.enum(["cash", "upi", "card", "admission_account"]),
     reference: z.string().trim().max(64, "At most 64 characters"),
   })
   .superRefine((v, ctx) => {
@@ -122,7 +123,7 @@ const returnSchema = z
     });
     if (!any)
       ctx.addIssue({ code: "custom", path: ["units"], message: "Enter the units coming back" });
-    if (v.kind !== "cash" && v.reference === "")
+    if (v.kind !== "cash" && v.kind !== "admission_account" && v.reference === "")
       ctx.addIssue({ code: "custom", path: ["reference"], message: "Enter the refund reference" });
   });
 type ReturnValues = z.infer<typeof returnSchema>;
@@ -193,7 +194,7 @@ function ReturnFormFor({
     name: sale.buyer_name ?? "",
     address: "",
     reason: "",
-    kind: "cash",
+    kind: sale.admission_id ? "admission_account" : "cash",
     reference: "",
   });
   const kind = form.watch("kind");
@@ -312,18 +313,25 @@ function ReturnFormFor({
             <Field id="return-reason" label="Reason" error={errors.reason?.message}>
               <Input id="return-reason" {...form.register("reason")} />
             </Field>
-            <FormSelectField
-              control={form.control}
-              name="kind"
-              id="return-kind"
-              label="Refund by"
-              options={[
-                { value: "cash", label: "Cash" },
-                { value: "upi", label: "UPI" },
-                { value: "card", label: "Card" },
-              ]}
-            />
-            {kind !== "cash" && (
+            {sale.admission_id ? (
+              <p className="text-sm sm:col-span-2">
+                Returned to the admission account it was billed to (bed {sale.admission_bed_code}).
+                Nothing is paid out at the counter.
+              </p>
+            ) : (
+              <FormSelectField
+                control={form.control}
+                name="kind"
+                id="return-kind"
+                label="Refund by"
+                options={[
+                  { value: "cash", label: "Cash" },
+                  { value: "upi", label: "UPI" },
+                  { value: "card", label: "Card" },
+                ]}
+              />
+            )}
+            {kind !== "cash" && kind !== "admission_account" && (
               <Field
                 id="return-reference"
                 label="Refund reference"
@@ -373,8 +381,8 @@ function preview(sale: PharmacySale, units: string[]): number {
 }
 
 function refund(v: ReturnValues, amount: number) {
-  return v.kind === "cash"
-    ? { kind: "cash", amount_minor: amount }
+  return v.kind === "cash" || v.kind === "admission_account"
+    ? { kind: v.kind, amount_minor: amount }
     : { kind: v.kind, amount_minor: amount, reference: v.reference };
 }
 

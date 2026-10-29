@@ -739,6 +739,26 @@
           "pattern": "^[0-9]+$"
         }
       ]
+    },
+    {
+      "name": "UnusedPaymentRefundFields",
+      "schema": "pharmacyUnusedPaymentRefundFieldsSchema",
+      "fields": [
+        {
+          "name": "reference",
+          "type": "string",
+          "min": 1,
+          "max": 64,
+          "trim": true
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "min": 5,
+          "max": 200,
+          "trim": true
+        }
+      ]
     }
   ]
 }

@@ -387,6 +387,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund` | `pharmacy.sale.return` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund` | `pharmacy.sale.return` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id` | `pharmacy.sale.create` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments` | `pharmacy.sale.create` | true | false |
@@ -448,6 +450,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.unused_payment_refund_recorded.v1`
 - `helivanta.in.pharmacy.dispense_recorded.v1`
 - `helivanta.in.pharmacy.catalogue_updated.v1`
 - `helivanta.in.pharmacy.stock_movement_recorded.v1`
@@ -501,6 +504,7 @@ Migration table declarations:
 - `0023_pharmacy`: `pharmacy_affiliation_verifications`, `pharmacy_affiliation_deliveries`.
 - `0025_pharmacy`: `pharmacy_registered_patients`.
 - `0027_pharmacy`: `pharmacy_bed_occupancies`.
+- `0028_pharmacy`: `pharmacy_unused_payment_refunds`.
 
 ## payments
 

@@ -173,6 +173,35 @@ outlet grant; each sees and writes only the request its event names
 
 `GET …/counter-payments` (a page, `pharmacy.sale.create`) lists the outlet's paid requests on no sale yet, newest first, so money taken for a sale that then failed to post can still be put on a sale of the same amount (#1386 C-4b).
 
+### Unused verified-UPI recovery (#1459)
+
+An open or selected paid counter payment holds the customer, tender and basket
+controls. Finish the sale, or record the full refund already completed through
+the provider dashboard. Recording a refund here never sends money or asserts
+provider verification. Automatic provider refunds remain outside this slice.
+
+- `PUT …/counter-payments/{id}/refund` requires `pharmacy.sale.return` and an
+  outlet editor grant. The body is `{reference, reason}` from canonical
+  `UnusedPaymentRefundFields`. The server derives the whole amount and currency
+  from the original paid request. The immutable receipt includes the request id,
+  amount, currency, reference, reason, recorder and time. First recording is 201;
+  an identical retry is 200; changed content, an unpaid request or an already-used
+  payment is 409 `payment_not_unused`. Missing/out-of-scope requests are 404.
+- `GET …/counter-payments/{id}/refund` requires the same route permission and a
+  current outlet grant; it returns the retained receipt, or 404 when absent.
+- The paid request stays paid. Refunded requests are excluded from unused-money
+  recovery and refused as sale tenders. Both database insert guards lock the
+  original request before reading the competing ledger, so a sale and refund
+  recording cannot both consume it. No stock or revenue posting is invented.
+- Recovery lists retain bounded paging and permit recording refunds for other
+  amounts, so a changed basket does not hide the original unused payment.
+
+Migration `0028_pharmacy`. The same transaction publishes
+`unused_payment_refund_recorded.v1` with outlet/payment ids, amount and currency
+only; it is a record of external action, not provider confirmation. No new consumer. Existing captured-payment
+contracts and historical sales are unchanged. This is an attributable record of
+an externally completed refund, not a provider refund command or legal policy.
+
 ### The Schedule H1 register (#1386 C-2, #1062)
 
 Drugs Rules 1945, Rule 65(3)(h): an H1 supply is recorded in a separate register at the time of supply. The entry gives the prescriber's name and address, the patient's name, the drug and the quantity. The register is kept for three years and is open for inspection.

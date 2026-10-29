@@ -2398,6 +2398,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund",
+          "permission": "pharmacy.sale.return",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund",
+          "permission": "pharmacy.sale.return",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id",
           "permission": "pharmacy.sale.create",
           "authentication_required": true,
@@ -3107,6 +3125,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.pharmacy.unused_payment_refund_recorded.v1",
         "helivanta.in.pharmacy.dispense_recorded.v1",
         "helivanta.in.pharmacy.catalogue_updated.v1",
         "helivanta.in.pharmacy.stock_movement_recorded.v1",
@@ -3382,6 +3401,13 @@
           "sql_sha256": "5a48a0176bcc6c394f26f4a08a42dbaaa2836ecf9be9d28f41b9f63d4910e4b2",
           "creates_tables": [
             "pharmacy_bed_occupancies"
+          ]
+        },
+        {
+          "id": "0028_pharmacy",
+          "sql_sha256": "10222074c9038b23a9ebd8087f54afcaee58cf103a6220a013a6b092d053d599",
+          "creates_tables": [
+            "pharmacy_unused_payment_refunds"
           ]
         }
       ]

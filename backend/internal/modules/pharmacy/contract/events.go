@@ -2,6 +2,19 @@
 // medicore/contract for why this package exists and why it is data only.
 package contract
 
+// SubjectUnusedPaymentRefundRecorded reports a recorded external refund of
+// an unused payment. It is not a provider refund confirmation.
+const SubjectUnusedPaymentRefundRecorded = "helivanta.in.pharmacy.unused_payment_refund_recorded.v1"
+
+// UnusedPaymentRefundRecordedData carries only accounting references; the
+// external reference, free-text reason and recorder remain with pharmacy.
+type UnusedPaymentRefundRecordedData struct {
+	OutletID         string `json:"outlet_id"`
+	PaymentRequestID string `json:"payment_request_id"`
+	AmountMinor      int64  `json:"amount_minor"`
+	Currency         string `json:"currency"`
+}
+
 // SubjectBatchSafetyRecorded identifies an immutable, unreviewed safety concern.
 const SubjectBatchSafetyRecorded = "helivanta.in.pharmacy.batch_safety_recorded.v1"
 

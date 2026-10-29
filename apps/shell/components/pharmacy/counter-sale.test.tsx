@@ -735,4 +735,30 @@ describe("CounterSale", () => {
       reason: "TEST loyalty scheme",
     });
   });
+  it("keeps a paid UPI payment attached when the cashier tries to change customer or tender", async () => {
+    const fetcher = fixture({ counterPayment: { status: "paid" } });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "Paid by" }),
+      "UPI (verified)",
+    );
+    await user.click(await screen.findByRole("button", { name: /Show UPI QR for/ }));
+    await screen.findByText(/Paid .*RRN 123/);
+    expect(screen.getByRole("combobox", { name: "Customer" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Paid by" })).toBeDisabled();
+    expect(
+      screen.getByText(/Finish the sale or record the completed refund before changing/),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    expect(JSON.parse(String(put?.[1]?.body)).tenders[0].kind).toBe("upi_verified");
+  });
 });

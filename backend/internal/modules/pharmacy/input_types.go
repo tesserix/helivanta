@@ -159,3 +159,8 @@ type StockOverviewValuationFields struct {
 	KnownPurchaseValueMinor string `json:"known_purchase_value_minor"`
 	UncostedProducts        string `json:"uncosted_products"`
 }
+
+type UnusedPaymentRefundFields struct {
+	Reference string `json:"reference" binding:"required,min=1,max=64"`
+	Reason    string `json:"reason" binding:"required,min=5,max=200"`
+}

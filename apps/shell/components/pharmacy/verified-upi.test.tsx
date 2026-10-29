@@ -178,4 +178,51 @@ describe("VerifiedUpi", () => {
     await screen.findByRole("img", { name: /UPI QR for/ });
     expect(screen.queryByRole("button", { name: /Use the payment paid/ })).toBeNull();
   });
+  it("records a completed external refund and releases the payment hold", async () => {
+    const fetcher = stub({ status: "paid", rrn: "TEST-PAID" });
+    const onPaid = vi.fn();
+    const onHold = vi.fn();
+    const onSale = vi.fn();
+    const { user } = renderWithProviders(
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSale();
+        }}
+      >
+        <VerifiedUpi
+          scope={scope}
+          amountMinor={68000}
+          currency="INR"
+          onPaid={onPaid}
+          onHold={onHold}
+          canRefund
+        />
+      </form>,
+    );
+    await user.click(await screen.findByRole("button", { name: /Show UPI QR for/ }));
+    await screen.findByRole("button", { name: "Confirm the full refund was completed" });
+    expect(screen.getByText(/Recording it here does not send money/)).toBeVisible();
+    await waitFor(() => expect(onHold).toHaveBeenLastCalledWith(true));
+    await user.type(screen.getByLabelText("Completed refund reference"), "TEST-REFUND-1");
+    await user.type(
+      screen.getByLabelText("Refund reason"),
+      "TEST buyer cancelled before sale{Enter}",
+    );
+    expect(onSale).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Confirm the full refund was completed" }));
+    expect(await screen.findByText(/The completed external refund was recorded/)).toBeVisible();
+    await waitFor(() => expect(onHold).toHaveBeenLastCalledWith(false));
+    expect(onPaid).toHaveBeenLastCalledWith(null);
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringMatching(/counter-payments\/[0-9a-f-]{36}\/refund$/),
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          reference: "TEST-REFUND-1",
+          reason: "TEST buyer cancelled before sale",
+        }),
+      }),
+    );
+  });
 });

@@ -4,7 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@tesserix/web";
 import {
   apiFetch,
-  usePermissions,
+  enrollmentRequestOptions,
+  isEnrollmentAccessChanged,
+  type EnrollmentRequestScope,
+  type PermissionsResponse,
   useApiQuery,
   useApiMutation,
   staffSchema,
@@ -25,13 +28,72 @@ const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 export default function Workforce() {
-  const { can } = usePermissions();
+  const [attempt, setAttempt] = useState(0);
+  return <WorkforceAccount key={attempt} onRestart={() => setAttempt((v) => v + 1)} />;
+}
+
+function WorkforceAccount({ onRestart }: { onRestart: () => void }) {
+  const [nonce] = useState(() => crypto.randomUUID());
+  const [changed, setChanged] = useState(false);
+  const identity = useApiQuery<PermissionsResponse>(
+    ["workforce", "profile-workspace", nonce],
+    "/iam/me/permissions",
+    { gcTime: 0, refetchOnWindowFocus: false, request: { cache: "no-store" } },
+  );
+  if (changed)
+    return (
+      <section role="alert" className="space-y-4 rounded-xl border bg-card p-6">
+        <p>
+          Your account or workspace changed, or access to this Staff record is no longer available.
+          Reopen the Staff workspace to verify your access.
+        </p>
+        <Button onClick={onRestart}>Reload Staff workspace</Button>
+      </section>
+    );
+  if (identity.isPending) return <p role="status">Checking Staff workspace…</p>;
+  if (
+    identity.isError ||
+    typeof identity.data?.tenant_id !== "string" ||
+    !identity.data.tenant_id ||
+    typeof identity.data.subject !== "string" ||
+    !identity.data.subject ||
+    !Array.isArray(identity.data.data)
+  )
+    return (
+      <section role="alert" className="space-y-4 rounded-xl border bg-card p-6">
+        <p>Could not verify your Staff workspace. No protected record has been opened.</p>
+        <Button onClick={() => void identity.refetch()}>Retry Staff workspace</Button>
+      </section>
+    );
+  const scope = { tenantId: identity.data.tenant_id, subject: identity.data.subject };
+  return (
+    <WorkforceWorkspace
+      key={`${scope.tenantId}:${scope.subject}`}
+      scope={scope}
+      permissions={identity.data.data}
+      onContextChanged={() => setChanged(true)}
+    />
+  );
+}
+
+type WorkspaceProps = {
+  scope: EnrollmentRequestScope;
+  permissions: string[];
+  onContextChanged: () => void;
+};
+
+function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceProps) {
+  const can = (permission: string) => permissions.includes(permission);
   const [hospitalId, setHospitalId] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
   const hospitals = useApiQuery<Page<Hospital>>(
-    ["workforce", "hospitals", cursor],
+    ["workforce", "hospitals", scope.tenantId, scope.subject, cursor],
     `/workforce/hospitals${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(hospitals.error)) onContextChanged();
+  }, [hospitals.error, onContextChanged]);
   const hospital = hospitals.data?.data.find((h) => h.id === hospitalId) ?? hospitals.data?.data[0];
   return (
     <>
@@ -66,7 +128,13 @@ export default function Workforce() {
           </Button>
         </div>
       ) : hospital ? (
-        <Directory key={hospital.id} hospital={hospital} />
+        <Directory
+          key={hospital.id}
+          hospital={hospital}
+          scope={scope}
+          permissions={permissions}
+          onContextChanged={onContextChanged}
+        />
       ) : (
         <section className="rounded-2xl border bg-card p-12 text-center">
           <h3 className="text-lg font-semibold">No hospital access yet</h3>
@@ -102,8 +170,13 @@ export default function Workforce() {
     </>
   );
 }
-function Directory({ hospital }: { hospital: Hospital }) {
-  const { can } = usePermissions();
+function Directory({
+  hospital,
+  scope,
+  permissions,
+  onContextChanged,
+}: { hospital: Hospital } & WorkspaceProps) {
+  const can = (permission: string) => permissions.includes(permission);
   const opener = useRef<HTMLButtonElement>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -117,15 +190,20 @@ function Directory({ hospital }: { hospital: Hospital }) {
   }, [editing]);
   const path = `/workforce/hospitals/${hospital.id}/staff`;
   const query = useApiQuery<Page<Staff>>(
-    ["workforce", "staff", hospital.id, cursor],
+    ["workforce", "staff", hospital.id, scope.tenantId, scope.subject, cursor],
     `${path}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
+  useEffect(() => {
+    if (isEnrollmentAccessChanged(query.error)) onContextChanged();
+  }, [query.error, onContextChanged]);
   const rows = (query.data?.data ?? []).filter((row) =>
     `${row.display_name} ${row.employee_code} ${JOB_LABELS[row.job_category]}`
       .toLowerCase()
       .includes(filter.toLowerCase()),
   );
-  const writable = hospital.access_level === "manager";
+  const manager = hospital.access_level === "manager";
+  const writable = manager && (can("workforce.staff.manage") || can("workforce.enrollment.manage"));
   return (
     <>
       <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -241,23 +319,25 @@ function Directory({ hospital }: { hospital: Hospital }) {
                       >
                         Identity details
                       </Button>
-                      {writable && (
+                      {manager && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              opener.current = event.currentTarget;
-                              setDocumentStaff(null);
-                              setCredentialStaff(null);
-                              setLinkStaff(null);
-                              setIdentityStaff(null);
-                              setEditing(row);
-                            }}
-                            aria-label={`Edit ${row.display_name}`}
-                          >
-                            Edit
-                          </Button>
+                          {writable && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(event) => {
+                                opener.current = event.currentTarget;
+                                setDocumentStaff(null);
+                                setCredentialStaff(null);
+                                setLinkStaff(null);
+                                setIdentityStaff(null);
+                                setEditing(row);
+                              }}
+                              aria-label={`Edit ${row.display_name}`}
+                            >
+                              Edit
+                            </Button>
+                          )}
                           {can("workforce.documents.manage") && (
                             <Button
                               variant="ghost"
@@ -349,7 +429,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
         />
       )}
       {linkStaff &&
-        writable &&
+        manager &&
         (can("workforce.login_links.manage") || can("workforce.login_links.review")) && (
           <StaffLoginLinkPanel
             hospital={hospital}
@@ -357,7 +437,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
             onClose={() => setLinkStaff(null)}
           />
         )}
-      {documentStaff && writable && can("workforce.documents.manage") && (
+      {documentStaff && manager && can("workforce.documents.manage") && (
         <StaffDocumentPanel
           key={documentStaff.id}
           hospital={hospital}
@@ -365,7 +445,7 @@ function Directory({ hospital }: { hospital: Hospital }) {
           onClose={() => setDocumentStaff(null)}
         />
       )}
-      {credentialStaff && writable && can("workforce.enrollment.manage") && (
+      {credentialStaff && manager && can("workforce.enrollment.manage") && (
         <StaffCredentialPanel
           key={credentialStaff.id}
           hospital={hospital}
@@ -373,15 +453,18 @@ function Directory({ hospital }: { hospital: Hospital }) {
           onClose={() => setCredentialStaff(null)}
         />
       )}
-      {editing && can("workforce.enrollment.manage") ? (
+      {editing && writable && can("workforce.enrollment.manage") ? (
         <EnrollmentEditor
           key={editing === "new" ? "new" : editing.id}
           hospital={hospital}
+          scope={scope}
+          onContextChanged={onContextChanged}
           staff={editing === "new" ? undefined : editing}
           onClose={() => setEditing(null)}
         />
       ) : (
-        editing && (
+        editing &&
+        writable && (
           <StaffEditor
             key={editing === "new" ? "new" : editing.id}
             hospital={hospital}

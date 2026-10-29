@@ -238,12 +238,18 @@ it("loads document choices without fetching protected enrollment and respects un
     expect(new Headers(request.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
 });
 
-it("opens documents with document permission only and closes the private workspace before adding another staff member", async () => {
+it("opens documents with document and staff permissions and closes them before adding staff", async () => {
   const { fetcher } = fixture();
   const documentFetch = fetcher.getMockImplementation()!;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/iam/me/permissions"))
+        return Response.json({
+          tenant_id: tenant,
+          subject: "user-documents",
+          data: ["workforce.documents.manage", "workforce.staff.manage"],
+        });
       if (url.endsWith("/hospitals"))
         return Response.json({ data: [hospital], page: { has_more: false, next_cursor: null } });
       if (url.endsWith("/staff"))

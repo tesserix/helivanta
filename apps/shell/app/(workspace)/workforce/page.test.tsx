@@ -11,6 +11,12 @@ it("loads the granted hospital and saves staff through its API", async () => {
   let saved: Record<string, string> | null = null;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     let body: unknown = { data: [] };
+    if (url.includes("/iam/me/permissions"))
+      body = {
+        tenant_id: hospital,
+        subject: "synthetic-staff-admin",
+        data: ["workforce.staff.manage"],
+      };
     if (url.endsWith("/workforce/hospitals"))
       body = page([{ id: hospital, name: "YES HOSPITAL", access_level: "manager" }]);
     if (url.includes("/staff")) body = page(saved ? [{ id: "staff-1", ...saved }] : []);
@@ -38,7 +44,15 @@ it("loads the granted hospital and saves staff through its API", async () => {
 it("shows an actionable API failure rather than an empty directory", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify({ message: "Unavailable" }), { status: 503 })),
+    vi.fn(async (url: string) =>
+      url.includes("/iam/me/permissions")
+        ? Response.json({
+            tenant_id: hospital,
+            subject: "synthetic-staff-admin",
+            data: ["workforce.staff.manage"],
+          })
+        : new Response(JSON.stringify({ message: "Unavailable" }), { status: 503 }),
+    ),
   );
   renderWithProviders(<Workforce />);
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load hospitals");

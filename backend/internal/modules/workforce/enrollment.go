@@ -36,6 +36,7 @@ type enrollment struct {
 }
 
 type enrollmentInput struct {
+	enrollmentRequestContextMetadata
 	ExpectedVersion                 *int64                    `json:"expected_version" binding:"required,gte=0"`
 	Staff                           staffInput                `json:"staff" binding:"required"`
 	Profile                         enrollmentProfile         `json:"profile"`
@@ -59,12 +60,16 @@ func (in *enrollmentInput) UnmarshalJSON(data []byte) error {
 	}
 	*in = enrollmentInput(value)
 	var fields struct {
-		Profile        map[string]json.RawMessage   `json:"profile"`
-		Qualifications []map[string]json.RawMessage `json:"qualifications"`
-		Contacts       []map[string]json.RawMessage `json:"emergency_contacts"`
+		RequestContextVersion json.RawMessage              `json:"request_context_version"`
+		Profile               map[string]json.RawMessage   `json:"profile"`
+		Qualifications        []map[string]json.RawMessage `json:"qualifications"`
+		Contacts              []map[string]json.RawMessage `json:"emergency_contacts"`
 	}
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
+	}
+	if len(fields.RequestContextVersion) > 0 && in.RequestContextVersion != enrollmentRequestContextVersion {
+		return errors.New("invalid enrollment request context")
 	}
 	in.providedReferences = map[string]bool{}
 	for _, ref := range enrollmentMasterReferences(&in.Profile, enrollmentProfile{}) {
@@ -268,12 +273,12 @@ func includeEnrollmentMasters(c *gin.Context, query, version string) (bool, bool
 	return true, true
 }
 
-func respondEnrollment(c *gin.Context, result enrollment, profileMasters, qualificationMasters, contactMasters bool) {
-	respond.OK(c, enrollmentResponse(result, profileMasters, qualificationMasters, contactMasters))
+func respondEnrollment(c *gin.Context, result enrollment, profileMasters, qualificationMasters, contactMasters, requestContext bool) {
+	respond.OK(c, enrollmentResponse(result, profileMasters, qualificationMasters, contactMasters, requestContext))
 }
 
 func (h *handlers) getEnrollment(c *gin.Context) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
 		return
 	}
@@ -287,6 +292,14 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 	}
 	contactProjection, ok := includeEnrollmentMasters(c, enrollmentContactMastersQuery, enrollmentContactMastersVersion)
 	if !ok {
+		return
+	}
+	requestContext, ok := includeEnrollmentMasters(c, enrollmentRequestContextQuery, enrollmentRequestContextVersion)
+	if !ok {
+		return
+	}
+	if requestContext && (len(c.Request.Header.Values("X-Helivanta-Expected-Tenant")) != 1 || len(c.Request.Header.Values("X-Helivanta-Expected-Subject")) != 1) {
+		respond.Error(c, 409, "session_changed", "Open protected Staff records in your current account and workspace.")
 		return
 	}
 	id, err := uuid.Parse(c.Param("id"))
@@ -314,7 +327,7 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	respondEnrollment(c, result, projection, qualificationProjection, contactProjection)
+	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)
 }
 
 func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string]any, error) {
@@ -365,7 +378,7 @@ func replaceEnrollmentRows(tx *gorm.DB, tenant string, hospital, id uuid.UUID, i
 var errEnrollmentFields = errors.New("invalid canonical enrollment fields")
 
 func (h *handlers) putEnrollment(c *gin.Context) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
 		return
 	}
@@ -381,6 +394,14 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 	if !ok {
 		return
 	}
+	requestContext, ok := includeEnrollmentMasters(c, enrollmentRequestContextQuery, enrollmentRequestContextVersion)
+	if !ok {
+		return
+	}
+	if requestContext && (len(c.Request.Header.Values("X-Helivanta-Expected-Tenant")) != 1 || len(c.Request.Header.Values("X-Helivanta-Expected-Subject")) != 1) {
+		respond.Error(c, 409, "session_changed", "Open protected Staff records in your current account and workspace.")
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {
 		respond.NotFound(c, "staff")
@@ -388,6 +409,10 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 	}
 	var in enrollmentInput
 	if !decodeSized(c, &in, 32768) {
+		return
+	}
+	if (requestContext && in.RequestContextVersion != enrollmentRequestContextVersion) || (!requestContext && in.RequestContextVersion != "") {
+		respond.Error(c, 400, "invalid_request", "This protected enrollment request is not supported. Refresh and retry.")
 		return
 	}
 	if !in.normalizeAndValidate(id) {
@@ -508,5 +533,5 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	respondEnrollment(c, result, projection, qualificationProjection, contactProjection)
+	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)
 }

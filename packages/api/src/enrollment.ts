@@ -1,7 +1,10 @@
 import { z } from "zod";
+import { ApiError } from "./client";
 import { staffSchema, type Staff } from "./workspace";
 import {
   enrollmentProfileSchema,
+  enrollmentRequestContextSchema,
+  type EnrollmentRequestContextProjection,
   enrollmentAddressSchema,
   enrollmentContactSchema,
   enrollmentCredentialSchema,
@@ -25,6 +28,7 @@ export const enrollmentSchema = z
     qualifications: z.array(enrollmentQualificationSchema).max(20),
     experiences: z.array(enrollmentExperienceSchema).max(20),
   })
+  .extend(enrollmentRequestContextSchema.shape)
   .strict()
   .superRefine((value, ctx) => {
     const issue = (path: (string | number)[], message: string) =>
@@ -78,7 +82,8 @@ export type StaffEnrollment = Omit<EnrollmentInput, "expected_version" | "staff"
   Partial<
     EnrollmentProfileMastersProjection &
       EnrollmentQualificationMastersProjection &
-      EnrollmentContactMastersProjection
+      EnrollmentContactMastersProjection &
+      EnrollmentRequestContextProjection
   > & {
     staff: Staff;
     version: number;
@@ -99,3 +104,24 @@ export const EMPTY_ENROLLMENT: EnrollmentInput = {
   qualifications: [],
   experiences: [],
 };
+
+export type EnrollmentRequestScope = { tenantId: string; subject: string };
+export function enrollmentRequestOptions(
+  scope: EnrollmentRequestScope,
+): Pick<RequestInit, "cache" | "headers"> {
+  return {
+    cache: "no-store",
+    headers: {
+      "X-Helivanta-Expected-Tenant": scope.tenantId,
+      "X-Helivanta-Expected-Subject": scope.subject,
+    },
+  };
+}
+
+export function isEnrollmentAccessChanged(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    ([401, 403, 404].includes(error.status) ||
+      (error.status === 409 && error.code === "session_changed"))
+  );
+}

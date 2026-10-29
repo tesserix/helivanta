@@ -46,11 +46,8 @@ func (h *handlers) identityScopeTransaction(c *gin.Context, p authn.Principal, h
 }
 
 func (h *handlers) getIdentitySource(c *gin.Context) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
-		return
-	}
-	if !identityWorkspaceMatches(c, p) {
 		return
 	}
 	projected := false
@@ -91,17 +88,6 @@ func (h *handlers) getIdentitySource(c *gin.Context) {
 		return
 	}
 	respond.OK(c, result)
-}
-
-func identityWorkspaceMatches(c *gin.Context, p authn.Principal) bool {
-	if _, _, ok := authn.ExpectedTenantPrincipal(c); !ok {
-		return false
-	}
-	if expected := c.Request.Header.Values("X-Helivanta-Expected-Subject"); len(expected) > 0 && (len(expected) != 1 || expected[0] != p.Subject) {
-		respond.Error(c, 409, "session_changed", "Your signed-in account changed. Refresh before continuing.")
-		return false
-	}
-	return true
 }
 
 func respondIdentityError(c *gin.Context, err error) {

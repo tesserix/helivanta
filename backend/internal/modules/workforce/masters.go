@@ -69,7 +69,7 @@ func validMasterKind(kind string) bool {
 }
 
 func (h *handlers) listMasters(c *gin.Context, params pagination.Params) ([]hrMaster, error) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
 		return nil, nil
 	}
@@ -97,7 +97,7 @@ func (h *handlers) listMasters(c *gin.Context, params pagination.Params) ([]hrMa
 }
 
 func (h *handlers) masterHistory(c *gin.Context, params pagination.Params) ([]hrMasterRevision, error) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
 		return nil, nil
 	}
@@ -125,7 +125,7 @@ func (h *handlers) masterHistory(c *gin.Context, params pagination.Params) ([]hr
 }
 
 func (h *handlers) putMaster(c *gin.Context) {
-	p, hospital, ok := scope(c)
+	p, hospital, ok := profileScope(c)
 	if !ok {
 		return
 	}

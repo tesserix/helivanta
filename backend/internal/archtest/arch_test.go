@@ -567,9 +567,11 @@ var withAllTenantsAllowlist = map[string]bool{
 	// #1386 C-4a: the payments poller finds due intents across tenants. It
 	// reads only (tenant_id, id) — the system role holds SELECT on just
 	// those columns and next_check_at — and checks each under WithTenant.
-	"internal/modules/payments/reconciler.go": true,
-	"pkg/events/bus.go":                       true,
-	"pkg/events/retention.go":                 true,
+	"internal/modules/payments/reconciler.go":                         true,
+	"internal/modules/pharmacy/affiliation_delivery.go":               true,
+	"internal/modules/patientmaster/pharmacy_affiliation_delivery.go": true,
+	"pkg/events/bus.go":       true,
+	"pkg/events/retention.go": true,
 	// The one _test.go entry, here because the ASSERTIONS need the bypass
 	// rather than the code under test. cmd/bootstrap/main.go uses
 	// WithTenant — its write is scoped by the policy, not exempt from it —

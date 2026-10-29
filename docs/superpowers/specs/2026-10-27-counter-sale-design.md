@@ -282,6 +282,11 @@ verified today: `pharmacy_hospital_affiliations.verification_status` is constrai
 authority to read or cite a hospital's patients, so B-2c waits for affiliation verification
 (tracked in its own issue) rather than accepting a supplied patient id.
 
+Update (2026-10-29): affiliation verification is #1416. Its first slice lets the hospital
+verify, decline or revoke a same-tenant link
+([design](2026-10-29-pharmacy-affiliation-verification-design.md)). B-2c still waits for
+#1416b, the pharmacy's patient-id projection and the audited MRN lookup.
+
 #### B-3 decisions (2026-10-28)
 
 **Source.** CGST Act 2017, s.15(3)(a), as published on CBIC's tax information portal: the

@@ -554,7 +554,7 @@ it("registers an independent pharmacy without asking for a hospital", async () =
     }),
   );
   expect(created).not.toHaveProperty("hospital_id");
-  expect(screen.getByText(/Each declaration remains pending identity/)).toBeInTheDocument();
+  expect(screen.getByText(/grants nothing until that hospital verifies it/)).toBeInTheDocument();
 });
 
 it("defaults a new product to the outlet country's currency", async () => {

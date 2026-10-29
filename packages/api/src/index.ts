@@ -53,6 +53,7 @@ export * from "./leave";
 
 export * from "./medicore";
 export * from "./pharmacy";
+export * from "./pharmacy-affiliations";
 export * from "./pharmacy-stock-export";
 export * from "./pharmacy-daily-report";
 export * from "./payments";

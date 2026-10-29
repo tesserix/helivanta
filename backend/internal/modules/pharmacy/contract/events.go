@@ -173,3 +173,35 @@ type PaymentCancelledData struct {
 	AmountMinor int64  `json:"amount_minor"`
 	Currency    string `json:"currency"`
 }
+
+// SubjectAffiliationVerificationRequested asks the hospital to verify a
+// declared affiliation; patientmaster queues it for a registrar's review.
+const SubjectAffiliationVerificationRequested = "helivanta.in.pharmacy.affiliation_verification_requested.v1"
+
+// SubjectAffiliationVerificationWithdrawn ends a request round, open or
+// accepted, from the pharmacy side.
+const SubjectAffiliationVerificationWithdrawn = "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1"
+
+// AffiliationVerificationData is the claim under review. Withdrawal carries
+// the same claim so it can stand in for a request it overtakes.
+type AffiliationVerificationData struct {
+	RequestID        string `json:"request_id"`
+	AffiliationID    string `json:"affiliation_id"`
+	PharmacyID       string `json:"pharmacy_id"`
+	PharmacyName     string `json:"pharmacy_name"`
+	HospitalID       string `json:"hospital_id"`
+	Relationship     string `json:"relationship"`
+	RequesterSubject string `json:"requester_subject"`
+}
+
+// SubjectAffiliationDecisionReceived confirms pharmacy has handled a
+// hospital decision, so patientmaster stops re-sending it.
+const SubjectAffiliationDecisionReceived = "helivanta.in.pharmacy.affiliation_decision_received.v1"
+
+// AffiliationDecisionReceivedData names the decision handled; hospital_id
+// scopes patientmaster's delivery row.
+type AffiliationDecisionReceivedData struct {
+	RequestID  string `json:"request_id"`
+	HospitalID string `json:"hospital_id"`
+	DecisionID string `json:"decision_id"`
+}

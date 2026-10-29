@@ -8,6 +8,7 @@ import {
   countryProfile,
   useApiMutation,
   useApiPagedQuery,
+  usePermissions,
   newPharmacyId,
   pharmacyOrganizationInputSchema,
   pharmacyOutletInputSchema,
@@ -25,6 +26,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
+import { AffiliationVerification } from "./affiliation-verification";
 export function PharmacyRegistrySetup({
   tenantId,
   pharmacy,
@@ -233,6 +235,7 @@ function AffiliationForm({
     relationship: "serving",
   });
   const key = ["pharmacy", tenantId, pharmacy.id, "affiliations"];
+  const { can } = usePermissions();
   const links = useApiPagedQuery<PharmacyHospitalAffiliation>(
     key,
     `/pharmacy/pharmacies/${pharmacy.id}/hospital-affiliations`,
@@ -257,8 +260,8 @@ function AffiliationForm({
     <Panel className="mt-6">
       <h3 className="font-semibold">Optional hospital affiliations</h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Use the canonical hospital reference supplied during onboarding. Each declaration remains
-        pending identity and authority validation. It does not share records or activate dispensing.
+        Use the canonical hospital reference supplied during onboarding. A declared link grants
+        nothing until that hospital verifies it, and the hospital can revoke it at any time.
       </p>
       <form
         noValidate
@@ -298,10 +301,12 @@ function AffiliationForm({
         <ul className="mt-4 divide-y text-sm">
           {links.items.map((link) => (
             <li key={link.id} className="py-3">
-              <p className="break-all font-medium">{link.hospital_id}</p>
-              <p className="mt-1 text-muted-foreground">
-                {link.relationship} · Pending validation · No access granted
-              </p>
+              <AffiliationVerification
+                link={link}
+                path={`/pharmacy/pharmacies/${pharmacy.id}/hospital-affiliations/${link.id}`}
+                invalidate={key}
+                canManage={can("pharmacy.access.manage")}
+              />
             </li>
           ))}
         </ul>

@@ -83,6 +83,15 @@ Approval validates the claimed registration and its captured version; it does no
 establish proxy authority, clinical disclosure rights or patient/proxy consent.
 Review input and outcome cross owners only through typed transactional events.
 
+## Pharmacy affiliation review (#1416)
+
+Patientmaster owns the hospital's decision on a pharmacy's claimed affiliation. The `patient-pharmacy-affiliation-request` and `patient-pharmacy-affiliation-withdrawal` consumers queue the claim from pharmacy events. Either event may arrive first. A withdrawal that overtakes its request is stored already withdrawn.
+
+- `GET /patients/pharmacy-affiliations?hospital_id=` lists the hospital's requests, newest first, with each decision's reviewer and reason. Every read is audited.
+- `PUT /patients/pharmacy-affiliations/:request/decision/:decision?hospital_id=` takes `{outcome, reason}`. The outcome is `accepted` or `declined` from pending, or `revoked` from accepted. The reason is 1 to 500 characters.
+
+Both routes need `patient.pharmacy-affiliation.review`, which no role holds (tenant administrators only), **and** a current `registrar` grant at that hospital. Without the grant the answer is `404`. The requester cannot accept their own request. A changed input under the same decision id, or the wrong state, is `409 review_conflict`. Decisions are append-only in `patient_pharmacy_affiliation_decisions`. An insert trigger checks the session's own registrar grant, the state and self-acceptance, then moves the review's status, so status cannot drift from history. `pharmacy_affiliation_decided.v1` carries ids, outcome and time only; reviewer and reason stay here. Each decision is re-sent until pharmacy confirms it (`patient_pharmacy_affiliation_deliveries`, from 2 minutes up to 60, never given up). A revocation replaces an acceptance that has not yet been confirmed. Patientmaster in turn confirms every request and withdrawal it handles.
+
 ## Guardian authority ownership
 
 Patientmaster additionally owns the reviewed guardian authority registry, its

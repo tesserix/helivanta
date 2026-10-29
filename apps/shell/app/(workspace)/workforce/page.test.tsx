@@ -1,3 +1,4 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { chooseOption } from "@/test/select";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -38,7 +39,11 @@ it("lets a hospital manager without static permissions save basic staff", async 
     return new Response(JSON.stringify(body), { status: 200 });
   });
   vi.stubGlobal("fetch", fetcher);
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
   await user.type(screen.getByLabelText("Full name"), "Synthetic Nurse");
@@ -74,7 +79,11 @@ it("shows an actionable API failure rather than an empty directory", async () =>
         : new Response(JSON.stringify({ message: "Unavailable" }), { status: 503 }),
     ),
   );
-  renderWithProviders(<Workforce />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load hospitals");
   expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
 });
@@ -93,7 +102,11 @@ it("lets a tenant administrator explicitly create and grant their first hospital
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByText("Add a hospital"));
   await user.type(screen.getByLabelText("Hospital name"), "YES Main Hospital");
   await user.click(screen.getByLabelText("Grant me staff manager access to this hospital"));
@@ -125,7 +138,11 @@ it("offers identity detail checks to directory readers without enabling editing"
       );
     }),
   );
-  renderWithProviders(<Workforce />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   expect(
     await screen.findByRole("button", { name: "Identity details for Synthetic Reader Target" }),
   ).toBeInTheDocument();

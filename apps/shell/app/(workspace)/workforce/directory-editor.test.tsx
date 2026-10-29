@@ -1,3 +1,4 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -92,7 +93,11 @@ function setup(
 }
 it("opens the current owner snapshot and binds saves to its account and revision", async () => {
   const writes = setup();
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(
     await screen.findByRole("button", { name: "Edit Synthetic stale directory name" }),
   );
@@ -114,7 +119,11 @@ it.each([{ unacknowledged: true }, { wrongHospital: true }])(
   "keeps editing closed without an acknowledged matching record: %j",
   async (options) => {
     setup(options);
-    const { user } = renderWithProviders(<Workforce />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Workforce />
+      </NavigationGuardProvider>,
+    );
     await user.click(
       await screen.findByRole("button", { name: "Edit Synthetic stale directory name" }),
     );
@@ -124,7 +133,11 @@ it.each([{ unacknowledged: true }, { wrongHospital: true }])(
 );
 it("retains a conflicted draft until explicit discard and reload", async () => {
   setup({ error: "staff_version_conflict" });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(
     await screen.findByRole("button", { name: "Edit Synthetic stale directory name" }),
   );
@@ -153,7 +166,11 @@ it("retains a conflicted draft until explicit discard and reload", async () => {
 });
 it.each(["session_changed"])("removes a basic draft when a save detects %s", async (error) => {
   setup({ error });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(
     await screen.findByRole("button", { name: "Edit Synthetic stale directory name" }),
   );

@@ -306,3 +306,14 @@ Final owner validation after the null-time fix: full Workforce race/coverage
 passed again (83.8%, 535.017s). The full architecture run required classifying
 the two singleton GET resources in its pagination register; collection/history
 routes remain cursor-paginated. Contractdocs tests passed (80.7% coverage).
+
+Local concurrency continuation: two Admin tabs opened the same draft. The second
+saved revision 3; the first tab's stale save was refused while its text remained
+visible. QA then reproduced a missing discard confirmation. The form now uses
+the shell navigation guard, with voluntary Staff/hospital changes and hospital
+creation routed through that guard. Forced account/access loss still clears
+private data immediately. Regression tests verify close/keep-editing/discard and
+switching Staff records. The real local UI confirmed the same behavior; saved
+revision 3 was retained and only explicitly discarded unsaved text was removed.
+All 30 Node 24 web gates passed again after this frontend-only fix. No backend,
+SQL, permission or event changed after the final owner/architecture Go checks.

@@ -1,3 +1,4 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import "@/test/select";
 import { chooseOption } from "@/test/select";
 import { screen, waitFor } from "@testing-library/react";
@@ -52,7 +53,11 @@ it.each([
         return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
-    const { user } = renderWithProviders(<Workforce />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Workforce />
+      </NavigationGuardProvider>,
+    );
     await user.click(
       await screen.findByRole("button", { name: "Edit Synthetic older service staff" }),
     );
@@ -88,7 +93,11 @@ it("keeps typed text visible when HR choices arrive after the user starts editin
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.click(screen.getByLabelText("Department"));
   await user.paste("Recorded Synthetic Care");
@@ -154,7 +163,11 @@ it("pins an active department revision and preserves the selection on save failu
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.type(screen.getByLabelText("Full name"), "Synthetic Staff");
   await user.type(screen.getByLabelText("Employee code"), "SYN-HR-REF");
@@ -272,7 +285,11 @@ it(
         return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
-    const { user } = renderWithProviders(<Workforce />);
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <Workforce />
+      </NavigationGuardProvider>,
+    );
     await user.click(await screen.findByRole("button", { name: "Add staff" }));
     await user.click(screen.getByLabelText("Full name"));
     await user.paste("Synthetic Contact Staff");
@@ -353,7 +370,11 @@ it("selects a qualification revision without replacing its row after a failed sa
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.click(screen.getByLabelText("Full name"));
   await user.paste("Synthetic Qualification Staff");
@@ -381,7 +402,11 @@ it("selects a qualification revision without replacing its row after a failed sa
 
 it("reveals and focuses enrollment with separate personal, contact and professional details", async () => {
   mockEnrollment();
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await waitFor(() => expect(screen.getByLabelText("Full name")).toHaveFocus());
   for (const label of [
@@ -405,7 +430,11 @@ it("reveals and focuses enrollment with separate personal, contact and professio
 
 it("preserves enrollment input and stable identity after a failed save", async () => {
   const { writes } = mockEnrollment();
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.click(screen.getByLabelText("Full name"));
   await user.paste("Avery Synthetic");
@@ -428,7 +457,11 @@ it("preserves enrollment input and stable identity after a failed save", async (
 
 it("does not expose a writable blank form when protected enrollment fails to load", async () => {
   mockEnrollment({ loadFailure: true });
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Existing Synthetic" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(/Could not load enrollment/);
   expect(screen.queryByRole("button", { name: "Save staff" })).not.toBeInTheDocument();
@@ -436,7 +469,11 @@ it("does not expose a writable blank form when protected enrollment fails to loa
 
 it("copies the edited address into the other address type", async () => {
   mockEnrollment();
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.click(screen.getByRole("button", { name: "Add address" }));
   await chooseOption(user, screen.getByRole("combobox", { name: "Address type" }), "Permanent");
@@ -506,7 +543,11 @@ it("submits versioned language, exit reason and contract type choices without lo
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Add staff" }));
   await user.type(screen.getByLabelText("Full name"), "Synthetic classified staff");
   await user.type(screen.getByLabelText("Employee code"), "SYN-CLASSIFIED-UI");
@@ -613,7 +654,11 @@ it("preserves historical profile master pins through an unrelated edit", async (
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic pinned staff" }));
   expect(await screen.findByRole("combobox", { name: /^Preferred language$/ })).toHaveTextContent(
     "Recorded language · recorded revision",
@@ -696,7 +741,11 @@ it("keeps a legacy language available after explicitly selecting a current revis
       return new Response(JSON.stringify(body), { status: 200 });
     }),
   );
-  const { user } = renderWithProviders(<Workforce />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic legacy staff" }));
   const language = await screen.findByRole("combobox", { name: /^Preferred language$/ });
   expect(language).toHaveTextContent("Recorded text: en");

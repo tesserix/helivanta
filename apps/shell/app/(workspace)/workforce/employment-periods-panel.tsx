@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, LoadMore, Panel, useZodForm, FormSelectField, ConfirmDialog } from "@helivanta/ui";
+import { Field, LoadMore, Panel, useZodForm, FormSelectField, useLeaveGuard } from "@helivanta/ui";
 import {
   ApiError,
   EmploymentPeriodSourceContract,
@@ -268,7 +268,6 @@ function EmploymentTermsEditor({
   const [id] = useState(() => item?.id ?? newEmploymentPeriodId());
   const [basis] = useState(() => source);
   const [submitted, setSubmitted] = useState<EmploymentPeriodDraftInput | null>(null);
-  const [confirmClose, setConfirmClose] = useState(false);
   const form = useZodForm(termsForm, {
     engagement_kind: item?.engagement_kind ?? "employee",
     duration: item?.duration ?? "fixed",
@@ -282,6 +281,11 @@ function EmploymentTermsEditor({
   const save = useApiMutation(
     (command: EmploymentPeriodDraftInput) => saveEmploymentPeriodDraft(scope, id, command),
     { invalidate: [employmentPeriodsKey(scope)], onSuccess: onSaved, suppressErrorToast: true },
+  );
+  const { confirm: confirmLeave } = useLeaveGuard(
+    form.formState.isDirty,
+    "employment terms",
+    save.isPending,
   );
   const changed =
     basis.staff_version !== source.staff_version ||
@@ -440,10 +444,7 @@ function EmploymentTermsEditor({
           type="button"
           variant="ghost"
           disabled={save.isPending}
-          onClick={() => {
-            if (form.formState.isDirty) setConfirmClose(true);
-            else onClose();
-          }}
+          onClick={() => confirmLeave(onClose)}
         >
           Close draft form
         </Button>
@@ -451,14 +452,6 @@ function EmploymentTermsEditor({
           {save.isPending ? "Saving…" : submitted ? "Retry same draft" : "Save draft"}
         </Button>
       </div>
-      <ConfirmDialog
-        open={confirmClose}
-        onOpenChange={setConfirmClose}
-        title="Discard employment draft edits?"
-        description="Unsaved changes will be discarded. Saved employment terms will not change."
-        confirmLabel="Discard edits"
-        onConfirm={onClose}
-      />
     </form>
   );
 }

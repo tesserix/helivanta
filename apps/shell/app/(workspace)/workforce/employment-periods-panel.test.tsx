@@ -1,3 +1,4 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import "@/test/select";
 import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -48,11 +49,13 @@ it("requires explicit contract terms and preserves the exact retry command", asy
     }),
   );
   const { user } = renderWithProviders(
-    <StaffEmploymentPeriods
-      staffLabel="Synthetic Contractor QA"
-      scope={scope}
-      onClose={() => {}}
-    />,
+    <NavigationGuardProvider>
+      <StaffEmploymentPeriods
+        staffLabel="Synthetic Contractor QA"
+        scope={scope}
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
   );
   await user.click(await screen.findByRole("button", { name: "Prepare employment terms" }));
   const form = screen.getByRole("form", { name: "Employment terms draft" });
@@ -75,4 +78,43 @@ it("requires explicit contract terms and preserves the exact retry command", asy
   expect(writes).toHaveLength(2);
   expect(writes[1]).toEqual(writes[0]);
   expect(writes[0]).toMatchObject({ duration: "ongoing", staff_version: 1, employment_epoch: 1 });
+});
+
+it("keeps unsaved terms until the user explicitly discards them", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.endsWith("employment-source")
+          ? {
+              hospital_id: scope.hospitalId,
+              staff_id: scope.staffId,
+              staff_version: 1,
+              employment_epoch: 1,
+            }
+          : { data: [], page: { has_more: false, next_cursor: null } },
+      ),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffEmploymentPeriods
+        staffLabel="Synthetic Contractor QA"
+        scope={scope}
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare employment terms" }));
+  const form = screen.getByRole("form", { name: "Employment terms draft" });
+  await user.type(within(form).getByLabelText("Reason"), "Synthetic unsaved terms");
+  await user.click(within(form).getByRole("button", { name: "Close draft form" }));
+  const dialog = await screen.findByRole("dialog");
+  await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+  expect(within(form).getByLabelText("Reason")).toHaveValue("Synthetic unsaved terms");
+  await user.click(within(form).getByRole("button", { name: "Close draft form" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(screen.queryByRole("form", { name: "Employment terms draft" })).not.toBeInTheDocument();
 });

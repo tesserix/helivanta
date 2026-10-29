@@ -1,10 +1,11 @@
 # Hospital billing
 
-[Contract index](../README.md) · implemented: admission accounts (slice 1) and bed-day charges (slice 2).
+[Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2) and interim
+bills (slice 3).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
-published events; none writes its tables. Hospital invoices, payer tariffs, GST, interim and final
-bills, deposits and discounts are not built yet (#193, #197, #199, #200, #1045).
+published events; none writes its tables. Hospital invoices, payer tariffs, GST, final bills,
+deposits and discounts are not built yet (#193, #197, #199, #200, #1045).
 
 ## Admission accounts (#197 slice 1)
 
@@ -84,3 +85,30 @@ Design: [spec](../../superpowers/specs/2026-10-30-bed-day-charges-design.md).
   repricing a stay on upgrade; payer-specific rates (#1045); correcting a priced day (#200);
   changing a hospital's timezone; stays begun before this release, whose start carries no bed
   class.
+
+## Interim bills (#197 slice 3)
+
+- **A statement, not a tax invoice.** An interim bill freezes an open account as issued:
+  every entry recorded on it, numbered within the admission (Interim bill 1, 2, 3 …, no gaps).
+  Medicine lines name pharmacy's GST invoice or credit note; bed days are before tax.
+- **Cumulative.** A bill lists entry ids, not a time cut; an entry not on the previous bill is
+  marked `new`. An entry still being recorded as a bill is issued is on the next bill.
+- **Frozen.** Bills and lines are append-only, and a bill's lines are written only by the
+  transaction that issued it. Its totals derive from its lines and never change.
+- **Unpriced bed days** are counted on the bill, never charged as zero.
+- **Nothing new, no bill:** no entry the previous bill lacks and the same unpriced count is
+  `409 nothing_new`, which also absorbs a repeated click. A released account is
+  `409 account_closed`.
+
+| Route                                                                   | Behaviour                                                                                     |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `POST /billing/hospitals/:hospital/admissions/:admission/interim-bills` | `201` with the bill; `404` without grant or account; `409 nothing_new`, `409 account_closed`. |
+| `GET …/admissions/:admission/interim-bills`                             | A page of bills, newest first, without totals.                                                |
+| `GET …/interim-bills/:number`                                           | One bill: issuer, time, totals and per-source totals, line and new counts, unpriced days.     |
+| `GET …/interim-bills/:number/lines`                                     | A page of the bill's entries, newest first, each with `new`.                                  |
+
+- **Issuing** needs `billing.bill.issue` (receptionist) and the hospital's billing grant;
+  **reading** needs `billing.account.read` and the grant.
+- **Not covered:** the final bill (MediCore publishes no discharge-initiated event yet);
+  scheduled interim bills; deposits and payments on the bill (#199); a print layout; GST
+  (#193); discounts (#200); an `InterimBillIssued` event, which nothing would consume yet.

@@ -36,10 +36,12 @@ var ist = func() *time.Location { l, _ := time.LoadLocation("Asia/Kolkata"); ret
 
 func newBedWorld(t *testing.T) *bedWorld {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "nurse": testutil.TenantA},
+		Tokens: map[string]string{"admin": testutil.TenantA, "nurse": testutil.TenantA, "clerk": testutil.TenantA, "outsider": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin": {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage},
-			"nurse": {billing.PermAccountRead},
+			"admin":    {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage},
+			"nurse":    {billing.PermAccountRead},
+			"clerk":    {billing.PermAccountRead, billing.PermBillIssue},
+			"outsider": {billing.PermAccountRead, billing.PermBillIssue},
 		},
 		Modules: []platform.Module{billing.New()},
 	})
@@ -50,10 +52,12 @@ func newBedWorld(t *testing.T) *bedWorld {
 	}
 	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-admin", "admin", "").Code)
 	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-nurse", "admin", "").Code)
+	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-clerk", "admin", "").Code)
 	return w
 }
 
-var eventTypes = map[string]string{"billing-bed-occupancy-started": "BedOccupancyStarted", "billing-bed-occupancy-ended": "BedOccupancyEnded", "billing-admission-released": "AdmissionReleased"}
+var eventTypes = map[string]string{"billing-bed-occupancy-started": "BedOccupancyStarted", "billing-bed-occupancy-ended": "BedOccupancyEnded", "billing-admission-released": "AdmissionReleased",
+	"billing-pharmacy-admission-charge": "AdmissionChargePosted", "billing-pharmacy-admission-reversal": "AdmissionChargeReversed"}
 
 func (w *bedWorld) deliver(name string, v any) error {
 	data, err := json.Marshal(v)

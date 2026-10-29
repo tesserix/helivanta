@@ -534,6 +534,10 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/access` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/account` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number/lines` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.account.read` | true | false |
+| POST | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
@@ -555,6 +559,7 @@ Migration table declarations:
 
 - `0001_billing`: `billing_hospital_access`, `billing_admission_accounts`, `billing_account_entries`, `billing_parked_reversals`.
 - `0002_billing`: `billing_bed_charging`, `billing_bed_rates`, `billing_bed_stays`, `billing_bed_days`.
+- `0003_billing`: `billing_interim_bills`, `billing_interim_bill_lines`.
 
 ## supply
 

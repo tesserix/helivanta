@@ -40,3 +40,41 @@ export const bedRateSchema = z.object({
     .max(1_000_000_000, "At most 1,00,00,000 a day"),
   currency: z.string().regex(/^[A-Z]{3}$/, "Choose the currency"),
 });
+
+// Interim bills (#197 slice 3): the admission account frozen as issued,
+// numbered within the admission. A statement, not a tax invoice.
+
+export type InterimBill = {
+  id: string;
+  admission_id: string;
+  hospital_id: string;
+  patient_id: string;
+  number: number;
+  issued_by: string;
+  issued_at: string;
+  /** Bed days without a rate when issued: no amount, never zero. */
+  unpriced_bed_days: number;
+  line_count: number;
+  new_count: number;
+  /** Only on the bill itself; the list leaves them empty. */
+  totals: {
+    currency: string;
+    charged_minor: number;
+    reversed_minor: number;
+    outstanding_minor: number;
+  }[];
+  sources: { source_module: string; currency: string; outstanding_minor: number }[];
+};
+
+export type InterimBillLine = {
+  id: string;
+  kind: "charge" | "reversal";
+  source_module: string;
+  source_document: string;
+  amount_minor: number;
+  currency: string;
+  occurred_at: string;
+  recorded_at: string;
+  /** Not on the previous bill. */
+  new: boolean;
+};

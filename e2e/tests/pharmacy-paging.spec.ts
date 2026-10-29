@@ -81,6 +81,9 @@ test("the dispense queue pages forward and back and survives a reload", async ({
   // Dispensing the only row on the last page falls back a page (spec
   // Verification), with the range and total following the queue.
   await page.getByRole("link", { name: "Next" }).click();
+  // Page 3 is reached through page 2's cursor: a second click before page 2
+  // has loaded follows page 1's Next again and lands on page 2.
+  await expect(range).toHaveText(`26–50 of ${total}`);
   await page.getByRole("link", { name: "Next" }).click();
   await expect(range).toHaveText(`51–51 of ${total}`);
   const last = page.getByRole("listitem").first();

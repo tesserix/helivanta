@@ -59,6 +59,9 @@ export function useApiMutation<TData, TVars = void>(
     successToast?: string;
     invalidate?: unknown[][];
     onSuccess?: (data: TData) => void;
+    // onError runs after the hook's own error handling, for a caller that must
+    // react to a settled refusal (a new command id, for example).
+    onError?: (error: Error) => void;
     // suppressErrorToast opts a caller OUT of the automatic
     // toast.error(error.message) below. Default false, because that
     // toast is the right behaviour for almost every mutation in this
@@ -104,6 +107,7 @@ export function useApiMutation<TData, TVars = void>(
           void queryClient.invalidateQueries({ queryKey: key });
         }
       }
+      opts.onError?.(error);
     },
   });
 }

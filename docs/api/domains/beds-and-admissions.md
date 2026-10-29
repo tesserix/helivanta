@@ -1,6 +1,20 @@
 # Beds, admissions, transfers and discharge
 
-[Contract index](../README.md) · **proposal for domain review; not implemented endpoints**
+[Contract index](../README.md) · **proposal for domain review; slice 1 implemented (below)**
+
+## Implemented: slice 1 (#106, 2026-10-29)
+
+The [slice 1 design](../../superpowers/specs/2026-10-29-bed-occupancy-slice-1-design.md) is in MediCore, migration `0007_medicore`. Everything else on this page is still a proposal.
+
+- **Hierarchy:** ward → room → bed, with immutable codes per hospital, and the bed classes `general`, `semi_private`, `private`, `icu`, `hdu`, `isolation`, `neonatal` and `day_care`. Setup routes need `medicore.bed.configure`, which only tenant administrators hold.
+- **Bed state:** `available`, `occupied`, `cleaning` or `out_of_service`. A state moves only with an append-only `medicore_bed_transitions` row for exactly the next version, and the database holds the legal moves. A released or vacated bed always goes to `cleaning` first.
+- **Admissions:** direct, into an available bed, with no reservations yet. Intent is `elective` or `emergency`, and the database allows one active admission per patient per hospital.
+- **Occupancy intervals:** gist exclusions keep stays from overlapping, per bed and per admission. A transfer closes one stay and opens the next at the same instant.
+- **A stay ends** only by release, with a reason: `discharged`, `transferred_out`, `died`, `left_against_advice`, or `other` with a note. The reason records the departure; it is not clinical discharge.
+- **Commands:** admit, transfer, release and the bed moves need `medicore.admission.manage` (receptionist and nurse) plus the caller's MediCore hospital grant. All are idempotent by client UUIDv7. Refusals are `409` with `bed_not_available`, `stale_bed`, `already_admitted` or `illegal_move`.
+- **Who is in a bed:** `GET …/beds/:bed/occupant` and `…/rooms/:room/occupant` answer `404 no_occupant` for an empty bed or room, and `409 ambiguous` for a room with several occupied beds, never a guess.
+- **Events:** `bed_occupancy_started.v1`, `bed_occupancy_ended.v1` and `admission_released.v1`, carrying ids and times only.
+- **Row security:** the bed tables require the session subject's MediCore hospital grant.
 
 Sources: [#106 bed management](https://github.com/tesserix/helivanta/issues/106), [#107 wards](https://github.com/tesserix/helivanta/issues/107), [#983 inpatient worklists](https://github.com/tesserix/helivanta/issues/983), [#1043 ward hierarchy and discharge gates](https://github.com/tesserix/helivanta/issues/1043), [#96 discharge](https://github.com/tesserix/helivanta/issues/96), [#197 admission billing](https://github.com/tesserix/helivanta/issues/197). Their acceptance criteria are requirements, not evidence of existing APIs.
 

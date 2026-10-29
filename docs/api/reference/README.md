@@ -209,6 +209,13 @@ Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/
 | DELETE | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
 | PUT | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/access` | `medicore.visit.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission/release` | `medicore.admission.manage` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission/transfers/:transfer` | `medicore.admission.manage` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/admissions/:admission` | `medicore.visit.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission` | `medicore.admission.manage` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/beds/:bed/occupant` | `medicore.visit.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/beds/:bed/transitions/:transition` | `medicore.admission.manage` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/beds` | `medicore.visit.read` | true | false |
 | POST | `/v1/medicore/hospitals/:hospital/encounters/:id/transitions` | `medicore.visit.update` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.read` | false | false |
 | PUT | `/v1/medicore/hospitals/:hospital/encounters/:id` | `medicore.visit.create` | false | false |
@@ -223,6 +230,12 @@ Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/
 | PUT | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/:id` | `medicore.observation.record` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/patients/:patient/weights/latest` | `medicore.observation.read` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/patients/:patient/weights` | `medicore.observation.read` | true | false |
+| PUT | `/v1/medicore/hospitals/:hospital/rooms/:room/beds/:bed` | `medicore.bed.configure` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/rooms/:room/occupant` | `medicore.visit.read` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/rooms` | `medicore.visit.read` | true | false |
+| PUT | `/v1/medicore/hospitals/:hospital/wards/:ward/rooms/:room` | `medicore.bed.configure` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/wards/:ward` | `medicore.bed.configure` | false | false |
+| GET | `/v1/medicore/hospitals/:hospital/wards` | `medicore.visit.read` | true | false |
 | GET | `/v1/medicore/insights` | `medicore.visit.read` | false | false |
 | GET | `/v1/medicore/visits` | `medicore.visit.read` | true | false |
 | POST | `/v1/medicore/visits` | `medicore.visit.create` | false | false |
@@ -234,6 +247,9 @@ Published subjects:
 - `helivanta.in.medicore.encounter_status_changed.v1`
 - `helivanta.in.medicore.allergy_changed.v1`
 - `helivanta.in.medicore.weight_recorded.v1`
+- `helivanta.in.medicore.bed_occupancy_started.v1`
+- `helivanta.in.medicore.bed_occupancy_ended.v1`
+- `helivanta.in.medicore.admission_released.v1`
 
 Subscriptions:
 
@@ -245,6 +261,7 @@ Migration table declarations:
 - `0001_medicore`: `medicore_visits`.
 - `0005_medicore`: `medicore_patients`, `medicore_hospital_access`, `medicore_encounter_transitions`.
 - `0006_medicore`: `medicore_drug_molecules`, `medicore_allergy_entries`, `medicore_no_known_allergy`, `medicore_no_known_allergy_withdrawals`, `medicore_weight_observations`, `medicore_weight_errors`, `medicore_clinical_read_audit`.
+- `0007_medicore`: `medicore_wards`, `medicore_rooms`, `medicore_beds`, `medicore_bed_transitions`, `medicore_admissions`, `medicore_bed_occupancies`, `medicore_admission_transfers`.
 
 ## mediconnect
 

@@ -579,6 +579,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.medicore.admission_released.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:132",
+    "go_type": "AdmissionReleasedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "released_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "admission_id",
+        "patient_id",
+        "hospital_id",
+        "released_at",
+        "reason"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.medicore.allergy_changed.v1": {
     "source": "backend/internal/modules/medicore/contract/events.go:75",
     "go_type": "AllergyChangedData",
@@ -607,6 +639,86 @@
         "record_id",
         "version",
         "kind"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.medicore.bed_occupancy_ended.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:118",
+    "go_type": "BedOccupancyEndedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "bed_id": {
+          "type": "string"
+        },
+        "end": {
+          "type": "string"
+        },
+        "ended_at": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "occupancy_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "occupancy_id",
+        "admission_id",
+        "hospital_id",
+        "bed_id",
+        "ended_at",
+        "end"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.medicore.bed_occupancy_started.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:102",
+    "go_type": "BedOccupancyStartedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "bed_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "occupancy_id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        },
+        "room_id": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "ward_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "occupancy_id",
+        "admission_id",
+        "patient_id",
+        "hospital_id",
+        "ward_id",
+        "room_id",
+        "bed_id",
+        "started_at"
       ],
       "type": "object"
     }

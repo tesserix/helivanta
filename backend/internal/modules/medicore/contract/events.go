@@ -92,3 +92,47 @@ type WeightRecordedData struct {
 	ObservationID  string `json:"observation_id"`
 	EnteredInError bool   `json:"entered_in_error"`
 }
+
+// SubjectBedOccupancyStarted is published when a patient's admission takes a
+// bed, by admission or by transfer in (#106). References and the start
+// instant only: billing resolves "who was in this bed at time t" from these.
+const SubjectBedOccupancyStarted = "helivanta.in.medicore.bed_occupancy_started.v1"
+
+// BedOccupancyStartedData is the v1 payload of SubjectBedOccupancyStarted.
+type BedOccupancyStartedData struct {
+	OccupancyID string `json:"occupancy_id"`
+	AdmissionID string `json:"admission_id"`
+	PatientID   string `json:"patient_id"`
+	HospitalID  string `json:"hospital_id"`
+	WardID      string `json:"ward_id"`
+	RoomID      string `json:"room_id"`
+	BedID       string `json:"bed_id"`
+	StartedAt   string `json:"started_at"`
+}
+
+// SubjectBedOccupancyEnded is published when a stay in a bed ends, by
+// transfer out or release.
+const SubjectBedOccupancyEnded = "helivanta.in.medicore.bed_occupancy_ended.v1"
+
+// BedOccupancyEndedData is the v1 payload of SubjectBedOccupancyEnded.
+type BedOccupancyEndedData struct {
+	OccupancyID string `json:"occupancy_id"`
+	AdmissionID string `json:"admission_id"`
+	HospitalID  string `json:"hospital_id"`
+	BedID       string `json:"bed_id"`
+	EndedAt     string `json:"ended_at"`
+	End         string `json:"end"`
+}
+
+// SubjectAdmissionReleased is published when an admission leaves its bed for
+// good. The reason records the departure; it is not clinical discharge (#96).
+const SubjectAdmissionReleased = "helivanta.in.medicore.admission_released.v1"
+
+// AdmissionReleasedData is the v1 payload of SubjectAdmissionReleased.
+type AdmissionReleasedData struct {
+	AdmissionID string `json:"admission_id"`
+	PatientID   string `json:"patient_id"`
+	HospitalID  string `json:"hospital_id"`
+	ReleasedAt  string `json:"released_at"`
+	Reason      string `json:"reason"`
+}

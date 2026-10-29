@@ -52,6 +52,7 @@ export * from "./roster-config";
 export * from "./leave";
 
 export * from "./medicore";
+export * from "./medicore-beds";
 export * from "./pharmacy";
 export * from "./pharmacy-affiliations";
 export * from "./pharmacy-stock-export";

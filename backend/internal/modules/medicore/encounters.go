@@ -79,11 +79,13 @@ func (h *encounterHandlers) inHospital(c *gin.Context, fn func(tx *gorm.DB, p au
 		return errNoHospital
 	}
 	return h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		var granted int64
-		if err := tx.Table("medicore_hospital_access").Where("tenant_id = ? AND hospital_id = ? AND subject = ?", p.TenantID, hospital, p.Subject).Count(&granted).Error; err != nil {
+		// Locked until commit, so a revocation waits for a command already
+		// running rather than landing half way through it.
+		var granted []struct{ Subject string }
+		if err := tx.Raw(`SELECT subject FROM medicore_hospital_access WHERE tenant_id = ? AND hospital_id = ? AND subject = ? FOR SHARE`, p.TenantID, hospital, p.Subject).Scan(&granted).Error; err != nil {
 			return err
 		}
-		if granted == 0 {
+		if len(granted) == 0 {
 			return errNoHospital
 		}
 		return fn(tx, p, hospital)

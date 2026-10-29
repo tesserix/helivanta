@@ -216,6 +216,26 @@ install chromium` once if seeding fails with a "browser not found" error.
   `make preflight`, `make reset`, `make lint-go`, `make coverage-go`,
   `make e2e` (Playwright, needs the stack up), `make new-module NAME=<name>`.
 
+The OPD encounter and patient-safety journey (#1389) needs the synthetic clinical
+fixture in addition to normal dev identity seeding:
+
+```bash
+# With dev infra running; stop an existing dev API before starting this one.
+make seed
+make seed-e2e-clinical
+MEDICORE_ALLERGY_RECORDING_ENABLED=true make dev-api
+# In the test terminal, with the same dev stack/configuration:
+make e2e
+```
+
+Enable that flag only for a synthetic local/e2e API process. The default remains
+off; this fixture is not clinical approval to activate allergy recording in
+production. `seed-e2e-clinical` refuses non-dev environments and non-local
+databases, and stages/publishes the test catalogue through drugmaster's owning
+CLI roles. The browser creates its hospital, grants and patient through owning
+APIs, and waits for the actual patient-registration consumer. CI uses these same
+seed and API targets with the e2e-only flag set explicitly.
+
 Deployment lives in `tesserix-k8s` (charts/apps/hms-*), not here.
 
 The backend toolchain is pinned to Go 1.27.3 in `backend/go.mod`. Make targets

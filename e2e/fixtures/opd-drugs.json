@@ -1,0 +1,25 @@
+{
+  "country": "IN",
+  "source": {
+    "name": "synthetic-opd-e2e-fixture",
+    "licence_ref": "TEST-ONLY-NOT-A-MEDICAL-CATALOGUE",
+    "version": "replaced-by-seed-run"
+  },
+  "molecules": [{ "inn_name": "TEST E2E molecule", "atc_code": null }],
+  "formulations": [
+    {
+      "code": "TEST-E2E-TABLET",
+      "valid_from": "2020-01-01",
+      "label": "TEST E2E molecule tablet",
+      "dose_form": "tablet",
+      "route": "oral",
+      "regulatory_class": "none",
+      "ndps": false,
+      "teleconsult_prescribable": false,
+      "ingredients": [
+        { "molecule": "TEST E2E molecule", "strength_value": 1, "strength_unit": "mg" }
+      ]
+    }
+  ],
+  "products": []
+}

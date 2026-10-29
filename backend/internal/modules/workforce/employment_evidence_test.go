@@ -230,3 +230,26 @@ func TestEmploymentEvidenceRevokedFileCannotBeDisclosedOrAttached(t *testing.T) 
 	require.Equal(t, 200, current.Code, current.Body.String())
 	require.Contains(t, current.Body.String(), s.input.FileID, "immutable metadata remains available to current authorized HR")
 }
+
+func TestEmploymentEvidenceCannotAttachToWithdrawnDraft(t *testing.T) {
+	s := newDocumentScenario(t)
+	root := employmentEvidencePeriod(t, s)
+	releaseEmploymentEvidence(t, s)
+	path := root + "/" + uuid.Must(uuid.NewV7()).String()
+	body := fmt.Sprintf(`{"command_id":%q,"document_id":%q,"reason":"Synthetic retained evidence"}`, uuid.Must(uuid.NewV7()).String(), s.input.FileID)
+	attached := testutil.Do(s.router, "PUT", path, "manager", body)
+	require.Equal(t, 200, attached.Code, attached.Body.String())
+	period := strings.Split(root, "/revisions/")[0]
+	closed := testutil.Do(s.router, "POST", period+"/withdraw", "manager", fmt.Sprintf(`{"command_id":%q,"expected_version":1,"reason":"Synthetic cancelled preparation"}`, uuid.Must(uuid.NewV7()).String()))
+	require.Equal(t, 200, closed.Code, closed.Body.String())
+	for _, version := range []string{"1", "2"} {
+		attempt := testutil.Do(s.router, "PUT", period+"/revisions/"+version+"/evidence/"+uuid.Must(uuid.NewV7()).String(), "manager", fmt.Sprintf(`{"command_id":%q,"document_id":%q,"reason":"Synthetic invalid new binding"}`, uuid.Must(uuid.NewV7()).String(), s.input.FileID))
+		require.Equal(t, 409, attempt.Code, attempt.Body.String())
+	}
+	retained := testutil.Do(s.router, "GET", path+"/content", "manager", "")
+	require.Equal(t, 200, retained.Code, retained.Body.String())
+	require.Equal(t, s.content, retained.Body.Bytes(), "closing preparation does not erase protected historical evidence")
+	require.Contains(t, retained.Header().Get("Cache-Control"), "no-store")
+	denied := testutil.Do(s.router, "GET", path+"/content", "reader", "")
+	require.NotEqual(t, 200, denied.Code)
+}

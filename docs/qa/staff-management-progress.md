@@ -406,3 +406,51 @@ access. This local fixture is separate from the production Staff reviewer.
 No roles, grants, credentials, backend contracts or migrations changed in this
 UI fix. It has not yet been rolled out to production. The broad acceptance counts
 above are unchanged; a corrected denial heading does not complete a Staff domain.
+
+## Employment draft withdrawal continuation — 2026-10-30
+
+The denied-page heading fix merged as `6cd135d5ff83a3b26558b58dbe7a92deaba03fc8`
+in [PR #1462](https://github.com/tesserix/helivanta/pull/1462), after Go, web,
+browser E2E, security and image checks passed. Production remains on `22b6241`;
+this merge has not been promoted.
+
+The [withdrawal design](../superpowers/specs/2026-10-30-employment-draft-withdrawal.md)
+and [owner contract](../api/workforce.md#withdrawal-of-prepared-employment-terms)
+add a reasoned terminal state for employment preparation. A current hospital
+manager can close a draft, retain its original terms and history, and recover an
+exact command receipt. A closed draft cannot be edited, reopened or receive new
+evidence. Legacy reads stay draft-only; the new UI explicitly requests the
+withdrawal lifecycle projection. This is not employment termination or approval.
+
+Local UI QA used the existing synthetic contractor and normal administrator
+login. It created a separate fixed agency-worker draft with a named contracting
+party, active hospital sponsor and required dates/reference/reason, verified the
+blank withdrawal reason was blocked, then withdrew it. A full browser reload and
+reopening showed terminal revision 2 and both history revisions. The Staff record
+remained inactive; the previously existing contractor draft was unchanged. A
+separate restricted local login saw “No hospital access yet”, with no employment
+terms or withdrawal controls. No role or hospital grant was added for this QA.
+
+Read-only local fixture verification found status `withdrawn`, version 2, two
+retained revisions and exactly one attributable withdrawal audit. That
+administrative verification is persistence evidence, not a runtime authorization
+claim. Real-owner tests separately cover missing permission/foreign scope,
+required fields, source/sponsor drift, stale/reused/duplicate commands, immutable
+terms and terminal database guards. Evidence integration tests reject attachments
+to either old or terminal revisions after closure while retaining protected
+historical downloads and denying an unauthorized reader.
+
+Migration `0052_workforce_employment_withdrawal` is implemented locally; it has
+not been approved or run in production. Full validation/release evidence is
+recorded with the candidate PR. The initial parallel full backend run encountered
+shared Docker dependency readiness/connection failures and is being rerun with
+bounded package parallelism; no test is skipped or acceptance exception granted.
+The initial combined web run found a panel lint violation (corrected) and sign-in
+test timeouts; the final web gate is rerun in CI task order.
+
+All broad acceptance counts remain 8 partial, 12 audit pending, 1 research and
+0 fully accepted. The scoped HR intake role still needs the action/route and
+transaction/disclosure guards described in the access/review continuation plan.
+Independent employment/identity review, effective lifecycle enforcement, transfers,
+photo/card issuance, operational scheduling and payroll/document issuance remain
+open. This bounded draft transition does not complete those journeys.

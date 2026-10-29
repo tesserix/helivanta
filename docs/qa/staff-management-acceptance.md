@@ -1326,3 +1326,26 @@ identity, effective lifecycle enforcement and all broader acceptance areas remai
 open. Private evidence is `staff-22b6241-production-verification.json` and the
 three `production-employment-*.jpg` screenshots in the existing private bundle;
 no credential or private file is committed.
+
+## Employment draft withdrawal — local candidate 2026-10-30
+
+- [x] Normal local administrator login; prepare a separate fixed agency-worker
+      draft with dates, contracting party, active hospital sponsor and reference.
+- [x] Required withdrawal reason; terminal state after one accepted command.
+- [x] Original terms retained, two immutable revisions, current withdrawn state
+      persists after full browser reload and reopening, and Staff remains inactive.
+- [x] Restricted local account has no hospital/terms/withdrawal controls; no new
+      roles or grants added to make the test pass.
+- [x] Real owner tests cover source/sponsor drift, foreign/missing authority,
+      stale and conflicting receipts, concurrent exact retries, database finality
+      and rejection of new evidence after closure.
+- [x] Existing historical evidence remains protected and audited; it is not
+      erased by closing preparation. Unauthorized reader download is denied.
+- [ ] Complete candidate CI, merge, named production rollout/migration approval
+      and deployed UI verification for migration 0052.
+- [ ] Scoped HR intake and independent employment review/approval; this terminal
+      draft action confers neither approval nor operational eligibility.
+
+Private screenshots and read-only local persistence evidence remain outside the
+public repository. See the [tracker](staff-management-progress.md) and
+[design](../superpowers/specs/2026-10-30-employment-draft-withdrawal.md).

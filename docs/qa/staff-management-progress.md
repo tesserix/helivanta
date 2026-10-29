@@ -33,7 +33,7 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
   passed all 30 tasks, including 1,193 shell and 406 API tests. Full Workforce
   race/coverage passed at 83.8%; full architecture and contractdocs checks passed.
 - **Protected employment evidence — locally verified candidate:**
-  [PR #1458](https://github.com/tesserix/helivanta/pull/1458), implementation
+  [PR #1458](https://github.com/tesserix/helivanta/pull/1458), initial implementation
   `720202d3ffaacc10a0274ff82c44844f82dd1e63`; the PR records current hosted
   validation and merge state. Scanned-file
   binding to an exact immutable terms revision, terminal reasoned withdrawal,
@@ -43,7 +43,7 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
   additive and has only been applied locally; production approval is pending.
 - **Validation:** full affected Go race/coverage passed (Workforce 83.6%,
   contractdocs 80.7%, architecture passed); additional evidence/document race
-  checks passed. Final Node 24 web gates passed all 30 tasks, including 1,194
+  checks passed. Final Node 24 web gates passed all 30 tasks, including 1,195
   shell and 408 API tests. Real local Staff Admin UI verified required fields,
   upload, scanner freshness failure/recovery, ready-file selection, navigation
   keep-editing, attach, checksum-matching download and reasoned withdrawal with

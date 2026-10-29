@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import { Panel, Field, FormSelectField, LoadMore, useLeaveGuard, useZodForm } from "@helivanta/ui";
@@ -173,6 +173,7 @@ function EvidenceCommand({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const fieldId = useId();
   const [submitted, setSubmitted] = useState<{
     id: string;
     input: EmploymentEvidenceAttachInput | EmploymentEvidenceWithdrawInput;
@@ -271,7 +272,7 @@ function EvidenceCommand({
             <FormSelectField
               control={form.control}
               name="document_id"
-              id="employment-evidence-file"
+              id={`${fieldId}-file`}
               label="Scanned employment file"
               disabled={save.isPending || submitted !== null}
               options={[
@@ -290,11 +291,11 @@ function EvidenceCommand({
           </div>
         )}
         <Field
-          id="employment-evidence-reason"
+          id={`${fieldId}-reason`}
           label="Reason"
           error={form.formState.errors.reason?.message}
         >
-          <Input id="employment-evidence-reason" maxLength={500} {...form.register("reason")} />
+          <Input id={`${fieldId}-reason`} maxLength={500} {...form.register("reason")} />
         </Field>
       </fieldset>
       {action.kind === "attach" && (

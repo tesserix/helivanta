@@ -104,3 +104,25 @@ it("attaches only an available employment file and retries the exact command", a
     reason: "Synthetic appointment evidence",
   });
 });
+
+it("keeps each evidence command field associated with its own label", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ data: [], page: { has_more: false } })),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentEvidencePanel scope={scope} staffVersion={1} canAttach onClose={() => {}} />
+      <EmploymentEvidencePanel
+        scope={{ ...scope, periodVersion: 2 }}
+        staffVersion={1}
+        canAttach
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  const buttons = await screen.findAllByRole("button", { name: "Attach scanned employment file" });
+  for (const button of buttons) await user.click(button);
+  expect(screen.getAllByLabelText("Reason")).toHaveLength(2);
+  expect(screen.getAllByLabelText("Scanned employment file")).toHaveLength(2);
+});

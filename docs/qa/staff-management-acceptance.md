@@ -1264,7 +1264,8 @@ OpenFGA relationship is added.
   RLS and history tampering; withdrawal during storage retrieval blocks bytes.
 - SDK/UI tests: expected-tenant/subject headers; scope/revision/document receipt
   validation; terminal withdrawal validation; required scanned file/reason and
-  exact command retry following an uncertain 503.
+  exact command retry following an uncertain 503; distinct accessible field
+  associations when multiple evidence commands are open.
 - Local UI: existing synthetic inactive agency worker, terms revision 3. Uploaded
   `synthetic-staff-real-scanner-evidence.png`; stale scanner definitions caused
   Needs attention. Updated real local definitions, retried through UI, observed
@@ -1273,7 +1274,7 @@ OpenFGA relationship is added.
   original SHA-256. Withdrew with a reason; revision 2 is Withdrawn, download
   controls disappear, both immutable revisions remain in history after a full
   page reload and reopen.
-- Gates: all 30 Node 24 web tasks passed (1,194 shell, 408 API tests); full
+- Gates: all 30 Node 24 web tasks passed (1,195 shell, 408 API tests); full
   Workforce race/coverage 83.6%, architecture passed, contractdocs 80.7%; extra
   affected document/evidence race run passed. Vet/build/lint/generator checks
   passed. Migration 0051 is local only. Production 0050 and 0051 are pending

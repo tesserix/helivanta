@@ -221,91 +221,98 @@ function mockEnrollment(
   return { writes, fetcher };
 }
 
-it("keeps long relationship masters unavailable and saves an eligible reference without truncation", async () => {
-  const revision = "33333333-3333-4333-8333-333333333333";
-  const name = "R".repeat(60);
-  const writes: unknown[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string, init?: RequestInit) => {
-      if (init?.method === "PUT") {
-        writes.push(JSON.parse(String(init.body)));
-        return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
-      }
-      const body = url.includes("permissions")
-        ? {
-            tenant_id: hospital,
-            subject: "synthetic-enrollment-admin",
-            data: ["workforce.enrollment.manage"],
-          }
-        : url.endsWith("/hospitals")
+it(
+  "keeps long relationship masters unavailable and saves an eligible reference without truncation",
+  { timeout: 15_000 },
+  async () => {
+    const revision = "33333333-3333-4333-8333-333333333333";
+    const name = "R".repeat(60);
+    const writes: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          writes.push(JSON.parse(String(init.body)));
+          return new Response(JSON.stringify({ message: "Synthetic conflict" }), { status: 409 });
+        }
+        const body = url.includes("permissions")
           ? {
-              data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
-              page: { has_more: false },
+              tenant_id: hospital,
+              subject: "synthetic-enrollment-admin",
+              data: ["workforce.enrollment.manage"],
             }
-          : url.includes("/hr/masters")
+          : url.endsWith("/hospitals")
             ? {
-                data: [
-                  {
-                    id: "synthetic-fit",
-                    revision_id: revision,
-                    kind: "relationship",
-                    code: "SYN-FIT",
-                    name,
-                    active: true,
-                  },
-                  {
-                    id: "synthetic-long",
-                    revision_id: "44444444-3333-4333-8333-333333333333",
-                    kind: "relationship",
-                    code: "SYN-LONG",
-                    name: "𑀓".repeat(61),
-                    active: true,
-                  },
-                ],
+                data: [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
                 page: { has_more: false },
               }
-            : { data: [], page: { has_more: false } };
-      return new Response(JSON.stringify(body), { status: 200 });
-    }),
-  );
-  const { user } = renderWithProviders(<Workforce />);
-  await user.click(await screen.findByRole("button", { name: "Add staff" }));
-  await user.click(screen.getByLabelText("Full name"));
-  await user.paste("Synthetic Contact Staff");
-  await user.click(screen.getByLabelText("Employee code"));
-  await user.paste("SYN-CONTACT-UI");
-  await user.click(screen.getByRole("button", { name: "Add emergency contact" }));
-  const relationship = await screen.findByRole("combobox", { name: "Relationship" });
-  await user.click(relationship);
-  expect(screen.getByRole("option", { name: /SYN-LONG/ })).toHaveAttribute("aria-disabled", "true");
-  await user.keyboard("{Escape}");
-  await chooseOption(user, relationship, `${name} · SYN-FIT`);
-  await user.click(screen.getByLabelText("Contact name"));
-  await user.paste("Synthetic emergency contact");
-  await user.click(screen.getByLabelText("Emergency phone"));
-  await user.paste("+61400000001");
-  expect(screen.getByText(/60 characters/i)).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Save staff" }));
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]).toMatchObject({
-    emergency_contacts: [{ relationship: name, relationship_revision_id: revision }],
-  });
-  await user.click(screen.getByRole("button", { name: "Save staff" }));
-  await waitFor(() => expect(writes).toHaveLength(2));
-  expect(writes[1]).toEqual(writes[0]);
-  await chooseOption(user, relationship, "Enter relationship text");
-  await user.clear(screen.getByLabelText("Relationship text"));
-  await user.click(screen.getByLabelText("Relationship text"));
-  await user.paste("Synthetic free-text support");
-  await user.click(screen.getByRole("button", { name: "Save staff" }));
-  await waitFor(() => expect(writes).toHaveLength(3));
-  expect(writes[2]).toMatchObject({
-    emergency_contacts: [
-      { relationship: "Synthetic free-text support", relationship_revision_id: "" },
-    ],
-  });
-});
+            : url.includes("/hr/masters")
+              ? {
+                  data: [
+                    {
+                      id: "synthetic-fit",
+                      revision_id: revision,
+                      kind: "relationship",
+                      code: "SYN-FIT",
+                      name,
+                      active: true,
+                    },
+                    {
+                      id: "synthetic-long",
+                      revision_id: "44444444-3333-4333-8333-333333333333",
+                      kind: "relationship",
+                      code: "SYN-LONG",
+                      name: "𑀓".repeat(61),
+                      active: true,
+                    },
+                  ],
+                  page: { has_more: false },
+                }
+              : { data: [], page: { has_more: false } };
+        return new Response(JSON.stringify(body), { status: 200 });
+      }),
+    );
+    const { user } = renderWithProviders(<Workforce />);
+    await user.click(await screen.findByRole("button", { name: "Add staff" }));
+    await user.click(screen.getByLabelText("Full name"));
+    await user.paste("Synthetic Contact Staff");
+    await user.click(screen.getByLabelText("Employee code"));
+    await user.paste("SYN-CONTACT-UI");
+    await user.click(screen.getByRole("button", { name: "Add emergency contact" }));
+    const relationship = await screen.findByRole("combobox", { name: "Relationship" });
+    await user.click(relationship);
+    expect(screen.getByRole("option", { name: /SYN-LONG/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.keyboard("{Escape}");
+    await chooseOption(user, relationship, `${name} · SYN-FIT`);
+    await user.click(screen.getByLabelText("Contact name"));
+    await user.paste("Synthetic emergency contact");
+    await user.click(screen.getByLabelText("Emergency phone"));
+    await user.paste("+61400000001");
+    expect(screen.getByText(/60 characters/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      emergency_contacts: [{ relationship: name, relationship_revision_id: revision }],
+    });
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1]).toEqual(writes[0]);
+    await chooseOption(user, relationship, "Enter relationship text");
+    await user.clear(screen.getByLabelText("Relationship text"));
+    await user.click(screen.getByLabelText("Relationship text"));
+    await user.paste("Synthetic free-text support");
+    await user.click(screen.getByRole("button", { name: "Save staff" }));
+    await waitFor(() => expect(writes).toHaveLength(3));
+    expect(writes[2]).toMatchObject({
+      emergency_contacts: [
+        { relationship: "Synthetic free-text support", relationship_revision_id: "" },
+      ],
+    });
+  },
+);
 
 it("selects a qualification revision without replacing its row after a failed save", async () => {
   const revision = "33333333-3333-4333-8333-333333333333";

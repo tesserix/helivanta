@@ -100,8 +100,8 @@ owner Staff/payroll configuration reads and fresh restricted-reviewer denials
 passed. Positive maker/checker/recipient renewal acceptance remains local; full
 Access/RBAC and A01–A12 are not complete.
 
-The user selected Staff profiles and supervision next. The current unmerged
-slice binds protected enrollment to the opening account/workspace, rejects
+The user selected Staff profiles and supervision next. The slice in [PR #1447](https://github.com/tesserix/helivanta/pull/1447)
+binds protected enrollment to the opening account/workspace, rejects
 older/incomplete API acknowledgments and wrong Staff responses, clears private
 forms after account/access loss, and labels inactive supervisor choices. No new
 Staff migration, role, endpoint or table is introduced. See the
@@ -145,3 +145,14 @@ remain under the existing private evidence directory, outside Git. No production
 personnel changes or new production rollout occurred. Issue #1035 and parent #979
 remain open: imports, employee/consultant-specific completeness, full postings,
 related-role coverage and safe offboarding/removal require further acceptance.
+
+The account-bound profile slice is tracked in [PR #1447](https://github.com/tesserix/helivanta/pull/1447).
+Validation before merge includes the full Workforce/Authn race suite (922 seconds),
+final enrollment/master/supervision race regressions (90 seconds), architecture
+checks, affected vet/build/GolangCI-Lint (0 issues), generator/contractdocs checks,
+script tests and a clean staged secret scan. All 30 frontend tasks passed before
+integrating main's later Pharmacy PRs. The integrated run then exceeded the test
+runner's five-second budget in the existing three-save enrollment journey; its
+assertions passed in isolation. That journey now uses the repository's bounded
+15-second long-form test allowance, with all validation/payload/retry assertions
+retained. The final integrated `API_URL=http://127.0.0.1:8199 pnpm turbo lint format:check type-check test build --concurrency=2` rerun passed all 30 tasks, including 1,157 shell tests. Final-commit CI remains a merge gate. This checkpoint is not production acceptance or full Staff-area completion.

@@ -1148,3 +1148,48 @@ The [delivery tracker](staff-management-progress.md) consolidates the complete r
 ### Membership workspace precondition checkpoint — 2026-10-29
 
 Renewal preparation #1442 merged after full CI/E2E as `4a6c6528d65a4a10a3fefcf1e5783884205c1518`; production acceptance remains open. The subsequent Access audit reproduced removal ignoring changed/ambiguous expected-tenant headers. A one-line reuse of the enrollment guard now rejects them before writes; the [delivery tracker](staff-management-progress.md#membership-removal-request-guard-and-provisioning-audit--2026-10-29) records red/green and full local IAM/authentication race evidence, compatibility limits and pending delivery gates. This is not a membership-removal UI or complete provisioning/offboarding.
+
+## Basic directory manager authority correction — 2026-10-29
+
+ADR-0009 and the existing owner HTTP/database tests make an explicit hospital
+manager grant sufficient for basic directory writes. The UI incorrectly also
+required `workforce.staff.manage` (an unregistered permission) or private
+enrollment permission. The correction restores basic add/edit controls to
+hospital managers while retaining the separate enrollment gate. The previous
+manager-only and document-manager tests encoded the wrong authority assumption;
+they now verify basic editing without fetching or exposing private enrollment.
+
+Local synthetic UI acceptance used the approved fixture and its existing
+restricted account. A temporary hospital manager fixture was recorded privately
+and restored to its original reader level after testing. Through the real UI:
+
+- Blank save rejected missing full name and employee code.
+- Basic manager created `SYN-DIR-MGR-20261029`, edited its display name, and
+  verified the saved change after a full reload.
+- The basic form exposed only directory fields; private enrollment and document
+  management controls remained unavailable to this account.
+- Cleanup restored the synthetic record's original name and inactivated it
+  through the UI; no pre-existing Staff records were changed.
+
+The existing real PostgreSQL test
+`TestHospitalStaffRequiresExplicitAccessAndRevocationIsImmediate` passed with
+`-race -count=1`; it covers manager writes without static Staff permissions,
+missing hospital authority and immediate revocation. Regression
+tests were observed failing on the hidden Add/Edit controls before correction.
+
+This slice does not add private HR authority, transfer/posting workflow, basic
+account-bound saves or optimistic basic updates. Those remain acceptance gaps;
+the basic wire contract retains its documented last-commit-wins behavior. Full
+Staff directory/supervision acceptance remains partial.
+
+After fixture restoration, a full UI reload showed read-only Staff with no Add
+or Edit controls. Read-only PostgreSQL verification confirmed the original
+reader grant and the synthetic Staff row inactive at version 3 with its original
+name. Private evidence remains outside Git under the approved local QA directory.
+
+Validation: `API_URL=http://127.0.0.1:8199 pnpm turbo lint format:check type-check
+test build --concurrency=2` passed all 30 tasks (1,913 unit tests across five
+packages). The earlier simultaneous filtered Staff run hit one 5-second payroll
+form timeout; that unchanged test passed in the complete web run. No assertion
+or timeout was relaxed. The focused real-backend authority test also passed.
+CI, merge and production rollout are separate gates from this local evidence.

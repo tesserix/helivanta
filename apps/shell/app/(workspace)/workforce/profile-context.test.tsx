@@ -147,14 +147,14 @@ it.each([{ context: false }, { wrongRecord: true }])(
     expect(screen.queryByRole("button", { name: "Save staff" })).not.toBeInTheDocument();
   },
 );
-it("does not offer staff writes solely because the hospital grant is manager", async () => {
-  setup({ permissions: ["workforce.staff.view"] });
-  renderWithProviders(<Workforce />);
-  await screen.findByText("Synthetic profile employee");
-  expect(
-    screen.queryByRole("button", { name: "Edit Synthetic profile employee" }),
-  ).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
+it("lets a hospital manager edit directory fields without private enrollment access", async () => {
+  const requests = setup({ permissions: [] });
+  const { user } = renderWithProviders(<Workforce />);
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic profile employee" }));
+  expect(screen.getByLabelText("Full name")).toHaveValue(employee.display_name);
+  expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
+  expect(requests.some((request) => request.url.includes("/enrollment"))).toBe(false);
+  expect(screen.getByRole("button", { name: "Save staff" })).toBeInTheDocument();
 });
 
 it("closes protected editing when choice loading detects an account change", async () => {
@@ -207,14 +207,14 @@ it.each([{ status: 409, code: "version_conflict" }, { status: 503 }])(
   },
 );
 
-it("preserves document-only actions without granting profile or directory writes", async () => {
-  setup({ permissions: ["workforce.documents.manage"] });
-  renderWithProviders(<Workforce />);
+it("preserves document management and basic editing without private enrollment access", async () => {
+  const requests = setup({ permissions: ["workforce.documents.manage"] });
+  const { user } = renderWithProviders(<Workforce />);
   expect(
     await screen.findByRole("button", { name: "Documents for Synthetic profile employee" }),
   ).toBeEnabled();
-  expect(
-    screen.queryByRole("button", { name: "Edit Synthetic profile employee" }),
-  ).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Edit Synthetic profile employee" }));
+  expect(screen.getByLabelText("Full name")).toHaveValue(employee.display_name);
+  expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
+  expect(requests.some((request) => request.url.includes("/enrollment"))).toBe(false);
 });

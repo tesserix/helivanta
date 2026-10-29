@@ -469,6 +469,7 @@ function Directory({
       </section>
       {employmentStaff && writable && can("workforce.enrollment.manage") && (
         <StaffEmploymentPeriods
+          canManageDocuments={can("workforce.documents.manage")}
           staffLabel={`${employmentStaff.display_name} · ${employmentStaff.employee_code}`}
           key={employmentStaff.id}
           scope={{ ...scope, hospitalId: hospital.id, staffId: employmentStaff.id }}

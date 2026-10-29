@@ -50,3 +50,44 @@ type EmploymentPeriodDraft struct {
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
+
+type EmploymentEvidenceAttachInput struct {
+	CommandID  uuid.UUID `json:"command_id"`
+	DocumentID uuid.UUID `json:"document_id"`
+	Reason     string    `json:"reason"`
+}
+
+type EmploymentEvidenceWithdrawInput struct {
+	CommandID       uuid.UUID `json:"command_id"`
+	ExpectedVersion *int64    `json:"expected_version"`
+	Reason          string    `json:"reason"`
+}
+
+type EmploymentEvidenceBinding struct {
+	ID                    uuid.UUID `json:"id"`
+	RevisionID            uuid.UUID `json:"revision_id"`
+	HospitalID            uuid.UUID `json:"hospital_id"`
+	StaffID               uuid.UUID `json:"staff_id"`
+	PeriodID              uuid.UUID `json:"period_id"`
+	PeriodRevisionID      uuid.UUID `json:"period_revision_id"`
+	PeriodVersion         int64     `json:"period_version"`
+	Version               int64     `json:"version"`
+	Status                string    `json:"status"`
+	StaffVersion          int64     `json:"staff_version"`
+	EmploymentEpoch       int64     `json:"employment_epoch"`
+	DocumentID            uuid.UUID `json:"document_id"`
+	DocumentRecordVersion int64     `json:"document_record_version"`
+	Filename              string    `json:"filename"`
+	ContentType           string    `json:"content_type"`
+	Size                  int64     `json:"size"`
+	Sha256                string    `json:"sha256"`
+	SourceGeneration      string    `json:"source_generation"`
+	ReleasedGeneration    string    `json:"released_generation"`
+	ScanAttempt           int64     `json:"scan_attempt"`
+	ScannedAt             time.Time `json:"scanned_at"`
+	ProposedBySubject     string    `json:"proposed_by_subject"`
+	ActorSubject          string    `json:"actor_subject"`
+	Reason                string    `json:"reason"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}

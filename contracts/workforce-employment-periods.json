@@ -62,7 +62,10 @@
       {
         "name": "duration",
         "type": "string",
-        "enum": ["fixed", "ongoing"]
+        "enum": [
+          "fixed",
+          "ongoing"
+        ]
       },
       {
         "name": "starts_at",
@@ -126,7 +129,9 @@
       {
         "name": "status",
         "type": "string",
-        "enum": ["draft"]
+        "enum": [
+          "draft"
+        ]
       },
       {
         "name": "staff_version",
@@ -156,7 +161,10 @@
       {
         "name": "duration",
         "type": "string",
-        "enum": ["fixed", "ongoing"]
+        "enum": [
+          "fixed",
+          "ongoing"
+        ]
       },
       {
         "name": "starts_at",
@@ -203,6 +211,187 @@
         "type": "string",
         "min": 1,
         "max": 200
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "EmploymentEvidenceAttachInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "document_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "EmploymentEvidenceWithdrawInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "EmploymentEvidenceBinding": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "attached",
+          "withdrawn"
+        ]
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "document_id",
+        "type": "uuid"
+      },
+      {
+        "name": "document_record_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "filename",
+        "type": "string",
+        "min": 1,
+        "max": 180
+      },
+      {
+        "name": "content_type",
+        "type": "string",
+        "min": 1,
+        "max": 100
+      },
+      {
+        "name": "size",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "sha256",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "source_generation",
+        "type": "string",
+        "min": 1,
+        "max": 19,
+        "pattern": "^[1-9][0-9]{0,18}$"
+      },
+      {
+        "name": "released_generation",
+        "type": "string",
+        "min": 1,
+        "max": 19,
+        "pattern": "^[1-9][0-9]{0,18}$"
+      },
+      {
+        "name": "scan_attempt",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "scanned_at",
+        "type": "time"
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
       },
       {
         "name": "created_at",

@@ -349,9 +349,11 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
-	"GET /workforce/hospitals/:hospital/staff/:id/employment-source":                             "one minimal employment source for one authorized Staff record",
-	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period":                    "one private employment draft; period list and revision history are cursor-paginated",
-	"GET /workforce/hospitals/:hospital/identity-staff/:id/checks/:check":                        "one hospital/staff-scoped identity case; case list and revision history are cursor-paginated",
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding":         "one private evidence binding; evidence list and history are cursor-paginated",
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content": "one reauthorized protected file at its pinned scanned generation",
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-source":                                                       "one minimal employment source for one authorized Staff record",
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period":                                              "one private employment draft; period list and revision history are cursor-paginated",
+	"GET /workforce/hospitals/:hospital/identity-staff/:id/checks/:check":                                                  "one hospital/staff-scoped identity case; case list and revision history are cursor-paginated",
 	"GET /iam/staff-access-templates":                                                            "finite canonical catalogue of three versioned templates, no tenant record collection",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                      "one current identity review source for an authorized staff UUID",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule":         "one product's class in force with its last 50 declarations",

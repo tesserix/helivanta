@@ -10,6 +10,38 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
 - Record local positive UI QA separately from production positive or denial QA. A test count, route, screenshot, migration job or published release alone does not establish workflow completion.
 - Keep issues open until their actual acceptance criteria pass. Legacy issue references to Keycloak or proposed tables must be reconciled with current Zitadel/IAM/Workforce ownership before implementation.
 
+## Current delivery checkpoint — 2026-10-29
+
+- **Production:** `5fb03897dd0c2d7afca580c44edc21b987909b52`, released as
+  [Staff profile editing and integration recovery](https://github.com/tesserix/helivanta/releases/tag/2026-10-29-staff-profile-editing).
+  All five approved migrations were verified applied; six application workloads
+  had two ready/available replicas and API/Global API/shell were Synced/Healthy.
+  Production Admin edit/save/reopen/restoration passed on retained synthetic Staff.
+- **Merged, not yet deployed:** [PR #1457](https://github.com/tesserix/helivanta/pull/1457),
+  `334a6117090ccec4a2b69ba69af0c056413ff4da`. Its tree matches the fully passing
+  final PR head `1894bac7d2a33572c8999ecb901a7ecc0b590a1f`.
+  [CI 40852324440](https://github.com/tesserix/helivanta/actions/runs/40852324440)
+  passed web, end-to-end, scripts, secret scan and full Go/latency checks.
+  [Image publication 40856363955](https://github.com/tesserix/helivanta/actions/runs/40856363955)
+  succeeded. Production approval of this exact revision and
+  `0050_workforce_employment_period_drafts` is still pending; the earlier approval
+  for five inherited migrations does not include this new migration.
+- **Local acceptance for the draft slice:** required fixed/ongoing terms,
+  contractor/agency party and named active sponsor, create/edit/reload, immutable
+  revisions, two-tab stale refusal, exact uncertain retry, source/version/scope
+  denial, and explicit keep-editing/discard behavior. Final Node 24 web gates
+  passed all 30 tasks, including 1,193 shell and 406 API tests. Full Workforce
+  race/coverage passed at 83.8%; full architecture and contractdocs checks passed.
+- **Next slice:** protected employment evidence binding. A typed reference alone
+  does not establish verified evidence. Reuse Workforce's scanned private file
+  owner, pin the exact file/generation and source revision, preserve history, and
+  deny wrong Staff/hospital, unavailable, revoked or stale evidence. Independent
+  submission/review and operational activation remain subsequent gates.
+
+No full Staff area or broad GitHub issue is newly marked complete. Contract
+expiry, suspension, resignation, termination, rehire, transfers, cards, payroll
+execution and generated letters still need their complete owner/consumer tests.
+
 ## Quantitative checkpoint — 2026-10-29
 
 The 21 tracked areas currently comprise **8 partial (38.1%)**, **12 audit pending
@@ -19,15 +51,11 @@ estimate that 38.1% of engineering effort is complete. The remaining scenarios
 vary substantially in size, so no defensible overall effort or time percentage
 is available yet.
 
-The next directory slice corrects a UI authority mismatch: basic directory
-writes use the explicit hospital manager grant defined by ADR-0009, whereas
-private enrollment additionally requires `workforce.enrollment.manage`.
-`workforce.staff.manage` is not a registered permission and must not gate basic
-editing. This does not complete scoped HR role templates, dated transfers,
-offboarding, account-bound basic saves or optimistic basic-directory updates.
-The legacy basic update contract still uses last-commit-wins semantics.
-
-## Full scope
+The directory authority and account/version guards are deployed in the production
+checkpoint above. Private employment-term draft preparation is merged and fully
+CI-validated, with its production migration still awaiting approval. Scoped HR
+role templates, reviewed employment decisions, dated transfers and offboarding
+remain open; a directory status or draft term is not proof of operational cutoff.
 
 | Area                            | Status                                      | Verified work / evidence                                                                                                                                                                                        | Remaining acceptance                                                                                                                                                                                                |
 | ------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

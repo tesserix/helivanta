@@ -19,7 +19,7 @@ func registeredPatientConsumer() events.Consumer {
 	subject := patientmastercontract.SubjectPatientRegistered
 	return events.Consumer{Name: "pharmacy-patient-registered", Subject: subject, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 		var d patientmastercontract.PatientRegisteredData
-		if evt.Type != subject || evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &d) != nil {
+		if evt.Type != patientmastercontract.TypePatientRegistered || evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &d) != nil {
 			return errors.New("invalid patient registration event")
 		}
 		patient, err1 := uuid.Parse(d.PatientID)

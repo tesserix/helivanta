@@ -549,7 +549,7 @@ func (h *patientHandlers) register(c *gin.Context) {
 			return fmt.Errorf("marshaling patient.registered payload: %w", err)
 		}
 		if err := h.bus.Publish(tx, patientmastercontract.SubjectPatientRegistered, events.Event{
-			Type: "PatientRegistered", Version: 1, TenantID: principal.TenantID, Data: data,
+			Type: patientmastercontract.TypePatientRegistered, Version: 1, TenantID: principal.TenantID, Data: data,
 		}); err != nil {
 			return fmt.Errorf("publishing patient.registered: %w", err)
 		}

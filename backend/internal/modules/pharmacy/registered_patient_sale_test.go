@@ -34,8 +34,12 @@ func TestARegisteredPatientSaleNeedsAVerifiedLink(t *testing.T) {
 		data, err := json.Marshal(v)
 		require.NoError(t, err)
 		c := consumers[name]
+		eventType := c.Subject
+		if name == "pharmacy-patient-registered" {
+			eventType = patientmastercontract.TypePatientRegistered
+		}
 		require.NoError(t, w.db.WithTenant(tenantdb.WithActor(t.Context(), "system:"+name), testutil.TenantA, func(tx *gorm.DB) error {
-			return c.Handle(t.Context(), tx, events.Event{Type: c.Subject, Version: 1, TenantID: testutil.TenantA, Data: data})
+			return c.Handle(t.Context(), tx, events.Event{Type: eventType, Version: 1, TenantID: testutil.TenantA, Data: data})
 		}))
 	}
 	register := func(hospital string) string {
@@ -164,7 +168,11 @@ func TestARegisteredPatientSaleWaitsForAVerificationStep(t *testing.T) {
 		data, err := json.Marshal(v)
 		require.NoError(t, err)
 		c := consumers[name]
-		return c.Handle(t.Context(), tx, events.Event{Type: c.Subject, Version: 1, TenantID: testutil.TenantA, Data: data})
+		eventType := c.Subject
+		if name == "pharmacy-patient-registered" {
+			eventType = patientmastercontract.TypePatientRegistered
+		}
+		return c.Handle(t.Context(), tx, events.Event{Type: eventType, Version: 1, TenantID: testutil.TenantA, Data: data})
 	}
 	inTenant := func(name string, fn func(tx *gorm.DB) error) error {
 		return w.db.WithTenant(tenantdb.WithActor(t.Context(), "system:"+name), testutil.TenantA, fn)

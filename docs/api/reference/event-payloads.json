@@ -848,7 +848,7 @@
     }
   },
   "helivanta.in.patientmaster.clinical_consent_changed.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:66",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:69",
     "go_type": "ClinicalConsentChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -868,7 +868,7 @@
     }
   },
   "helivanta.in.patientmaster.consent_authority_changed.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:39",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:42",
     "go_type": "ConsentAuthorityChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -888,7 +888,7 @@
     }
   },
   "helivanta.in.patientmaster.pharmacy_affiliation_decided.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:86",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:89",
     "go_type": "PharmacyAffiliationDecidedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -924,7 +924,7 @@
     }
   },
   "helivanta.in.patientmaster.pharmacy_affiliation_received.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:100",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:103",
     "go_type": "PharmacyAffiliationReceivedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -948,7 +948,7 @@
     }
   },
   "helivanta.in.patientmaster.proxy_authority_changed.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:75",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:78",
     "go_type": "ProxyAuthorityChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -968,7 +968,7 @@
     }
   },
   "helivanta.in.patientmaster.registered.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:16",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:19",
     "go_type": "PatientRegisteredData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -988,7 +988,7 @@
     }
   },
   "helivanta.in.patientmaster.registration_reviewed.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:25",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:28",
     "go_type": "RegistrationReviewedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1028,7 +1028,7 @@
     }
   },
   "helivanta.in.patientmaster.sharing_notice_changed.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:48",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:51",
     "go_type": "SharingNoticeChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1048,7 +1048,7 @@
     }
   },
   "helivanta.in.patientmaster.sharing_recipient_changed.v1": {
-    "source": "backend/internal/modules/patientmaster/contract/events.go:57",
+    "source": "backend/internal/modules/patientmaster/contract/events.go:60",
     "go_type": "SharingRecipientChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -386,7 +386,7 @@ func (h *memberHandlers) grant(c *gin.Context) {
 // unconditionally so a re-issued revoke can still clear a stuck FGA
 // tuple even when no row matched.
 func (h *memberHandlers) revoke(c *gin.Context) {
-	p, _, ok := authn.TenantPrincipal(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import AccessPage from "./page";
 
@@ -267,4 +267,137 @@ it("identifies HR assignment records using the canonical template name", async (
   expect(
     await screen.findByRole("heading", { name: "Staff identity checks manager · candidate" }),
   ).toBeInTheDocument();
+});
+
+it("prepares renewal as a new independently reviewed proposal without changing the old assignment", async () => {
+  setup("proposer", [{ ...row, status: "active" }]);
+  const read = fetch;
+  const proposals: Array<{ url: string; body: typeof row.input; tenant: string | null }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method !== "PUT") return read(url, init);
+      const body = JSON.parse(String(init.body));
+      proposals.push({
+        url,
+        body,
+        tenant: new Headers(init.headers).get("X-Helivanta-Expected-Tenant"),
+      });
+      return Response.json({
+        ...row,
+        id: url.split("/").at(-1),
+        input: body,
+        status: "pending_scope",
+        version: 1,
+      });
+    }),
+  );
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.click(await screen.findByRole("button", { name: "Renew access" }));
+  const form = within(screen.getByRole("form", { name: "Renew assignment" }));
+  expect(form.getByText(/new proposal.*independent review/i)).toBeInTheDocument();
+  expect(form.getByLabelText("Account ID")).toHaveValue("candidate");
+  expect(form.getByLabelText("Account ID")).toHaveAttribute("readonly");
+  expect(form.getByLabelText("Starts at")).toHaveValue("");
+  expect(form.getByLabelText("Expires at")).toHaveValue("");
+  await user.click(form.getByRole("button", { name: "Propose renewal" }));
+  expect(proposals).toHaveLength(0);
+  expect(form.getByLabelText("Starts at")).toHaveAttribute("aria-invalid", "true");
+  expect(form.getByLabelText("Expires at")).toHaveAttribute("aria-invalid", "true");
+  expect(form.getByLabelText("Reason")).toHaveAttribute("aria-invalid", "true");
+  const start = new Date(Date.now() + 2 * 86400000);
+  const end = new Date(Date.now() + 3 * 86400000);
+  const local = (date: Date) =>
+    new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  fireEvent.change(form.getByLabelText("Starts at"), { target: { value: local(start) } });
+  fireEvent.change(form.getByLabelText("Expires at"), { target: { value: local(end) } });
+  await user.type(form.getByLabelText("Reason"), "Synthetic continued review duty");
+  await user.click(form.getByRole("button", { name: "Propose renewal" }));
+  await waitFor(() => expect(proposals).toHaveLength(1));
+  expect(proposals[0]?.url).not.toContain(id);
+  expect(proposals[0]?.tenant).toBe(tenant);
+  expect(proposals[0]?.body).toMatchObject({
+    hospital_id: hospital,
+    subject: "candidate",
+    template_key: row.input.template_key,
+    reason: `Renewal of ${id} v2: Synthetic continued review duty`,
+  });
+  expect(
+    Date.parse(proposals[0]!.body.expires_at) - Date.parse(proposals[0]!.body.valid_from),
+  ).toBe(86400000);
+  expect(await screen.findByText(/Proposal recorded/)).toBeInTheDocument();
+});
+
+it("allows an expired activated assignment to seed a fresh proposal", async () => {
+  setup("proposer", [
+    { ...row, status: "active", input: { ...row.input, expires_at: "2000-01-01T00:00:00Z" } },
+  ]);
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.click(await screen.findByRole("button", { name: "Renew access" }));
+  expect(screen.getByRole("form", { name: "Renew assignment" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Reason")).toHaveValue("");
+});
+
+it.each([
+  "pending_review",
+  "withdrawn",
+  "rejected",
+  "scope_rejected",
+  "approved_pending_activation",
+])("does not offer renewal for %s assignments", async (status) => {
+  setup("proposer", [{ ...row, status }]);
+  renderWithProviders(<AccessPage />);
+  await screen.findByText("Synthetic review");
+  expect(screen.queryByRole("button", { name: "Renew access" })).not.toBeInTheDocument();
+});
+
+it("does not offer renewal to review-only accounts", async () => {
+  setup("reviewer", [{ ...row, status: "active" }], ["iam.assignment.review"]);
+  renderWithProviders(<AccessPage />);
+  await screen.findByText("Synthetic review");
+  expect(screen.queryByRole("button", { name: "Renew access" })).not.toBeInTheDocument();
+});
+
+it("retains the renewal proposal ID and exact payload after an uncertain response", async () => {
+  setup("proposer", [{ ...row, status: "active" }]);
+  const read = fetch;
+  const attempts: Array<{ url: string; body: string }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method !== "PUT") return read(url, init);
+      attempts.push({ url, body: String(init.body) });
+      if (attempts.length === 1)
+        return Response.json({ error: "unavailable", message: "Unavailable" }, { status: 502 });
+      return Response.json({
+        ...row,
+        id: url.split("/").at(-1),
+        input: JSON.parse(String(init.body)),
+        status: "pending_scope",
+        version: 1,
+      });
+    }),
+  );
+  const { user } = renderWithProviders(<AccessPage />);
+  await user.click(await screen.findByRole("button", { name: "Renew access" }));
+  const local = (days: number) => {
+    const date = new Date(Date.now() + days * 86400000);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+  fireEvent.change(screen.getByLabelText("Starts at"), { target: { value: local(2) } });
+  fireEvent.change(screen.getByLabelText("Expires at"), { target: { value: local(3) } });
+  await user.type(screen.getByLabelText("Reason"), "x".repeat(500));
+  await user.click(screen.getByRole("button", { name: "Propose renewal" }));
+  expect(screen.getByLabelText("Reason")).toHaveAttribute("aria-invalid", "true");
+  expect(attempts).toHaveLength(0);
+  await user.clear(screen.getByLabelText("Reason"));
+  await user.type(screen.getByLabelText("Reason"), "Synthetic renewed review duty");
+  await user.click(screen.getByRole("button", { name: "Propose renewal" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("may have been recorded");
+  expect(screen.getByLabelText("Reason")).toBeDisabled();
+  expect(screen.getByLabelText("Starts at")).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Retry same request" }));
+  await waitFor(() => expect(attempts).toHaveLength(2));
+  expect(attempts[0]).toEqual(attempts[1]);
+  expect(await screen.findByText(/Proposal recorded/)).toBeInTheDocument();
 });

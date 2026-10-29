@@ -161,8 +161,9 @@ func loadBill(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, number 
 
 func billNumber(c *gin.Context) (uuid.UUID, int, bool) {
 	admission, err := uuid.Parse(c.Param("admission"))
-	number, nerr := strconv.Atoi(c.Param("number"))
-	return admission, number, err == nil && nerr == nil && number >= 1
+	// The column is an integer: a larger number is no bill, not an error.
+	number, nerr := strconv.ParseInt(c.Param("number"), 10, 32)
+	return admission, int(number), err == nil && nerr == nil && number >= 1
 }
 
 func (h *handlers) interimBill(c *gin.Context) {

@@ -15,7 +15,10 @@ CREATE TABLE billing_interim_bills (
  number integer NOT NULL CHECK (number >= 1),
  id uuid NOT NULL CHECK (substring(id::text,15,1)='7'),
  issued_by text NOT NULL CHECK (length(btrim(issued_by)) BETWEEN 1 AND 200),
- issued_at timestamptz NOT NULL DEFAULT now(),
+ -- Both set by the trigger, after the issuing request holds the admission's
+ -- lock: the time follows the number, and lines are tied to the transaction.
+ issued_at timestamptz NOT NULL,
+ issuing_xact xid8 NOT NULL,
  -- Live bed days without a rate when issued: they have no amount, and the
  -- bill says so rather than implying zero.
  unpriced_bed_days integer NOT NULL CHECK (unpriced_bed_days >= 0),
@@ -57,17 +60,19 @@ CREATE POLICY tenant_isolation ON billing_interim_bill_lines
 -- The bill is audited; its lines are fixed with it and name audited entries.
 CREATE TRIGGER billing_interim_bills_audit AFTER INSERT ON billing_interim_bills FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 
--- The next number, on an open account, as issued now. The account row is
--- share-locked so a release cannot close it under a bill being issued.
+-- The next number, on an open account, stamped as issued now. The account
+-- row is share-locked so a release cannot close it under a bill being issued.
 CREATE FUNCTION billing_interim_bill_next() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  PERFORM 1 FROM billing_admission_accounts WHERE tenant_id=NEW.tenant_id AND hospital_id=NEW.hospital_id AND admission_id=NEW.admission_id AND status='open' FOR SHARE;
  IF NOT FOUND THEN
   RAISE EXCEPTION 'an interim bill is issued only on an open account' USING ERRCODE='23514', CONSTRAINT='billing_interim_bill_open';
  END IF;
- IF NEW.issued_at IS DISTINCT FROM now() OR NEW.number <> (SELECT COALESCE(max(number),0)+1 FROM billing_interim_bills WHERE tenant_id=NEW.tenant_id AND admission_id=NEW.admission_id) THEN
+ IF NEW.issued_at IS NOT NULL OR NEW.issuing_xact IS NOT NULL OR NEW.number <> (SELECT COALESCE(max(number),0)+1 FROM billing_interim_bills WHERE tenant_id=NEW.tenant_id AND admission_id=NEW.admission_id) THEN
   RAISE EXCEPTION 'interim bills are numbered in order as they are issued' USING ERRCODE='23514';
  END IF;
+ NEW.issued_at := clock_timestamp();
+ NEW.issuing_xact := pg_current_xact_id();
  RETURN NEW;
 END $$;
 CREATE TRIGGER billing_interim_bill_next BEFORE INSERT ON billing_interim_bills FOR EACH ROW EXECUTE FUNCTION billing_interim_bill_next();
@@ -77,7 +82,7 @@ CREATE TRIGGER billing_interim_bill_next BEFORE INSERT ON billing_interim_bills 
 CREATE FUNCTION billing_interim_bill_line_issued() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  PERFORM 1 FROM billing_interim_bills WHERE tenant_id=NEW.tenant_id AND hospital_id=NEW.hospital_id AND admission_id=NEW.admission_id AND number=NEW.number
-  AND issued_at=now() AND issued_by=NULLIF(current_setting('app.actor_subject',true),'');
+  AND issuing_xact=pg_current_xact_id() AND issued_by=NULLIF(current_setting('app.actor_subject',true),'');
  IF NOT FOUND THEN
   RAISE EXCEPTION 'a bill''s lines are written only as it is issued' USING ERRCODE='23514';
  END IF;

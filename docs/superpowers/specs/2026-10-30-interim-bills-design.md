@@ -35,15 +35,18 @@ be shown again exactly as it was.
   implying zero.
 - **Nothing new, no bill.** Issuing when the account has no entry the previous bill lacks
   and the unpriced count is unchanged is refused `409 nothing_new`. That also absorbs a
-  double click. An account with no entries has nothing to bill: the same `409`.
+  double click. An account with no entries and no unpriced bed days has nothing to
+  bill: the same `409`. One with only unpriced days gets a bill saying so (builder's call).
 
 ## Rules enforced in the database
 
 - Bill numbers are the previous number plus one per admission (trigger), unique (primary
   key), and only on an open account (trigger).
 - Lines are inserted only in the transaction that issued their bill (trigger compares the
-  bill's `issued_at`, the issuing transaction's `now()`), and only name entries of the same
-  admission (foreign key on `(tenant, admission, entry)`).
+  transaction id stored on the bill), and only name entries of the same admission
+  (foreign key on `(tenant, admission, entry)`).
+- The issue time is stamped by the trigger once the admission lock is held, so times
+  follow numbers.
 - No update or delete of bills or lines.
 - Row security: read and write only at hospitals where the caller holds a billing grant;
   the issuer is the acting subject.

@@ -86,7 +86,8 @@ function BillDetail({ path }: { path: string }) {
     ["billing", "interim-bill-lines", path],
     `${path}/lines`,
   );
-  if (bill.isPending) return null;
+  if (bill.isPending)
+    return <p className="mt-2 text-xs text-muted-foreground">Loading the bill…</p>;
   if (bill.isError)
     return <RequestFailure message="Could not load the bill." retry={() => void bill.refetch()} />;
   const b = bill.data;

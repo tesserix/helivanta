@@ -3617,7 +3617,7 @@
         },
         {
           "id": "0003_billing",
-          "sql_sha256": "2b8b577456de3ea33f39cf49bc4c5bc3b1421d9f7bcd5bc3d10614472afa7112",
+          "sql_sha256": "4be0be5e26afb95cb471ebad3b3d9706a8174c476501d234967df0ae070a43ca",
           "creates_tables": [
             "billing_interim_bills",
             "billing_interim_bill_lines"

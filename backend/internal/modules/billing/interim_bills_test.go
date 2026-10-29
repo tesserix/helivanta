@@ -2,6 +2,7 @@ package billing_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sync"
 	"testing"
@@ -129,6 +130,7 @@ func TestInterimBillsFreezeTheAccountAndNumberInOrder(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", bills+"/3", "nurse", "").Code)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", bills+"/3/lines", "nurse", "").Code)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", bills+"/0", "nurse", "").Code)
+	require.Equal(t, http.StatusNotFound, do(w.r, "GET", bills+"/3000000000", "nurse", "").Code)
 
 	w.charge(admission, patient, 700)
 	require.NoError(t, w.release(admission, patient, time.Now()))
@@ -227,6 +229,29 @@ func TestInterimBillTablesRefuseLateLinesAndOtherWriters(t *testing.T) {
 		return tx.Exec(`INSERT INTO billing_interim_bills (tenant_id,hospital_id,admission_id,number,id,issued_by,issued_at,unpriced_bed_days) VALUES (?,?,?,2,?,'user-clerk',now()-interval '1 day',0)`,
 			testutil.TenantA, w.hospital, admission, uuid.Must(uuid.NewV7())).Error
 	}), "a bill is issued now, never backdated")
+
+	// Stamped when issued, after any wait, not when the transaction began; its
+	// own transaction may write its lines.
+	errRollback := errors.New("rollback")
+	require.ErrorIs(t, asClerk(func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT pg_sleep(0.05)`).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`INSERT INTO billing_interim_bills (tenant_id,hospital_id,admission_id,number,id,issued_by,unpriced_bed_days) VALUES (?,?,?,2,?,'user-clerk',0)`,
+			testutil.TenantA, w.hospital, admission, uuid.Must(uuid.NewV7())).Error; err != nil {
+			return err
+		}
+		var later bool
+		if err := tx.Raw(`SELECT issued_at > now() FROM billing_interim_bills WHERE admission_id=? AND number=2`, admission).Scan(&later).Error; err != nil {
+			return err
+		}
+		require.True(t, later, "issued after the wait")
+		if err := tx.Exec(`INSERT INTO billing_interim_bill_lines (tenant_id,hospital_id,admission_id,number,id,new)
+ SELECT tenant_id,hospital_id,admission_id,2,id,true FROM billing_account_entries WHERE admission_id=?`, admission).Error; err != nil {
+			return err
+		}
+		return errRollback
+	}), errRollback)
 
 	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-outsider"), testutil.TenantA, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.billing_subject','user-outsider',true)`).Error; err != nil {

@@ -1,6 +1,6 @@
 # Staff Management delivery tracker
 
-Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
 ## Status and completion rules
 
@@ -10,53 +10,54 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
 - Record local positive UI QA separately from production positive or denial QA. A test count, route, screenshot, migration job or published release alone does not establish workflow completion.
 - Keep issues open until their actual acceptance criteria pass. Legacy issue references to Keycloak or proposed tables must be reconciled with current Zitadel/IAM/Workforce ownership before implementation.
 
-## Current delivery checkpoint — 2026-10-29
+## Current delivery checkpoint — 2026-10-30
 
-- **Production:** `5fb03897dd0c2d7afca580c44edc21b987909b52`, released as
-  [Staff profile editing and integration recovery](https://github.com/tesserix/helivanta/releases/tag/2026-10-29-staff-profile-editing).
-  All five approved migrations were verified applied; six application workloads
-  had two ready/available replicas and API/Global API/shell were Synced/Healthy.
-  Production Admin edit/save/reopen/restoration passed on retained synthetic Staff.
-- **Merged, not yet deployed:** [PR #1457](https://github.com/tesserix/helivanta/pull/1457),
-  `334a6117090ccec4a2b69ba69af0c056413ff4da`. Its tree matches the fully passing
-  final PR head `1894bac7d2a33572c8999ecb901a7ecc0b590a1f`.
-  [CI 40852324440](https://github.com/tesserix/helivanta/actions/runs/40852324440)
-  passed web, end-to-end, scripts, secret scan and full Go/latency checks.
-  [Image publication 40856363955](https://github.com/tesserix/helivanta/actions/runs/40856363955)
-  succeeded. Production approval of this exact revision and
-  `0050_workforce_employment_period_drafts` is still pending; the earlier approval
-  for five inherited migrations does not include this new migration.
-- **Local acceptance for the draft slice:** required fixed/ongoing terms,
-  contractor/agency party and named active sponsor, create/edit/reload, immutable
-  revisions, two-tab stale refusal, exact uncertain retry, source/version/scope
-  denial, and explicit keep-editing/discard behavior. Final Node 24 web gates
-  passed all 30 tasks, including 1,193 shell and 406 API tests. Full Workforce
-  race/coverage passed at 83.8%; full architecture and contractdocs checks passed.
-- **Protected employment evidence — locally verified candidate:**
-  [PR #1458](https://github.com/tesserix/helivanta/pull/1458), initial implementation
-  `720202d3ffaacc10a0274ff82c44844f82dd1e63`; the PR records current hosted
-  validation and merge state. Scanned-file
-  binding to an exact immutable terms revision, terminal reasoned withdrawal,
-  retained receipts/history, combined fresh enrollment/document permissions and
-  current hospital manager scope. No new approval, access grant or employment
-  activation is introduced. Migration `0051_workforce_employment_evidence` is
-  additive and has only been applied locally; production approval is pending.
-- **Validation:** full affected Go race/coverage passed (Workforce 83.6%,
-  contractdocs 80.7%, architecture passed); additional evidence/document race
-  checks passed. Final Node 24 web gates passed all 30 tasks, including 1,195
-  shell and 408 API tests. Real local Staff Admin UI verified required fields,
-  upload, scanner freshness failure/recovery, ready-file selection, navigation
-  keep-editing, attach, checksum-matching download and reasoned withdrawal with
-  both immutable revisions. Synthetic contractor remained inactive.
-- **Next slice:** immutable employment submission and independent review, with
-  source-change/concurrency and downstream access activation gates. Evidence
-  binding records scanned bytes; it does not verify the employment claim.
+- **Production:** `22b6241ed0ece7180d713b77145104a63d95d343`,
+  [employment draft and evidence release](https://github.com/tesserix/helivanta/releases/tag/2026-10-30-staff-employment-evidence),
+  [PR #1458](https://github.com/tesserix/helivanta/pull/1458), including draft
+  preparation [PR #1457](https://github.com/tesserix/helivanta/pull/1457).
+  The user approved this exact rollout and migrations `0050` and `0051`.
+- **Deployment verified:** Kargo promotion
+  `prod.01m63tbd92xn9gt1ntzzmjb6er.dcd330a` succeeded. All six application
+  workloads have two updated, ready and available replicas on the exact source.
+  API, Global API and shell are Synced/Healthy. Both migrations are recorded;
+  all four new private tables have enabled and forced RLS. CNPG had two healthy
+  instances and a successful `2026-10-29T12:00:24Z` backup.
+- **Production UI:** fresh synthetic owner login, wrong-tenant no-hospital denial,
+  correct-tenant existing manager grant, ongoing draft save, real PNG upload and
+  scan, binding to terms revision 1, reasoned withdrawal to binding revision 2,
+  retained revisions 1–2 and full reload/reopen. The Staff member stayed inactive.
+  Two protected downloads were authorized and audited with 179-byte metadata and
+  the expected checksum. **A newly saved production browser file was not captured
+  by automation; that artifact check remains unconfirmed.** The earlier local
+  downloaded-file SHA-256 check passed.
+- **Reviewer:** the user explicitly authorized backend password rotation for the
+  synthetic reviewer. Its credential was changed through the existing
+  credential-verified password-change backend, the private JSON was updated with
+  mode `0600`, and a fresh normal UI login succeeded. Staff hospital access and
+  payroll access stayed denied. No role, membership, MFA policy or hospital grant
+  was expanded. This is restricted-role QA, not an employment approval.
+- **Validation:** [PR CI](https://github.com/tesserix/helivanta/actions/runs/40868299072)
+  and [merged-source CI](https://github.com/tesserix/helivanta/actions/runs/40872297255)
+  passed, including E2E, Go coverage/latency and web checks. Image publication
+  [40872296822](https://github.com/tesserix/helivanta/actions/runs/40872296822)
+  passed. The merge tree exactly matches tested PR head
+  `ab66664b0ab443011f1e6b2c0280adbd701da8e4`. Final local web gates passed all
+  30 tasks (1,195 shell and 408 API tests); Workforce race coverage was 83.6%.
+- **Next work:** scoped HR intake administration and a safe current-person basis
+  for independent employment submission/review. See the
+  [source-verified continuation plan](../superpowers/plans/2026-10-30-staff-access-and-review-continuation.md)
+  and [open-issue map](staff-management-open-issues.md). Adding a role label or an
+  approval button does not implement transaction-bound authority or safe new-hire
+  identity. Effective lifecycle activation remains a separate owner/consumer gate.
 
-No full Staff area or broad GitHub issue is newly marked complete. Contract
-expiry, suspension, resignation, termination, rehire, transfers, cards, payroll
-execution and generated letters still need their complete owner/consumer tests.
+No broad Staff area or umbrella issue is newly marked complete. Deployment of
+private drafts/evidence does not implement employment approval, access activation,
+expiry, suspension, resignation, termination, rehire, payroll runs or letters.
+Historical checkpoints below retain the state when recorded; this checkpoint is
+the current delivery state.
 
-## Quantitative checkpoint — 2026-10-29
+## Quantitative checkpoint — 2026-10-30
 
 The 21 tracked areas currently comprise **8 partial (38.1%)**, **12 audit pending
 (57.1%)** and **1 research/proposal (4.8%)**. **0/21 are fully accepted (0%)**;

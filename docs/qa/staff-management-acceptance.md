@@ -1284,3 +1284,45 @@ Private browser evidence and fixture/runtime details remain under
 `~/.helivanta/staff-management-20261027/`; no credentials or Staff files are
 committed. Independent reviewer positive/negative UI acceptance belongs to the
 forthcoming employment decision slice; no such approval is fabricated here.
+
+## Employment draft/evidence production rollout — 2026-10-30
+
+The user approved source `22b6241ed0ece7180d713b77145104a63d95d343` and both
+`0050_workforce_employment_period_drafts` and `0051_workforce_employment_evidence`.
+Kargo promotion `prod.01m63tbd92xn9gt1ntzzmjb6er.dcd330a` succeeded. Both migration
+IDs are present; all four new tables have enabled and forced RLS. Six application
+workloads have two updated/ready/available replicas on this source. API, Global
+API and shell are Synced/Healthy; PostgreSQL has two healthy instances.
+
+Actual production UI on the retained synthetic inactive employee:
+
+- Fresh owner login initially selected another tenant with no hospital access.
+  Selecting the established QA tenant exposed its existing explicit manager
+  grant. No grant was created to make this test pass.
+- Saved an ongoing employee draft with a source reference, explicit start and
+  reason; re-opened terms revision 1. No employment or access activation occurred.
+- Uploaded the designated 179-byte synthetic PNG through Documents. Real storage
+  and scanning produced Ready; attached it to terms revision 1 with a reason.
+- Two protected download attempts were authorized and audited. The available
+  file metadata has the expected SHA-256. The UI completed without an error, but
+  automation did not capture a newly saved browser file. **Production browser
+  artifact capture remains unconfirmed**, rather than borrowing the earlier
+  successful local downloaded-file checksum result.
+- Withdrew with a reason, observed binding revision 2 and removal of download
+  controls. A full page reload/reopen retained the withdrawn binding and both
+  immutable history revisions. Read-only SQL verified the Staff remains inactive.
+- The synthetic Staff reviewer required its initial password change. Following
+  explicit user approval, the existing backend changed its password with current
+  credential/session proof and organization policy enforcement. The private
+  fixture was atomically updated with mode `0600`, its temporary journal removed,
+  and a fresh normal UI login succeeded. Staff hospital access and payroll access
+  stayed denied. No permission, membership, MFA policy or hospital grant changed.
+
+PR CI 40868299072, main CI 40872297255 and image workflow 40872296822 passed. The
+merge tree matches tested PR head `ab66664b0ab443011f1e6b2c0280adbd701da8e4`.
+The release and PR labels describe this bounded delivery, not completed Staff
+Management. Employment submission, independent decisions, current-person/new-hire
+identity, effective lifecycle enforcement and all broader acceptance areas remain
+open. Private evidence is `staff-22b6241-production-verification.json` and the
+three `production-employment-*.jpg` screenshots in the existing private bundle;
+no credential or private file is committed.

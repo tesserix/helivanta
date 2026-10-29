@@ -23,6 +23,7 @@ import (
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/mediconnectclaims"
+	"github.com/tesserix/helivanta/internal/modules/billing"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
@@ -600,6 +601,9 @@ func run() error {
 	// the bus dead-letters after five failures and nothing replays them.
 	go pharmacy.RunAffiliationRedelivery(ctx, deps)
 	go patientmaster.RunPharmacyAffiliationRedelivery(ctx, deps)
+	// #197: counts each midnight a patient spends in a bed, and applies new
+	// bed-charging setup to the stays it affects.
+	go billing.RunBedCensus(ctx, deps)
 	// A separate loop and ticker from the dispatcher's 500ms tick (#835
 	// Task 2, spec D3): pruning belongs on its own hourly cadence, not
 	// coupled to publish throughput.

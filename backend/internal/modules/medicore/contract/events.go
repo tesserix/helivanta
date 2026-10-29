@@ -109,11 +109,17 @@ type BedOccupancyStartedData struct {
 	BedID       string `json:"bed_id"`
 	// The codes ward staff say aloud, so a consumer can resolve "bed A-1"
 	// without reading MediCore's tables. Location labels, not patient data.
-	WardCode  string `json:"ward_code"`
-	RoomCode  string `json:"room_code"`
-	BedCode   string `json:"bed_code"`
+	WardCode string `json:"ward_code"`
+	RoomCode string `json:"room_code"`
+	BedCode  string `json:"bed_code"`
+	// The bed's class, fixed on the bed; billing prices the stay by it.
+	BedClass  string `json:"bed_class"`
 	StartedAt string `json:"started_at"`
 }
+
+// BedClasses are the classes a bed may have; billing prices a stay by its
+// bed's class (#197).
+var BedClasses = map[string]bool{"general": true, "semi_private": true, "private": true, "icu": true, "hdu": true, "isolation": true, "neonatal": true, "day_care": true}
 
 // SubjectBedOccupancyEnded is published when a stay in a bed ends, by
 // transfer out or release.

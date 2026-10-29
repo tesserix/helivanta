@@ -534,6 +534,10 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/access` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/account` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.account.read` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/bed-rates` | `billing.account.read` | true | false |
 
 Published subjects:
 
@@ -543,12 +547,14 @@ Subscriptions:
 
 - `billing-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `billing-admission-released` ← `helivanta.in.medicore.admission_released.v1`; after-commit hook: false.
+- `billing-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
 - `billing-pharmacy-admission-charge` ← `helivanta.in.pharmacy.admission_charge_posted.v1`; after-commit hook: false.
 - `billing-pharmacy-admission-reversal` ← `helivanta.in.pharmacy.admission_charge_reversed.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_billing`: `billing_hospital_access`, `billing_admission_accounts`, `billing_account_entries`, `billing_parked_reversals`.
+- `0002_billing`: `billing_bed_charging`, `billing_bed_rates`, `billing_bed_stays`, `billing_bed_days`.
 
 ## supply
 

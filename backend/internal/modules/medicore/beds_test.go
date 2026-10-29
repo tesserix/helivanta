@@ -65,7 +65,12 @@ func (w bedWorld) room(t *testing.T, code string, beds ...string) (room string, 
 	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
 	for _, b := range beds {
 		id := newID()
-		res = do(w.r, "PUT", w.url("/rooms/"+room+"/beds/"+id), "admin", fmt.Sprintf(`{"code":%q,"bed_class":"general"}`, b))
+		// Room B's beds are ICU, so an event naming the class can be told apart.
+		class := "general"
+		if code == "B" {
+			class = "icu"
+		}
+		res = do(w.r, "PUT", w.url("/rooms/"+room+"/beds/"+id), "admin", fmt.Sprintf(`{"code":%q,"bed_class":%q}`, b, class))
 		require.Equal(t, http.StatusOK, res.Code, res.Body.String())
 		ids = append(ids, id)
 	}
@@ -243,9 +248,9 @@ func TestBedsAdmitTransferAndRelease(t *testing.T) {
 	require.EqualValues(t, 1, outboxCount(t, w.db, w.ctx, "helivanta.in.medicore.admission_released.v1"))
 	var started []string
 	require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT payload->'data'->>'bed_code' FROM outbox_events WHERE subject='helivanta.in.medicore.bed_occupancy_started.v1' AND payload->'data'->>'admission_id'=? ORDER BY created_at`, admission).Scan(&started).Error
+		return tx.Raw(`SELECT (payload->'data'->>'bed_code')||' '||(payload->'data'->>'bed_class') FROM outbox_events WHERE subject='helivanta.in.medicore.bed_occupancy_started.v1' AND payload->'data'->>'admission_id'=? ORDER BY created_at`, admission).Scan(&started).Error
 	}))
-	require.Equal(t, []string{"A-1", "B-1"}, started, "each stay names the bed code staff use")
+	require.Equal(t, []string{"A-1 general", "B-1 icu"}, started, "each stay names the bed code staff use and the bed's class")
 
 	// Another tenant, and a reader without a grant, see nothing.
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", w.url("/beds"), "deskB", "").Code)

@@ -12,8 +12,8 @@ import {
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 
 /**
- * What an admission owes the hospital so far (#197 slice 1): pharmacy charges
- * less returns, from billing, under the caller's own billing grant.
+ * What an admission owes the hospital so far (#197): medicine less returns,
+ * and bed days before tax, from billing, under the caller's own billing grant.
  */
 export function AdmissionBalance({
   hospital,
@@ -32,18 +32,26 @@ export function AdmissionBalance({
   // as one, never as a zero balance.
   if (account.isError)
     return account.error instanceof ApiError && account.error.status === 404 ? (
-      <span className="text-xs text-muted-foreground">No pharmacy charges posted yet</span>
+      <span className="text-xs text-muted-foreground">No charges posted yet</span>
     ) : (
       <span className="text-xs text-destructive">Could not load the account</span>
     );
+  const money = (rows: { outstanding_minor: number; currency: string }[]) =>
+    rows.map((t) => formatPharmacyMoney(t.outstanding_minor, t.currency)).join(" + ");
   const owed = account.data.totals.filter((t) => t.outstanding_minor !== 0);
-  return (
-    <span className="text-xs text-muted-foreground">
-      {owed.length === 0
-        ? "No pharmacy charges owed"
-        : `Pharmacy charges owed ${owed.map((t) => formatPharmacyMoney(t.outstanding_minor, t.currency)).join(" + ")}`}
-    </span>
-  );
+  const from = (module: string) =>
+    account.data.sources.filter((s) => s.source_module === module && s.outstanding_minor !== 0);
+  const { configured, not_priced } = account.data.bed_days;
+  const parts = [
+    owed.length === 0 ? "Nothing owed yet" : `Owed ${money(owed)}`,
+    from("pharmacy").length > 0 && `medicine ${money(from("pharmacy"))}`,
+    from("bed").length > 0 && `bed days ${money(from("bed"))} before tax`,
+    // A day without a rate has no amount: said so, never counted as zero.
+    !configured
+      ? "Bed charging is not set up"
+      : not_priced > 0 && `${not_priced} bed ${not_priced === 1 ? "day" : "days"} not priced`,
+  ].filter(Boolean);
+  return <span className="text-xs text-muted-foreground">{parts.join(" · ")}</span>;
 }
 
 /** Whether the caller can read admission accounts here, and a self-grant for administrators. */

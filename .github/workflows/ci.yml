@@ -410,6 +410,8 @@ jobs:
         run: make dev-infra
       - name: Migrate and seed
         run: make seed
+      - name: Seed synthetic clinical browser fixture
+        run: make seed-e2e-clinical
 
       # `make up`'s own final line, verbatim, backgrounded. up itself is
       # dev-infra + seed (both already run above, in the foreground where their
@@ -420,6 +422,9 @@ jobs:
       # for production and runs them as standalone servers, never `next dev`
       # (#976, docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md).
       - name: Start API
+        # Synthetic e2e data only; this is not production clinical approval.
+        env:
+          MEDICORE_ALLERGY_RECORDING_ENABLED: "true"
         run: nohup make dev-api > /tmp/hms-stack.log 2>&1 &
 
       # scripts/e2e.sh REQUIRES the stack to already answer — it fails fast

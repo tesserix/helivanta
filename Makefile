@@ -497,6 +497,11 @@ migrate:
 secret-session-key:
 	@cd backend && go run ./cmd/session-key
 
+.PHONY: seed-e2e-clinical
+# Synthetic owner-controlled drug catalogue for the #1389 browser journey only.
+seed-e2e-clinical:
+	HELIVANTA_ENV=dev node scripts/seed-clinical-e2e.mjs
+
 # seed depends on migrate so `make dev-infra && make seed` works on a
 # fresh clone with no API running — seed writes into iam_members, which
 # only exists after migrations have run.

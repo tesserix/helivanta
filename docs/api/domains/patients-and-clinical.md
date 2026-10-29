@@ -58,6 +58,15 @@ Anything else returns 404.
 
 Events `allergy_changed.v1` and `weight_recorded.v1` carry ids only. MediCore learns published molecules from `drugmaster.molecule_published.v1` into the global, read-only `medicore_drug_molecules`.
 
+The real browser acceptance journey is
+[`e2e/tests/opd-encounters.spec.ts`](../../../e2e/tests/opd-encounters.spec.ts)
+(#1389). It creates synthetic hospital/grant/registration fixtures through owner
+APIs, waits for MediCore's registration consumer, and verifies consultation,
+unknown/negative/coded allergy states, weight attribution/recency and hospital
+access denial. The synthetic catalogue uses drugmaster's release CLI and actual
+molecule consumer. Allergy recording is opted into only on the synthetic e2e
+API process; this does not activate or approve a production clinical policy.
+
 ## Target clinical contracts requiring review
 
 MediCore owns encounter state, clinician orders, signed notes/prescriptions, nursing, clinical discharge, theatre/day-care and hospital charge intent. Do not create patient tables in each product. Every downstream request needs the owning patient registration, encounter, ordering resource/version, hospital scope, purpose and authorized actor.

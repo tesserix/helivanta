@@ -277,10 +277,14 @@ func consumers() []events.Consumer {
 			if !ok || err != nil || !medicorecontract.BedClasses[d.BedClass] {
 				return errors.New("invalid bed occupancy event")
 			}
+			if err := lockAdmission(tx, evt.TenantID, v[1]); err != nil {
+				return err
+			}
 			if err := openAccount(tx, evt.TenantID, v[0], v[1], v[2]); err != nil {
 				return err
 			}
-			// The first stay is when the account opened; a transfer changes nothing.
+			// The earliest stay is when the account opened, whichever start arrives
+			// first; a transfer changes nothing.
 			if err := tx.Exec(`UPDATE billing_admission_accounts SET opened_at=? WHERE tenant_id=? AND admission_id=? AND (opened_at IS NULL OR opened_at>?)`,
 				at, evt.TenantID, v[1], at).Error; err != nil {
 				return err
@@ -299,6 +303,9 @@ func consumers() []events.Consumer {
 			at, err := time.Parse(time.RFC3339Nano, d.ReleasedAt)
 			if !ok || err != nil {
 				return errors.New("invalid admission release event")
+			}
+			if err := lockAdmission(tx, evt.TenantID, v[1]); err != nil {
+				return err
 			}
 			if err := openAccount(tx, evt.TenantID, v[0], v[1], v[2]); err != nil {
 				return err

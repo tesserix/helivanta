@@ -49,6 +49,7 @@ CREATE TABLE billing_bed_stays (
  started_at timestamptz,
  ended_at timestamptz,
  next_census_at timestamptz,
+ census_failures integer NOT NULL DEFAULT 0 CHECK (census_failures >= 0),
  recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  PRIMARY KEY (tenant_id,occupancy_id),
  CHECK ((started_at IS NULL) = (bed_class IS NULL)),
@@ -92,6 +93,18 @@ CREATE OR REPLACE FUNCTION billing_consumer() RETURNS boolean LANGUAGE sql STABL
   'system:billing-bed-occupancy-ended','system:billing-bed-census')
 $$;
 
+-- An account opens at its earliest stay: starts may arrive in any order, so
+-- opened_at may move earlier, never later. Otherwise as in 0001.
+CREATE OR REPLACE FUNCTION billing_account_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF (NEW.tenant_id,NEW.hospital_id,NEW.admission_id,NEW.patient_id,NEW.created_at) IS DISTINCT FROM (OLD.tenant_id,OLD.hospital_id,OLD.admission_id,OLD.patient_id,OLD.created_at)
+  OR (OLD.opened_at IS NOT NULL AND (NEW.opened_at IS NULL OR NEW.opened_at > OLD.opened_at))
+  OR (OLD.status='closed' AND (NEW.status,NEW.closed_at) IS DISTINCT FROM (OLD.status,OLD.closed_at)) THEN
+  RAISE EXCEPTION 'an account keeps its admission and patient, opens at its earliest stay and closes once' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
+END $$;
+
 -- Stays and days are written by billing's consumers and census only; the
 -- setup tables by an administrator holding the grant, as themselves.
 DO $$ DECLARE t text; BEGIN
@@ -120,6 +133,17 @@ BEGIN
  RETURN NEW;
 END $$;
 CREATE TRIGGER billing_bed_charging_zone BEFORE INSERT ON billing_bed_charging FOR EACH ROW EXECUTE FUNCTION billing_bed_charging_zone();
+
+-- Setup arrives unapplied; only the census applies it.
+CREATE FUNCTION billing_bed_setup_unapplied() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.applied_at IS NOT NULL THEN
+  RAISE EXCEPTION 'bed charging setup is applied by the census' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER billing_bed_charging_unapplied BEFORE INSERT ON billing_bed_charging FOR EACH ROW EXECUTE FUNCTION billing_bed_setup_unapplied();
+CREATE TRIGGER billing_bed_rates_unapplied BEFORE INSERT ON billing_bed_rates FOR EACH ROW EXECUTE FUNCTION billing_bed_setup_unapplied();
 
 -- Setup rows are fixed; only the census marks them applied, once.
 CREATE FUNCTION billing_bed_setup_guard() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -163,5 +187,5 @@ CREATE TRIGGER billing_bed_day_guard BEFORE UPDATE ON billing_bed_days FOR EACH 
 -- The census finds due work across tenants by these columns alone and does
 -- the work under each tenant's own row security.
 GRANT SELECT (tenant_id, occupancy_id, next_census_at) ON billing_bed_stays TO helivanta_system;
-GRANT SELECT (tenant_id, hospital_id, applied_at) ON billing_bed_charging TO helivanta_system;
-GRANT SELECT (tenant_id, hospital_id, bed_class, effective_from, applied_at) ON billing_bed_rates TO helivanta_system;
+GRANT SELECT (tenant_id, hospital_id, applied_at, created_at) ON billing_bed_charging TO helivanta_system;
+GRANT SELECT (tenant_id, hospital_id, bed_class, effective_from, applied_at, created_at) ON billing_bed_rates TO helivanta_system;

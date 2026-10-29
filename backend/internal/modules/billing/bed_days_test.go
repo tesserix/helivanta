@@ -3,6 +3,7 @@ package billing_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -309,4 +310,156 @@ func TestTheCensusCatchesUpAndALateEndIsReversedToTheMinimumDay(t *testing.T) {
 		return tx.Table("billing_account_entries").Where("admission_id=? AND source_module='bed' AND kind='reversal'", admission).Count(&reversals).Error
 	}))
 	require.EqualValues(t, len(want), reversals)
+}
+
+// A transfer whose old bed's end is still on its way leaves two stays open;
+// each midnight goes to the newer one, and the admission keeps reconciling.
+func TestOverlappingStaysChargeEachMidnightOnceToTheNewerBed(t *testing.T) {
+	w := newBedWorld(t)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"Asia/Kolkata"}`).Code)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/general/2026-01-01", "admin", `{"daily_rate_minor":150000,"currency":"INR"}`).Code)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/icu/2026-01-01", "admin", `{"daily_rate_minor":600000,"currency":"INR"}`).Code)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	general := stay{uuid.NewString(), uuid.NewString(), "general"}
+	icu := stay{uuid.NewString(), uuid.NewString(), "icu"}
+	today := time.Now().In(ist)
+	day := func(back, hour, minute int) time.Time {
+		return time.Date(today.Year(), today.Month(), today.Day()-back, hour, minute, 0, 0, ist)
+	}
+	require.NoError(t, w.start(admission, patient, general, day(3, 9, 0)))
+	require.NoError(t, w.start(admission, patient, icu, day(2, 23, 50)), "a second open stay is reconciled, not refused")
+	w.census()
+	date := func(back int) string { return day(back, 0, 0).Format(time.DateOnly) }
+	require.Equal(t, []dayRow{
+		{CensusDate: date(3), BedClass: "general", Basis: "midnight", Rate: ptr(150000)},
+		{CensusDate: date(2), BedClass: "icu", Basis: "midnight", Rate: ptr(600000)},
+		{CensusDate: date(1), BedClass: "icu", Basis: "midnight", Rate: ptr(600000)},
+	}, w.liveDays(admission))
+	// The general stay alone had counted the later midnights too; the ICU
+	// start voided and reversed them. The old bed's end then changes nothing.
+	before := w.days(admission)
+	_, owed := w.account(admission)
+	require.EqualValues(t, 1350000, owed)
+	require.NoError(t, w.end(admission, general, day(2, 23, 50), "transfer"))
+	require.Equal(t, before, w.days(admission), "nothing more voided or recorded")
+}
+
+// A transfer's start may be delivered before the first bed's (a retry after a
+// failure): the first stay is still recorded, and the account opened at it.
+func TestAFirstStayDeliveredAfterTheTransferIsStillRecorded(t *testing.T) {
+	w := newBedWorld(t)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"Asia/Kolkata"}`).Code)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	general := stay{uuid.NewString(), uuid.NewString(), "general"}
+	icu := stay{uuid.NewString(), uuid.NewString(), "icu"}
+	first, transfer := time.Date(2026, 3, 1, 10, 0, 0, 0, ist), time.Date(2026, 3, 2, 15, 0, 0, 0, ist)
+	require.NoError(t, w.start(admission, patient, icu, transfer))
+	require.NoError(t, w.start(admission, patient, general, first), "the earlier start is accepted after the later one")
+	require.NoError(t, w.end(admission, general, transfer, "transfer"))
+	require.NoError(t, w.end(admission, icu, time.Date(2026, 3, 3, 9, 0, 0, 0, ist), "release"))
+	require.NoError(t, w.release(admission, patient, time.Date(2026, 3, 3, 9, 0, 0, 0, ist)))
+	res := do(w.r, "GET", w.root+"/admissions/"+admission+"/account", "nurse", "")
+	var opened struct {
+		OpenedAt time.Time `json:"opened_at"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &opened))
+	require.True(t, opened.OpenedAt.Equal(first), "the account opened at the earliest stay, not %s", opened.OpenedAt)
+	require.Equal(t, []dayRow{
+		{CensusDate: "2026-03-01", BedClass: "general", Basis: "midnight"},
+		{CensusDate: "2026-03-02", BedClass: "icu", Basis: "midnight"},
+	}, w.liveDays(admission))
+	// Later than recorded still never moves it.
+	require.Error(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "system:billing-bed-census"), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`UPDATE billing_admission_accounts SET opened_at=opened_at+interval '1 hour' WHERE admission_id=?`, admission).Error
+	}))
+}
+
+// One pass takes batch after batch, and a stay with nothing to do (its start
+// has not arrived) leaves the queue instead of holding its head.
+func TestTheCensusWorksPastOneBatchAndAStuckStayDoesNotBlockIt(t *testing.T) {
+	w := newBedWorld(t)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"Asia/Kolkata"}`).Code)
+	w.census()
+	defer billing.SetCensusBatch(1, 3*time.Second)()
+	start := time.Now().Add(-48 * time.Hour)
+	orphan := uuid.NewString()
+	require.NoError(t, w.end(orphan, stay{uuid.NewString(), uuid.NewString(), ""}, start.Add(time.Hour), "release"))
+	var admissions []string
+	for range 3 {
+		a := uuid.NewString()
+		admissions = append(admissions, a)
+		require.NoError(t, w.start(a, uuid.NewString(), stay{uuid.NewString(), uuid.NewString(), "general"}, start))
+	}
+	asCensus := func(fn func(tx *gorm.DB) error) {
+		require.NoError(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "system:billing-bed-census"), testutil.TenantA, fn))
+	}
+	// As when midnight passes: every stay is due, the orphan first in line.
+	asCensus(func(tx *gorm.DB) error {
+		if err := tx.Exec(`UPDATE billing_bed_stays SET next_census_at=now()-interval '1 hour' WHERE hospital_id=?`, w.hospital).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=now()-interval '2 hours' WHERE admission_id=?`, orphan).Error
+	})
+	w.census()
+	var stillDue []string
+	asCensus(func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT admission_id::text FROM billing_bed_stays WHERE hospital_id=? AND (next_census_at IS NULL OR next_census_at <= now()) AND admission_id<>? ORDER BY 1`, w.hospital, orphan).Scan(&stillDue).Error
+	})
+	require.Empty(t, stillDue, "every open stay is counted in one pass, past the batch")
+	var orphanDue int64
+	asCensus(func(tx *gorm.DB) error {
+		return tx.Table("billing_bed_stays").Where("admission_id=? AND next_census_at IS NOT NULL", orphan).Count(&orphanDue).Error
+	})
+	require.Zero(t, orphanDue, "the orphan stay is no longer due")
+	for _, a := range admissions {
+		require.NotEmpty(t, w.liveDays(a))
+	}
+}
+
+// Only billing's consumers and census write stays, days and applied setup;
+// a reader without the grant sees none of it.
+func TestBedChargingTablesRefuseOtherWritersAndReaders(t *testing.T) {
+	w := newBedWorld(t)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"Asia/Kolkata"}`).Code)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/general/2026-01-01", "admin", `{"daily_rate_minor":150000,"currency":"INR"}`).Code)
+	admission := uuid.NewString()
+	require.NoError(t, w.start(admission, uuid.NewString(), stay{uuid.NewString(), uuid.NewString(), "general"}, time.Date(2026, 3, 1, 10, 0, 0, 0, ist)))
+	w.census()
+	asUser := func(subject string, fn func(tx *gorm.DB) error) error {
+		return w.db.WithTenant(tenantdb.WithActor(w.ctx, subject), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.billing_subject',?,true)`, subject).Error; err != nil {
+				return err
+			}
+			return fn(tx)
+		})
+	}
+	// The administrator holds the grant, yet cannot write what the census owns.
+	for _, sql := range []string{
+		`INSERT INTO billing_bed_stays (tenant_id,occupancy_id,hospital_id,admission_id,bed_id,bed_class,started_at) VALUES ('` + testutil.TenantA + `',gen_random_uuid(),'` + w.hospital + `',gen_random_uuid(),gen_random_uuid(),'icu',now())`,
+		`UPDATE billing_bed_days SET voided_at=now() WHERE admission_id='` + admission + `'`,
+		`UPDATE billing_bed_rates SET applied_at=now() WHERE hospital_id='` + w.hospital + `'`,
+		`INSERT INTO billing_bed_rates (tenant_id,hospital_id,bed_class,effective_from,daily_rate_minor,currency,created_by,applied_at) VALUES ('` + testutil.TenantA + `','` + w.hospital + `','icu','2026-02-01',1,'INR','user-admin',now())`,
+	} {
+		err := asUser("user-admin", func(tx *gorm.DB) error {
+			res := tx.Exec(sql)
+			if res.Error == nil && res.RowsAffected == 0 {
+				return errors.New("no row changed")
+			}
+			return res.Error
+		})
+		require.Error(t, err, sql)
+	}
+	// A subject without the grant reads nothing.
+	var seen int64
+	require.NoError(t, asUser("user-outsider", func(tx *gorm.DB) error {
+		var n int64
+		for _, table := range []string{"billing_bed_stays", "billing_bed_days", "billing_bed_rates", "billing_bed_charging"} {
+			if err := tx.Table(table).Count(&n).Error; err != nil {
+				return err
+			}
+			seen += n
+		}
+		return nil
+	}))
+	require.Zero(t, seen)
 }

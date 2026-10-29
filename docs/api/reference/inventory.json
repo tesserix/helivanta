@@ -3565,7 +3565,7 @@
         },
         {
           "id": "0002_billing",
-          "sql_sha256": "825c8b5d2aa17119eab0956e3dbbbcfcc39c0ead897f4eb419f5f3af4e96147c",
+          "sql_sha256": "80c93586fe2759405f59591d9584132cbbf9a3e84f64d55dfc95da6728c5d70e",
           "creates_tables": [
             "billing_bed_charging",
             "billing_bed_rates",

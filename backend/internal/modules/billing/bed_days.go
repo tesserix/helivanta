@@ -22,11 +22,35 @@ import (
 
 const (
 	censusActor = "system:billing-bed-census"
-	censusBatch = 100
 	// censusGrace lets a discharge just before midnight arrive before that
 	// midnight is counted, so it is not charged and then reversed.
 	censusGrace = "15 minutes"
+	// A stay whose reconcile fails is retried later, doubling to an hour, so
+	// it never holds the head of the queue.
+	firstCensusRetry = time.Minute
+	maxCensusRetry   = time.Hour
 )
+
+// Variables so tests can drive small batches and settle setup at once.
+var (
+	censusBatch = 100
+	// censusBudget bounds one pass: every hospital in a timezone reaches
+	// midnight together, so a pass takes batch after batch until done or out
+	// of time, and the next tick carries on.
+	censusBudget = 45 * time.Second
+	// censusSettle is how long new setup waits before it is applied, so a
+	// consumer transaction that began before it committed has finished and
+	// is covered by the stays it marks.
+	censusSettle = 2 * time.Minute
+)
+
+func censusRetry(failures int) time.Duration {
+	d := firstCensusRetry
+	for i := 1; i < failures && d < maxCensusRetry; i++ {
+		d *= 2
+	}
+	return min(d, maxCensusRetry)
+}
 
 // recordStayStart keeps the stay's start. A replay must say what was recorded.
 func recordStayStart(tx *gorm.DB, tenant string, d medicorecontract.BedOccupancyStartedData, v []uuid.UUID, at time.Time) error {
@@ -62,6 +86,9 @@ func stayEndedConsumer() events.Consumer {
 		if !ok || err != nil {
 			return errors.New("invalid bed occupancy event")
 		}
+		if err := lockAdmission(tx, evt.TenantID, v[1]); err != nil {
+			return err
+		}
 		if err := tx.Exec(`INSERT INTO billing_bed_stays (tenant_id,occupancy_id,hospital_id,admission_id,bed_id,ended_at) VALUES (?,?,?,?,?,?)
  ON CONFLICT (tenant_id,occupancy_id) DO UPDATE SET ended_at=EXCLUDED.ended_at WHERE billing_bed_stays.ended_at IS NULL`,
 			evt.TenantID, v[2], v[0], v[1], v[3], at).Error; err != nil {
@@ -79,6 +106,13 @@ func stayEndedConsumer() events.Consumer {
 		}
 		return reconcileBedDays(tx, evt.TenantID, v[1])
 	}}
+}
+
+// lockAdmission serialises everything about one admission's stays and days.
+// Every path takes it before touching the account or a stay, so all lock in
+// the same order; it is re-entrant within the transaction.
+func lockAdmission(tx *gorm.DB, tenant string, admission uuid.UUID) error {
+	return tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, tenant+":billing-bed-days:"+admission.String()).Error
 }
 
 type impliedDay struct {
@@ -107,7 +141,7 @@ func dayKey(t time.Time) string { return t.Format(time.DateOnly) }
 // they no longer imply, and prices what a rate now covers. It is serialised
 // per admission; each step is idempotent, so any caller may run it again.
 func reconcileBedDays(tx *gorm.DB, tenant string, admission uuid.UUID) error {
-	if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, tenant+":billing-bed-days:"+admission.String()).Error; err != nil {
+	if err := lockAdmission(tx, tenant, admission); err != nil {
 		return err
 	}
 	var accounts []struct {
@@ -119,7 +153,8 @@ func reconcileBedDays(tx *gorm.DB, tenant string, admission uuid.UUID) error {
 	}
 	if len(accounts) == 0 {
 		// Only an end has arrived; its start opens the account and reconciles.
-		return nil
+		// Nothing is due until then.
+		return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=NULL,census_failures=0 WHERE tenant_id=? AND admission_id=? AND (next_census_at IS NOT NULL OR census_failures<>0)`, tenant, admission).Error
 	}
 	hospital := accounts[0].HospitalID
 	var zones []string
@@ -129,7 +164,7 @@ func reconcileBedDays(tx *gorm.DB, tenant string, admission uuid.UUID) error {
 	if len(zones) == 0 {
 		// Not set up: no midnight is known. Setting the timezone marks every
 		// stay here due, and the census computes them all then.
-		return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=NULL WHERE tenant_id=? AND admission_id=? AND next_census_at IS NOT NULL`, tenant, admission).Error
+		return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=NULL,census_failures=0 WHERE tenant_id=? AND admission_id=? AND (next_census_at IS NOT NULL OR census_failures<>0)`, tenant, admission).Error
 	}
 	zone := zones[0]
 	var implied []impliedDay
@@ -137,12 +172,15 @@ func reconcileBedDays(tx *gorm.DB, tenant string, admission uuid.UUID) error {
 	// a stay counts it when started_at <= M < ended_at (a transfer at
 	// midnight counts the new bed, so the series starts the day before: a start
 	// at midnight exactly is the previous date's midnight). An open stay counts
-	// midnights past the grace.
-	if err := tx.Raw(`SELECT s.occupancy_id,s.bed_class,g.d AS census_date,g.m AS census_at,'midnight' AS basis FROM billing_bed_stays s
+	// midnights at least the grace ago. Each date goes to one stay: while an
+	// earlier bed's end is still on its way, the latest stay started wins, as a
+	// transfer's new bed does.
+	if err := tx.Raw(`SELECT DISTINCT ON (g.d) s.occupancy_id,s.bed_class,g.d AS census_date,g.m AS census_at,'midnight' AS basis FROM billing_bed_stays s
  CROSS JOIN LATERAL (SELECT x::date AS d, ((x::date+1)::timestamp AT TIME ZONE ?) AS m FROM generate_series((s.started_at AT TIME ZONE ?)::date-1,
   (COALESCE(s.ended_at, now()-interval '`+censusGrace+`') AT TIME ZONE ?)::date, interval '1 day') x) g
- WHERE s.tenant_id=? AND s.admission_id=? AND s.started_at IS NOT NULL AND g.m >= s.started_at AND g.m < COALESCE(s.ended_at, now()-interval '`+censusGrace+`')
- ORDER BY g.d`, zone, zone, zone, tenant, admission).Scan(&implied).Error; err != nil {
+ WHERE s.tenant_id=? AND s.admission_id=? AND s.started_at IS NOT NULL AND g.m >= s.started_at
+  AND (g.m < s.ended_at OR (s.ended_at IS NULL AND g.m <= now()-interval '`+censusGrace+`'))
+ ORDER BY g.d,s.started_at DESC,s.occupancy_id DESC`, zone, zone, zone, tenant, admission).Scan(&implied).Error; err != nil {
 		return err
 	}
 	if len(implied) == 0 && accounts[0].Status == "closed" {
@@ -189,10 +227,12 @@ func reconcileBedDays(tx *gorm.DB, tenant string, admission uuid.UUID) error {
 	if err := priceDays(tx, tenant, hospital, admission); err != nil {
 		return err
 	}
-	// The next look at an open stay is its next midnight, past the grace.
-	return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=CASE WHEN started_at IS NOT NULL AND ended_at IS NULL
-  THEN ((((now()-interval '`+censusGrace+`') AT TIME ZONE ?)::date+1)::timestamp AT TIME ZONE ?)+interval '`+censusGrace+`' END
- WHERE tenant_id=? AND admission_id=?`, zone, zone, tenant, admission).Error
+	// The next look at an open stay is its next midnight, past the grace;
+	// rows already right are left alone, so the audit trail records changes.
+	return tx.Exec(`UPDATE billing_bed_stays s SET next_census_at=x.v,census_failures=0 FROM (SELECT occupancy_id,CASE WHEN started_at IS NOT NULL AND ended_at IS NULL
+  THEN ((((now()-interval '`+censusGrace+`') AT TIME ZONE ?)::date+1)::timestamp AT TIME ZONE ?)+interval '`+censusGrace+`' END AS v
+  FROM billing_bed_stays WHERE tenant_id=? AND admission_id=?) x
+ WHERE s.tenant_id=? AND s.occupancy_id=x.occupancy_id AND (s.next_census_at IS DISTINCT FROM x.v OR s.census_failures<>0)`, zone, zone, tenant, admission, tenant).Error
 }
 
 // voidDay takes back a day the stays no longer imply; a priced day is
@@ -263,61 +303,114 @@ func RunBedCensus(ctx context.Context, deps platform.Deps) {
 
 // BedCensusOnce runs one pass; tests drive it instead of the ticker.
 func BedCensusOnce(ctx context.Context, db *tenantdb.DB) error {
-	type setup struct {
+	deadline := time.Now().Add(censusBudget)
+	ctx = tenantdb.WithActor(ctx, censusActor)
+	if err := applySetup(ctx, db, deadline); err != nil {
+		return err
+	}
+	for time.Now().Before(deadline) {
+		var due []struct {
+			TenantID    uuid.UUID
+			OccupancyID uuid.UUID
+		}
+		// The one cross-tenant read: keys of due stays, nothing else (the
+		// system role holds SELECT on just these columns).
+		if err := db.WithAllTenants(ctx, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT tenant_id,occupancy_id FROM billing_bed_stays WHERE next_census_at <= now() ORDER BY next_census_at LIMIT ?`, censusBatch).Scan(&due).Error
+		}); err != nil {
+			return err
+		}
+		for _, d := range due {
+			censusStay(ctx, db, d.TenantID, d.OccupancyID)
+		}
+		if len(due) < censusBatch {
+			return nil
+		}
+	}
+	return nil
+}
+
+// censusStay reconciles a due stay's admission. A failure pushes the stay
+// back, in its own transaction, so the queue moves on.
+func censusStay(ctx context.Context, db *tenantdb.DB, tenant, occupancy uuid.UUID) {
+	err := db.WithTenant(ctx, tenant.String(), func(tx *gorm.DB) error {
+		var admissions []uuid.UUID
+		if err := tx.Raw(`SELECT admission_id FROM billing_bed_stays WHERE tenant_id=? AND occupancy_id=? AND next_census_at <= now()`, tenant, occupancy).Scan(&admissions).Error; err != nil {
+			return err
+		}
+		if len(admissions) == 0 {
+			return nil
+		}
+		return reconcileBedDays(tx, tenant.String(), admissions[0])
+	})
+	if err == nil {
+		return
+	}
+	slog.WarnContext(ctx, "billing bed census failed for a stay; retrying later", "tenant_id", tenant, "occupancy_id", occupancy, "error", err)
+	if err := db.WithTenant(ctx, tenant.String(), func(tx *gorm.DB) error {
+		var failures int
+		if err := tx.Raw(`SELECT census_failures FROM billing_bed_stays WHERE tenant_id=? AND occupancy_id=? FOR UPDATE`, tenant, occupancy).Scan(&failures).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE billing_bed_stays SET census_failures=census_failures+1,next_census_at=clock_timestamp()+make_interval(secs => ?) WHERE tenant_id=? AND occupancy_id=?`,
+			censusRetry(failures+1).Seconds(), tenant, occupancy).Error
+	}); err != nil {
+		slog.WarnContext(ctx, "billing bed census could not defer a failed stay", "tenant_id", tenant, "occupancy_id", occupancy, "error", err)
+	}
+}
+
+// applySetup brings settled new setup to the admissions it affects, one
+// admission per transaction (the same lock order as the consumers), then
+// marks it applied. An admission that fails is left due for the census.
+func applySetup(ctx context.Context, db *tenantdb.DB, deadline time.Time) error {
+	var setups []struct {
 		TenantID   uuid.UUID
 		HospitalID uuid.UUID
 		BedClass   *string
 		Effective  *time.Time `gorm:"column:effective_from"`
 	}
-	var setups []setup
-	var due []struct {
-		TenantID    uuid.UUID
-		OccupancyID uuid.UUID
-	}
-	// The one cross-tenant read: keys of due work, nothing else (the system
-	// role holds SELECT on just these columns).
 	if err := db.WithAllTenants(ctx, func(tx *gorm.DB) error {
-		if err := tx.Raw(`SELECT tenant_id,hospital_id,NULL::text AS bed_class,NULL::date AS effective_from FROM billing_bed_charging WHERE applied_at IS NULL
- UNION ALL SELECT tenant_id,hospital_id,bed_class,effective_from FROM billing_bed_rates WHERE applied_at IS NULL LIMIT ?`, censusBatch).Scan(&setups).Error; err != nil {
-			return err
-		}
-		return tx.Raw(`SELECT tenant_id,occupancy_id FROM billing_bed_stays WHERE next_census_at <= now() ORDER BY next_census_at LIMIT ?`, censusBatch).Scan(&due).Error
+		return tx.Raw(`SELECT tenant_id,hospital_id,bed_class,effective_from FROM (
+  SELECT tenant_id,hospital_id,NULL::text AS bed_class,NULL::date AS effective_from,created_at FROM billing_bed_charging WHERE applied_at IS NULL
+  UNION ALL SELECT tenant_id,hospital_id,bed_class,effective_from,created_at FROM billing_bed_rates WHERE applied_at IS NULL) u
+ WHERE created_at <= now()-make_interval(secs => ?) ORDER BY created_at LIMIT ?`, censusSettle.Seconds(), censusBatch).Scan(&setups).Error
 	}); err != nil {
 		return err
 	}
-	ctx = tenantdb.WithActor(ctx, censusActor)
-	// New setup marks the stays it affects due; the pass below, or the next,
-	// reconciles them.
 	for _, s := range setups {
-		if err := db.WithTenant(ctx, s.TenantID.String(), func(tx *gorm.DB) error {
+		if !time.Now().Before(deadline) {
+			return nil
+		}
+		tenant := s.TenantID.String()
+		var admissions []uuid.UUID
+		if err := db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
 			if s.BedClass == nil {
-				if err := tx.Exec(`UPDATE billing_bed_stays SET next_census_at=now() WHERE tenant_id=? AND hospital_id=?`, s.TenantID, s.HospitalID).Error; err != nil {
-					return err
-				}
-				return tx.Exec(`UPDATE billing_bed_charging SET applied_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND applied_at IS NULL`, s.TenantID, s.HospitalID).Error
+				return tx.Raw(`SELECT DISTINCT admission_id FROM billing_bed_stays WHERE tenant_id=? AND hospital_id=?`, s.TenantID, s.HospitalID).Scan(&admissions).Error
 			}
-			if err := tx.Exec(`UPDATE billing_bed_stays SET next_census_at=now() WHERE tenant_id=? AND admission_id IN (SELECT admission_id FROM billing_bed_days
- WHERE tenant_id=? AND hospital_id=? AND bed_class=? AND census_date>=? AND priced_at IS NULL AND voided_at IS NULL)`, s.TenantID, s.TenantID, s.HospitalID, *s.BedClass, *s.Effective).Error; err != nil {
-				return err
+			return tx.Raw(`SELECT DISTINCT admission_id FROM billing_bed_days WHERE tenant_id=? AND hospital_id=? AND bed_class=? AND census_date>=? AND priced_at IS NULL AND voided_at IS NULL`,
+				s.TenantID, s.HospitalID, *s.BedClass, *s.Effective).Scan(&admissions).Error
+		}); err != nil {
+			slog.WarnContext(ctx, "billing bed setup not applied; retrying later", "tenant_id", s.TenantID, "hospital_id", s.HospitalID, "error", err)
+			continue
+		}
+		for _, a := range admissions {
+			if err := db.WithTenant(ctx, tenant, func(tx *gorm.DB) error { return reconcileBedDays(tx, tenant, a) }); err != nil {
+				slog.WarnContext(ctx, "billing bed setup could not reconcile an admission; the census retries it", "tenant_id", s.TenantID, "admission_id", a, "error", err)
+				if err := db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+					return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=now() WHERE tenant_id=? AND admission_id=?`, s.TenantID, a).Error
+				}); err != nil {
+					slog.WarnContext(ctx, "billing bed setup could not mark an admission due", "tenant_id", s.TenantID, "admission_id", a, "error", err)
+				}
+			}
+		}
+		if err := db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+			if s.BedClass == nil {
+				return tx.Exec(`UPDATE billing_bed_charging SET applied_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND applied_at IS NULL`, s.TenantID, s.HospitalID).Error
 			}
 			return tx.Exec(`UPDATE billing_bed_rates SET applied_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND bed_class=? AND effective_from=? AND applied_at IS NULL`,
 				s.TenantID, s.HospitalID, *s.BedClass, *s.Effective).Error
 		}); err != nil {
-			slog.WarnContext(ctx, "billing bed setup not applied; retrying later", "tenant_id", s.TenantID, "hospital_id", s.HospitalID, "error", err)
-		}
-	}
-	for _, d := range due {
-		if err := db.WithTenant(ctx, d.TenantID.String(), func(tx *gorm.DB) error {
-			var admissions []uuid.UUID
-			if err := tx.Raw(`SELECT admission_id FROM billing_bed_stays WHERE tenant_id=? AND occupancy_id=? AND next_census_at <= now()`, d.TenantID, d.OccupancyID).Scan(&admissions).Error; err != nil {
-				return err
-			}
-			if len(admissions) == 0 {
-				return nil
-			}
-			return reconcileBedDays(tx, d.TenantID.String(), admissions[0])
-		}); err != nil {
-			slog.WarnContext(ctx, "billing bed census failed for a stay; retrying later", "tenant_id", d.TenantID, "occupancy_id", d.OccupancyID, "error", err)
+			slog.WarnContext(ctx, "billing bed setup could not be marked applied; retrying later", "tenant_id", s.TenantID, "hospital_id", s.HospitalID, "error", err)
 		}
 	}
 	return nil

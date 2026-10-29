@@ -57,9 +57,16 @@ Design: [spec](../../superpowers/specs/2026-10-30-bed-day-charges-design.md).
   counted by it); until it is, no day is computed and the account says bed charging is not set
   up, and setting it computes every day since admission. Rates are one per class per date,
   fixed once set; a correction is a rate from a later date.
-- **The census** runs each minute: it counts midnights for open stays that are due and applies
-  new setup to the stays it affects. Its only cross-tenant read is the keys of due work; it
-  does the work under each tenant's row security as `system:billing-bed-census`.
+- **The census** runs each minute: it counts midnights for open stays that are due, batch after
+  batch within a pass, and applies new setup to the admissions it affects once the setup is two
+  minutes old (so a consumer already in flight is covered), one admission per transaction. A
+  stay whose reconcile fails is retried later, doubling to an hour, so it never holds the queue.
+  Its only cross-tenant read is the keys of due work; it does the work under each tenant's row
+  security as `system:billing-bed-census`.
+- **Order of events.** Every consumer takes the admission's lock first, so they and the census
+  never deadlock. Two stays open at once (a transfer whose old bed's end is still on its way)
+  charge each midnight once, to the stay started later. An account opens at its earliest stay,
+  whichever start arrives first.
 - **Entries:** source `bed`, reference the day, document `Bed day YYYY-MM-DD`. The account
   answer adds `sources` (outstanding per source and currency) and `bed_days`
   (`configured`, `priced`, `not_priced`).

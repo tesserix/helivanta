@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 
 	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
@@ -51,7 +52,11 @@ func (h *handlers) setBedCharging(c *gin.Context) {
 		}
 		return nil
 	})
+	var pg *pgconn.PgError
 	switch {
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_bed_charging_zone":
+		// A zone Go knows but the database does not: still the caller's input.
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "timezone must be a named timezone, such as Asia/Kolkata")
 	case errors.Is(err, errSetDifferent):
 		respond.Error(c, http.StatusConflict, "already_set", "this hospital's timezone is set to "+out.Timezone+" and cannot change")
 	case err != nil:

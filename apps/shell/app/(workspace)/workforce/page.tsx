@@ -21,6 +21,7 @@ import { StaffDirectoryEditor } from "./directory-editor";
 import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
 import { StaffIdentitySourcePanel } from "./identity-source-panel";
+import { StaffEmploymentPeriods } from "./employment-periods-panel";
 import { StaffLoginLinkPanel } from "./login-link-panel";
 
 const inputClass =
@@ -183,6 +184,7 @@ function Directory({
   const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
   const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
   const [identityStaff, setIdentityStaff] = useState<Staff | null>(null);
+  const [employmentStaff, setEmploymentStaff] = useState<Staff | null>(null);
   const [linkStaff, setLinkStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
@@ -221,6 +223,7 @@ function Directory({
                 setCredentialStaff(null);
                 setLinkStaff(null);
                 setIdentityStaff(null);
+                setEmploymentStaff(null);
                 setEditing("new");
               }}
             >
@@ -314,10 +317,29 @@ function Directory({
                           setCredentialStaff(null);
                           setLinkStaff(null);
                           setIdentityStaff(row);
+                          setEmploymentStaff(null);
                         }}
                       >
                         Identity details
                       </Button>
+                      {writable && can("workforce.enrollment.manage") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Employment terms for ${row.display_name}`}
+                          onClick={(event) => {
+                            opener.current = event.currentTarget;
+                            setEditing(null);
+                            setDocumentStaff(null);
+                            setCredentialStaff(null);
+                            setLinkStaff(null);
+                            setIdentityStaff(null);
+                            setEmploymentStaff(row);
+                          }}
+                        >
+                          Employment terms
+                        </Button>
+                      )}
                       {manager && (
                         <>
                           {writable && (
@@ -330,6 +352,7 @@ function Directory({
                                 setCredentialStaff(null);
                                 setLinkStaff(null);
                                 setIdentityStaff(null);
+                                setEmploymentStaff(null);
                                 setEditing(row);
                               }}
                               aria-label={`Edit ${row.display_name}`}
@@ -347,6 +370,7 @@ function Directory({
                                 setCredentialStaff(null);
                                 setLinkStaff(null);
                                 setIdentityStaff(null);
+                                setEmploymentStaff(null);
                                 setDocumentStaff(row);
                               }}
                             >
@@ -364,6 +388,7 @@ function Directory({
                                 setDocumentStaff(null);
                                 setCredentialStaff(null);
                                 setIdentityStaff(null);
+                                setEmploymentStaff(null);
                                 setLinkStaff(row);
                               }}
                             >
@@ -379,6 +404,7 @@ function Directory({
                                 setEditing(null);
                                 setDocumentStaff(null);
                                 setIdentityStaff(null);
+                                setEmploymentStaff(null);
                                 setCredentialStaff(row);
                                 setLinkStaff(null);
                               }}
@@ -417,12 +443,21 @@ function Directory({
           </div>
         </div>
       </section>
+      {employmentStaff && writable && can("workforce.enrollment.manage") && (
+        <StaffEmploymentPeriods
+          staffLabel={`${employmentStaff.display_name} · ${employmentStaff.employee_code}`}
+          key={employmentStaff.id}
+          scope={{ ...scope, hospitalId: hospital.id, staffId: employmentStaff.id }}
+          onClose={() => setEmploymentStaff(null)}
+        />
+      )}
       {identityStaff && (
         <StaffIdentitySourcePanel
           hospitalId={hospital.id}
           staffId={identityStaff.id}
           onClose={() => {
             setIdentityStaff(null);
+            setEmploymentStaff(null);
             opener.current?.focus();
           }}
         />

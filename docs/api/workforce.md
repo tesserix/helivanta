@@ -1016,3 +1016,60 @@ verification, issue a card, or implement employment exits. Migration 0049 has on
 been applied to the synthetic local QA database; production rollout needs its
 own named migration approval. Reverting the UI must preserve accepted drafts,
 history and audit data.
+
+## Employment-term draft preparation
+
+Workforce owns private employment-term drafts under verified tenant, hospital and
+Staff scope. These are preparation records, separate from accepted employment,
+posting, access, contract renewal, suspension and separation. No draft command
+changes directory employment status, a login link, IAM assignment, card or payroll.
+This is the intake slice of the reviewed employment-period design and ADR-0049;
+submission, protected evidence binding and independent approval remain open.
+
+All routes below require `workforce.enrollment.manage` and a current explicit
+hospital manager grant. A hospital reader cannot access these private records.
+Missing permission is 403; unavailable Staff/hospital/sponsor scope is 404. Reads,
+list/history and recovered receipts are attributable in `workforce_audit` and all
+responses use `Cache-Control: no-store`. Expected tenant/subject headers pin the
+UI request to its opening workspace; headers do not grant authority.
+
+| Route beneath `/v1/workforce/hospitals/:hospital/staff/:id` | Behavior                                                                                             |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `GET /employment-source`                                    | Minimal scoped Staff version and employment generation; no demographics or evidence contents         |
+| `PUT /employment-periods/:period`                           | Create/edit a draft using UUIDv7 period/command IDs, expected draft version and current Staff source |
+| `GET /employment-periods/:period`                           | Current private draft                                                                                |
+| `GET /employment-periods`                                   | Bounded cursor page, newest creation first                                                           |
+| `GET /employment-periods/:period/history`                   | Immutable revisions, newest update first                                                             |
+
+The canonical input and response models are
+`contracts/workforce-employment-periods.json`; regenerate with
+`node scripts/generate-workforce-employment-periods.mjs`. Commands are bounded to
+8 KiB. Required fields include engagement, explicit fixed/ongoing duration,
+effective start, reason and appointment/contract reference. Fixed terms require
+an explicit end later than start; ongoing terms forbid an end. Individual
+contractors and agency workers additionally require a named contracting party
+and another active Staff member in the same hospital as accountable sponsor.
+A sponsor is not automatically the clinical supervisor or approving authority.
+References do not establish verified documents, statutory compliance or identity.
+Timestamps carry explicit offsets on the wire; the UI converts device-local input
+to UTC and displays it in the device timezone.
+
+An exact command retry returns its original immutable receipt after current
+access authorization, including after later edits. Reusing a command for another
+actor, period, Staff member or intent returns 409. Stale draft/source versions
+also return 409. The UI freezes an uncertain submitted command for exact retry;
+conflicts preserve entered terms and require reopening current state. Database
+constraints retain scoped identity, legal term shape and sponsor/source checks;
+triggers maintain immutable history. No delete/truncate route is provided.
+
+Lock order follows enrollment: current hospital manager row, hospital supervision
+advisory lock, target Staff SHARE row, optional sponsor SHARE row, then draft/head
+write and owner-maintained snapshot/audit in one transaction. This draft path
+calls no remote provider while holding locks and publishes no integration event.
+Future employment decisions must add the reviewed identity/link and consumer
+activation guards; this intake permission is not an employment-approval grant.
+
+Migration `0050_workforce_employment_period_drafts` is additive and backfills or
+approves no legacy record. Rolling application code back leaves its tables and
+history intact; removal requires a separate approved retention/migration action.
+Production rollout/migration of this new slice is a separate release gate.

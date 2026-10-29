@@ -32,11 +32,22 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
   denial, and explicit keep-editing/discard behavior. Final Node 24 web gates
   passed all 30 tasks, including 1,193 shell and 406 API tests. Full Workforce
   race/coverage passed at 83.8%; full architecture and contractdocs checks passed.
-- **Next slice:** protected employment evidence binding. A typed reference alone
-  does not establish verified evidence. Reuse Workforce's scanned private file
-  owner, pin the exact file/generation and source revision, preserve history, and
-  deny wrong Staff/hospital, unavailable, revoked or stale evidence. Independent
-  submission/review and operational activation remain subsequent gates.
+- **Protected employment evidence — locally verified candidate:** scanned-file
+  binding to an exact immutable terms revision, terminal reasoned withdrawal,
+  retained receipts/history, combined fresh enrollment/document permissions and
+  current hospital manager scope. No new approval, access grant or employment
+  activation is introduced. Migration `0051_workforce_employment_evidence` is
+  additive and has only been applied locally; production approval is pending.
+- **Validation:** full affected Go race/coverage passed (Workforce 83.6%,
+  contractdocs 80.7%, architecture passed); additional evidence/document race
+  checks passed. Final Node 24 web gates passed all 30 tasks, including 1,194
+  shell and 408 API tests. Real local Staff Admin UI verified required fields,
+  upload, scanner freshness failure/recovery, ready-file selection, navigation
+  keep-editing, attach, checksum-matching download and reasoned withdrawal with
+  both immutable revisions. Synthetic contractor remained inactive.
+- **Next slice:** immutable employment submission and independent review, with
+  source-change/concurrency and downstream access activation gates. Evidence
+  binding records scanned bytes; it does not verify the employment claim.
 
 No full Staff area or broad GitHub issue is newly marked complete. Contract
 expiry, suspension, resignation, termination, rehire, transfers, cards, payroll
@@ -345,3 +356,31 @@ switching Staff records. The real local UI confirmed the same behavior; saved
 revision 3 was retained and only explicitly discarded unsaved text was removed.
 All 30 Node 24 web gates passed again after this frontend-only fix. No backend,
 SQL, permission or event changed after the final owner/architecture Go checks.
+
+## Protected employment evidence candidate — 2026-10-29
+
+The [implementation plan](../superpowers/plans/2026-10-29-employment-evidence.md)
+and [owner contract](../api/workforce.md#protected-evidence-for-employment-terms-revisions)
+cover the completed local slice. Database-backed owner HTTP tests verify pending
+files, duplicate active files, strict command facts, stale terms/Staff sources,
+receipt collisions, stale withdrawal, wrong Staff/hospital/tenant, either missing
+permission, forced private RLS, tampering, revoked files and withdrawal during
+storage retrieval. The source document upload/scan path uses real PostgreSQL;
+external GCS/ClamAV protocols are faked in automated tests only.
+
+Local browser QA used the existing synthetic hospital/contractor. Freshclam
+updated stale local definitions from 28166 to 28168 without weakening the
+48-hour rejection policy. A UI retry produced a Ready file. Binding revision 1
+attached it to terms revision 3; the downloaded 179-byte PNG matched the original
+SHA-256. A reasoned withdrawal produced binding revision 2 and removed download
+controls, preserving both revisions. A full page reload/reopen retained the withdrawn binding and both history
+revisions; private screenshot `local-employment-evidence-withdrawn.jpg` is retained
+with the local fixture evidence. No production evidence or reviewer approval
+is claimed; all 21 broad acceptance areas remain open. Issues #118 and #1399
+remain open, as do related lifecycle, payroll and identity acceptance gates.
+
+Commands run in this candidate include `go test -race -cover -count=1` for
+Workforce/architecture/contractdocs; the additional document/evidence race suite;
+`go vet`, API/worker builds, `golangci-lint`; contractdocs generation/check;
+canonical employment contract generation/check; and
+`API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo lint format:check type-check test build`.

@@ -1,9 +1,18 @@
 "use client";
+import { EmploymentEvidencePanel } from "./employment-evidence-panel";
 
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, LoadMore, Panel, useZodForm, FormSelectField, useLeaveGuard } from "@helivanta/ui";
+import {
+  Field,
+  LoadMore,
+  Panel,
+  useZodForm,
+  FormSelectField,
+  useLeaveGuard,
+  useConfirmLeave,
+} from "@helivanta/ui";
 import {
   ApiError,
   EmploymentPeriodSourceContract,
@@ -75,12 +84,16 @@ const termsForm = z
 export function StaffEmploymentPeriods({
   scope,
   staffLabel,
+  canManageDocuments = false,
   onClose,
 }: {
   scope: EmploymentPeriodScope;
   staffLabel: string;
+  canManageDocuments?: boolean;
   onClose: () => void;
 }) {
+  const confirmLeave = useConfirmLeave();
+  const [evidence, setEvidence] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus();
@@ -121,7 +134,7 @@ export function StaffEmploymentPeriods({
             review and do not grant access, renew a contract or end employment.
           </p>
         </div>
-        <Button variant="ghost" disabled={editor !== null} onClick={onClose}>
+        <Button variant="ghost" disabled={editor !== null} onClick={() => confirmLeave(onClose)}>
           Close employment terms
         </Button>
       </div>
@@ -137,8 +150,12 @@ export function StaffEmploymentPeriods({
             <Button
               variant="outline"
               onClick={() => {
-                setSaved(false);
-                setEditor({});
+                confirmLeave(() => {
+                  setSaved(false);
+                  setEvidence(null);
+                  setHistory(null);
+                  setEditor({});
+                });
               }}
             >
               Prepare employment terms
@@ -189,14 +206,30 @@ export function StaffEmploymentPeriods({
                     disabled={editor !== null}
                     onClick={() => {
                       setSaved(false);
-                      setEditor({ item: row });
+                      confirmLeave(() => {
+                        setEvidence(null);
+                        setHistory(null);
+                        setEditor({ item: row });
+                      });
                     }}
                   >
                     Edit terms
                   </Button>
+                  {canManageDocuments && (
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        confirmLeave(() => setEvidence(evidence === row.id ? null : row.id))
+                      }
+                    >
+                      Employment evidence
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
-                    onClick={() => setHistory(history === row.id ? null : row.id)}
+                    onClick={() =>
+                      confirmLeave(() => setHistory(history === row.id ? null : row.id))
+                    }
                   >
                     Term history
                   </Button>
@@ -207,7 +240,26 @@ export function StaffEmploymentPeriods({
                 {row.ends_at ? new Date(row.ends_at).toLocaleString() : "Ongoing"}
               </p>
               {row.contracting_party && <p className="text-sm">{row.contracting_party}</p>}
-              {history === row.id && <EmploymentTermsHistory scope={scope} id={row.id} />}
+              {evidence === row.id && (
+                <EmploymentEvidencePanel
+                  key={`${row.id}:${row.version}`}
+                  scope={{ ...scope, periodId: row.id, periodVersion: row.version }}
+                  staffVersion={row.staff_version}
+                  canAttach={
+                    validSource &&
+                    basis.data.staff_version === row.staff_version &&
+                    basis.data.employment_epoch === row.employment_epoch
+                  }
+                  onClose={() => confirmLeave(() => setEvidence(null))}
+                />
+              )}
+              {history === row.id && (
+                <EmploymentTermsHistory
+                  scope={scope}
+                  id={row.id}
+                  canManageDocuments={canManageDocuments}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -220,7 +272,17 @@ export function StaffEmploymentPeriods({
     </Panel>
   );
 }
-function EmploymentTermsHistory({ scope, id }: { scope: EmploymentPeriodScope; id: string }) {
+function EmploymentTermsHistory({
+  scope,
+  id,
+  canManageDocuments,
+}: {
+  scope: EmploymentPeriodScope;
+  id: string;
+  canManageDocuments: boolean;
+}) {
+  const [evidence, setEvidence] = useState<number | null>(null);
+  const confirmLeave = useConfirmLeave();
   const query = useApiPagedQuery<unknown>(
     [...employmentPeriodsKey(scope), id, "history"],
     `${employmentPeriodsPath(scope)}/${id}/history`,
@@ -245,6 +307,24 @@ function EmploymentTermsHistory({ scope, id }: { scope: EmploymentPeriodScope; i
             Revision {row.version} · {row.evidence_reference} ·{" "}
             {new Date(row.updated_at).toLocaleString()}
             <p className="text-muted-foreground">{row.reason}</p>
+            {canManageDocuments && (
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  confirmLeave(() => setEvidence(evidence === row.version ? null : row.version))
+                }
+              >
+                Revision {row.version} evidence
+              </Button>
+            )}
+            {evidence === row.version && (
+              <EmploymentEvidencePanel
+                scope={{ ...scope, periodId: row.id, periodVersion: row.version }}
+                staffVersion={row.staff_version}
+                canAttach={false}
+                onClose={() => confirmLeave(() => setEvidence(null))}
+              />
+            )}
           </li>
         ))}
       </ol>

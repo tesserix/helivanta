@@ -1247,3 +1247,39 @@ resignation, termination, contract expiry/renewal, rehire, review-queue migratio
 consumer cutoff, handover and settlement are still open implementation/acceptance
 work in the [lifecycle plan](../superpowers/plans/2026-10-29-staff-employment-lifecycle.md).
 The directory's inactive flag is not completion of any of those journeys.
+
+## Employment evidence binding local acceptance — 2026-10-29
+
+Scope: private scanned-file binding to draft employment terms, not employment
+submission, independent review, identity verification or operational activation.
+The source is `contracts/workforce-employment-periods.json`; Workforce owns
+bindings/history and its existing enrollment evidence files. Both fresh manage
+permissions and current hospital manager scope are required. No permission or
+OpenFGA relationship is added.
+
+- Automated real-PostgreSQL HTTP tests: available-file pinning; pending/revoked
+  refusal; exact replay after withdrawal; duplicate active file; command/receipt
+  collision; stale withdrawal; client scan-fact injection; stale terms/Staff
+  basis; wrong Staff/hospital/tenant; missing either permission; private forced
+  RLS and history tampering; withdrawal during storage retrieval blocks bytes.
+- SDK/UI tests: expected-tenant/subject headers; scope/revision/document receipt
+  validation; terminal withdrawal validation; required scanned file/reason and
+  exact command retry following an uncertain 503.
+- Local UI: existing synthetic inactive agency worker, terms revision 3. Uploaded
+  `synthetic-staff-real-scanner-evidence.png`; stale scanner definitions caused
+  Needs attention. Updated real local definitions, retried through UI, observed
+  Ready. Required-field validation and Keep editing preserved an unsaved command.
+  Attached binding revision 1; downloaded file was 179 bytes and matched the
+  original SHA-256. Withdrew with a reason; revision 2 is Withdrawn, download
+  controls disappear, both immutable revisions remain in history after a full
+  page reload and reopen.
+- Gates: all 30 Node 24 web tasks passed (1,194 shell, 408 API tests); full
+  Workforce race/coverage 83.6%, architecture passed, contractdocs 80.7%; extra
+  affected document/evidence race run passed. Vet/build/lint/generator checks
+  passed. Migration 0051 is local only. Production 0050 and 0051 are pending
+  their specific approval and deployment verification.
+
+Private browser evidence and fixture/runtime details remain under
+`~/.helivanta/staff-management-20261027/`; no credentials or Staff files are
+committed. Independent reviewer positive/negative UI acceptance belongs to the
+forthcoming employment decision slice; no such approval is fabricated here.

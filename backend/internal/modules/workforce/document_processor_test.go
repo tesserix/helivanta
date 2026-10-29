@@ -48,8 +48,8 @@ func newDocumentScenario(t *testing.T) documentScenario {
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens:  map[string]string{"manager": testutil.TenantA, "foreign": testutil.TenantB},
-		Perms:   map[string][]authz.Permission{"manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "foreign": {workforce.PermDocumentManage}},
+		Tokens:  map[string]string{"manager": testutil.TenantA, "foreign": testutil.TenantB, "foreign-hr": testutil.TenantB, "enrollment-only": testutil.TenantA, "documents-only": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "foreign": {workforce.PermDocumentManage}, "foreign-hr": {workforce.PermEnrollmentManage, workforce.PermDocumentManage}, "enrollment-only": {workforce.PermEnrollmentManage}, "documents-only": {workforce.PermDocumentManage}},
 		Modules: []platform.Module{workforce.New()}, Documents: files,
 	})
 	hospital, staff, file := uuid.NewString(), uuid.NewString(), uuid.NewString()

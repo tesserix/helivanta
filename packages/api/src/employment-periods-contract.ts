@@ -161,3 +161,101 @@ export const EmploymentPeriodDraftContract = z
   .strict()
   .superRefine(validTerms);
 export type EmploymentPeriodDraft = z.infer<typeof EmploymentPeriodDraftContract>;
+
+export const EmploymentEvidenceAttachInputContract = z
+  .object({
+    command_id: identifier,
+    document_id: identifier,
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type EmploymentEvidenceAttachInput = z.infer<typeof EmploymentEvidenceAttachInputContract>;
+
+export const EmploymentEvidenceWithdrawInputContract = z
+  .object({
+    command_id: identifier,
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type EmploymentEvidenceWithdrawInput = z.infer<
+  typeof EmploymentEvidenceWithdrawInputContract
+>;
+
+export const EmploymentEvidenceBindingContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    hospital_id: identifier,
+    staff_id: identifier,
+    period_id: identifier,
+    period_revision_id: identifier,
+    period_version: z.number().int().min(1).max(9007199254740990),
+    version: z.number().int().min(1).max(9007199254740990),
+    status: z.enum(["attached", "withdrawn"]),
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    document_id: identifier,
+    document_record_version: z.number().int().min(1).max(9007199254740990),
+    filename: z
+      .string()
+      .min(1)
+      .max(180)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    content_type: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    size: z.number().int().min(1).max(9007199254740990),
+    sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    source_generation: z
+      .string()
+      .min(1)
+      .max(19)
+      .regex(new RegExp("^[1-9][0-9]{0,18}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    released_generation: z
+      .string()
+      .min(1)
+      .max(19)
+      .regex(new RegExp("^[1-9][0-9]{0,18}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    scan_attempt: z.number().int().min(1).max(9007199254740990),
+    scanned_at: z.string().datetime({ offset: true }),
+    proposed_by_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type EmploymentEvidenceBinding = z.infer<typeof EmploymentEvidenceBindingContract>;

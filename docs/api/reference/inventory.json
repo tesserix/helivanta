@@ -6793,6 +6793,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
           "permission": "workforce.enrollment.manage",
           "authentication_required": true,
@@ -7813,6 +7867,14 @@
           "creates_tables": [
             "workforce_employment_period_drafts",
             "workforce_employment_period_history"
+          ]
+        },
+        {
+          "id": "0051_workforce_employment_evidence",
+          "sql_sha256": "56399250fab07440ea9561dbb2b13d9dd8c11e9307f66e277641c78497d1e9de",
+          "creates_tables": [
+            "workforce_employment_evidence_bindings",
+            "workforce_employment_evidence_history"
           ]
         }
       ]

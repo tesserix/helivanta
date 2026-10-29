@@ -942,6 +942,12 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file` | `workforce.documents.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents` | `workforce.documents.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/history` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding` | `workforce.enrollment.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
@@ -1062,6 +1068,7 @@ Migration table declarations:
 - `0046_workforce_document_classification`: `workforce_document_classification_revisions`, `workforce_document_classifications`.
 - `0049_workforce_identity_cases`: `workforce_identity_cases`, `workforce_identity_case_history`.
 - `0050_workforce_employment_period_drafts`: `workforce_employment_period_drafts`, `workforce_employment_period_history`.
+- `0051_workforce_employment_evidence`: `workforce_employment_evidence_bindings`, `workforce_employment_evidence_history`.
 
 ## workspace
 

@@ -109,3 +109,5 @@ export * from "./staff-directory-contract";
 export * from "./staff-directory";
 export * from "./employment-periods-contract";
 export * from "./employment-periods";
+
+export * from "./employment-evidence";

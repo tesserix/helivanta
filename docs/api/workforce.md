@@ -1073,3 +1073,61 @@ Migration `0050_workforce_employment_period_drafts` is additive and backfills or
 approves no legacy record. Rolling application code back leaves its tables and
 history intact; removal requires a separate approved retention/migration action.
 Production rollout/migration of this new slice is a separate release gate.
+
+## Protected evidence for employment terms revisions
+
+Workforce owns these private bindings as well as the source Staff documents. All
+routes below are beneath
+`/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence`.
+UI requests use the Global API and pin the expected tenant and subject. Every
+route requires both freshly resolved `workforce.enrollment.manage` and
+`workforce.documents.manage`, plus a current explicit hospital manager grant.
+The two permissions are checked in the same refreshed permission set. Neither
+permission grants employment approval or operational access.
+
+| Route suffix              | Behavior                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| `PUT /:binding`           | Create-only UUIDv7 binding; command UUIDv7, protected document UUID and reason only |
+| `POST /:binding/withdraw` | Terminal, reasoned withdrawal with command UUIDv7 and expected binding version      |
+| `GET /:binding`           | Current private binding metadata                                                    |
+| `GET /`                   | Cursor-paginated bindings for this exact terms revision                             |
+| `GET /:binding/history`   | Cursor-paginated immutable binding revisions                                        |
+| `GET /:binding/content`   | Two-phase reauthorized download of the exact released file generation               |
+
+Canonical models are in `contracts/workforce-employment-periods.json`; regenerate
+with `node scripts/generate-workforce-employment-periods.mjs`. Evidence commands
+are bounded to 4 KiB. The attachment command does not accept client-supplied scan,
+checksum, generation or release facts. It accepts only an available, scanned
+`enrollment` / `employment_evidence` PNG/JPEG owned by the same Staff member and
+hospital, at the terms' Staff source version. The terms revision must still be
+current and its Staff version/employment epoch must match the current source.
+No upload format, document purpose, scanner bypass or storage copy is introduced.
+
+Bindings pin the immutable period revision ID, Staff source/generation, document
+record version, filename/type/size/checksum, scan attempt/time and exact source
+and released object generations. Scanner implementation/definition facts stay
+internal. At most 20 active bindings may exist per terms revision; the same file
+cannot have two active bindings there. Version 1 is attached; version 2 is
+withdrawn. Binding contents cannot be rewritten or reactivated. A new binding
+requires a new reasoned command. Exact retries return their original immutable
+receipts after current authorization, including after withdrawal, without
+reattachment. Intent/actor/source conflicts return 409; transient lock conflicts
+return 503 and require retrying the same command. Wrong or unauthorized object
+scope is not disclosed.
+
+Historical metadata and withdrawal remain available to currently authorized HR
+even after the Staff basis changes. A download additionally requires an attached
+binding and an available matching document. Authorization, release and binding
+are checked before storage I/O and again before bytes leave the API; withdrawal
+or revocation during storage retrieval prevents release. The browser also checks
+size and SHA-256 before offering a download. Metadata availability does not
+promise storage availability or validate the truth of the employment claim.
+
+Migration `0051_workforce_employment_evidence` adds bindings and immutable history
+with forced private RLS, scoped foreign keys and trigger-enforced snapshots. The
+write lock order is hospital manager grant, hospital advisory lock, Staff, terms,
+document, then binding/history/audit. The content gate follows the existing
+file-owner two-phase document-before-binding order. No remote call runs within a
+write transaction. Application rollback preserves the new private tables; no
+legacy evidence is automatically bound, approved or deleted. Production rollout
+and migration remain a separate exact-revision approval gate.

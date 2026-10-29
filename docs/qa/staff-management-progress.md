@@ -67,8 +67,8 @@ vary substantially in size, so no defensible overall effort or time percentage
 is available yet.
 
 The directory authority and account/version guards are deployed in the production
-checkpoint above. Private employment-term draft preparation is merged and fully
-CI-validated, with its production migration still awaiting approval. Scoped HR
+checkpoint above. Private employment-term draft and protected evidence preparation are deployed
+and CI-validated, with production UI evidence and artifact-capture limits above. Scoped HR
 role templates, reviewed employment decisions, dated transfers and offboarding
 remain open; a directory status or draft term is not proof of operational cutoff.
 

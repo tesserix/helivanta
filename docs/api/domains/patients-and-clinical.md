@@ -92,6 +92,21 @@ Patientmaster owns the hospital's decision on a pharmacy's claimed affiliation. 
 
 Both routes need `patient.pharmacy-affiliation.review`, which no role holds (tenant administrators only), **and** a current `registrar` grant at that hospital. Without the grant the answer is `404`. The requester cannot accept their own request. A changed input under the same decision id, or the wrong state, is `409 review_conflict`. Decisions are append-only in `patient_pharmacy_affiliation_decisions`. An insert trigger checks the session's own registrar grant, the state and self-acceptance, then moves the review's status, so status cannot drift from history. `pharmacy_affiliation_decided.v1` carries ids, outcome and time only; reviewer and reason stay here. Each decision is re-sent until pharmacy confirms it (`patient_pharmacy_affiliation_deliveries`, from 2 minutes up to 60, never given up). A revocation replaces an acceptance that has not yet been confirmed. Patientmaster in turn confirms every request and withdrawal it handles.
 
+## Pharmacy patient lookup (#1416b)
+
+A named pharmacist can find one of a hospital's patients by exact MRN, for a pharmacy whose link with the hospital is active on both sides. See the [design](../../superpowers/specs/2026-10-29-pharmacy-affiliation-verification-design.md#patient-lookup-slice-1416b).
+
+- **When a link is active.** `patient_pharmacy_links` gets a row when pharmacy confirms it applied the acceptance (`applied: true`), the review is still `accepted` under a row lock, and no older round's link stands. The row is deleted in the same transaction as a revocation, or as a withdrawal reaching patientmaster.
+- **Grants.** `PUT` and `DELETE /patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject` grant and revoke; `GET …/pharmacy-lookup-access?pharmacy_id=` lists them.
+  - They need `patient.pharmacy-affiliation.review` and a registrar grant. Granting needs an active link; otherwise the answer is `409 no_active_link`.
+  - A grant is tied to the link's round: it stops working when the link ends, and re-verifying the link starts with no grants.
+  - The grant table is never consulted for registry access.
+- **Lookup.** `GET /patients/pharmacy-lookup?hospital_id=&pharmacy_id=&mrn=` needs `patient.pharmacy-lookup` (pharmacist).
+  - It locks the grant and the link, then matches the exact MRN (trimmed, upper-cased). It returns `{patient_id, name, age_years, age_estimated, sex}`.
+  - No grant, no active link, another pharmacy or tenant, and no match all return the same `404`.
+  - A lookup session sees at most the one `patients` row its MRN names, through `patient_pharmacy_lookup_allowed`. It needs the session subject's grant in the link's current round. Consents, identifiers, duplicate overrides and blood groups are refused to it outright.
+  - Every lookup, a miss included, writes `patient_access_audit` (`pharmacy_lookup`, with `pharmacy_id`). If that write fails, the lookup fails without answering.
+
 ## Guardian authority ownership
 
 Patientmaster additionally owns the reviewed guardian authority registry, its

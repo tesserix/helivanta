@@ -103,6 +103,10 @@ func pharmacyAffiliationConsumer(subject, name string) events.Consumer {
 			if err := tx.Exec(`UPDATE patient_pharmacy_affiliation_reviews SET status='withdrawn',updated_at=clock_timestamp() WHERE tenant_id=? AND request_id=?`, evt.TenantID, d.RequestID).Error; err != nil {
 				return errors.New("pharmacy affiliation withdrawal unavailable")
 			}
+			// Lookups stop with the withdrawal (#1416b).
+			if err := tx.Exec(`DELETE FROM patient_pharmacy_links WHERE tenant_id=? AND request_id=?`, evt.TenantID, d.RequestID).Error; err != nil {
+				return errors.New("pharmacy link removal unavailable")
+			}
 		}
 		// Confirmed even when nothing changed, so pharmacy stops re-sending.
 		state := "requested"
@@ -241,6 +245,12 @@ func (h *patientHandlers) decidePharmacyAffiliation(c *gin.Context) {
 		}
 		if err := sendDecision(tx, p.TenantID, row, decision); err != nil {
 			return err
+		}
+		if decision.Outcome == "revoked" {
+			// Lookups stop with the revocation, in the same transaction (#1416b).
+			if err := tx.Exec(`DELETE FROM patient_pharmacy_links WHERE tenant_id=? AND hospital_id=? AND request_id=?`, p.TenantID, hospital, row.RequestID).Error; err != nil {
+				return err
+			}
 		}
 		return h.readPharmacyAffiliation(tx, p, &row)
 	})

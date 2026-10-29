@@ -332,7 +332,7 @@ func TestPharmacyAffiliationDecisionsAreResentUntilConfirmed(t *testing.T) {
 	require.Equal(t, revoke, current, "the revocation replaces the unconfirmed acceptance")
 	require.Zero(t, attempts)
 	receipt := byName["patient-pharmacy-affiliation-decision-receipt"]
-	require.NoError(t, deliver(receipt, pharmacycontract.AffiliationDecisionReceivedData{RequestID: data.RequestID, HospitalID: testHospital, DecisionID: accept}))
+	require.NoError(t, deliver(receipt, pharmacycontract.AffiliationDecisionReceivedData{RequestID: data.RequestID, HospitalID: testHospital, DecisionID: accept, Applied: true}))
 	_, _, due = delivery()
 	require.NotNil(t, due, "confirming the superseded acceptance does not confirm the revocation")
 	lapse()
@@ -341,7 +341,7 @@ func TestPharmacyAffiliationDecisionsAreResentUntilConfirmed(t *testing.T) {
 	require.Len(t, sentDecisions, 4)
 	require.Equal(t, revoke, sentDecisions[3]["decision_id"])
 	require.Equal(t, "revoked", sentDecisions[3]["outcome"])
-	require.NoError(t, deliver(receipt, pharmacycontract.AffiliationDecisionReceivedData{RequestID: data.RequestID, HospitalID: testHospital, DecisionID: revoke}))
+	require.NoError(t, deliver(receipt, pharmacycontract.AffiliationDecisionReceivedData{RequestID: data.RequestID, HospitalID: testHospital, DecisionID: revoke, Applied: true}))
 	_, _, due = delivery()
 	require.Nil(t, due, "a confirmed decision is no longer due")
 	redeliver()

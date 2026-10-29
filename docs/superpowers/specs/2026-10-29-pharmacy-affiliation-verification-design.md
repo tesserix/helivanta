@@ -141,22 +141,105 @@ Patientmaster (`/v1/patients`, `?hospital_id=` selector, checked server-side):
 - Both need `patient.pharmacy-affiliation.review` plus a registrar grant. With no
   grant the answer is 404, as everywhere else in patientmaster.
 
-## Patient lookup (slice 1416b, decided here, built next)
+## Patient lookup (slice 1416b)
 
-- Pharmacy keeps an id-only list of registered patients (`patient_id`,
-  `hospital_id`), built from `helivanta.in.patientmaster.registered.v1`, kept only
-  for hospitals with a verified affiliation. On acceptance, patientmaster
-  re-announces that hospital's registrations to pharmacy, using the replay
-  mechanism from #1377. Pharmacy accepts a patient id on a sale only if the id is
-  in that list and the outlet's pharmacy holds a verified affiliation at the time
-  the sale posts.
-- The hospital grants named pharmacists a separate `pharmacy_lookup` grant in
-  patientmaster. The existing reader path must reject it, so it confers no
-  registry access. `GET /patients/pharmacy-lookup?hospital_id=&pharmacy_id=&mrn=`
-  matches the exact MRN (MRNs are unique per tenant, `UNIQUE (tenant_id, mrn)`).
-  It works only while that pharmacy's affiliation with the hospital is accepted.
-  It returns the patient id, name, age in years and sex. Every lookup, including a
-  miss, writes `patient_access_audit`.
+### The pharmacy's list of registered patients
+
+Pharmacy keeps `pharmacy_registered_patients (tenant_id, patient_id, hospital_id)`, built by
+`pharmacy-patient-registered` from `helivanta.in.patientmaster.registered.v1`. Ids only.
+
+**Ruling (2026-10-29):** the list keeps every registration in the tenant, not only those of
+hospitals with a verified affiliation. Authority is checked when a patient id is used, never
+when it arrives.
+
+- MediCore's `medicore_patients` already works this way: same event, same tenant, ids only.
+- Filtering on arrival would mean a replay on every acceptance and a purge on every
+  revocation, and the purge would be one more message that can be lost.
+- Pharmacy already receives every one of these events, so storing the ids discloses nothing
+  new.
+
+Registrations made before pharmacy's consumer existed arrive through the #1377 replay
+(`POST /patients/hospitals/:hospital/registration-replays`, tenant administrators).
+
+B-2c will accept a patient id on a sale only if the id is in this list for the hospital, and
+the outlet's pharmacy holds a `verified` affiliation with that hospital in pharmacy's own
+history when the sale posts.
+
+### When a link is active
+
+Patientmaster keeps `patient_pharmacy_links (tenant_id, hospital_id, pharmacy_id, request_id)`.
+A row is written only when all of these hold:
+
+- Pharmacy has confirmed the acceptance and said it **applied** it:
+  `affiliation_decision_received.v1` carries `applied: true`. A decision for a round pharmacy had
+  already closed is still confirmed, so redelivery stops, but with `applied: false`, so no link
+  opens.
+- The review is still `accepted`, read under a `FOR SHARE` lock on the review row. A revocation
+  or withdrawal in flight holds that row `FOR UPDATE`, so the confirmation waits for it and then
+  sees the outcome. Without the lock, a confirmation could read the old snapshot and open a link
+  nothing would ever close.
+- No older round's link still stands for that pharmacy and hospital. If one does, the
+  confirmation fails and is re-sent until the older link ends. A duplicate of the same round is
+  idempotent.
+
+The row is deleted in the same transaction as a revocation, or as a withdrawal reaching
+patientmaster.
+
+So a lookup works only after both sides agree the link is verified. A hospital revocation
+stops it at once. A pharmacy withdrawal stops it as soon as patientmaster receives it, which
+the redelivery loop guarantees.
+
+### The lookup grant
+
+`patient_pharmacy_lookup_access (tenant_id, hospital_id, pharmacy_id, request_id, subject,
+granted_by, created_at)` lists the named pharmacists the hospital allows to look up its
+patients for that pharmacy.
+
+- It is a separate table, never read by `patient_hospital_allowed`, so it confers no registry
+  access.
+- Each grant is tied to the link's `request_id`. When a link ends, its grants stop working,
+  and re-verifying the link does not bring them back.
+- Routes:
+  - `PUT /patients/hospitals/:hospital/pharmacy-lookup-access/:pharmacy/:subject` grants;
+  - `DELETE` on the same path revokes;
+  - `GET /patients/hospitals/:hospital/pharmacy-lookup-access?pharmacy_id=` lists the grants.
+- All three need `patient.pharmacy-affiliation.review` plus a registrar grant. A grant needs an
+  active link; without one the answer is 409.
+- Grants and revocations are audited in `patient_access_audit` (`grant` and `revoke`, access
+  level `pharmacy_lookup`, with `pharmacy_id`). A repeat that changes nothing gets the same
+  answer and records nothing.
+
+### The lookup
+
+`GET /patients/pharmacy-lookup?hospital_id=&pharmacy_id=&mrn=` needs the new permission
+`patient.pharmacy-lookup` (role: pharmacist).
+
+- **One transaction.** It locks the caller's grant and the active link `FOR SHARE`, then reads
+  the patient whose MRN matches exactly (trimmed, upper-cased; MRNs are unique per tenant).
+  The `patients` row is visible through a new RLS branch, `patient_pharmacy_lookup_allowed`. It
+  needs the grant and the link for the session's subject, hospital and pharmacy, **and** the
+  row's MRN to equal the session's (`app.pharmacy_lookup_mrn`), so the database admits one
+  patient at most. While lookup settings are present, restrictive policies refuse every row of
+  `patient_consents`, `patient_identifiers`, `patient_duplicate_overrides` and
+  `patient_reported_blood_groups`. The registry path is unchanged.
+- **Answer:** `{patient_id, name, age_years, age_estimated, sex}`. Age is in whole years from
+  the date of birth; `age_estimated` repeats `dob_estimated`. No MRN echo, date of birth,
+  mobile, address or identifiers.
+- **Ruling: age uses the UTC calendar.** Patientmaster holds no hospital time zone, and
+  registration already checks dates of birth against UTC. In India that makes the age one year
+  low from 00:00 to 05:30 on a birthday. Age is an aid to recognising the person, never a dosing
+  or eligibility input.
+- **No grant, no active link and no match all return the same `404`,** so the answer never
+  shows which of the three failed.
+- **Every lookup is audited** in `patient_access_audit`, action `pharmacy_lookup`, with
+  `pharmacy_id` and the matched id. A miss has empty `resource_ids` and is audited too.
+  Pharmacy's `/patients` access stays as it is.
+
+### Not covered in 1416b
+
+- The counter UI that calls the lookup, and its use on a sale: B-2c.
+- Rate limiting beyond the platform's per-principal limit. MRN guessing is bounded by that
+  limit and fully audited.
 
 ## Not covered
 

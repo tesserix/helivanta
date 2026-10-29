@@ -49,3 +49,15 @@ export const pharmacyAffiliationDecisionSchema = z.object({
   outcome: z.enum(["accepted", "declined", "revoked"]),
   reason,
 });
+
+/** A pharmacist the hospital lets look up its patients for one pharmacy (#1416b). */
+export type PharmacyLookupGrant = {
+  subject: string;
+  pharmacy_id: string;
+  granted_by: string;
+  created_at: string;
+};
+
+export const pharmacyLookupGrantSchema = z.object({
+  subject: z.string().trim().min(1, "Choose a member").max(200),
+});

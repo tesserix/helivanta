@@ -122,6 +122,11 @@ func TestAffiliationStepsAreResentUntilConfirmed(t *testing.T) {
 		return tx.Raw(`SELECT count(*) FROM outbox_events WHERE subject=? AND payload->'data'->>'decision_id'=?`, pharmacycontract.SubjectAffiliationDecisionReceived, applied.DecisionID).Scan(&twice).Error
 	}))
 	require.EqualValues(t, 2, twice, "a redelivered, already-applied decision is confirmed again")
+	var appliedFlags []bool
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT (payload->'data'->>'applied')::boolean FROM outbox_events WHERE subject=? AND payload->'data'->>'decision_id'=? ORDER BY created_at,id`, pharmacycontract.SubjectAffiliationDecisionReceived, applied.DecisionID).Scan(&appliedFlags).Error
+	}))
+	require.Equal(t, []bool{true, true}, appliedFlags, "an applied decision is confirmed as applied, redelivered or not")
 	decided := patientmastercontract.PharmacyAffiliationDecidedData{RequestID: request, AffiliationID: affiliation, HospitalID: hospital, DecisionID: uuid.Must(uuid.NewV7()).String(), Outcome: "accepted", DecidedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	deliverDecision(t, db, decision, decided)
 	deliverDecision(t, db, decision, decided)
@@ -129,5 +134,5 @@ func TestAffiliationStepsAreResentUntilConfirmed(t *testing.T) {
 	require.Len(t, confirmations, 2)
 	var got pharmacycontract.AffiliationDecisionReceivedData
 	require.NoError(t, json.Unmarshal([]byte(confirmations[0]), &got))
-	require.Equal(t, pharmacycontract.AffiliationDecisionReceivedData{RequestID: request, HospitalID: hospital, DecisionID: decided.DecisionID}, got)
+	require.Equal(t, pharmacycontract.AffiliationDecisionReceivedData{RequestID: request, HospitalID: hospital, DecisionID: decided.DecisionID, Applied: false}, got, "a decision for a withdrawn round is confirmed, not applied")
 }

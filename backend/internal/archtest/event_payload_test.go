@@ -294,6 +294,7 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"pharmacy.AffiliationDecisionReceivedData.RequestID":                       "opaque id of the verification round",
 	"pharmacy.AffiliationDecisionReceivedData.HospitalID":                      "opaque hospital id scoping the delivery row",
 	"pharmacy.AffiliationDecisionReceivedData.DecisionID":                      "opaque id of the decision handled",
+	"pharmacy.AffiliationDecisionReceivedData.Applied":                         "whether the decision entered pharmacy's history; no actor or reason",
 	"pharmacy.CreditNoteIssuedData.PharmacyID":                                 "opaque pharmacy scope; no recipient, prescriber or hospital identity",
 	"pharmacy.CreditNoteIssuedData.OutletID":                                   "opaque outlet scope; protected lookup requires a live grant",
 	"pharmacy.CreditNoteIssuedData.CreditNoteID":                               "opaque credit note reference; the document itself needs a sale.read grant",

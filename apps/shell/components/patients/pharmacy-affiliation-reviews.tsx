@@ -11,6 +11,7 @@ import {
   type PharmacyAffiliationReview,
 } from "@helivanta/api";
 import { ConfirmDialog, Field, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import { PharmacyLookupAccess } from "./pharmacy-lookup-access";
 
 type Outcome = z.infer<typeof pharmacyAffiliationDecisionSchema>["outcome"];
 
@@ -169,6 +170,13 @@ function ReviewItem({
             </Button>
           )}
         </form>
+      )}
+      {review.status === "accepted" && (
+        <PharmacyLookupAccess
+          hospitalId={hospital.id}
+          pharmacyId={review.pharmacy_id}
+          pharmacyName={review.pharmacy_name}
+        />
       )}
       {failed && (
         <p role="alert" className="mt-2 text-sm text-destructive">

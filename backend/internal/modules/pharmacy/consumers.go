@@ -25,7 +25,7 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			return tx.Exec(`INSERT INTO pharmacy_dispenses (tenant_id, visit_id, patient_name)
 				VALUES (?, ?, ?)`, evt.TenantID, d.VisitID, d.PatientName).Error
 		},
-	}, PrescriptionImageScanConsumer(deps.Workflows)}, append(paymentOutcomeConsumers(), affiliationDecisionConsumer(), affiliationReceiptConsumer())...)
+	}, PrescriptionImageScanConsumer(deps.Workflows)}, append(paymentOutcomeConsumers(), affiliationDecisionConsumer(), affiliationReceiptConsumer(), registeredPatientConsumer())...)
 }
 
 // Broadcasts declares none: pharmacy has no per-replica cache to

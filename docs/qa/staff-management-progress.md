@@ -32,7 +32,10 @@ Updated: 2026-10-29. Owner: Helivanta Staff Management delivery. This is the sum
   denial, and explicit keep-editing/discard behavior. Final Node 24 web gates
   passed all 30 tasks, including 1,193 shell and 406 API tests. Full Workforce
   race/coverage passed at 83.8%; full architecture and contractdocs checks passed.
-- **Protected employment evidence — locally verified candidate:** scanned-file
+- **Protected employment evidence — locally verified candidate:**
+  [PR #1458](https://github.com/tesserix/helivanta/pull/1458), implementation
+  `720202d3ffaacc10a0274ff82c44844f82dd1e63`; the PR records current hosted
+  validation and merge state. Scanned-file
   binding to an exact immutable terms revision, terminal reasoned withdrawal,
   retained receipts/history, combined fresh enrollment/document permissions and
   current hospital manager scope. No new approval, access grant or employment

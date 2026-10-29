@@ -240,3 +240,13 @@ handover, card, leave/attendance/payroll and settlement gates. All remain open
 until their real owner/consumer journeys pass. The quantitative area statuses
 remain 8 partial, 12 audit pending, 1 research and 0 fully accepted; no overall
 coding-effort completion percentage is inferred from these counts.
+
+Safe basic editing and accepted employment-link migration policy merged in
+[PR #1454](https://github.com/tesserix/helivanta/pull/1454) as
+`1be494b0d6def7341ec28c10d4c3596cbe7afc9b` after all required CI checks passed
+([run 40832171906](https://github.com/tesserix/helivanta/actions/runs/40832171906)).
+The change has local/CI evidence; it is not a new production rollout.
+The [next employment-period design](../superpowers/specs/2026-10-29-reviewed-employment-periods.md)
+keeps contractor/agency relationships, immutable renewal history, future cutoff,
+no-login workers and governance/recovery boundaries explicit. Those are design
+requirements, not newly implemented lifecycle endpoints.

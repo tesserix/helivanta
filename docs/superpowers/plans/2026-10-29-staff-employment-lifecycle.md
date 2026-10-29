@@ -5,8 +5,11 @@ The complete owner research remains
 is tracked in [the delivery tracker](../../qa/staff-management-progress.md).
 No row below is complete merely because a UI status exists.
 
-- [ ] Complete the account-bound/versioned basic editor prerequisite, including
+- [x] Implement and verify the account-bound/versioned basic editor prerequisite, including
       synthetic manager/reader UI and preserved inactivation/link history.
+      Merged as `1be494b0d6def7341ec28c10d4c3596cbe7afc9b` in
+      [PR #1454](https://github.com/tesserix/helivanta/pull/1454); full PR CI, local
+      Workforce race/coverage and web gates passed. Production rollout remains open.
 - [ ] Model employment periods and distinct employee, consultant, individual
       contractor and agency/outsourced-worker relationships. Reconcile #1035 with
       facility contractor/vendor work in #298; a service vendor is not automatically
@@ -35,3 +38,9 @@ No row below is complete merely because a UI status exists.
 - [ ] Commit, push and merge only verified slices. Review the exact combined
       deployment candidate and migrations; obtain named production approval before
       any new rollout or migration.
+
+The next record/contractor slice is designed in
+[reviewed employment periods](../specs/2026-10-29-reviewed-employment-periods.md).
+Existing contractor/locum/trainee/volunteer engagement types are already supported;
+the missing workflow is reviewed, versioned employment/contract lineage and its
+effective authority/closure, not merely adding a dropdown option.

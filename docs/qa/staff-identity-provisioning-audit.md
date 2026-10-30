@@ -1,5 +1,50 @@
 # Staff identity provisioning audit
 
+## Creation command and contact roots — 2026-10-31
+
+Owner runtime `f7bc16899dcfe81cc8c0b3a9a4f003bc6da419d0` adds actual creation PUT
+to the protected receipt/observation candidate. The service freezes server-selected
+identity/nonce and exact request fields, reserves the case-insensitive contact,
+reauthorizes source/registry scope before dispatch and after provider I/O, and
+commits one dispatch claim before creation. The URI command is authoritative;
+generic response-cache keys cannot disclose receipts after withdrawal or bypass
+changed input. Known creation yields 200; uncertain source outcomes retain 202
+dispatched state without fabricated account/verification facts. A later exact
+observation can reconcile creation without a new provider call.
+
+The schema owner persists append-only roots with a unique source-org/contact
+key and composite FK to the original command/org/email, chart 0.3.58 at
+`2214e7a7d6730570447bbe1f0ad8e341c5026c3b`, SQL SHA-256
+`676f5c8676e48d9647b3d08e37a6e82ca84c91d22d8d4d343ee9bc9e03fafb63`.
+Go lowercase normalization matches inspected v4.15.3 username constraints;
+dot/plus rewriting and email-based identity linking are excluded. Eight competing
+commands retain one root/command; preparation audit failure rolls both back.
+Exact retries retain their original random fields. Missing historical roots
+cannot be manufactured or used for dispatch. Application UPDATE/DELETE/TRUNCATE
+denial passed for all four ledger tables. Operator replacement must retain
+explicit lineage; its endpoint/history and recovery decisions are still open.
+
+Full actual-PostgreSQL owner race/coverage passed (54.1% overall, API 62.8%, store
+58.7%), plus vet/build/lint (zero issues), secret scan, four delivery tests,
+shell checks and final Linux/arm64 `helivanta-staff-onboarding-create:local` build.
+API tests cover required/closed/UTF-8 input, fresh creation, changed input,
+concurrent retries, timeout/invalid results, read-only lost-response recovery,
+midflight withdrawal, foreign/disabled source and replay-cache withdrawal.
+
+An explicit `staff_provider_fixture` test also passed against the isolated actual
+v4.15.3 provider: owner HTTP creation and exact replay, fresh unverified observation,
+and zero actual source memberships/user grants. Source org/registry proof is
+fixture-supplied in this test; it is not a normal-role UI or recipient verification
+claim. Private 0600 account evidence contains no password or verification override.
+Runtime CI 41076590905 had passed Go/contracts/secrets and was building its
+container at this checkpoint. Schema 2214e7a7 repository/Helm/PR gates passed;
+owner/schema documentation-only follow-up heads have their own CI.
+
+No production change, merge, release tag or operational Staff activation occurred.
+Actual human authority/Global API/consumer UI, recipient setup, bounded history,
+operator recovery, legacy classification and the remaining employment/access
+cutoff journeys are not accepted by these owner/provider tests.
+
 ## Actual provider fault correction — 2026-10-31
 
 Owner source `ec10aa63d794234e22f9a23ea92cb0729678caf9` is committed/pushed in

@@ -2,6 +2,33 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
+### Access/RBAC creation and contact reservation — 2026-10-31
+
+Owner runtime `f7bc168` now exposes creation PUT with immutable input,
+server-selected account/nonce, permanent contact reservation, one audited
+dispatch and retained creation receipts. Exact/concurrent retries do not create
+again; lost responses remain uncertain until matching read-only reconciliation.
+Canonical SQL is persisted at schema-owner `2214e7a7` (chart 0.3.58), SHA-256
+`676f5c8676e48d9647b3d08e37a6e82ca84c91d22d8d4d343ee9bc9e03fafb63`.
+Its repository, Helm/template/security and PR gates passed. Roots retain command
+lineage and cannot be rewritten/deleted by the application; historical commands
+without roots fail closed rather than receive invented backfill.
+
+Full local owner race tests, vet/build/lint, secret scan, four delivery tests and
+the final Linux/arm64 build passed. An explicitly selected actual v4.15.3 provider
+test passed owner HTTP creation/replay/observation and verified zero source
+memberships/user grants with contact still unverified. It uses fixture registry
+proof, not normal Admin/recipient/reviewer UI acceptance. Private account evidence
+is retained as 0600 JSON; no password/verified flag was supplied to creation.
+Runtime CI [41076590905](https://github.com/tesserix/onboarding-service/actions/runs/41076590905)
+passed Go/contracts/secret checks with container validation still in progress
+at this checkpoint. Subsequent owner/schema commits update documentation only.
+
+Operator recovery/history/root replacement, actual recipient setup/verification,
+canonical product registration, Helivanta/Global consumer UI and the remaining
+A01–A12 lifecycle/cross-module acceptance remain open. No merge, production
+rollout or new live migration occurred. Counts remain unchanged.
+
 ### Access/RBAC provider failure acceptance — 2026-10-31
 
 The identity-owner candidate now includes `ec10aa6` in draft

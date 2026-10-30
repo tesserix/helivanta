@@ -150,6 +150,17 @@ Every A-item must cover unauthorized actor, another tenant/hospital, self-review
 
 ### Active Access/RBAC completion work — 2026-10-30
 
+The next [membership removal/recovery design](../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)
+is source-verified and remains proposed. Two disposable local regressions are
+red: repeating a subject/role DELETE after re-enrollment removes the replacement
+membership, and a historical grant delivered through the real registered
+consumer recreates graph membership when IAM has no membership. The first used
+real PostgreSQL/NATS; the second additionally used real OpenFGA. No production or
+local application memberships were changed. Current-source admission separately
+denies stale graph authority, but these command/recovery/projection gaps remain
+open. Neither red reproduction is acceptance evidence for a completed workflow.
+The full objective remains A01–A12.
+
 The user selected full Access/RBAC completion again, including every A01–A12
 journey above. The [completion plan](../superpowers/plans/2026-10-30-staff-rbac-completion.md)
 keeps that full objective and the owner/consumer dependencies explicit.

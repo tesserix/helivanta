@@ -240,3 +240,16 @@ Design: [spec](../../superpowers/specs/2026-10-30-deposit-refunds-design.md).
 
 - **Not covered:** refunds by UPI or bank transfer; un-applying deposits (a credit after an
   application stays unrefundable); refunds of payments; ward refund requests; events; GL.
+
+## Billing desk
+
+Design: [spec](../../superpowers/specs/2026-10-30-billing-desk-design.md).
+
+- `GET /billing/hospitals/:hospital/accounts?view=` lists the hospital's admission accounts,
+  newest first, paged, each with `status`, `discharge_ordered`, and INR `balance_minor` (below
+  zero is credit), `deposit_held_minor`, `refundable_minor` (the surplus over the bill, once a
+  final bill exists) and `has_final_bill`. Views: `to_collect`, `to_refund`,
+  `discharge_ordered`, `open`, `released`, or none for all; another is `400`.
+- Needs `billing.account.read` and the hospital's billing grant (`404` without it).
+- The shell's **Billing** zone (`billing.account.read`) shows it with the cash desk; each
+  account opens its bills, payments, deposits and refunds, including after release.

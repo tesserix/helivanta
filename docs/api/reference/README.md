@@ -541,6 +541,7 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | DELETE | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/access` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/accounts` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/account` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number` | `billing.account.read` | false | false |

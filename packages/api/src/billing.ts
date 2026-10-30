@@ -206,3 +206,23 @@ export const refundApprovalSchema = z.object({
     .max(1_000_000_000, "Too large"),
   reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
 });
+
+/** An admission account as the billing desk lists it (INR figures). */
+export type DeskAccount = {
+  admission_id: string;
+  hospital_id: string;
+  patient_id: string;
+  status: "open" | "closed";
+  discharge_ordered: boolean;
+  opened_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  /** Left to pay; below zero is credit. */
+  balance_minor: number;
+  deposit_held_minor: number;
+  /** Refundable now: the surplus over the bill, once a final bill exists. */
+  refundable_minor: number;
+  has_final_bill: boolean;
+};
+
+export type DeskView = "" | "open" | "discharge_ordered" | "to_collect" | "to_refund" | "released";

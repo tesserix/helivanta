@@ -87,6 +87,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.DELETE(hp+"/access/:subject", PermAccessManage, h.revokeAccess)
 	g.GET(hp+"/access", PermAccountRead, h.myAccess)
 	g.GET(hp+"/admissions/:admission/account", PermAccountRead, h.account)
+	// The billing desk's list of accounts, by what they need (#197–#199).
+	platform.ListRoute(g, hp+"/accounts", PermAccountRead, h.deskAccounts)
 	platform.ListRoute(g, hp+"/admissions/:admission/entries", PermAccountRead, h.entries)
 	g.PUT(hp+"/bed-charging", PermRateManage, h.setBedCharging)
 	g.GET(hp+"/bed-charging", PermAccountRead, h.bedChargingSetup)

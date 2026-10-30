@@ -3510,6 +3510,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/accounts",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/account",
           "permission": "billing.account.read",
           "authentication_required": true,

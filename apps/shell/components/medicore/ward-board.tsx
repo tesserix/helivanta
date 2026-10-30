@@ -37,6 +37,7 @@ import { PatientName } from "./opd-encounters";
 import { BedSetup } from "./bed-setup";
 import { AdmissionBalance, BillingAccessSetup, useBillingAccess } from "./admission-account";
 import { BedChargingSetup } from "./bed-charging";
+import { InterimBills } from "./interim-bills";
 
 const stateLabel: Record<BedState, string> = {
   available: "Available",
@@ -195,6 +196,7 @@ function BedRow({
   billing: boolean;
 }) {
   const [action, setAction] = useState<Action>(null);
+  const [bills, setBills] = useState(false);
   // One id per command on this version of the bed: a retried click repeats
   // the same command, and once the bed moves on (even after a lost answer)
   // the next command gets a fresh id.
@@ -230,7 +232,19 @@ function BedRow({
           {billing && bed.admission_id && (
             <p className="mt-0.5">
               <AdmissionBalance hospital={hospital} admissionId={bed.admission_id} />
+              <Button
+                variant="link"
+                size="sm"
+                className="ml-2 h-auto p-0 text-xs"
+                aria-expanded={bills}
+                onClick={() => setBills(!bills)}
+              >
+                Bills
+              </Button>
             </p>
+          )}
+          {billing && bed.admission_id && bills && (
+            <InterimBills hospital={hospital} admissionId={bed.admission_id} />
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">

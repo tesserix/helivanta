@@ -21,6 +21,8 @@ const (
 	PermAccessManage authz.Permission = "billing.access.manage"
 	// PermRateManage sets a hospital's bed-charging timezone and bed rates.
 	PermRateManage authz.Permission = "billing.rate.manage"
+	// PermBillIssue issues an interim bill on an open admission account.
+	PermBillIssue authz.Permission = "billing.bill.issue"
 )
 
 //go:embed accounts.sql
@@ -28,6 +30,9 @@ var accountsSchema string
 
 //go:embed bed_days.sql
 var bedDaysSchema string
+
+//go:embed interim_bills.sql
+var interimBillsSchema string
 
 type Module struct{}
 
@@ -42,11 +47,13 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermAccountRead, Roles: []authz.Role{authz.RoleNurse, authz.RoleReceptionist}},
 		{Permission: PermAccessManage},
 		{Permission: PermRateManage},
+		// The billing desk issues interim bills; ward nurses only read the account.
+		{Permission: PermBillIssue, Roles: []authz.Role{authz.RoleReceptionist}},
 	}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -62,6 +69,11 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET(hp+"/bed-charging", PermAccountRead, h.bedChargingSetup)
 	g.PUT(hp+"/bed-rates/:class/:effective_from", PermRateManage, h.setBedRate)
 	platform.ListRoute(g, hp+"/bed-rates", PermAccountRead, h.bedRates)
+	bills := hp + "/admissions/:admission/interim-bills"
+	g.POST(bills, PermBillIssue, h.issueInterimBill)
+	platform.ListRoute(g, bills, PermAccountRead, h.interimBills)
+	g.GET(bills+"/:number", PermAccountRead, h.interimBill)
+	platform.ListRoute(g, bills+"/:number/lines", PermAccountRead, h.interimBillLines)
 }
 
 // Publishes declares none in this slice: nothing consumes billing yet.

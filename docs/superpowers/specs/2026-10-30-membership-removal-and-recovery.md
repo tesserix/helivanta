@@ -187,6 +187,12 @@ external consumers do not exist; record the contract/rollout review explicitly.
 Do not replace the raw DELETE's false retry safety with a UI-only fix or remove
 the original regression assertion.
 
+The local follow-up now implements an explicit non-mutating legacy refusal;
+see the [contract migration candidate](2026-10-30-legacy-membership-contract-migration.md).
+Its breaking-contract review and external sunset remain open. Positive test
+consumers are being migrated to the successor rather than silently converting
+legacy intent into a current-row removal.
+
 The old grant path also cannot provide explicit recovery if it silently
 re-enrolls a previously removed account. Define its historical-target behavior
 in the same compatibility review and require explicit recovery for ended

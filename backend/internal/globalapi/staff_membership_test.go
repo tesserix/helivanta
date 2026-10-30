@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
@@ -31,6 +32,9 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 		Verifier: authn.NewSessionVerifier(verifier), Membership: fga, Resolver: fga,
 		Writer: fga, Roles: fga, Modules: []platform.Module{iam.New(nil)},
 	})
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-admin','tenant_admin')`, testutil.TenantA).Error
+	}))
 	upstream := httptest.NewServer(owner)
 	t.Cleanup(upstream.Close)
 	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL}})
@@ -45,6 +49,8 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+tokens[subject])
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+		req.Header.Set("X-Helivanta-Expected-Subject", subject)
 		response := httptest.NewRecorder()
 		gateway.ServeHTTP(response, req)
 		require.Equal(t, status, response.Code, response.Body.String())
@@ -81,7 +87,16 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 	require.JSONEq(t, `{"data":[],"subject":"synthetic-staff","tenant_id":"11111111-1111-1111-1111-111111111111"}`, permissions.Body.String())
 	call("GET", "/v1/iam/roles", "synthetic-staff", "", http.StatusForbidden)
 	call("POST", "/v1/iam/members", "synthetic-staff", body, http.StatusForbidden)
-	call("DELETE", "/v1/iam/members/synthetic-staff/staff_member", "synthetic-admin", "", http.StatusAccepted)
+	legacy := call("DELETE", "/v1/iam/members/synthetic-staff/staff_member", "synthetic-admin", "", http.StatusConflict)
+	require.Contains(t, legacy.Body.String(), `"error":"membership_command_required"`)
+	var membership iam.MemberGrantResult
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &membership))
+	input, err := json.Marshal(iam.MembershipCommandInput{Operation: "remove", BasisID: membership.ID, Subject: "synthetic-staff", RoleKey: "staff_member", ExpectedMembershipEpoch: 1, Reason: "Remove synthetic member through the Global API"})
+	require.NoError(t, err)
+	commandPath := "/v1/iam/membership-commands/" + uuid.Must(uuid.NewV7()).String()
+	removed := call("PUT", commandPath, "synthetic-admin", string(input), http.StatusAccepted)
+	replayed := call("PUT", commandPath, "synthetic-admin", string(input), http.StatusAccepted)
+	require.JSONEq(t, removed.Body.String(), replayed.Body.String())
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		member, err := fga.IsMember(ctx, "synthetic-staff", testutil.TenantA)
 		require.NoError(c, err)

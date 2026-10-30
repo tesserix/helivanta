@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -101,6 +102,9 @@ func TestIAMGrantMembership(t *testing.T) {
 				Writer: fga, Membership: fga, Roles: fga,
 				Modules: modules,
 			})
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-admin','tenant_admin')`, testutil.TenantA).Error
+			}))
 			directory := "/v1/supply/parties"
 			require.Equal(t, http.StatusForbidden, do(r, "GET", directory, "reviewer", "").Code)
 			grant := func(subject string) {
@@ -118,7 +122,7 @@ func TestIAMGrantMembership(t *testing.T) {
 				require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
 					return tx.Table("processed_events").Where("consumer = ?", "iam-fga-sync").Count(&processed).Error
 				}))
-				require.Zero(t, processed, "failed and incomplete grants cannot commit an inbox receipt")
+				require.EqualValues(t, 1, processed, "the claim commits before external projection; redelivery must still retry AfterCommit")
 				unblock()
 			}
 			waitMember := func(subject, token string, want bool) {
@@ -147,7 +151,23 @@ func TestIAMGrantMembership(t *testing.T) {
 				return tx.Table("iam_members").Where("role_key = ?", authz.RoleSupplyCompliance).Count(&members).Error
 			}))
 			require.EqualValues(t, 2, members, "repeat grant must not duplicate membership rows")
-			response := do(r, "DELETE", "/v1/iam/members/user-reviewer/supply_compliance", "admin", "")
+			var target struct {
+				ID    uuid.UUID
+				Epoch int64
+			}
+			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw(`SELECT m.id,e.epoch FROM iam_members m JOIN iam_subject_membership_epochs e USING(tenant_id,subject) WHERE m.subject='user-reviewer' AND m.role_key='supply_compliance'`).Scan(&target).Error
+			}))
+			require.NotEqual(t, uuid.Nil, target.ID)
+			input, err := json.Marshal(iam.MembershipCommandInput{Operation: "remove", BasisID: target.ID, Subject: "user-reviewer", RoleKey: "supply_compliance", ExpectedMembershipEpoch: target.Epoch, Reason: "Remove synthetic reviewer membership after journey"})
+			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodPut, "/v1/iam/membership-commands/"+uuid.Must(uuid.NewV7()).String(), strings.NewReader(string(input)))
+			req.Header.Set("Authorization", "Bearer admin")
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+			req.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+			response := httptest.NewRecorder()
+			r.ServeHTTP(response, req)
 			require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
 			waitMember("user-reviewer", "reviewer", false)
 			waitMember("user-peer", "peer", true)

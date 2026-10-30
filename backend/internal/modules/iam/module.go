@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -384,40 +385,15 @@ func (h *memberHandlers) grant(c *gin.Context) {
 	respond.Accepted(c, MemberGrantResult{ID: row.ID})
 }
 
-// revoke removes a subject's role, publishing member_revoked
-// unconditionally so a re-issued revoke can still clear a stuck FGA
-// tuple even when no row matched.
+// revoke refuses legacy intent that cannot identify a membership incarnation.
 func (h *memberHandlers) revoke(c *gin.Context) {
-	p, _, ok := authn.ExpectedTenantPrincipal(c)
+	_, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
 		return
 	}
-	subject, roleKey := c.Param("subject"), c.Param("role")
-	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.actor_subject',?,true)`, p.Subject).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("subject = ? AND role_key = ?", subject, roleKey).
-			Delete(&member{}).Error; err != nil {
-			return err
-		}
-		// Publishes unconditionally, even if no row matched, for the
-		// same repair-mechanism reason as the grant path above: a
-		// re-issued revoke must still be able to clear a stuck FGA
-		// tuple.
-		data, err := json.Marshal(iamcontract.MemberChangedData{Subject: subject, RoleKey: roleKey})
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, iamcontract.SubjectMemberRevoked, events.Event{
-			Type: "MemberRevoked", Version: 1, TenantID: p.TenantID, Data: data,
-		})
-	})
-	if err != nil {
-		respond.InternalErr(c, err, "could not revoke role")
-		return
-	}
-	respond.Accepted(c, gin.H{"subject": subject, "role_key": roleKey})
+	c.Header("Cache-Control", "no-store")
+	respond.Error(c, http.StatusConflict, "membership_command_required",
+		"Use PUT /v1/iam/membership-commands/:id with the current membership ID, epoch and reason")
 }
 
 // list returns one page of this tenant's members, newest first.

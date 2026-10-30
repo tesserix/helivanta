@@ -213,16 +213,20 @@ func TestGrantRejectsUnknownRole(t *testing.T) {
 
 func TestRevokeRemovesRowAndTuple(t *testing.T) {
 	w := &recordingWriter{}
-	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA},
 		Perms:  map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
 		Writer: w, Modules: []platform.Module{iam.New(nil)},
 	})
 
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'user-admin','tenant_admin')`, testutil.TenantA).Error
+	}))
 	testutil.Do(r, "POST", "/v1/iam/members", "admin", `{"subject":"dr-jane","role_key":"doctor"}`)
 	eventually(t, func() bool { return len(w.grants()) == 1 })
 
-	res := testutil.Do(r, "DELETE", "/v1/iam/members/dr-jane/doctor", "admin", "")
+	path, input := currentMembershipRemoval(t, r, "dr-jane", "doctor")
+	res := membershipCommandRequest(r, http.MethodPut, path, "admin", input)
 	require.Equal(t, http.StatusAccepted, res.Code)
 
 	eventually(t, func() bool {
@@ -236,7 +240,8 @@ func TestRevokeRemovesRowAndTuple(t *testing.T) {
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
-	require.Empty(t, body.Data)
+	require.Len(t, body.Data, 1)
+	require.Equal(t, "user-admin", body.Data[0].Subject)
 }
 
 func TestMembersAreTenantIsolated(t *testing.T) {

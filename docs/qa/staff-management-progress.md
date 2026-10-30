@@ -169,15 +169,73 @@ ones. Hospital onboarding now uses this path as well.
 
 The absent-membership delayed-grant and re-enrollment-borrowing regressions now
 pass locally with real PostgreSQL/OpenFGA, including delayed old revocation that
-preserves the replacement. The raw subject/role DELETE regression remains red.
+preserves the replacement. A later local legacy-contract migration below addresses
+the remaining raw subject/role DELETE regression.
 Real provider/proxy tests reject incomplete, malformed, conflicting and failed
 proofs instead of accepting partial authority. Focused signed-session, source
-race, boot/prune, HTTP seam and approved permission-matrix checks pass. The
+race, boot/prune, HTTP seam and approved permission-matrix checks pass. At `fee984e6`, the
 fixed-source affected race/coverage run passed authorization, reconciliation,
 architecture, bootstrap and API suites. IAM's only failing test is the retained
 unsafe raw-DELETE replay regression. Vet, affected linter (zero issues), API and
 Global API builds, and contractdocs generation/check passed. No new source is
 merged or deployed and no A-item is newly complete.
+
+The next local [legacy contract migration](../superpowers/specs/2026-10-30-legacy-membership-contract-migration.md)
+refuses the unsafe raw DELETE with `409 membership_command_required` instead of
+selecting whichever replacement row currently has the same subject/role. A new
+real-PostgreSQL test failed with actual 202 versus expected 409 before the change,
+then passed with the race detector. It verifies unchanged membership, no new
+outbox event or fabricated receipt, absent-target parity and restricted-actor
+denial. Existing positive test consumers now use exact-incarnation commands;
+the original replacement-survival assertion is retained across actual removal,
+recovery, raw DELETE replay and exact removal-command replay. The final affected
+race/coverage run passed IAM (81.8%), login client (90.7%), Global API (86.7%),
+journeys, architecture and bootstrap (94.1%). These are local results, not full
+A01–A12 or release acceptance.
+
+The first run passed Global API and membership journey suites, but IAM did not
+compile because of a missing test import. The next full run found a dynamically
+constructed concurrent legacy DELETE still in the projection test; it was
+migrated to frozen commands without removing the concurrent epoch/history
+assertions. The focused group then passed (92.748 seconds), followed by the final
+full run (IAM 319.211 seconds). Vet,
+affected lint (zero issues), API/Global API builds, contractdocs generation/check
+and the canonical staff-access generator check passed. No web code changed in
+this increment. Breaking-contract/security/consumer review, the unresolved
+external sunset decision, normal-role browser acceptance and production gates
+remain open. No production or application database was changed.
+
+Final local commands (from `backend/`; disposable test services only):
+
+```sh
+DOCKER_HOST=unix:///Users/samyakrout/.colima/helivanta-staff-withdrawal-20261030/docker.sock \
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=15m -p=2 -parallel=4 \
+  ./internal/modules/iam/... ./internal/globalapi/... ./internal/journey/... \
+  ./internal/archtest/... ./internal/bootstrap/...
+mise exec go@1.27.3 -- go vet -p=2 ./internal/modules/iam/... ./internal/globalapi/... ./internal/journey/...
+mise exec go@1.27.3 -- golangci-lint run ./internal/modules/iam/... ./internal/globalapi/... ./internal/journey/...
+mise exec go@1.27.3 -- go build -p=2 ./cmd/api ./cmd/global-api
+mise exec go@1.27.3 -- go run ./cmd/contractdocs
+mise exec go@1.27.3 -- go run ./cmd/contractdocs -check
+```
+
+From the worktree root, `mise exec node@24 go@1.27.3 -- node
+scripts/generate-staff-access.mjs --check`, changed-document Prettier and
+`git diff --check` passed. The staged Gitleaks scan found no leaks.
+The authorization latency SLO and new-workflow browser acceptance remain
+unproven. Existing SQL 0015–0017 remains persisted and unapplied to application
+or production databases; the legacy refusal adds no migration.
+
+The [A01 provisioning audit](staff-identity-provisioning-audit.md) records source
+and versioned primary provider evidence. The current login client exposes active-state and
+presentation-profile reads, without a provisioning/contact-verification workflow.
+The local seed script marks synthetic email verified during fixture creation;
+it is not acceptable evidence for real user verification. The existing generic
+membership POST neither verifies the provider identity nor enforces explicit
+recovery after final removal; it also accepts privileged system roles. Those
+paths still need the coordinated provisioning/recovery contract and current
+actor/source guards before A01/A02/A11 can be accepted.
 
 Migration `0017_iam_membership_projection_reader` grants only SELECT of IAM
 continuity metadata to the existing system role for startup reconciliation.

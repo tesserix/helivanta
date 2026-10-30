@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -410,11 +411,15 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	assertMembership(1, 1)
 	call("POST", "/v1/iam/members", "admin", `{"subject":"user-target","role_key":"doctor"}`, 202)
 	assertMembership(1, 2)
-	call("DELETE", "/v1/iam/members/user-target/staff_member", "admin", "", 202)
+	removeOrdinaryPath, removeOrdinaryBody := currentMembershipRemoval(t, gateway, "user-target", "staff_member")
+	removedOrdinary := membershipCommandRequest(gateway, http.MethodPut, removeOrdinaryPath, "admin", removeOrdinaryBody)
+	require.Equal(t, 202, removedOrdinary.Code, removedOrdinary.Body.String())
 	assertMembership(1, 1)
 	require.EventuallyWithT(t, func(c *assert.CollectT) { epoch(c, 3, 3) }, 5*time.Second, 100*time.Millisecond)
 	pendingBeforeRemoval := propose()
-	call("DELETE", "/v1/iam/members/user-target/doctor", "admin", "", 202)
+	removeDoctorPath, removeDoctorBody := currentMembershipRemoval(t, gateway, "user-target", "doctor")
+	removedDoctor := membershipCommandRequest(gateway, http.MethodPut, removeDoctorPath, "admin", removeDoctorBody)
+	require.Equal(t, 202, removedDoctor.Code, removedDoctor.Body.String())
 	assertMembership(2, 0)
 	calledAfterRemoval := false
 	err = guard.WithScopeGrant(guardCtx, request, currentReceipt, time.Now().UTC(), func(context.Context) error {
@@ -442,7 +447,9 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 		return nil
 	}))
 	require.EventuallyWithT(t, func(c *assert.CollectT) { epoch(c, 4, 3) }, 5*time.Second, 100*time.Millisecond)
-	call("DELETE", "/v1/iam/members/user-target/doctor", "admin", "", 202)
+	removalReplay := membershipCommandRequest(gateway, http.MethodPut, removeDoctorPath, "admin", removeDoctorBody)
+	require.Equal(t, 202, removalReplay.Code, removalReplay.Body.String())
+	require.JSONEq(t, removedDoctor.Body.String(), removalReplay.Body.String())
 	assertMembership(2, 0)
 	call("POST", "/v1/iam/members", "admin", `{"subject":"user-target","role_key":"staff_member"}`, 202)
 	assertMembership(2, 1)
@@ -495,12 +502,10 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	statuses := make(chan int, 2)
 	start := make(chan struct{})
 	for _, role := range []string{"staff_member", "doctor"} {
+		path, input := currentMembershipRemoval(t, gateway, "user-concurrent-removal", role)
 		go func() {
 			<-start
-			req := httptest.NewRequest("DELETE", "/v1/iam/members/user-concurrent-removal/"+role, nil)
-			req.Header.Set("Authorization", "Bearer admin")
-			w := httptest.NewRecorder()
-			gateway.ServeHTTP(w, req)
+			w := membershipCommandRequest(gateway, http.MethodPut, path, "admin", input)
 			statuses <- w.Code
 		}()
 	}

@@ -122,6 +122,17 @@ access check requires refreshing before another attempt.
 
 This does not add actor or membership-incarnation preconditions, a versioned removal command, global identity deletion, employment suspension/offboarding or an admin removal UI. Role removal remains distinct from hospital employment and global login state. A future removal UI must reconcile uncertain outcomes and re-enrollment rather than treating this optional tenant guard as a complete offboarding workflow.
 
+### Legacy removal migration candidate — not deployed
+
+The follow-up branch explicitly refuses the unsafe subject/role DELETE with
+`409 membership_command_required`, directing clients to the incarnation-bound
+command below. It makes no target mutation or outbox publication and retains
+existing authentication, permission and optional workspace checks. This is a
+breaking change from the production 202 contract described above. The
+[coordinated migration record](../../superpowers/specs/2026-10-30-legacy-membership-contract-migration.md)
+identifies consumers, replacement behavior, review and unresolved external
+sunset requirements. No production rollout or sunset date is approved.
+
 ### Membership command candidate — local implementation, not deployed
 
 The [removal/recovery design](../../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)

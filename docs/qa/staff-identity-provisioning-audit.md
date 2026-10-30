@@ -20,9 +20,12 @@ acceptance remain open. Related issues #417 and #1053 remain open.
 - `POST /v1/iam/members` accepts a subject and any known system role, without a
   provider existence/verification check. Uniqueness preserves the current row
   on duplicate enrollment, but a new POST can recreate an ended membership.
-- The Staff form constrains its request to `staff_member` and pins the tenant.
-  Its request does not pin the acting subject. UI constraints cannot establish
-  the backend's least-privilege, identity or recovery rules.
+- The candidate Staff form now uses `PUT /iam/membership-enrollments/:id`, pins
+  the actor and tenant, requires a reason/acknowledgement, freezes uncertain
+  commands and shows protected enrollment history. The additive backend fixes
+  the role to `staff_member`, verifies identity, refuses previous continuity and
+  atomically retains receipts/audit/outbox. This does not close the separate
+  generic POST bypass; that route is still present.
 - `scripts/seed-dev.mjs` creates synthetic humans with `isVerified: true` and a
   fixture password. That is setup, not a user completing contact verification.
   It must not become the production onboarding implementation or acceptance
@@ -76,18 +79,29 @@ A fresh source inventory on 2026-10-30 distinguishes mutation callers from membe
 list readers. The original checkout's Graft index is stale for several moved IAM
 tests; actual worktree files were verified with exhaustive path search.
 
-| Consumer                                                         | Actual use                                                                   | Required migration consequence                                                                                                                                  |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/api/src/staff-membership.ts` and Staff membership form | Generic POST with `staff_member`, tenant header only                         | Move to account-pinned, reasoned first-enrollment command with identity proof and exact uncertain retry                                                         |
-| `e2e/tests/staff-access.spec.ts`                                 | Normal enrollment UI; explicitly waits for generic POST response             | Update the real UI journey alongside the successor, including verification/recovery boundaries                                                                  |
-| `e2e/tests/support/opd.ts`                                       | Generic POST adds `doctor` to an existing synthetic clinician                | Privileged clinical role provisioning is a real compatibility dependency; do not silently remove it or describe a setup fixture as accepted clinical assignment |
-| Supply organization grant/support editors                        | GET member-list options                                                      | Preserve list response/pagination and permissions; these are not enrollment mutations                                                                           |
-| Patient pharmacy-lookup access editor                            | GET member-list options                                                      | Preserve this separate read consumer; no enrollment privilege follows from lookup authority                                                                     |
-| IAM, Global API and journey Go tests                             | Ordinary and privileged enrollment/setup, current-role and projection checks | Separate attributable setup from production workflows; retain denial, projection, replay and scope assertions                                                   |
+| Consumer                                                         | Actual use                                                                                                                 | Required migration consequence                                                                                                                                  |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/api/src/staff-membership.ts` and Staff membership form | Candidate first-enrollment PUT with actor/tenant, reason, frozen command and protected history                             | Candidate implemented; normal-role browser/deployed acceptance and old POST migration remain open                                                               |
+| `e2e/tests/staff-access.spec.ts`                                 | Candidate E2E creates an isolated synthetic IdP account, then normal Admin first-enrollment and recipient login through UI | Updated to PUT and zero business-permission assertions; verified contact is fixture setup, not recipient verification acceptance                                |
+| `e2e/tests/support/opd.ts`                                       | Generic POST adds `doctor` to an existing synthetic clinician                                                              | Privileged clinical role provisioning is a real compatibility dependency; do not silently remove it or describe a setup fixture as accepted clinical assignment |
+| Supply organization grant/support editors                        | GET member-list options                                                                                                    | Preserve list response/pagination and permissions; these are not enrollment mutations                                                                           |
+| Patient pharmacy-lookup access editor                            | GET member-list options                                                                                                    | Preserve this separate read consumer; no enrollment privilege follows from lookup authority                                                                     |
+| IAM, Global API and journey Go tests                             | Ordinary and privileged enrollment/setup, current-role and projection checks                                               | Separate attributable setup from production workflows; retain denial, projection, replay and scope assertions                                                   |
 
 No external-consumer absence is established. A successor form alone cannot close
 the generic POST's privileged-grant or historical recovery bypass. Coordinate
 that contract migration and the actual privileged-assignment journey explicitly.
+
+## Historical continuity acceptance gate
+
+The candidate checks whether IAM has a continuity record. Absence is not proof
+that a global account never had membership before continuity retention existed.
+The new receipt makes subsequent history durable, but cannot reconstruct old
+employment, Staff/login links or scoped grants. Do not accept A02/A11 or release
+first enrollment as safe historical recovery until legacy eligibility is
+classified, generation-bound owner checks are verified and any required
+provisioning/review basis is enforced. A fresh-account test proves the fresh
+case only. The generic POST remains another open bypass.
 
 ## Required next evidence
 

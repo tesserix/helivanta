@@ -265,6 +265,69 @@ check commands were unchanged. Local runtime discovery confirmed Zitadel
 context or credentials. Production provider version and provisioning capability
 remain unverified.
 
+The next local [first-enrollment candidate](../superpowers/specs/2026-10-30-first-membership-enrollment.md)
+adds an account/workspace-pinned, reasoned command for an existing verified human
+with no previous tenant membership. It fixes the source role to `staff_member`,
+retains trigger-generated immutable receipts and protected history, and refuses
+to reopen ended continuity. The Staff form now requires reason/acknowledgement,
+freezes uncertain ID/body and shows history; source persistence is distinguished
+from graph readiness and operational access. It does not create IdP users or
+migrate the legacy privileged POST.
+
+The initial HTTP regression failed 404 versus expected 202 before implementation.
+Focused race tests now pass for input/actor/workspace boundaries, exact/conflicting
+replays, source history after removal, tenant isolation, direct receipt fabrication,
+provider failure, transactional outbox rollback and concurrent exact commands.
+A real PostgreSQL lock-wait test observes the writer blocked on the Admin row,
+then withdraws that Admin before releasing the lock; the command returns 403 with
+no membership, receipt or event. Global API coverage proves projection to ordinary
+membership and no business permissions. Client/form/page tests pass (6 API tests,
+26 form/page tests). Initial test-fixture DDL was correctly denied to the app role;
+the outbox failure now uses the existing owner migration fixture instead.
+
+Append-only migration `0018_iam_membership_enrollments` is persisted; IAM now has
+18 migrations and the whole registry 176. Disposable fixture databases only have
+been migrated; application/production state remains unchanged. The full affected
+race/coverage run passed IAM (81.9%, 386.768 seconds), login client (91.3%),
+platform (87.8%), bootstrap (94.1%), API construction (10.6%), Global API (86.7%)
+and journeys. Its one failure was pagination architecture metadata for the
+single-receipt GET; a specific reasoned entry declares its command-primary-key
+lookup, while collection history stays ListRoute. The complete architecture suite
+then passed (40.441 seconds), with zero lint issues. New-head CI/browser acceptance
+is pending. The full web suite passed
+(seven tasks, including API 412, UI 267 and shell 1,255 tests), API/shell/E2E
+TypeScript checks, affected web lint, Go vet/lint (zero issues), API/Global API
+builds, contractdocs generation/check and the shell production build passed.
+The first build correctly rejected an unset production `API_URL`; rerun with the
+local Global API origin passed. Type-checking caught an alias collision with the
+Workforce-owned `StaffEnrollment` type; the unused IAM alias was removed rather
+than redefining Workforce's export. The updated browser
+E2E setup creates a random synthetic account only against localhost, stores its
+credentials in an ignored mode-0600 JSON outside test artifacts and then uses
+normal Admin and recipient UI. Its fixture-set verification flag is not evidence
+of a recipient completing contact verification. The [historical-continuity
+gate](staff-identity-provisioning-audit.md#historical-continuity-acceptance-gate)
+remains open: a missing continuity record cannot prove absence of pre-retention
+membership or historical owner authority. No A02/A11 acceptance follows from the
+fresh-case tests. All five PR CI jobs passed at `78513985`; that baseline does not
+include this uncommitted enrollment work.
+
+Final first-enrollment commands (from `backend/`, same disposable Docker socket):
+
+```sh
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=20m -p=2 -parallel=4 \
+  ./internal/modules/iam/... ./internal/platform/... ./internal/bootstrap/... \
+  ./internal/archtest/... ./cmd/api/... ./internal/globalapi/... ./internal/journey/...
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=10m -p=2 -parallel=4 ./internal/archtest/...
+```
+
+From the root: `pnpm exec turbo run test --concurrency=2`, affected API/shell/E2E
+`type-check` and `lint`, `API_URL=http://127.0.0.1:8199 pnpm exec turbo run build
+--filter=@helivanta/shell --concurrency=2` (Node 24/Go 1.27.3), canonical staff-access
+check, changed-file formatting and diff checks passed. Go vet/build scopes and
+contractdocs commands are as above; affected and architecture lint passed.
+No current-head browser/deployed acceptance or latency SLO claim follows.
+
 The [A01 provisioning audit](staff-identity-provisioning-audit.md) records source
 and versioned primary provider evidence. The current login client exposes active-state and
 presentation-profile reads, without a provisioning/contact-verification workflow.

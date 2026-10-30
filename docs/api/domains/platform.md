@@ -133,6 +133,41 @@ breaking change from the production 202 contract described above. The
 identifies consumers, replacement behavior, review and unresolved external
 sunset requirements. No production rollout or sunset date is approved.
 
+### First enrollment candidate — not deployed
+
+`PUT /v1/iam/membership-enrollments/:id` is an additive ordinary-membership
+command. It requires a canonical UUIDv7 command ID, only `subject` and mandatory
+`reason` in its body, `iam.member.manage`, current source tenant administration,
+fresh acting credentials and exactly one matching expected-tenant and
+expected-subject header. The subject must have no previous continuity here and
+must currently be a matching active human with provider-verified email. Any
+caller-supplied role/actor is invalid. A 202 returns the immutable canonical
+`MembershipEnrollment` receipt; it is not proof of projection or hospital access.
+
+Exact retries return the original receipt after current actor checks, including
+after later removal or IdP disablement. Changed actor/body conflicts. A new
+command cannot enroll an existing or ended subject; removal/recovery remains the
+successor journey. Both preflight and write transactions check current authority,
+with provider I/O outside database locks. Source insertion, trigger-generated
+receipt, audit and membership outbox event commit atomically.
+
+`GET /v1/iam/membership-enrollments` provides ordered, bounded history;
+`GET /v1/iam/membership-enrollments/:id` reauthorizes a receipt. Both use the same
+current actor/workspace checks, audited reads and no-store responses. Another
+tenant's receipt is invisible. Invalid input is 400, stale credentials 401,
+missing authority 403, invisible receipt 404, stale workspace/account or
+conflicting/ineligible enrollment 409, unavailable identity/authority 503 and
+persistence failure 500. Clients freeze uncertain commands and retry exactly.
+
+Canonical models are in `contracts/staff-access.json`; persisted append-only
+migration `0018_iam_membership_enrollments` adds forced-RLS, indexed, immutable
+receipts linked to retained continuity. The local Staff form now uses this route
+and protected history. The production generic POST and its privileged/verification/
+recovery bypasses remain a coordinated migration gate. No provider account is
+created by this command. See the
+[first-enrollment design](../../superpowers/specs/2026-10-30-first-membership-enrollment.md)
+and [provisioning audit](../../qa/staff-identity-provisioning-audit.md).
+
 ### Membership identity eligibility candidate — not deployed
 
 Uncommitted recovery now uses one IAM identity-client GET proving the exact

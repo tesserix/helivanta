@@ -58,7 +58,9 @@ export default function StaffAccessPage() {
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
           {identity.data.data.includes("iam.member.manage") && (
             <>
-              <StaffMembershipForm tenantId={identity.data.tenant_id} />
+              <StaffMembershipForm
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
               <MembershipManagement
                 scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
               />

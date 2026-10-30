@@ -305,3 +305,45 @@ export const MembershipCommandHistoryContract = z
   })
   .strict();
 export type MembershipCommandHistory = z.infer<typeof MembershipCommandHistoryContract>;
+
+export const MembershipEnrollmentInputContract = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type MembershipEnrollmentInput = z.infer<typeof MembershipEnrollmentInputContract>;
+
+export const MembershipEnrollmentContract = z
+  .object({
+    id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    membership_id: identifier,
+    role_key: z.enum(["staff_member"]),
+    membership_epoch: z.number().int().min(1).max(1),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type MembershipEnrollment = z.infer<typeof MembershipEnrollmentContract>;

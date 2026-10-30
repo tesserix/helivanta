@@ -32,6 +32,9 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-candidates` | `iam.member.manage` | true | false |
 | PUT | `/v1/iam/membership-commands/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-commands` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
+| PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
@@ -63,6 +66,7 @@ Migration table declarations:
 - `0011_iam_assignment_membership`: `iam_subject_membership_epochs`, `iam_membership_revocations`.
 - `0015_iam_membership_commands`: `iam_membership_commands`.
 - `0016_iam_membership_candidate_index`: concurrent index `iam_members_candidate_history` on `iam_members (tenant_id, created_at DESC, id DESC)`.
+- `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 
 ## reference
 

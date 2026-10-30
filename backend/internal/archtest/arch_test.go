@@ -349,6 +349,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/membership-enrollments/:id": "one tenant-scoped immutable enrollment receipt by its command primary key; history uses ListRoute",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding":         "one private evidence binding; evidence list and history are cursor-paginated",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content": "one reauthorized protected file at its pinned scanned generation",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-source":                                                       "one minimal employment source for one authorized Staff record",

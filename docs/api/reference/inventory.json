@@ -187,6 +187,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/membership-enrollments/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/membership-enrollments/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-enrollments",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -390,6 +417,13 @@
           "id": "0017_iam_membership_projection_reader",
           "sql_sha256": "3f394505085d4aa6fa98d35fa4c0dcddff03b09ac448acca4bbcf5c5f3e4c059",
           "creates_tables": []
+        },
+        {
+          "id": "0018_iam_membership_enrollments",
+          "sql_sha256": "72b9e92d0a5810d722afd39f0f291051fc3254cbf60338d4162bbf37cb3483bb",
+          "creates_tables": [
+            "iam_membership_enrollments"
+          ]
         }
       ]
     },

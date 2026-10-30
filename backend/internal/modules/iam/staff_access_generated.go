@@ -130,3 +130,19 @@ type MembershipCommandHistory struct {
 	CurrentMembershipEpoch  int64     `json:"current_membership_epoch"`
 	Recoverable             bool      `json:"recoverable"`
 }
+
+type MembershipEnrollmentInput struct {
+	Subject string `json:"subject" binding:"required,max=200"`
+	Reason  string `json:"reason" binding:"required,max=500"`
+}
+
+type MembershipEnrollment struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	Subject         string    `json:"subject" binding:"required,max=200"`
+	Reason          string    `json:"reason" binding:"required,max=500"`
+	MembershipID    uuid.UUID `json:"membership_id" binding:"required"`
+	RoleKey         string    `json:"role_key"`
+	MembershipEpoch int64     `json:"membership_epoch"`
+	ActorSubject    string    `json:"actor_subject"`
+	CreatedAt       time.Time `json:"created_at"`
+}

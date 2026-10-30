@@ -1,4 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { randomBytes, randomUUID } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { ZITADEL_ORIGIN } from "./support/hosts";
 import { login, specPharmacist } from "./support/login";
 
 test("tenant administrator can open the reviewed assignment workspace", async ({ page }) => {
@@ -42,42 +47,77 @@ test("a member without assignment administration sees a restricted state", async
   await expect(page.getByRole("form", { name: "Staff membership enrollment" })).toHaveCount(0);
 });
 
-test("administrator enrolls an existing identity without adding business permissions", async ({
+test("administrator first-enrolls a verified identity without business permissions", async ({
   page,
   browser,
 }) => {
+  // Authorized local setup, not evidence of a recipient verifying contact.
+  const issuer = new URL(ZITADEL_ORIGIN);
+  if (
+    !["localhost", "127.0.0.1", "[::1]"].includes(issuer.hostname) &&
+    !issuer.hostname.endsWith(".localhost")
+  )
+    throw new Error("Enrollment fixtures require a local identity provider.");
+  const secretDir = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
+  const pat = readFileSync(join(secretDir, "helivanta-seed.pat"), "utf8").trim();
+  const email = `e2e-enrollment-${randomUUID()}@helivanta.dev`;
+  const password = randomBytes(24).toString("base64url") + "Aa1!";
+  const created = await fetch(`${ZITADEL_ORIGIN}/v2/users/human`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: email,
+      profile: { givenName: "Synthetic", familyName: "Enrollment" },
+      email: { email, isVerified: true },
+      password: { password, changeRequired: false },
+    }),
+  });
+  expect(created.ok, `Synthetic identity creation status ${created.status}`).toBe(true);
+  const identity = (await created.json()) as { userId?: string };
+  if (!identity.userId)
+    throw new Error("Synthetic identity creation did not return its account ID.");
+  const subject = identity.userId;
+  writeFileSync(
+    join(secretDir, `staff-enrollment-${randomUUID()}.json`),
+    JSON.stringify({ email, password, subject, synthetic: true }, null, 2) + "\n",
+    { mode: 0o600, flag: "wx" },
+  );
   const context = await browser.newContext();
   try {
-    const member = await context.newPage();
-    await login(member, specPharmacist());
-    const before = await member.request.get("/api/v1/iam/me/permissions");
-    expect(before.status()).toBe(200);
-    const identity = await before.json();
-    expect(identity.subject).toBeTruthy();
-    expect(identity.tenant_id).toBeTruthy();
     await login(page);
     await page.goto("/workforce/access");
-    await page.getByLabel("Existing account ID", { exact: true }).fill(identity.subject);
+    await page.getByLabel("Existing account ID", { exact: true }).fill(subject);
+    await page
+      .getByLabel("Enrollment reason", { exact: true })
+      .fill("Synthetic verified account first enrollment");
+    await page.getByLabel("I understand this creates ordinary membership only.").check();
     const accepted = page.waitForResponse(
-      (r) => new URL(r.url()).pathname === "/api/v1/iam/members" && r.request().method() === "POST",
+      (r) =>
+        new URL(r.url()).pathname.startsWith("/api/v1/iam/membership-enrollments/") &&
+        r.request().method() === "PUT",
     );
     await page.getByRole("button", { name: "Enroll staff member", exact: true }).click();
     const response = await accepted;
     expect(response.status()).toBe(202);
     expect(response.request().postDataJSON()).toEqual({
-      subject: identity.subject,
-      role_key: "staff_member",
+      subject,
+      reason: "Synthetic verified account first enrollment",
     });
-    expect(response.request().headers()["x-helivanta-expected-tenant"]).toBe(identity.tenant_id);
+    expect(response.request().headers()["x-helivanta-expected-tenant"]).toBeTruthy();
+    expect(response.request().headers()["x-helivanta-expected-subject"]).toBeTruthy();
     await expect(
       page.getByRole("status").filter({ hasText: "Membership recorded for" }),
-    ).toContainText(identity.subject);
+    ).toContainText(subject);
     await expect(
       page.getByText("Access synchronization may still be pending.", { exact: false }),
     ).toBeVisible();
+    const member = await context.newPage();
+    await expect(async () => {
+      await login(member, { email, password });
+    }).toPass({ timeout: 30000 });
     const after = await member.request.get("/api/v1/iam/me/permissions");
     expect(after.status()).toBe(200);
-    expect((await after.json()).data.sort()).toEqual(identity.data.sort());
+    expect((await after.json()).data).toEqual([]);
   } finally {
     await context.close();
   }

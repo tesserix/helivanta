@@ -1,6 +1,7 @@
 package globalapi
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,7 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 	signer, verifier := testutil.NewSessionSignerForTest(t)
 	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Verifier: authn.NewSessionVerifier(verifier), Membership: fga, Resolver: fga,
-		Writer: fga, Roles: fga, Modules: []platform.Module{iam.New(nil)},
+		Writer: fga, Roles: fga, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(globalEnrollmentIdentity{})},
 	})
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-admin','tenant_admin')`, testutil.TenantA).Error
@@ -40,7 +41,7 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 	gateway, err := New(Config{Development: true, Timeout: 5 * time.Second, Upstreams: map[string]string{"platform": upstream.URL}})
 	require.NoError(t, err)
 	tokens := map[string]string{}
-	for _, subject := range []string{"synthetic-admin", "synthetic-staff"} {
+	for _, subject := range []string{"synthetic-admin", "synthetic-staff", "synthetic-first-member"} {
 		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Minute))
 		require.NoError(t, err)
 	}
@@ -104,4 +105,27 @@ func TestStaffMembershipThroughGlobalAPI(t *testing.T) {
 	}, 20*time.Second, 100*time.Millisecond)
 	revoked := call("GET", "/v1/iam/roles", "synthetic-staff", "", http.StatusForbidden)
 	require.Contains(t, revoked.Body.String(), "not a member of this tenant")
+	enrollmentPath := "/v1/iam/membership-enrollments/" + uuid.Must(uuid.NewV7()).String()
+	enrollmentBody := `{"subject":"synthetic-first-member","reason":"Verified first membership through Global API"}`
+	enrolled := call("PUT", enrollmentPath, "synthetic-admin", enrollmentBody, http.StatusAccepted)
+	exact := call("GET", enrollmentPath, "synthetic-admin", "", http.StatusOK)
+	require.JSONEq(t, enrolled.Body.String(), exact.Body.String())
+	repeated := call("PUT", enrollmentPath, "synthetic-admin", enrollmentBody, http.StatusAccepted)
+	require.JSONEq(t, enrolled.Body.String(), repeated.Body.String())
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		ready, err := fga.IsMember(ctx, "synthetic-first-member", testutil.TenantA)
+		require.NoError(c, err)
+		require.True(c, ready)
+	}, 20*time.Second, 100*time.Millisecond)
+	noPermissions := call("GET", "/v1/iam/me/permissions", "synthetic-first-member", "", http.StatusOK)
+	require.JSONEq(t, `{"data":[],"subject":"synthetic-first-member","tenant_id":"11111111-1111-1111-1111-111111111111"}`, noPermissions.Body.String())
+	call("GET", enrollmentPath, "synthetic-first-member", "", http.StatusForbidden)
+	call("PUT", "/v1/iam/membership-enrollments/"+uuid.Must(uuid.NewV7()).String(), "synthetic-first-member", enrollmentBody, http.StatusForbidden)
+
+}
+
+type globalEnrollmentIdentity struct{}
+
+func (globalEnrollmentIdentity) MembershipEligible(context.Context, string) (bool, error) {
+	return true, nil
 }

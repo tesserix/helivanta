@@ -39,7 +39,7 @@ export const membershipCommandInputContract = MembershipCommandInputContract.sup
   },
 );
 const identifier = MembershipCommandContract.shape.id;
-function options(scope: StaffAssignmentScope): RequestInit {
+export function membershipRequestOptions(scope: StaffAssignmentScope): RequestInit {
   return {
     cache: "no-store",
     headers: {
@@ -57,7 +57,7 @@ export async function submitMembershipCommand(
   const body = membershipCommandInputContract.parse(input);
   const result = MembershipCommandContract.parse(
     await apiFetch(`/iam/membership-commands/${id}`, {
-      ...options(scope),
+      ...membershipRequestOptions(scope),
       method: "PUT",
       body: JSON.stringify(body),
     }),
@@ -95,7 +95,7 @@ export function useMembershipCandidates(scope: StaffAssignmentScope) {
       candidatesPage.parse(
         await apiFetch(
           `/iam/membership-candidates?limit=50${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`,
-          { ...options(scope), signal },
+          { ...membershipRequestOptions(scope), signal },
         ),
       ),
     getNextPageParam: (last) => (last.page.has_more ? last.page.next_cursor : undefined),
@@ -111,7 +111,7 @@ export function useMembershipHistory(scope: StaffAssignmentScope) {
       historyPage.parse(
         await apiFetch(
           `/iam/membership-commands?limit=50${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`,
-          { ...options(scope), signal },
+          { ...membershipRequestOptions(scope), signal },
         ),
       ),
     getNextPageParam: (last) => (last.page.has_more ? last.page.next_cursor : undefined),

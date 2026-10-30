@@ -2,6 +2,16 @@
 
 ## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
 
+Follow-up source-integrated HTTP evidence is pushed at `17e3dc90323a3d2c6ac410488b3c1295d792fc4d`
+in owner PR #22. The tagged local PostgreSQL/Zitadel race test passes through real
+organization/project/grant proof, independent absent-account approval, one late
+original creation, matching orphan reconciliation, immutable retry, no successor
+dispatch or reopened original dispatch, and actual grant withdrawal/restoration.
+Tagged API vet/lint and redacted secret/diff checks pass. Console tokens remain
+asserted fixtures; real login and normal HMS UI acceptance are not proven.
+Implementation-head CI run 41125307163 is now **passed**; the follow-up head's CI
+has not yet been observed at this update. No merge or deployment occurred.
+
 Identity-owner draft [PR #22](https://github.com/tesserix/onboarding-service/pull/22)
 now contains pushed `293aa359a97ba7a3d853d102b12253914f913ab2`.
 Fresh console write authority guards creation reconciliation and immutable independent

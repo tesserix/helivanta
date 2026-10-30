@@ -1,5 +1,42 @@
 # Staff identity provisioning audit
 
+## Actual provider fault correction — 2026-10-31
+
+Owner source `ec10aa63d794234e22f9a23ea92cb0729678caf9` is committed/pushed in
+draft PR #22, unmerged/undeployed. A separate actual Zitadel v4.15.3 fixture
+reproduced deactivation at sequence 4 while two reads returned active/verified
+at user revision 2 and matching metadata revision 3. The original provider
+adapter accepted this in 102 ms. A metadata-specific fault similarly retained
+the original binding at revision 3 after its replacement committed at 7.
+
+Extended failure testing found that a newer user revision is also insufficient:
+after 15 failed reads, the provider skipped deactivation 14 and advanced to 15
+for an unrelated profile change while remaining active. The first revision-only
+candidate still accepted it. Its regression failed before the final correction.
+The final adapter compares exact latest state, email change and verification
+events independently of row revision, and checks bounded relevant mutations.
+The actual skipped-event fixture then denied proof in 135 ms; explicit source
+reactivation at sequence 16 restored a successful observation in 227 ms.
+Unrelated metadata remained accepted; stale binding replacement was denied.
+These are individual local timings, not p99/SLO evidence.
+
+The admin event API uses existing owner `events.read`, exact user aggregate and
+resource-owner filters, bounded typed searches and `AwaitOpenTransactions` in
+the pinned source. Missing permission, outage, redirects, malformed/foreign
+proof and saturation fail unavailable. Source payloads/editor details are not
+returned. No permission/credential expansion occurred. Source configuration,
+organisation/registry proof, saturation recovery, real recipient setup and
+consumer command-boundary acceptance remain review gates.
+
+Full actual-PostgreSQL owner race/coverage passed (54.6% overall, provider
+85.2%); vet/build/lint (zero issues), redacted secret scan and final Linux/arm64
+image build passed. New exact-head CI 41070733440 is in progress. Baseline
+41066660408 passed. Synthetic setup verification overrides are not recipient
+verification evidence. Private fixtures, SQL fault captures and immutable
+provider history are retained separately; fault triggers are removed. No
+production schema/account/grant changed. Creation/recovery/consumer UI and the
+remaining A01–A12 lifecycle journeys remain open.
+
 ## Owner receipt/observation checkpoint — 2026-10-31
 
 Owner draft PR #22 now includes commit
@@ -19,10 +56,11 @@ fixture on 2026-10-31 (zero lint issues). Exact-head CI
 was queued when this checkpoint was recorded. Baseline owner CI 41052581748 and
 schema gates at `18d42798` passed. No new migration or production action occurred.
 
-Primary-source review of Zitadel v4.15.3 also established an open synchronization
+At that earlier checkpoint, primary-source review established an open synchronization
 gate: user/metadata query helpers can proceed to SQL after projection-trigger
 failure. Stable repeated rows alone do not prove current eligibility. No actual
-running-provider projection-failure exploit has been reproduced. Before enrollment
+running-provider projection-failure exploit had been reproduced. The actual-fault
+correction above supersedes this finding's research-only status. Before enrollment
 consumes these observations, reproduce failure and prove an authoritative source
 boundary. No enrollment consumer currently uses the new observations.
 

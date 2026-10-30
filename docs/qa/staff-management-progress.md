@@ -1,6 +1,27 @@
 # Staff Management delivery tracker
 
-Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+
+### Access/RBAC provider failure acceptance — 2026-10-31
+
+The identity-owner candidate now includes `ec10aa6` in draft
+[PR #22](https://github.com/tesserix/onboarding-service/pull/22). Actual isolated
+v4.15.3 testing reproduced stale active proof after successful deactivation,
+stale binding metadata after replacement, and skipped deactivation hidden by a
+later unrelated profile revision. The corrected adapter compares latest
+authoritative state/contact/verification events and bounded mutation history;
+the same live skipped-deactivation fixture now denies proof. Explicit synthetic
+source reactivation restores successful observation. These are provider-only
+tests, not Admin/recipient/reviewer UI or membership/employment activation.
+
+Final full owner race/coverage passed (54.6% overall, provider 85.2%), as did
+vet/build/lint, secret scan and the final Linux/arm64 image build. Exact-head CI
+[41070733440](https://github.com/tesserix/onboarding-service/actions/runs/41070733440)
+is in progress; preceding owner CI 41066660408 and Helivanta documentation-head
+CI 41067001369 passed. Details and retained limitations are in the
+[identity audit](staff-identity-provisioning-audit.md). No merge, production
+rollout or new application migration occurred. The full A01–A12 objective and
+the counts below remain unchanged.
 
 ### Access/RBAC continuation — 2026-10-31
 

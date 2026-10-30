@@ -2,6 +2,44 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
+### Recovery requests and independent decision records — 2026-10-31
+
+Owner `fd65aca6e37faa95dafeeb8e8fdf1e378b5711b5` is pushed in draft PR #22.
+Its new store operation retains exact recovery proposal input and mandatory audit
+atomically. Current canonical machine/entitlement/source scope is rechecked;
+original command/initiator/provider-user facts survive machine-credential rotation.
+Changed requester/action/reason/evidence conflicts. Audit actor/type/product/tenant/
+command/action must match the request. Failed new/replay audit releases no private
+result and retains no new request. No operator endpoint is exposed yet.
+
+Canonical schema `8fa241651362392d8c90322e97947066688bb832`, chart 0.3.60,
+SHA-256 `b9bfb2a34e7e8ff0708ce4bccaf52121e8a64557c7ff21a160189332e4a0b14c`,
+is persisted in schema-owner PR #1616; owner CI pins it and the published immutable
+source hash was verified. New append-only request/decision ledgers bind an actual
+dispatch and exact source/actor facts. Maker, original initiator, original source
+account and replacement initiator cannot review. Rejected requests remain final;
+one replacement approval wins concurrently. Closing unresolved investigation
+permits later reviewed replacement and preserves the original dispatch/root.
+An approved row alone authorizes no dispatch, linking or operational membership.
+
+Thirteen new actual-PostgreSQL tests passed, including self/target review,
+forged/NULL bindings, mandatory evidence, final rejection, closure/replacement,
+twelve concurrent replacement approvals with one winner, actual application-role
+mutation denial, machine rotation, withdrawal/scope drift, immutable retry and
+audit rollback/binding. Full owner race/coverage passed: 54.5% overall, API 63.8%,
+store 62.7%, proposal operation 87.0%. Vet/build/lint (zero issues), four delivery
+checks, redacted secrets and shell/diff checks passed. Schema local Helm
+lint/template and seven selected repository tests passed. Owner CI 41095221845
+is queued; schema PR validation 41094188936 passed, repository 41094188917 and
+Helm 41094188898 remain running. Earlier passes are historical, not substitutes.
+
+Still required: atomic reviewed decision execution/successor/root lineage,
+current verified operator authority and owner/consumer endpoints, conflict/orphan
+handling, full Admin/recipient/independent-reviewer UI, recipient authenticator
+setup/sign-in, canonical production registration (owner #12), legacy
+staff/link/grant classification and all remaining A01–A12 lifecycle/cutoff gates.
+No merge, migration, rollout or release occurred; area counts stay unchanged.
+
 ### Actual recipient contact UI verification — 2026-10-31
 
 A fresh browser visit reproduced a missing fixture dependency: the isolated

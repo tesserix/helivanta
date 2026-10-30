@@ -59,8 +59,8 @@ the current delivery state.
 
 ## Quantitative checkpoint — 2026-10-30
 
-The 21 tracked areas currently comprise **9 partial (42.9%)**, **11 audit pending
-(52.4%)** and **1 research/proposal (4.8%)**. **0/21 are fully accepted (0%)**;
+The 21 tracked areas currently comprise **10 partial (47.6%)**, **10 audit pending
+(47.6%)** and **1 research/proposal (4.8%)**. **0/21 are fully accepted (0%)**;
 all 21 still have acceptance work. These are area-status percentages, not an
 estimate that 38.1% of engineering effort is complete. The remaining scenarios
 vary substantially in size, so no defensible overall effort or time percentage
@@ -80,7 +80,7 @@ remain open; a directory status or draft term is not proof of operational cutoff
 | Identity and background checks  | Partial; draft preparation released         | All three unreviewed draft types, create/edit/current/history, immutable snapshots, required fields, replay and scope/actor/source-generation guards                                                            | Protected evidence binding, immutable submission, independent approve/reject/revoke, effective validity, source changes and historical self-review denial                                                           |
 | Photographs and ID cards        | Partial foundations                         | Photograph preparation metadata; protected file scanning/release/recovery foundations                                                                                                                           | Trusted PNG/JPEG validation, purpose-bound photo review, self-photo request, frozen branded card issue, independent authorization, preview/print, expiry, loss/reissue and offboarding                              |
 | Shifts                          | Partial; local workflow audited             | Synthetic overnight create/edit, validation, revision history, retire/reactivate and reload; unsaved navigation/cancel/history protection fixed                                                                 | Referenced retirement, multi-hospital/current-account scope, downstream roster effects and deployed acceptance                                                                                                      |
-| Roster setup                    | Audit pending                               | Existing implementation                                                                                                                                                                                         | Areas/groups/templates, composition/applicability, effective versions and referenced retirement                                                                                                                     |
+| Roster setup                    | Partial; local area workflow audited        | Required fields/review, pinned area membership, retirement/history/reload, inactive-reference rejection and unsaved-input guards                                                                                | Groups/weekly templates, overlaps/effective versions, concurrency, role/isolation and downstream/deployed acceptance                                                                                                |
 | Roster policy                   | Audit pending                               | Existing implementation                                                                                                                                                                                         | Staff/template assignments, conflicts, effective versions and inactive/transferred staff                                                                                                                            |
 | Rosters                         | Audit pending                               | Existing implementation                                                                                                                                                                                         | Populate/allocate, overlaps, credentials/leave, freeze/correct/discard, overnight dates and downstream consequences                                                                                                 |
 | Leave setup                     | Audit pending                               | Existing implementation                                                                                                                                                                                         | Types/calendars/structures, units/rules, effective revisions and retirement                                                                                                                                         |
@@ -501,3 +501,51 @@ retirement, multi-hospital/current-account scope, consumer and production QA are
 still required. Shifts moves from Audit pending to Partial: **9 partial,
 11 audit pending, 1 research, 0 fully accepted**. These are area counts, not an
 effort-completion percentage. Earlier checkpoints retain their historical counts.
+
+## Roster setup draft protection — local continuation 2026-10-30
+
+The next UI audit confirmed that the retired synthetic shift was unavailable for
+new area membership. Following the in-form shift link after entering an area
+name then silently lost that input. No configuration was saved in reproducing
+this defect. The correction registers the existing navigation guard and uses
+GuardedLink. Voluntary kind/hospital changes, Cancel, Add/Edit/history replacement
+now share the same guard; confirmed replacements reset their form session and
+pending writes retain their original context.
+
+Regressions for Cancel, kind change, history, same-new-form replacement and the
+shift link were observed failing before correction. All 11 roster component
+tests then passed, including hospital scope, same-record replacement, pending
+save and successful close/focus behavior. Real local UI verified the shift-link
+prompt, exact name preservation on Keep editing, retained Roster areas selection
+after cancelling a kind change, and explicit Cancel/Discard with opener focus.
+Private screenshot: `local-roster-setup-unsaved-guard.jpg`.
+
+Roster setup remains Audit pending. Saved area/group/template composition,
+effective revisions, referenced retirement, multi-hospital isolation, downstream
+roster behavior and deployed QA are still open. The count remains 9 partial,
+11 audit pending, 1 research and 0 fully accepted. No API, schema, permission or
+migration changes are introduced; no production or roster/personnel data was
+changed by this continuation. Full final web/CI gates are recorded in the PR
+before merge.
+
+### Roster area reference and retirement QA — 2026-10-30
+
+Using normal local Staff Admin controls, QA created a separate unallocated day
+shift (08:00–16:00, 480 minutes) and roster area effective 2026-10-30. Missing
+name and missing review acknowledgement were rejected. The saved area retained
+its selected shift after full reload. Retiring that shift as revision 2 preserved
+the area's original shift revision/timings, visibly labelled Earlier revision
+retained, while removing it from new selections. Changing the area's effective
+date to 2026-10-31 was rejected with input preserved. Restoring the original date
+and retiring the area saved revision 2. A subsequent attempted reactivation with
+the retired shift was rejected; QA explicitly discarded the unsaved attempt.
+Reload/history retained both area revisions and pinned 08:00–16:00 membership.
+The synthetic day shift and area finish retired; no Staff was allocated.
+
+This provides local area-level evidence, not all roster setup acceptance. Roster
+setup now becomes Partial, bringing the current count to **10 partial (47.6%),
+10 audit pending (47.6%), 1 research (4.8%), 0 fully accepted**. Group/template
+composition, weekly off/overnight overlaps, effective-version concurrency,
+role/isolation, downstream and production QA remain open. Historical checkpoints
+above keep their earlier counts. Private evidence:
+`local-roster-area-retired-reference-history.jpg`.

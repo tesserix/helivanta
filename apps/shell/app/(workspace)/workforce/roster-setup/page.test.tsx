@@ -1,9 +1,12 @@
-import "@/test/select";
+import { chooseOption } from "@/test/select";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import RosterSetup from "./page";
+import { NavigationGuardProvider } from "@helivanta/ui";
 
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 const hospital = "11111111-1111-4111-8111-111111111111";
 const shiftID = "22222222-2222-4222-8222-222222222222";
 const revision = "33333333-3333-4333-8333-333333333333";
@@ -35,8 +38,14 @@ const area = {
   days: [],
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
-afterEach(() => vi.unstubAllGlobals());
-function mock(allowed = true) {
+afterEach(() => {
+  vi.unstubAllGlobals();
+  router.push.mockClear();
+});
+function mock(
+  allowed = true,
+  hospitals = [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+) {
   const writes: { url: string; body: unknown }[] = [];
   vi.stubGlobal(
     "fetch",
@@ -44,8 +53,7 @@ function mock(allowed = true) {
       let status = 200;
       let body: unknown = page([]);
       if (url.includes("permissions")) body = { data: allowed ? ["workforce.roster.manage"] : [] };
-      else if (url.endsWith("/hospitals"))
-        body = page([{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }]);
+      else if (url.endsWith("/hospitals")) body = page(hospitals);
       else if (url.includes("/shifts")) body = page([shift]);
       else if (url.includes("/history"))
         body = page([{ ...area, id: areaRevision, config_id: areaID }]);
@@ -62,7 +70,11 @@ function mock(allowed = true) {
 }
 it("reopens saved membership, requires review and preserves a conflict for same-ID retry", async () => {
   const writes = mock();
-  const { user } = renderWithProviders(<RosterSetup />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
   expect(screen.getByLabelText("Code")).toBeDisabled();
   expect(screen.getByLabelText("Effective date")).toHaveValue("2026-10-14");
@@ -86,7 +98,11 @@ it("reopens saved membership, requires review and preserves a conflict for same-
 });
 it("reads immutable membership history and hides management controls from readers", async () => {
   mock(false);
-  const { user } = renderWithProviders(<RosterSetup />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText("Synthetic Area")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Add roster area" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Edit Synthetic Area" })).not.toBeInTheDocument();
@@ -99,7 +115,11 @@ it("reads immutable membership history and hides management controls from reader
 });
 it("uses shared selectors for weekly allocation and restores choices after toggling weekly off", async () => {
   mock();
-  const { user } = renderWithProviders(<RosterSetup />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("combobox", { name: "Configuration" }));
   await user.click(screen.getByRole("option", { name: "Weekly templates" }));
   await user.click(await screen.findByRole("button", { name: "Add weekly template" }));
@@ -116,4 +136,229 @@ it("uses shared selectors for weekly allocation and restores choices after toggl
   await user.click(screen.getByRole("checkbox", { name: "Monday weekly off" }));
   expect(day).toHaveTextContent("SYN-DAY");
   expect(day).toHaveTextContent("Synthetic Area");
+});
+
+it("preserves roster input on Cancel until explicitly discarded and restores focus", async () => {
+  const writes = mock();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  await user.type(screen.getByLabelText("Description"), " unsaved area");
+  await user.click(screen.getByRole("button", { name: "Cancel changes" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep editing" }),
+  );
+  expect(screen.getByLabelText("Description")).toHaveValue("Synthetic policy unsaved area");
+  await user.click(screen.getByRole("button", { name: "Cancel changes" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(screen.queryByRole("region", { name: "Edit roster area" })).not.toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Edit Synthetic Area" })).toHaveFocus(),
+  );
+});
+
+it("holds configuration kind changes until the draft is explicitly discarded", async () => {
+  mock();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  await user.type(screen.getByLabelText("Description"), " retain across kind change");
+  await user.click(screen.getByRole("combobox", { name: "Configuration" }));
+  await user.click(screen.getByRole("option", { name: "Shift groups" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep editing" }),
+  );
+  expect(screen.getByRole("combobox", { name: "Configuration" })).toHaveTextContent("Roster areas");
+  expect(screen.getByLabelText("Description")).toHaveValue(
+    "Synthetic policy retain across kind change",
+  );
+  await user.click(screen.getByRole("combobox", { name: "Configuration" }));
+  await user.click(screen.getByRole("option", { name: "Shift groups" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(await screen.findByRole("button", { name: "Add shift group" })).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Edit roster area" })).not.toBeInTheDocument();
+});
+
+it("guards replacement with history and returns focus to its opener", async () => {
+  mock();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  await user.type(screen.getByLabelText("Description"), " keep history draft");
+  await user.click(screen.getByRole("button", { name: "History for Synthetic Area" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep editing" }),
+  );
+  expect(screen.getByLabelText("Description")).toHaveValue("Synthetic policy keep history draft");
+  await user.click(screen.getByRole("button", { name: "History for Synthetic Area" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(
+    await screen.findByRole("region", { name: "Roster configuration history" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Edit roster area" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Close history" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "History for Synthetic Area" })).toHaveFocus(),
+  );
+});
+
+it("confirms replacing a new form and resets its unsaved values", async () => {
+  mock();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Add roster area" }));
+  await user.type(screen.getByLabelText("Name"), "Synthetic replaceable area");
+  await user.click(screen.getByRole("button", { name: "Add roster area" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(screen.getByLabelText("Name")).toHaveValue("");
+  expect(screen.getByLabelText("Code")).toHaveValue("");
+});
+
+it("guards the shift-setup link and only navigates after explicit discard", async () => {
+  mock();
+  const original = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).includes("/shifts")
+        ? Promise.resolve(Response.json(page([])))
+        : original(url, init),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Add roster area" }));
+  await user.type(screen.getByLabelText("Name"), "Synthetic unsaved area link");
+  const link = await screen.findByRole("link", { name: "shift" });
+  await user.click(link);
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep editing" }),
+  );
+  expect(screen.getByLabelText("Name")).toHaveValue("Synthetic unsaved area link");
+  expect(router.push).not.toHaveBeenCalled();
+  await user.click(link);
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(router.push).toHaveBeenCalledExactlyOnceWith("/workforce/shifts");
+});
+
+it("keeps hospital scope until explicitly discarded", async () => {
+  const other = "66666666-6666-4666-8666-666666666666";
+  mock(true, [
+    { id: hospital, name: "Synthetic Hospital", access_level: "manager" },
+    { id: other, name: "Other Synthetic Hospital", access_level: "manager" },
+  ]);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  await user.type(screen.getByLabelText("Description"), " scoped draft");
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Hospital" }),
+    "Other Synthetic Hospital",
+  );
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep editing" }),
+  );
+  expect(screen.getByLabelText("Description")).toHaveValue("Synthetic policy scoped draft");
+  expect(
+    vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes(`/hospitals/${other}/`)),
+  ).toBe(false);
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Hospital" }),
+    "Other Synthetic Hospital",
+  );
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  await screen.findByRole("heading", { name: "Other Synthetic Hospital" });
+  expect(screen.queryByRole("region", { name: "Edit roster area" })).not.toBeInTheDocument();
+});
+it("holds replacement while a save is pending and closes a successful save without prompting", async () => {
+  mock();
+  const original = fetch;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        await pending;
+        return Response.json({ data: { ...area, version: 2 } });
+      }
+      return original(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  await user.type(screen.getByLabelText("Description"), " pending area save");
+  await user.click(
+    screen.getByRole("checkbox", { name: "I reviewed the effective date and scheduling rules" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Save configuration" }));
+  await screen.findByRole("button", { name: "Saving…" });
+  await user.click(screen.getByRole("button", { name: "History for Synthetic Area" }));
+  expect(screen.getByRole("region", { name: "Edit roster area" })).toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Roster configuration history" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  release();
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: "Edit roster area" })).not.toBeInTheDocument(),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Edit Synthetic Area" })).toHaveFocus(),
+  );
+});
+it("resets a same-record replacement only after confirmation", async () => {
+  mock();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  await user.type(screen.getByLabelText("Description"), " replace this edit");
+  await user.click(screen.getByRole("button", { name: "Edit Synthetic Area" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard" }),
+  );
+  expect(screen.getByLabelText("Description")).toHaveValue("Synthetic policy");
 });

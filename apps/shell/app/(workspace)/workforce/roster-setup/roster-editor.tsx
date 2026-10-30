@@ -12,7 +12,7 @@ import {
   type RosterShift,
   type ShiftDefinition,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, SelectControl, useZodForm, useLeaveGuard, GuardedLink } from "@helivanta/ui";
 import { WeeklyFields } from "./weekly-fields";
 import { inputClass, configNoun } from "./roster-ui";
 
@@ -80,6 +80,7 @@ export function RosterEditor({
       onSuccess: onClose,
     },
   );
+  const { confirm } = useLeaveGuard(form.formState.isDirty, "roster configuration", save.isPending);
   useEffect(() => {
     section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
     form.setFocus("name");
@@ -101,7 +102,7 @@ export function RosterEditor({
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">{hospital.name}</p>
         </div>
-        <Button variant="ghost" disabled={save.isPending} onClick={onClose}>
+        <Button variant="ghost" disabled={save.isPending} onClick={() => confirm(onClose)}>
           Cancel changes
         </Button>
       </div>
@@ -201,9 +202,9 @@ export function RosterEditor({
               {!shifts.items.some((s) => s.active) && (
                 <p className="text-sm text-muted-foreground">
                   Define an active{" "}
-                  <a className="font-medium underline" href="/workforce/shifts">
+                  <GuardedLink className="font-medium underline" href="/workforce/shifts">
                     shift
-                  </a>{" "}
+                  </GuardedLink>{" "}
                   before adding membership.
                 </p>
               )}

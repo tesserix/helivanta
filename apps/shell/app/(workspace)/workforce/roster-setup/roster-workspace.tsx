@@ -8,13 +8,14 @@ import {
   type Hospital,
   type RosterConfig,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, useConfirmLeave } from "@helivanta/ui";
 import { RosterEditor } from "./roster-editor";
 import { ConfigurationSummary, effectiveDate } from "./roster-summary";
 
 import { inputClass, configNoun } from "./roster-ui";
 
 export function RosterWorkspace() {
+  const confirmLeave = useConfirmLeave();
   const hospitals = useApiPagedQuery<Hospital>(
     ["workforce", "planning-hospitals"],
     "/workforce/hospitals",
@@ -34,7 +35,7 @@ export function RosterWorkspace() {
                   <SelectControl
                     id="planning-hospital"
                     value={hospital.id}
-                    onValueChange={setSelected}
+                    onValueChange={(next) => confirmLeave(() => setSelected(next))}
                     options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
                   />
                 </Field>
@@ -43,7 +44,7 @@ export function RosterWorkspace() {
                 <SelectControl
                   id="planning-kind"
                   value={kind}
-                  onValueChange={(v) => setKind(v as RosterConfig["kind"])}
+                  onValueChange={(v) => confirmLeave(() => setKind(v as RosterConfig["kind"]))}
                   options={Object.entries(ROSTER_CONFIG_KINDS).map(([value, label]) => ({
                     value,
                     label,
@@ -89,6 +90,7 @@ function Failure({ message, retry }: { message: string; retry: () => void }) {
   );
 }
 function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterConfig["kind"] }) {
+  const confirmLeave = useConfirmLeave();
   const { can } = usePermissions();
   const writable = can("workforce.roster.manage") && hospital.access_level === "manager";
   const path = `/workforce/hospitals/${hospital.id}/hr/roster-configs`;
@@ -99,12 +101,15 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<RosterConfig | "new" | null>(null);
   const [history, setHistory] = useState<RosterConfig | null>(null);
+  const [editorSession, setEditorSession] = useState(0);
   const opener = useRef<HTMLButtonElement | null>(null);
   const close = () => {
     setEditing(null);
     setHistory(null);
-    opener.current?.focus();
   };
+  useEffect(() => {
+    if (!editing && !history) opener.current?.focus();
+  }, [editing, history]);
   const rows = records.items.filter((r) =>
     `${r.name} ${r.code}`.toLowerCase().includes(filter.toLowerCase()),
   );
@@ -121,9 +126,13 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
           {writable && (
             <Button
               onClick={(e) => {
-                opener.current = e.currentTarget;
-                setHistory(null);
-                setEditing("new");
+                const button = e.currentTarget;
+                confirmLeave(() => {
+                  opener.current = button;
+                  setHistory(null);
+                  setEditorSession((value) => value + 1);
+                  setEditing("new");
+                });
               }}
             >
               Add {configNoun[kind]}
@@ -186,9 +195,13 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
                         variant="ghost"
                         aria-label={`Edit ${r.name}`}
                         onClick={(e) => {
-                          opener.current = e.currentTarget;
-                          setHistory(null);
-                          setEditing(r);
+                          const button = e.currentTarget;
+                          confirmLeave(() => {
+                            opener.current = button;
+                            setHistory(null);
+                            setEditorSession((value) => value + 1);
+                            setEditing(r);
+                          });
                         }}
                       >
                         Edit
@@ -199,9 +212,12 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
                       variant="ghost"
                       aria-label={`History for ${r.name}`}
                       onClick={(e) => {
-                        opener.current = e.currentTarget;
-                        setEditing(null);
-                        setHistory(r);
+                        const button = e.currentTarget;
+                        confirmLeave(() => {
+                          opener.current = button;
+                          setEditing(null);
+                          setHistory(r);
+                        });
                       }}
                     >
                       History
@@ -234,7 +250,7 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
       </section>
       {editing && (
         <RosterEditor
-          key={editing === "new" ? "new" : editing.id}
+          key={`${editing === "new" ? "new" : editing.id}:${editorSession}`}
           path={path}
           hospital={hospital}
           kind={kind}

@@ -49,6 +49,9 @@ var bedsSchema string
 //go:embed discharge.sql
 var dischargeSchema string
 
+//go:embed nicu.sql
+var nicuSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -128,6 +131,10 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		// Discharge orders: the doctor's decision, before the release (#96).
 		ID:  "0008_medicore",
 		SQL: dischargeSchema,
+	}, {
+		// A NICU bed class, apart from a newborn ward (#193).
+		ID:  "0009_medicore",
+		SQL: nicuSchema,
 	}}
 }
 

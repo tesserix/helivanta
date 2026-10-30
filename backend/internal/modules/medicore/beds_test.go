@@ -138,6 +138,18 @@ func TestBedsAdmitTransferAndRelease(t *testing.T) {
 	require.Equal(t, http.StatusConflict, do(w.r, "PUT", w.url("/rooms/"+roomA+"/beds/"+a1), "admin", `{"code":"A-1","bed_class":"icu"}`).Code)
 	require.Equal(t, http.StatusConflict, do(w.r, "PUT", w.url("/rooms/"+roomA+"/beds/"+newID()), "admin", `{"code":"A-1","bed_class":"general"}`).Code, "a code is used once per hospital")
 	require.Equal(t, http.StatusForbidden, do(w.r, "PUT", w.url("/rooms/"+roomA+"/beds/"+newID()), "desk", `{"code":"A-9","bed_class":"general"}`).Code)
+	// A NICU bed is its own class, apart from a newborn ward (GST exempts it).
+	res = do(w.r, "PUT", w.url("/rooms/"+roomA+"/beds/"+newID()), "admin", `{"code":"A-N","bed_class":"nicu"}`)
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	require.Contains(t, res.Body.String(), `"bed_class":"nicu"`)
+	require.Equal(t, http.StatusBadRequest, do(w.r, "PUT", w.url("/rooms/"+roomA+"/beds/"+newID()), "admin", `{"code":"A-X","bed_class":"ccu"}`).Code)
+	// The database holds the same list as the handler.
+	var check string
+	require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='medicore_beds_bed_class_check'`).Scan(&check).Error
+	}))
+	require.Contains(t, check, `'nicu'::text`)
+	require.Contains(t, check, `'neonatal'::text`)
 	require.Equal(t, http.StatusConflict, do(w.r, "PUT", w.url("/wards/"+newID()), "admin", `{"code":"W-A","name":"Ward A"}`).Code, "a ward code is used once per hospital")
 
 	code, out := w.occupant(t, "/beds/"+a1+"/occupant")

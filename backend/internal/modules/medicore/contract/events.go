@@ -119,7 +119,7 @@ type BedOccupancyStartedData struct {
 
 // BedClasses are the classes a bed may have; billing prices a stay by its
 // bed's class (#197).
-var BedClasses = map[string]bool{"general": true, "semi_private": true, "private": true, "icu": true, "hdu": true, "isolation": true, "neonatal": true, "day_care": true}
+var BedClasses = map[string]bool{"general": true, "semi_private": true, "private": true, "icu": true, "hdu": true, "isolation": true, "neonatal": true, "nicu": true, "day_care": true}
 
 // SubjectBedOccupancyEnded is published when a stay in a bed ends, by
 // transfer out or release.

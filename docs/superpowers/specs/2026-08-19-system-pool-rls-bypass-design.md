@@ -32,11 +32,11 @@ reproduces dev. **The assumption was never wrong anywhere it was tested.**
 Every entry in `withAdminAllowlist` is there because it must cross tenants,
 and each one reads a FORCE-RLS table:
 
-| Call site | Purpose | Table | Consequence in production |
-|---|---|---|---|
-| `platform.Reconcile` | memberships → OpenFGA tuples | `iam_members` | no tuple ever written; nobody holds a permission |
-| `events.drainOnce` | publish outbox rows | `outbox_events` | outbox never drains |
-| `events.Prune` | trim outbox/ledger | `outbox_events` | deletes nothing, reports success |
+| Call site            | Purpose                      | Table           | Consequence in production                        |
+| -------------------- | ---------------------------- | --------------- | ------------------------------------------------ |
+| `platform.Reconcile` | memberships → OpenFGA tuples | `iam_members`   | no tuple ever written; nobody holds a permission |
+| `events.drainOnce`   | publish outbox rows          | `outbox_events` | outbox never drains                              |
+| `events.Prune`       | trim outbox/ledger           | `outbox_events` | deletes nothing, reports success                 |
 
 Confirmed live: 9 of 13 public tables are forced, including both tables above.
 Neither failure has cost anything yet only because `outbox_events` holds 0
@@ -54,7 +54,7 @@ Those are different privileges with different blast radii, and only one of
 them is needed by any given caller.
 
 - **`WithAdmin` keeps owner semantics.** DDL, `Migrate`, `LintRLS`. These need
-  to *own* the tables; they do not need to see other tenants' rows. Its doc
+  to _own_ the tables; they do not need to see other tenants' rows. Its doc
   comment is corrected to say so.
 - **`WithSystemPool` (new) holds `BYPASSRLS` and no DDL.** The three call
   sites in D1 move to it.
@@ -82,7 +82,7 @@ instead of production's.
 
 The owner role becomes `NOSUPERUSER NOBYPASSRLS` in the harness, and the new
 system role is created alongside it. This is the load-bearing change — it is
-what makes the class of divergence *testable* rather than merely fixed once.
+what makes the class of divergence _testable_ rather than merely fixed once.
 
 `TestWithAdminBypassesRLSAcrossTenants` asserts the false claim directly. It
 is expected to fail the moment D3 lands, and that failure is the proof D3

@@ -23,15 +23,15 @@
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `.gitleaks.toml` (create) | Scanner config and the value-scoped allowlist for deliberate/benign findings |
-| `.github/workflows/ci.yml` (modify) | Add the `secrets` job running gitleaks |
-| `backend/internal/config/generate.go` (create) | `GenerateSessionSigningKey()` — mints a seed in the exact format `SessionSigningKeySeed` accepts |
-| `backend/internal/config/generate_test.go` (create) | Asserts the generator's output is accepted by the real validator |
-| `backend/cmd/session-key/main.go` (create) | Prints a generated key; what the make target runs |
-| `Makefile` (modify) | `secret-session-key` target |
-| `docs/runbooks/secrets.md` (create) | Secret inventory, OpenBao paths, provisioning runbook, D2's residual risk |
+| File                                                | Responsibility                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `.gitleaks.toml` (create)                           | Scanner config and the value-scoped allowlist for deliberate/benign findings                     |
+| `.github/workflows/ci.yml` (modify)                 | Add the `secrets` job running gitleaks                                                           |
+| `backend/internal/config/generate.go` (create)      | `GenerateSessionSigningKey()` — mints a seed in the exact format `SessionSigningKeySeed` accepts |
+| `backend/internal/config/generate_test.go` (create) | Asserts the generator's output is accepted by the real validator                                 |
+| `backend/cmd/session-key/main.go` (create)          | Prints a generated key; what the make target runs                                                |
+| `Makefile` (modify)                                 | `secret-session-key` target                                                                      |
+| `docs/runbooks/secrets.md` (create)                 | Secret inventory, OpenBao paths, provisioning runbook, D2's residual risk                        |
 
 Task 4 touches `tesserix-k8s` (separate repo) and the production cluster; it creates no files here.
 
@@ -40,10 +40,12 @@ Task 4 touches `tesserix-k8s` (separate repo) and the production cluster; it cre
 ### Task 1: gitleaks gate
 
 **Files:**
+
 - Create: `.gitleaks.toml`
 - Modify: `.github/workflows/ci.yml` (add a `secrets` job alongside `go`, `web`, `scripts`)
 
 **Interfaces:**
+
 - Consumes: nothing from earlier tasks.
 - Produces: nothing later tasks depend on. Independent.
 
@@ -95,10 +97,12 @@ regexes = [
 - [ ] **Step 2: Run the scanner and verify the known findings are now clean**
 
 Run:
+
 ```bash
 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
   --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
 ```
+
 Expected: `no leaks found`. If any of the 9 baseline findings still fire, the allowlist regex does not match the value the scanner actually extracted — fix the regex, do not widen it to a path.
 
 - [ ] **Step 3: Prove the gate can fail**
@@ -112,7 +116,7 @@ reports zero findings and would "prove" the gate is inert when it is fine — th
 proof would move nothing the assertion reads. The probe below is GENERATED, not hardcoded: a literal written into this
 file becomes a committed secret the gate flags on its next run — which is
 precisely what an earlier draft of this step caused.
- Create a throwaway file with a credential the default ruleset detects:
+Create a throwaway file with a credential the default ruleset detects:
 
 ```bash
 # Generate the probe value; do NOT hardcode one. A literal committed here
@@ -123,11 +127,13 @@ printf 'aws_secret_access_key = "%s"\n' "$PROBE" > ./leak-probe.txt
 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
   --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact --no-git
 ```
+
 Expected: **`leaks found: 1`** naming `leak-probe.txt`.
 
 If it reports zero, the gate is inert and the allowlist is too broad — stop and fix it before continuing. A gate nobody has watched reject anything is not known to be a gate.
 
 Then remove the probe:
+
 ```bash
 rm ./leak-probe.txt
 ```
@@ -137,27 +143,27 @@ rm ./leak-probe.txt
 In `.github/workflows/ci.yml`, add as a sibling of the existing `go`, `web` and `scripts` jobs:
 
 ```yaml
-  secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Full history: the gate scans every commit, so a secret added
-          # and then removed in a later commit is still caught. With the
-          # default shallow clone it would not be.
-          fetch-depth: 0
-      # The container, NOT gitleaks/gitleaks-action@v2. That action
-      # requires a paid GITLEAKS_LICENSE for ORGANISATION-owned repos,
-      # and tesserix/helivanta is private under the tesserix org — so the
-      # action would fail on licensing, not on findings. This repo is
-      # also on the GitHub Free plan with no org secrets, so a license
-      # could not be supplied even if bought. Running the container
-      # directly has a second advantage: CI runs the exact command a
-      # developer runs locally, so the two cannot drift.
-      - name: gitleaks
-        run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
-            --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
+secrets:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        # Full history: the gate scans every commit, so a secret added
+        # and then removed in a later commit is still caught. With the
+        # default shallow clone it would not be.
+        fetch-depth: 0
+    # The container, NOT gitleaks/gitleaks-action@v2. That action
+    # requires a paid GITLEAKS_LICENSE for ORGANISATION-owned repos,
+    # and tesserix/helivanta is private under the tesserix org — so the
+    # action would fail on licensing, not on findings. This repo is
+    # also on the GitHub Free plan with no org secrets, so a license
+    # could not be supplied even if bought. Running the container
+    # directly has a second advantage: CI runs the exact command a
+    # developer runs locally, so the two cannot drift.
+    - name: gitleaks
+      run: |
+        docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect \
+          --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
 ```
 
 - [ ] **Step 5: Verify the workflow file is valid YAML**
@@ -179,12 +185,14 @@ git commit -m "ci: add gitleaks secret scanning with value-scoped allowlist (#45
 ### Task 2: Session signing key generator
 
 **Files:**
+
 - Create: `backend/internal/config/generate.go`
 - Create: `backend/internal/config/generate_test.go`
 - Create: `backend/cmd/session-key/main.go`
 - Modify: `Makefile`
 
 **Interfaces:**
+
 - Consumes: `config.Config.SessionSigningKeySeed() ([]byte, error)` — the existing validator in `backend/internal/config/signingkey.go`.
 - Produces: `config.GenerateSessionSigningKey() (string, error)` — returns a base64-standard-encoded 32-byte Ed25519 seed.
 
@@ -345,21 +353,25 @@ Run: `make secret-session-key`
 Expected: a single 44-character line ending in `=`, and nothing else.
 
 Verify the shape of that exact output — one line, decoding to 32 bytes:
+
 ```bash
 KEY=$(make -s secret-session-key)
 [ "$(printf '%s' "$KEY" | wc -l)" -eq 0 ] || { echo "FAIL: multi-line output"; exit 1; }
 printf '%s' "$KEY" | base64 -d | wc -c    # expect: 32
 ```
+
 Expected: `32`, with no "multi-line output" failure.
 
-Step 5 already proved the validator accepts generator output; this step is only checking the *target* emits one clean line, because a label or stray newline would be trimmed or refused downstream. Do not re-assert validator acceptance here by running the generator again — running the generator twice proves nothing about the validator.
+Step 5 already proved the validator accepts generator output; this step is only checking the _target_ emits one clean line, because a label or stray newline would be trimmed or refused downstream. Do not re-assert validator acceptance here by running the generator again — running the generator twice proves nothing about the validator.
 
 - [ ] **Step 8: Confirm nothing else broke**
 
 Run from the repository root (these targets `cd backend` themselves — do not prefix them):
+
 ```bash
 make lint-go && make test-go && make coverage-go
 ```
+
 Expected: all green. The coverage gate is flaky under container load — re-run once before investigating a failure.
 
 - [ ] **Step 9: Commit**
@@ -374,9 +386,11 @@ git commit -m "feat: mint session signing keys in the format the validator accep
 ### Task 3: Secret inventory and provisioning runbook
 
 **Files:**
+
 - Create: `docs/runbooks/secrets.md`
 
 **Interfaces:**
+
 - Consumes: `make secret-session-key` from Task 2.
 - Produces: the document Task 4 executes against.
 
@@ -387,12 +401,15 @@ Create `docs/runbooks/secrets.md`. It must contain, at minimum:
 **Inventory** — a table of the two secrets with, for each: the env var, the OpenBao path, what it authorises, and the blast radius if leaked. Plus an explicit row stating `HELIVANTA_WEB_ORIGIN` is **config, not a secret**, and belongs in the deployment env (D1) — recorded here because it refuses boot like a secret does and will otherwise be filed as one.
 
 **Delivery chain** (D4), verbatim:
+
 ```
 OpenBao → ESO (as the helivanta-api ServiceAccount) → k8s Secret → env → config.Load
 ```
+
 with the note that nothing after ESO knows what a vault is, and that switching stores is a `ClusterSecretStore` edit rather than a Helivanta change.
 
 **Provisioning: SESSION_SIGNING_KEY**
+
 ```bash
 make secret-session-key            # prints the key, nothing else
 # then write it to kv/data/helivanta/helivanta-api/session-signing-key (Task 4)
@@ -426,8 +443,10 @@ gh issue comment 45 --body "$(cat <<'EOF'
 The naming convention in this issue's Recommended Solution (`hms-in/{env}/{scope}/{name}`) is superseded. It was written assuming GCP Secret Manager, where a name is a flat string. Under the OpenBao store the fleet actually runs, the leading path segment is what a policy grants on, so Helivanta follows the live fleet convention instead:
 
 ```
+
 kv/data/helivanta/helivanta-api/session-signing-key
 kv/data/helivanta/helivanta-api/zitadel-login-client-token
+
 ```
 
 The app segment is not a free choice: the openbao chart generates one policy per whitelisted app, scoped to `kv/data/<namespace>/<app-name>/*`, so `helivanta-api` is the only readable prefix. A secret written to `kv/data/helivanta/api/...` is invisible to the pod, and nothing fails at write time.
@@ -451,6 +470,7 @@ git commit -m "docs: secret inventory and provisioning runbook for Helivanta boo
 **Files:** none in this repo. Changes land in `tesserix-k8s` and in the production cluster.
 
 **Interfaces:**
+
 - Consumes: `docs/runbooks/secrets.md` (Task 3), `make secret-session-key` (Task 2).
 - Produces: a verified grant; no code artefact.
 
@@ -486,6 +506,7 @@ K=gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke
 kubectl --context $K get pods -n openbao
 kubectl --context $K get clustersecretstore,secretstore -A
 ```
+
 Expected: `openbao-0/1/2` `1/1 Running`; `openbao-secret-store` and the four existing per-app stores `Valid`/`Ready`. If this differs from the spec's observed-state table, stop and re-establish the facts before changing anything.
 
 - [ ] **Step 2: Verify the namespace and ServiceAccount — do NOT create them**
@@ -514,7 +535,7 @@ role and whitelist entry.
 
 **Doing that today would widen the grant and silently undo a proven security
 property.** The `openbao` chart does not take hand-written per-app policies. It
-*generates* one from `namespaceWhitelist`, scoped to
+_generates_ one from `namespaceWhitelist`, scoped to
 `kv/data/<namespace>/<app-name>/*`, and names the policy and role
 `app-<namespace>_<app-name>`
 (`charts/thirdparty/openbao/templates/bootstrap-configmap.yaml`). The whitelist
@@ -524,7 +545,7 @@ entry for `helivanta` / `helivanta-api` already exists, as does the
 Adding a second, broader `kv/data/helivanta/*` policy on top would make paths
 outside `helivanta-api/` readable — including the `scope-probe` path used to
 prove the boundary, which currently returns `403 permission denied`. The
-scoping would still *look* correct in the values file while no longer holding.
+scoping would still _look_ correct in the values file while no longer holding.
 
 So verify, and add nothing:
 
@@ -560,7 +581,7 @@ Under the same `helivanta-api` grant, read an existing path **outside**
 
 **Do not read another product's real secret** — the original version of this
 step named `kv/data/homechef/*`. If the policy is over-broad this test does not
-fail, it *succeeds*, and a live cross-product credential lands in a session log.
+fail, it _succeeds_, and a live cross-product credential lands in a session log.
 A test whose failure mode is a secret disclosure is the wrong test.
 
 Instead write a worthless canary at a path outside the grant and read that.
@@ -572,6 +593,7 @@ mistyped path.
 Expected: **permission denied**.
 
 Then prove the denial is the policy's doing and not an artefact:
+
 1. Confirm the same path **is** readable under a grant that legitimately has it — otherwise a typo'd path produces an identical-looking denial.
 2. Confirm the read succeeds under Helivanta's own prefix (Step 5 already shows this), so the credential itself is working.
 

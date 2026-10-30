@@ -53,6 +53,7 @@ paragraphs verbatim). Keep the `.hms-sidebar-border` rule at the bottom unchange
 ### Light block (existing selector group `:root, :root[data-theme="default"], [data-theme="default"]`, all `!important`)
 
 Content surface:
+
 ```
 --background: #F4F6F9;      --foreground: #0F1728;
 --card: #FFFFFF;            --card-foreground: #0F1728;
@@ -64,7 +65,9 @@ Content surface:
 --destructive: #C93B3B;     --destructive-foreground: #FFFFFF;
 --border: #E5EAF1;          --input: #E5EAF1;          --ring: #0E7569;
 ```
+
 Sidebar (light rails — this flips the current dark-slate rails to light):
+
 ```
 --sidebar: #FAFBFD;             --sidebar-foreground: #0F1728;
 --sidebar-primary: #0E7569;     --sidebar-primary-foreground: #FFFFFF;
@@ -72,7 +75,9 @@ Sidebar (light rails — this flips the current dark-slate rails to light):
 --sidebar-border: #EBEFF5;      --sidebar-ring: #0E7569;
 --sidebar-rail: #FFFFFF;
 ```
+
 Helivanta semantic tokens (new, same block):
+
 ```
 --hms-accent: #0E7569;       --hms-accent-strong: #0A5A50;   --hms-accent-dim: #E3F2EF;
 --hms-good: #12915E;         --hms-warn: #B95E04;            --hms-crit: #C93B3B;
@@ -163,6 +168,7 @@ dark users. A brief comment on why it must run before paint.
 ### 2d. Tests (`packages/ui/src/theme.test.tsx`, new)
 
 Using `renderWithProviders`:
+
 1. ThemeToggle renders with the correct aria-label for the current
    `document.documentElement.dataset.theme`.
 2. Clicking it flips `dataset.theme` `"default"` ↔ `"dark"` and writes

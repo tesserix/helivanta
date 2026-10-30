@@ -209,6 +209,8 @@ Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/
 | DELETE | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
 | PUT | `/v1/medicore/hospitals/:hospital/access/:subject` | `medicore.access.manage` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/access` | `medicore.visit.read` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission/discharge-orders/:order/withdrawals/:withdrawal` | `medicore.discharge.order` | false | false |
+| PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission/discharge-orders/:order` | `medicore.discharge.order` | false | false |
 | PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission/release` | `medicore.admission.manage` | false | false |
 | PUT | `/v1/medicore/hospitals/:hospital/admissions/:admission/transfers/:transfer` | `medicore.admission.manage` | false | false |
 | GET | `/v1/medicore/hospitals/:hospital/admissions/:admission` | `medicore.visit.read` | false | false |
@@ -250,6 +252,8 @@ Published subjects:
 - `helivanta.in.medicore.bed_occupancy_started.v1`
 - `helivanta.in.medicore.bed_occupancy_ended.v1`
 - `helivanta.in.medicore.admission_released.v1`
+- `helivanta.in.medicore.discharge_ordered.v1`
+- `helivanta.in.medicore.discharge_withdrawn.v1`
 
 Subscriptions:
 
@@ -262,6 +266,7 @@ Migration table declarations:
 - `0005_medicore`: `medicore_patients`, `medicore_hospital_access`, `medicore_encounter_transitions`.
 - `0006_medicore`: `medicore_drug_molecules`, `medicore_allergy_entries`, `medicore_no_known_allergy`, `medicore_no_known_allergy_withdrawals`, `medicore_weight_observations`, `medicore_weight_errors`, `medicore_clinical_read_audit`.
 - `0007_medicore`: `medicore_wards`, `medicore_rooms`, `medicore_beds`, `medicore_bed_transitions`, `medicore_admissions`, `medicore_bed_occupancies`, `medicore_admission_transfers`.
+- `0008_medicore`: `medicore_discharge_orders`.
 
 ## mediconnect
 

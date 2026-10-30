@@ -18,9 +18,9 @@ existing `hms-dev` stack — not inside it. Compose file:
 Ports follow the Helivanta shifted-port convention and do not collide with
 `hms-dev` (postgres 15432, GIP 19099):
 
-| Service | Port |
-|---|---|
-| Zitadel HTTP | 20080 |
+| Service                | Port  |
+| ---------------------- | ----- |
+| Zitadel HTTP           | 20080 |
 | Zitadel's own Postgres | 15433 |
 
 The `hms-dev` stack (postgres 15432, GIP 19099, nats/redis/openfga) was left
@@ -84,15 +84,38 @@ verify its length in whatever script writes it.
   "issuer": "http://localhost:20080",
   "jwks_uri": "http://localhost:20080/oauth/v2/keys",
   "grant_types_supported": [
-    "authorization_code", "implicit", "refresh_token", "client_credentials",
+    "authorization_code",
+    "implicit",
+    "refresh_token",
+    "client_credentials",
     "urn:ietf:params:oauth:grant-type:jwt-bearer",
     "urn:ietf:params:oauth:grant-type:device_code"
   ],
   "claims_supported": [
-    "sub","aud","exp","iat","iss","auth_time","nonce","acr","amr",
-    "c_hash","at_hash","act","scopes","client_id","azp",
-    "preferred_username","name","family_name","given_name","locale",
-    "email","email_verified","phone_number","phone_number_verified"
+    "sub",
+    "aud",
+    "exp",
+    "iat",
+    "iss",
+    "auth_time",
+    "nonce",
+    "acr",
+    "amr",
+    "c_hash",
+    "at_hash",
+    "act",
+    "scopes",
+    "client_id",
+    "azp",
+    "preferred_username",
+    "name",
+    "family_name",
+    "given_name",
+    "locale",
+    "email",
+    "email_verified",
+    "phone_number",
+    "phone_number_verified"
   ],
   "id_token_signing_alg_values_supported": ["RS256"]
 }
@@ -271,7 +294,7 @@ $ curl http://localhost:20080/oidc/v1/userinfo -H "Authorization: Bearer $AT"
 HTTP 401
 ```
 
-So Zitadel *does* enforce deactivation — but only for calls that touch it
+So Zitadel _does_ enforce deactivation — but only for calls that touch it
 live (userinfo, and presumably the authorization/token endpoints for future
 logins), never for a bare local JWT check. The gap between "token still
 parses as valid" and "account no longer has standing" is real and is exactly
@@ -324,7 +347,7 @@ interactive login, fully scriptable. The one operational wrinkle worth
 carrying into the design: **user creation via the API leaves the user in a
 "not verified" / `Activate User` state requiring an email code**, even when
 `isEmailVerified: true` and `changeRequired: false` are set on the create
-call — this only affects *interactive login*, not the API-driven creation
+call — this only affects _interactive login_, not the API-driven creation
 itself, but it means `seed-dev.mjs`'s replacement must also either suppress
 that state via a Management API field not yet found (not verified — time-boxed
 out) or pre-verify some other way. With no SMTP configured, the verification
@@ -362,7 +385,7 @@ Time remained for a brief look; not a thorough capacity study.
 - **Crash-loop on bad masterkey, not fail-fast-with-clear-exit:** already
   covered under Q1 — worth restating here because it is exactly the kind of
   "painful in CI" failure mode P2 asks about: a wrong 31-byte secret produces
-  a *look-transient* restart loop rather than an immediate, unambiguous exit.
+  a _look-transient_ restart loop rather than an immediate, unambiguous exit.
   A CI health-check with a short timeout would report this as "service never
   became healthy," not "masterkey is wrong" — someone would have to go read
   logs to find the real cause.
@@ -371,15 +394,15 @@ Time remained for a brief look; not a thorough capacity study.
 
 ## Summary: what was and wasn't verified
 
-| # | Question | Verified? |
-|---|---|---|
-| 1 | Runs locally in Docker alongside `hms-dev` | **Yes** |
-| 2 | OIDC discovery works | **Yes** |
-| 3 | Real login, full claim set, `auth_time` present | **Yes** |
-| 4 | `go-oidc` verifies against JWKS, no vendor SDK | **Yes** — the load-bearing one |
-| 5 | Revocation: ID token unaffected, userinfo cut off, introspection needs a confidential client | **Yes** (webhook/event alternative: **NOT VERIFIED**) |
-| 6 | Programmatic user creation via machine PAT | **Yes** (email-verification-state suppression: **NOT VERIFIED**) |
-| 7 | CI/budget concerns | Partially — memory/CPU/cold-start observed; production-scale behaviour and dedicated-DB necessity **NOT independently proven**, only configured-and-worked |
+| #   | Question                                                                                     | Verified?                                                                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Runs locally in Docker alongside `hms-dev`                                                   | **Yes**                                                                                                                                                    |
+| 2   | OIDC discovery works                                                                         | **Yes**                                                                                                                                                    |
+| 3   | Real login, full claim set, `auth_time` present                                              | **Yes**                                                                                                                                                    |
+| 4   | `go-oidc` verifies against JWKS, no vendor SDK                                               | **Yes** — the load-bearing one                                                                                                                             |
+| 5   | Revocation: ID token unaffected, userinfo cut off, introspection needs a confidential client | **Yes** (webhook/event alternative: **NOT VERIFIED**)                                                                                                      |
+| 6   | Programmatic user creation via machine PAT                                                   | **Yes** (email-verification-state suppression: **NOT VERIFIED**)                                                                                           |
+| 7   | CI/budget concerns                                                                           | Partially — memory/CPU/cold-start observed; production-scale behaviour and dedicated-DB necessity **NOT independently proven**, only configured-and-worked |
 
 ## Findings that should reach the design spec directly
 
@@ -450,7 +473,7 @@ message), which is exactly the "set it and it didn't help" experience Q6
 recorded. Sending `"password"` (rather than the real field, `"initialPassword"`)
 on this endpoint is silently dropped the same way, leaving the user with no
 password at all — which is a different, more severe version of the same
-trap: it *looks* like it worked (`201`, a `userId` back) and the user even
+trap: it _looks_ like it worked (`201`, a `userId` back) and the user even
 reads back as `USER_STATE_ACTIVE`, but there is no credential to log in with.
 
 The field that controls this, `passwordChangeRequired`, exists only on
@@ -568,15 +591,15 @@ the real `e2e-<spec>-<kind>@hms.dev` naming scheme, one via `/v2/users/human`
 to prove the v2 path too) and **every one of them completed a real hosted-UI
 login on the first attempt**, no retry, no extra screen:
 
-| Email | `sub` | `auth_time` |
-|---|---|---|
-| `e2e-loginspec-admin@hms.dev` | `386324143089385475` | `1786763144` |
-| `e2e-loginspec-pharmacist@hms.dev` | `386324144549003267` | `1786763147` |
-| `e2e-tenantswitchspec-admin@hms.dev` | `386324145975066627` | `1786763150` |
+| Email                                     | `sub`                | `auth_time`  |
+| ----------------------------------------- | -------------------- | ------------ |
+| `e2e-loginspec-admin@hms.dev`             | `386324143089385475` | `1786763144` |
+| `e2e-loginspec-pharmacist@hms.dev`        | `386324144549003267` | `1786763147` |
+| `e2e-tenantswitchspec-admin@hms.dev`      | `386324145975066627` | `1786763150` |
 | `e2e-tenantswitchspec-pharmacist@hms.dev` | `386324147451461635` | `1786763153` |
-| `e2e-signoutspec-admin@hms.dev` | `386324148843970563` | `1786763156` |
-| `e2e-signoutspec-pharmacist@hms.dev` | `386324150303588355` | `1786763159` |
-| `e2e-v2attempt-admin@hms.dev` (v2 API) | `386324213000044547` | `1786763183` |
+| `e2e-signoutspec-admin@hms.dev`           | `386324148843970563` | `1786763156` |
+| `e2e-signoutspec-pharmacist@hms.dev`      | `386324150303588355` | `1786763159` |
+| `e2e-v2attempt-admin@hms.dev` (v2 API)    | `386324213000044547` | `1786763183` |
 
 Each `sub` is distinct and matches the `userId` the creation call returned —
 no collision, no reused subject, which is exactly what #781's per-spec-file
@@ -598,7 +621,7 @@ isolation requires.
   **stops at a forced `/ui/login/password` "Change Password" screen**
   (old/new/confirm) before it will issue a token. Not a hard block — a
   human (or a second scripted step, not attempted here since the goal was
-  *immediate* login) could complete it — but it fails the plan's bar of
+  _immediate_ login) could complete it — but it fails the plan's bar of
   completing login **immediately**, and it is silent about why: nothing in
   the `201` response or the `GetUser` read-back says a change is pending.
 - **Setting `isEmailVerified: false` (or omitting it) on `_import` even with
@@ -609,7 +632,7 @@ isolation requires.
 
 ### Still NOT VERIFIED
 
-- **A fully non-interactive path to the *first* machine PAT.** Steps 1–3
+- **A fully non-interactive path to the _first_ machine PAT.** Steps 1–3
   above (machine user → org role → PAT) were driven using a bearer token
   obtained by scripting a real Playwright login as the bootstrap admin
   (`ZITADEL_FIRSTINSTANCE_ORG_HUMAN_*`) — a browser was involved for that one,
@@ -683,10 +706,10 @@ plus [`Caddyfile.v4-login`](../../../spike/zitadel-838/Caddyfile.v4-login).
 Ports shifted again to avoid colliding with both `hms-dev` and the v2.65.1
 spike stack if all three were ever brought up together:
 
-| Service | Port |
-|---|---|
+| Service                   | Port  |
+| ------------------------- | ----- |
 | Zitadel (via Caddy proxy) | 20081 |
-| Zitadel's own Postgres | 15434 |
+| Zitadel's own Postgres    | 15434 |
 
 **The exact 31-byte masterkey trap the original spike warned about was hit
 again, live, while writing this section** — `SpikeMasterKeyV4X32BytesLongXXX`
@@ -752,7 +775,7 @@ Authorization: Bearer <machine PAT>
 ```
 
 **Both failure modes from Task 0 reproduce identically on v4.15.3** — this
-matters because it means the *trap*, not just the recipe, survived the
+matters because it means the _trap_, not just the recipe, survived the
 version bump unchanged:
 
 - `POST /management/v1/users/human` with `"password"` +
@@ -773,7 +796,7 @@ version bump unchanged:
   screenshot captured, before it will issue a token.
 - **No `Deprecation` response header and no server-side deprecation log line**
   on any v1 call, checked directly (`curl -sD -` and `docker logs | grep -i
-  deprecat`, both empty). Whatever migration-guide language exists for v1
+deprecat`, both empty). Whatever migration-guide language exists for v1
   human-user endpoints (ZITADEL's public docs mark `AddHumanUser` and
   `ImportHumanUser` as deprecated in favour of a unified v2 create endpoint)
   is **doc-only** — nothing at runtime signals it. This is the same "looks
@@ -887,8 +910,13 @@ under one origin is mandatory too.** Three states tested, in order:
 {
   "iss": "http://localhost:20081",
   "sub": "386363122585763843",
-  "aud": ["386363123994460163", "386363123994525699", "386363123994591235",
-          "386363123994656771", "386363122585305091"],
+  "aud": [
+    "386363123994460163",
+    "386363123994525699",
+    "386363123994591235",
+    "386363123994656771",
+    "386363122585305091"
+  ],
   "exp": 1786830432,
   "iat": 1786787232,
   "auth_time": 1786787231,
@@ -909,8 +937,13 @@ each in isolation:**
 {
   "iss": "http://localhost:20081",
   "sub": "386364596883030019",
-  "aud": ["386363123994460163", "386363123994525699", "386363123994591235",
-          "386363123994656771", "386363122585305091"],
+  "aud": [
+    "386363123994460163",
+    "386363123994525699",
+    "386363123994591235",
+    "386363123994656771",
+    "386363122585305091"
+  ],
   "exp": 1786830462,
   "iat": 1786787262,
   "auth_time": 1786787261,
@@ -933,7 +966,7 @@ Helivanta's design depends on `sid`'s shape.
 spike proved it still works end-to-end on v4.15.3, traps and all. The
 tradeoff, stated plainly: it means local/CI would exercise a **different**
 login UI than what production's `auth.tesserix.app` actually serves (both
-`zitadel-login` itself vs core-bundled, and separately the org's *own*
+`zitadel-login` itself vs core-bundled, and separately the org's _own_
 customised `zitadel-login` build, see below) — a real environment-parity gap
 for the e2e suite, not a reason to avoid the simpler setup, but something
 Task 6 / the design spec should decide consciously rather than by default.
@@ -987,9 +1020,9 @@ could remove what v4.15.3 merely deprecates.
   that mattered) hide any other split-origin subtlety** — e.g. the official
   file also routes bare `/` to `zitadel-login` with a path rewrite, which
   this spike's Caddyfile does not replicate because nothing in the recipe
-  or the login flow needed it. Not a gap in the *proof* (every URL actually
+  or the login flow needed it. Not a gap in the _proof_ (every URL actually
   exercised in this spike's login flows was proxied correctly), but a gap in
-  *completeness* of the reverse-proxy config if it were ever promoted beyond
+  _completeness_ of the reverse-proxy config if it were ever promoted beyond
   spike scaffolding.
 - **Whether `ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH`** (the official
   compose's first-boot shortcut for minting the login-client PAT without any
@@ -1005,7 +1038,7 @@ could remove what v4.15.3 merely deprecates.
 **Very little of substance — the P0 answer is unchanged, which was the one
 finding that could have forced a design rework.** Task 0's recipe, both API
 surfaces, both traps, and the underlying `auth_time`/`sub` token shape all
-survive the v2.65.1 → v4.15.3 jump intact. What *does* need to reach the
+survive the v2.65.1 → v4.15.3 jump intact. What _does_ need to reach the
 design spec, concretely:
 
 1. **A conscious decision on `LOGINV2_REQUIRED` for local/CI**, now that

@@ -19,7 +19,7 @@ maps to `bad_credentials`). Same file, same family, separately tracked.
 `CompleteIfSufficient` (`sufficiency.go`) is the whole MFA enforcement for
 Helivanta's own login form. The spike proved Zitadel does **not** refuse to
 finalize a password-only session against a `forceMfa` policy for a login
-client — it issues an authorization code regardless. So the policy read *is*
+client — it issues an authorization code regardless. So the policy read _is_
 the control, not a redundant second opinion.
 
 That read is unscoped:
@@ -48,7 +48,7 @@ Both were tested against the live instance on 2026-08-19 (#913):
    returned two different `resourceOwner`s.
 2. **The session carries the user's org.** `GET /v2/sessions/{id}` returns
    `factors.user.organizationId`. The spike captured `factors: {user,
-   password}` and never recorded the field, which is why it was believed
+password}` and never recorded the field, which is why it was believed
    absent.
 
 Both are re-proven by this change's own integration test rather than trusted
@@ -68,7 +68,7 @@ preferences:
   the bug.
 - `Session` is **reconstructed from a database row** on the TOTP path
   (`loginui.go`: `loginclient.Session{ID: attempt.SessionID, Token:
-  attempt.SessionToken}`). An `OrgID` field would need a migration and a
+attempt.SessionToken}`). An `OrgID` field would need a migration and a
   column that can go stale, to carry a value that path does not use —
   `CompleteAfterFactor` reads no policy.
 
@@ -133,7 +133,7 @@ rename-guard behaviour cannot drift between them.
 
 **State the limit plainly.** On a multi-org instance this display value can be
 wrong — the form may advertise "no MFA" to a user whose org forces it. That is
-a cosmetic wrong answer *followed by a correctly enforced handoff*, and it is
+a cosmetic wrong answer _followed by a correctly enforced handoff_, and it is
 exactly today's behaviour, so this change makes it no worse. It is not
 silently accepted: it is documented on the method and filed as a follow-up
 (the form would have to re-read the policy after the login name is known,

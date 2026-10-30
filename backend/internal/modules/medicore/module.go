@@ -28,6 +28,8 @@ const (
 	// PermAdmissionManage admits a patient to a bed, transfers and releases
 	// them, and moves beds between ready, cleaning and out of service (#106).
 	PermAdmissionManage authz.Permission = "medicore.admission.manage"
+	// PermDischargeOrder orders and withdraws an admitted patient's discharge.
+	PermDischargeOrder authz.Permission = "medicore.discharge.order"
 	// Allergies and observations (#1373 A10): doctor and nurse.
 	PermAllergyRead       authz.Permission = "medicore.allergy.read"
 	PermAllergyRecord     authz.Permission = "medicore.allergy.record"
@@ -44,6 +46,9 @@ var allergiesSchema string
 //go:embed beds.sql
 var bedsSchema string
 
+//go:embed discharge.sql
+var dischargeSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -58,6 +63,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermAccessManage},
 		{Permission: PermBedConfigure},
 		{Permission: PermAdmissionManage, Roles: []authz.Role{authz.RoleReceptionist, authz.RoleNurse}},
+		// Clinical readiness is a doctor's decision; the ward releases the bed.
+		{Permission: PermDischargeOrder, Roles: []authz.Role{authz.RoleDoctor}},
 		{Permission: PermAllergyRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
 		{Permission: PermAllergyRecord, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
 		{Permission: PermObservationRead, Roles: []authz.Role{authz.RoleDoctor, authz.RoleNurse}},
@@ -117,6 +124,10 @@ func (m *Module) Migrations() []tenantdb.Migration {
 		// Wards, rooms, beds, admissions and occupancy intervals (#106).
 		ID:  "0007_medicore",
 		SQL: bedsSchema,
+	}, {
+		// Discharge orders: the doctor's decision, before the release (#96).
+		ID:  "0008_medicore",
+		SQL: dischargeSchema,
 	}}
 }
 
@@ -157,7 +168,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 func (m *Module) Publishes() []string {
 	return []string{medicorecontract.SubjectVisitCreated, medicorecontract.SubjectEncounterOpened, medicorecontract.SubjectEncounterStatusChanged,
 		medicorecontract.SubjectAllergyChanged, medicorecontract.SubjectWeightRecorded,
-		medicorecontract.SubjectBedOccupancyStarted, medicorecontract.SubjectBedOccupancyEnded, medicorecontract.SubjectAdmissionReleased}
+		medicorecontract.SubjectBedOccupancyStarted, medicorecontract.SubjectBedOccupancyEnded, medicorecontract.SubjectAdmissionReleased,
+		medicorecontract.SubjectDischargeOrdered, medicorecontract.SubjectDischargeWithdrawn}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

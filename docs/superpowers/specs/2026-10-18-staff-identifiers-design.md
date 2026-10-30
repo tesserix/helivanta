@@ -28,6 +28,7 @@ Payroll needs each staff member's salary bank account, PAN (for TDS and Form 16)
 - Shell: a "Bank and tax identifiers" section in the Staff pay panel covering masked values, proposing, deciding (with reveal of the proposed values) and reveal of in-force values.
 
 Not in this slice:
+
 - Aadhaar, ABHA and patient fields (#30 continues).
 - Penny-drop or name-match verification of bank accounts.
 - UPI payouts.
@@ -37,25 +38,25 @@ Not in this slice:
 
 ## Permissions
 
-| Action | Permission | Hospital grant |
-| --- | --- | --- |
-| Read masked identifiers and history | `workforce.payroll.view` | reader/manager |
-| Propose or withdraw | `workforce.payroll.configure` | locked manager |
-| Approve or reject | `workforce.payroll.approve` | locked manager |
-| Reveal a full value | `workforce.payroll.identifiers.reveal` | locked manager |
+| Action                              | Permission                             | Hospital grant |
+| ----------------------------------- | -------------------------------------- | -------------- |
+| Read masked identifiers and history | `workforce.payroll.view`               | reader/manager |
+| Propose or withdraw                 | `workforce.payroll.configure`          | locked manager |
+| Approve or reject                   | `workforce.payroll.approve`            | locked manager |
+| Reveal a full value                 | `workforce.payroll.identifiers.reveal` | locked manager |
 
 ## Routes
 
 Hospital scope: `…/workforce/hospitals/{hospital}/hr/payroll/staff/{staff}`.
 
-| Route | Behaviour |
-| --- | --- |
-| `GET …/identifiers` | `current` and `pending`, masked only; 404 when none |
-| `PUT …/identifiers` | Proposal on `expected_version` (0 first): `reason` and `bank`, `pan`, `uan`, each `{action, …}`. An identical pending proposal is not replayed, because ciphertext is randomised; a second proposal is 409 `proposal_pending`. 409 `staff_inactive`, `pan_in_use`, `nothing_to_change` |
-| `POST …/identifiers/decision` | `proposal_id`, `expected_version`, `decision`, `note` (required to reject); 403 for the proposer; a rejection erases the proposal's ciphertext |
-| `POST …/identifiers/withdraw` | Proposer only; erases the proposal's ciphertext |
-| `GET …/identifiers/history` | Every revision, masked, with its outcome |
-| `POST …/identifiers/reveal` | `revision_id`, `field` (`bank_account`, `pan`, `uan`), `reason` (1–200). Allowed for the revision in force, or for a pending one when the caller is not its proposer. `Cache-Control: no-store` |
+| Route                         | Behaviour                                                                                                                                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/identifiers`           | `current` and `pending`, masked only; 404 when none                                                                                                                                                                                                                                    |
+| `PUT …/identifiers`           | Proposal on `expected_version` (0 first): `reason` and `bank`, `pan`, `uan`, each `{action, …}`. An identical pending proposal is not replayed, because ciphertext is randomised; a second proposal is 409 `proposal_pending`. 409 `staff_inactive`, `pan_in_use`, `nothing_to_change` |
+| `POST …/identifiers/decision` | `proposal_id`, `expected_version`, `decision`, `note` (required to reject); 403 for the proposer; a rejection erases the proposal's ciphertext                                                                                                                                         |
+| `POST …/identifiers/withdraw` | Proposer only; erases the proposal's ciphertext                                                                                                                                                                                                                                        |
+| `GET …/identifiers/history`   | Every revision, masked, with its outcome                                                                                                                                                                                                                                               |
+| `POST …/identifiers/reveal`   | `revision_id`, `field` (`bank_account`, `pan`, `uan`), `reason` (1–200). Allowed for the revision in force, or for a pending one when the caller is not its proposer. `Cache-Control: no-store`                                                                                        |
 
 Cross-hospital and cross-tenant requests get 404.
 

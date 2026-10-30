@@ -85,15 +85,21 @@ type bedView struct {
 	AdmissionID *uuid.UUID `json:"admission_id"`
 	PatientID   *uuid.UUID `json:"patient_id"`
 	OccupiedAt  *time.Time `json:"occupied_since"`
+	// The occupant's active discharge order, if a doctor has made one (#96).
+	DischargeOrderID     *uuid.UUID `json:"discharge_order_id"`
+	DischargeDisposition *string    `json:"discharge_disposition"`
+	DischargeOrderedAt   *time.Time `json:"discharge_ordered_at"`
 }
 
 func (b bedView) PageKey() (time.Time, uuid.UUID) { return b.CreatedAt, b.ID }
 
 const bedViewSelect = `SELECT b.id,b.hospital_id,b.ward_id,w.code AS ward_code,b.room_id,r.code AS room_code,b.code,b.bed_class,b.state,b.version,b.created_at,
- o.id AS occupancy_id,o.admission_id,a.patient_id,o.started_at AS occupied_at
+ o.id AS occupancy_id,o.admission_id,a.patient_id,o.started_at AS occupied_at,
+ d.id AS discharge_order_id,d.disposition AS discharge_disposition,d.ordered_at AS discharge_ordered_at
  FROM medicore_beds b JOIN medicore_wards w ON w.tenant_id=b.tenant_id AND w.id=b.ward_id JOIN medicore_rooms r ON r.tenant_id=b.tenant_id AND r.id=b.room_id
  LEFT JOIN medicore_bed_occupancies o ON o.tenant_id=b.tenant_id AND o.bed_id=b.id AND o.ended_at IS NULL
- LEFT JOIN medicore_admissions a ON a.tenant_id=o.tenant_id AND a.id=o.admission_id`
+ LEFT JOIN medicore_admissions a ON a.tenant_id=o.tenant_id AND a.id=o.admission_id
+ LEFT JOIN medicore_discharge_orders d ON d.tenant_id=o.tenant_id AND d.admission_id=o.admission_id AND d.withdrawn_at IS NULL`
 
 type admission struct {
 	ID            uuid.UUID  `json:"id"`
@@ -110,6 +116,8 @@ type admission struct {
 	ReleasedBy    *string    `json:"released_by"`
 	ReleasedAt    *time.Time `json:"released_at"`
 	Occupancies   []stay     `json:"occupancies" gorm:"-"`
+	// The active discharge order; after release, the one the departure completed.
+	Discharge *dischargeOrder `json:"discharge" gorm:"-"`
 }
 
 func (admission) TableName() string { return "medicore_admissions" }
@@ -140,6 +148,8 @@ func bedRoutes(g *platform.Router, h *encounterHandlers) {
 	g.GET(hp+"/admissions/:admission", PermVisitRead, h.getAdmission)
 	g.PUT(hp+"/admissions/:admission/transfers/:transfer", PermAdmissionManage, h.transfer)
 	g.PUT(hp+"/admissions/:admission/release", PermAdmissionManage, h.release)
+	g.PUT(hp+"/admissions/:admission/discharge-orders/:order", PermDischargeOrder, h.orderDischarge)
+	g.PUT(hp+"/admissions/:admission/discharge-orders/:order/withdrawals/:withdrawal", PermDischargeOrder, h.withdrawDischarge)
 }
 
 // inBedHospital is inHospital with the subject the bed tables' row security
@@ -558,6 +568,13 @@ func loadAdmission(tx *gorm.DB, tenant string, hospital, id uuid.UUID, out *admi
 			return errNoAdmission
 		}
 		return err
+	}
+	var orders []dischargeOrder
+	if err := tx.Where("tenant_id=? AND admission_id=? AND withdrawn_at IS NULL", tenant, id).Limit(1).Find(&orders).Error; err != nil {
+		return err
+	}
+	if len(orders) == 1 {
+		out.Discharge = &orders[0]
 	}
 	out.Occupancies = []stay{}
 	return tx.Table("medicore_bed_occupancies").Select("id,bed_id,started_at,started_by,ended_at,ended_by,ended_by_cause").

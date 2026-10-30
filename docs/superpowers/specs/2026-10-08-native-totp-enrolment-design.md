@@ -21,17 +21,17 @@ forced-MFA org is locked out until enrolment happens natively.
 All with the **login-client PAT**, the only Zitadel credential Helivanta holds
 in production, on a user whose password session had just been created:
 
-| Call                                                         | Answer                                                                                              |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `POST /v2/users/{id}/totp` `{}`                              | 200 `{uri, secret}`. `uri` is `otpauth://totp/ZITADEL:<login>?...&secret=<secret>&issuer=ZITADEL`. |
-| the same call again, before verification                     | 200 with a **new** secret; the previous one no longer verifies.                                     |
-| `POST /v2/users/{id}/totp/verify` `{code}` with a right code | 200. Only then does `authentication_methods` list `TOTP`.                                           |
-| the same, wrong or stale code                                | 400 `EVENT-8isk2` "Invalid code".                                                                   |
-| `PATCH /v2/sessions/{id}` `checks.totp` with the **same** code, after verify | 200, rotated `sessionToken`; the session then reports `factors.totp.verifiedAt`.     |
-| `PATCH /v2/sessions/{id}` `checks.totp` **before** verify    | 400 `COMMAND-3Mif9s` "isn't ready".                                                                 |
-| `POST /v2/users/{id}/totp` after a verified TOTP exists      | 409 `COMMAND-do9se` "already set up".                                                               |
-| `POST /totp/verify` after a verified TOTP exists             | 400 `COMMAND-qx4ls` "AlreadyReady".                                                                 |
-| `POST /v2/users/{id}/totp` with a wrong `x-zitadel-orgid`    | 403 `AUTH-Bs7Ds`.                                                                                   |
+| Call                                                                         | Answer                                                                                             |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `POST /v2/users/{id}/totp` `{}`                                              | 200 `{uri, secret}`. `uri` is `otpauth://totp/ZITADEL:<login>?...&secret=<secret>&issuer=ZITADEL`. |
+| the same call again, before verification                                     | 200 with a **new** secret; the previous one no longer verifies.                                    |
+| `POST /v2/users/{id}/totp/verify` `{code}` with a right code                 | 200. Only then does `authentication_methods` list `TOTP`.                                          |
+| the same, wrong or stale code                                                | 400 `EVENT-8isk2` "Invalid code".                                                                  |
+| `PATCH /v2/sessions/{id}` `checks.totp` with the **same** code, after verify | 200, rotated `sessionToken`; the session then reports `factors.totp.verifiedAt`.                   |
+| `PATCH /v2/sessions/{id}` `checks.totp` **before** verify                    | 400 `COMMAND-3Mif9s` "isn't ready".                                                                |
+| `POST /v2/users/{id}/totp` after a verified TOTP exists                      | 409 `COMMAND-do9se` "already set up".                                                              |
+| `POST /totp/verify` after a verified TOTP exists                             | 400 `COMMAND-qx4ls` "AlreadyReady".                                                                |
+| `POST /v2/users/{id}/totp` with a wrong `x-zitadel-orgid`                    | 403 `AUTH-Bs7Ds`.                                                                                  |
 
 Three of these decide the design: a single code serves both the user-level
 verify and the session check, so the clinician types one code; an unverified
@@ -57,7 +57,10 @@ session in `login_attempt` exactly as the factor path does (spec D2 of the
 native-MFA design: the browser never sees a Zitadel token), and answers:
 
 ```json
-{"enrollment_required": ["totp"], "totp": {"uri": "otpauth://…", "secret": "…"}}
+{
+  "enrollment_required": ["totp"],
+  "totp": { "uri": "otpauth://…", "secret": "…" }
+}
 ```
 
 Why here rather than a separate "start enrolment" route: the page needs the

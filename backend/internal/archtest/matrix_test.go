@@ -290,6 +290,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	billing.PermBillIssue:           {authz.RoleReceptionist, authz.RoleTenantAdmin},
 	billing.PermAccountRead:         {authz.RoleNurse, authz.RoleReceptionist, authz.RoleTenantAdmin},
 	medicore.PermAdmissionManage:    {authz.RoleNurse, authz.RoleReceptionist, authz.RoleTenantAdmin},
+	medicore.PermDischargeOrder:     {authz.RoleDoctor, authz.RoleTenantAdmin},
 	medicore.PermAllergyRead:        {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
 	medicore.PermAllergyRecord:      {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},
 	medicore.PermObservationRead:    {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},

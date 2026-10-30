@@ -1213,6 +1213,24 @@
         },
         {
           "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/discharge-orders/:order/withdrawals/:withdrawal",
+          "permission": "medicore.discharge.order",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/discharge-orders/:order",
+          "permission": "medicore.discharge.order",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
           "path": "/v1/medicore/hospitals/:hospital/admissions/:admission/release",
           "permission": "medicore.admission.manage",
           "authentication_required": true,
@@ -1519,6 +1537,12 @@
           ]
         },
         {
+          "permission": "medicore.discharge.order",
+          "roles": [
+            "doctor"
+          ]
+        },
+        {
           "permission": "medicore.allergy.read",
           "roles": [
             "doctor",
@@ -1555,7 +1579,9 @@
         "helivanta.in.medicore.weight_recorded.v1",
         "helivanta.in.medicore.bed_occupancy_started.v1",
         "helivanta.in.medicore.bed_occupancy_ended.v1",
-        "helivanta.in.medicore.admission_released.v1"
+        "helivanta.in.medicore.admission_released.v1",
+        "helivanta.in.medicore.discharge_ordered.v1",
+        "helivanta.in.medicore.discharge_withdrawn.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -1628,6 +1654,13 @@
             "medicore_admissions",
             "medicore_bed_occupancies",
             "medicore_admission_transfers"
+          ]
+        },
+        {
+          "id": "0008_medicore",
+          "sql_sha256": "d0a945ddb599ae7b23001dba44659bd588476dad7f6e7d586188d73bd147d7d0",
+          "creates_tables": [
+            "medicore_discharge_orders"
           ]
         }
       ]

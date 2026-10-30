@@ -50,6 +50,10 @@ export type Bed = {
   admission_id: string | null;
   patient_id: string | null;
   occupied_since: string | null;
+  /** The occupant's active discharge order (#96), if a doctor has made one. */
+  discharge_order_id: string | null;
+  discharge_disposition: DischargeDisposition | null;
+  discharge_ordered_at: string | null;
 };
 
 export type ReleaseReason =
@@ -130,4 +134,17 @@ export const releaseSchema = z
 
 export const bedReasonSchema = z.object({
   reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});
+
+// Discharge orders (#96 slice 1): the doctor's decision, before the release.
+export type DischargeDisposition = "home" | "transfer_out";
+
+export const dischargeDispositionLabel: Record<DischargeDisposition, string> = {
+  home: "Home",
+  transfer_out: "Transfer out",
+};
+
+export const dischargeOrderSchema = z.object({
+  disposition: z.enum(["home", "transfer_out"], { message: "Choose where the patient goes" }),
+  note: z.string().trim().max(500, "At most 500 characters"),
 });

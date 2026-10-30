@@ -16,14 +16,14 @@ cursor. A caller cannot tell a truncated page from a complete one, and cannot
 ask for the rest. Six endpoints truncate silently, verified in the code on
 2026-08-13:
 
-| Endpoint | Limit |
-|---|---|
-| `GET /v1/medicore/visits` | 100 |
-| `GET /v1/pharmacy/dispenses` | 100 |
-| `GET /v1/pharmacy/medications` | 100 |
-| `GET /v1/lab/orders` | 100 |
-| `GET /v1/reference/pings` | 100 |
-| `GET /v1/iam/members` | 500 |
+| Endpoint                       | Limit |
+| ------------------------------ | ----- |
+| `GET /v1/medicore/visits`      | 100   |
+| `GET /v1/pharmacy/dispenses`   | 100   |
+| `GET /v1/pharmacy/medications` | 100   |
+| `GET /v1/lab/orders`           | 100   |
+| `GET /v1/reference/pings`      | 100   |
+| `GET /v1/iam/members`          | 500   |
 
 `GET /v1/iam/roles`, `/v1/iam/me/tenants` and `/v1/iam/me/permissions` are
 collection-shaped but bounded by nature — a fixed role set, a person's
@@ -67,12 +67,12 @@ panels migrate independently rather than in a flag day. `has_more` is carried
 explicitly rather than inferred from a null cursor, so "last page" is never a
 guess about whether the cursor was omitted deliberately or by a bug.
 
-*Rejected: a fully-specified replacement envelope* (`items` + `pagination`).
+_Rejected: a fully-specified replacement envelope_ (`items` + `pagination`).
 Cleaner naming, but a breaking change to six panels, the `@helivanta/api` types and
 the E2E selectors in one commit — and the shape being already frozen is the
 issue's central argument.
 
-*Rejected: `Link` header only.* Maximally compatible and RFC 8288-correct, but
+_Rejected: `Link` header only._ Maximally compatible and RFC 8288-correct, but
 it splits the contract across body and headers and is easy for a client to
 ignore entirely, which is the failure mode being fixed.
 
@@ -81,18 +81,18 @@ ignore entirely, which is the failure mode being fixed.
 `base64url({"t": tenant_id, "c": created_at, "i": id})`. On receipt,
 `cursor.t` must equal the caller's tenant claim or the request is refused 400.
 
-Tampering with the *position* is deliberately not defended against, because it
+Tampering with the _position_ is deliberately not defended against, because it
 achieves nothing: forced RLS already bounds every query to the caller's own
 tenant, so a hand-edited cursor can only reposition the caller within data they
 can already read — the same thing a different `limit` would do. The tenant field
 exists to catch reuse and misrouting, not to resist an attacker.
 
-*Rejected: HMAC-signed cursor.* Unforgeable, and would matter if the cursor ever
+_Rejected: HMAC-signed cursor._ Unforgeable, and would matter if the cursor ever
 carried something RLS does not bound. Today it costs a signing key in config and
 a rotation story for a threat RLS already neutralises. Revisit if the payload
 ever grows beyond position.
 
-*Rejected: opaque server-side token.* Reveals nothing and can encode arbitrary
+_Rejected: opaque server-side token._ Reveals nothing and can encode arbitrary
 state, but adds a table or Redis on a read path, needs expiry and cleanup, and
 turns a stateless GET into a stateful one.
 
@@ -141,21 +141,21 @@ deliberate exception has to be written down next to the others. Stated here
 rather than left implicit, because a design claiming compile-time enforcement
 while leaving an unguarded path is worse than one that names the gap.
 
-*Rejected: arch test only.* Much smaller change, but it catches the mistake
+_Rejected: arch test only._ Much smaller change, but it catches the mistake
 after it is written, and a test that walks handler bodies is more fragile than a
 type signature.
 
-*Rejected: typed helpers plus review.* Reads naturally and is least disruptive,
+_Rejected: typed helpers plus review._ Reads naturally and is least disruptive,
 but §4 ranks documented convention last precisely because nothing stops the
 seventh endpoint doing what the first six did.
 
 ### D5 — Default 50, max 200, reject anything larger
 
-| Request | Result |
-|---|---|
-| `limit` absent | 50 |
-| `limit` = 200 | 200 |
-| `limit` = 201 | 400 `invalid_request` |
+| Request                            | Result                |
+| ---------------------------------- | --------------------- |
+| `limit` absent                     | 50                    |
+| `limit` = 200                      | 200                   |
+| `limit` = 201                      | 400 `invalid_request` |
 | `limit` = 0, negative, non-numeric | 400 `invalid_request` |
 
 **No silent clamping.** Clamping teaches a client that `limit=5000` worked while
@@ -167,7 +167,7 @@ everything — the same silent-truncation class this issue exists to end.
 ### D6 — The `+1` probe belongs in the platform layer
 
 Fetching `limit+1` rows and trimming to `limit` answers `has_more` without a
-second query. A `COUNT` would be slower and *wrong*: it races inserts between
+second query. A `COUNT` would be slower and _wrong_: it races inserts between
 the two queries.
 
 Putting the probe in `ListRoute` means the trim and the flag are computed once
@@ -180,11 +180,11 @@ reported `has_more` from a stale count, is not expressible.
 
 Three units, each with one responsibility:
 
-| Unit | Responsibility | Depends on |
-|---|---|---|
-| `pkg/pagination` | Cursor encode/decode/validate; `limit` parse and validate | nothing — no DB, no gin, no table knowledge |
-| `platform.ListRoute[T]` | Route wrapper: parse params, call handler, `+1` probe, build envelope | `pkg/pagination`, `platform.Router` |
-| `tenantdb` keyset helper | Applies the keyset predicate, ordering and `LIMIT n+1` to a GORM query | `pkg/pagination` |
+| Unit                     | Responsibility                                                         | Depends on                                  |
+| ------------------------ | ---------------------------------------------------------------------- | ------------------------------------------- |
+| `pkg/pagination`         | Cursor encode/decode/validate; `limit` parse and validate              | nothing — no DB, no gin, no table knowledge |
+| `platform.ListRoute[T]`  | Route wrapper: parse params, call handler, `+1` probe, build envelope  | `pkg/pagination`, `platform.Router`         |
+| `tenantdb` keyset helper | Applies the keyset predicate, ordering and `LIMIT n+1` to a GORM query | `pkg/pagination`                            |
 
 Handlers shrink. `visits.list` currently does `WithTenant` → `Order` → `Limit` →
 `Find` → `respond.OK`; it becomes a repository call returning `([]visit, error)`.
@@ -197,7 +197,7 @@ is what makes one shared keyset helper viable instead of six variants.
 
 Postgres `timestamptz` stores **microseconds**. If the cursor serialises
 `created_at` at second or millisecond precision, every row sharing a truncated
-timestamp with the anchor is skipped or repeated — and it fails *only* under
+timestamp with the anchor is skipped or repeated — and it fails _only_ under
 fast inserts, which is exactly when a ward is busy and nobody is watching.
 
 The cursor must round-trip the full stored precision. T2 below is the dedicated
@@ -246,13 +246,13 @@ moves to `ListRoute`, and the arch test keeps it there.
 
 ## Error handling
 
-| Input | Response |
-|---|---|
-| `limit` absent | 50 |
-| `limit` = 0, negative, non-numeric, or > 200 | 400 `invalid_request`, naming the valid range |
-| `cursor` not base64url / not JSON / missing fields | 400 `invalid_request` |
-| `cursor.t` ≠ caller's tenant | 400 `invalid_request` |
-| DB failure | 500 via `respond.InternalErr`, cause logged against the request id |
+| Input                                              | Response                                                           |
+| -------------------------------------------------- | ------------------------------------------------------------------ |
+| `limit` absent                                     | 50                                                                 |
+| `limit` = 0, negative, non-numeric, or > 200       | 400 `invalid_request`, naming the valid range                      |
+| `cursor` not base64url / not JSON / missing fields | 400 `invalid_request`                                              |
+| `cursor.t` ≠ caller's tenant                       | 400 `invalid_request`                                              |
+| DB failure                                         | 500 via `respond.InternalErr`, cause logged against the request id |
 
 Nothing is silently accepted, clamped or coerced.
 
@@ -271,19 +271,19 @@ one costs a client that believes it has all the data.
 Per `docs/standards/engineering-principles.md` §5, every assertion is proven able
 to fail before it is trusted.
 
-| ID | Test | Why it exists |
-|---|---|---|
-| T1 | Rows inserted mid-pagination → **every row exactly once** | The property offset cannot provide. Fails if the keyset is ever "simplified" to `OFFSET`. |
-| T2 | Rows sharing a microsecond paginate exact-once | The precision trap. Fails only here, never in casual testing. **Implemented as** microsecond, not millisecond: Postgres `timestamptz` stores microseconds, so a millisecond-granular test would pass against an encoding that truncates the digit that actually exists. |
-| T3 | The cursor's anchor row is deleted between pages | Proves the keyset is a value comparison, not a row lookup. |
-| T4 | Exactly `limit` rows remain | `has_more` false, `next_cursor` null — distinguishable from a full page. |
-| T5 | Empty collection | `[]` and no cursor, never `null` — the shape panels branch on. |
-| T6 | A tenant-A cursor sent by tenant B | 400, asserted on the response, not on "it returned nothing". |
-| T7 | `limit` = 0, −1, 201, `"abc"` | 400 each, with the range named. |
-| T8 | Arch test: no collection route on plain `g.GET` | The one hole the type system cannot close. |
-| T9 | Generator output uses `ListRoute` | Otherwise module seven reintroduces the defect. |
-| T10 | Panel: "Load more" appends, and disappears at the end | Vitest with `renderWithProviders`, per the frontend standard. |
-| T11 | E2E: a ward with more than one page reads to completion | End to end through the real stack, not an assertion about an envelope. **Implemented as** an exact page-size assertion (`toHaveCount(50)`) plus a walk to exhaustion, rather than only "the Load more button is visible". The dev database is shared and already held 71 visits, so a raised page size still leaves more than one page and the button visible — the button alone does not discriminate. The count does: it fails for any page size that is not the contract's. |
+| ID  | Test                                                      | Why it exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| T1  | Rows inserted mid-pagination → **every row exactly once** | The property offset cannot provide. Fails if the keyset is ever "simplified" to `OFFSET`.                                                                                                                                                                                                                                                                                                                                                                                      |
+| T2  | Rows sharing a microsecond paginate exact-once            | The precision trap. Fails only here, never in casual testing. **Implemented as** microsecond, not millisecond: Postgres `timestamptz` stores microseconds, so a millisecond-granular test would pass against an encoding that truncates the digit that actually exists.                                                                                                                                                                                                        |
+| T3  | The cursor's anchor row is deleted between pages          | Proves the keyset is a value comparison, not a row lookup.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| T4  | Exactly `limit` rows remain                               | `has_more` false, `next_cursor` null — distinguishable from a full page.                                                                                                                                                                                                                                                                                                                                                                                                       |
+| T5  | Empty collection                                          | `[]` and no cursor, never `null` — the shape panels branch on.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| T6  | A tenant-A cursor sent by tenant B                        | 400, asserted on the response, not on "it returned nothing".                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| T7  | `limit` = 0, −1, 201, `"abc"`                             | 400 each, with the range named.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| T8  | Arch test: no collection route on plain `g.GET`           | The one hole the type system cannot close.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| T9  | Generator output uses `ListRoute`                         | Otherwise module seven reintroduces the defect.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| T10 | Panel: "Load more" appends, and disappears at the end     | Vitest with `renderWithProviders`, per the frontend standard.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| T11 | E2E: a ward with more than one page reads to completion   | End to end through the real stack, not an assertion about an envelope. **Implemented as** an exact page-size assertion (`toHaveCount(50)`) plus a walk to exhaustion, rather than only "the Load more button is visible". The dev database is shared and already held 71 visits, so a raised page size still leaves more than one page and the button visible — the button alone does not discriminate. The count does: it fails for any page size that is not the contract's. |
 
 ---
 

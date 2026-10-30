@@ -38,6 +38,7 @@ import { BedSetup } from "./bed-setup";
 import { AdmissionBalance, BillingAccessSetup, useBillingAccess } from "./admission-account";
 import { BedChargingSetup } from "./bed-charging";
 import { InterimBills } from "./interim-bills";
+import { DischargeOrder } from "./discharge-order";
 
 const stateLabel: Record<BedState, string> = {
   available: "Available",
@@ -229,6 +230,7 @@ function BedRow({
               <PatientName hospital={hospital} id={bed.patient_id} />
             </p>
           )}
+          <DischargeOrder hospital={hospital} bed={bed} />
           {billing && bed.admission_id && (
             <p className="mt-0.5">
               <AdmissionBalance hospital={hospital} admissionId={bed.admission_id} />

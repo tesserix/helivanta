@@ -44,7 +44,7 @@ such tenant depend on a product it did not purchase.
 Modules never import one another, so nothing reads `patients` directly. Other modules learn
 identity through the event contract and the HTTP API.
 
-*Rejected: `patients` inside `medicore` (#70's framing).* Simpler today, because registration
+_Rejected: `patients` inside `medicore` (#70's framing)._ Simpler today, because registration
 is a front-desk flow and MediCore is the first consumer. It fails the moment a tenant buys
 PharmaConnect alone, and moving it later is a migration across every module holding a reference.
 
@@ -96,11 +96,11 @@ threshold that requires a code change to tune will not be tuned.
 
 ### D4. A confident match blocks; the override is attributable and becomes the merge worklist
 
-| Band | Behaviour |
-|---|---|
+| Band      | Behaviour                                                                              |
+| --------- | -------------------------------------------------------------------------------------- |
 | Confident | **Block.** The clerk selects the existing record, or overrides with a recorded reason. |
-| Possible | Candidates shown, ranked. The clerk chooses existing or new. No block. |
-| No match | Proceed. |
+| Possible  | Candidates shown, ranked. The clerk chooses existing or new. No block.                 |
+| No match  | Proceed.                                                                               |
 
 Merge and unmerge are out of slice (#36). That is only honest if slice 1 avoids creating the
 duplicates it cannot remedy — hence blocking rather than warning. The override exists because a
@@ -111,8 +111,8 @@ Every override writes `patient_duplicate_overrides` — actor, reason, both pati
 timestamp. When merge ships, that table is its worklist. This is what converts a deferral into
 a queue instead of into debt.
 
-*Rejected: warn but always allow.* Fastest at the counter, and duplicates accumulate from day
-one with no remedy. *Rejected: pull merge into slice 1.* Reversible merge with full lineage is
+_Rejected: warn but always allow._ Fastest at the counter, and duplicates accumulate from day
+one with no remedy. _Rejected: pull merge into slice 1._ Reversible merge with full lineage is
 the hardest correctness problem in the epic and deserves its own design pass.
 
 ### D5. The consent receipt is written in the same transaction as the patient
@@ -124,7 +124,7 @@ Registration is the first point of processing under DPDP. A patient row that exi
 consent receipt is a compliance defect, and one transaction makes that state unreachable rather
 than merely discouraged.
 
-Consent *management* — withdrawal, purpose-scoping, the correction right — is #61/#62.
+Consent _management_ — withdrawal, purpose-scoping, the correction right — is #61/#62.
 
 ### D6. Events carry `patient_id` and nothing identifying
 
@@ -168,11 +168,11 @@ Jaro-Winkler, Soundex and Metaphone in one focused library. Use it; write none o
 
 **Indic phonetic matching is not solved in Go.** What exists:
 
-| Candidate | Verdict |
-|---|---|
-| Go phonetic packages (`smetrics`, `f1monkey/phonetic`, `gofuzz`) | Soundex / Metaphone / NYSIIS / Caverphone — English-centric; Soundex performs poorly on Indian names |
-| Indic Soundex ports (PHP, Python — all of Santhosh Thottingal's SILPA algorithm) | No Go implementation; none production-grade (0-3 stars) |
-| `knadh/knphone` | Kannada-only, **and GPL-3.0** — a licensing problem for this platform |
+| Candidate                                                                        | Verdict                                                                                              |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Go phonetic packages (`smetrics`, `f1monkey/phonetic`, `gofuzz`)                 | Soundex / Metaphone / NYSIIS / Caverphone — English-centric; Soundex performs poorly on Indian names |
+| Indic Soundex ports (PHP, Python — all of Santhosh Thottingal's SILPA algorithm) | No Go implementation; none production-grade (0-3 stars)                                              |
+| `knadh/knphone`                                                                  | Kannada-only, **and GPL-3.0** — a licensing problem for this platform                                |
 
 There is also a mismatch of problem: Indic Soundex algorithms encode Devanagari/Indic script,
 while this platform stores Latin-script transliterations. "Md / Mohammed / Mohammad" is
@@ -186,7 +186,7 @@ vowel collapse and name-order tolerance. Neither is implemented, and the claim i
 here rather than quietly widened into the code.)
 
 **Named limitation — name order is not tolerated, and it is the blocking key.** `PhoneticKey`
-joins per-token Soundex in *input order*, and registration blocks its candidate corpus on that
+joins per-token Soundex in _input order_, and registration blocks its candidate corpus on that
 key. "Ravi Kumar" and "Kumar Ravi" therefore produce different keys and are never loaded into
 the same corpus — they are not scored low, they are never compared at all. This is a known
 recall gap, and it waits for the corpus pass: sorting the tokens is a scoring change that moves
@@ -208,28 +208,28 @@ That ruleset is not an algorithm. Each rule is one corpus test case, and the set
 and reviewable — which is what separates it from hand-rolling a phonetic encoder, the thing
 this decision exists to avoid.
 
-*Rejected: adding `f1monkey/phonetic` for Metaphone or Beider-Morse.* BMPM is the best technical
+_Rejected: adding `f1monkey/phonetic` for Metaphone or Beider-Morse._ BMPM is the best technical
 fit for transliterated multi-lingual names. At ~20 stars it is too thin a dependency to place on
 the patient-identity path of a hospital platform, where it would become ours to maintain the day
 it goes quiet.
 
-*Rejected: porting SILPA's Indic Soundex to Go.* Faithful to #70's wording and useful to the
+_Rejected: porting SILPA's Indic Soundex to Go._ Faithful to #70's wording and useful to the
 ecosystem, but it targets the wrong script, and porting plus validating an algorithm nobody on
 this team can eyeball is a slice of its own.
 
-*Rejected: Jaro-Winkler alone, no phonetic key.* Smallest and fully library-backed, but it
+_Rejected: Jaro-Winkler alone, no phonetic key._ Smallest and fully library-backed, but it
 misses names that differ in letters while sounding identical — a real share of the duplicates
 #70 was written about.
 
 ## Error handling
 
-| Condition | Behaviour |
-|---|---|
-| Cross-tenant patient lookup | 404, never 403 — existence is not leaked |
-| Matcher returns an error | **Registration refused.** Proceeding unmatched is what creates the duplicate, so this fails closed |
-| Confident match, no override | 409 with the candidate, not a silent create |
-| Override without a reason | 400 — the reason is the control, not a courtesy |
-| Consent receipt write fails | Whole transaction rolls back; no orphan patient |
+| Condition                    | Behaviour                                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| Cross-tenant patient lookup  | 404, never 403 — existence is not leaked                                                           |
+| Matcher returns an error     | **Registration refused.** Proceeding unmatched is what creates the duplicate, so this fails closed |
+| Confident match, no override | 409 with the candidate, not a silent create                                                        |
+| Override without a reason    | 400 — the reason is the control, not a courtesy                                                    |
+| Consent receipt write fails  | Whole transaction rolls back; no orphan patient                                                    |
 
 ## Testing
 
@@ -283,7 +283,7 @@ misses names that differ in letters while sounding identical — a real share of
 - **`demographics_updated.v1` is described in D6 but is not published.** D6's prose names two
   subjects; only `helivanta.in.patientmaster.registered.v1` exists in the contract and is
   declared by the module. The second arrives with the update path above.
-- **Guardian consent is recorded, not verified.** DPDP requires *verifiable* guardian consent
+- **Guardian consent is recorded, not verified.** DPDP requires _verifiable_ guardian consent
   for a child. Slice 1 records who consented and their stated relationship; it does not verify
   that relationship. Closing that gap depends on identity infrastructure this platform does not
   have, and it must not be presented to a hospital as compliance with the verifiability

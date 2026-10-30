@@ -25,11 +25,13 @@
 ### Task 1: An environment concept
 
 **Files:**
+
 - Modify: `backend/internal/config/config.go`
 - Test: `backend/internal/config/config_test.go` (create)
 - Modify: `Makefile` (repo root)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `config.Config.Env string`, `func (c Config) IsDev() bool`. Tasks 2 and 3 rely on `IsDev()`.
 
@@ -143,12 +145,14 @@ git commit -m "feat: HELIVANTA_ENV defaulting to production, with IsDev for the 
 ### Task 2: Refuse the auth emulator outside dev
 
 **Files:**
+
 - Modify: `backend/pkg/authn/gip.go`
 - Test: `backend/pkg/authn/gip_test.go` (create, or append if it exists)
 - Modify: `backend/cmd/api/main.go`
 - Modify: `apps/shell/lib/firebase.ts`
 
 **Interfaces:**
+
 - Consumes: `config.Config.IsDev()` from Task 1.
 - Produces: `authn.NewGIPVerifier(ctx context.Context, projectID string, allowEmulator bool) (TokenVerifier, error)` and `authn.NewGIPMinter(ctx context.Context, projectID string, allowEmulator bool) (TokenMinter, error)`. Both signatures gain the third parameter.
 
@@ -274,18 +278,18 @@ Fix every reported call site the same way.
 `apps/shell/lib/firebase.ts` currently infers the emulator from `NODE_ENV`:
 
 ```ts
-  const emulator =
-    process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST ??
-    (process.env.NODE_ENV !== "production" ? "localhost:9099" : undefined);
+const emulator =
+  process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST ??
+  (process.env.NODE_ENV !== "production" ? "localhost:9099" : undefined);
 ```
 
 Replace with an explicit-only form:
 
 ```ts
-  // Explicit only — never inferred from NODE_ENV. A production build with
-  // a non-production NODE_ENV would otherwise silently point sign-in at a
-  // local emulator. `make up` sets this variable for dev.
-  const emulator = process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST;
+// Explicit only — never inferred from NODE_ENV. A production build with
+// a non-production NODE_ENV would otherwise silently point sign-in at a
+// local emulator. `make up` sets this variable for dev.
+const emulator = process.env.NEXT_PUBLIC_AUTH_EMULATOR_HOST;
 ```
 
 - [ ] **Step 7: Verify the frontend still builds and its tests pass**
@@ -305,10 +309,12 @@ git commit -m "fix: refuse to build a GIP client with the auth emulator outside 
 ### Task 3: Refuse an app pool that can bypass RLS
 
 **Files:**
+
 - Modify: `backend/pkg/tenantdb/db.go`
 - Test: `backend/pkg/tenantdb/db_test.go`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `tenantdb.Open` gains a failure mode. No signature change.
 
@@ -401,10 +407,12 @@ git commit -m "fix: refuse an app database pool whose role can bypass row-level 
 ### Task 4: A panicking consumer must not kill the API
 
 **Files:**
+
 - Modify: `backend/pkg/events/bus.go`
 - Test: `backend/pkg/events/panic_test.go` (create)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: no exported change.
 
@@ -509,11 +517,13 @@ git commit -m "fix: contain consumer and dispatcher panics instead of killing th
 ### Task 5: The tenancy predicate becomes a function
 
 **Files:**
+
 - Create: `backend/pkg/tenantdb/migrations.go`
 - Create: `backend/internal/bootstrap/migrations.go`
 - Modify: `backend/cmd/api/main.go`, `backend/cmd/migrate/main.go`, `backend/internal/testutil/harness.go`, `backend/internal/archtest/arch_test.go`, `backend/internal/archtest/rls_test.go`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: SQL function `hms_tenant_visible(row_tenant uuid) RETURNS boolean`; `tenantdb.Migrations() []Migration` with ID `0001_platform_rls`; `bootstrap.PlatformMigrations() []tenantdb.Migration`. Task 6 uses the function; Task 7 requires it in the lint.
 
@@ -606,9 +616,11 @@ git commit -m "feat: hms_tenant_visible predicate function and one platform migr
 ### Task 6: Every module adopts the function
 
 **Files:**
+
 - Modify: `backend/internal/modules/{iam,medicore,pharmacy,lab,reference}/module.go`
 
 **Interfaces:**
+
 - Consumes: `hms_tenant_visible` from Task 5.
 - Produces: every existing tenant table's policy uses the function in `USING`. Task 7's lint depends on this being complete.
 
@@ -693,10 +705,12 @@ git commit -m "feat: adopt the hms_tenant_visible predicate and scope reference 
 ### Task 7: Invert the RLS lint
 
 **Files:**
+
 - Modify: `backend/pkg/tenantdb/db.go`
 - Test: `backend/pkg/tenantdb/db_test.go`
 
 **Interfaces:**
+
 - Consumes: Tasks 5 and 6 — every existing tenant table must already use the function, or this task's own test suite fails.
 - Produces: `LintRLS` keeps its `([]string, error)` signature; the strings become `"<table>: <reason>"`.
 
@@ -827,11 +841,13 @@ git commit -m "feat: lint every table for tenant isolation instead of only the m
 ### Task 8: Errors stop being discarded
 
 **Files:**
+
 - Modify: `backend/internal/platform/respond/respond.go`
 - Modify: all five `backend/internal/modules/*/module.go` (and `iam/me.go`, `iam/roles.go` if they call `respond.Internal`)
 - Modify: `backend/scripts/new-module.sh`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `respond.InternalErr(c *gin.Context, err error, message string)`. `respond.Internal` is **deleted** — Task 9 and Task 10 must use `InternalErr`.
 
@@ -906,9 +922,11 @@ git commit -m "feat: respond.InternalErr logging the cause, replacing the discar
 ### Task 9: Handlers become named methods
 
 **Files:**
+
 - Modify: `backend/internal/modules/{iam,medicore,pharmacy,lab,reference}/`, splitting each into `module.go` plus one file per aggregate
 
 **Interfaces:**
+
 - Consumes: `respond.InternalErr` from Task 8.
 - Produces: no exported change. Each module's `Routes` becomes a route table; handlers become methods.
 
@@ -988,10 +1006,12 @@ git commit -m "refactor: module handlers as named methods so they have names, te
 ### Task 10: Prove the concurrency guard exists
 
 **Files:**
+
 - Modify: `backend/scripts/new-module.sh`
 - Test: `backend/internal/modules/pharmacy/module_test.go`, `backend/internal/modules/lab/module_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 9's handler shape.
 - Produces: a concurrency test in the generator template that every future module inherits.
 
@@ -1073,6 +1093,7 @@ In `backend/scripts/new-module.sh`, inside the `module_test.go` heredoc, add the
 cd backend && ./scripts/new-module.sh scratchcheck
 go test ./internal/modules/scratchcheck/ -race -v
 ```
+
 Expected: PASS, including the new concurrency test.
 
 Then remove it — it must not be committed:
@@ -1106,6 +1127,7 @@ cd backend && ./scripts/coverage-gate.sh
 cd .. && pnpm turbo lint type-check test build
 make test-scripts
 ```
+
 Expected: all green.
 
 - [ ] **Step 2: Prove the guards actually refuse**
@@ -1114,12 +1136,14 @@ Expected: all green.
 cd backend
 HELIVANTA_ENV=production FIREBASE_AUTH_EMULATOR_HOST=localhost:19099 go run ./cmd/api 2>&1 | head -3
 ```
+
 Expected: refuses to start, naming `FIREBASE_AUTH_EMULATOR_HOST`. (Use whichever emulator port your stack runs on.)
 
 ```bash
 cd backend
 HELIVANTA_ENV=dev APP_DATABASE_URL="$ADMIN_DATABASE_URL" go run ./cmd/api 2>&1 | head -3
 ```
+
 Expected: refuses to start, naming the bypass capability.
 
 - [ ] **Step 3: Prove the stack still runs end to end**
@@ -1130,6 +1154,7 @@ RESET_YES=1 make reset
 make up          # separate terminal
 make verify-local
 ```
+
 Expected: every check ok, including the authenticated round trip.
 
 - [ ] **Step 4: Open the pull request**
@@ -1177,21 +1202,21 @@ Expected: `go`, `web` and `scripts` pass. If Actions is blocked by the org billi
 
 **Spec coverage:**
 
-| Spec section | Task |
-| --- | --- |
-| A1 environment concept | 1 |
-| A2 emulator guard, backend + frontend | 2 |
-| A3 app-pool RLS assertion | 3 |
-| A4 consumer and dispatcher recover | 4 |
-| B1 `hms_tenant_visible` | 5 |
-| B2 per-module policy adoption | 6 |
-| B3 `reference_ping_receipts` tenant | 6 |
-| B4 inverted lint incl. function requirement | 7 |
-| B5 `PlatformMigrations()` accumulator, 5 call sites | 5 |
-| C1 `InternalErr`, delete `Internal`, 15 sites, generator | 8 |
-| C2 named handler methods, all five modules | 9 |
-| C3 concurrent transition test, template + pharmacy + lab | 10 |
-| Testing section (refusal tests) | 1–4, 7, 10 |
+| Spec section                                             | Task       |
+| -------------------------------------------------------- | ---------- |
+| A1 environment concept                                   | 1          |
+| A2 emulator guard, backend + frontend                    | 2          |
+| A3 app-pool RLS assertion                                | 3          |
+| A4 consumer and dispatcher recover                       | 4          |
+| B1 `hms_tenant_visible`                                  | 5          |
+| B2 per-module policy adoption                            | 6          |
+| B3 `reference_ping_receipts` tenant                      | 6          |
+| B4 inverted lint incl. function requirement              | 7          |
+| B5 `PlatformMigrations()` accumulator, 5 call sites      | 5          |
+| C1 `InternalErr`, delete `Internal`, 15 sites, generator | 8          |
+| C2 named handler methods, all five modules               | 9          |
+| C3 concurrent transition test, template + pharmacy + lab | 10         |
+| Testing section (refusal tests)                          | 1–4, 7, 10 |
 
 No spec requirement is unmapped.
 

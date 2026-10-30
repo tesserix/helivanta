@@ -30,54 +30,56 @@
 
 **New:**
 
-| File | Responsibility |
-|---|---|
-| `backend/pkg/authz/tenant.go` | `TenantObject`, `GrantTenantRole`, `RevokeTenantRole`, `IsMember` — the tenant type's client surface |
-| `backend/pkg/authz/tenant_test.go` | Model shape, membership derivation, tenant-object parsing |
-| `backend/pkg/authz/membership.go` | `MembershipChecker` interface, `MembershipMiddleware`, `RequireMembership` |
-| `backend/pkg/authn/revocation.go` | `RevocationChecker` interface and its integration into `Middleware` |
-| `backend/internal/modules/iam/revocation.go` | The watermark table's model, the checker implementation, the LRU cache |
-| `backend/internal/modules/iam/revocation_test.go` | Watermark semantics, cache behaviour, fail-closed |
-| `backend/internal/modules/iam/signout.go` | `POST /me/sign-out` and `POST /subjects/:subject/revoke` handlers |
-| `backend/internal/modules/iam/signout_test.go` | Handler behaviour, cross-tenant bounding, GIP revoke call |
-| `backend/pkg/events/broadcast.go` | Ephemeral fanout subscriptions — every replica receives every message |
-| `backend/pkg/events/broadcast_test.go` | Fanout proof: N subscribers, N deliveries |
-| `apps/shell/app/logout/route.ts` (rewrite) | POST-only, same-origin checked, calls API + Firebase `signOut()` |
-| `apps/shell/app/logout/logout.test.ts` | Same-origin rejection, ordering of the three teardown steps |
-| `e2e/tests/signout.spec.ts` | The shared-workstation guarantee, end to end |
+| File                                              | Responsibility                                                                                       |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `backend/pkg/authz/tenant.go`                     | `TenantObject`, `GrantTenantRole`, `RevokeTenantRole`, `IsMember` — the tenant type's client surface |
+| `backend/pkg/authz/tenant_test.go`                | Model shape, membership derivation, tenant-object parsing                                            |
+| `backend/pkg/authz/membership.go`                 | `MembershipChecker` interface, `MembershipMiddleware`, `RequireMembership`                           |
+| `backend/pkg/authn/revocation.go`                 | `RevocationChecker` interface and its integration into `Middleware`                                  |
+| `backend/internal/modules/iam/revocation.go`      | The watermark table's model, the checker implementation, the LRU cache                               |
+| `backend/internal/modules/iam/revocation_test.go` | Watermark semantics, cache behaviour, fail-closed                                                    |
+| `backend/internal/modules/iam/signout.go`         | `POST /me/sign-out` and `POST /subjects/:subject/revoke` handlers                                    |
+| `backend/internal/modules/iam/signout_test.go`    | Handler behaviour, cross-tenant bounding, GIP revoke call                                            |
+| `backend/pkg/events/broadcast.go`                 | Ephemeral fanout subscriptions — every replica receives every message                                |
+| `backend/pkg/events/broadcast_test.go`            | Fanout proof: N subscribers, N deliveries                                                            |
+| `apps/shell/app/logout/route.ts` (rewrite)        | POST-only, same-origin checked, calls API + Firebase `signOut()`                                     |
+| `apps/shell/app/logout/logout.test.ts`            | Same-origin rejection, ordering of the three teardown steps                                          |
+| `e2e/tests/signout.spec.ts`                       | The shared-workstation guarantee, end to end                                                         |
 
 **Modified:**
 
-| File | Change |
-|---|---|
-| `backend/pkg/authz/model.go` | Add the `tenant` type; `member` derived from `granted_role → assignee` |
-| `backend/pkg/authz/client.go` | `ensureModel` compares and versions instead of returning early |
-| `backend/pkg/authz/read.go` | `TenantOfObject` becomes type-aware so `tenant:<uuid>` parses |
-| `backend/pkg/authz/authz.go` | Add `NoTenantMembership`; remove `Has`'s `Public` short-circuit |
-| `backend/pkg/authz/middleware.go` | `Require` skips the set for `Public`/`NoTenantMembership` rather than lying about it |
-| `backend/pkg/authn/authn.go` | `Middleware` gains the revocation check |
-| `backend/internal/platform/router.go` | `handle` inserts `RequireMembership` unless the marker opts out |
-| `backend/internal/platform/module.go` | `Deps` gains nothing; `TupleWriter`/`TupleReconciler` gain the tenant-tuple methods |
-| `backend/internal/platform/reconcile.go` | Write and prune `tenant:<id> granted_role role:<id>/<key>` |
-| `backend/internal/modules/iam/module.go` | Migration `0003_iam`; new permission; new routes |
-| `backend/internal/modules/iam/me.go` | Three routes move to `NoTenantMembership` |
-| `backend/internal/archtest/arch_test.go` | `NoTenantMembership` allowlist test |
-| `backend/internal/testutil/harness.go` | Four `ModuleHarness*` variants collapse into one options struct |
-| `backend/pkg/tenantdb/db.go` | `LintRLS` allowlist gains `iam_credential_revocations` **with its reason** |
-| `backend/cmd/api/main.go` | Wire the checker, the membership checker, the broadcast consumer |
-| `packages/ui/src/hms-shell.tsx:115,197` | Logout anchor becomes a form submission |
-| `docs/standards/backend.md` | Consumer-naming deviation for broadcast consumers |
-| `docs/standards/frontend.md` | Sign-out is the documented exception to "links are plain `<a>`" |
+| File                                     | Change                                                                               |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| `backend/pkg/authz/model.go`             | Add the `tenant` type; `member` derived from `granted_role → assignee`               |
+| `backend/pkg/authz/client.go`            | `ensureModel` compares and versions instead of returning early                       |
+| `backend/pkg/authz/read.go`              | `TenantOfObject` becomes type-aware so `tenant:<uuid>` parses                        |
+| `backend/pkg/authz/authz.go`             | Add `NoTenantMembership`; remove `Has`'s `Public` short-circuit                      |
+| `backend/pkg/authz/middleware.go`        | `Require` skips the set for `Public`/`NoTenantMembership` rather than lying about it |
+| `backend/pkg/authn/authn.go`             | `Middleware` gains the revocation check                                              |
+| `backend/internal/platform/router.go`    | `handle` inserts `RequireMembership` unless the marker opts out                      |
+| `backend/internal/platform/module.go`    | `Deps` gains nothing; `TupleWriter`/`TupleReconciler` gain the tenant-tuple methods  |
+| `backend/internal/platform/reconcile.go` | Write and prune `tenant:<id> granted_role role:<id>/<key>`                           |
+| `backend/internal/modules/iam/module.go` | Migration `0003_iam`; new permission; new routes                                     |
+| `backend/internal/modules/iam/me.go`     | Three routes move to `NoTenantMembership`                                            |
+| `backend/internal/archtest/arch_test.go` | `NoTenantMembership` allowlist test                                                  |
+| `backend/internal/testutil/harness.go`   | Four `ModuleHarness*` variants collapse into one options struct                      |
+| `backend/pkg/tenantdb/db.go`             | `LintRLS` allowlist gains `iam_credential_revocations` **with its reason**           |
+| `backend/cmd/api/main.go`                | Wire the checker, the membership checker, the broadcast consumer                     |
+| `packages/ui/src/hms-shell.tsx:115,197`  | Logout anchor becomes a form submission                                              |
+| `docs/standards/backend.md`              | Consumer-naming deviation for broadcast consumers                                    |
+| `docs/standards/frontend.md`             | Sign-out is the documented exception to "links are plain `<a>`"                      |
 
 ---
 
 ## Task 1: The `tenant` type and a versionable model
 
 **Files:**
+
 - Create: `backend/pkg/authz/tenant.go`, `backend/pkg/authz/tenant_test.go`
 - Modify: `backend/pkg/authz/model.go`, `backend/pkg/authz/client.go:156-174`, `backend/pkg/authz/read.go:74-84`
 
 **Interfaces:**
+
 - Produces: `authz.TenantObject(tenantID string) string`; `(*Client).GrantTenantRole(ctx, tenantID string, role Role) error`; `(*Client).RevokeTenantRole(ctx, tenantID string, role Role) error`; `(*Client).IsMember(ctx, subject, tenantID string) (bool, error)`.
 - Consumes: nothing from other tasks.
 
@@ -521,10 +523,12 @@ git commit -m "feat: add a tenant type whose member relation derives from role a
 ## Task 2: The reconciler writes and prunes tenant→role edges
 
 **Files:**
+
 - Modify: `backend/internal/platform/module.go` (`TupleWriter`), `backend/internal/platform/reconcile.go`, `backend/internal/platform/reconcile_test.go`, `backend/internal/platform/reconcile_prune_test.go`
 - Modify: `backend/internal/testutil/harness.go` (`noopWriter` gains the new methods)
 
 **Interfaces:**
+
 - Consumes: `authz.TenantObject`, `(*Client).GrantTenantRole`, `(*Client).RevokeTenantRole` from Task 1.
 - Produces: `platform.TupleWriter` gains `GrantTenantRole(ctx, tenantID string, role authz.Role) error`.
 - **Correction applied during review:** an earlier draft also added `RevokeTenantRole` to `TupleReconciler` and to `authz.Client`. Both were removed in `7a60de1` — prune deletes tenant edges generically through `DeleteTuple` with no per-type branch, so nothing ever called them. Do not reintroduce either: `TupleReconciler` is deliberately narrow, and a second way to remove a membership edge is capability for nothing.
@@ -707,10 +711,12 @@ git commit -m "feat: reconcile tenant-role edges so membership is derivable and 
 ## Task 3: Membership becomes a first-class check, and `Public` stops meaning "unexamined"
 
 **Files:**
+
 - Create: `backend/pkg/authz/membership.go`, `backend/pkg/authz/membership_test.go`
 - Modify: `backend/pkg/authz/authz.go`, `backend/pkg/authz/middleware.go`, `backend/internal/platform/router.go`, `backend/internal/modules/iam/me.go:65-67`, `backend/internal/archtest/arch_test.go`, `backend/internal/testutil/harness.go`
 
 **Interfaces:**
+
 - Consumes: `(*Client).IsMember` from Task 1.
 - Produces: `authz.NoTenantMembership` (a `Permission`); `authz.MembershipChecker` interface with `IsMember(ctx context.Context, subject, tenantID string) (bool, error)`; `authz.RequireMembership(m MembershipChecker) gin.HandlerFunc`; `platform.NewRouter(g *gin.RouterGroup, m authz.MembershipChecker) *Router`.
 
@@ -1124,10 +1130,12 @@ git commit -m "fix: require tenant membership on every route so authz.Public no 
 ## Task 4: The revocation registry, checker and cache
 
 **Files:**
+
 - Create: `backend/pkg/authn/revocation.go`, `backend/internal/modules/iam/revocation.go`, `backend/internal/modules/iam/revocation_test.go`
 - Modify: `backend/pkg/authn/authn.go`, `backend/pkg/authn/gip.go`, `backend/internal/modules/iam/module.go` (migration `0003_iam`), `backend/pkg/tenantdb/db.go` (`LintRLS` allowlist)
 
 **Interfaces:**
+
 - Produces: `authn.RevocationChecker` interface with `RevokedAfter(ctx context.Context, subject string) (time.Time, error)`; `authn.Principal` gains `AuthTime time.Time`; `iam.NewRevocationChecker(db *tenantdb.DB) *RevocationChecker`.
 - Consumes: nothing from Tasks 1–3.
 
@@ -1640,13 +1648,15 @@ git commit -m "feat: refuse credentials whose auth_time predates the subject's r
 ## Task 5: Broadcast subscriptions in `pkg/events`
 
 **Files:**
+
 - Create: `backend/pkg/events/broadcast.go`, `backend/pkg/events/broadcast_test.go`
 - Modify: `docs/standards/backend.md`
 
 **Interfaces:**
+
 - Produces: `events.Broadcast{Subject string, Handle func(ctx context.Context, evt Event)}`; `(*Bus).StartBroadcasts(ctx context.Context, bs []Broadcast) error`.
 
-**Why a new mechanism rather than a `Consumer`.** `Consumer` is a durable pull subscription with a shared name — replicas *compete*, and exactly one handles each message. That is right for work and wrong for cache invalidation, where **every** replica must hear. A broadcast is also not idempotency-claimed: dropping a duplicate invalidation would be harmless, and claiming one in Postgres would mean the second replica skips the invalidation it needs.
+**Why a new mechanism rather than a `Consumer`.** `Consumer` is a durable pull subscription with a shared name — replicas _compete_, and exactly one handles each message. That is right for work and wrong for cache invalidation, where **every** replica must hear. A broadcast is also not idempotency-claimed: dropping a duplicate invalidation would be harmless, and claiming one in Postgres would mean the second replica skips the invalidation it needs.
 
 - [ ] **Step 1: Write the failing fanout test**
 
@@ -1797,10 +1807,12 @@ git commit -m "feat: add ephemeral broadcast subscriptions so every replica hear
 ## Task 6: Sign-out, admin revoke, and full wiring
 
 **Files:**
+
 - Create: `backend/internal/modules/iam/signout.go`, `backend/internal/modules/iam/signout_test.go`
 - Modify: `backend/internal/modules/iam/module.go`, `backend/internal/platform/module.go` (`Deps`), `backend/cmd/api/main.go`, `backend/internal/archtest/arch_test.go`
 
 **Interfaces:**
+
 - Consumes: `iam.NewRevocationChecker` (Task 4), `events.Broadcast` (Task 5), `authz.NoTenantMembership` (Task 3).
 - Produces: `iam.SubjectCredentialRevoked = "helivanta.in.iam.credential_revoked.v1"`; `iam.CredentialRevokedData{Subject string}`; `iam.PermCredentialRevoke authz.Permission = "iam.credential.revoke"`.
 - **`iam.New` changes signature** from `New() *Module` to `New(checker *RevocationChecker) *Module`, storing it as `m.checker`. Every caller changes: `bootstrap.NewRegistry()`, and every `iam` test. This is deliberate — the module and the authentication middleware must share **one** checker instance, because the middleware reads the cache the module's broadcast handler invalidates. Two instances compile, pass most tests, and silently never invalidate the cache the request path actually consults.
@@ -2163,11 +2175,13 @@ git commit -m "feat: sign-out and admin revoke write the watermark, revoke at GI
 ## Task 7: The shell actually signs out
 
 **Files:**
+
 - Rewrite: `apps/shell/app/logout/route.ts`
 - Create: `apps/shell/app/logout/logout.test.ts`, `e2e/tests/signout.spec.ts`
 - Modify: `packages/ui/src/hms-shell.tsx:115,197`, `docs/standards/frontend.md`
 
 **Interfaces:**
+
 - Consumes: `POST /v1/iam/me/sign-out` from Task 6.
 
 - [ ] **Step 1: Write the failing E2E test — the shared-workstation guarantee (spec T10)**
@@ -2177,7 +2191,9 @@ This is the assertion that would have caught the original bug. It deliberately d
 Create `e2e/tests/signout.spec.ts`:
 
 ```ts
-test("a signed-out session cannot be reconstructed from the browser", async ({ page }) => {
+test("a signed-out session cannot be reconstructed from the browser", async ({
+  page,
+}) => {
   await signIn(page, "nurse@hms.dev", "password123");
   await expect(page.getByRole("link", { name: "MediCore" })).toBeVisible();
 
@@ -2288,7 +2304,9 @@ it("refuses a cross-site POST", async () => {
 
 it("does not clear the cookie when server-side revocation fails", async () => {
   fetchMock.mockResolvedValue({ ok: false });
-  const res = await POST(request({ "sec-fetch-site": "same-origin" }, "a-session-token"));
+  const res = await POST(
+    request({ "sec-fetch-site": "same-origin" }, "a-session-token"),
+  );
   expect(res.status).toBe(502);
   expect(res.cookies.get("hms_session")?.value).toBeUndefined();
 });

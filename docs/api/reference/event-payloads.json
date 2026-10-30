@@ -739,6 +739,70 @@
       "type": "object"
     }
   },
+  "helivanta.in.medicore.discharge_ordered.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:157",
+    "go_type": "DischargeOrderedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "disposition": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "order_id": {
+          "type": "string"
+        },
+        "ordered_at": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_id",
+        "admission_id",
+        "patient_id",
+        "hospital_id",
+        "disposition",
+        "ordered_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.medicore.discharge_withdrawn.v1": {
+    "source": "backend/internal/modules/medicore/contract/events.go:172",
+    "go_type": "DischargeWithdrawnData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "order_id": {
+          "type": "string"
+        },
+        "withdrawn_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_id",
+        "admission_id",
+        "hospital_id",
+        "withdrawn_at"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.medicore.encounter_opened.v1": {
     "source": "backend/internal/modules/medicore/contract/events.go:49",
     "go_type": "EncounterOpenedData",

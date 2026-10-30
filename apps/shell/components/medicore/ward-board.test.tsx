@@ -28,6 +28,9 @@ const bed = (over: Record<string, unknown>) => ({
   admission_id: null,
   patient_id: null,
   occupied_since: null,
+  discharge_order_id: null,
+  discharge_disposition: null,
+  discharge_ordered_at: null,
   ...over,
 });
 const occupied = bed({

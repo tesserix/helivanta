@@ -68,7 +68,7 @@ The finalize call (`POST /v2/oidc/auth_requests/{id}`) takes
 `session:{sessionId, sessionToken}`. **It must be given the token from the most
 recent check, not the one from session creation.** A flow that stores the token
 once at creation and reuses it after adding a factor is carrying a superseded
-token — and the failure mode is a finalize rejection *after* the user has
+token — and the failure mode is a finalize rejection _after_ the user has
 already entered a correct code, which reads to the clinician as "my TOTP was
 wrong".
 
@@ -130,7 +130,7 @@ DELETE /v2/users/{id}         (seed PAT)         → 200, GET → 404
 
 Not needed by any Helivanta flow, but recorded for two reasons. First, it
 bounds what a leaked login-client PAT can do — it can mint users on any org of
-the instance, which is a *write* capability worth knowing about given D2 already
+the instance, which is a _write_ capability worth knowing about given D2 already
 notes the credential is instance-level. Second, it is why this spike's first run
 left a user behind: cleanup was attempted with the login-client PAT, got 403,
 and the `GET` that was supposed to confirm a 404 returned 200 instead. All three

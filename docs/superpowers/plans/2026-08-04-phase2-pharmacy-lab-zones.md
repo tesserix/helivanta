@@ -1489,9 +1489,7 @@ export function HmsShell({
       {/* Content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-6">
-          <span className="text-sm text-muted-foreground">
-            Helivanta
-          </span>
+          <span className="text-sm text-muted-foreground">Helivanta</span>
           <a
             href="/logout"
             className="text-sm underline-offset-4 hover:underline"

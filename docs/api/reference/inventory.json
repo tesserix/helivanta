@@ -3510,6 +3510,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/accounts",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/account",
           "permission": "billing.account.read",
           "authentication_required": true,
@@ -3933,6 +3942,13 @@
           "creates_tables": [
             "billing_refund_policies",
             "billing_refund_approvals"
+          ]
+        },
+        {
+          "id": "0008_billing",
+          "sql_sha256": "49e759e2b90483181372d677174e22bd5aaaea885418ec0d57edee3874ae426f",
+          "creates_tables": [
+            "billing_account_positions"
           ]
         }
       ]

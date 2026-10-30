@@ -561,6 +561,10 @@ var withAdminAllowlist = map[string]bool{
 	// terminal history and analyze its indexes. Its assertions use the application
 	// role under FORCE RLS; this permits no runtime request-path caller.
 	"internal/modules/emergency/query_plan_test.go": true,
+	// The billing position test removes one account's position, as an
+	// account from before positions were kept has none, to prove the billing
+	// worker fills it in. Disabling the retention trigger needs the owner.
+	"internal/modules/billing/desk_test.go": true,
 	// pkg/tenantdb migration/lint plumbing remains covered by withAdminAllowedDir.
 }
 

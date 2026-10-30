@@ -38,7 +38,6 @@ import { BedSetup } from "./bed-setup";
 import { AdmissionBalance, BillingAccessSetup, useBillingAccess } from "./admission-account";
 import { BedChargingSetup } from "./bed-charging";
 import { AdmissionBills } from "./admission-bills";
-import { CashDesk } from "./cash-desk";
 import { DischargeOrder } from "./discharge-order";
 
 const stateLabel: Record<BedState, string> = {
@@ -129,7 +128,6 @@ function HospitalBeds({ hospital }: { hospital: Hospital }) {
   return (
     <div className="space-y-6">
       <BillingAccessSetup hospital={hospital} />
-      <CashDesk hospital={hospital} />
       <BedChargingSetup hospital={hospital} />
       {manage && <AdmitPatient hospital={hospital} available={available} />}
       <Panel aria-labelledby="ward-board-heading" className="p-0">

@@ -308,6 +308,9 @@ func BedCensusOnce(ctx context.Context, db *tenantdb.DB) error {
 	if err := applySetup(ctx, db, deadline); err != nil {
 		return err
 	}
+	if err := fillPositions(ctx, db, deadline); err != nil {
+		return err
+	}
 	for time.Now().Before(deadline) {
 		var due []struct {
 			TenantID    uuid.UUID
@@ -411,6 +414,30 @@ func applySetup(ctx context.Context, db *tenantdb.DB, deadline time.Time) error 
 				s.TenantID, s.HospitalID, *s.BedClass, *s.Effective).Error
 		}); err != nil {
 			slog.WarnContext(ctx, "billing bed setup could not be marked applied; retrying later", "tenant_id", s.TenantID, "hospital_id", s.HospitalID, "error", err)
+		}
+	}
+	return nil
+}
+
+// fillPositions gives accounts that existed before positions were kept
+// (0008) their position, a batch at a time: the one cross-tenant read is the
+// keys of accounts without one; the refresh runs under the tenant.
+func fillPositions(ctx context.Context, db *tenantdb.DB, deadline time.Time) error {
+	var missing []struct{ TenantID, AdmissionID uuid.UUID }
+	if err := db.WithAllTenants(ctx, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT a.tenant_id,a.admission_id FROM billing_admission_accounts a WHERE NOT EXISTS
+ (SELECT 1 FROM billing_account_positions p WHERE p.tenant_id=a.tenant_id AND p.admission_id=a.admission_id) LIMIT ?`, censusBatch).Scan(&missing).Error
+	}); err != nil {
+		return err
+	}
+	for _, m := range missing {
+		if !time.Now().Before(deadline) {
+			return nil
+		}
+		if err := db.WithTenant(ctx, m.TenantID.String(), func(tx *gorm.DB) error {
+			return tx.Exec(`SELECT billing_position_refresh(?,?)`, m.TenantID, m.AdmissionID).Error
+		}); err != nil {
+			slog.WarnContext(ctx, "billing position not filled; retrying later", "tenant_id", m.TenantID, "error", err)
 		}
 	}
 	return nil

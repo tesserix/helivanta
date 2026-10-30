@@ -2,6 +2,7 @@ import { useState } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { useApiPagedQuery } from "@helivanta/api";
 import type { AdmissionAccount } from "@helivanta/api";
 import { chooseOption } from "../../test/select";
 import { CashDesk } from "./cash-desk";
@@ -197,6 +198,31 @@ describe("CashPayments", () => {
       amount_minor: 150000,
       currency: "INR",
     });
+  });
+
+  it("refreshes the billing desk's lists after taking cash", async () => {
+    const fetcher = server({ permissions: cashier, mine: shift() });
+    let deskFetches = 0;
+    function DeskProbe() {
+      useApiPagedQuery(["billing", "desk", hospital.id, "to_collect"], "/probe-desk");
+      return null;
+    }
+    const counting = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (String(url).includes("/probe-desk")) deskFetches++;
+      return fetcher(url, init);
+    });
+    vi.stubGlobal("fetch", counting);
+    const { user } = renderWithProviders(
+      <>
+        <DeskProbe />
+        <CashPayments hospital={hospital} admissionId={admission} account={account(150000)} />
+      </>,
+    );
+    await waitFor(() => expect(deskFetches).toBe(1));
+    await user.clear(await screen.findByLabelText("Cash received (INR)"));
+    await user.type(screen.getByLabelText("Cash received (INR)"), "1500");
+    await user.click(screen.getByRole("button", { name: "Take cash" }));
+    await waitFor(() => expect(deskFetches).toBe(2));
   });
 
   it("offers no payment without an open shift", async () => {

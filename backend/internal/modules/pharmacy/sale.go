@@ -796,6 +796,13 @@ func checkCitations(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, 
 		if len(rx) == 0 {
 			return errNotSellable{"the prescription line cited for " + pr.SKU + " is not recorded at this outlet"}
 		}
+		var released bool
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM pharmacy_prescription_images WHERE tenant_id=? AND outlet_id=? AND prescription_id=? AND status='available')`, tenant, outlet, c.PrescriptionID).Scan(&released).Error; err != nil {
+			return err
+		}
+		if !released {
+			return errNotSellable{"the prescription for " + pr.SKU + " needs a released prescription image; upload a page and wait for a clean scan"}
+		}
 		var left []struct {
 			UnitsRemaining       int64
 			DispensingsRemaining int
@@ -1060,6 +1067,8 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 	switch {
 	case errors.As(err, &refusal):
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
+	case violated(err, "pharmacy_sale_line_released_evidence"):
+		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription needs a released prescription image; upload a page and wait for a clean scan")
 	case prescriptionLimitError(err):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
 	case violated(err, "pharmacy_sale_tender_paid"), violated(err, "pharmacy_sale_tender_payment_request"):

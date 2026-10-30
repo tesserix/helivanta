@@ -59,6 +59,9 @@ var registeredPatientsSchema string
 //go:embed registered_patient_sale.sql
 var registeredPatientSaleSchema string
 
+//go:embed prescription_sale_evidence.sql
+var prescriptionSaleEvidenceSchema string
+
 //go:embed unused_payment_refunds.sql
 var unusedPaymentRefundsSchema string
 
@@ -225,7 +228,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}, {ID: "0021_pharmacy", SQL: paymentRequestsSchema}, {ID: "0022_pharmacy", SQL: verifiedUPISchema}, {ID: "0023_pharmacy", SQL: affiliationVerificationSchema}, {ID: "0024_pharmacy", SQL: stockOverviewSchema}, {ID: "0025_pharmacy", SQL: registeredPatientsSchema}, {ID: "0026_pharmacy", SQL: registeredPatientSaleSchema}, {ID: "0027_pharmacy", SQL: admissionSaleSchema}, {ID: "0028_pharmacy", SQL: unusedPaymentRefundsSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}, {ID: "0021_pharmacy", SQL: paymentRequestsSchema}, {ID: "0022_pharmacy", SQL: verifiedUPISchema}, {ID: "0023_pharmacy", SQL: affiliationVerificationSchema}, {ID: "0024_pharmacy", SQL: stockOverviewSchema}, {ID: "0025_pharmacy", SQL: registeredPatientsSchema}, {ID: "0026_pharmacy", SQL: registeredPatientSaleSchema}, {ID: "0027_pharmacy", SQL: admissionSaleSchema}, {ID: "0028_pharmacy", SQL: unusedPaymentRefundsSchema}, {ID: "0029_pharmacy", SQL: prescriptionSaleEvidenceSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

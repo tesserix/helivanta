@@ -3409,6 +3409,11 @@
           "creates_tables": [
             "pharmacy_unused_payment_refunds"
           ]
+        },
+        {
+          "id": "0029_pharmacy",
+          "sql_sha256": "8acc69f06789caf86c0af5e81bcdeb5ec518bf89af3e679f2eb73a137cde169b",
+          "creates_tables": []
         }
       ]
     },

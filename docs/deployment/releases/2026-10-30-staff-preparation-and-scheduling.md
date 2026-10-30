@@ -1,6 +1,7 @@
 # Staff preparation and scheduling release — 2026-10-30
 
 Approved and deployed source: `c20a220267cc4e71cc169c47b3ef7220612da1ce`.
+Release: [Staff preparation and scheduling safeguards](https://github.com/tesserix/helivanta/releases/tag/2026-10-30-staff-preparation-and-scheduling).
 Previous production source: `22b6241ed0ece7180d713b77145104a63d95d343`.
 The user approved this exact revision and all four migrations below before promotion.
 
@@ -45,6 +46,8 @@ migration ID and retain these historical files.
 - The migration job succeeded. Enabled and forced RLS were verified for all seven new Billing/MediCore tables and the four existing employment draft/evidence tables.
 - Required PR CI [40985367730](https://github.com/tesserix/helivanta/actions/runs/40985367730) passed Go coverage, web, browser E2E, scripts and secrets. The merged runtime files match tested head `5363c59213e0d7aa425baa5add9b63380bdf5d12`; the only additional diff is the separately reviewed payroll contract correction. Final-source contractdocs check passed.
 - Full local web checks passed all 30 tasks, including 1,222 shell tests and 409 API tests. The earlier complete local backend race/coverage gate passed, including Workforce at 83.7%; the subsequent Billing/architecture/contractdocs race checks passed after main reconciliation.
+
+Merged-source CI [40988659542](https://github.com/tesserix/helivanta/actions/runs/40988659542) subsequently passed all required Go, web, browser E2E, script and secret gates on the exact deployed revision.
 
 ## Production Staff UI evidence
 

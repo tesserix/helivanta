@@ -45,5 +45,10 @@
   "promotion": "prod.01m659npxcq1ejdjcv41942wbe.06dda82",
   "freight": "06dda82bbbcc843e705309c96f090f54d7fa7322",
   "namespace": "helivanta",
-  "stage": "prod"
+  "stage": "prod",
+  "verification_workflows": {
+    "pr_ci": 40985367730,
+    "merged_source_ci": 40988659542,
+    "image_publication": 40988659441
+  }
 }

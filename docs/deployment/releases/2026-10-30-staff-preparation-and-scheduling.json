@@ -1,0 +1,54 @@
+{
+  "source_revision": "c20a220267cc4e71cc169c47b3ef7220612da1ce",
+  "previous_revision": "22b6241ed0ece7180d713b77145104a63d95d343",
+  "migration_runner": "backend/cmd/migrate/main.go",
+  "applied_ledger": "schema_migrations",
+  "registered_migrations_in_release": 166,
+  "newly_applied_migrations": [
+    {
+      "id": "0002_billing",
+      "owner": "billing",
+      "sql_path": "backend/internal/modules/billing/bed_days.sql",
+      "sql_sha256": "80c93586fe2759405f59591d9584132cbbf9a3e84f64d55dfc95da6728c5d70e",
+      "registration_path": "backend/internal/modules/billing/module.go",
+      "embedded_variable": "bedDaysSchema",
+      "production_applied_at": "2026-10-30T02:19:52.043982Z"
+    },
+    {
+      "id": "0003_billing",
+      "owner": "billing",
+      "sql_path": "backend/internal/modules/billing/interim_bills.sql",
+      "sql_sha256": "4be0be5e26afb95cb471ebad3b3d9706a8174c476501d234967df0ae070a43ca",
+      "registration_path": "backend/internal/modules/billing/module.go",
+      "embedded_variable": "interimBillsSchema",
+      "production_applied_at": "2026-10-30T02:19:52.273256Z"
+    },
+    {
+      "id": "0008_medicore",
+      "owner": "medicore",
+      "sql_path": "backend/internal/modules/medicore/discharge.sql",
+      "sql_sha256": "32dc29d9ea1727cdf47ae515f0eb855c3065fd88217a36e080e6f1fc56c5264c",
+      "registration_path": "backend/internal/modules/medicore/module.go",
+      "embedded_variable": "dischargeSchema",
+      "production_applied_at": "2026-10-30T02:19:51.961368Z"
+    },
+    {
+      "id": "0052_workforce_employment_withdrawal",
+      "owner": "workforce",
+      "sql_path": "backend/internal/modules/workforce/employment_withdrawal.sql",
+      "sql_sha256": "0bcb2078adc9a8fbac5996cc2a45cd5a97a408e5f5ccf0df4f654d6fc2b39e29",
+      "registration_path": "backend/internal/modules/workforce/module.go",
+      "embedded_variable": "employmentWithdrawalSchema",
+      "production_applied_at": "2026-10-30T02:19:52.365331Z"
+    }
+  ],
+  "promotion": "prod.01m659npxcq1ejdjcv41942wbe.06dda82",
+  "freight": "06dda82bbbcc843e705309c96f090f54d7fa7322",
+  "namespace": "helivanta",
+  "stage": "prod",
+  "verification_workflows": {
+    "pr_ci": 40985367730,
+    "merged_source_ci": 40988659542,
+    "image_publication": 40988659441
+  }
+}

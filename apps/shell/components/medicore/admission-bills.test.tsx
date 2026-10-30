@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { InterimBills } from "./interim-bills";
+import { AdmissionBills } from "./admission-bills";
 
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
@@ -12,7 +12,8 @@ const admission = "0199e000-0000-7000-8000-00000000b001";
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const page = (data: unknown[]) => json(200, { data, page: { next_cursor: null, has_more: false } });
-const bill = (number: number) => ({
+const bill = (number: number, kind: "interim" | "final" = "interim") => ({
+  kind,
   id: `0199e000-0000-7000-8000-0000000000${number}0`,
   admission_id: admission,
   hospital_id: hospital.id,
@@ -55,20 +56,37 @@ const lines = [
 
 afterEach(() => vi.unstubAllGlobals());
 
-function server(opts: { permissions?: string[]; issue?: Response } = {}) {
+function server(
+  opts: { permissions?: string[]; issue?: Response; discharge?: boolean; status?: string } = {},
+) {
   const permissions = opts.permissions ?? ["billing.account.read", "billing.bill.issue"];
   const issued = [bill(1)];
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.includes("/iam/me/permissions"))
       return json(200, { subject: "user-clerk", data: permissions });
+    if (url.endsWith("/account"))
+      return json(200, {
+        status: opts.status ?? "open",
+        discharge_ordered: opts.discharge ?? false,
+        totals: [],
+        sources: [],
+        bed_days: { configured: true, priced: 0, not_priced: 0 },
+      });
     if (init.method === "POST") {
       if (opts.issue) return opts.issue;
-      issued.unshift(bill(2));
-      return json(201, bill(2));
+      const next = bill(2, url.endsWith("/final-bills") ? "final" : "interim");
+      issued.unshift(next);
+      return json(201, next);
     }
-    if (url.includes("/interim-bills/") && url.includes("/lines")) return page(lines);
-    if (url.match(/\/interim-bills\/\d+/)) return json(200, bill(Number(url.split("/").pop())));
-    if (url.endsWith("/interim-bills")) return page(issued);
+    if (url.includes("/bills/") && url.includes("/lines")) return page(lines);
+    if (url.match(/\/bills\/\d+$/)) {
+      const n = Number(url.split("/").pop());
+      return json(
+        200,
+        issued.find((b) => b.number === n),
+      );
+    }
+    if (url.endsWith("/bills")) return page(issued);
     return page([]);
   });
   vi.stubGlobal("fetch", fetcher);
@@ -77,11 +95,11 @@ function server(opts: { permissions?: string[]; issue?: Response } = {}) {
 const posts = (f: ReturnType<typeof server>) =>
   f.mock.calls.filter(([, init]) => init?.method === "POST") as [string, RequestInit][];
 
-describe("InterimBills", () => {
+describe("AdmissionBills", () => {
   it("shows a bill as issued: not a tax invoice, unpriced days, new entries", async () => {
     server({ permissions: ["billing.account.read"] });
     const { user } = renderWithProviders(
-      <InterimBills hospital={hospital} admissionId={admission} />,
+      <AdmissionBills hospital={hospital} admissionId={admission} />,
     );
     await user.click(await screen.findByRole("button", { name: "Interim bill 1" }));
     const shown = await screen.findByRole("region", { name: "Interim bill 1" });
@@ -96,14 +114,41 @@ describe("InterimBills", () => {
   it("issues the next bill and opens it", async () => {
     const fetcher = server();
     const { user } = renderWithProviders(
-      <InterimBills hospital={hospital} admissionId={admission} />,
+      <AdmissionBills hospital={hospital} admissionId={admission} />,
     );
     await user.click(await screen.findByRole("button", { name: "Issue interim bill" }));
     await waitFor(() => expect(posts(fetcher)).toHaveLength(1));
+    expect(posts(fetcher)[0][0]).toMatch(/\/interim-bills$/);
     expect(posts(fetcher)[0][0]).toMatch(
       `/billing/hospitals/${hospital.id}/admissions/${admission}/interim-bills`,
     );
     expect(await screen.findByRole("region", { name: "Interim bill 2" })).toBeInTheDocument();
+  });
+
+  it("issues the final bill once discharge is ordered and says what it may still miss", async () => {
+    const fetcher = server({ discharge: true });
+    const { user } = renderWithProviders(
+      <AdmissionBills hospital={hospital} admissionId={admission} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Issue final bill" }));
+    await waitFor(() => expect(posts(fetcher)).toHaveLength(1));
+    expect(posts(fetcher)[0][0]).toMatch(
+      `/billing/hospitals/${hospital.id}/admissions/${admission}/final-bills`,
+    );
+    const shown = await screen.findByRole("region", { name: "Final bill 2" });
+    expect(shown).toHaveTextContent("Final bill 2 — not a tax invoice");
+    expect(shown).toHaveTextContent("a later midnight in the bed or a late charge is added");
+    expect(screen.getByRole("button", { name: "Interim bill 1" })).toBeInTheDocument();
+  });
+
+  it("offers the final bill after release, without the stay caveat", async () => {
+    server({ status: "closed" });
+    const { user } = renderWithProviders(
+      <AdmissionBills hospital={hospital} admissionId={admission} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Issue final bill" }));
+    const shown = await screen.findByRole("region", { name: "Final bill 2" });
+    expect(shown).not.toHaveTextContent("a later midnight");
   });
 
   it("says why nothing was issued", async () => {
@@ -114,7 +159,7 @@ describe("InterimBills", () => {
       }),
     });
     const { user } = renderWithProviders(
-      <InterimBills hospital={hospital} admissionId={admission} />,
+      <AdmissionBills hospital={hospital} admissionId={admission} />,
     );
     await user.click(await screen.findByRole("button", { name: "Issue interim bill" }));
     expect(

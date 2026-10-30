@@ -3493,11 +3493,47 @@
         },
         {
           "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/bills",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/entries",
           "permission": "billing.account.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/final-bills",
+          "permission": "billing.bill.issue",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3601,6 +3637,16 @@
       "directed_write_tables": [],
       "consumers": [
         {
+          "name": "billing-discharge-ordered",
+          "subject": "helivanta.in.medicore.discharge_ordered.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-discharge-withdrawn",
+          "subject": "helivanta.in.medicore.discharge_withdrawn.v1",
+          "after_commit": false
+        },
+        {
           "name": "billing-bed-occupancy-started",
           "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
           "after_commit": false
@@ -3654,6 +3700,13 @@
           "creates_tables": [
             "billing_interim_bills",
             "billing_interim_bill_lines"
+          ]
+        },
+        {
+          "id": "0004_billing",
+          "sql_sha256": "72cea0c59d97deb59a473c57a65936f5de618f03c756e678c969647631bf3288",
+          "creates_tables": [
+            "billing_discharge_orders"
           ]
         }
       ]

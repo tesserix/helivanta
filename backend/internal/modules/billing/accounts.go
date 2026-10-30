@@ -128,6 +128,8 @@ type accountView struct {
 	Sources     []source   `json:"sources" gorm:"-"`
 	BedDays     bedDayView `json:"bed_days" gorm:"-"`
 	EntryCount  int64      `json:"entry_count" gorm:"-"`
+	// A doctor has ordered discharge (#96): the next bill is the final bill.
+	DischargeOrdered bool `json:"discharge_ordered" gorm:"-"`
 }
 
 // source is what is outstanding from one module, in one currency.
@@ -181,6 +183,9 @@ func (h *handlers) account(c *gin.Context) {
 		if err := tx.Raw(`SELECT EXISTS (SELECT 1 FROM billing_bed_charging WHERE tenant_id=? AND hospital_id=?) AS configured,
  count(*) FILTER (WHERE d.priced_at IS NOT NULL) AS priced, count(*) FILTER (WHERE d.priced_at IS NULL) AS not_priced
  FROM billing_bed_days d WHERE d.tenant_id=? AND d.admission_id=? AND d.voided_at IS NULL`, p.TenantID, hospital, p.TenantID, admission).Scan(&row.BedDays).Error; err != nil {
+			return err
+		}
+		if err := tx.Raw(`SELECT billing_discharge_ordered(?,?)`, p.TenantID, admission).Scan(&row.DischargeOrdered).Error; err != nil {
 			return err
 		}
 		return tx.Table("billing_account_entries").Where("tenant_id=? AND admission_id=?", p.TenantID, admission).Count(&row.EntryCount).Error
@@ -265,7 +270,7 @@ func ids(values ...string) ([]uuid.UUID, bool) {
 }
 
 func consumers() []events.Consumer {
-	return []events.Consumer{
+	return append(dischargeConsumers(), []events.Consumer{
 		{Name: "billing-bed-occupancy-started", Subject: medicorecontract.SubjectBedOccupancyStarted, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var d medicorecontract.BedOccupancyStartedData
 			if evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &d) != nil {
@@ -366,7 +371,7 @@ func consumers() []events.Consumer {
 			}
 			return postEntry(tx, evt.TenantID, v[0], v[1], "pharmacy", "reversal", v[3], v[4], d.CreditNoteNumber, d.AmountMinor, d.Currency, at)
 		}},
-	}
+	}...)
 }
 
 // postEntry records an entry once: a replay finds it and must match it.

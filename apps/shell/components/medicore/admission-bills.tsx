@@ -7,6 +7,7 @@ import {
   useApiPagedQuery,
   useApiQuery,
   usePermissions,
+  type AdmissionAccount,
   type Hospital,
   type InterimBill,
   type InterimBillLine,
@@ -16,11 +17,14 @@ import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 
 const sourceLabel: Record<string, string> = { pharmacy: "Medicine", bed: "Bed day" };
 
+const kindLabel = { interim: "Interim bill", final: "Final bill" } as const;
+
 /**
- * An admission's interim bills (#197): each the account frozen as issued, and,
- * for the billing desk, issuing the next one.
+ * An admission's bills (#197): interim while the stay runs, final once a
+ * doctor orders discharge; each the account frozen as issued. The billing
+ * desk issues the next one, of the kind the account is ready for.
  */
-export function InterimBills({
+export function AdmissionBills({
   hospital,
   admissionId,
 }: {
@@ -29,25 +33,39 @@ export function InterimBills({
 }) {
   const { can } = usePermissions();
   const [shown, setShown] = useState<number | null>(null);
-  const path = `/billing/hospitals/${hospital.id}/admissions/${admissionId}/interim-bills`;
-  const key = ["billing", "interim-bills", hospital.id, admissionId];
+  const root = `/billing/hospitals/${hospital.id}/admissions/${admissionId}`;
+  const path = `${root}/bills`;
+  const key = ["billing", "bills", hospital.id, admissionId];
   const bills = useApiPagedQuery<InterimBill>(key, path);
-  const issue = useApiMutation(() => apiFetch<InterimBill>(path, { method: "POST" }), {
-    successToast: "Interim bill issued",
-    invalidate: [key],
-    onSuccess: (bill) => setShown(bill.number),
-  });
+  // The same query as the account line, so both agree on whether discharge is ordered.
+  const account = useApiQuery<AdmissionAccount>(
+    ["billing", "account", hospital.id, admissionId],
+    `${root}/account`,
+    { staleTime: 30_000 },
+  );
+  const final = account.data?.discharge_ordered === true || account.data?.status === "closed";
+  const issue = useApiMutation(
+    () =>
+      apiFetch<InterimBill>(`${root}/${final ? "final-bills" : "interim-bills"}`, {
+        method: "POST",
+      }),
+    {
+      successToast: final ? "Final bill issued" : "Interim bill issued",
+      invalidate: [key, ["billing", "account", hospital.id, admissionId]],
+      onSuccess: (bill) => setShown(bill.number),
+    },
+  );
   return (
     <div className="mt-2 space-y-2 rounded-md border border-border p-3">
-      {can("billing.bill.issue") && (
+      {can("billing.bill.issue") && account.isSuccess && (
         <Button size="sm" disabled={issue.isPending} onClick={() => issue.mutate()}>
-          Issue interim bill
+          {final ? "Issue final bill" : "Issue interim bill"}
         </Button>
       )}
       {bills.isError ? (
-        <RequestFailure message="Could not load the interim bills." retry={bills.retry} />
+        <RequestFailure message="Could not load the bills." retry={bills.retry} />
       ) : bills.items.length === 0 && !bills.isPending ? (
-        <p className="text-sm text-muted-foreground">No interim bills yet.</p>
+        <p className="text-sm text-muted-foreground">No bills yet.</p>
       ) : (
         <ul className="space-y-1 text-sm">
           {bills.items.map((b) => (
@@ -59,13 +77,15 @@ export function InterimBills({
                 aria-expanded={shown === b.number}
                 onClick={() => setShown(shown === b.number ? null : b.number)}
               >
-                Interim bill {b.number}
+                {kindLabel[b.kind]} {b.number}
               </Button>
               <span className="ml-2 text-muted-foreground">
                 {formatDateTime(b.issued_at)} · {b.line_count}{" "}
                 {b.line_count === 1 ? "entry" : "entries"}
               </span>
-              {shown === b.number && <BillDetail path={`${path}/${b.number}`} />}
+              {shown === b.number && (
+                <BillDetail path={`${path}/${b.number}`} open={account.data?.status === "open"} />
+              )}
             </li>
           ))}
         </ul>
@@ -80,7 +100,7 @@ export function InterimBills({
   );
 }
 
-function BillDetail({ path }: { path: string }) {
+function BillDetail({ path, open }: { path: string; open: boolean }) {
   const bill = useApiQuery<InterimBill>(["billing", "interim-bill", path], path);
   const lines = useApiPagedQuery<InterimBillLine>(
     ["billing", "interim-bill-lines", path],
@@ -93,14 +113,24 @@ function BillDetail({ path }: { path: string }) {
   const b = bill.data;
   return (
     <section
-      aria-label={`Interim bill ${b.number}`}
+      aria-label={`${kindLabel[b.kind]} ${b.number}`}
       className="mt-2 space-y-2 border-t border-border pt-2"
     >
-      <p className="font-medium">Interim bill {b.number} — not a tax invoice</p>
+      <p className="font-medium">
+        {kindLabel[b.kind]} {b.number} — not a tax invoice
+      </p>
       <p className="text-xs text-muted-foreground">
         Issued {formatDateTime(b.issued_at)} by {b.issued_by}. Medicine is billed on the pharmacy's
         GST invoice; bed days are before tax.
       </p>
+      {b.kind === "final" && open && (
+        // Before the patient leaves, a midnight still in the bed is a bed day this
+        // bill could not hold: it is added on a reissued final bill.
+        <p className="text-xs text-muted-foreground">
+          Charged up to when it was issued; a later midnight in the bed or a late charge is added on
+          a new final bill.
+        </p>
+      )}
       <p>
         {b.totals.length === 0
           ? "Nothing charged"

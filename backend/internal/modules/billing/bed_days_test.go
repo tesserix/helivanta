@@ -57,7 +57,8 @@ func newBedWorld(t *testing.T) *bedWorld {
 }
 
 var eventTypes = map[string]string{"billing-bed-occupancy-started": "BedOccupancyStarted", "billing-bed-occupancy-ended": "BedOccupancyEnded", "billing-admission-released": "AdmissionReleased",
-	"billing-pharmacy-admission-charge": "AdmissionChargePosted", "billing-pharmacy-admission-reversal": "AdmissionChargeReversed"}
+	"billing-pharmacy-admission-charge": "AdmissionChargePosted", "billing-pharmacy-admission-reversal": "AdmissionChargeReversed",
+	"billing-discharge-ordered": "DischargeOrdered", "billing-discharge-withdrawn": "DischargeWithdrawn"}
 
 func (w *bedWorld) deliver(name string, v any) error {
 	data, err := json.Marshal(v)

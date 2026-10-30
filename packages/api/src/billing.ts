@@ -50,6 +50,8 @@ export type InterimBill = {
   hospital_id: string;
   patient_id: string;
   number: number;
+  /** One series per admission: interim while the stay runs, final from discharge. */
+  kind: "interim" | "final";
   issued_by: string;
   issued_at: string;
   /** Bed days without a rate when issued: no amount, never zero. */

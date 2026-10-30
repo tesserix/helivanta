@@ -538,7 +538,11 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/access` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/account` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
+| POST | `/v1/billing/hospitals/:hospital/admissions/:admission/final-bills` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number/lines` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.account.read` | true | false |
@@ -554,6 +558,8 @@ None.
 
 Subscriptions:
 
+- `billing-discharge-ordered` ← `helivanta.in.medicore.discharge_ordered.v1`; after-commit hook: false.
+- `billing-discharge-withdrawn` ← `helivanta.in.medicore.discharge_withdrawn.v1`; after-commit hook: false.
 - `billing-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `billing-admission-released` ← `helivanta.in.medicore.admission_released.v1`; after-commit hook: false.
 - `billing-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
@@ -565,6 +571,7 @@ Migration table declarations:
 - `0001_billing`: `billing_hospital_access`, `billing_admission_accounts`, `billing_account_entries`, `billing_parked_reversals`.
 - `0002_billing`: `billing_bed_charging`, `billing_bed_rates`, `billing_bed_stays`, `billing_bed_days`.
 - `0003_billing`: `billing_interim_bills`, `billing_interim_bill_lines`.
+- `0004_billing`: `billing_discharge_orders`.
 
 ## supply
 

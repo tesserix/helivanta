@@ -115,6 +115,10 @@ type total struct {
 	ChargedMinor     int64  `json:"charged_minor"`
 	ReversedMinor    int64  `json:"reversed_minor"`
 	OutstandingMinor int64  `json:"outstanding_minor"`
+	// Cash received that stands (#198), and what is left to pay; a reversal
+	// after payment can leave the balance below zero, in the patient's credit.
+	PaidMinor    int64 `json:"paid_minor"`
+	BalanceMinor int64 `json:"balance_minor"`
 }
 
 type accountView struct {
@@ -172,8 +176,28 @@ func (h *handlers) account(c *gin.Context) {
  WHERE tenant_id=? AND admission_id=? GROUP BY currency ORDER BY currency`, p.TenantID, admission).Scan(&row.Totals).Error; err != nil {
 			return err
 		}
+		var paid []struct {
+			Currency  string
+			PaidMinor int64
+		}
+		if err := tx.Raw(`SELECT currency,sum(amount_minor) AS paid_minor FROM billing_cash_receipts WHERE tenant_id=? AND admission_id=? AND voided_at IS NULL GROUP BY currency`,
+			p.TenantID, admission).Scan(&paid).Error; err != nil {
+			return err
+		}
+		for _, pd := range paid {
+			found := false
+			for i := range row.Totals {
+				if row.Totals[i].Currency == pd.Currency {
+					row.Totals[i].PaidMinor, found = pd.PaidMinor, true
+				}
+			}
+			if !found {
+				row.Totals = append(row.Totals, total{Currency: pd.Currency, PaidMinor: pd.PaidMinor})
+			}
+		}
 		for i := range row.Totals {
 			row.Totals[i].OutstandingMinor = row.Totals[i].ChargedMinor - row.Totals[i].ReversedMinor
+			row.Totals[i].BalanceMinor = row.Totals[i].OutstandingMinor - row.Totals[i].PaidMinor
 		}
 		row.Sources = []source{}
 		if err := tx.Raw(`SELECT source_module,currency,COALESCE(sum(CASE kind WHEN 'charge' THEN amount_minor ELSE -amount_minor END),0) AS outstanding_minor

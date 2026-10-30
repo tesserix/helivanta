@@ -111,6 +111,9 @@ export type AdmissionAccount = {
     charged_minor: number;
     reversed_minor: number;
     outstanding_minor: number;
+    /** Cash received that stands (#198), and what is left; below zero is credit. */
+    paid_minor: number;
+    balance_minor: number;
   }[];
   /** What each source still owes, e.g. pharmacy or bed (#197). */
   sources: { source_module: string; currency: string; outstanding_minor: number }[];

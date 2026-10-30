@@ -23,6 +23,12 @@ const (
 	PermRateManage authz.Permission = "billing.rate.manage"
 	// PermBillIssue issues an interim bill on an open admission account.
 	PermBillIssue authz.Permission = "billing.bill.issue"
+	// PermCounterManage sets up a hospital's cash counters.
+	PermCounterManage authz.Permission = "billing.counter.manage"
+	// PermCashCollect opens and closes the caller's own shift and takes cash.
+	PermCashCollect authz.Permission = "billing.cash.collect"
+	// PermShiftAuthorise authorises a shift's cash variance and lists shifts.
+	PermShiftAuthorise authz.Permission = "billing.shift.authorise"
 )
 
 //go:embed accounts.sql
@@ -36,6 +42,9 @@ var interimBillsSchema string
 
 //go:embed final_bills.sql
 var finalBillsSchema string
+
+//go:embed cash.sql
+var cashSchema string
 
 type Module struct{}
 
@@ -52,11 +61,16 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermRateManage},
 		// The billing desk issues interim bills; ward nurses only read the account.
 		{Permission: PermBillIssue, Roles: []authz.Role{authz.RoleReceptionist}},
+		// The billing desk takes cash in its own shift; setting up counters and
+		// authorising a cashier's variance stay with administrators.
+		{Permission: PermCashCollect, Roles: []authz.Role{authz.RoleReceptionist}},
+		{Permission: PermCounterManage},
+		{Permission: PermShiftAuthorise},
 	}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -79,6 +93,17 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, bills+"/:number/lines", PermAccountRead, h.billLines("interim"))
 	// Final bills, and every bill of either kind in one series (#197 slice 4).
 	g.POST(hp+"/admissions/:admission/final-bills", PermBillIssue, h.issueFinalBill)
+	// Cash counters (#198 slice 1).
+	g.PUT(hp+"/counters/:counter", PermCounterManage, h.putCounter)
+	platform.ListRoute(g, hp+"/counters", PermAccountRead, h.counters)
+	g.PUT(hp+"/counters/:counter/shifts/:shift", PermCashCollect, h.openShift)
+	g.GET(hp+"/cash-shifts/mine", PermCashCollect, h.myShift)
+	g.PUT(hp+"/cash-shifts/:shift/close", PermCashCollect, h.closeShift)
+	g.PUT(hp+"/cash-shifts/:shift/authorisation", PermShiftAuthorise, h.authoriseShift)
+	platform.ListRoute(g, hp+"/cash-shifts", PermShiftAuthorise, h.shifts)
+	g.PUT(hp+"/admissions/:admission/receipts/:receipt", PermCashCollect, h.takeCash)
+	platform.ListRoute(g, hp+"/admissions/:admission/receipts", PermAccountRead, h.receipts)
+	g.PUT(hp+"/receipts/:receipt/voids/:void", PermCashCollect, h.voidReceipt)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

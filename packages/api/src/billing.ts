@@ -80,3 +80,83 @@ export type InterimBillLine = {
   /** Not on the previous bill. */
   new: boolean;
 };
+
+// Cash counters (#198 slice 1): a cashier's shift on a counter, closed blind
+// against the cash it took, and cash receipts against an admission's account.
+
+export type CashCounter = {
+  id: string;
+  hospital_id: string;
+  code: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+};
+
+export type CashShift = {
+  id: string;
+  hospital_id: string;
+  counter_id: string;
+  counter_code: string;
+  cashier: string;
+  currency: string;
+  opening_float_minor: number;
+  opened_at: string;
+  status: "open" | "pending_authorisation" | "closed";
+  /** Known only once the shift is closed: the close is blind. */
+  expected_minor: number | null;
+  declared_minor: number | null;
+  variance_minor: number | null;
+  closed_at: string | null;
+  authorised_by: string | null;
+  authorisation_reason: string | null;
+  authorised_at: string | null;
+};
+
+export type CashReceipt = {
+  id: string;
+  hospital_id: string;
+  shift_id: string;
+  counter_id: string;
+  counter_code: string;
+  number: number;
+  cashier: string;
+  admission_id: string;
+  amount_minor: number;
+  currency: string;
+  received_at: string;
+  void_reason: string | null;
+  voided_at: string | null;
+};
+
+export const counterSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9][A-Z0-9-]{0,19}$/, "Up to 20 letters, digits and dashes"),
+  name: z.string().trim().min(1, "Name the counter").max(100, "At most 100 characters"),
+});
+
+const cashAmount = (message: string) =>
+  z.number({ message }).int(message).min(0, message).max(1_000_000_000, "Too large");
+
+export const openShiftSchema = z.object({
+  counter_id: z.string().min(1, "Choose a counter"),
+  opening_float_minor: cashAmount("Enter the cash in the drawer"),
+});
+
+export const closeShiftSchema = z.object({
+  declared_minor: cashAmount("Enter the cash you counted"),
+});
+
+export const cashReceiptSchema = z.object({
+  amount_minor: cashAmount("Enter the amount received").refine(
+    (v) => v >= 1,
+    "Enter the amount received",
+  ),
+});
+
+export const cashReasonSchema = z.object({
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});

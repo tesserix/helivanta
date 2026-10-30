@@ -3573,6 +3573,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/receipts/:receipt",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/receipts",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/bed-charging",
           "permission": "billing.account.read",
@@ -3607,6 +3625,78 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/close",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts/mine",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/counters/:counter",
+          "permission": "billing.counter.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/counters",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
         }
       ],
       "grants": [
@@ -3630,6 +3720,20 @@
           "roles": [
             "receptionist"
           ]
+        },
+        {
+          "permission": "billing.cash.collect",
+          "roles": [
+            "receptionist"
+          ]
+        },
+        {
+          "permission": "billing.counter.manage",
+          "roles": []
+        },
+        {
+          "permission": "billing.shift.authorise",
+          "roles": []
         }
       ],
       "publishes": [],
@@ -3707,6 +3811,15 @@
           "sql_sha256": "63d7af7e6540e1728ec0f59c313bfcb9990497ca057ba20a03c8e811f26ec611",
           "creates_tables": [
             "billing_discharge_orders"
+          ]
+        },
+        {
+          "id": "0005_billing",
+          "sql_sha256": "f928d36d6a6cd2a20c1b1aab27af90fbd64e7f880022bf554469f36029c55e4c",
+          "creates_tables": [
+            "billing_counters",
+            "billing_cash_shifts",
+            "billing_cash_receipts"
           ]
         }
       ]

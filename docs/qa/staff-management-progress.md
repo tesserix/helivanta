@@ -180,7 +180,14 @@ attempt used an unregistered numeric-loopback callback. Read-only metadata from
 the configured local identity provider identified the registered
 `http://helivanta.localhost:4399` origin; using it restored the Staff access UI
 without changing browser protections or identity-provider permissions. Existing
-Admin-session reads pass; fresh normal-login UI acceptance remains unverified.
+Admin-session reads pass. The exact clean `e047c56` API build then passed normal
+sign-out/password sign-in for the synthetic Admin and existing pharmacist/reviewer
+fixture through the local Global API. Admin enrollment/proposal controls remain
+available, blank enrollment is rejected, the reviewer cannot administer assignments
+or access payroll, and its existing hospital reader grant retains the six-row
+read-only directory without edit/enrollment controls. No memberships, roles,
+hospital grants or assignments were changed by this UI smoke test. This does not
+prove independent employment approval or the unimplemented removal/recovery UI.
 This candidate is not production-deployed. No A-item or broad Staff area is
 marked complete. Incarnation-bound membership commands/UI, provisioning,
 reviewed employment, legacy-grant classification and effective cross-owner
@@ -203,7 +210,8 @@ IAM race/coverage (82.8%), architecture, bootstrap, API and authz suites passed,
 as did affected vet/lint, API/Global API builds and contractdocs generation/check.
 Its two membership queries used existing indexes in the 100,001-row forced-RLS
 fixture; the locked actor/target query reported 0.080 ms local execution. This is
-not a production SLO. The extended commit still needs CI and normal UI acceptance.
+not a production SLO. The extended source commit's CI remains a release gate;
+full A01–A12 workflow and deployed acceptance remain open.
 
 ## Delivery evidence and next work
 

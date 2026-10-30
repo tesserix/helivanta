@@ -80,6 +80,9 @@ invalid revocation reason and attempting to read tenant-less outbox rows through
 ordinary SQL) were corrected; no source validation, event scope or RLS rule was
 weakened to make the tests pass. The local browser's initial redirect mismatch
 was resolved by using its already-registered canonical origin, without changing
-browser protections or IdP permissions. Existing-session UI reads work; fresh
-normal-login acceptance is still pending. These server tests do not close the UI
-or full lifecycle acceptance gates.
+browser protections or IdP permissions. The clean `e047c56` runtime subsequently
+passed fresh normal Admin and reviewer sign-ins, mandatory blank-input rejection,
+reviewer Staff-administration/payroll denial and preservation of the reviewer's
+existing read-only directory grant. No membership or access grant was expanded.
+These checks do not close independent employment review, missing removal/recovery
+UI or the full lifecycle acceptance gates. Production acceptance remains open.

@@ -61,7 +61,7 @@ export function DocumentClassificationEditor({ scope, file, onClose }: Props) {
       </p>
       {notice && <p role="status">{notice}</p>}
       <ClassificationForm
-        key={`${scope.tenantId}:${scope.hospitalId}:${scope.staffId}:${file.id}:${current.data.version}`}
+        key={`${scope.tenantId}:${scope.subject}:${scope.hospitalId}:${scope.staffId}:${file.id}:${current.data.version}`}
         scope={scope}
         file={file}
         value={current.data}

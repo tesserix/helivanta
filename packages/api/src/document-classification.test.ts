@@ -10,6 +10,7 @@ import {
 } from "./documents-fields";
 
 const scope = {
+  subject: "synthetic-document-account",
   tenantId: "11111111-1111-4111-8111-111111111111",
   hospitalId: "22222222-2222-4222-8222-222222222222",
   staffId: "33333333-3333-4333-8333-333333333333",
@@ -81,6 +82,7 @@ describe("staff file classification contract", () => {
       `/api/v1/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/documents/${file}/classification`,
     );
     expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+    expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
     expect(options.cache).toBe("no-store");
   });
   it("rejects stale or substituted resource responses", async () => {

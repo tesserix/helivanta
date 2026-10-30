@@ -1,3 +1,4 @@
+import type { EnrollmentRequestScope } from "./enrollment";
 import { readAttachmentFile } from "./attachment-file";
 import { apiFetch, apiFetchResponse } from "./client";
 import {
@@ -11,7 +12,7 @@ import {
 } from "./documents-fields";
 export * from "./documents-fields";
 
-export type DocumentScope = { tenantId: string; hospitalId: string; staffId: string };
+export type DocumentScope = EnrollmentRequestScope & { hospitalId: string; staffId: string };
 export type DocumentUpload = { id: string; input: DocumentInput; file: File };
 
 export function canRetryDocument(
@@ -34,7 +35,16 @@ export function documentPath(scope: DocumentScope): string {
 
 export function documentHeaders(scope: DocumentScope): Headers {
   documentPath(scope);
-  return new Headers({ "X-Helivanta-Expected-Tenant": scope.tenantId });
+  if (
+    !scope.subject?.trim() ||
+    scope.subject !== scope.subject.trim() ||
+    scope.subject.length > 200
+  )
+    throw new Error("The document account could not be verified.");
+  return new Headers({
+    "X-Helivanta-Expected-Tenant": scope.tenantId,
+    "X-Helivanta-Expected-Subject": scope.subject,
+  });
 }
 
 function receipt(scope: DocumentScope, id: string, value: unknown): StaffDocument {

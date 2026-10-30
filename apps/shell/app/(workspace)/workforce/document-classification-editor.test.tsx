@@ -26,6 +26,7 @@ vi.mock("@helivanta/api", async (importOriginal) => ({
   saveDocumentClassification: (...args: unknown[]) => mocks.save(...args),
 }));
 const scope = {
+  subject: "synthetic-document-account",
   tenantId: "11111111-1111-4111-8111-111111111111",
   hospitalId: "22222222-2222-4222-8222-222222222222",
   staffId: "33333333-3333-4333-8333-333333333333",
@@ -260,5 +261,27 @@ it("aborts an in-flight classification write when the tenant transition begins",
   const signal = mocks.save.mock.calls[0][3] as AbortSignal;
   beginTenantTransition();
   await waitFor(() => expect(signal.aborted).toBe(true));
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+});
+
+it("does not carry an uncertain classification command into another account", async () => {
+  mocks.save.mockRejectedValueOnce(new TypeError("connection closed"));
+  function Accounts() {
+    const [subject, setSubject] = React.useState(scope.subject);
+    return (
+      <>
+        <button onClick={() => setSubject("synthetic-next-account")}>
+          Change classification account
+        </button>
+        <DocumentClassificationEditor scope={{ ...scope, subject }} file={file} onClose={vi.fn()} />
+      </>
+    );
+  }
+  renderWithProviders(<Accounts />);
+  await userEvent.click(screen.getByRole("button", { name: "Save classification" }));
+  await screen.findByRole("button", { name: "Retry previous save" });
+  await userEvent.click(screen.getByRole("button", { name: "Change classification account" }));
+  expect(screen.queryByRole("button", { name: "Retry previous save" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save classification" })).toBeEnabled();
   expect(mocks.save).toHaveBeenCalledTimes(1);
 });

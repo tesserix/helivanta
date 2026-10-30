@@ -11,7 +11,15 @@ import {
 } from "./document-classification";
 
 export function documentQueryKey(scope: DocumentScope): string[] {
-  return ["workforce", "documents", scope.tenantId, scope.hospitalId, scope.staffId];
+  return [
+    "workforce",
+    "documents",
+    "account-v1",
+    scope.tenantId,
+    scope.subject,
+    scope.hospitalId,
+    scope.staffId,
+  ];
 }
 export function useDocumentRecords(scope: DocumentScope, enabled: boolean) {
   return useQuery({

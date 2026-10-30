@@ -100,13 +100,8 @@ func documentRecord(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID,
 }
 
 func documentStaff(c *gin.Context) (uuid.UUID, bool) {
-	if expected := c.GetHeader("X-Helivanta-Expected-Tenant"); expected != "" {
-		p, _, ok := authn.TenantPrincipal(c)
-		requested, err := uuid.Parse(expected)
-		if !ok || err != nil || requested == uuid.Nil || requested.String() != p.TenantID {
-			respond.NotFound(c, "staff document")
-			return uuid.Nil, false
-		}
+	if _, _, ok := staffPrincipal(c); !ok {
+		return uuid.Nil, false
 	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {

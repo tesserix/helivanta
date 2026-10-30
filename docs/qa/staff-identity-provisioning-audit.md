@@ -1,5 +1,14 @@
 # Staff identity provisioning audit
 
+## Staff document account binding — 2026-10-31
+
+The source audit reproduced ignored expected-account assertions and unbound
+client document caches. The current correction covers the ten owner routes,
+Staff UI, SDK, classification retry state and credential-evidence selector.
+See the [progress/evidence checkpoint](staff-management-progress.md#accessrbac-checkpoint--2026-10-31-staff-document-account-binding)
+and [33-route intake inventory](staff-intake-access-inventory.md). This is an
+undeployed access correction; full A01–A12 acceptance remains open.
+
 ## Access/RBAC checkpoint — 2026-10-31: ended-membership admission
 
 Candidate IAM migration `0019_iam_membership_recovery_admission` blocks legacy

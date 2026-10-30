@@ -1,5 +1,64 @@
 # Staff Management delivery tracker
 
+## Access/RBAC checkpoint — 2026-10-31: Staff document account binding
+
+The source/phase audit now records all **33 HR intake primary-permission routes**
+(23 enrollment, 10 document), secondary evidence permissions, shared helper
+consumers, storage authorization phases and the historical template migration
+boundary in [the inventory](staff-intake-access-inventory.md). Scoped HR intake,
+compound command authority and immutable employment review remain to implement.
+
+A real PostgreSQL/NATS file regression returned private synthetic metadata with
+200 despite a different expected account. The common document parameter helper
+now reuses the shared Staff principal precondition. All ten document routes
+reject empty/invalid/repeated/joined/mismatching tenant/account assertions with
+no-store `409 session_changed`; actual foreign scope stays 404. This explicitly
+corrects the old mismatching-tenant 404 response. Real released-file checks cover
+100 invalid-header/route combinations, unchanged file/classification/audit/outbox,
+zero released-byte reads on denial, matching/headerless downloads and foreign scope.
+
+Separate client regressions were RED for missing subject headers and same-tenant
+account cache collisions. The Staff document UI and credential-evidence selector
+now inherit the original verified Staff account; SDK headers/cache keys and
+classification form keys bind that account. Tests cover aborted file preparation
+without PUT after account change, no uncertain classification command carried
+across accounts, and hidden private state plus parent context invalidation on
+session_changed. Network uncertainty retains exact retry within the original account.
+
+Focused backend race and 29 related UI tests pass. Full Workforce race/coverage
+passed in 449.125 seconds: 83.8% statement coverage, 521 passing test/subtest
+events, zero failures and zero skips. Full Go vet/build/lint and 21 frontend
+lint/format/typecheck tasks pass. API suite: 413 tests in 60 files passed.
+The five remaining frontend test tasks also pass. Complete shell tests pass:
+1,258 tests in 160 files. Production shell build and Expo web/iOS/Android exports
+pass. The first build correctly refused an absent API_URL; the successful rerun
+supplied the canonical local Global API origin `http://localhost:8081`, without
+changing the configuration guard. Existing Vite/jsdom navigation and Next
+middleware-deprecation warnings were reported; no test or guard was suppressed. An initial
+client typecheck identified the credential-evidence selector as another consumer;
+it now inherits the account too. No failing assertion was removed or skipped.
+
+Commands actually run (Go 1.27.3; Node 24.22.1 for final frontend checks):
+
+- RED/GREEN: `go -C backend test ./internal/modules/workforce -run TestStaffDocumentRequestsRejectChangedExpectedAccount -count=1` (200 before the guard; 409 after).
+- `go -C backend test -race ./internal/modules/workforce -run 'TestStaffDocumentRequestsRejectChangedExpectedAccount|TestDocumentRequestsCannotCrossAnExpectedTenantBoundary' -count=1` (passed).
+- `go -C backend test -json -race -cover -timeout=20m ./internal/modules/workforce -count=1` (passed, results above; disposable Colima PostgreSQL/NATS).
+- `go -C backend vet ./...`, `go -C backend build ./...`, and from backend `golangci-lint run ./...` (passed).
+- `go -C backend run ./cmd/contractdocs -check`, canonical staff-access check and Go formatting/diff checks (passed).
+- `pnpm turbo lint format:check type-check` (21 successful tasks).
+- `pnpm --filter @helivanta/api exec vitest run --maxWorkers=2` (413 passed).
+- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=2` (1,258 passed).
+- `pnpm turbo test --filter='!@helivanta/api' --filter='!@helivanta/shell' --concurrency=2` (remaining five test tasks passed).
+- `API_URL=http://localhost:8081 pnpm turbo build` (both build tasks passed).
+
+Membership guard source `a12216d1` is pushed to [draft PR #1489](https://github.com/tesserix/helivanta/pull/1489),
+with exact-head CI [41136443845](https://github.com/tesserix/helivanta/actions/runs/41136443845)
+still running at the latest check. This continuation adds no migration, SQL/FGA
+change, permission, endpoint, production account or rollout. Browser handoffs,
+console CI billing gate, production registration, legacy grant migration, all
+employment lifecycles and cross-module cutoff remain open. Counts stay 10 partial,
+10 audit pending, 1 research, 0 fully accepted; A01–A12 remains the full objective.
+
 ## Access/RBAC checkpoint — 2026-10-31: ended-membership admission
 
 The current legacy POST regression reproduced implicit restoration after final

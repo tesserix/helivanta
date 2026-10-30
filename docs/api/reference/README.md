@@ -547,10 +547,20 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.account.read` | true | false |
 | POST | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.bill.issue` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/receipts/:receipt` | `billing.cash.collect` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/receipts` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-rates` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation` | `billing.shift.authorise` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/close` | `billing.cash.collect` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/cash-shifts/mine` | `billing.cash.collect` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/cash-shifts` | `billing.shift.authorise` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/counters/:counter` | `billing.counter.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/counters` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void` | `billing.cash.collect` | false | false |
 
 Published subjects:
 
@@ -572,6 +582,7 @@ Migration table declarations:
 - `0002_billing`: `billing_bed_charging`, `billing_bed_rates`, `billing_bed_stays`, `billing_bed_days`.
 - `0003_billing`: `billing_interim_bills`, `billing_interim_bill_lines`.
 - `0004_billing`: `billing_discharge_orders`.
+- `0005_billing`: `billing_counters`, `billing_cash_shifts`, `billing_cash_receipts`.
 
 ## supply
 

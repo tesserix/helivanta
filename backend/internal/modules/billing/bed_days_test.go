@@ -36,12 +36,15 @@ var ist = func() *time.Location { l, _ := time.LoadLocation("Asia/Kolkata"); ret
 
 func newBedWorld(t *testing.T) *bedWorld {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "nurse": testutil.TenantA, "clerk": testutil.TenantA, "outsider": testutil.TenantA},
+		Tokens: map[string]string{"admin": testutil.TenantA, "nurse": testutil.TenantA, "clerk": testutil.TenantA, "outsider": testutil.TenantA,
+			"clerk2": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage},
+			"admin": {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCounterManage, billing.PermShiftAuthorise,
+				billing.PermCashCollect},
 			"nurse":    {billing.PermAccountRead},
-			"clerk":    {billing.PermAccountRead, billing.PermBillIssue},
-			"outsider": {billing.PermAccountRead, billing.PermBillIssue},
+			"clerk":    {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
+			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise},
+			"outsider": {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
 		},
 		Modules: []platform.Module{billing.New()},
 	})
@@ -53,6 +56,7 @@ func newBedWorld(t *testing.T) *bedWorld {
 	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-admin", "admin", "").Code)
 	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-nurse", "admin", "").Code)
 	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-clerk", "admin", "").Code)
+	require.Equal(t, http.StatusOK, do(r, "PUT", w.root+"/access/user-clerk2", "admin", "").Code)
 	return w
 }
 

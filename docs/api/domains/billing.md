@@ -1,7 +1,7 @@
 # Hospital billing
 
 [Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2), interim
-bills (slice 3) and final bills (slice 4).
+bills (slice 3), final bills (slice 4) and cash counters (#198 slice 1).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
 published events; none writes its tables. Hospital invoices, payer tariffs, GST, deposits and
@@ -141,3 +141,39 @@ Design: [spec](../../superpowers/specs/2026-10-30-final-bills-design.md).
 - **Not covered:** deposits and payments on the bill (#199), discharge clearances (#1043),
   procedure bundles (#196), discounts (#200), GST (#193), a `FinalBillReady` event, and the
   final bill of a released patient from the ward board (the API serves it).
+
+## Cash counters (#198 slice 1)
+
+Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
+
+- **Counters** per hospital, set up once by a tenant administrator (`billing.counter.manage`).
+- **Shifts:** a cashier (`billing.cash.collect`, receptionist) opens one on a counter with an
+  opening float; one open shift per counter and per cashier (`409 shift_open`). The close is
+  blind: the cashier declares the cash counted, and the expected cash (float plus standing
+  receipts) is computed then. A difference leaves the shift `pending_authorisation` until a
+  tenant administrator other than the cashier (`billing.shift.authorise`) authorises it with a
+  reason (`409 own_variance` for the cashier).
+- **Receipts:** cash in INR against an admission's account, in the cashier's open shift
+  (`409 no_open_shift`), never above the balance due (`409 over_balance`: an advance is a
+  deposit). Numbered per counter, `<code>-<n>`. Voided with a reason, once, by the cashier,
+  only while the shift is open (`409 shift_closed`); never edited.
+- **The account** totals add `paid_minor` and `balance_minor`; a negative balance is credit.
+- **The database** holds the same rules: one open shift, receipts in their cashier's open
+  shift, numbering, the balance under the admission lock, the computed expected cash,
+  authorisation by someone else, void only while open.
+
+| Route                                                                     | Behaviour                                            |
+| ------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `PUT /billing/hospitals/:hospital/counters/:counter` `{code,name}`        | Set up once; the same again replays.                 |
+| `GET …/counters`                                                          | A page of counters.                                  |
+| `PUT …/counters/:counter/shifts/:shift` `{opening_float_minor}`           | Open the caller's shift: `201`; a retry `200`.       |
+| `GET …/cash-shifts/mine`                                                  | The caller's shift not yet closed, or `404`.         |
+| `PUT …/cash-shifts/:shift/close` `{declared_minor}`                       | Blind close; the answer shows expected and variance. |
+| `PUT …/cash-shifts/:shift/authorisation` `{reason}`                       | Authorise a variance; `billing.shift.authorise`.     |
+| `GET …/cash-shifts`                                                       | A page of shifts, for the supervisor.                |
+| `PUT …/admissions/:admission/receipts/:receipt` `{amount_minor,currency}` | Take cash: `201`; a retry `200`.                     |
+| `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
+| `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
+
+- **Not covered:** UPI, card and other modes; handover; denominations; pickups; refunds; shift
+  and daily collection reports and GL export; events; receipts on bills; deposits (#199).

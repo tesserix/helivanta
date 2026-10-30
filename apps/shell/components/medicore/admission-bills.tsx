@@ -14,6 +14,7 @@ import {
 } from "@helivanta/api";
 import { LoadMore, RequestFailure, formatDateTime } from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
+import { CashPayments } from "./cash-payments";
 
 const sourceLabel: Record<string, string> = { pharmacy: "Medicine", bed: "Bed day" };
 
@@ -99,6 +100,7 @@ export function AdmissionBills({
         isLoading={bills.isFetchingMore}
         onClick={bills.loadMore}
       />
+      <CashPayments hospital={hospital} admissionId={admissionId} account={account.data} />
     </div>
   );
 }

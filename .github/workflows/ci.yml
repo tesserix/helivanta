@@ -414,6 +414,17 @@ jobs:
         run: make seed
       - name: Seed synthetic clinical browser fixture
         run: make seed-e2e-clinical
+      - name: Start synthetic UPI provider and real scoped OpenBao
+        run: |
+          nohup make e2e-payment-provider > /tmp/hms-e2e-payments.log 2>&1 &
+          deadline=$((SECONDS + 120))
+          until test -s .e2e-web/payments.env && curl --fail --silent http://127.0.0.1:18892/healthz > /dev/null; do
+            if (( SECONDS >= deadline )); then
+              cat /tmp/hms-e2e-payments.log
+              exit 1
+            fi
+            sleep 1
+          done
 
       # `make up`'s own final line, verbatim, backgrounded. up itself is
       # dev-infra + seed (both already run above, in the foreground where their
@@ -427,7 +438,11 @@ jobs:
         # Synthetic e2e data only; this is not production clinical approval.
         env:
           MEDICORE_ALLERGY_RECORDING_ENABLED: "true"
-        run: nohup make dev-api > /tmp/hms-stack.log 2>&1 &
+        run: |
+          set -a
+          source .e2e-web/payments.env
+          set +a
+          nohup make dev-api > /tmp/hms-stack.log 2>&1 &
 
       # scripts/e2e.sh REQUIRES the stack to already answer — it fails fast
       # rather than waiting, because a developer running `make e2e` has
@@ -490,7 +505,27 @@ jobs:
         # job — a 4x margin, and still inside the job budget with room for
         # the dumps to finish.
         timeout-minutes: 20
-        run: make e2e
+        run: |
+          set -a
+          source .e2e-web/payments.env
+          set +a
+          make e2e
+      - name: Stop synthetic payment fixture
+        if: always()
+        run: |
+          if test -s .e2e-web/payments.env; then
+            source .e2e-web/payments.env
+            case "${HELIVANTA_E2E_PAYMENT_PID:-}" in
+              ""|*[!0-9]*|0|1) exit 0 ;;
+              *)
+                fixture_cwd=$(readlink "/proc/$HELIVANTA_E2E_PAYMENT_PID/cwd" 2>/dev/null || true)
+                fixture_command=$(ps -p "$HELIVANTA_E2E_PAYMENT_PID" -o args= 2>/dev/null || true)
+                if [[ "$fixture_cwd" == "$PWD" && "$fixture_command" == *scripts/e2e-payments-provider.mjs* ]]; then
+                  kill -TERM "$HELIVANTA_E2E_PAYMENT_PID" 2>/dev/null || true
+                fi
+                ;;
+            esac
+          fi
 
       # A hang (#923) otherwise reads as a bare "the job running exceeded the
       # maximum execution time" with nothing naming a cause. These dumps are

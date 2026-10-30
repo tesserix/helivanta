@@ -15,7 +15,14 @@ import {
   type ShiftInput,
   type ShiftRevision,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  PageHeading,
+  SelectControl,
+  useZodForm,
+  useLeaveGuard,
+  useConfirmLeave,
+} from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -23,6 +30,7 @@ const timing = (shift: Pick<ShiftDefinition, "start_time" | "end_time" | "durati
   `${shift.start_time} – ${shift.end_time} · ${shift.duration_minutes} min${shift.end_time < shift.start_time ? " · next day" : ""}`;
 
 export default function Shifts() {
+  const confirmLeave = useConfirmLeave();
   const hospitals = useApiPagedQuery<Hospital>(
     ["workforce", "shift-hospitals"],
     "/workforce/hospitals",
@@ -40,7 +48,7 @@ export default function Shifts() {
                 <SelectControl
                   id="shift-hospital"
                   value={hospital.id}
-                  onValueChange={setSelected}
+                  onValueChange={(next) => confirmLeave(() => setSelected(next))}
                   options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
                 />
               </Field>
@@ -79,6 +87,7 @@ export default function Shifts() {
 }
 
 function ShiftCatalog({ hospital }: { hospital: Hospital }) {
+  const confirmLeave = useConfirmLeave();
   const { can } = usePermissions();
   const writable = can("workforce.roster.manage") && hospital.access_level === "manager";
   const path = `/workforce/hospitals/${hospital.id}/hr/shifts`;
@@ -86,12 +95,15 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<ShiftDefinition | "new" | null>(null);
   const [history, setHistory] = useState<ShiftDefinition | null>(null);
+  const [editorSession, setEditorSession] = useState(0);
   const opener = useRef<HTMLButtonElement | null>(null);
   const close = () => {
     setEditing(null);
     setHistory(null);
-    opener.current?.focus();
   };
+  useEffect(() => {
+    if (!editing && !history) opener.current?.focus();
+  }, [editing, history]);
   const rows = records.items.filter((s) =>
     `${s.name} ${s.code}`.toLowerCase().includes(filter.toLowerCase()),
   );
@@ -109,9 +121,13 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
           {writable && (
             <Button
               onClick={(e) => {
-                opener.current = e.currentTarget;
-                setHistory(null);
-                setEditing("new");
+                const button = e.currentTarget;
+                confirmLeave(() => {
+                  opener.current = button;
+                  setHistory(null);
+                  setEditorSession((value) => value + 1);
+                  setEditing("new");
+                });
               }}
             >
               Add shift
@@ -191,9 +207,13 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
                           size="sm"
                           aria-label={`Edit ${s.name}`}
                           onClick={(e) => {
-                            opener.current = e.currentTarget;
-                            setHistory(null);
-                            setEditing(s);
+                            const button = e.currentTarget;
+                            confirmLeave(() => {
+                              opener.current = button;
+                              setHistory(null);
+                              setEditorSession((value) => value + 1);
+                              setEditing(s);
+                            });
                           }}
                         >
                           Edit
@@ -204,9 +224,12 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
                         size="sm"
                         aria-label={`History for ${s.name}`}
                         onClick={(e) => {
-                          opener.current = e.currentTarget;
-                          setEditing(null);
-                          setHistory(s);
+                          const button = e.currentTarget;
+                          confirmLeave(() => {
+                            opener.current = button;
+                            setEditing(null);
+                            setHistory(s);
+                          });
                         }}
                       >
                         History
@@ -244,7 +267,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
       </section>
       {editing && (
         <ShiftEditor
-          key={editing === "new" ? "new" : editing.id}
+          key={`${editing === "new" ? "new" : editing.id}:${editorSession}`}
           path={path}
           hospital={hospital}
           record={editing === "new" ? undefined : editing}
@@ -301,6 +324,7 @@ function ShiftEditor({
       onSuccess: onClose,
     },
   );
+  const { confirm } = useLeaveGuard(form.formState.isDirty, "shift definition", save.isPending);
   useEffect(() => {
     section.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
     form.setFocus("name");
@@ -319,7 +343,7 @@ function ShiftEditor({
           <h3 className="text-xl font-semibold">{record ? "Edit shift" : "Add shift"}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{hospital.name}</p>
         </div>
-        <Button variant="ghost" disabled={save.isPending} onClick={onClose}>
+        <Button variant="ghost" disabled={save.isPending} onClick={() => confirm(onClose)}>
           Cancel changes
         </Button>
       </div>

@@ -36,9 +36,10 @@ v4.15.3 provider: owner HTTP creation and exact replay, fresh unverified observa
 and zero actual source memberships/user grants. Source org/registry proof is
 fixture-supplied in this test; it is not a normal-role UI or recipient verification
 claim. Private 0600 account evidence contains no password or verification override.
-Runtime CI 41076590905 had passed Go/contracts/secrets and was building its
-container at this checkpoint. Schema 2214e7a7 repository/Helm/PR gates passed;
-owner/schema documentation-only follow-up heads have their own CI.
+Latest owner `fc5d930` passed all applicable CI in 41076976851, including its
+container. Earlier runtime CI 41076590905 was superseded/cancelled after passing
+Go/contracts/secrets, not reported as a full pass. Schema 2214e7a7 repository/
+Helm/PR gates passed; documentation-only d69e0730 has its own CI still running.
 
 No production change, merge, release tag or operational Staff activation occurred.
 Actual human authority/Global API/consumer UI, recipient setup, bounded history,

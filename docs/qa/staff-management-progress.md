@@ -20,9 +20,11 @@ test passed owner HTTP creation/replay/observation and verified zero source
 memberships/user grants with contact still unverified. It uses fixture registry
 proof, not normal Admin/recipient/reviewer UI acceptance. Private account evidence
 is retained as 0600 JSON; no password/verified flag was supplied to creation.
-Runtime CI [41076590905](https://github.com/tesserix/onboarding-service/actions/runs/41076590905)
-passed Go/contracts/secret checks with container validation still in progress
-at this checkpoint. Subsequent owner/schema commits update documentation only.
+Latest owner head `fc5d930` passed all applicable CI gates in
+[41076976851](https://github.com/tesserix/onboarding-service/actions/runs/41076976851),
+including its container. The earlier runtime run 41076590905 was superseded and
+cancelled after its Go/contracts/secret checks; it is not counted as passing.
+Subsequent owner/schema commits update documentation only.
 
 Operator recovery/history/root replacement, actual recipient setup/verification,
 canonical product registration, Helivanta/Global consumer UI and the remaining

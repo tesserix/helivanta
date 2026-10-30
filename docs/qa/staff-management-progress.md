@@ -1,5 +1,49 @@
 # Staff Management delivery tracker
 
+## Access/RBAC checkpoint — 2026-10-31: operator recovery UI candidate
+
+Console [draft PR #669](https://github.com/tesserix/tesserix-home/pull/669)
+contains implementation `d9117af4a21526ebd9f642cb1eb96ee7723f18de` and QA-gate
+notes at `209c2aa`. It adds exact retained command/request inspection, timestamped
+source observations, required proposal evidence, independent review decisions and
+matching-account reconciliation through the existing same-origin BFF. Current
+reader/writer capabilities, server-held credentials, source owner reauthorization,
+no-store, CSRF, exact route/method scope, query refusal and strict UTF-8 stay enforced.
+Uncertain requests/decisions freeze their UUIDv7/body/key; session-scoped browser
+storage retains identifiers/action/digest without private reasons or credentials.
+Reload and retained-outcome recovery preserve the same successor. Confirmed
+operator denial refreshes current reads and hides revoked private evidence;
+authorization-source outages are reported separately as unavailable.
+
+Canonical Go-derived models are published and byte-verified at owner
+`f75bb0e5479446c3a36015516a2bf661aee357a2`; exact owner CI 41131295353 passed.
+Source/schema ownership is unchanged: schema PR #1616, chart 0.3.62 / `325012b`.
+No new migration, SQL/FGA change, production account/grant or rollout occurred.
+
+Local console acceptance: **5,572 tests in 295 files passed with no skips** using
+`--maxWorkers=2`; typecheck, lint, production build, immutable artifact/provenance,
+staged redacted secret scan and diff checks pass. One earlier parallel rerun hit
+10-second setup hooks in six existing database files; no tests/timeouts were
+changed and bounded complete reruns passed. Read the console's
+`docs/qa/staff-recovery-console.md` for exact commands and evidence boundaries.
+
+Real local sign-in used separate synthetic provider/client/operator and PostgreSQL
+fixtures with auth bypass disabled. It reached the console callback, which Chrome
+blocked with `ERR_BLOCKED_BY_CLIENT`; human handoff is requested. No warning was
+bypassed, callback code committed or human session manufactured. Separately,
+GitHub refused to start console CI 41131982143, secret scan 41131982554 and mobile
+check 41131982158 because failed account payments/spending limits require owner
+attention. No remote tests ran. Billing/capacity handoff is requested; no billing,
+visibility or runner changes were made. New-head checks must pass before merge.
+
+**Access/RBAC A01–A12 remains incomplete.** Normal console/HMS Admin → recipient →
+independent reviewer acceptance, source/route coverage, production registration
+(owner #12), profile correction/activity, legacy membership/link/grant handling,
+renewal, all employment/contract lifecycles and cross-module cutoff acceptance
+remain open. Staff Management counts stay 10 partial, 10 audit pending, 1 research,
+0 fully accepted. No merge, production deployment, issue closure or release tag.
+
+
 ## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
 
 Follow-up source-integrated HTTP evidence is pushed at `17e3dc90323a3d2c6ac410488b3c1295d792fc4d`

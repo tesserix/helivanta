@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, Input } from "@tesserix/web";
+import { z } from "zod";
+import { Field, LoadMore, RequestFailure, useZodForm } from "@helivanta/ui";
 import {
   apiFetch,
   newPharmacyId,
   pharmacyCounterPaymentPath,
   pharmacyKey,
+  pharmacyUnusedPaymentRefundFieldsSchema,
   pharmacyUnusedCounterPaymentsPath,
   useApiMutation,
   useApiPagedQuery,
@@ -48,16 +51,21 @@ export function VerifiedUpi({
   amountMinor,
   currency,
   onPaid,
+  onHold,
+  canRefund = false,
 }: {
   scope: PharmacyScope;
   amountMinor: number;
   currency: string;
   onPaid: (paymentRequestId: string | null) => void;
+  onHold?: (held: boolean) => void;
+  canRefund?: boolean;
 }) {
   const money = (minor: number) => formatPharmacyMoney(minor, currency);
   const [id, setId] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [refunded, setRefunded] = useState<string | null>(null);
   const now = useNow(1000);
   // Polled until it is final, for as long as the panel is shown.
   const payment = useApiQuery<PharmacyCounterPayment>(
@@ -87,9 +95,14 @@ export function VerifiedUpi({
     { suppressErrorToast: true, invalidate: [pharmacyKey(scope, "counter-payment")] },
   );
   const p = payment.data;
-  const paidHere = p?.status === "paid" && p.amount_minor === amountMinor ? p.id : null;
+  const paidHere =
+    p?.status === "paid" && p.id !== refunded && p.amount_minor === amountMinor ? p.id : null;
   const usable = paidHere ?? chosen;
   useEffect(() => onPaid(usable), [usable, onPaid]);
+  const held = Boolean(
+    usable || (id && (open(p?.status ?? "requested") || p?.status === "cancelling")),
+  );
+  useEffect(() => onHold?.(held), [held, onHold]);
   // Adjusted during render, not in an effect: once final, stop polling.
   if (!done && final(p)) setDone(true);
   // A QR this panel opened is closed when the panel goes away (another
@@ -115,6 +128,7 @@ export function VerifiedUpi({
   );
 
   const begin = () => {
+    onHold?.(true);
     const next = newPharmacyId();
     setChosen(null);
     setDone(false);
@@ -123,10 +137,49 @@ export function VerifiedUpi({
   };
   // Paid money not on any sale yet, for exactly this bill: use it rather
   // than take the payer's money twice.
-  const waiting = unused.items.filter((u) => u.amount_minor === amountMinor && u.id !== id);
+  const waiting = unused.items.filter(
+    (u) => u.amount_minor === amountMinor && u.id !== id && u.id !== refunded,
+  );
+  const otherUnused = unused.items.filter((u) => u.id !== usable && u.id !== refunded);
 
   return (
     <div className="space-y-3 sm:col-span-2">
+      {unused.isError && (
+        <RequestFailure
+          message="Could not check unused UPI payments. Check these before collecting again."
+          retry={unused.retry}
+        />
+      )}
+      {refunded && (
+        <p role="status">
+          The completed external refund was recorded. No money was sent by Helivanta.
+        </p>
+      )}
+      {canRefund && otherUnused.length > 0 && (
+        <details className="rounded-md border p-3 text-sm">
+          <summary>Review unused UPI payments</summary>
+          {otherUnused.map((u) => (
+            <div key={u.id} className="mt-3">
+              <p>
+                Payment {u.id}
+                {u.rrn ? ` · RRN ${u.rrn}` : ""} · {formatPharmacyMoney(u.amount_minor, u.currency)}
+              </p>
+              <UnusedPaymentRefund
+                scope={scope}
+                paymentId={u.id}
+                amount={formatPharmacyMoney(u.amount_minor, u.currency)}
+                onRecorded={() => setRefunded(u.id)}
+              />
+            </div>
+          ))}
+          <LoadMore
+            label="Load more unused UPI payments"
+            hasMore={unused.hasMore}
+            isLoading={unused.isFetchingMore}
+            onClick={unused.loadMore}
+          />
+        </details>
+      )}
       {waiting.length > 0 && !usable && !(id && open(p?.status ?? "requested")) && (
         <div className="rounded-md border p-3 text-sm">
           <p>A paid UPI payment of {money(amountMinor)} isn't on a sale yet.</p>
@@ -143,6 +196,27 @@ export function VerifiedUpi({
             </Button>
           ))}
         </div>
+      )}
+      {usable && canRefund && (
+        <UnusedPaymentRefund
+          scope={scope}
+          paymentId={usable}
+          amount={money(amountMinor)}
+          onRecorded={() => {
+            setRefunded(usable);
+            setChosen(null);
+            setId(null);
+            setDone(false);
+            onPaid(null);
+            onHold?.(false);
+          }}
+        />
+      )}
+      {usable && !canRefund && (
+        <p className="text-sm">
+          If the sale cannot be finished, ask a pharmacist with return permission to record the
+          completed external refund.
+        </p>
       )}
       {chosen && !paidHere ? (
         <p role="status" className="text-sm font-medium">
@@ -172,6 +246,79 @@ export function VerifiedUpi({
         />
       )}
     </div>
+  );
+}
+
+const refundSchema = pharmacyUnusedPaymentRefundFieldsSchema;
+
+function UnusedPaymentRefund({
+  scope,
+  paymentId,
+  amount,
+  onRecorded,
+}: {
+  scope: PharmacyScope;
+  paymentId: string;
+  amount: string;
+  onRecorded: () => void;
+}) {
+  const form = useZodForm(refundSchema, { reference: "", reason: "" });
+  const referenceId = `unused-refund-reference-${paymentId}`;
+  const reasonId = `unused-refund-reason-${paymentId}`;
+  const refund = useApiMutation(
+    (values: z.infer<typeof refundSchema>) =>
+      apiFetch(`${pharmacyCounterPaymentPath(scope, paymentId)}/refund`, {
+        method: "PUT",
+        body: JSON.stringify(values),
+      }),
+    {
+      suppressErrorToast: true,
+      invalidate: [pharmacyKey(scope, "counter-payments"), pharmacyKey(scope, "counter-payment")],
+      onSuccess: onRecorded,
+    },
+  );
+  // This panel is inside the sale form. A button validates this smaller command
+  // without nesting forms or accidentally submitting a sale.
+  return (
+    <fieldset className="space-y-2 rounded-md border p-3" disabled={refund.isPending}>
+      <legend className="text-sm font-medium">Record an unused-payment refund</legend>
+      <p className="text-sm">
+        First refund the full {amount} through the provider dashboard. Recording it here does not
+        send money.
+      </p>
+      <Field
+        id={referenceId}
+        label="Completed refund reference"
+        error={form.formState.errors.reference?.message}
+      >
+        <Input
+          id={referenceId}
+          maxLength={64}
+          {...form.register("reference")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }}
+        />
+      </Field>
+      <Field id={reasonId} label="Refund reason" error={form.formState.errors.reason?.message}>
+        <Input
+          id={reasonId}
+          maxLength={200}
+          {...form.register("reason")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }}
+        />
+      </Field>
+      {refund.isError && <p role="alert">{refund.error.message}</p>}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={form.handleSubmit((values) => refund.mutate(values))}
+      >
+        {refund.isPending ? "Recording refund…" : "Confirm the full refund was completed"}
+      </Button>
+    </fieldset>
   );
 }
 

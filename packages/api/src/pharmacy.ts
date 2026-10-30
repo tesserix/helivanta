@@ -12,6 +12,7 @@ import {
 } from "./pharmacy-contract";
 export { v7 as newPharmacyId } from "uuid";
 export {
+  pharmacyUnusedPaymentRefundFieldsSchema,
   pharmacyBatchInputSchema,
   pharmacyMovementInputSchema,
   pharmacyProductFieldsSchema,

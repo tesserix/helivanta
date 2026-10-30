@@ -40,6 +40,7 @@ export function CounterSale({
   canManageProfile,
   canDiscount = false,
   canManageDiscount = false,
+  canRefund = false,
 }: {
   scope: PharmacyScope;
   canSell: boolean;
@@ -48,6 +49,7 @@ export function CounterSale({
   canDiscount?: boolean;
   /** Records the outlet's discount ceiling. */
   canManageDiscount?: boolean;
+  canRefund?: boolean;
 }) {
   const profile = useApiQuery<{ profile: PharmacyInvoiceProfile | null }>(
     pharmacyKey(scope, "invoice-profile"),
@@ -81,7 +83,7 @@ export function CounterSale({
       )}
       {canManageDiscount && <DiscountCeilingForm scope={scope} />}
       {canSell ? (
-        current && <Counter scope={scope} canDiscount={canDiscount} />
+        current && <Counter scope={scope} canDiscount={canDiscount} canRefund={canRefund} />
       ) : (
         <p className="text-sm text-muted-foreground">
           Selling here needs the pharmacist role; you can record the outlet&apos;s invoice details.
@@ -185,7 +187,15 @@ const lineSchema = z.object({
     ),
 });
 
-function Counter({ scope, canDiscount }: { scope: PharmacyScope; canDiscount: boolean }) {
+function Counter({
+  scope,
+  canDiscount,
+  canRefund,
+}: {
+  scope: PharmacyScope;
+  canDiscount: boolean;
+  canRefund: boolean;
+}) {
   const ceiling = useApiQuery<{ ceiling: PharmacyDiscountCeiling | null }>(
     pharmacyKey(scope, "counter", "discount-ceiling"),
     `${pharmacyRoot(scope)}/discount-ceiling`,
@@ -199,6 +209,7 @@ function Counter({ scope, canDiscount }: { scope: PharmacyScope; canDiscount: bo
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const [posted, setPosted] = useState<PharmacySale | null>(null);
+  const [paymentHeld, setPaymentHeld] = useState(false);
   const form = useZodForm(lineSchema, {
     product_id: "",
     quantity_units: 1,
@@ -234,6 +245,7 @@ function Counter({ scope, canDiscount }: { scope: PharmacyScope; canDiscount: bo
   );
   // A changed basket is a new price: the old quote no longer applies.
   function changeBasket(next: BasketLine[]) {
+    if (paymentHeld) return;
     setBasket(next);
     setQuote(null);
     price.reset();
@@ -387,6 +399,7 @@ function Counter({ scope, canDiscount }: { scope: PharmacyScope; canDiscount: bo
               <Button
                 type="button"
                 variant="ghost"
+                disabled={paymentHeld}
                 onClick={() => changeBasket(basket.filter((b) => b !== line))}
               >
                 Remove {line.product.sku}
@@ -413,8 +426,14 @@ function Counter({ scope, canDiscount }: { scope: PharmacyScope; canDiscount: bo
             scope={scope}
             quote={quote}
             basket={basket}
-            onPosted={(sale) => setPosted(sale)}
+            onPosted={(sale) => {
+              setPaymentHeld(false);
+              setPosted(sale);
+            }}
             onStale={() => setQuote(null)}
+            canRefund={canRefund}
+            paymentHeld={paymentHeld}
+            onPaymentHold={setPaymentHeld}
           />
         </>
       )}
@@ -573,12 +592,18 @@ function TenderForm({
   basket,
   onPosted,
   onStale,
+  canRefund,
+  paymentHeld,
+  onPaymentHold,
 }: {
   scope: PharmacyScope;
   quote: PharmacySaleQuote;
   basket: BasketLine[];
   onPosted: (sale: PharmacySale) => void;
   onStale: () => void;
+  canRefund: boolean;
+  paymentHeld: boolean;
+  onPaymentHold: (held: boolean) => void;
 }) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(tenderSchema, {
@@ -700,6 +725,7 @@ function TenderForm({
             name="kind"
             id="tender-kind"
             label="Paid by"
+            disabled={paymentHeld || post.isPending}
             options={[
               { value: "cash", label: "Cash" },
               { value: "upi_verified", label: "UPI (verified)" },
@@ -730,6 +756,8 @@ function TenderForm({
                 amountMinor={quote.total_minor}
                 currency={quote.currency}
                 onPaid={onPaid}
+                onHold={onPaymentHold}
+                canRefund={canRefund}
               />
               {form.formState.errors.payment_request_id && (
                 <p className="mt-1 text-sm text-destructive">
@@ -762,12 +790,19 @@ function TenderForm({
         name="customer"
         id="sale-customer"
         label="Customer"
+        disabled={paymentHeld || post.isPending}
         options={[
           { value: "walk_in", label: "Walk-in buyer" },
           { value: "patient", label: "Registered patient" },
           { value: "admission", label: "Bill to admission" },
         ]}
       />
+      {paymentHeld && (
+        <p role="status" className="text-sm">
+          Finish the sale or record the completed refund before changing the customer or tender.
+          Cancel an unpaid QR and wait for confirmation before changing them.
+        </p>
+      )}
       {customer === "admission" ? (
         <div>
           <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
@@ -808,7 +843,13 @@ function TenderForm({
         <div role="alert" className="text-sm text-destructive">
           <p>{post.error.message}</p>
           {refused ? (
-            <Button type="button" variant="outline" className="mt-2" onClick={onStale}>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2"
+              disabled={paymentHeld}
+              onClick={onStale}
+            >
               Price the basket again
             </Button>
           ) : (

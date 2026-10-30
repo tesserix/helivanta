@@ -292,3 +292,10 @@ export const pharmacyStockOverviewValuationFieldsSchema = z
     uncosted_products: z.string().regex(new RegExp("^[0-9]+$"), "Use the required format."),
   })
   .strict();
+
+export const pharmacyUnusedPaymentRefundFieldsSchema = z
+  .object({
+    reference: z.string().trim().min(1).max(64),
+    reason: z.string().trim().min(5).max(200),
+  })
+  .strict();

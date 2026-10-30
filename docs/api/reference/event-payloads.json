@@ -1294,7 +1294,7 @@
     }
   },
   "helivanta.in.pharmacy.admission_charge_posted.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:220",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:233",
     "go_type": "AdmissionChargePostedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1342,7 +1342,7 @@
     }
   },
   "helivanta.in.pharmacy.admission_charge_reversed.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:237",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:250",
     "go_type": "AdmissionChargeReversedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1390,7 +1390,7 @@
     }
   },
   "helivanta.in.pharmacy.affiliation_decision_received.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:206",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:219",
     "go_type": "AffiliationDecisionReceivedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1418,7 +1418,7 @@
     }
   },
   "helivanta.in.pharmacy.affiliation_verification_requested.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:187",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:200",
     "go_type": "AffiliationVerificationData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1458,7 +1458,7 @@
     }
   },
   "helivanta.in.pharmacy.affiliation_verification_withdrawn.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:187",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:200",
     "go_type": "AffiliationVerificationData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1498,7 +1498,7 @@
     }
   },
   "helivanta.in.pharmacy.batch_safety_recorded.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:9",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:22",
     "go_type": "BatchSafetyRecordedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1526,7 +1526,7 @@
     }
   },
   "helivanta.in.pharmacy.catalogue_updated.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:32",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:45",
     "go_type": "CatalogueUpdatedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1558,7 +1558,7 @@
     }
   },
   "helivanta.in.pharmacy.credit_note_issued.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:129",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:142",
     "go_type": "CreditNoteIssuedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1621,7 +1621,7 @@
     }
   },
   "helivanta.in.pharmacy.dispense_recorded.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:23",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:36",
     "go_type": "DispenseRecordedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1641,7 +1641,7 @@
     }
   },
   "helivanta.in.pharmacy.payable_recorded.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:56",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:69",
     "go_type": "PayableRecordedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1665,7 +1665,7 @@
     }
   },
   "helivanta.in.pharmacy.payment_cancelled.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:171",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:184",
     "go_type": "PaymentCancelledData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1689,7 +1689,7 @@
     }
   },
   "helivanta.in.pharmacy.payment_requested.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:161",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:174",
     "go_type": "PaymentRequestedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1721,7 +1721,7 @@
     }
   },
   "helivanta.in.pharmacy.prescription_image_changed.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:120",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:133",
     "go_type": "PrescriptionImageChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1753,7 +1753,7 @@
     }
   },
   "helivanta.in.pharmacy.prescription_image_scan_requested.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:103",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:116",
     "go_type": "PrescriptionImageScanRequestedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1781,7 +1781,7 @@
     }
   },
   "helivanta.in.pharmacy.sale_posted.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:77",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:90",
     "go_type": "SalePostedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1840,7 +1840,7 @@
     }
   },
   "helivanta.in.pharmacy.settlement_recorded.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:66",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:79",
     "go_type": "SettlementRecordedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1868,7 +1868,7 @@
     }
   },
   "helivanta.in.pharmacy.stock_movement_recorded.v1": {
-    "source": "backend/internal/modules/pharmacy/contract/events.go:44",
+    "source": "backend/internal/modules/pharmacy/contract/events.go:57",
     "go_type": "StockMovementRecordedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1895,6 +1895,34 @@
         "movement_id",
         "location_id",
         "batch_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.unused_payment_refund_recorded.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:11",
+    "go_type": "UnusedPaymentRefundRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "payment_request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "outlet_id",
+        "payment_request_id",
+        "amount_minor",
+        "currency"
       ],
       "type": "object"
     }

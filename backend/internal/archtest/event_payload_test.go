@@ -43,6 +43,11 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"pharmacy.UnusedPaymentRefundRecordedData.OutletID":         "opaque pharmacy operating-outlet reference; not a patient or person identifier",
+	"pharmacy.UnusedPaymentRefundRecordedData.PaymentRequestID": "opaque pharmacy payment request reference; no buyer, patient or prescription facts",
+	"pharmacy.UnusedPaymentRefundRecordedData.AmountMinor":      "whole externally refunded amount; no patient identity, free-text reference or line items",
+	"pharmacy.UnusedPaymentRefundRecordedData.Currency":         "ISO currency code for the recorded refund amount",
+
 	"medicore.AllergyChangedData.PatientID":                                 "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row",
 	"medicore.AllergyChangedData.HospitalID":                                "internally minted hospital scope for authorization; no name, address or external facility identifier",
 	"medicore.AllergyChangedData.RecordID":                                  "an internally-minted opaque row id, meaningless outside this platform and resolvable only by a caller already authorized for that row; carries no substance, reaction or severity",

@@ -33,6 +33,8 @@ func paymentRequestRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/counter-payments/:id", PermSaleCreate, h.putCounterPayment)
 	s.GET("/counter-payments/:id", PermSaleCreate, h.getCounterPayment)
 	s.POST("/counter-payments/:id/cancel", PermSaleCreate, h.cancelCounterPayment)
+	s.PUT("/counter-payments/:id/refund", PermSaleReturn, h.putUnusedPaymentRefund)
+	s.GET("/counter-payments/:id/refund", PermSaleReturn, h.getUnusedPaymentRefund)
 }
 
 type paymentRequest struct {
@@ -62,7 +64,7 @@ func (h *catalogueHandlers) listUnusedCounterPayments(c *gin.Context, params pag
 	var rows []paymentRequest
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		return tenantdb.ApplyKeyset(tx.Table("pharmacy_payment_requests r"), params).Select(paymentRequestColumns).
-			Where("r.tenant_id=? AND r.outlet_id=? AND r.status='paid' AND NOT EXISTS (SELECT 1 FROM pharmacy_sale_tenders t WHERE t.tenant_id=r.tenant_id AND t.payment_request_id=r.id)", p.TenantID, outlet).
+			Where("r.tenant_id=? AND r.outlet_id=? AND r.status='paid' AND NOT EXISTS (SELECT 1 FROM pharmacy_unused_payment_refunds f WHERE f.tenant_id=r.tenant_id AND f.outlet_id=r.outlet_id AND f.payment_request_id=r.id) AND NOT EXISTS (SELECT 1 FROM pharmacy_sale_tenders t WHERE t.tenant_id=r.tenant_id AND t.payment_request_id=r.id)", p.TenantID, outlet).
 			Find(&rows).Error
 	})
 	if err != nil {

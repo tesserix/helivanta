@@ -262,8 +262,8 @@ intent_id)` pairs, through `WithAllTenants`. This is a reviewed entry in the
   can crowd out real deliveries; the poller still converges every intent.
 
 - Refunds through Razorpay, including for excess, late or unused payments.
-  Finance refunds those in the Razorpay dashboard, and recording that is a later
-  slice. A credit note on a verified-UPI sale still refunds by the existing
+  Finance refunds those in the Razorpay dashboard. #1459 adds an immutable record
+  of completed full refunds for unused payments; it does not send a refund. A credit note on a verified-UPI sale still refunds by the existing
   kinds.
 - Releasing a patient on an unconfirmed payment (#211's override), collect
   requests to a VPA, `upi://` deep links, cards, netbanking, wallets and payment

@@ -372,6 +372,7 @@ function OutletPharmacy({
           canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
           canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
           canDiscount={can("pharmacy.sale.discount")}
+          canRefund={access.data?.level === "editor" && can("pharmacy.sale.return")}
           canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
         />
       ) : view === "h1-register" ? (

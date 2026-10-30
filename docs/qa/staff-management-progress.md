@@ -148,6 +148,42 @@ IAM owns identity integration, tenant memberships, scoped assignments, generatio
 
 Every A-item must cover unauthorized actor, another tenant/hospital, self-review, stale version/generation, duplicate/uncertain retry, dependency outage, lock-wait race, persistence and attributable history where applicable. Record commands actually run and separate each environment.
 
+### Active Access/RBAC completion work — 2026-10-30
+
+The user selected full Access/RBAC completion again, including every A01–A12
+journey above. The [completion plan](../superpowers/plans/2026-10-30-staff-rbac-completion.md)
+keeps that full objective and the owner/consumer dependencies explicit.
+
+The first source-verified defect is stale graph authority after IAM role removal.
+A real PostgreSQL/OpenFGA test with an existing signed session reproduced 200
+instead of 403 after removal of its administrator role, while ordinary membership
+remained. The [current-role admission candidate](../superpowers/specs/2026-10-30-current-tenant-role-authority.md)
+now bounds graph permissions by current IAM roles and canonical registry grants,
+with the same adapter wired to both production V1 admission gates. Graph and
+source outages deny; graph-only or SQL-only authority cannot grant permission.
+Final membership removal, late grant replay, another tenant's preserved authority,
+authenticated self-service and removal during a delayed graph response have
+focused passing tests. This adds no SQL migration or permission.
+
+Local race/coverage passed IAM 82.1%, bootstrap 94.1% and authz 80.5%, including
+the IAM login client and API construction tests. Vet, API/Global API builds,
+affected lint and contractdocs check passed. A 100,001-row isolated fixture
+verified the indexed bounded lookup; the final ordinary-RLS plan used a bitmap
+index scan and reported 0.031 ms execution locally. This is not a measured
+production latency SLO. The scale-test setup's initial admin-accessor use was
+removed after the architecture guard rejected it. The final complete architecture
+race suite passed, including every declared role against the independent
+permission matrix, unsupported foreign graph authority and stale role removal.
+
+The local candidate is healthy behind the local Global API. Chrome blocked
+normal navigation to the local identity-provider hostname with
+`ERR_BLOCKED_BY_CLIENT`; fresh normal-login UI acceptance remains unverified.
+This candidate is not production-deployed. No A-item or broad Staff area is
+marked complete. Incarnation-bound membership commands/UI, provisioning,
+reviewed employment, legacy-grant classification and effective cross-owner
+lifecycle cutoffs remain in the full plan. The broad counts remain 10 partial,
+10 audit pending, 1 research and 0 fully accepted.
+
 ## Delivery evidence and next work
 
 - Identity draft preparation: [PR #1433](https://github.com/tesserix/helivanta/pull/1433), source `935cb62955d592ec10a3f83ef87fd6700ad1a0a0`; [release](https://github.com/tesserix/helivanta/releases/tag/2026-10-29-staff-identity-drafts).

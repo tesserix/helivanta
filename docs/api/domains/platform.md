@@ -31,6 +31,25 @@ Migration `0013_iam_identity_guard` admits the new `identity_inactive` watermark
 reason; the invalidation event payload is unchanged. This is distinct from
 hospital employment inactivation, suspension and cross-owner offboarding.
 
+### Current IAM role admission
+
+The current-role admission candidate additionally intersects graph-resolved
+permissions with current IAM membership roles and the canonical registry grants.
+Both V1 permission resolution and route membership checks use the same IAM-owned
+adapter. A role removed from PostgreSQL cannot authorize a new request through
+its stale graph tuple, even while another membership role remains. Final
+membership removal denies business routes while authenticated self-service
+routes retain their existing markers. Another tenant's current roles are
+unaffected. Missing graph authority cannot be replaced by a SQL membership.
+
+The bounded forced-RLS role read follows the external graph read; source or
+graph failure denies with the existing `503 authz_unavailable` behavior. This
+adds no route, role, permission or schema and does not turn request admission
+into a transaction-held employment cutoff. Tenant switching/discovery still
+uses its existing role-list contract. See the
+[design and acceptance limits](../../superpowers/specs/2026-10-30-current-tenant-role-authority.md)
+and the [full A01–A12 plan](../../superpowers/plans/2026-10-30-staff-rbac-completion.md).
+
 ## Shared capability contracts
 
 | Capability                    | Current source                                                             | Contract/review requirement                                                                                                              |

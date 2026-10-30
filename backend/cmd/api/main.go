@@ -356,6 +356,10 @@ func run() error {
 	if err := platform.Reconcile(ctx, registry, db, fga); err != nil {
 		return err
 	}
+	currentAuthorization, err := iam.NewCurrentAuthorization(db, registry, fga)
+	if err != nil {
+		return err
+	}
 
 	// gin.Recovery() does not route through slog — gin builds its own
 	// log.New(gin.DefaultErrorWriter, ...) rather than using log.Default(),
@@ -487,9 +491,9 @@ func run() error {
 		limiter = ratelimit.NewMemory(10_000)
 	}
 	api := platform.NewRouter(
-		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, fga,
+		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, currentAuthorization,
 			iam.NewIdentityGuard(db, bus, revocationChecker, zitadelLoginClient))...),
-		fga,
+		currentAuthorization,
 	).WithScopedAuthorizer(scopedAuthorizer)
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT

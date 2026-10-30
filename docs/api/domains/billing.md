@@ -1,11 +1,11 @@
 # Hospital billing
 
 [Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2), interim
-bills (slice 3), final bills (slice 4), cash counters (#198 slice 1) and deposits (#199 slice 1).
+bills (slice 3), final bills (slice 4), cash counters (#198 slice 1), deposits and their refunds (#199 slices 1–2).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
-published events; none writes its tables. Hospital invoices, payer tariffs, GST, deposit refunds
-and discounts are not built yet (#193, #197, #199, #200, #1045).
+published events; none writes its tables. Hospital invoices, payer tariffs, GST and discounts are
+not built yet (#193, #197, #199, #200, #1045).
 
 ## Admission accounts (#197 slice 1)
 
@@ -205,6 +205,36 @@ Design: [spec](../../superpowers/specs/2026-10-30-deposits-design.md).
 | `PUT …/admissions/:admission/deposit-applications/:application`            | Apply held deposits against the final bill. |
 | `GET …/admissions/:admission/deposit-applications`                         | A page of applications, newest first.       |
 
-- **Not covered:** refunds of unused deposits; top-up alerts; deposit policies by bed class or
+- **Not covered:** top-up alerts; deposit policies by bed class or
   procedure; required admission deposits; transfer between admissions; OPD deposits; events;
   GL liability posting.
+
+## Deposit refunds (#199 slice 2)
+
+Design: [spec](../../superpowers/specs/2026-10-30-deposit-refunds-design.md).
+
+- **Threshold per hospital,** set by a tenant administrator (`billing.counter.manage`) as a new
+  version each time; the latest applies; none set is ₹10,000.
+- **Approval** above the threshold: a supervisor (`billing.shift.authorise`) approves one amount
+  for one admission with a reason, within what is held (`409 over_held`). Never the cashier who
+  pays it (`409 own_approval`).
+- **Paying out** is a receipt with `purpose: refund` from the cashier's open shift, numbered
+  with the counter's receipts: after a final bill (`409 no_final_bill`), at most what is held
+  (`409 over_held`), at most the drawer's cash (`409 drawer_short`), and above the threshold only
+  against an unused approval for exactly that amount (`409 approval_required`). It reduces the
+  shift's expected cash; voided like any receipt while the shift is open.
+- **Totals** add `refunded_minor`; held is deposits less applied less refunded. A deposit can no
+  longer be voided below what was applied or refunded.
+- **The database** holds every rule: final bill, held, drawer, threshold and approval (same
+  admission and amount, unused, someone else), and the drawer netting refunds.
+
+| Route                                                                                 | Behaviour                                     |
+| ------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `GET /billing/hospitals/:hospital/refund-policy`                                      | The threshold in force, or the default.       |
+| `PUT …/refund-policies/:policy` `{threshold_minor}`                                   | Set a new threshold version.                  |
+| `PUT …/admissions/:admission/refund-approvals/:approval` `{amount_minor,reason}`      | Approve a refund amount.                      |
+| `GET …/admissions/:admission/refund-approvals`                                        | Approvals, each with the refund that used it. |
+| `PUT …/admissions/:admission/refunds/:receipt` `{amount_minor,currency,approval_id?}` | Pay a refund from the open shift.             |
+
+- **Not covered:** refunds by UPI or bank transfer; un-applying deposits (a credit after an
+  application stays unrefundable); refunds of payments; ward refund requests; events; GL.

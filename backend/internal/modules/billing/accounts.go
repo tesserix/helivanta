@@ -123,6 +123,8 @@ type total struct {
 	// Balance is outstanding less paid less applied.
 	DepositHeldMinor int64 `json:"deposit_held_minor"`
 	AppliedMinor     int64 `json:"applied_minor"`
+	// Deposits paid back in cash (#199 slice 2); held nets them.
+	RefundedMinor int64 `json:"refunded_minor"`
 }
 
 type accountView struct {
@@ -181,10 +183,11 @@ func (h *handlers) account(c *gin.Context) {
 			return err
 		}
 		var money []struct {
-			Currency                         string
-			PaidMinor, DepositMinor, Applied int64
+			Currency                                   string
+			PaidMinor, DepositMinor, Applied, Refunded int64
 		}
 		if err := tx.Raw(`SELECT currency, COALESCE(sum(amount_minor) FILTER (WHERE purpose='payment'),0) AS paid_minor, COALESCE(sum(amount_minor) FILTER (WHERE purpose='deposit'),0) AS deposit_minor,
+ COALESCE(sum(amount_minor) FILTER (WHERE purpose='refund'),0) AS refunded,
  billing_applied(?,?,currency) AS applied FROM billing_cash_receipts WHERE tenant_id=? AND admission_id=? AND voided_at IS NULL GROUP BY currency`,
 			p.TenantID, admission, p.TenantID, admission).Scan(&money).Error; err != nil {
 			return err
@@ -201,7 +204,8 @@ func (h *handlers) account(c *gin.Context) {
 				i = len(row.Totals) - 1
 			}
 			row.Totals[i].PaidMinor, row.Totals[i].AppliedMinor = m.PaidMinor, m.Applied
-			row.Totals[i].DepositHeldMinor = m.DepositMinor - m.Applied
+			row.Totals[i].RefundedMinor = m.Refunded
+			row.Totals[i].DepositHeldMinor = m.DepositMinor - m.Applied - m.Refunded
 		}
 		for i := range row.Totals {
 			row.Totals[i].OutstandingMinor = row.Totals[i].ChargedMinor - row.Totals[i].ReversedMinor

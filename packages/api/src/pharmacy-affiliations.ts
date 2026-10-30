@@ -117,6 +117,8 @@ export type AdmissionAccount = {
     /** Deposits held for the patient, and those applied against the account (#199). */
     deposit_held_minor: number;
     applied_minor: number;
+    /** Deposits paid back in cash (#199 slice 2). */
+    refunded_minor: number;
   }[];
   /** What each source still owes, e.g. pharmacy or bed (#197). */
   sources: { source_module: string; currency: string; outstanding_minor: number }[];

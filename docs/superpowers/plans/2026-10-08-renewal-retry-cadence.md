@@ -15,4 +15,4 @@ Spec: `docs/superpowers/specs/2026-10-08-renewal-retry-cadence-design.md`
 - [x] Tests per spec §Tests; mutations per spec.
 - [x] Gates: `make lint-go`, `go test -race ./...`,
       `./scripts/coverage-gate.sh`, `pnpm turbo lint type-check test build
-    format:check`.
+  format:check`.

@@ -59,6 +59,14 @@ function server(opts: { permissions: string[]; mine?: unknown; shifts?: unknown[
         : json(404, { error: "no_open_shift", message: "none" });
     if (url.includes("/cash-shifts?status=pending_authorisation")) return page(opts.shifts ?? []);
     if (url.includes("/cash-shifts")) return page([]);
+    if (url.endsWith("/refund-policy"))
+      return json(200, {
+        hospital_id: hospital.id,
+        threshold_minor: 1000000,
+        currency: "INR",
+        created_by: null,
+        created_at: null,
+      });
     if (url.includes("/counters")) return page([counter]);
     if (url.includes("/receipts")) return page([]);
     return page([]);
@@ -157,6 +165,7 @@ describe("CashPayments", () => {
         balance_minor: balance,
         deposit_held_minor: over.held ?? 0,
         applied_minor: over.applied ?? 0,
+        refunded_minor: 0,
       },
     ],
     sources: [],

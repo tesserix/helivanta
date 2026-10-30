@@ -125,7 +125,8 @@ export type CashReceipt = {
   number: number;
   cashier: string;
   admission_id: string;
-  purpose: "payment" | "deposit";
+  purpose: "payment" | "deposit" | "refund";
+  approval_id: string | null;
   amount_minor: number;
   currency: string;
   received_at: string;
@@ -162,5 +163,46 @@ export const cashReceiptSchema = z.object({
 });
 
 export const cashReasonSchema = z.object({
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});
+
+// Refunds of unused deposits (#199 slice 2): above the hospital's threshold a
+// supervisor approves the amount first; the cashier pays it from the drawer.
+
+export type RefundPolicy = {
+  hospital_id: string;
+  threshold_minor: number;
+  currency: string;
+  /** Null while the default (₹10,000) applies. */
+  created_by: string | null;
+  created_at: string | null;
+};
+
+export type RefundApproval = {
+  id: string;
+  admission_id: string;
+  amount_minor: number;
+  currency: string;
+  reason: string;
+  approved_by: string;
+  approved_at: string;
+  /** The refund receipt that used it, once paid. */
+  used_by: string | null;
+};
+
+export const refundPolicySchema = z.object({
+  threshold_minor: z
+    .number({ message: "Enter the threshold" })
+    .int("Enter the threshold")
+    .min(0, "Enter the threshold")
+    .max(1_000_000_000, "Too large"),
+});
+
+export const refundApprovalSchema = z.object({
+  amount_minor: z
+    .number({ message: "Enter the amount" })
+    .int("Enter the amount")
+    .min(1, "Enter the amount")
+    .max(1_000_000_000, "Too large"),
   reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
 });

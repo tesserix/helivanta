@@ -88,8 +88,10 @@ type receipt struct {
 	Number      int       `json:"number"`
 	Cashier     string    `json:"cashier"`
 	AdmissionID uuid.UUID `json:"admission_id"`
-	// payment, or deposit: the patient's money held until applied (#199).
+	// payment; deposit, the patient's money held until applied; or refund of
+	// a held deposit, cash out of the drawer (#199).
 	Purpose     string     `json:"purpose"`
+	ApprovalID  *uuid.UUID `json:"approval_id"`
 	AmountMinor int64      `json:"amount_minor"`
 	Currency    string     `json:"currency"`
 	ReceivedAt  time.Time  `json:"received_at"`
@@ -100,7 +102,7 @@ type receipt struct {
 
 func (r receipt) PageKey() (time.Time, uuid.UUID) { return r.ReceivedAt, r.ID }
 
-const receiptSelect = `SELECT r.id,r.hospital_id,r.shift_id,r.counter_id,c.code AS counter_code,r.number,r.cashier,r.admission_id,r.purpose,r.amount_minor,r.currency,
+const receiptSelect = `SELECT r.id,r.hospital_id,r.shift_id,r.counter_id,c.code AS counter_code,r.number,r.cashier,r.admission_id,r.purpose,r.approval_id,r.amount_minor,r.currency,
  r.received_at,r.void_id,r.void_reason,r.voided_at FROM billing_cash_receipts r JOIN billing_counters c ON c.tenant_id=r.tenant_id AND c.id=r.counter_id`
 
 func cashFailure(c *gin.Context, err error) {
@@ -118,6 +120,16 @@ func cashFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "account_closed", "the patient has left; take the balance as a payment")
 	case errors.Is(err, errDepositApplied), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_deposit_applied":
 		respond.Error(c, http.StatusConflict, "deposit_applied", errDepositApplied.Error())
+	case errors.Is(err, errNoFinalBill), errors.As(err, &pg) && pg.ConstraintName == "billing_refund_final_bill":
+		respond.Error(c, http.StatusConflict, "no_final_bill", "a deposit is refunded once a final bill is issued")
+	case errors.Is(err, errOverHeld), errors.As(err, &pg) && pg.ConstraintName == "billing_refund_over_held":
+		respond.Error(c, http.StatusConflict, "over_held", errOverHeld.Error())
+	case errors.Is(err, errDrawerShort), errors.As(err, &pg) && pg.ConstraintName == "billing_refund_drawer":
+		respond.Error(c, http.StatusConflict, "drawer_short", errDrawerShort.Error())
+	case errors.Is(err, errOwnApproval):
+		respond.Error(c, http.StatusConflict, "own_approval", errOwnApproval.Error())
+	case errors.Is(err, errApprovalRequired), errors.As(err, &pg) && (pg.ConstraintName == "billing_refund_approval" || pg.ConstraintName == "billing_cash_receipt_approval_used" || pg.ConstraintName == "billing_cash_receipt_approval"):
+		respond.Error(c, http.StatusConflict, "approval_required", errApprovalRequired.Error())
 	case errors.Is(err, errOverBalance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_balance":
 		respond.Error(c, http.StatusConflict, "over_balance", "the amount is more than the balance due; an advance is a deposit")
 	case errors.Is(err, errOwnVariance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_own_variance":
@@ -435,6 +447,7 @@ func loadReceipt(tx *gorm.DB, tenant string, hospital, id uuid.UUID) (receipt, e
 
 func (h *handlers) takeCash(c *gin.Context)    { h.receive(c, "payment") }
 func (h *handlers) takeDeposit(c *gin.Context) { h.receive(c, "deposit") }
+func (h *handlers) payRefund(c *gin.Context)   { h.receive(c, "refund") }
 
 // receive records cash against the admission's account in the caller's open
 // shift: a payment, capped at the balance due, or a deposit, held for the
@@ -445,8 +458,10 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 	var in struct {
 		AmountMinor int64  `json:"amount_minor"`
 		Currency    string `json:"currency"`
+		// A refund above the hospital's threshold names its approval (#199).
+		ApprovalID *uuid.UUID `json:"approval_id"`
 	}
-	if err := c.ShouldBindJSON(&in); ok1 != nil || !ok2 || err != nil || in.AmountMinor < 1 || in.AmountMinor > 1_000_000_000 || in.Currency != shiftCurrency {
+	if err := c.ShouldBindJSON(&in); ok1 != nil || !ok2 || err != nil || in.AmountMinor < 1 || in.AmountMinor > 1_000_000_000 || in.Currency != shiftCurrency || (in.ApprovalID != nil && purpose != "refund") {
 		respond.BadRequest(c, errors.New("an amount of 1 to 1000000000 minor units in INR is required"))
 		return
 	}
@@ -459,7 +474,8 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 		}
 		held, err := loadReceipt(tx, p.TenantID, hospital, receiptID)
 		if err == nil {
-			if held.AdmissionID != admission || held.Purpose != purpose || held.AmountMinor != in.AmountMinor || held.Currency != in.Currency || held.Cashier != p.Subject {
+			if held.AdmissionID != admission || held.Purpose != purpose || held.AmountMinor != in.AmountMinor || held.Currency != in.Currency || held.Cashier != p.Subject ||
+				!sameID(held.ApprovalID, in.ApprovalID) {
 				return errCashConflict
 			}
 			out = held
@@ -491,6 +507,11 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("billing_counters").Where("tenant_id=? AND id=?", p.TenantID, open[0].CounterID).Select("id").Find(&[]struct{ ID uuid.UUID }{}).Error; err != nil {
 			return err
 		}
+		if purpose == "refund" {
+			if err := refundable(tx, p.TenantID, hospital, admission, open[0].ID, p.Subject, in.AmountMinor, in.ApprovalID); err != nil {
+				return err
+			}
+		}
 		if purpose == "payment" {
 			due, err := balanceDue(tx, p.TenantID, admission, in.Currency)
 			if err != nil {
@@ -500,9 +521,9 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 				return errOverBalance
 			}
 		}
-		if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,purpose,amount_minor,currency)
- VALUES (?,?,?,?,?,(SELECT COALESCE(max(number),0)+1 FROM billing_cash_receipts WHERE tenant_id=? AND counter_id=?),?,?,?,?,?)`,
-			p.TenantID, hospital, receiptID, open[0].ID, open[0].CounterID, p.TenantID, open[0].CounterID, p.Subject, admission, purpose, in.AmountMinor, in.Currency).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,purpose,amount_minor,currency,approval_id)
+ VALUES (?,?,?,?,?,(SELECT COALESCE(max(number),0)+1 FROM billing_cash_receipts WHERE tenant_id=? AND counter_id=?),?,?,?,?,?,?)`,
+			p.TenantID, hospital, receiptID, open[0].ID, open[0].CounterID, p.TenantID, open[0].CounterID, p.Subject, admission, purpose, in.AmountMinor, in.Currency, in.ApprovalID).Error; err != nil {
 			return err
 		}
 		created = true
@@ -562,7 +583,7 @@ func (h *handlers) voidReceipt(c *gin.Context) {
 			return errShiftClosed
 		}
 		if r.Purpose == "deposit" {
-			// What was applied against the bill stays covered by the deposits left.
+			// What was applied or refunded stays covered by the deposits left.
 			have, err := depositHeld(tx, p.TenantID, r.AdmissionID, r.Currency)
 			if err != nil {
 				return err

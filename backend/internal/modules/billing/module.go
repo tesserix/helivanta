@@ -49,6 +49,9 @@ var cashSchema string
 //go:embed deposits.sql
 var depositsSchema string
 
+//go:embed refunds.sql
+var refundsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -73,7 +76,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -111,6 +114,12 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT(hp+"/admissions/:admission/deposits/:receipt", PermCashCollect, h.takeDeposit)
 	g.PUT(hp+"/admissions/:admission/deposit-applications/:application", PermBillIssue, h.applyDeposits)
 	platform.ListRoute(g, hp+"/admissions/:admission/deposit-applications", PermAccountRead, h.depositApplications)
+	// Refunds of unused deposits (#199 slice 2).
+	g.GET(hp+"/refund-policy", PermAccountRead, h.refundPolicy)
+	g.PUT(hp+"/refund-policies/:policy", PermCounterManage, h.setRefundPolicy)
+	g.PUT(hp+"/admissions/:admission/refund-approvals/:approval", PermShiftAuthorise, h.approveRefund)
+	platform.ListRoute(g, hp+"/admissions/:admission/refund-approvals", PermAccountRead, h.refundApprovals)
+	g.PUT(hp+"/admissions/:admission/refunds/:receipt", PermCashCollect, h.payRefund)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

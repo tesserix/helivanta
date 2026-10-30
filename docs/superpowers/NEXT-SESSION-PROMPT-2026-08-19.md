@@ -44,7 +44,7 @@ So a real membership row exists and reconciles to nothing.
 
 **What this actually breaks — corrected 2026-08-19.** An earlier draft of this
 handoff said the reconciler would prune every tuple on the next restart. It will
-not: `reconcile.go:243-251` already guards exactly this case. If zero _usable_
+not: `reconcile.go:243-251` already guards exactly this case. If zero *usable*
 memberships are read while OpenFGA still holds tuples, `Reconcile` refuses to
 prune and returns an error naming this very cause — "ADMIN_DATABASE_URL pointed
 at a role that does not bypass RLS". The guard has been in place since #759
@@ -93,14 +93,13 @@ exception. **It did not, and the branch was red on `make test` when picked up
 the next morning.** `cmd/bootstrap/main.go` is clean, but `main_test.go` still
 reads back on the admin pool, and `TestWithAdminIsOnlyCalledFromTheAllowlist`
 does not exempt `_test.go`. The test is right to do it — under `WithTenant` a
-row written to the _wrong_ tenant is invisible, so the `require.Empty` guarding
+row written to the *wrong* tenant is invisible, so the `require.Empty` guarding
 "an unknown role leaves no row behind" would pass on precisely the bug it
 exists to catch. The entry is now in `withAdminAllowlist` with that reasoning
-attached. Note the shape: a claim about a _control_ that was never run against
+attached. Note the shape: a claim about a *control* that was never run against
 the control.
 
 Still open on it, from the implementing agent's own report:
-
 - it writes a row but publishes **no event**, so tuples only appear at the next
   API boot reconcile — an operator running it against a live API sees nothing
   change
@@ -160,8 +159,8 @@ Every significant bug this session was a **confident written claim that its own
 cited evidence did not support**, and each was caught only by reading the live
 object:
 
-- A NetworkPolicy allowing :8080 proved Zitadel was _reachable_, not that it
-  would _serve_ that Host. Zitadel resolves the instance from the Host header.
+- A NetworkPolicy allowing :8080 proved Zitadel was *reachable*, not that it
+  would *serve* that Host. Zitadel resolves the instance from the Host header.
 - A LimitRange's derived `default.cpu` "forbids nothing `max` already allowed" —
   true of the LimitRange alone, false once the namespace ResourceQuota is
   included. That wedged an ArgoCD sync for 40 minutes.

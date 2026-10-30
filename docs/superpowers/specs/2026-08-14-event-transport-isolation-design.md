@@ -18,9 +18,9 @@ from the audit:
    written to `outbox_events` and published to JetStream.
 2. **`outbox_events` has no `tenant_id`**, therefore no RLS policy, and sits on
    `lintAllowlist` in `pkg/tenantdb/db.go:186`. The code already records the
-   problem against itself: _"here under protest: it holds event payloads that
+   problem against itself: *"here under protest: it holds event payloads that
    today include patient names, outside any RLS boundary, readable by any
-   `WithSystem` transaction."_
+   `WithSystem` transaction."*
 3. **Nothing ever deletes `outbox_events` or `processed_events`.** No
    `DELETE FROM` for either exists anywhere in the tree.
 
@@ -29,7 +29,7 @@ must keep working. It is that PHI sits **forever**, in a table with no access
 control, on a shared `db-f1-micro`, readable by any `WithSystem` transaction in
 any module.
 
-### What this is _not_, and why the original framing was wrong
+### What this is *not*, and why the original framing was wrong
 
 #774 proposed "stop putting identifiers in payloads, let consumers read what
 they are entitled to". **That does not hold in this codebase**, and #835 has
@@ -74,8 +74,8 @@ that "adds RLS to the outbox" and is merged on a green suite would take the
 entire event bus down in production with no error anywhere.
 
 **Decision: the dispatcher moves from `WithSystem` to `WithAdmin`**, whose
-documented purpose is exactly this — _"a whole-system read that genuinely needs
-to cross tenant boundaries"_, on the admin pool, which bypasses RLS as the
+documented purpose is exactly this — *"a whole-system read that genuinely needs
+to cross tenant boundaries"*, on the admin pool, which bypasses RLS as the
 migration role. `OutboxStore` gains `WithAdmin` and the dispatcher stops being
 able to compile against `WithSystem` alone, so the two halves of this change
 cannot land apart.
@@ -87,15 +87,15 @@ single background loop already reviewed as ops code, is the one caller with
 cross-tenant reach, and it becomes a visible, allowlisted decision instead of
 an ambient property of the table.
 
-_Rejected: a GUC escape in the policy_ (`OR current_setting('app.dispatcher',
+*Rejected: a GUC escape in the policy* (`OR current_setting('app.dispatcher',
 true) = 'on'`). Any `WithSystem` caller could set that GUC in its own session,
 so the policy would be advisory. A bypass that the thing being bypassed can
 enable is not a control.
 
-_Rejected: leave the outbox unprotected and shorten retention only._ Retention
-bounds _how long_ every module can read every tenant's PHI. It does not stop it.
+*Rejected: leave the outbox unprotected and shorten retention only.* Retention
+bounds *how long* every module can read every tenant's PHI. It does not stop it.
 
-_Rejected: encrypt the payload column._ Bounds exposure without changing
+*Rejected: encrypt the payload column.* Bounds exposure without changing
 contracts, but there is no key management story — #45 (secrets) is still open —
 and it leaves unbounded growth untouched. Revisit if #45 lands with a KMS.
 
@@ -105,7 +105,7 @@ The obvious migration — backfill from `payload->>'tenant_id'`, then `SET NOT
 NULL` — **would break sign-out.** `SubjectCredentialRevoked` is published with
 no `TenantID` at all, and that is a documented decision, not an oversight
 (`internal/modules/iam/signout.go:106-114`): revocation is subject-scoped and
-ends every session for a subject _in every tenant_, so there is no tenant to
+ends every session for a subject *in every tenant*, so there is no tenant to
 name. Broadcasts travel the same `Publish` → outbox → dispatcher path as
 module events, so the outbox legitimately holds tenant-less rows.
 
@@ -119,7 +119,7 @@ CREATE POLICY tenant_isolation ON outbox_events
 ```
 
 > **`NULLIF` added during Task 1**, and it is not cosmetic. An "unset" custom
-> GUC returns SQL NULL only the _first_ time a session ever references the
+> GUC returns SQL NULL only the *first* time a session ever references the
 > name; after any `WithTenant` transaction commits, it reverts to `''` for the
 > life of that pooled connection. `''::uuid` is a hard type error, so without
 > `NULLIF` the identical cross-tenant write reported **two different errors
@@ -141,9 +141,9 @@ assumed:
   **nobody** under RLS — strictly more protected than a tenant row, and
   correct, since a platform-wide event is not any single tenant's to read. The
   dispatcher still sees it, via `WithAdmin`.
-- **`WITH CHECK` must _not_ call `hms_tenant_visible`.** The lint fails that
-  case explicitly — _"WITH CHECK calls hms_tenant_visible instead of pinning to
-  one tenant"_ (`db.go:315`) — because reads may widen to hospital groups later
+- **`WITH CHECK` must *not* call `hms_tenant_visible`.** The lint fails that
+  case explicitly — *"WITH CHECK calls hms_tenant_visible instead of pinning to
+  one tenant"* (`db.go:315`) — because reads may widen to hospital groups later
   while writes must always land in exactly one tenant.
 - **`WITH CHECK` must permit NULL**, or publishing a tenant-less event from
   inside a tenant-scoped transaction — exactly what `signOut` does — is
@@ -217,10 +217,10 @@ Note the DLQ subject (`<root>.dlq.<consumer>`) is inside the same stream, so it
 inherits `MaxAge` — a dead-lettered clinical event is bounded by the same
 window rather than kept indefinitely.
 
-_Rejected: prune inside the dispatcher tick._ Couples deletion latency to
+*Rejected: prune inside the dispatcher tick.* Couples deletion latency to
 publish throughput and puts a `DELETE` on the hot path every 500ms.
 
-_Rejected: a `pg_cron` job._ Another moving part, and it lives outside the Go
+*Rejected: a `pg_cron` job.* Another moving part, and it lives outside the Go
 tests, so the retention rule stops being provable in CI.
 
 ### D4 — Payload minimisation as a pinned allowlist, not a denylist
@@ -234,7 +234,7 @@ shape as the rate-limit exemptions (#689) and the `NoTenantMembership`
 allowlist (#781). Adding a clinical field to an event payload becomes a diff a
 reviewer sees and must justify, rather than a thing that happens.
 
-_Rejected: a name-pattern denylist._ Guesses at field names, fails on the
+*Rejected: a name-pattern denylist.* Guesses at field names, fails on the
 legitimate case, and misses `notes` or `reason_for_visit`.
 
 ---
@@ -272,16 +272,16 @@ should state whether the backfill is batched.
 
 Every assertion must be observed failing (§5). The ones that carry the design:
 
-| Claim                                                | Test                                                                        | Mutation that must break it                                                 |
-| ---------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| The dispatcher still publishes across tenants        | publish for two tenants, assert both reach the stream                       | revert dispatcher to `WithSystem` → **zero** published, silently            |
-| Sign-out still publishes from inside a tenant tx     | call `signOut`, assert the revocation row reaches the outbox and the stream | drop `tenant_id IS NULL` from `WITH CHECK` → insert rejected, sign-out 500s |
-| A tenant-less row is readable by nobody              | `WithSystem` and `WithTenant` selects of the revocation row                 | add the NULL case to `USING` → row returned                                 |
-| A module handler cannot read another tenant's outbox | `WithSystem` select of tenant B's row from tenant A's context               | drop the policy → row returned                                              |
-| Ledger outlives redelivery                           | assert `processedRetention > streamMaxAge`                                  | invert the constants                                                        |
-| Pruning cannot resurrect a duplicate                 | prune, redeliver a still-live event, assert no second row                   | prune the ledger on the stream window                                       |
-| Unpublished rows survive pruning                     | age an unpublished row past the window, prune, assert present               | drop the `published_at IS NOT NULL` guard                                   |
-| PHI fields are pinned                                | add a field to a contract payload                                           | not in the allowlist → arch test fails                                      |
+| Claim | Test | Mutation that must break it |
+|---|---|---|
+| The dispatcher still publishes across tenants | publish for two tenants, assert both reach the stream | revert dispatcher to `WithSystem` → **zero** published, silently |
+| Sign-out still publishes from inside a tenant tx | call `signOut`, assert the revocation row reaches the outbox and the stream | drop `tenant_id IS NULL` from `WITH CHECK` → insert rejected, sign-out 500s |
+| A tenant-less row is readable by nobody | `WithSystem` and `WithTenant` selects of the revocation row | add the NULL case to `USING` → row returned |
+| A module handler cannot read another tenant's outbox | `WithSystem` select of tenant B's row from tenant A's context | drop the policy → row returned |
+| Ledger outlives redelivery | assert `processedRetention > streamMaxAge` | invert the constants |
+| Pruning cannot resurrect a duplicate | prune, redeliver a still-live event, assert no second row | prune the ledger on the stream window |
+| Unpublished rows survive pruning | age an unpublished row past the window, prune, assert present | drop the `published_at IS NOT NULL` guard |
+| PHI fields are pinned | add a field to a contract payload | not in the allowlist → arch test fails |
 
 The first is the one this design rests on: **it must be observed failing with
 zero published events**, or the test proves nothing about the hazard that

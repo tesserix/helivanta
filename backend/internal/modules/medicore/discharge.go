@@ -60,6 +60,9 @@ func dischargeFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "already_ordered", errAlreadyOrdered.Error())
 	case errors.Is(err, errNotInBed), errors.As(err, &pg) && pg.ConstraintName == "medicore_discharge_admitted":
 		respond.Error(c, http.StatusConflict, "not_admitted", errNotInBed.Error())
+	case errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "medicore_discharge_withdrawal_id":
+		// The withdrawal id was used for another withdrawal.
+		respond.Conflict(c, errIntentConflict.Error())
 	case errors.Is(err, errNoOrder):
 		respond.NotFound(c, "discharge order")
 	default:

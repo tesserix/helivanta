@@ -6,7 +6,6 @@
 
 No linter runs against the repo's shell scripts. Several of them are
 controls:
-
 - `preflight.sh` fails a stack closed;
 - `coverage-gate.sh` enforces the backend's 70% floor;
 - `e2e.sh` owns the fixture swaps between suite phases;
@@ -32,7 +31,6 @@ later.
 
 Every tracked file (`git ls-files`) is a candidate. A file is checked if
 either:
-
 - its name ends in `.sh` or `.bash`; or
 - its first line is a `sh`/`bash`/`dash`/`ksh` shebang.
 
@@ -59,12 +57,12 @@ the gate like any other finding.
 
 ### D5: Findings are fixed, or disabled at their site with the reason
 
-| Finding                                             | Resolution                                                                                                                                                                                                                     |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| SC1091 ×4: sourced files not followed               | `source=` directives (D4)                                                                                                                                                                                                      |
-| SC2034: `busy_pid` unused in `preflight.test.sh`    | Fixed: the fixture's pid was never used, so the assignment is gone                                                                                                                                                             |
-| SC2012: `ls -ld … \| cut -c9` in `preflight.sh`     | Disabled on that one `if`. The check reads only the mode string's other-write character, at a fixed position for every name, so SC2012's filename-parsing concern does not apply. `stat` takes different flags on GNU and BSD. |
-| SC2016: single-quoted `$REPO_ROOT` in a test needle | Disabled at the site. The needle is `reset-dev.sh`'s source text, so the literal is the point.                                                                                                                                 |
+| Finding | Resolution |
+|---|---|
+| SC1091 ×4: sourced files not followed | `source=` directives (D4) |
+| SC2034: `busy_pid` unused in `preflight.test.sh` | Fixed: the fixture's pid was never used, so the assignment is gone |
+| SC2012: `ls -ld … \| cut -c9` in `preflight.sh` | Disabled on that one `if`. The check reads only the mode string's other-write character, at a fixed position for every name, so SC2012's filename-parsing concern does not apply. `stat` takes different flags on GNU and BSD. |
+| SC2016: single-quoted `$REPO_ROOT` in a test needle | Disabled at the site. The needle is `reset-dev.sh`'s source text, so the literal is the point. |
 
 There is no blanket exclusion and no `disable=` in `.shellcheckrc`.
 
@@ -99,4 +97,4 @@ mechanical commit.
 - **The gate itself, shown failing:**
   - an appended `rm -rf $HOME/$1` (SC2115, SC2086);
   - a `.` of a missing file (SC1091).
-    CI runs the real gate on every push.
+  CI runs the real gate on every push.

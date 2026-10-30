@@ -157,7 +157,7 @@ User could not be found
 ```
 
 **This is a hard failure, not a redirect or a step-up.** I then tested
-whether granting the user an _org role_ (`ORG_USER_MANAGER`, via
+whether granting the user an *org role* (`ORG_USER_MANAGER`, via
 `POST /management/v1/orgs/me/members`, org-B context) — which is Zitadel's
 closest thing to "add this user to the org" short of recreating them —
 would satisfy the check. **It did not.** The same "User could not be found"
@@ -242,7 +242,7 @@ directly answers the brief's framing: **adding hospital SSO later is a
 config change (new login policy + IdP + a link call per user, scriptable),
 not a migration.**
 
-**NOT VERIFIED in this session:** an actual end-to-end login _through_ the
+**NOT VERIFIED in this session:** an actual end-to-end login *through* the
 linked IdP (i.e., completing the external authorization-code redirect and
 confirming the resulting session correlates to the same `sub` at the token
 level, not just via the Management API's own read-back). The self-referential
@@ -310,7 +310,7 @@ observed above:
    buys D1's design nothing.
 2. **The one place org boundaries have real teeth — the `org:id` scope —
    is actively hostile to a clinician working at two hospitals.** Q1 showed
-   it enforces _home-org membership_, not grants, and fails login outright
+   it enforces *home-org membership*, not grants, and fails login outright
    ("User could not be found") for a user who only holds a project grant on
    the other org. A clinician's natural Helivanta shape — one identity, many
    hospitals via FGA-style grants — is exactly the shape that scope
@@ -320,7 +320,7 @@ observed above:
    infrastructure kept only for a feature (org-scoped login restriction)
    that actively conflicts with Helivanta's clinician-usage pattern.
 3. **Provisioning cost compounds per hospital for no return.** Q2 showed a
-   fresh org has _no_ login policy of its own and needs one explicitly
+   fresh org has *no* login policy of its own and needs one explicitly
    created before IdP config is even possible. Org-per-hospital means every
    hospital onboarding (a workflow Helivanta already treats as a first-class,
    frequent operation — onboarding is explicitly named in the product's
@@ -331,7 +331,7 @@ observed above:
    included) already does it.
 4. **The one legitimate future reason for org-per-hospital — hospital-owned
    SSO branding/IdP — does not require deciding this now.** Q2 proved SSO
-   can be added to an org _after_ users and passwords already exist, with no
+   can be added to an org *after* users and passwords already exist, with no
    recreation and no `sub` change. If a specific hospital later needs its
    own SAML/OIDC IdP with hospital-specific branding, **that hospital**
    can be migrated to its own org **at that time**, for **that hospital
@@ -339,7 +339,7 @@ observed above:
    requirement, not a blanket policy paid for by every hospital that will
    never ask for it. This is the actual application of "scope down, never
    quality down": start correct-and-small (one org, FGA-scoped hospitals),
-   decompose the _next_ correct slice (per-hospital org + IdP) only when a
+   decompose the *next* correct slice (per-hospital org + IdP) only when a
    hospital's SSO requirement makes it necessary.
 
 **What would change my mind:** a near-term (not speculative) commitment
@@ -361,7 +361,7 @@ new indirection.**
   operation tried: cross-org grants, org-membership grants, and IdP
   linking. Nothing short of deleting and recreating the Zitadel user
   object changes it. An internal-id layer would only pay for itself if
-  something routinely _did_ change `sub` out from under a stable person —
+  something routinely *did* change `sub` out from under a stable person —
   observed evidence says nothing routine does.
 - **This is the moment to decide it, not defer it — precisely because of
   the "audit trail cannot be rewritten later" constraint the brief calls
@@ -380,13 +380,13 @@ new indirection.**
   and the mapping table itself becomes a second thing that must never be
   lost.
 - **What would change my mind:** a concrete near-term plan for a clinician
-  to authenticate via two different credentials into the _same_ Helivanta
+  to authenticate via two different credentials into the *same* Helivanta
   account (e.g., password today, hospital SSO added later, and the
   business wants both to resolve to one person without a forced
   re-registration) — Q2 shows this is a **link**, not a new user, so `sub`
   stays singular even in that case; the indirection layer would only earn
   its cost for a genuinely different scenario: two separate Zitadel
-  _user objects_ that must be merged into one Helivanta identity post hoc (e.g.,
+  *user objects* that must be merged into one Helivanta identity post hoc (e.g.,
   after a botched dual-signup). That is a real but narrow failure mode, not
   the common case, and does not justify the indirection today.
 
@@ -400,10 +400,10 @@ would have added:
 - **One project** inside it. No project roles need defining — D2
   deliberately excludes roles from the Helivanta session, and D1/OpenFGA already
   own authorization, so Zitadel's project-role/grant machinery (exercised
-  in Q1 only to _test_ cross-org behavior) is not something Helivanta's real
+  in Q1 only to *test* cross-org behavior) is not something Helivanta's real
   project needs to use.
 - **One OIDC web app** (auth-code + PKCE, public client, `authMethodType:
-NONE`) for the browser-facing shell, redirect URIs to the real Helivanta shell
+  NONE`) for the browser-facing shell, redirect URIs to the real Helivanta shell
   callback. `devMode: true` only for local/dev instances, `false` in
   production (this spike's local app used `devMode: true` to allow the
   `localhost` HTTP redirect used for testing — production requires HTTPS
@@ -430,7 +430,7 @@ NONE`) for the browser-facing shell, redirect URIs to the real Helivanta shell
   tesserix-home) that Helivanta should match instead of introducing its own
   — deliberately not inspected, per the "no production reads beyond public
   metadata" constraint.
-- A live login completed _through_ a linked external IdP (Q2) — only the
+- A live login completed *through* a linked external IdP (Q2) — only the
   Management-API-level link-and-readback was verified; a real SAML/OIDC
   hospital IdP round trip needs its own spike before shipping hospital SSO.
 - Whether Zitadel's project-level isolation inside a shared org is actually
@@ -438,7 +438,7 @@ NONE`) for the browser-facing shell, redirect URIs to the real Helivanta shell
   reasoning for "Helivanta gets its own org," not as an observed leak).
 - Whether an org can later be renamed/merged if the "Helivanta gets one org"
   decision needs revisiting — not tested, and not needed for this
-  recommendation since the recommendation is to _avoid_ creating
+  recommendation since the recommendation is to *avoid* creating
   per-hospital orgs in the first place.
 - The exact production org/project/client IDs and whatever naming
   convention should apply — this spike created disposable local IDs only

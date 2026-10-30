@@ -5,7 +5,7 @@
 `2026-08-16-hms-login-client-design.md` (#854 — Helivanta now owns the login page)
 
 A clinician is called away mid-shift and does not sign out. The next person at
-the terminal is simply _in_, as them. Nothing today prevents it: the Helivanta session
+the terminal is simply *in*, as them. Nothing today prevents it: the Helivanta session
 cookie is still valid, so `/login` is never reached and no `prompt` value can
 intervene. #847 fixed the explicit sign-in paths and cannot cover this.
 
@@ -37,10 +37,10 @@ the two are independent clocks and D3 depends on them staying independent.
 
 There are now two independent expiries on a Helivanta session:
 
-| Clock           | Meaning                         | Moved by                           |
-| --------------- | ------------------------------- | ---------------------------------- |
-| `exp`           | this token's own lifetime (15m) | silent renewal, every 5m (D4a)     |
-| `idle_deadline` | last human interaction + 15m    | **only** an explicit activity call |
+| Clock | Meaning | Moved by |
+|---|---|---|
+| `exp` | this token's own lifetime (15m) | silent renewal, every 5m (D4a) |
+| `idle_deadline` | last human interaction + 15m | **only** an explicit activity call |
 
 `idle_deadline` is a new claim in the Helivanta session token, carried like `auth_time`
 is: **set once, carried forward across every re-mint, never quietly reset to
@@ -73,7 +73,7 @@ So renewal **carries `idle_deadline` through unchanged**, exactly as it already
 carries `auth_time`. Only `POST /v1/auth/session/activity` moves it.
 
 Enforce this structurally rather than by convention: the mint path takes the
-deadline as an explicit parameter with no default, so a caller must _say_ what
+deadline as an explicit parameter with no default, so a caller must *say* what
 it is doing. A test must exist that runs several renewals against an untouched
 session and asserts the deadline did not move — and it must be observed failing
 against an implementation that resets it.
@@ -84,7 +84,7 @@ full argument). Renewal and first login are the same endpoint, so the request
 cannot tell them apart; the caller's own session cookie can. A renewal carries
 one, and the deadline is read straight out of it. Three things send a request to
 the fresh-window branch instead: no usable cookie, a cookie belonging to a
-_different_ subject (the next person signing in at a terminal the last one never
+*different* subject (the next person signing in at a terminal the last one never
 signed out of — they get their own window, never the remainder of a stranger's),
 and a Zitadel `auth_time` strictly later than the session's, which is a human
 who has just authenticated again.
@@ -192,7 +192,7 @@ Interaction tracking and the warning modal live in **`@helivanta/ui`**, so
 `apps/medicore`, `apps/pharmacy` and `apps/lab` get them by rendering `HmsShell`.
 
 This is not optional polish. A clinician working inside `/medicore` for twenty
-minutes is _active_; if only the shell tracked interaction, they would be signed
+minutes is *active*; if only the shell tracked interaction, they would be signed
 out mid-consultation — failing the issue's third acceptance criterion while
 appearing to implement it. `endZitadelSession` learned this exact lesson the hard
 way: sign-out was shell-only, and the majority path (signing out from a zone
@@ -236,6 +236,6 @@ renewal there is no reason for it to stay central.
 - OS-level screen lock; this covers the application session only.
 - Changing sign-out (#781) or the explicit sign-in paths (#847).
 - Per-zone or per-role windows (D1).
-- Re-authenticating _in place_ (unlocking without a full sign-in) — a real future
+- Re-authenticating *in place* (unlocking without a full sign-in) — a real future
   refinement, but it needs a credential prompt inside the app, and that decision
   belongs with #41's MFA work rather than here.

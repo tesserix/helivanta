@@ -46,15 +46,15 @@ a `Result{}` that nobody filled in refuses the sign-in.
 
 A refused `Result` carries a `RefusalReason`:
 
-| Condition (password already verified)                                  | Before                    | Now                                                                                                                                                                                                                |
-| ---------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Enrolled factor other than password/TOTP (passkey, U2F, OTP email/SMS) | handoff, no reason logged | `RefusalFactorUnsupported`: refused, reason and the enrolled method types logged                                                                                                                                   |
-| Linked IdP (`AUTHENTICATION_METHOD_TYPE_IDP`)                          | handoff, no reason logged | **Corrected 2026-10-08 (#950):** neutral, not a refusal — see `2026-10-08-idp-link-is-not-a-factor-design.md`. This spec originally listed it in the row above; the first morning in production proved that wrong. |
-| `forceMfa` and nothing enrolled                                        | handoff, no reason logged | `RefusalMFAEnrollmentRequired`: refused, logged. **Superseded 2026-10-08 (#948):** now `OutcomeEnrollmentRequired`, a native TOTP enrolment step; see `2026-10-08-native-totp-enrolment-design.md`.                |
-| Enrolled factors or login policy unreadable                            | handoff, WARN logged      | **error** (`ErrUnavailable`): 503, never a refusal and never a completion                                                                                                                                          |
-| TOTP enrolled                                                          | native prompt             | unchanged                                                                                                                                                                                                          |
-| Nothing beyond password, policy does not force MFA                     | complete                  | unchanged                                                                                                                                                                                                          |
-| Password must change (flagged, or expired) — added 2026-10-08 (#856)   | completed silently        | `OutcomePasswordChangeRequired`: a native change step, after every factor — see `2026-10-08-password-change-required-design.md`                                                                                    |
+| Condition (password already verified)                                              | Before                    | Now                                                                              |
+| ---------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
+| Enrolled factor other than password/TOTP (passkey, U2F, OTP email/SMS)             | handoff, no reason logged | `RefusalFactorUnsupported`: refused, reason and the enrolled method types logged |
+| Linked IdP (`AUTHENTICATION_METHOD_TYPE_IDP`)                                      | handoff, no reason logged | **Corrected 2026-10-08 (#950):** neutral, not a refusal — see `2026-10-08-idp-link-is-not-a-factor-design.md`. This spec originally listed it in the row above; the first morning in production proved that wrong. |
+| `forceMfa` and nothing enrolled                                                    | handoff, no reason logged | `RefusalMFAEnrollmentRequired`: refused, logged. **Superseded 2026-10-08 (#948):** now `OutcomeEnrollmentRequired`, a native TOTP enrolment step; see `2026-10-08-native-totp-enrolment-design.md`. |
+| Enrolled factors or login policy unreadable                                        | handoff, WARN logged      | **error** (`ErrUnavailable`): 503, never a refusal and never a completion        |
+| TOTP enrolled                                                                      | native prompt             | unchanged                                                                        |
+| Nothing beyond password, policy does not force MFA                                 | complete                  | unchanged                                                                        |
+| Password must change (flagged, or expired) — added 2026-10-08 (#856)               | completed silently        | `OutcomePasswordChangeRequired`: a native change step, after every factor — see `2026-10-08-password-change-required-design.md` |
 
 Unreadable state is an error, not a refusal, deliberately. "We could not tell"
 must not tell the clinician their account is unsupported. It is the same
@@ -133,7 +133,7 @@ Each item is filed separately and linked from the PR:
   it removed in Zitadel to sign in, which is the product owner's stated choice
   (branded refusal over handoff). **Corrected 2026-10-08 (#950):** a linked
   IdP was originally in this list; it is not a factor to collect and no longer
-  refuses. Signing in _with_ an IdP remains out of scope (#423).
+  refuses. Signing in *with* an IdP remains out of scope (#423).
 - **Logout.** This spec covers sign-in only. Whether the end-session redirect
   shows a Zitadel page is not established here.
 

@@ -23,10 +23,14 @@ const inputClass =
  */
 export function DischargeOrder({ hospital, bed }: { hospital: Hospital; bed: Bed }) {
   const { can } = usePermissions();
-  const [open, setOpen] = useState(false);
+  // The form is opened for the order the doctor saw. If the board shows
+  // another since (a colleague ordered or withdrew), it closes rather than
+  // turning into the other command under the doctor's hand.
+  const [openFor, setOpenFor] = useState<string | null | undefined>(undefined);
   if (bed.state !== "occupied" || !bed.admission_id) return null;
   const doctor = can("medicore.discharge.order");
   const ordered = bed.discharge_order_id && bed.discharge_disposition;
+  const open = openFor !== undefined && openFor === bed.discharge_order_id;
   return (
     <div className="mt-1">
       <div className="flex flex-wrap items-center gap-2">
@@ -37,7 +41,12 @@ export function DischargeOrder({ hospital, bed }: { hospital: Hospital; bed: Bed
           </Badge>
         )}
         {doctor && !open && (
-          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label={`${ordered ? "Withdraw discharge" : "Order discharge"} for bed ${bed.code}`}
+            onClick={() => setOpenFor(bed.discharge_order_id)}
+          >
             {ordered ? "Withdraw discharge" : "Order discharge"}
           </Button>
         )}
@@ -47,7 +56,7 @@ export function DischargeOrder({ hospital, bed }: { hospital: Hospital; bed: Bed
           hospital={hospital}
           admissionId={bed.admission_id}
           orderId={bed.discharge_order_id}
-          onDone={() => setOpen(false)}
+          onDone={() => setOpenFor(undefined)}
         />
       )}
     </div>

@@ -16,7 +16,7 @@
 - **`make up` must remain safe to re-run.** A port held by this repo's own containers or processes is not a preflight failure.
 - **Scripts must be portable to bash 3.2** (macOS system bash). No `declare -A`, no `${var,,}`, no `readarray`. Avoid `${arr[@]}` on possibly-empty arrays under `set -u` — this plan uses newline-delimited strings instead.
 - **Tests must not require Docker or a network.** External commands are shimmed onto `PATH`.
-- Every script gets `#!/usr/bin/env bash`, `set -uo pipefail`, and a comment block explaining _why_ it exists — match the voice of `scripts/dev-down.sh`.
+- Every script gets `#!/usr/bin/env bash`, `set -uo pipefail`, and a comment block explaining *why* it exists — match the voice of `scripts/dev-down.sh`.
 - Ports owned by this stack: `5432 4222 8222 6379 8090 9099 8080 4301 4302 4303 4304`.
 - Pin `firebase-tools` to exactly **13.35.1**.
 - Toolchain floors: Go **1.26** (`backend/go.mod` says 1.26.5), Node **22** (`package.json` engines `>=22`).
@@ -28,7 +28,6 @@
 Extract the "does this process belong to this repo?" logic that `dev-down.sh` already implements into a sourced helper, so `preflight.sh` can reuse it and both agree. Ship the test harness and CI wiring in the same task, because the helper is the first thing that needs testing.
 
 **Files:**
-
 - Create: `scripts/lib/repo-owns.sh`
 - Create: `scripts/preflight.test.sh`
 - Modify: `scripts/dev-down.sh` (replace inline `cwd_of` with the helper)
@@ -36,7 +35,6 @@ Extract the "does this process belong to this repo?" logic that `dev-down.sh` al
 - Modify: `.github/workflows/ci.yml` (add a `scripts` job)
 
 **Interfaces:**
-
 - Consumes: nothing.
 - Produces, all sourced from `scripts/lib/repo-owns.sh`:
   - `cwd_of PID` → prints the process's working directory, empty if unreadable
@@ -276,13 +274,13 @@ test-scripts:
 In `.github/workflows/ci.yml`, add a third job after `web`:
 
 ```yaml
-scripts:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - name: Ensure lsof is present
-      run: command -v lsof || sudo apt-get install -y lsof
-    - run: make test-scripts
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure lsof is present
+        run: command -v lsof || sudo apt-get install -y lsof
+      - run: make test-scripts
 ```
 
 - [ ] **Step 9: Run everything and commit**
@@ -300,13 +298,11 @@ git commit -m "test: shared repo-ownership helper with a dependency-free script 
 ### Task 2: Preflight checks
 
 **Files:**
-
 - Create: `scripts/preflight.sh`
 - Modify: `scripts/preflight.test.sh` (append preflight cases)
 - Modify: `Makefile` (`dev-infra` gains a preflight dependency)
 
 **Interfaces:**
-
 - Consumes: `pid_is_ours`, `port_is_ours`, `$REPO_ROOT` from Task 1.
 - Produces:
   - `scripts/preflight.sh` — exit 0 when everything passes, 1 otherwise
@@ -564,12 +560,10 @@ git commit -m "feat: preflight naming every conflict and its fix before make up"
 ### Task 3: `make reset`
 
 **Files:**
-
 - Create: `scripts/reset-dev.sh`
 - Modify: `Makefile`
 
 **Interfaces:**
-
 - Consumes: `scripts/dev-down.sh`, `make dev-infra`, `make seed`.
 - Produces: `make reset`; honours `RESET_YES=1` to skip confirmation.
 
@@ -677,11 +671,9 @@ git commit -m "feat: make reset returning the stack to a clean seeded state"
 ### Task 4: Survive sleep and restart
 
 **Files:**
-
 - Modify: `docker-compose.dev.yml`
 
 **Interfaces:**
-
 - Consumes: nothing.
 - Produces: a `npmcache` named volume, referenced only by `firebase-auth`.
 
@@ -690,11 +682,11 @@ git commit -m "feat: make reset returning the stack to a clean seeded state"
 Add `restart: unless-stopped` to all five services in `docker-compose.dev.yml`. `unless-stopped` rather than `always`, so a container someone deliberately stopped stays stopped. For example, `postgres` becomes:
 
 ```yaml
-postgres:
-  image: postgres:16-alpine
-  restart: unless-stopped
-  environment:
-    POSTGRES_USER: hms
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hms
 ```
 
 Do the same for `nats`, `redis`, `openfga` and `firebase-auth`.
@@ -704,20 +696,20 @@ Do the same for `nats`, `redis`, `openfga` and `firebase-auth`.
 Replace the `firebase-auth` service's `command` and `volumes` so it reads:
 
 ```yaml
-firebase-auth:
-  image: node:22-alpine
-  working_dir: /workspace
-  # firebase-tools is pinned exactly. `firebase-tools@13` resolved a
-  # floating minor on every container start, so two machines could run
-  # different emulator builds and every start needed the network —
-  # directly against #714's "seeded data identical across machines".
-  # The npm cache volume makes restarts fast and offline-capable.
-  command: sh -c "npx -y firebase-tools@13.35.1 emulators:start --only auth --project demo-hms"
-  restart: unless-stopped
-  volumes:
-    - ./dev/firebase:/workspace
-    - npmcache:/root/.npm
-  ports: ["9099:9099"]
+  firebase-auth:
+    image: node:22-alpine
+    working_dir: /workspace
+    # firebase-tools is pinned exactly. `firebase-tools@13` resolved a
+    # floating minor on every container start, so two machines could run
+    # different emulator builds and every start needed the network —
+    # directly against #714's "seeded data identical across machines".
+    # The npm cache volume makes restarts fast and offline-capable.
+    command: sh -c "npx -y firebase-tools@13.35.1 emulators:start --only auth --project demo-hms"
+    restart: unless-stopped
+    volumes:
+      - ./dev/firebase:/workspace
+      - npmcache:/root/.npm
+    ports: ["9099:9099"]
 ```
 
 - [ ] **Step 3: Declare the volume**
@@ -777,12 +769,10 @@ git commit -m "fix: restart policies and a pinned firebase-tools so the dev stac
 ### Task 5: Documentation and ADR
 
 **Files:**
-
 - Create: `docs/adr/0003-local-dev-stack.md`
 - Modify: `README.md`
 
 **Interfaces:**
-
 - Consumes: everything above.
 - Produces: no code.
 
@@ -953,18 +943,18 @@ Expected: `go`, `web` and `scripts` all pass. If Actions is blocked by org billi
 
 **Spec coverage:**
 
-| Spec section                                             | Task                |
-| -------------------------------------------------------- | ------------------- |
-| Preflight, all checks, all-failures-at-once              | 2                   |
-| Re-runnability (our own ports are not conflicts)         | 1 (helper), 2 (use) |
-| `make reset`, confirmation, `RESET_YES`                  | 3                   |
-| Restart policies                                         | 4                   |
-| Pinned `firebase-tools` + cache volume                   | 4                   |
-| Ownership test extracted to a shared helper              | 1                   |
-| README + ADR-0003                                        | 5                   |
-| `scripts/preflight.test.sh`, cases listed in the spec    | 1, 2                |
-| Reset integration check (seed → mutate → reset → assert) | 3 step 5            |
-| CI wiring                                                | 1 step 8            |
+| Spec section | Task |
+| --- | --- |
+| Preflight, all checks, all-failures-at-once | 2 |
+| Re-runnability (our own ports are not conflicts) | 1 (helper), 2 (use) |
+| `make reset`, confirmation, `RESET_YES` | 3 |
+| Restart policies | 4 |
+| Pinned `firebase-tools` + cache volume | 4 |
+| Ownership test extracted to a shared helper | 1 |
+| README + ADR-0003 | 5 |
+| `scripts/preflight.test.sh`, cases listed in the spec | 1, 2 |
+| Reset integration check (seed → mutate → reset → assert) | 3 step 5 |
+| CI wiring | 1 step 8 |
 
 No spec requirement is unmapped.
 
@@ -972,4 +962,4 @@ No spec requirement is unmapped.
 
 **Type consistency:** `pid_is_ours`, `port_is_ours`, `port_holders`, `cwd_of`, `compose_owns_port` and `$REPO_ROOT` are defined in Task 1 and used with those exact names in Task 2. `PREFLIGHT_PORTS`, `RESET_YES` and `npmcache` are each declared once and referenced consistently.
 
-**Deviation from the spec, resolved:** the spec proposed a test asserting "a port held by our own _container_ passes", which would need a running container in CI. Task 1 shims `docker` on `PATH` instead — same guarantee, no Docker required. The spec's known limitations are carried into the PR body unchanged.
+**Deviation from the spec, resolved:** the spec proposed a test asserting "a port held by our own *container* passes", which would need a running container in CI. Task 1 shims `docker` on `PATH` instead — same guarantee, no Docker required. The spec's known limitations are carried into the PR body unchanged.

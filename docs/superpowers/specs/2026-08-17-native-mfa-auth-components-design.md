@@ -25,14 +25,14 @@ remains the authority that checks the factor.
 
 ## What the spike settled, and what it changes
 
-| Observation                                                                                      | Consequence                                                             |
-| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Observation | Consequence |
+|---|---|
 | `PATCH /v2/sessions/{id}` with `checks:{totp:{code}}` returns **200 under the login-client PAT** | Native MFA is possible with the only Zitadel credential Helivanta holds |
-| The session then reports `factors.totp.verifiedAt`                                               | Sufficiency can assert on verified factors, not infer from policy       |
-| **`PATCH` returns a NEW `sessionToken`**                                                         | D3 below exists entirely because of this                                |
-| `POST` to a session id is 405                                                                    | The method is `PATCH`                                                   |
-| TOTP verify is `/totp/verify`, not `/totp/_verify`                                               | Only relevant to enrolment, which is out of scope                       |
-| Email/SMS OTP delivery unverified (no SMTP in dev)                                               | D1 scopes to TOTP                                                       |
+| The session then reports `factors.totp.verifiedAt` | Sufficiency can assert on verified factors, not infer from policy |
+| **`PATCH` returns a NEW `sessionToken`** | D3 below exists entirely because of this |
+| `POST` to a session id is 405 | The method is `PATCH` |
+| TOTP verify is `/totp/verify`, not `/totp/_verify` | Only relevant to enrolment, which is out of scope |
+| Email/SMS OTP delivery unverified (no SMTP in dev) | D1 scopes to TOTP |
 
 ---
 
@@ -40,17 +40,17 @@ remains the authority that checks the factor.
 
 This slice collects **TOTP** codes. The D3 handoff table is otherwise intact:
 
-| Case                                        | Behaviour                                                                                                                                                                                                                                                  |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Org requires MFA, user has TOTP             | **Native prompt** (new)                                                                                                                                                                                                                                    |
-| Org requires MFA, user has nothing enrolled | Handoff at the time; a branded refusal after #947. **Corrected 2026-10-08 (#948):** native TOTP enrolment, then the native prompt. See `2026-10-08-native-totp-enrolment-design.md`.                                                                       |
-| User voluntarily enrolled TOTP              | **Native prompt** (new)                                                                                                                                                                                                                                    |
-| User enrolled `OTP_EMAIL` / `OTP_SMS`       | Handoff, unchanged                                                                                                                                                                                                                                         |
-| User enrolled passkey / U2F                 | Handoff, unchanged                                                                                                                                                                                                                                         |
-| User's account carries an IdP link          | **Corrected 2026-10-08 (#950):** neutral — completes, or prompts for TOTP, exactly as if the link were absent. See `2026-10-08-idp-link-is-not-a-factor-design.md` D1. (Originally listed with passkey/U2F as a handoff.)                                  |
-| Federated hospital IdP                      | Handoff, unchanged                                                                                                                                                                                                                                         |
-| Password change required                    | Not handled ([#856](https://github.com/tesserix/helivanta/issues/856)), unchanged. **Closed 2026-10-08 (#856):** a native change step after every factor (after the TOTP code when one is enrolled) — see `2026-10-08-password-change-required-design.md`. |
-| Locked out / wrong password / unknown user  | Unchanged (D5's shared refusal)                                                                                                                                                                                                                            |
+| Case | Behaviour |
+|---|---|
+| Org requires MFA, user has TOTP | **Native prompt** (new) |
+| Org requires MFA, user has nothing enrolled | Handoff at the time; a branded refusal after #947. **Corrected 2026-10-08 (#948):** native TOTP enrolment, then the native prompt. See `2026-10-08-native-totp-enrolment-design.md`. |
+| User voluntarily enrolled TOTP | **Native prompt** (new) |
+| User enrolled `OTP_EMAIL` / `OTP_SMS` | Handoff, unchanged |
+| User enrolled passkey / U2F | Handoff, unchanged |
+| User's account carries an IdP link | **Corrected 2026-10-08 (#950):** neutral — completes, or prompts for TOTP, exactly as if the link were absent. See `2026-10-08-idp-link-is-not-a-factor-design.md` D1. (Originally listed with passkey/U2F as a handoff.) |
+| Federated hospital IdP | Handoff, unchanged |
+| Password change required | Not handled ([#856](https://github.com/tesserix/helivanta/issues/856)), unchanged. **Closed 2026-10-08 (#856):** a native change step after every factor (after the TOTP code when one is enrolled) — see `2026-10-08-password-change-required-design.md`. |
+| Locked out / wrong password / unknown user | Unchanged (D5's shared refusal) |
 
 Scoping down is fine; being incorrect for excluded cases is not. Email and SMS
 codes are excluded because the spike could not exercise delivery — the dev stack
@@ -102,7 +102,7 @@ exists at all.
 
 It was rejected for one reason: **there is nowhere to count attempts.** A TOTP
 code is six digits — a 10⁶ space — and the earlier spike established that
-Zitadel applies a _delay_, not a lockout, with no `maxPasswordAttempts` policy
+Zitadel applies a *delay*, not a lockout, with no `maxPasswordAttempts` policy
 configured. Without a per-attempt record, bounding guesses falls to the
 route-level rate limiter, which is keyed by caller and cannot distinguish "this
 login attempt has now had five wrong codes" from ordinary traffic — and a
@@ -126,7 +126,7 @@ correct code, and the only thing they can see is that their TOTP was rejected.
 
 So:
 
-- `loginclient.Session` carries the token as the _current_ value, and any call
+- `loginclient.Session` carries the token as the *current* value, and any call
   that returns a new one **replaces** it. The type must make the stale value
   unreachable rather than merely discouraged — a factor check returns the
   updated `Session`, and the old value is not retained anywhere a finalize could
@@ -143,7 +143,7 @@ So:
 `loginclient.CompleteIfSufficient` remains the only decider, behind the existing
 arch test pinning the single finalize call site. Zitadel does not enforce
 `forceMfa` for a login client — observed, and unchanged by this spec — so the
-component that _renders_ an MFA step must never become the thing that decides
+component that *renders* an MFA step must never become the thing that decides
 one was required.
 
 What improves: the sufficiency check currently reasons from policy plus enrolled
@@ -184,7 +184,7 @@ so exposing it reveals nothing about whether a given account exists.
 
 **`requireMfaLocalOnly` is deliberately NOT exposed, even though the neutral
 shape has a slot for it.** `loginclient.LoginPolicy` models a single folded
-`ForceMFA`, set when _either_ Zitadel key is true — that fold is D4 of the
+`ForceMFA`, set when *either* Zitadel key is true — that fold is D4 of the
 login-client spec, taken on the explicitly recorded assumption that every
 session Helivanta evaluates is a local (password) one. (**Corrected 2026-10-08,
 #950:** the assumption was previously worded as "no external IdP is
@@ -204,7 +204,7 @@ exactly that class of signal.
 ## D6 — Factor attempts are bounded per login attempt, and exhaustion abandons the session
 
 `factor_attempts` is incremented on every wrong code. At **five**, the
-`login_attempt` row is deleted and the Zitadel session is abandoned — _abandoned_,
+`login_attempt` row is deleted and the Zitadel session is abandoned — *abandoned*,
 not revoked. Nothing calls `DELETE /v2/sessions/{id}`, so the session lives out
 its own lifetime, unreachable because the only token for it is gone. This
 section's heading originally said "destroys the session", which overclaimed. The user
@@ -234,7 +234,7 @@ as a broken application.
 
 `AuthCredentialForm` accepts `loginNameLabel`, `passwordLabel` and
 `submitLabel`. **All three are passed explicitly.** Its default login-name label
-is derived from the policy (`describeLoginName(methodPolicy)`) and would _not_
+is derived from the policy (`describeLoginName(methodPolicy)`) and would *not*
 say `Email`; relying on the default is the concrete way this contract breaks.
 
 The MFA step introduces new names. They are new, not renamed, so no existing
@@ -243,12 +243,12 @@ they become a contract the moment it lands.
 
 ## D8 — The API surface
 
-| Route                            | Change                                                                                                                                                                                                                                                          |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/auth/login/request/:id` | Also returns the neutral `AuthPolicies` subset (D5)                                                                                                                                                                                                             |
-| `POST /v1/auth/login/password`   | Gains a third outcome: `factor_required` with the factor kinds to collect                                                                                                                                                                                       |
-| `POST /v1/auth/login/factor`     | **New.** `{auth_request_id, factor:"totp", code}` → `callback_url`, `handoff_url`, a shared refusal, or `auth_request_invalid`                                                                                                                                  |
-| `POST /v1/auth/login/enroll`     | **Added 2026-10-08 (#948).** Same body as `/factor`; confirms a TOTP the password step registered (`enrollment_required` outcome) and completes the sign-in. Five unauthenticated login routes since then. See `2026-10-08-native-totp-enrolment-design.md` D3. |
+| Route | Change |
+|---|---|
+| `GET /v1/auth/login/request/:id` | Also returns the neutral `AuthPolicies` subset (D5) |
+| `POST /v1/auth/login/password` | Gains a third outcome: `factor_required` with the factor kinds to collect |
+| `POST /v1/auth/login/factor` | **New.** `{auth_request_id, factor:"totp", code}` → `callback_url`, `handoff_url`, a shared refusal, or `auth_request_invalid` |
+| `POST /v1/auth/login/enroll` | **Added 2026-10-08 (#948).** Same body as `/factor`; confirms a TOTP the password step registered (`enrollment_required` outcome) and completes the sign-in. Five unauthenticated login routes since then. See `2026-10-08-native-totp-enrolment-design.md` D3. |
 
 **Corrected after implementation**, per CLAUDE.md's rule that superseded docs are
 fixed in the same change. Three drifts from what this section first claimed:
@@ -258,7 +258,7 @@ fixed in the same change. Three drifts from what this section first claimed:
    "exhausted" deliberately, so none is distinguishable from the others.
 2. **`handoff_url` is a real outcome of the factor endpoint**, originally omitted
    here. `CompleteAfterFactor` returns `OutcomeHandoff` when the user's enrolled
-   methods include something Helivanta cannot collect, so a _correct_ TOTP code
+   methods include something Helivanta cannot collect, so a *correct* TOTP code
    can still legitimately end in a handoff — reachable when enrollment changes
    mid-flow. The Task 5 brief inherited this omission and would have shipped a
    three-way client union that silently mishandled it; the implementer caught it.
@@ -300,7 +300,7 @@ password that was correct.
 ## Testing
 
 - **Go, faked Zitadel:** one row per D1 case, asserting the outcome and that
-  finalize was _not_ called for the handoff rows.
+  finalize was *not* called for the handoff rows.
 - **The D3 regression test, which is the point of this spec:** password →
   factor → finalize succeeds, **observed failing** against an implementation
   that reuses the session token from creation. A passing MFA test that never

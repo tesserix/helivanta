@@ -16,7 +16,7 @@
 
 **Architecture:** Five parts were planned, sequenced so the urgent guard lands first in its own PR. Part A adds an arch test plus a captured-stderr property test around `tenantdb.Open`'s `logger.Silent`. Parts B–D build `backend/pkg/logging`: a JSON handler with `LOG_LEVEL` control, request-scoped correlation fields wired in the platform middleware chain, and **pattern redaction at the writer** (screening the serialised bytes slog actually emits). **Part E — tag redaction at the handler (`helivantalog:"phi"`, for the names and dates patterns cannot match) — ships, but not as planned below: the reflection design in Task 8 was WITHDRAWN after review and replaced by the marshal-then-mask implementation under issue #778. See the banner above.**
 
-**Why redaction is split across two layers** — this was learned during implementation, not designed up front. A single `slog.Handler` that inspected attribute _values_ was built, reviewed adversarially and taken through two fix rounds; both rounds closed every finding and both introduced new leaks of the same class, because the handler screened a _proxy_ for what slog would emit (`fmt.Sprint`, `%g`, a reflection-rebuilt struct, `MarshalText`) and slog then emitted something else. In the worst case the redactor itself published a patient's name that the type's own `MarshalJSON` had withheld. Screening the emitted bytes removes the guess entirely; reflection survives only where bytes genuinely cannot help, which is struct tags. See the spec's Part D for the full table.
+**Why redaction is split across two layers** — this was learned during implementation, not designed up front. A single `slog.Handler` that inspected attribute *values* was built, reviewed adversarially and taken through two fix rounds; both rounds closed every finding and both introduced new leaks of the same class, because the handler screened a *proxy* for what slog would emit (`fmt.Sprint`, `%g`, a reflection-rebuilt struct, `MarshalText`) and slog then emitted something else. In the worst case the redactor itself published a patient's name that the type's own `MarshalJSON` had withheld. Screening the emitted bytes removes the guess entirely; reflection survives only where bytes genuinely cannot help, which is struct tags. See the spec's Part D for the full table.
 
 **Tech Stack:** Go 1.26, `log/slog`, `gorm.io/gorm`, `gin-gonic/gin`, `go/ast` (arch tests), `testify/require`, testcontainers via `internal/testutil`.
 
@@ -47,9 +47,9 @@ amended version. Two changes:
    original reflection-based implementation is preserved on the branch
    `backup/678-redaction-reflection` for reference and is not merged.
 2. **Part E was added** for `helivantalog:"phi"` tag redaction. Issue #678's primary acceptance
-   criterion is _"a handler logs a struct containing a field tagged as PHI → the PHI
-   field is redacted"_, and its scope line reads _"redaction hooks for tagged PHI fields
-   and known patterns"_. Pattern matching alone cannot satisfy that — a patient name
+   criterion is *"a handler logs a struct containing a field tagged as PHI → the PHI
+   field is redacted"*, and its scope line reads *"redaction hooks for tagged PHI fields
+   and known patterns"*. Pattern matching alone cannot satisfy that — a patient name
    carries no pattern — so the tag layer was intended to close the issue's headline AC.
    Task 8 implemented it. **That implementation was WITHDRAWN after two review rounds
    found five Critical defects, and replaced under issue #778 by the marshal-then-mask
@@ -61,28 +61,28 @@ amended version. Two changes:
 
 **New:**
 
-| File                                                                                             | Responsibility                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `backend/pkg/logging/logging.go`                                                                 | `New(level string) *slog.Logger` — level parsing, JSON handler, both redaction layers                                                                                                                                               |
-| `backend/pkg/logging/redact.go`                                                                  | The pattern set, `RedactString`, the byte-level redacting writer, the counter                                                                                                                                                       |
-| `backend/pkg/logging/phitag.go`                                                                  | The `helivantalog:"phi"` handler. **Not the design planned here** — the reflection walker was withdrawn; what exists is the marshal-then-mask implementation from #778: per-type JSON path set plus a token-level masking walk.     |
-| `backend/pkg/logging/logging_test.go`                                                            | Level parsing, JSON shape, fallback, end-to-end redaction across every rendering slog produces                                                                                                                                      |
-| `backend/pkg/logging/redact_test.go`                                                             | Pattern table, JSON-validity of the writer's output, number-token quoting, escape tracking, counter                                                                                                                                 |
+| File | Responsibility |
+|---|---|
+| `backend/pkg/logging/logging.go` | `New(level string) *slog.Logger` — level parsing, JSON handler, both redaction layers |
+| `backend/pkg/logging/redact.go` | The pattern set, `RedactString`, the byte-level redacting writer, the counter |
+| `backend/pkg/logging/phitag.go` | The `helivantalog:"phi"` handler. **Not the design planned here** — the reflection walker was withdrawn; what exists is the marshal-then-mask implementation from #778: per-type JSON path set plus a token-level masking walk. |
+| `backend/pkg/logging/logging_test.go` | Level parsing, JSON shape, fallback, end-to-end redaction across every rendering slog produces |
+| `backend/pkg/logging/redact_test.go` | Pattern table, JSON-validity of the writer's output, number-token quoting, escape tracking, counter |
 | `backend/pkg/logging/phitag_test.go` (plus `phitag_internal_test.go`, `phitag_conflict_test.go`) | Shipped under #778: tagged struct, nested, collections, maps, groups, pre-bound attrs, self-marshalling passthrough, byte-identical passthrough for untagged types, and a differential fuzz against `encoding/json`'s field naming. |
 
 **Modified:**
 
-| File                                                    | Change                                                                          |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `backend/pkg/tenantdb/db.go`                            | Comment explaining `logger.Silent` is a PHI control                             |
-| `backend/pkg/tenantdb/db_test.go`                       | Captured-output property test                                                   |
-| `backend/internal/archtest/arch_test.go`                | `gorm.Open` allowlist test + its discriminating unit test                       |
-| `backend/internal/config/config.go`                     | `LogLevel` field                                                                |
-| `backend/cmd/api/main.go`                               | `slog.SetDefault` at boot; `requestid.PrincipalMiddleware()` in the `/v1` chain |
-| `backend/cmd/migrate/main.go`                           | `slog.SetDefault` at boot                                                       |
-| `backend/internal/platform/requestid/requestid.go`      | `Enrich` + `PrincipalMiddleware`                                                |
-| `backend/internal/platform/requestid/requestid_test.go` | Correlation-field tests                                                         |
-| `docs/standards/backend.md`                             | Logging section: JSON, `LOG_LEVEL`, redaction, correlation fields               |
+| File | Change |
+|---|---|
+| `backend/pkg/tenantdb/db.go` | Comment explaining `logger.Silent` is a PHI control |
+| `backend/pkg/tenantdb/db_test.go` | Captured-output property test |
+| `backend/internal/archtest/arch_test.go` | `gorm.Open` allowlist test + its discriminating unit test |
+| `backend/internal/config/config.go` | `LogLevel` field |
+| `backend/cmd/api/main.go` | `slog.SetDefault` at boot; `requestid.PrincipalMiddleware()` in the `/v1` chain |
+| `backend/cmd/migrate/main.go` | `slog.SetDefault` at boot |
+| `backend/internal/platform/requestid/requestid.go` | `Enrich` + `PrincipalMiddleware` |
+| `backend/internal/platform/requestid/requestid_test.go` | Correlation-field tests |
+| `docs/standards/backend.md` | Logging section: JSON, `LOG_LEVEL`, redaction, correlation fields |
 
 ## Delivery
 
@@ -96,12 +96,10 @@ Do not run `gh pr merge` while `make up` is starting — the checkout races the 
 ## Task 1: Restrict `gorm.Open` to an allowlist, and say why the logger is silent
 
 **Files:**
-
 - Modify: `backend/pkg/tenantdb/db.go:25-28`
 - Modify: `backend/internal/archtest/arch_test.go` (append at end of file)
 
 **Interfaces:**
-
 - Consumes: nothing from earlier tasks.
 - Produces: nothing later tasks depend on.
 
@@ -363,11 +361,9 @@ git commit -m "feat: restrict gorm.Open to an allowlist so the PHI-silencing log
 ## Task 2: Assert the property — no query parameter ever reaches stdout or stderr
 
 **Files:**
-
 - Modify: `backend/pkg/tenantdb/db_test.go` (append)
 
 **Interfaces:**
-
 - Consumes: `tenantdb.Open`, `tenantdb.DB.WithTenant`, `tenantdb.Migrations()`,
   `testutil.StartPostgres(t) (appDSN, adminDSN string)` — all already exist and are
   used by `openMigrated` at the top of the same file.
@@ -569,13 +565,11 @@ output, including the Step 3 failing GORM line, as a PR comment.
 ## Task 3: `LOG_LEVEL` config and the JSON logger constructor
 
 **Files:**
-
 - Create: `backend/pkg/logging/logging.go`
 - Create: `backend/pkg/logging/logging_test.go`
 - Modify: `backend/internal/config/config.go`
 
 **Interfaces:**
-
 - Consumes: nothing from earlier tasks.
 - Produces:
   - `logging.New(level string) *slog.Logger`
@@ -786,12 +780,10 @@ git commit -m "feat: add pkg/logging with JSON output and LOG_LEVEL control"
 ## Task 4: Set the default logger at boot in both commands
 
 **Files:**
-
 - Modify: `backend/cmd/api/main.go`
 - Modify: `backend/cmd/migrate/main.go`
 
 **Interfaces:**
-
 - Consumes: `logging.New(level string) *slog.Logger` (Task 3), `config.Config.LogLevel` (Task 3).
 - Produces: nothing later tasks depend on, but Task 5's `requestid` enrichment builds on
   `slog.Default()` already being the JSON logger.
@@ -865,13 +857,11 @@ git commit -m "feat: install the JSON logger as slog default at api and migrate 
 ## Task 5: Tenant and subject correlation on the request-scoped logger
 
 **Files:**
-
 - Modify: `backend/internal/platform/requestid/requestid.go`
 - Modify: `backend/internal/platform/requestid/requestid_test.go`
 - Modify: `backend/cmd/api/main.go`
 
 **Interfaces:**
-
 - Consumes: `authn.PrincipalFrom(c) (authn.Principal, bool)` with fields `Subject`,
   `TenantID` — both `string` (`backend/pkg/authn/authn.go:17`).
 - Produces:
@@ -1094,12 +1084,10 @@ git commit -m "feat: correlate request logs with tenant_id and subject once auth
 ## Task 6: The pattern set and the byte-level redacting writer
 
 **Files:**
-
 - Create: `backend/pkg/logging/redact.go`
 - Create: `backend/pkg/logging/redact_test.go`
 
 **Interfaces:**
-
 - Consumes: nothing from earlier tasks.
 - Produces:
   - `logging.RedactString(s string) (string, int)` — masks every known PHI
@@ -1112,23 +1100,23 @@ git commit -m "feat: correlate request logs with tenant_id and subject once auth
 **Read this before writing code — it is why this task looks the way it does.**
 
 An earlier implementation of Part D was a `slog.Handler` wrapper that inspected
-attribute _values_ and decided whether to mask them. It was taken through two
+attribute *values* and decided whether to mask them. It was taken through two
 adversarial review rounds. Both closed every finding they were given, and both
-introduced new leaks of the same class, because the handler screened a _proxy_
+introduced new leaks of the same class, because the handler screened a *proxy*
 for what slog would emit and slog then emitted something else:
 
-| Screened                  | Emitted         | Result                                             |
-| ------------------------- | --------------- | -------------------------------------------------- |
-| `fmt.Sprint(v)`           | `encoding/json` | `[]*Patient` leaked                                |
-| `%g`                      | decimal         | `float64(123456789012)` leaked                     |
-| reflection-rebuilt struct | `MarshalJSON`   | a patient **name** was published _by the redactor_ |
-| `MarshalText()`           | `Error()`       | error text leaked                                  |
+| Screened | Emitted | Result |
+|---|---|---|
+| `fmt.Sprint(v)` | `encoding/json` | `[]*Patient` leaked |
+| `%g` | decimal | `float64(123456789012)` leaked |
+| reflection-rebuilt struct | `MarshalJSON` | a patient **name** was published *by the redactor* |
+| `MarshalText()` | `Error()` | error text leaked |
 
 This task screens the bytes slog actually writes. There is no proxy and
 therefore no guess. Do not reintroduce value inspection here — Task 8 handles
 the one thing bytes cannot see (struct tags), and nothing else needs it.
 
-**The one hard part:** a pattern match _outside_ a JSON string is a number
+**The one hard part:** a pattern match *outside* a JSON string is a number
 token. Substituting a bare marker there produces invalid JSON:
 
 ```
@@ -1610,12 +1598,10 @@ git commit -m "feat: redact aadhaar, abha and mobile patterns in the serialised 
 ## Task 7: Route the process logger through the redacting writer
 
 **Files:**
-
 - Modify: `backend/pkg/logging/logging.go`
 - Modify: `backend/pkg/logging/logging_test.go`
 
 **Interfaces:**
-
 - Consumes: `logging.NewRedactingWriter` (Task 6).
 - Produces: no new symbols; `New` and `NewWithWriter` keep their signatures.
 
@@ -1808,7 +1794,7 @@ git commit -m "feat: route the process logger through the redacting writer"
 >
 > **A different implementation did ship**, under issue **#778**, on this same branch:
 > `backend/pkg/logging/phitag.go` and its tests now exist, and
-> `logging.NewPHITagHandler` is wired into `logging.NewWithWriter`. It does _not_
+> `logging.NewPHITagHandler` is wired into `logging.NewWithWriter`. It does *not*
 > reconstruct the value from reflection. It marshals with `encoding/json` first, then
 > masks the rendered JSON at the paths the tags identify — see the "marshal first,
 > then mask" section of the design spec and the package doc comment at the top of
@@ -1816,13 +1802,11 @@ git commit -m "feat: route the process logger through the redacting writer"
 > and why it failed review.
 
 **Files:**
-
 - Create: `backend/pkg/logging/phitag.go`
 - Create: `backend/pkg/logging/phitag_test.go`
 - Modify: `backend/pkg/logging/logging.go`
 
 **Interfaces:**
-
 - Consumes: `logging.RedactString` and the `redactions` counter (Task 6);
   `NewWithWriter`'s handler construction (Task 7).
 - Produces: `logging.NewPHITagHandler(inner slog.Handler) slog.Handler`.
@@ -1833,7 +1817,7 @@ know they are PHI is for the type to say so. This is the mechanism behind issue
 #678's primary acceptance criterion.
 
 **Scope discipline — read this.** An earlier design had a handler reflecting
-over _every_ logged value. It leaked four different ways and was replaced by
+over *every* logged value. It leaked four different ways and was replaced by
 Task 6. This handler reflects only over values whose type carries a `phi` tag
 somewhere, and returns everything else untouched for the byte layer to screen.
 Do not broaden it. In particular it must **decline to rewrite** any value
@@ -2250,7 +2234,6 @@ git commit -m "feat: mask struct fields tagged helivantalog:phi, which patterns 
 ## Task 9: Document the logging contract, verify, and open PR 2
 
 **Files:**
-
 - Modify: `docs/standards/backend.md` (the logging section, around lines 508–563)
 
 **Interfaces:** none.
@@ -2387,7 +2370,7 @@ checkout races the sub-make and it reads the wrong Makefile.
   string could hit that bound; it would be under-redacted rather than looping.
 - The shipped tag layer computes no paths beneath a type implementing `json.Marshaler`
   or `encoding.TextMarshaler`, because such a type renders however it likes. A tagged
-  field _of_ such a type is masked whole; PHI emitted by a custom marshaller of an
+  field *of* such a type is masked whole; PHI emitted by a custom marshaller of an
   untagged field gets pattern coverage from the byte layer only. The withdrawn
   reflection design failed the other way — it reconstructed such types from their
   exported fields and published what their own marshaller withheld.

@@ -30,14 +30,14 @@ holds here: one team, one CI, one `turbo build`, every app importing
 
 ## D1 — Pages move into `apps/shell` at the same URLs
 
-| URL                     | Was                                                               | Now                                                             |
-| ----------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------- |
-| `/medicore`             | `apps/medicore/app/page.tsx`, `redirect("/opd")` under `basePath` | `apps/shell/app/medicore/page.tsx`, `redirect("/medicore/opd")` |
-| `/medicore/opd`         | `apps/medicore/app/opd/page.tsx`                                  | `apps/shell/app/medicore/opd/page.tsx`                          |
-| `/medicore/ipd`         | `apps/medicore/app/ipd/page.tsx`                                  | `apps/shell/app/medicore/ipd/page.tsx`                          |
-| `/pharmacy`             | `apps/pharmacy/app/page.tsx`                                      | `apps/shell/app/pharmacy/page.tsx`                              |
-| `/pharmacy/medications` | `apps/pharmacy/app/medications/page.tsx`                          | `apps/shell/app/pharmacy/medications/page.tsx`                  |
-| `/lab`                  | `apps/lab/app/page.tsx`                                           | `apps/shell/app/lab/page.tsx`                                   |
+| URL | Was | Now |
+|---|---|---|
+| `/medicore` | `apps/medicore/app/page.tsx`, `redirect("/opd")` under `basePath` | `apps/shell/app/medicore/page.tsx`, `redirect("/medicore/opd")` |
+| `/medicore/opd` | `apps/medicore/app/opd/page.tsx` | `apps/shell/app/medicore/opd/page.tsx` |
+| `/medicore/ipd` | `apps/medicore/app/ipd/page.tsx` | `apps/shell/app/medicore/ipd/page.tsx` |
+| `/pharmacy` | `apps/pharmacy/app/page.tsx` | `apps/shell/app/pharmacy/page.tsx` |
+| `/pharmacy/medications` | `apps/pharmacy/app/medications/page.tsx` | `apps/shell/app/pharmacy/medications/page.tsx` |
+| `/lab` | `apps/lab/app/page.tsx` | `apps/shell/app/lab/page.tsx` |
 
 Plain route segments, not `(group)` route groups: a group drops its name from
 the URL, and keeping the URL contract is the point (`packages/ui/src/zones.ts`

@@ -28,15 +28,17 @@ close and bed cleaning as separate facts; this slice adds the first.
   `409 not_admitted`.
 - **Idempotent** by client UUIDv7 command id, like every bed command: the same order or
   withdrawal again returns the record; a different one under the same id is `409 conflict`.
-- **Seen on the ward board and the admission.** The bed board and `GET /admissions/:id`
-  carry the active order (`discharge`: id, disposition, ordered by, ordered at); the ward
-  board shows "Discharge ordered", and doctors see Order discharge / Withdraw.
+- **Seen on the ward board and the admission.** The bed board carries the active order's
+  id, disposition and time; `GET /admissions/:id` carries the whole order (`discharge`),
+  including who ordered it. The ward board shows "Discharge ordered", and doctors see Order
+  discharge / Withdraw, labelled with the bed.
 
 ## Rules enforced in the database
 
 - An order is inserted only for an admitted admission, which it share-locks; a withdrawal
   only while it is still admitted.
-- At most one order per admission without a withdrawal (partial unique index).
+- At most one order per admission without a withdrawal (partial unique index); a
+  withdrawal id is used once per tenant.
 - An order's fields never change; it is withdrawn once, with its reason, actor and time.
 - No delete. Forced row security by the MediCore hospital grant; audited.
 

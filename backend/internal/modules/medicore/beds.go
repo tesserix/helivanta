@@ -116,7 +116,8 @@ type admission struct {
 	ReleasedBy    *string    `json:"released_by"`
 	ReleasedAt    *time.Time `json:"released_at"`
 	Occupancies   []stay     `json:"occupancies" gorm:"-"`
-	// The active discharge order; after release, the one the departure completed.
+	// The active discharge order; after release, the one the departure
+	// completed (a released admission's order can no longer be withdrawn).
 	Discharge *dischargeOrder `json:"discharge" gorm:"-"`
 }
 

@@ -24,7 +24,6 @@ just the login page.
 
 `@tesserix/web`'s Input is `bg-background` with inherited foreground text,
 so the autofill state uses the same two tokens:
-
 - `-webkit-text-fill-color` and `caret-color` are `var(--foreground)`;
 - `inset 0 0 0 1000px var(--background)` paints over the UA background,
   which cannot be overridden directly.
@@ -62,19 +61,18 @@ field through the DevTools protocol's `Autofill.trigger`, and
 `:-webkit-autofill` matched. The page used the real `styles.css` and an
 input styled like `@tesserix/web`'s.
 
-|               | Field background (pixel)         | Text fill                           | Focus ring |
-| ------------- | -------------------------------- | ----------------------------------- | ---------- |
-| dark, before  | `(232,240,254)`                  | `rgb(0,0,0)`                        | present    |
-| dark, after   | `(15,19,23)` = `--background`    | `rgb(232,237,242)` = `--foreground` | present    |
-| light, before | `(232,240,254)`                  | `rgb(0,0,0)`                        | present    |
-| light, after  | `(244,246,249)` = `--background` | `rgb(15,23,40)` = `--foreground`    | present    |
+| | Field background (pixel) | Text fill | Focus ring |
+|---|---|---|---|
+| dark, before | `(232,240,254)` | `rgb(0,0,0)` | present |
+| dark, after | `(15,19,23)` = `--background` | `rgb(232,237,242)` = `--foreground` | present |
+| light, before | `(232,240,254)` | `rgb(0,0,0)` | present |
+| light, after | `(244,246,249)` = `--background` | `rgb(15,23,40)` = `--foreground` | present |
 
 The contrast of the applied token pairs is 15.8:1 (dark) and 16.5:1 (light),
 both well above WCAG AA's 4.5:1.
 
 **Regression test, `packages/ui/src/autofill-styles.test.ts`.** For both
 rules it asserts:
-
 - token-only colours;
 - no literal colour, with Tailwind's transparent fallbacks set aside;
 - the three Tailwind shadow variables;
@@ -82,7 +80,6 @@ rules it asserts:
 - Firefox's `filter: none`.
 
 Five mutations each fail it:
-
 - a hardcoded background;
 - an added literal text colour;
 - the ring variable dropped;

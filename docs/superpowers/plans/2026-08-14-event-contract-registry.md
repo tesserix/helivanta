@@ -28,15 +28,15 @@
 
 Established by reading the code on 2026-08-14. **The spec says "five subjects"; that is wrong and Task 7 corrects it.**
 
-| Subject                                      | Publisher | Consumers                   | Payload type today                               |
-| -------------------------------------------- | --------- | --------------------------- | ------------------------------------------------ |
-| `helivanta.in.medicore.visit_created.v1`     | medicore  | pharmacy, lab               | `VisitCreatedData` (medicore) + 2 private copies |
-| `helivanta.in.pharmacy.dispense_recorded.v1` | pharmacy  | _none_                      | `dispenseRecordedData` (private)                 |
-| `helivanta.in.lab.result_ready.v1`           | lab       | _none_                      | `resultReadyData` (private)                      |
-| `helivanta.in.iam.member_granted.v1`         | iam       | iam (`iam-fga-sync`)        | `MemberChangedData`                              |
-| `helivanta.in.iam.member_revoked.v1`         | iam       | iam (`iam-fga-sync-revoke`) | `MemberChangedData`                              |
-| `helivanta.in.iam.credential_revoked.v1`     | iam       | iam (broadcast)             | `CredentialRevokedData`                          |
-| `helivanta.in.reference.pinged.v1`           | reference | reference                   | `pingedData` (private)                           |
+| Subject | Publisher | Consumers | Payload type today |
+|---|---|---|---|
+| `helivanta.in.medicore.visit_created.v1` | medicore | pharmacy, lab | `VisitCreatedData` (medicore) + 2 private copies |
+| `helivanta.in.pharmacy.dispense_recorded.v1` | pharmacy | *none* | `dispenseRecordedData` (private) |
+| `helivanta.in.lab.result_ready.v1` | lab | *none* | `resultReadyData` (private) |
+| `helivanta.in.iam.member_granted.v1` | iam | iam (`iam-fga-sync`) | `MemberChangedData` |
+| `helivanta.in.iam.member_revoked.v1` | iam | iam (`iam-fga-sync-revoke`) | `MemberChangedData` |
+| `helivanta.in.iam.credential_revoked.v1` | iam | iam (broadcast) | `CredentialRevokedData` |
+| `helivanta.in.reference.pinged.v1` | reference | reference | `pingedData` (private) |
 
 Two events have **no consumers**. That is legal — the design says so explicitly — and the CI check in Task 4 must not fail them.
 
@@ -48,43 +48,41 @@ Four payload types are currently unexported and become exported when they move i
 
 **New:**
 
-| File                                                    | Responsibility                                                                                                           |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `backend/internal/modules/medicore/contract/events.go`  | `SubjectVisitCreated`, `VisitCreatedData`                                                                                |
-| `backend/internal/modules/pharmacy/contract/events.go`  | `SubjectDispenseRecorded`, `DispenseRecordedData`                                                                        |
-| `backend/internal/modules/lab/contract/events.go`       | `SubjectResultReady`, `ResultReadyData`                                                                                  |
-| `backend/internal/modules/iam/contract/events.go`       | `SubjectMemberGranted`, `SubjectMemberRevoked`, `SubjectCredentialRevoked`, `MemberChangedData`, `CredentialRevokedData` |
-| `backend/internal/modules/reference/contract/events.go` | `SubjectPinged`, `PingedData`                                                                                            |
-| `backend/internal/archtest/contract_test.go`            | The data-only arch tests (T6, T7) and the narrow-exception test (T8)                                                     |
-| `backend/internal/archtest/events_test.go`              | The publish/subscribe CI checks (T3, T4, T5) and the unmarshal-type check (T2)                                           |
+| File | Responsibility |
+|---|---|
+| `backend/internal/modules/medicore/contract/events.go` | `SubjectVisitCreated`, `VisitCreatedData` |
+| `backend/internal/modules/pharmacy/contract/events.go` | `SubjectDispenseRecorded`, `DispenseRecordedData` |
+| `backend/internal/modules/lab/contract/events.go` | `SubjectResultReady`, `ResultReadyData` |
+| `backend/internal/modules/iam/contract/events.go` | `SubjectMemberGranted`, `SubjectMemberRevoked`, `SubjectCredentialRevoked`, `MemberChangedData`, `CredentialRevokedData` |
+| `backend/internal/modules/reference/contract/events.go` | `SubjectPinged`, `PingedData` |
+| `backend/internal/archtest/contract_test.go` | The data-only arch tests (T6, T7) and the narrow-exception test (T8) |
+| `backend/internal/archtest/events_test.go` | The publish/subscribe CI checks (T3, T4, T5) and the unmarshal-type check (T2) |
 
 **Modified:**
 
-| File                                                                          | Change                                                           |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `backend/.golangci.yml`                                                       | depguard gains the `/contract` allowance                         |
-| `backend/internal/archtest/arch_test.go`                                      | `TestModulesDoNotImportEachOther` skips `/contract` imports      |
-| `backend/internal/platform/module.go`                                         | `Module` interface gains `Publishes() []string`                  |
-| `backend/internal/modules/medicore/module.go`, `visits.go`                    | Subject and payload move to `contract`; `Publishes()` added      |
+| File | Change |
+|---|---|
+| `backend/.golangci.yml` | depguard gains the `/contract` allowance |
+| `backend/internal/archtest/arch_test.go` | `TestModulesDoNotImportEachOther` skips `/contract` imports |
+| `backend/internal/platform/module.go` | `Module` interface gains `Publishes() []string` |
+| `backend/internal/modules/medicore/module.go`, `visits.go` | Subject and payload move to `contract`; `Publishes()` added |
 | `backend/internal/modules/pharmacy/module.go`, `dispenses.go`, `consumers.go` | Duplicate subject + payload deleted; imports medicore's contract |
-| `backend/internal/modules/lab/module.go`, `orders.go`, `consumers.go`         | Same                                                             |
-| `backend/internal/modules/iam/module.go`, `signout.go`, `sync.go`             | Subjects and payloads move to `contract`                         |
-| `backend/internal/modules/reference/module.go`, `pings.go`, `consumers.go`    | Same                                                             |
-| `backend/scripts/new-module.sh`                                               | Template emits a contract package and `Publishes()`              |
-| `docs/standards/backend.md`                                                   | The rule                                                         |
-| `docs/superpowers/specs/2026-08-14-event-contract-registry-design.md`         | Corrections (Task 7)                                             |
+| `backend/internal/modules/lab/module.go`, `orders.go`, `consumers.go` | Same |
+| `backend/internal/modules/iam/module.go`, `signout.go`, `sync.go` | Subjects and payloads move to `contract` |
+| `backend/internal/modules/reference/module.go`, `pings.go`, `consumers.go` | Same |
+| `backend/scripts/new-module.sh` | Template emits a contract package and `Publishes()` |
+| `docs/standards/backend.md` | The rule |
+| `docs/superpowers/specs/2026-08-14-event-contract-registry-design.md` | Corrections (Task 7) |
 
 ---
 
 ## Task 1: `medicore/contract` and the isolation exception
 
 **Files:**
-
 - Create: `backend/internal/modules/medicore/contract/events.go`
 - Modify: `backend/internal/modules/medicore/module.go:13`, `visits.go:33-38`, `backend/internal/modules/pharmacy/module.go:12-17`, `pharmacy/consumers.go:13-30`, `backend/internal/modules/lab/module.go:12-15`, `lab/consumers.go:13-30`, `backend/.golangci.yml:20-27`, `backend/internal/archtest/arch_test.go:67-81`
 
 **Interfaces:**
-
 - Produces: `medicorecontract.SubjectVisitCreated` (string const), `medicorecontract.VisitCreatedData{VisitID, PatientName string}`.
 - Consumes: nothing from other tasks.
 
@@ -152,20 +150,20 @@ Expected: FAIL in `pharmacy` and `lab` — they still declare their own copies, 
 `backend/.golangci.yml`, in the `module-isolation` rule:
 
 ```yaml
-module-isolation:
-  files:
-    - "**/internal/modules/**"
-  deny:
-    - pkg: "github.com/tesserix/helivanta/internal/modules"
-      desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
-  allow:
-    # The ONE exception: a module's contract package is its
-    # published event interface — subject constants and payload
-    # types, data only. internal/archtest/contract_test.go
-    # enforces that it stays data only; without that test this
-    # allowance would be a hole in module isolation rather than a
-    # narrow exception to it (#827).
-    - "github.com/tesserix/helivanta/internal/modules/medicore/contract"
+        module-isolation:
+          files:
+            - "**/internal/modules/**"
+          deny:
+            - pkg: "github.com/tesserix/helivanta/internal/modules"
+              desc: "modules must not import other modules — cross-module data flows only via events (spec D3)"
+          allow:
+            # The ONE exception: a module's contract package is its
+            # published event interface — subject constants and payload
+            # types, data only. internal/archtest/contract_test.go
+            # enforces that it stays data only; without that test this
+            # allowance would be a hole in module isolation rather than a
+            # narrow exception to it (#827).
+            - "github.com/tesserix/helivanta/internal/modules/medicore/contract"
 ```
 
 **Only medicore's entry, at this point.** The other four contract packages do not exist until Task 3, and listing paths for packages that are not there would be an unverifiable claim in a config file — add each entry in the task that creates the package.
@@ -300,11 +298,9 @@ git commit -m "feat: give medicore a contract package so its consumers share one
 ## Task 2: police the exception
 
 **Files:**
-
 - Create: `backend/internal/archtest/contract_test.go`
 
 **Interfaces:**
-
 - Consumes: the contract packages from Task 1.
 - Produces: nothing consumed by later tasks.
 
@@ -438,12 +434,10 @@ git commit -m "test: keep the contract exception data only, so module isolation 
 ## Task 3: the remaining four contract packages
 
 **Files:**
-
 - Create: `backend/internal/modules/pharmacy/contract/events.go`, `lab/contract/events.go`, `iam/contract/events.go`, `reference/contract/events.go`
 - Modify: `pharmacy/module.go`, `dispenses.go`; `lab/module.go`, `orders.go`; `iam/module.go`, `signout.go`, `sync.go`; `reference/module.go`, `pings.go`, `consumers.go`
 
 **Interfaces:**
-
 - Produces: `pharmacycontract.SubjectDispenseRecorded`, `DispenseRecordedData{DispenseID, VisitID string}`; `labcontract.SubjectResultReady`, `ResultReadyData{OrderID, VisitID string}`; `iamcontract.SubjectMemberGranted`, `SubjectMemberRevoked`, `SubjectCredentialRevoked`, `MemberChangedData{Subject, RoleKey string}`, `CredentialRevokedData{Subject string}`; `referencecontract.SubjectPinged`, `PingedData{PingID string}`.
 
 Four of these events are intra-module today. They get contract packages anyway: an intra-module event becomes cross-module the moment a second module wants it, and at that point the choice is to move the contract (touching publisher, new consumer and every test) or to copy it — which is how the current state arose. It is also forced by Task 4's check that every `Publishes()` entry is a contract constant.
@@ -558,10 +552,10 @@ Delete `SubjectPinged` from `reference/module.go` and `pingedData` from `pings.g
 Task 1 added only medicore's entry, because the others did not exist. Add them now:
 
 ```yaml
-- "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
-- "github.com/tesserix/helivanta/internal/modules/lab/contract"
-- "github.com/tesserix/helivanta/internal/modules/iam/contract"
-- "github.com/tesserix/helivanta/internal/modules/reference/contract"
+            - "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
+            - "github.com/tesserix/helivanta/internal/modules/lab/contract"
+            - "github.com/tesserix/helivanta/internal/modules/iam/contract"
+            - "github.com/tesserix/helivanta/internal/modules/reference/contract"
 ```
 
 None of these four is imported across a module boundary today — every one is consumed by its own module, which needs no allowance. They are listed so that the first cross-module consumer of any of them is a code change in one place rather than a lint failure someone has to diagnose. If that reasoning does not hold when you get here (for example depguard rejects an unused allow entry), list only what is imported and say so in your report.
@@ -601,12 +595,10 @@ git commit -m "feat: give every module a contract package, so an intra-module ev
 ## Task 4: `Publishes()` and the subscribe/publish checks
 
 **Files:**
-
 - Modify: `backend/internal/platform/module.go`, every `internal/modules/*/module.go`, `backend/internal/platform/registry_test.go`, `backend/internal/archtest/arch_test.go`
 - Create: `backend/internal/archtest/events_test.go`
 
 **Interfaces:**
-
 - Consumes: the contract packages from Tasks 1 and 3.
 - Produces: `platform.Module.Publishes() []string`.
 
@@ -748,7 +740,7 @@ Expected: PASS. The two consumerless events (`dispense_recorded`, `result_ready`
 
 1. Change lab's consumer subject to `"helivanta.in.medicore.visit_created.v2"`. `TestEveryConsumedSubjectIsPublished` must fail naming the consumer and the subject. Restore.
 2. Add `medicorecontract.SubjectVisitCreated` to pharmacy's `Publishes()`. `TestNoSubjectIsPublishedByTwoModules` must fail naming both modules. Restore.
-3. Change medicore's `Publishes()` to `[]string{"helivanta.in.medicore.visit_created.v1"}` — the same value as a bare string. `TestPublishesUsesContractConstants` must **pass** (the string matches a contract constant), which shows this check verifies the _value_, not the _reference_. Then change it to `"helivanta.in.medicore.visit_created.v9"` and confirm it fails. Restore.
+3. Change medicore's `Publishes()` to `[]string{"helivanta.in.medicore.visit_created.v1"}` — the same value as a bare string. `TestPublishesUsesContractConstants` must **pass** (the string matches a contract constant), which shows this check verifies the *value*, not the *reference*. Then change it to `"helivanta.in.medicore.visit_created.v9"` and confirm it fails. Restore.
 
 Step 5.3 matters: it establishes exactly what the check does and does not prove, so the limitation is discovered here rather than believed away. Record it.
 
@@ -765,11 +757,9 @@ git commit -m "feat: declare what each module publishes, so a consumer cannot su
 ## Task 5: the consumer unmarshal-type check
 
 **Files:**
-
 - Modify: `backend/internal/archtest/events_test.go`
 
 **Interfaces:**
-
 - Consumes: everything from Tasks 1–4.
 
 This is T2, the standing guard against someone re-introducing a local payload copy later. The spec justifies it explicitly against the AST check rejected in D3 — read that section before starting, and if the check proves fragile in practice, say so rather than forcing it.
@@ -874,7 +864,6 @@ git commit -m "test: require consumers to unmarshal into contract types, so a lo
 ## Task 6: generator and standards
 
 **Files:**
-
 - Modify: `backend/scripts/new-module.sh`, `docs/standards/backend.md`
 
 - [ ] **Step 1: Update the generator template**
@@ -1000,7 +989,7 @@ Run from the repo root. `journey.spec.ts` is the one that matters — it creates
 Change the header from `approved` to `implemented` and fix what the implementation found:
 
 - **The spec says "five subjects"; there are seven.** `lab` also publishes `result_ready`, and both it and `dispense_recorded` have no consumers. Correct the count, the migration table, and the sentence claiming only `visit_created` is duplicated (that part is right — correct only the count).
-- Record what `TestPublishesUsesContractConstants` actually proves: it compares the _value_ against contract constants, so a bare string equal to a contract constant passes. It catches drift, not indirection.
+- Record what `TestPublishesUsesContractConstants` actually proves: it compares the *value* against contract constants, so a bare string equal to a contract constant passes. It catches drift, not indirection.
 - Record whether T2 (the unmarshal-type check) proved fragile, and if it did, that enforcement of the payload-sharing property degrades to convention plus review.
 - Record any depguard manual step the generator could not automate.
 

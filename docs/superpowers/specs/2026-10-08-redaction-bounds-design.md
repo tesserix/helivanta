@@ -9,11 +9,11 @@
 `[REDACTED:aadhaar]`, 14 digits as ABHA, and 10 digits starting 5–9 as a
 mobile. `slog` renders a `time.Duration` as its nanosecond `int64`, so:
 
-| Logged             | Rendered         | Emitted              |
-| ------------------ | ---------------- | -------------------- |
-| `15 * time.Minute` | `900000000000`   | `[REDACTED:aadhaar]` |
-| `24 * time.Hour`   | `86400000000000` | `[REDACTED:abha]`    |
-| `5 * time.Second`  | `5000000000`     | `[REDACTED:mobile]`  |
+| Logged | Rendered | Emitted |
+|---|---|---|
+| `15 * time.Minute` | `900000000000` | `[REDACTED:aadhaar]` |
+| `24 * time.Hour` | `86400000000000` | `[REDACTED:abha]` |
+| `5 * time.Second` | `5000000000` | `[REDACTED:mobile]` |
 
 Every byte count, row count or epoch value of those lengths goes the same
 way. Twice, a log line whose whole purpose was to show an operator a
@@ -54,7 +54,6 @@ Aadhaar-valid is treated as one.
 
 **Why not only the delimiter, or only key-based exclusion** (the issue's
 other options):
-
 - **Delimiters:** `bounded()` already requires whole tokens. `900000000000`
   is a whole token, so tightening the delimiter alone fixes nothing.
 - **Key-based exclusion:** an allowlist of "numeric" keys is a convention

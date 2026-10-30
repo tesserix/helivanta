@@ -21,22 +21,22 @@ Not in this slice: biometric devices and file imports (shelved), missing-punch c
 
 ## Punches
 
-| Route                                       | Access                                         | Behaviour                                                                                                                                                      |
-| ------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET …/hr/attendance/punches`               | Reader/manager grant                           | Required `staff_id`, `from`/`to` (hospital dates, at most 42 days); newest punch first, keyset pages up to 100; voids included                                 |
-| `PUT …/hr/attendance/punches/{punch}`       | `workforce.attendance.record` + locked manager | Client-chosen id. `staff_id`, `direction` (`in`/`out`), `punched_at` (RFC 3339), `reason` (1–500). Replay returns the punch; other values 409 `request_reused` |
-| `GET …/hr/attendance/punches/{punch}`       | Reader/manager grant                           | One punch with its void, if any                                                                                                                                |
-| `POST …/hr/attendance/punches/{punch}/void` | `workforce.attendance.record` + locked manager | `reason` (1–500). A repeat with the same reason returns the punch; a different reason is 409 `punch_voided`                                                    |
+| Route                                       | Access                                          | Behaviour                                                                                                                         |
+| ------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/hr/attendance/punches`               | Reader/manager grant                            | Required `staff_id`, `from`/`to` (hospital dates, at most 42 days); newest punch first, keyset pages up to 100; voids included     |
+| `PUT …/hr/attendance/punches/{punch}`       | `workforce.attendance.record` + locked manager  | Client-chosen id. `staff_id`, `direction` (`in`/`out`), `punched_at` (RFC 3339), `reason` (1–500). Replay returns the punch; other values 409 `request_reused` |
+| `GET …/hr/attendance/punches/{punch}`       | Reader/manager grant                            | One punch with its void, if any                                                                                                   |
+| `POST …/hr/attendance/punches/{punch}/void` | `workforce.attendance.record` + locked manager  | `reason` (1–500). A repeat with the same reason returns the punch; a different reason is 409 `punch_voided`                         |
 
 Recording rules: the person is active staff; the instant is at most five minutes in the future and no older than the policy's `backdate_days` before today in the hospital timezone (409 `outside_backdate_window`); a live punch in the same direction within the duplicate window is 409 `duplicate_punch` naming it; no policy in force is 409 `no_attendance_policy`. Reasons are returned only to holders of `workforce.attendance.record`.
 
 ## Derived attendance
 
-| Route                                        | Behaviour                                                                                    |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `GET …/hr/attendance?date=YYYY-MM-DD`        | People with a roster allocation, punch or approved overtime that day; keyset pages up to 100 |
-| `GET …/hr/attendance-totals?date=YYYY-MM-DD` | Counts of each status and exception for the whole hospital day                               |
-| `GET …/staff/{id}/attendance?from=&to=`      | One person's days, at most 42                                                                |
+| Route                                        | Behaviour                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `GET …/hr/attendance?date=YYYY-MM-DD`        | People with a roster allocation, punch or approved overtime that day; keyset pages up to 100       |
+| `GET …/hr/attendance-totals?date=YYYY-MM-DD` | Counts of each status and exception for the whole hospital day                                     |
+| `GET …/staff/{id}/attendance?from=&to=`      | One person's days, at most 42                                                                      |
 
 A person-day lists its shifts, punches not tied to any shift, leave coverage and approved overtime minutes. A shift reports `status` (`present`, `absent`, `on_leave`, `missing_in`, `missing_out`, `in_progress`, `upcoming`, `unpublished`, `no_policy`), scheduled instants, first in and last out, late, early-departure, worked, expected and payable minutes, `unpaid_half_days`, exceptions (`late`, `early_departure`, `short_duty`, `missing_punch`, `absent`, `duplicate_punch`, `punched_on_leave`, `stray_punch`) and the ids of the allocation, shift revision, policy revision and punches used or ignored. Derivation rules are in ADR-0028.
 

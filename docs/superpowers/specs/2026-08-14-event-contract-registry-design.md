@@ -3,7 +3,7 @@
 **Issue:** [#827](https://github.com/tesserix/helivanta/issues/827) — Event contracts
 exist as three unlinked copies.
 **Status:** implemented 2026-08-14. Corrections made during implementation are
-marked _(corrected)_ and collected under "What implementation changed" below.
+marked *(corrected)* and collected under "What implementation changed" below.
 **Related:** #667 (the standard this enforces), #710, #685, #774 Tier 2,
 ADR-0005.
 
@@ -22,7 +22,7 @@ copy). Its payload is declared three times too: `VisitCreatedData` in
 
 This is not carelessness. Modules must not import one another — enforced by
 `depguard` and `TestModulesDoNotImportEachOther` — and copying the contract is
-currently the _only_ way a consumer can read a publisher's event.
+currently the *only* way a consumer can read a publisher's event.
 
 ### The failure is silent and corrupts clinical records
 
@@ -72,12 +72,12 @@ separating five modules' contracts from one file at the moment of least
 appetite for surprises. The location is what keeps ADR-0005's position honest
 rather than aspirational.
 
-_Rejected: one central contracts package outside `internal/modules`._ Needs no
+*Rejected: one central contracts package outside `internal/modules`.* Needs no
 isolation exception at all, which is genuinely simpler. But it inverts ownership
 and becomes a file every module edits — merge contention that grows with the
 module count.
 
-_Rejected: one package per event outside `internal/modules`._ Removes the
+*Rejected: one package per event outside `internal/modules`.* Removes the
 contention but proliferates tiny packages indefinitely, and still detaches
 ownership: nothing local tells you medicore owns `visit_created`.
 
@@ -97,19 +97,19 @@ TestModulesDoNotImportEachOther
 Everything else — handlers, repositories, models, tables — stays exactly as
 forbidden as today.
 
-**The depguard rule needs `list-mode: lax` _(corrected)_.** depguard's default
+**The depguard rule needs `list-mode: lax` *(corrected)*.** depguard's default
 mode is `original`, under which a non-empty `allow` stops being an exception and
-becomes a near-total allowlist: every import must _also_ match an `allow` entry.
+becomes a near-total allowlist: every import must *also* match an `allow` entry.
 Adding the one contract entry under `original` fails roughly fifty unrelated
 imports across `internal/modules` — `context`, `errors`, `gin`, `gorm`,
 `pkg/authn` and the rest — because none of them match the single-entry allow
 list either. Confirmed by running `make lint-go` against `original` during
 implementation. Under `lax` the rule stays a denylist and the allow entry only
-carves out the exception because it is _more specific_ (longer) than the deny
+carves out the exception because it is *more specific* (longer) than the deny
 entry it overrides. The comment in `backend/.golangci.yml` records this, because
 without it `list-mode: lax` reads as redundant and invites deletion.
 
-Also _(corrected)_: depguard's `allow` is a prefix list naming each contract
+Also *(corrected)*: depguard's `allow` is a prefix list naming each contract
 package explicitly, so a new module needs an entry. Nothing fails at generation
 time; `new-module.sh` prints a reminder as its step 3.
 
@@ -130,11 +130,11 @@ everyone.
 contract describes a shape; it does not do anything. Genuinely shared validation
 belongs in `pkg/`, which both sides may already import.
 
-_Rejected: import allowlist only, functions permitted._ More useful, and shared
+*Rejected: import allowlist only, functions permitted.* More useful, and shared
 validation is arguably a feature. But "data only" is a bright line and "no
 behaviour that matters" is not; the first helper invites the second.
 
-_Rejected: allow the import path, rely on review._ §4 ranks documented
+*Rejected: allow the import path, rely on review.* §4 ranks documented
 convention last, and this is the one place the isolation rule can be widened —
 precisely where nothing mechanical noticing would be worst.
 
@@ -148,12 +148,12 @@ It also makes the event catalogue derivable from code rather than a document
 that drifts: the catalogue is `⋃ Publishes()`, always current. That serves #667
 directly.
 
-_Rejected: static analysis of `bus.Publish` call sites._ Reflects what the code
-does rather than what it claims, but must resolve a _constant value_ through
+*Rejected: static analysis of `bus.Publish` call sites.* Reflects what the code
+does rather than what it claims, but must resolve a *constant value* through
 arbitrary indirection, is brittle against refactors, and fails opaquely when it
 cannot resolve one.
 
-_Rejected: rely on the shared constant alone._ Rules out typos and stale
+*Rejected: rely on the shared constant alone.* Rules out typos and stale
 strings — the main sources of this bug — but leaves the "publisher stopped
 publishing" case uncovered.
 
@@ -163,19 +163,19 @@ publishing" case uncovered.
 
 ### Migration
 
-**There are seven subjects, not five _(corrected)_.** The count in the approved
+**There are seven subjects, not five *(corrected)*.** The count in the approved
 spec omitted `lab`'s `result_ready`, and treated `iam`'s three as fewer. Reading
 the code on 2026-08-14 gives:
 
-| Event                | Publisher | Consumers                   | Contract package     | Duplicates deleted                  |
-| -------------------- | --------- | --------------------------- | -------------------- | ----------------------------------- |
-| `visit_created`      | medicore  | pharmacy, lab               | `medicore/contract`  | 2 subject consts, 2 payload structs |
-| `dispense_recorded`  | pharmacy  | _none_                      | `pharmacy/contract`  | —                                   |
-| `result_ready`       | lab       | _none_                      | `lab/contract`       | —                                   |
-| `member_granted`     | iam       | iam (`iam-fga-sync`)        | `iam/contract`       | —                                   |
-| `member_revoked`     | iam       | iam (`iam-fga-sync-revoke`) | `iam/contract`       | —                                   |
-| `credential_revoked` | iam       | iam (broadcast)             | `iam/contract`       | —                                   |
-| `pinged`             | reference | reference                   | `reference/contract` | —                                   |
+| Event | Publisher | Consumers | Contract package | Duplicates deleted |
+|---|---|---|---|---|
+| `visit_created` | medicore | pharmacy, lab | `medicore/contract` | 2 subject consts, 2 payload structs |
+| `dispense_recorded` | pharmacy | *none* | `pharmacy/contract` | — |
+| `result_ready` | lab | *none* | `lab/contract` | — |
+| `member_granted` | iam | iam (`iam-fga-sync`) | `iam/contract` | — |
+| `member_revoked` | iam | iam (`iam-fga-sync-revoke`) | `iam/contract` | — |
+| `credential_revoked` | iam | iam (broadcast) | `iam/contract` | — |
+| `pinged` | reference | reference | `reference/contract` | — |
 
 Only `visit_created` is duplicated, because it is the only cross-module event —
 that part of the approved spec was right. The other six are published and
@@ -214,9 +214,9 @@ With `lab/consumers.go` importing `medicore/contract`, renaming `PatientName` �
 `Patient` in `VisitCreatedData` means `d.PatientName` in lab no longer resolves.
 `go build` fails, naming file and line.
 
-**The publisher's own file fails too _(corrected)_.** This section originally
+**The publisher's own file fails too *(corrected)*.** This section originally
 named only the consumers. Performing the mutation showed
-`medicore/visits.go` — the code that _builds_ the payload — breaking in the same
+`medicore/visits.go` — the code that *builds* the payload — breaking in the same
 compile, because it now references the shared type rather than a local
 declaration it could rename in lockstep. That is a stronger property than the
 one designed for: not only can a consumer not drift from the contract, the
@@ -224,8 +224,8 @@ publisher cannot drift from its own contract either. Before this change,
 renaming the field in `medicore/visits.go` compiled cleanly everywhere and was
 precisely the silent-corruption path in the reproduction above.
 
-The failure moves from _a blank patient name in a lab order six weeks later_ to
-_the build, before the commit lands_.
+The failure moves from *a blank patient name in a lab order six weeks later* to
+*the build, before the commit lands*.
 
 It covers the quieter case too: bumping the subject to `.v2` changes the constant
 both sides share, so consumers follow automatically — no silent unsubscribe. If
@@ -249,7 +249,7 @@ failure; nothing new can fail at request time.
 The existing runtime behaviour is unchanged: a consumer handler returning an
 error still nacks and eventually dead-letters, and `json.Unmarshal` failing in a
 handler is still that handler's error to return. What changes is that the
-_shape_ it unmarshals into can no longer silently disagree with the publisher's.
+*shape* it unmarshals into can no longer silently disagree with the publisher's.
 
 ---
 
@@ -258,17 +258,17 @@ _shape_ it unmarshals into can no longer silently disagree with the publisher's.
 Per `docs/standards/engineering-principles.md` §5, every assertion is proven able
 to fail before it is trusted.
 
-| ID  | Test                                                                           | Why it exists                                                                                               |
-| --- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| T1  | Rename a contract field → `go build` fails, naming lab and pharmacy            | The headline property. Proven by mutation in the plan, since a compile failure cannot be a passing Go test. |
-| T2  | Every consumer unmarshals into a type from a contract package                  | The standing guard against a local copy being re-introduced later.                                          |
-| T3  | Every `Consumer`/`Broadcast` subject ∈ `⋃ Publishes()`                         | The silent "subscribed to nothing" case.                                                                    |
-| T4  | No two modules publish the same subject                                        | Ambiguous ownership.                                                                                        |
-| T5  | Every `Publishes()` entry is a constant from the module's own contract package | Stops the declaration drifting from a bare string.                                                          |
-| T6  | Contract packages declare only const/type/var                                  | The exception cannot widen into behaviour.                                                                  |
-| T7  | Contract packages import only `{time, uuid}`                                   | A contract importing its own module re-opens isolation transitively.                                        |
-| T8  | `TestModulesDoNotImportEachOther` still fails for non-contract paths           | Proves the exception is narrow — mutate an import to `medicore/module.go` and it must still fail.           |
-| T9  | Generator emits a contract package and `Publishes()`                           | Otherwise module six reintroduces the pattern.                                                              |
+| ID | Test | Why it exists |
+|---|---|---|
+| T1 | Rename a contract field → `go build` fails, naming lab and pharmacy | The headline property. Proven by mutation in the plan, since a compile failure cannot be a passing Go test. |
+| T2 | Every consumer unmarshals into a type from a contract package | The standing guard against a local copy being re-introduced later. |
+| T3 | Every `Consumer`/`Broadcast` subject ∈ `⋃ Publishes()` | The silent "subscribed to nothing" case. |
+| T4 | No two modules publish the same subject | Ambiguous ownership. |
+| T5 | Every `Publishes()` entry is a constant from the module's own contract package | Stops the declaration drifting from a bare string. |
+| T6 | Contract packages declare only const/type/var | The exception cannot widen into behaviour. |
+| T7 | Contract packages import only `{time, uuid}` | A contract importing its own module re-opens isolation transitively. |
+| T8 | `TestModulesDoNotImportEachOther` still fails for non-contract paths | Proves the exception is narrow — mutate an import to `medicore/module.go` and it must still fail. |
+| T9 | Generator emits a contract package and `Publishes()` | Otherwise module six reintroduces the pattern. |
 
 ### On T2, which contradicts a rejection above
 
@@ -276,8 +276,8 @@ D3 rejected AST-walking `bus.Publish` call sites as brittle, so proposing an AST
 check here needs justifying rather than waving through.
 
 The difference is what is resolved. The rejected check had to resolve a
-_constant value_ through arbitrary indirection and fails opaquely when it cannot.
-T2 resolves the _type_ of the second argument to `json.Unmarshal(evt.Data, &d)`
+*constant value* through arbitrary indirection and fails opaquely when it cannot.
+T2 resolves the *type* of the second argument to `json.Unmarshal(evt.Data, &d)`
 using `go/packages` type information — exactly what the type checker already
 computed — and fails loudly: a type it cannot resolve is a test failure, not a
 silent skip.
@@ -287,10 +287,10 @@ review. That is a worse outcome and should be recorded as such rather than
 discovered quietly.
 
 **T2 did not prove fragile — enforcement did not degrade to convention
-_(corrected)_.** `TestConsumersUnmarshalIntoContractTypes` resolves the type at
+*(corrected)*.** `TestConsumersUnmarshalIntoContractTypes` resolves the type at
 all six current `json.Unmarshal(evt.Data, …)` call sites and was observed
 failing against a reintroduced local payload struct in `lab`. Its real
-limitation is different from the one anticipated, and is a _selection_
+limitation is different from the one anticipated, and is a *selection*
 limitation rather than a resolution one: the call sites it inspects are matched
 by name — any `json.Unmarshal(x.Data, &y)` where the first argument's selector
 is `Data` — not semantically by "this is an event payload". All six matches are
@@ -303,7 +303,7 @@ wire shape, which is the opposite of the mistake this guards.
 ## What implementation changed
 
 Every item below was found while implementing, not while reviewing, and each is
-marked _(corrected)_ at the point it applies above.
+marked *(corrected)* at the point it applies above.
 
 1. **Seven subjects, not five.** `lab`'s `result_ready` was missing from the
    count and the migration table; `iam`'s three were undercounted. Two subjects

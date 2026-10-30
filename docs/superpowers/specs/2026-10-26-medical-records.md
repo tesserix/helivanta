@@ -44,7 +44,8 @@ of supplied IDs. A patient/proxy read additionally requires a current approved
 claim/authority, applicable purpose/consent and the document owner's current
 release decision. These are conjunctive checks, not interchangeable grants.
 Administrative templates must not acquire patient contents by configuration access.
-Missing permission is 403, invisible objects are 404, unavailable authorization is 503. IN-ID-01/04/06/07/08/09 and ORG-AC-01/02/03/04/06/07/08 apply.
+Missing permission is 403, invisible objects are 404, unavailable authorization is
+503. IN-ID-01/04/06/07/08/09 and ORG-AC-01/02/03/04/06/07/08 apply.
 
 ## Contracts and correctness decisions
 

@@ -1658,7 +1658,7 @@
         },
         {
           "id": "0008_medicore",
-          "sql_sha256": "d0a945ddb599ae7b23001dba44659bd588476dad7f6e7d586188d73bd147d7d0",
+          "sql_sha256": "32dc29d9ea1727cdf47ae515f0eb855c3065fd88217a36e080e6f1fc56c5264c",
           "creates_tables": [
             "medicore_discharge_orders"
           ]

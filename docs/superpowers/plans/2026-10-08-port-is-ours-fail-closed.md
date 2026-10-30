@@ -12,13 +12,13 @@ Spec: `docs/superpowers/specs/2026-10-08-port-is-ours-fail-closed-design.md`
     true.
 - [x] `scripts/preflight.sh check_ports`: its own message for status 3.
 - [x] `scripts/e2e.sh stop_port_if_ours`: refuse on status 3; the wait loop
-      uses `port_free`. errexit-safe capture of the status.
+  uses `port_free`. errexit-safe capture of the status.
 - [x] `scripts/dev-down.sh`: SKIPPED line for status 3; "Still listening"
-      uses `port_free`.
+  uses `port_free`.
 - [x] `scripts/preflight.test.sh`: the stubbed Linux and Darwin cases and the
-      real foreign-listener case, per spec §Tests.
+  real foreign-listener case, per spec §Tests.
 - [x] `ci.yml` scripts job: `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`.
 - [x] Mutations per spec §Tests, each shown failing and then reverted.
 - [x] Gates: `make test-scripts` as a non-root user with passwordless sudo
-      and `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`, the way CI runs it (104 passed);
-      `pnpm turbo lint format:check`.
+  and `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`, the way CI runs it (104 passed);
+  `pnpm turbo lint format:check`.

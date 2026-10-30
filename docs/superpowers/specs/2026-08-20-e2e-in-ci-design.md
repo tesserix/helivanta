@@ -55,8 +55,8 @@ superseded runs per ref (see that file's `concurrency` block).
 
 It is affordable because Actions minutes are free while the repo is public.
 
-**State the dependency plainly:** the repo is public _because billing is
-failing_, not by preference. If it is ever flipped private, this job stops
+**State the dependency plainly:** the repo is public *because billing is
+failing*, not by preference. If it is ever flipped private, this job stops
 running along with every other check — see the handoff's standing note. That is
 a reason to fix billing, not a reason to skip the job.
 
@@ -84,13 +84,13 @@ than a timeout.
 Verified: every credential the dev stack needs is a committed literal or is
 generated locally at first boot.
 
-| Value                                    | Source                                                                                                                      |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `HELIVANTA_DEV_ZITADEL_MASTERKEY`        | literal default in `Makefile`                                                                                               |
-| `HELIVANTA_DEV_SESSION_SIGNING_KEY`      | literal, documented as "committed to source, shared by every developer and CI runner", usable only with `HELIVANTA_ENV=dev` |
-| Postgres/Redis/Zitadel-DB passwords      | literals in `docker-compose.dev.yml`                                                                                        |
-| `login-client.pat`, `helivanta-seed.pat` | written by Zitadel's own first-instance provisioning at container boot                                                      |
-| `zitadel*.env` (client ids)              | written by `scripts/zitadel-bootstrap.mjs` against the just-booted ephemeral instance                                       |
+| Value | Source |
+|---|---|
+| `HELIVANTA_DEV_ZITADEL_MASTERKEY` | literal default in `Makefile` |
+| `HELIVANTA_DEV_SESSION_SIGNING_KEY` | literal, documented as "committed to source, shared by every developer and CI runner", usable only with `HELIVANTA_ENV=dev` |
+| Postgres/Redis/Zitadel-DB passwords | literals in `docker-compose.dev.yml` |
+| `login-client.pat`, `helivanta-seed.pat` | written by Zitadel's own first-instance provisioning at container boot |
+| `zitadel*.env` (client ids) | written by `scripts/zitadel-bootstrap.mjs` against the just-booted ephemeral instance |
 
 This matters because the Free plan has no org secrets. **A design that needs
 one is the wrong design** — it would mean a real credential had leaked into the

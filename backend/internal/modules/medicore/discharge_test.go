@@ -106,6 +106,14 @@ func TestADoctorOrdersAndWithdrawsDischarge(t *testing.T) {
 	code, _ = w.withdraw("doctor", admission, newID(), newID(), "Fever overnight")
 	require.Equal(t, http.StatusNotFound, code)
 	require.Nil(t, w.boardDischarge(t, "reader", bed).DischargeOrderID, "a withdrawn order is off the board")
+	// A withdrawal id belongs to one withdrawal: reused on another order it is a conflict.
+	other, _ := w.admitted(t)
+	otherOrder := newID()
+	code, body = w.order("doctor", other, otherOrder, home)
+	require.Equal(t, http.StatusCreated, code, body)
+	code, body = w.withdraw("doctor", other, otherOrder, withdrawal, "Fever overnight")
+	require.Equal(t, http.StatusConflict, code, body)
+	require.Contains(t, body, `"error":"conflict"`)
 	require.EqualValues(t, 1, outboxCount(t, w.db, w.ctx, "helivanta.in.medicore.discharge_withdrawn.v1"))
 
 	// A new order may follow; the release completes it and keeps it on the admission.

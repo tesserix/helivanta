@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -55,7 +56,7 @@ describe("DischargeOrder", () => {
   it("lets a doctor order discharge with a disposition and note", async () => {
     const fetcher = server(["medicore.visit.read", "medicore.discharge.order"]);
     const { user } = renderWithProviders(<DischargeOrder hospital={hospital} bed={bed()} />);
-    await user.click(await screen.findByRole("button", { name: "Order discharge" }));
+    await user.click(await screen.findByRole("button", { name: "Order discharge for bed A-2" }));
     await chooseOption(user, screen.getByLabelText("Discharge to"), "Transfer out");
     await user.type(screen.getByLabelText("Note (optional)"), "  To district hospital  ");
     await user.click(screen.getByRole("button", { name: "Order discharge" }));
@@ -75,7 +76,7 @@ describe("DischargeOrder", () => {
   it("sends no note when none is given, home by default", async () => {
     const fetcher = server(["medicore.visit.read", "medicore.discharge.order"]);
     const { user } = renderWithProviders(<DischargeOrder hospital={hospital} bed={bed()} />);
-    await user.click(await screen.findByRole("button", { name: "Order discharge" }));
+    await user.click(await screen.findByRole("button", { name: "Order discharge for bed A-2" }));
     await user.click(screen.getByRole("button", { name: "Order discharge" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ disposition: "home" });
@@ -90,7 +91,7 @@ describe("DischargeOrder", () => {
     });
     const { user } = renderWithProviders(<DischargeOrder hospital={hospital} bed={ordered} />);
     expect(await screen.findByText(/Discharge ordered · Home/)).toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: "Withdraw discharge" }));
+    await user.click(await screen.findByRole("button", { name: "Withdraw discharge for bed A-2" }));
     await user.click(screen.getByRole("button", { name: "Withdraw discharge" }));
     expect(await screen.findByText("Give a reason")).toBeInTheDocument();
     expect(puts(fetcher)).toHaveLength(0);
@@ -99,6 +100,31 @@ describe("DischargeOrder", () => {
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(`/discharge-orders/${order}/withdrawals/`);
     expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ reason: "Fever overnight" });
+  });
+
+  it("closes an open form when another doctor changes the order, never switching its kind", async () => {
+    const fetcher = server(["medicore.visit.read", "medicore.discharge.order"]);
+    const ordered = bed({ discharge_order_id: order, discharge_disposition: "home" });
+    // The board refetches with the order withdrawn by a colleague.
+    function Board() {
+      const [shown, setShown] = useState(ordered);
+      return (
+        <>
+          <button type="button" onClick={() => setShown(bed())}>
+            refetch
+          </button>
+          <DischargeOrder hospital={hospital} bed={shown} />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(<Board />);
+    await user.click(await screen.findByRole("button", { name: "Withdraw discharge for bed A-2" }));
+    expect(screen.getByLabelText("Why discharge is withdrawn")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "refetch" }));
+    expect(screen.queryByLabelText("Why discharge is withdrawn")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Discharge to")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Order discharge for bed A-2" })).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
   });
 
   it("offers no discharge action to the ward, only the order", async () => {

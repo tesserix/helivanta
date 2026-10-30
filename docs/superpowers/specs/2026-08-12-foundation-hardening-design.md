@@ -308,7 +308,7 @@ Changed:
 ## Known limitations
 
 - The role probe checks capabilities, not table ownership. `FORCE ROW LEVEL
-SECURITY` covers ownership, so the combination is sound, but the probe alone
+  SECURITY` covers ownership, so the combination is sound, but the probe alone
   is not a complete statement about the role.
 - `outbox_events` remains outside RLS and still carries patient names. Tracked
   on #774; not fixed here.

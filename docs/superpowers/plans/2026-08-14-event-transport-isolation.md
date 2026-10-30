@@ -76,7 +76,7 @@ testcontainer:
 cd /Users/Mahesh.Sangawar/personal/tesserix-new/hms/backend && go test ./pkg/events/ -run 'TestDispatcherPublishesEveryTenant|TestOutbox|TestTenantless' -v
 ```
 
-Tests 3–5 must fail _now_ (no policy exists, so everything is readable). If any
+Tests 3–5 must fail *now* (no policy exists, so everything is readable). If any
 of them passes before the migration, it is asserting nothing — say so.
 
 - [ ] **Step 4: add migration `0002_events_outbox_tenant`**
@@ -129,12 +129,12 @@ inheriting the outbox's comment.
 
 - [ ] **Step 8: run, then prove each assertion can fail**
 
-| Mutation                                   | Must break                                                |
-| ------------------------------------------ | --------------------------------------------------------- |
-| revert `drainOnce` to `WithSystem`         | `TestDispatcherPublishesEveryTenant` — **zero** published |
-| drop `tenant_id IS NULL` from `WITH CHECK` | `TestTenantlessEventStillPublishes`                       |
-| add `OR tenant_id IS NULL` to `USING`      | `TestTenantlessRowIsReadableByNobody`                     |
-| drop the policy                            | tests 3 and 4                                             |
+| Mutation | Must break |
+|---|---|
+| revert `drainOnce` to `WithSystem` | `TestDispatcherPublishesEveryTenant` — **zero** published |
+| drop `tenant_id IS NULL` from `WITH CHECK` | `TestTenantlessEventStillPublishes` |
+| add `OR tenant_id IS NULL` to `USING` | `TestTenantlessRowIsReadableByNobody` |
+| drop the policy | tests 3 and 4 |
 
 Report each with its real output. The first is the one the design rests on:
 **it must be observed publishing zero events**, or it proves nothing about
@@ -145,7 +145,7 @@ trap 1.
 `LintRLS` must return no complaint about `outbox_events` (it is no longer
 allowlisted, so a wrong policy shape now fails). Prove it: temporarily change
 `WITH CHECK` to call `hms_tenant_visible` and confirm the lint reports
-_"WITH CHECK calls hms_tenant_visible instead of pinning to one tenant"_.
+*"WITH CHECK calls hms_tenant_visible instead of pinning to one tenant"*.
 Restore.
 
 - [ ] **Step 10: gates and commit**
@@ -189,7 +189,7 @@ Change the stream config's `MaxAge` to `streamMaxAge`.
 2. `TestPruneDeletesPublishedOutboxRows` — insert a published row aged past the
    window, prune, assert **gone**; assert the count actually dropped rather than
    asserting the call returned nil.
-3. `TestPruneKeepsUnpublishedRows` — an _unpublished_ row aged past the window
+3. `TestPruneKeepsUnpublishedRows` — an *unpublished* row aged past the window
    must survive. An old unpublished row is a dispatcher failure to investigate,
    not garbage.
 4. `TestPruneKeepsLedgerWithinRedeliveryWindow` — a ledger row younger than
@@ -221,12 +221,12 @@ log the deleted counts.
 
 - [ ] **Step 5: prove the assertions can fail**
 
-| Mutation                                        | Must break                                                        |
-| ----------------------------------------------- | ----------------------------------------------------------------- |
-| `processedRetention = streamMaxAge - time.Hour` | `TestProcessedRetentionOutlivesRedelivery`                        |
-| prune the ledger on `streamMaxAge` instead      | `TestPruneCannotResurrectADuplicate`                              |
-| drop `published_at IS NOT NULL`                 | `TestPruneKeepsUnpublishedRows`                                   |
-| `Prune` uses `WithSystem`                       | `TestPruneDeletesPublishedOutboxRows` — deletes nothing, silently |
+| Mutation | Must break |
+|---|---|
+| `processedRetention = streamMaxAge - time.Hour` | `TestProcessedRetentionOutlivesRedelivery` |
+| prune the ledger on `streamMaxAge` instead | `TestPruneCannotResurrectADuplicate` |
+| drop `published_at IS NOT NULL` | `TestPruneKeepsUnpublishedRows` |
+| `Prune` uses `WithSystem` | `TestPruneDeletesPublishedOutboxRows` — deletes nothing, silently |
 
 The last is trap 3, and it is the reason test 2 asserts on the row count rather
 than on the error being nil.
@@ -274,10 +274,10 @@ test: pin which event payload fields may carry PHI, so adding one is a visible d
 **Files:** `docs/standards/backend.md`
 
 - [ ] Document, in the events section: the outbox is inside the RLS boundary;
-      the dispatcher and pruner are the only `WithAdmin` callers on this path and
-      why; `WITH CHECK` permits NULL only for genuinely tenant-less events;
-      retention windows are derived and why the ledger must outlive the stream; and
-      that adding a PHI field to a payload requires an allowlist entry.
+  the dispatcher and pruner are the only `WithAdmin` callers on this path and
+  why; `WITH CHECK` permits NULL only for genuinely tenant-less events;
+  retention windows are derived and why the ledger must outlive the stream; and
+  that adding a PHI field to a payload requires an allowlist entry.
 
 - [ ] Commit: `docs: record the event transport isolation and retention rules (#835)`
 
@@ -286,16 +286,16 @@ test: pin which event payload fields may carry PHI, so adding one is a visible d
 ## Task 5: verification and PR
 
 - [ ] Full gates: `go build ./... && go vet ./... && go test -count=1 -race ./...`;
-      `./scripts/coverage-gate.sh` unpiped; `make lint-go`;
-      `pnpm turbo lint type-check test build`; the Playwright suite twice.
+  `./scripts/coverage-gate.sh` unpiped; `make lint-go`;
+  `pnpm turbo lint type-check test build`; the Playwright suite twice.
 - [ ] **Verify by hand on the running stack**, not only in tests: create a visit,
-      then confirm (a) the row reaches `outbox_events` with the right `tenant_id`,
-      (b) a `WithSystem`-shaped query cannot read it, (c) sign-out still works and
-      its tenant-less row is published. Assert on the rows actually produced.
+  then confirm (a) the row reaches `outbox_events` with the right `tenant_id`,
+  (b) a `WithSystem`-shaped query cannot read it, (c) sign-out still works and
+  its tenant-less row is published. Assert on the rows actually produced.
 - [ ] PR body carries: the three traps and the test pinning each; why the
-      dispatcher is privileged and what that does _not_ fix; the nullable-tenant
-      decision and the sign-out case that forced it; the retention coupling; which
-      assertions were observed failing. `Closes #835`.
+  dispatcher is privileged and what that does *not* fix; the nullable-tenant
+  decision and the sign-out case that forced it; the retention coupling; which
+  assertions were observed failing. `Closes #835`.
 
 ---
 

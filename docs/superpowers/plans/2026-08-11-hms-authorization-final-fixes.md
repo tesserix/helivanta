@@ -11,7 +11,6 @@ step before writing any code, because the current state of the named files is th
 not this document.
 
 **Context documents (read, do not re-derive):**
-
 - Design spec: `docs/superpowers/specs/2026-08-11-hms-authorization-design.md`
 - Original execution ledger: `.superpowers/sdd/2026-08-11-hms-authorization/progress.md`
 - Standards: `docs/standards/backend.md`, `docs/standards/frontend.md`, and this repo's `CLAUDE.md`
@@ -30,9 +29,9 @@ not this document.
 - Backend tests requiring Postgres/OpenFGA use testcontainers and need Docker; run as
   `cd backend && go test ./<pkg>/...`.
 - Before the wave is done: `cd backend && go build ./... && go vet ./... && go test -race ./...
-&& ./scripts/coverage-gate.sh` green; `golangci-lint run ./...` clean; `pnpm turbo lint
-format:check type-check test build` green from repo root; `make dev && make verify-local &&
-make e2e` green.
+  && ./scripts/coverage-gate.sh` green; `golangci-lint run ./...` clean; `pnpm turbo lint
+  format:check type-check test build` green from repo root; `make dev && make verify-local &&
+  make e2e` green.
 - Functions under 50 lines.
 
 ---
@@ -52,7 +51,6 @@ which currently publishes `p.TenantID` — the raw claim — instead of a parsed
 downstream of the parse).
 
 **Requirement:**
-
 - In `backend/pkg/authn/gip.go`, at the point the `tenant_id` claim is parsed into `Principal`:
   parse it as a UUID (`github.com/google/uuid`) and store the canonical lowercase string form
   (`uuid.String()`) on `Principal.TenantID`. If the claim is not a valid UUID, reject the token
@@ -74,7 +72,6 @@ downstream of the parse).
   test asserting a non-UUID claim is rejected.
 
 **Acceptance:**
-
 - `cd backend && go test ./pkg/authn/... ./pkg/authz/... ./internal/modules/iam/...`
 - No remaining reference to `normalizeTenantID` unless you documented why it must stay.
 
@@ -89,7 +86,6 @@ true for `Public`), the frontend `can()` implementation (search `packages/ui/src
 `"public"`, and the zone filter's special-case for `key === "dashboard"`).
 
 **Requirement:**
-
 - Make the frontend `can()` treat `"public"` as always allowed, mirroring Go's `Has`. Do this at
   the single source (the hook/function itself), not by re-special-casing at call sites.
 - In `packages/ui/src/zones.ts`: remove the `key === "dashboard"` special case from
@@ -103,7 +99,6 @@ true for `Public`), the frontend `can()` implementation (search `packages/ui/src
   the removed special case); a zone with zero visible pages does not appear in `visibleZones`.
 
 **Acceptance:**
-
 - Frontend test suite covering `can()` and `visibleZones` passes: run the package's vitest
   command (check `package.json` in the owning package for the exact script).
 
@@ -116,7 +111,6 @@ generated `Permissions()`/`Grant` template that currently grants a placeholder p
 `RoleNurse`.
 
 **Requirement:**
-
 - Change the generated template to emit an **empty** `Roles: []authz.Role{}` (or equivalent) with
   a comment directly above it: `// TODO: choose the roles that hold this permission`.
 - Verify the generator still produces a module that builds and its generated test passes:
@@ -126,7 +120,6 @@ generated `Permissions()`/`Grant` template that currently grants a placeholder p
   either not touch those for an ungenerated/undeleted module, or you must revert what it touched).
 
 **Acceptance:**
-
 - Scratch module generate → build → test → delete cycle is clean; paste the commands and output
   in your report.
 
@@ -187,7 +180,6 @@ good starting point).
 
 **Requirement — make `Reconcile` (and the permission-side reconciler, whichever function that
 is) delete tuples Postgres no longer backs:**
-
 - Add a read/list capability on `authz.Client` using the OpenFGA SDK's `Read` API (add this to
   `authz.Client` itself, or to `platform.TupleWriter`/a companion interface — pick whichever
   keeps `authz.Client`'s existing public surface coherent, and say which you chose and why).
@@ -236,10 +228,9 @@ exchanging an ID token for the `hms_session` cookie).
 **Requirement:**
 
 Backend:
-
 - Add a narrow interface (e.g. `CustomTokenMinter` or similar — name it to fit the file's
   existing naming conventions) exposing only `CustomTokenWithClaims(ctx, uid, claims) (string,
-error)`, backed by the Firebase Admin Go SDK's `auth.Client`. Do NOT leak the Firebase client
+  error)`, backed by the Firebase Admin Go SDK's `auth.Client`. Do NOT leak the Firebase client
   itself through `Deps` — wire this narrowly, alongside (not replacing) the existing
   `TokenVerifier` abstraction. Confirm `authn`'s existing tests still pass unmodified (or with
   minimal, justified changes) after this addition — the review is explicit that this must not
@@ -253,7 +244,6 @@ error)`, backed by the Firebase Admin Go SDK's `auth.Client`. Do NOT leak the Fi
   be a real test against the handler, not just eyeballed.
 
 Frontend:
-
 - `TenantPicker` currently lives in `packages/ui` (app-agnostic). If completing the exchange
   requires shell-only Firebase config, split or move the component so `packages/ui` stays free of
   app-specific config — state exactly what you did (moved wholesale to `apps/shell`? split into a
@@ -268,7 +258,6 @@ Frontend:
   order before the reload/toast.
 
 E2E (attempt, but do not force it):
-
 - `test@hms.dev` is currently seeded as `tenant_admin` in exactly one tenant. Add a second
   membership for `test@hms.dev` in a second tenant to `scripts/seed-dev.mjs` if that's where dev
   seeding lives (confirm the actual seed file/mechanism first).
@@ -296,13 +285,12 @@ tests) to match the existing test-harness pattern, `backend/pkg/authz/middleware
 one real module (with real routes already registered in `cmd/api/main.go`) to mount for the test.
 
 **Requirement:**
-
 - Boot a real `authz.Client` against `testinfra.StartOpenFGA`.
 - Reconcile one tenant (using the real reconciler from Task 5).
 - Grant the tenant's test principal one role via the real reconciled tuples (not a fake
   resolver).
 - Mount the real `authz.Middleware` and the chosen real module's routes on a real `platform.
-Router` / Gin engine.
+  Router` / Gin engine.
 - Assert: a request with a permitted route for the granted role returns 200; a request with a
   route requiring a permission the role does not hold returns 403. One route per role is enough
   — this is a seam test, not a second permission matrix.
@@ -312,7 +300,6 @@ Router` / Gin engine.
 - Keep it fast: minimize container/test setup to what this one test needs.
 
 **Discrimination check (must document in your report, both directions):**
-
 - Temporarily unmount `authz.Middleware` from the test's router (comment it out or bypass it) —
   run the test — confirm it FAILS. This proves the test actually depends on the middleware being
   present, i.e. it would have caught the original "every /v1 route 500s" bug class.
@@ -335,7 +322,6 @@ full, locating sections D2, D7, and D9 exactly, and `docs/standards/backend.md`'
 `Reconcile`/`ReconcileTenant` and the reconciler.
 
 **Requirement — in `docs/superpowers/specs/2026-08-11-hms-authorization-design.md`:**
-
 - **D2:** currently claims revocation takes effect on the next request with "no staleness
   window." Reword to describe actual behavior: revocation lands only when the outbox event
   carrying the revoke is processed (i.e., there IS a staleness window, bounded by outbox/consumer
@@ -357,7 +343,6 @@ full, locating sections D2, D7, and D9 exactly, and `docs/standards/backend.md`'
   since today this inversion exists only in a code comment, not in the spec.
 
 **Requirement — in `docs/standards/backend.md`:**
-
 - Fix the line crediting `ReconcileTenant` with re-applying memberships — that's `Reconcile`'s
   job; `ReconcileTenant` (confirm actual name) is permissions only. Get the actual function names
   and responsibilities right by reading `reconcile.go`, not by trusting the current doc text.

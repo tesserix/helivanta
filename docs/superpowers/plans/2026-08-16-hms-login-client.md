@@ -17,7 +17,7 @@
 - **New code goes in the existing `iam` module**, as new files. Do **not** run `make new-module` — modules may not import each other, `iam` already owns `POST /v1/auth/login`, and `make new-module` has emitted non-compiling code three times (#830).
 - **Every new engine-level route must be added to `bootstrap.UnauthenticatedRoutes`** with its reason, or `TestEveryEngineRouteIsDeclaredOrAllowlisted` fails. This is the control that makes an undeclared route impossible; do not weaken it.
 - **The `IAM_LOGIN_CLIENT` token never leaves the Go API.** No Next.js route, no browser code, no log line may contain it.
-- **Never log** a submitted password, `failedAttempts`, or the login name of a _failed_ attempt.
+- **Never log** a submitted password, `failedAttempts`, or the login name of a *failed* attempt.
 - **Accessible names are a contract** (spec D6): the field labels must be exactly `Email` and `Password`, and the submit button's accessible name exactly `Sign in`.
 - **slog only** (logrus banned); request-scoped logger via `requestid.Logger(c)`; wrap errors with `%w`.
 - **`respond.*` helpers for every response** — never `c.JSON` directly.
@@ -34,7 +34,6 @@
 Spec D1 scopes the change to the `helivanta-web` app so other Tesserix products on the shared Zitadel instance are unaffected. The per-app setting is documented but was **not** exercised in the spike. If only the instance-wide setting works, stop and report — the decision goes back to the platform team.
 
 **Files:**
-
 - Modify: `scripts/lib/zitadel.mjs` (the app-provisioning helper)
 - Modify: `scripts/zitadel-bootstrap.mjs` (calls it)
 
@@ -105,12 +104,10 @@ git commit -m "feat: point the helivanta-web app's login UI at Helivanta, per-ap
 A thin, well-tested wrapper over the four calls the spike proved. No policy logic, no HTTP handlers — just the protocol.
 
 **Files:**
-
 - Create: `backend/internal/modules/iam/loginclient/client.go`
 - Create: `backend/internal/modules/iam/loginclient/client_test.go`
 
 **Interfaces:**
-
 - Produces:
   - `type Client struct{}` with `func New(baseURL, token string, hc *http.Client) *Client`
   - `func (c *Client) AuthRequest(ctx context.Context, id string) (AuthRequest, error)`
@@ -259,7 +256,6 @@ Expected: build failure — `undefined: New`, `undefined: Client`.
 - [ ] **Step 3: Implement `client.go`**
 
 Write the client with:
-
 - `New(baseURL, token string, hc *http.Client) *Client` storing all three; `hc` defaulted to a client with a **10s timeout** if nil.
 - A private `do(ctx, method, path string, body any, out any) error` that sets `Authorization: Bearer <token>` and `Content-Type: application/json`, and maps non-2xx by status: 400 → `ErrBadCredentials`, 404 → `ErrUserNotFound` (or `ErrAuthRequestInvalid` on the auth-request paths), 5xx/transport → `ErrUnavailable`, wrapping with `%w`.
 - The four methods against these exact paths (from the spike):
@@ -297,14 +293,12 @@ git commit -m "feat: Zitadel login-client protocol wrapper (#854)"
 The spike proved Zitadel issues an authorization code for a **password-only** session even when the org policy sets `forceMfa`. So Helivanta must decide sufficiency itself, and the decision must be **structurally unavoidable**.
 
 **Files:**
-
 - Create: `backend/internal/modules/iam/loginclient/sufficiency.go`
 - Create: `backend/internal/modules/iam/loginclient/sufficiency_test.go`
 - Modify: `backend/internal/modules/iam/loginclient/client.go` (unexport `Finalize`)
 - Modify: `backend/internal/archtest/arch_test.go`
 
 **Interfaces:**
-
 - Consumes: Task 2's `Client`, `Session`, `LoginPolicy`, sentinel errors.
 - Produces:
   - `type Outcome int` with `OutcomeComplete`, `OutcomeHandoff`
@@ -447,7 +441,7 @@ A D4 test that cannot fail is worse than no test, because D4 is invisible when b
 
 In `backend/internal/archtest/arch_test.go`, add a test that walks the repo's Go sources and asserts the string `/v2/oidc/auth_requests/` used with a POST appears in exactly one file, `internal/modules/iam/loginclient/client.go`. Follow the file-walking style of the existing tests in that file.
 
-Failure message must say: _"the OIDC finalize call must stay behind CompleteIfSufficient (spec D4) — Zitadel does not enforce forceMfa for a login client"_.
+Failure message must say: *"the OIDC finalize call must stay behind CompleteIfSufficient (spec D4) — Zitadel does not enforce forceMfa for a login client"*.
 
 - [ ] **Step 7: Run the arch test and prove it fails too**
 
@@ -469,13 +463,11 @@ git commit -m "feat: Helivanta enforces MFA sufficiency itself; Zitadel does not
 ### Task 4: HTTP handlers, identical failures, equalised timing (spec D5)
 
 **Files:**
-
 - Create: `backend/internal/modules/iam/loginui.go`
 - Create: `backend/internal/modules/iam/loginui_test.go`
 - Modify: `backend/internal/bootstrap/unauthenticated.go`
 
 **Interfaces:**
-
 - Consumes: Task 3's `CompleteIfSufficient`, `Result`, `Outcome*`; Task 2's sentinel errors.
 - Produces:
   - `func NewLoginUIHandlers(c *loginclient.Client, hostedLoginBaseURL string, limiter ratelimit.Limiter, limit ratelimit.Rule) *LoginUIHandlers`
@@ -619,7 +611,6 @@ git commit -m "feat: login-client endpoints with identical, timing-equalised fai
 ### Task 5: Wire it up and prove it against the real Zitadel
 
 **Files:**
-
 - Modify: `backend/internal/config/config.go`
 - Modify: `backend/cmd/api/main.go`
 - Create: `backend/internal/modules/iam/loginui_integration_test.go`
@@ -628,8 +619,7 @@ git commit -m "feat: login-client endpoints with identical, timing-equalised fai
 - [ ] **Step 1: Add config**
 
 Add to `config.Config`, following the existing field-comment style:
-
-- `ZitadelLoginClientToken string` — from `ZITADEL_LOGIN_CLIENT_TOKEN`. **No default.** Document that this is an instance-level `IAM_LOGIN_CLIENT` credential, that it can finalise auth requests for _any_ app on the shared instance, and that #45 must cover it in production.
+- `ZitadelLoginClientToken string` — from `ZITADEL_LOGIN_CLIENT_TOKEN`. **No default.** Document that this is an instance-level `IAM_LOGIN_CLIENT` credential, that it can finalise auth requests for *any* app on the shared instance, and that #45 must cover it in production.
 - `ZitadelHostedLoginURL string` — from `ZITADEL_HOSTED_LOGIN_URL`, default `http://localhost:20080/ui/v2/login`.
 
 - [ ] **Step 2: Fail fast when it is missing**
@@ -673,7 +663,6 @@ git commit -m "feat: wire the login client into the API and prove it against rea
 ### Task 6: The login form
 
 **Files:**
-
 - Modify: `apps/shell/app/login/page.tsx`
 - Modify: `apps/shell/app/login/login.test.tsx`
 - Create: `apps/shell/lib/login-client.ts`
@@ -701,9 +690,7 @@ it("shows one message for a refused credential and never says which field was wr
   // mock POST /v1/auth/login/password -> 401 with the shared refusal
   renderWithProviders(<LoginPage />);
   // ...submit valid-shaped credentials...
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    /email or password is incorrect/i,
-  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(/email or password is incorrect/i);
 });
 
 it("navigates to the handoff url when the API says a handoff is required", async () => {
@@ -750,7 +737,6 @@ git commit -m "feat: Helivanta renders its own login form (#854)"
 ### Task 7: Repoint the e2e suite and prove the whole thing
 
 **Files:**
-
 - Modify: `e2e/tests/support/login.ts`
 - Modify: `docs/standards/frontend.md` (if it states login is a redirect)
 
@@ -807,7 +793,6 @@ git commit -m "test: drive Helivanta's own login form in the e2e suite (#854)"
 ### Task 8: Close the documentation loop
 
 **Files:**
-
 - Modify: `docs/superpowers/specs/2026-08-16-hms-login-client-design.md`
 - Modify: `docs/superpowers/spikes/2026-08-16-zitadel-login-client.md`
 - Modify: `docs/standards/backend.md`
@@ -815,7 +800,6 @@ git commit -m "test: drive Helivanta's own login form in the e2e suite (#854)"
 - [ ] **Step 1: Record what the implementation actually observed**
 
 The spec lists two unknowns. Resolve both, in writing:
-
 - **`passwordChangeRequired`** — provoke it (create a user via the `_import` endpoint with the flag set), record the real session-create response in the spike doc, and make the D3 table row factual rather than assumed. If it turns out Helivanta cannot detect it, say so plainly and file a follow-up issue.
 - **Per-user enrolled factors** — find the endpoint that lists a user's configured second factors, or record that it was not found and what was tried. If found, extend Task 3's sufficiency check to hand off when the user has factors even if the org does not force MFA, with a test proven to fail.
 

@@ -12,7 +12,7 @@
 
 - **Spec:** `docs/superpowers/specs/2026-08-17-native-mfa-auth-components-design.md` (D1–D8).
 - **Spike:** `docs/superpowers/spikes/2026-08-17-zitadel-login-client-mfa.md`. Protocol facts come from here, not from documentation.
-- **THE SESSION TOKEN ROTATES.** `PATCH /v2/sessions/{id}` returns a NEW `sessionToken`. Finalize must use the newest one. Reusing the creation token fails finalize _after_ a correct code, so the clinician is told their TOTP was wrong. This is spec D3 and the highest-risk defect in the plan.
+- **THE SESSION TOKEN ROTATES.** `PATCH /v2/sessions/{id}` returns a NEW `sessionToken`. Finalize must use the newest one. Reusing the creation token fails finalize *after* a correct code, so the clinician is told their TOTP was wrong. This is spec D3 and the highest-risk defect in the plan.
 - **The method is `PATCH`.** `POST` to a session id returns 405.
 - **The page never receives a Zitadel session token** (spec D2, inherited from login-client D2).
 - **`Email`, `Password`, `Sign in` MUST NOT CHANGE** (spec D7). `e2e/tests/support/login.ts` drives login by accessible name; a rename fails all 12 specs. `AuthCredentialForm`'s default login-name label is policy-derived and will NOT say "Email" — pass `loginNameLabel`, `passwordLabel`, `submitLabel` explicitly.
@@ -27,30 +27,28 @@
 
 ## File Structure
 
-| File                                                               | Responsibility                                                              |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `backend/internal/modules/iam/loginclient/client.go` (modify)      | `VerifyTOTP` — the PATCH call; `SessionFactors` — read verified factors     |
-| `backend/internal/modules/iam/loginclient/sufficiency.go` (modify) | `OutcomeFactorRequired`; assert on verified factors                         |
-| `backend/internal/modules/iam/module.go` (modify)                  | migration `0004_iam`                                                        |
-| `backend/internal/modules/iam/loginattempt.go` (create)            | the `login_attempt` store: put, get, bump, delete                           |
-| `backend/internal/modules/iam/loginui.go` (modify)                 | `factor_required` outcome; `Factor` handler; policy in the request response |
-| `backend/internal/bootstrap/unauthenticated.go` (modify)           | register + rate-limit the new route                                         |
-| `apps/shell/lib/login-client.ts` (modify)                          | three-way union; `checkFactor`                                              |
-| `apps/shell/app/login/page.tsx` (modify)                           | `AuthCredentialForm` + the OTP step                                         |
-| `e2e/tests/mfa.spec.ts` (create)                                   | a real TOTP login                                                           |
+| File | Responsibility |
+|---|---|
+| `backend/internal/modules/iam/loginclient/client.go` (modify) | `VerifyTOTP` — the PATCH call; `SessionFactors` — read verified factors |
+| `backend/internal/modules/iam/loginclient/sufficiency.go` (modify) | `OutcomeFactorRequired`; assert on verified factors |
+| `backend/internal/modules/iam/module.go` (modify) | migration `0004_iam` |
+| `backend/internal/modules/iam/loginattempt.go` (create) | the `login_attempt` store: put, get, bump, delete |
+| `backend/internal/modules/iam/loginui.go` (modify) | `factor_required` outcome; `Factor` handler; policy in the request response |
+| `backend/internal/bootstrap/unauthenticated.go` (modify) | register + rate-limit the new route |
+| `apps/shell/lib/login-client.ts` (modify) | three-way union; `checkFactor` |
+| `apps/shell/app/login/page.tsx` (modify) | `AuthCredentialForm` + the OTP step |
+| `e2e/tests/mfa.spec.ts` (create) | a real TOTP login |
 
 ---
 
 ### Task 1: `login_attempt` store and migration
 
 **Files:**
-
 - Modify: `backend/internal/modules/iam/module.go` (add migration after `0003_iam`)
 - Create: `backend/internal/modules/iam/loginattempt.go`
 - Create: `backend/internal/modules/iam/loginattempt_test.go`
 
 **Interfaces:**
-
 - Consumes: nothing.
 - Produces: `loginAttemptStore` with `Put(ctx, attempt) error`, `Get(ctx, authRequestID) (loginAttempt, error)`, `BumpAndGet(ctx, authRequestID) (loginAttempt, error)`, `UpdateToken(ctx, authRequestID, token string) error`, `Delete(ctx, authRequestID) error`, and `errAttemptNotFound`, `errAttemptsExhausted`.
 
@@ -191,19 +189,16 @@ git commit -m "feat: add login_attempt store bounding factor guesses per login (
 ### Task 2: `VerifyTOTP` and session-factor reads in loginclient
 
 **Files:**
-
 - Modify: `backend/internal/modules/iam/loginclient/client.go`
 - Modify: `backend/internal/modules/iam/loginclient/client_test.go`
 
 **Interfaces:**
-
 - Consumes: `Session{ID, Token}` (existing).
 - Produces:
   - `func (c *Client) VerifyTOTP(ctx context.Context, s Session, code string) (Session, error)` — returns the session with the **rotated** token. Returns `ErrBadCredentials` for a rejected code.
   - `func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors, error)` where `type Factors struct { Password, TOTP bool }`.
 
 **The protocol, observed (spike §1–§3):**
-
 ```
 PATCH /v2/sessions/{id}   {"sessionToken":"<current>","checks":{"totp":{"code":"123456"}}}
   → 200 {"sessionToken":"<NEW>", "details":{...}}
@@ -302,7 +297,7 @@ Expected: all four PASS.
 
 - [ ] **Step 5: Prove the rotation test can fail**
 
-Temporarily change `VerifyTOTP` to `return s, nil` on success (i.e. return the _input_ session, keeping the old token — the exact defect spec D3 warns about). Rerun:
+Temporarily change `VerifyTOTP` to `return s, nil` on success (i.e. return the *input* session, keeping the old token — the exact defect spec D3 warns about). Rerun:
 
 Run: `cd backend && go test ./internal/modules/iam/loginclient/ -run TestVerifyTOTP_ReturnsTheRotatedToken -v`
 Expected: **FAIL** — `expected "ROTATED", got "ORIGINAL"`.
@@ -321,12 +316,10 @@ git commit -m "feat: verify TOTP against a zitadel session, threading the rotate
 ### Task 3: `OutcomeFactorRequired` and sufficiency on verified factors
 
 **Files:**
-
 - Modify: `backend/internal/modules/iam/loginclient/sufficiency.go`
 - Modify: `backend/internal/modules/iam/loginclient/sufficiency_test.go`
 
 **Interfaces:**
-
 - Consumes: `VerifyTOTP`, `SessionFactors` (Task 2); `LoginPolicy{ForceMFA}` (existing, already the folded `forceMfa || forceMfaLocalOnly`).
 - Produces: `OutcomeFactorRequired` added **after** `OutcomeComplete`; `Result` gains `Factors []string` (e.g. `["totp"]`), non-empty only when `Outcome == OutcomeFactorRequired`.
 
@@ -380,7 +373,6 @@ Add `CompleteAfterFactor(ctx, authRequestID string, s Session) (Result, error)`:
 ```bash
 cd backend && go test ./internal/modules/iam/... -count=1
 ```
-
 Expected: green, including the pre-existing forceMfa and enrolled-factor tests.
 
 - [ ] **Step 5: Prove the arch test still pins the finalize WIRE CALL**
@@ -390,11 +382,10 @@ It said to add a second call to the unexported `finalize` function and expect th
 arch test to fail. It does not, and cannot: `TestFinalizeCallSiteIsUnique`
 (`internal/archtest/arch_test.go:670-700`) walks the tree for source that
 **POSTs to `/v2/oidc/auth_requests/`** and permits exactly one file to do so. It
-pins the _wire request_, not calls to the Go identifier. The test's own comment
+pins the *wire request*, not calls to the Go identifier. The test's own comment
 says so — "unexporting finalize, not this test, is the primary control".
 
 So the two controls are, precisely:
-
 1. `finalize` is unexported, so no package outside `loginclient` can finalize at all.
 2. This arch test ensures only `client.go` speaks to that Zitadel endpoint, so a
    second package cannot hand-roll its own finalize POST and bypass sufficiency.
@@ -425,13 +416,11 @@ git commit -m "feat: ask for a TOTP factor instead of handing off when it is the
 ### Task 4: The API — `factor_required`, `POST /v1/auth/login/factor`, policy in the request response
 
 **Files:**
-
 - Modify: `backend/internal/modules/iam/loginui.go`
 - Modify: `backend/internal/modules/iam/loginui_test.go`
 - Modify: `backend/internal/bootstrap/unauthenticated.go` (registration + rate limit)
 
 **Interfaces:**
-
 - Consumes: Tasks 1–3.
 - Produces:
   - `GET /v1/auth/login/request/:id` response gains `policies: {allow_password, require_mfa, second_factors, ignore_unknown_usernames}`.
@@ -473,7 +462,6 @@ Add to `bootstrap.MountUnauthenticated` and enumerate it in `bootstrap.Unauthent
 ```bash
 make lint-go && make test-go && make coverage-go
 ```
-
 Expected: green. `archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted` must pass — if it fails, the new route is not enumerated.
 
 - [ ] **Step 6: Prove the shared-refusal test can fail**
@@ -493,18 +481,15 @@ git commit -m "feat: add the factor endpoint and the factor_required login outco
 ### Task 5: The login page — `AuthCredentialForm` plus the OTP step
 
 **Files:**
-
 - Modify: `apps/shell/lib/login-client.ts`
 - Modify: `apps/shell/app/login/page.tsx`
 - Modify: `apps/shell/app/login/login.test.tsx`
 
 **Interfaces:**
-
 - Consumes: Task 4's API.
 - Produces: a two-step login UI.
 
 **The three labels are passed explicitly:**
-
 ```tsx
 <AuthCredentialForm
   loginNameLabel="Email"
@@ -513,7 +498,6 @@ git commit -m "feat: add the factor endpoint and the factor_required login outco
   …
 />
 ```
-
 `AuthCredentialForm`'s default login-name label comes from `describeLoginName(methodPolicy)` and will not say `Email`. Omitting these fails all 12 e2e specs at the login step.
 
 - [ ] **Step 1: Widen the outcome union**
@@ -558,7 +542,6 @@ Preserve every existing behaviour: the expired-auth-request state, the shared re
 ```bash
 pnpm turbo lint type-check test build
 ```
-
 Expected: green.
 
 - [ ] **Step 6: Prove the accessible-name test can fail**
@@ -580,12 +563,10 @@ git commit -m "feat: collect the TOTP code on Helivanta's own login page (#867)"
 ### Task 6: End-to-end proof against the real Zitadel
 
 **Files:**
-
 - Create: `e2e/tests/mfa.spec.ts`
 - Modify: `scripts/seed-dev.mjs` (seed a TOTP-enrolled account)
 
 **Interfaces:**
-
 - Consumes: Tasks 1–5.
 
 **Protocol facts needed here (spike §5):** enrol with `POST /v2/users/{id}/totp` (returns `secret`), verify with `POST /v2/users/{id}/totp/verify` — **not** `/totp/_verify`, which 404s. The seed PAT can create and delete users; **the login-client PAT cannot delete (403)**, which is how the spike left a user behind.
@@ -605,7 +586,6 @@ Also assert a wrong code keeps the user on the OTP step with the shared refusal.
 ```bash
 make down && RESET_YES=1 make reset && make up && make e2e
 ```
-
 Expected: all existing specs plus the new one green.
 
 If the stack will not come up, check for leftover `next dev` processes holding ports, and note that `zitadel-login` reads its PAT once at boot — if it is unhealthy, `docker restart helivanta-dev-zitadel-login-1`. Both are documented hazards, not defects in this work.

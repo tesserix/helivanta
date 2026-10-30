@@ -44,7 +44,7 @@ the frontend standards.
 - `.golangci.yml` at `backend/`: enable errcheck, govet, staticcheck,
   revive, gosec, sqlclosecheck, misspell, unconvert, depguard.
 - depguard: deny `github.com/tesserix/helivanta/internal/modules/*` from
-  importing any _other_ `internal/modules/*` package (self-imports
+  importing any *other* `internal/modules/*` package (self-imports
   allowed); deny `logrus` everywhere (slog only).
 - CI backend job adds `golangci-lint run` before tests. Existing
   violations get fixed as part of the rollout task.
@@ -79,7 +79,8 @@ the frontend standards.
   the principal, parses the tenant UUID, writes the 401 envelope and
   aborts when invalid; handlers become
   `p, tenantID, ok := authn.TenantPrincipal(c); if !ok { return }`.
-- Status-code semantics documented and enforced by convention: 404 (not 403) for cross-tenant probes, 409 for state-transition conflicts
+- Status-code semantics documented and enforced by convention: 404 (not
+  403) for cross-tenant probes, 409 for state-transition conflicts
   with a `status = 'pending'`-guarded UPDATE, 202 for async creates,
   list endpoints newest-first `LIMIT 100`.
 - All four modules (reference, medicore, pharmacy, lab) migrate to the

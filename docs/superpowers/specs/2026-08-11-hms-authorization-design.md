@@ -47,7 +47,7 @@ system of record.
   not a bounded wall-clock time for a long-lived process — see the
   reconciler section of `docs/standards/backend.md` for the full
   `Reconcile`/`ReconcileTenant` split. A short-TTL cache may later be
-  added _inside_ `pkg/authz` as a pure optimisation without touching any
+  added *inside* `pkg/authz` as a pure optimisation without touching any
   call site.
 - **D3 — Fail closed, always.** Any FGA error, timeout or unreachable
   store denies the request with `503 authz_unavailable`. There is no code
@@ -56,7 +56,7 @@ system of record.
 - **D4 — Roles and permissions are data, not model.** The FGA
   authorization model contains no role names and no permission names (see
   "Authorization model"). Adding a zone, a permission or a role is a tuple
-  write. The model file changes only if the _shape_ of authorization
+  write. The model file changes only if the *shape* of authorization
   changes.
 - **D5 — Routes declare permissions at compile time.** `Module.Routes`
   receives a `*platform.Router` instead of a raw `*gin.RouterGroup`; every
@@ -75,7 +75,7 @@ system of record.
   access remains blocked by forced RLS independently of authorization.
   This inversion is real, not just conceptual, everywhere membership is
   read on a request path: `GET /iam/me/tenants` and the `POST
-/iam/me/tenant` switch gate (`backend/internal/modules/iam/me.go`) both
+  /iam/me/tenant` switch gate (`backend/internal/modules/iam/me.go`) both
   resolve membership from OpenFGA role tuples via `deps.Roles.ListRoles`,
   not by querying `iam_members` directly. `iam_members` is forced-RLS and
   every runtime accessor (`WithTenant`) scopes to a single tenant's GUC,
@@ -95,7 +95,7 @@ system of record.
   today, and the FGA model (`user`/`role`/`perm` types only — see
   "Authorization model") reserves no relation or object-ID segment for a
   department or other sub-tenant scope. Because permissions are FGA
-  _objects_, not model relations (D4), adding scope later is a bounded
+  *objects*, not model relations (D4), adding scope later is a bounded
   migration rather than a reshaping of every call site — but it is not
   free, and it touches four concrete pieces: the model (a new type or
   relation to carry scope), the reconciler (`platform.Reconcile` /
@@ -110,7 +110,7 @@ system of record.
 
 ## Authorization model
 
-Permissions are FGA _objects_, not relations. This is what makes D4 hold:
+Permissions are FGA *objects*, not relations. This is what makes D4 hold:
 
 ```
 type user
@@ -149,13 +149,13 @@ module uses a permission it did not declare.
 
 Five, matching the zones that exist today:
 
-| Role           | Permissions                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------ |
-| `tenant_admin` | all declared permissions, plus `iam.member.manage`                                         |
+| Role           | Permissions                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `tenant_admin` | all declared permissions, plus `iam.member.manage`                          |
 | `doctor`       | `medicore.visit.create`, `medicore.visit.read`, `lab.order.read`, `pharmacy.dispense.read` |
-| `nurse`        | `medicore.visit.read`, `medicore.visit.update`                                             |
-| `pharmacist`   | `pharmacy.dispense.read`, `pharmacy.dispense.fulfil`, `pharmacy.medication.read`           |
-| `lab_tech`     | `lab.order.read`, `lab.order.fulfil`                                                       |
+| `nurse`        | `medicore.visit.read`, `medicore.visit.update`                              |
+| `pharmacist`   | `pharmacy.dispense.read`, `pharmacy.dispense.fulfil`, `pharmacy.medication.read` |
+| `lab_tech`     | `lab.order.read`, `lab.order.fulfil`                                        |
 
 These ship as seeded system roles (`is_system = true`, not editable). Because
 roles are data, a tenant-defined custom role needs no model change or
@@ -176,7 +176,7 @@ and safe to run on every start.
 
 - `Permission` — typed string constants, declared per module.
 - `Client` — OpenFGA SDK wrapper. `Resolve(ctx, subject, tenantID)
-(PermissionSet, error)`; any error returns an error, never a partial set.
+  (PermissionSet, error)`; any error returns an error, never a partial set.
 - `Middleware(client)` — resolves once, parks the set on the Gin context,
   denies with 503 on any failure.
 - `Require(perm)` — in-memory lookup; denies with 403.
@@ -247,17 +247,17 @@ target tenant claim → shell reloads.
 
 ## Error handling
 
-| Condition                          | Response                                                             |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| FGA unreachable, erroring, timeout | `503 authz_unavailable`, deny, abort, logged with request ID         |
-| Member lacking the permission      | `403 forbidden`                                                      |
-| Non-member of the tenant           | empty set ⇒ `403 forbidden` on any guarded route                     |
-| Cross-tenant record access         | `404` (RLS returns no row — unchanged)                               |
+| Condition                          | Response                                    |
+| ---------------------------------- | ------------------------------------------- |
+| FGA unreachable, erroring, timeout | `503 authz_unavailable`, deny, abort, logged with request ID |
+| Member lacking the permission      | `403 forbidden`                             |
+| Non-member of the tenant           | empty set ⇒ `403 forbidden` on any guarded route |
+| Cross-tenant record access         | `404` (RLS returns no row — unchanged)      |
 | Consumer tuple-write failure       | retried via the existing bus retry path; tuple writes are idempotent |
-| Model drift at boot                | startup fails, as with `LintRLS`                                     |
+| Model drift at boot                | startup fails, as with `LintRLS`            |
 
 The `403` / `404` split is deliberate and matches the existing backend
-standard: `404` means the record does not exist _for you_ (tenant
+standard: `404` means the record does not exist *for you* (tenant
 isolation); `403` means you are in the right tenant but lack the
 permission.
 
@@ -311,14 +311,14 @@ doctor, and records must follow with the patient's consent.
 **Prerequisite that does not exist yet:** there is no patient entity.
 `medicore_visits.patient_name` is free text. Consent to access "a patient's
 records" is undefined until a patient exists with a stable identifier — and
-for cross-hospital, one stable _across_ hospitals.
+for cross-hospital, one stable *across* hospitals.
 
 **Two distinct problems**, often conflated:
 
-- _Different doctor, same hospital_ — intra-tenant: care-team
+- *Different doctor, same hospital* — intra-tenant: care-team
   relationships and break-glass emergency access with mandatory reason and
   audit. This is the per-record ReBAC deferred in D1/D9.
-- _Different hospital_ — cross-tenant: consent artefacts plus federated
+- *Different hospital* — cross-tenant: consent artefacts plus federated
   exchange. Forced RLS makes cross-tenant reads impossible by design, which
   is the strongest safety property the platform has. Consent must be a
   narrow, audited, explicitly-scoped hole — never a relaxation of RLS.
@@ -330,8 +330,8 @@ for cross-hospital, one stable _across_ hospitals.
   only the consented scope, and logs the disclosure. PHI never leaves its
   owning tenant, RLS is untouched, and revocation is instant and real.
 - **Patient identity — a Tesserix-minted identifier, with government IDs
-  mapped onto it.** _(Supersedes an earlier decision in this session that
-  made a national health ID — ABHA — the cross-hospital link.)_ Every
+  mapped onto it.** *(Supersedes an earlier decision in this session that
+  made a national health ID — ABHA — the cross-hospital link.)* Every
   patient record carries **two** Tesserix identifiers plus 0..n external
   ones:
   - **Internal key** — `patients.id` UUID. Never displayed, never changes.
@@ -343,7 +343,7 @@ for cross-hospital, one stable _across_ hospitals.
     larger household gets a second card, as in Australia. The composite
     (card + IRN) identifies an individual, not a family.
   - **External identifiers** — 0..n rows of `{scheme, value, irn, verified,
-valid_from, valid_to}`: `in.abha`, `au.ihi`, `au.medicare.card`,
+    valid_from, valid_to}`: `in.abha`, `au.ihi`, `au.medicare.card`,
     `uk.nhs`. The Tesserix identifier lives in this **same** table as
     `tsx.card` — one mechanism, not two. Country profile decides which
     schemes apply and which are authoritative.
@@ -377,16 +377,16 @@ valid_from, valid_to}`: `in.abha`, `au.ihi`, `au.medicare.card`,
   creation must be a first-class registration flow (Aadhaar or mobile OTP,
   with consent) that handles refusal gracefully; and **within-hospital care
   must work fully with no national ID at all** — local MRN carries
-  everything, national IDs gate only the cross-hospital path. _(The
+  everything, national IDs gate only the cross-hospital path. *(The
   adoption characterisation above is unverified against current ABDM data
-  and must be checked before it hardens into an implementation spec.)_
+  and must be checked before it hardens into an implementation spec.)*
 
-- **Individual vs family-scoped identifiers.** No _externally_ family-scoped
+- **Individual vs family-scoped identifiers.** No *externally* family-scoped
   identifier may establish clinical identity on its own. An Australian
   Medicare card number is an enrolment and benefits artefact — searchable
   for billing and reception, never sufficient alone, because cards are
   reissued, split on separation, and members age off them. The Tesserix
-  identifier borrows Medicare's _shape_ without inheriting that lifecycle:
+  identifier borrows Medicare's *shape* without inheriting that lifecycle:
   the composite is individual-resolving (card **+ IRN**, never card alone),
   and the actual clinical key is the internal UUID beneath it, so a reissue
   is one insert and one update rather than a record migration. This is the
@@ -431,32 +431,32 @@ dependency line back to this authorization phase.
 **Australia separates three concerns Helivanta currently collapses into one**, and
 the separation is the lesson worth taking:
 
-| Identifier                            | Purpose                            | Lifecycle                                         |
-| ------------------------------------- | ---------------------------------- | ------------------------------------------------- |
-| AHPRA registration (`MED0001234567`)  | Right to practise                  | Life, but can be suspended / conditional / lapsed |
-| HPI-I (16 digits)                     | Permanent clinical identity        | Never changes                                     |
-| Medicare provider number (`123456AB`) | Billing, **per practice location** | One per (practitioner, location)                  |
+| Identifier | Purpose | Lifecycle |
+| ---------- | ------- | --------- |
+| AHPRA registration (`MED0001234567`) | Right to practise | Life, but can be suspended / conditional / lapsed |
+| HPI-I (16 digits) | Permanent clinical identity | Never changes |
+| Medicare provider number (`123456AB`) | Billing, **per practice location** | One per (practitioner, location) |
 
 - **Every provider gets a universal Tesserix identifier**, on the same
   internal-UUID-plus-human-facing-number pattern as patients. Issuing one
   only to unregistered roles was considered and rejected: a number that
   appears exclusively on the professions lacking a regulator reads as a
-  _stand-in for the registration they lack_, which is precisely the
+  *stand-in for the registration they lack*, which is precisely the
   "looks like a licence" risk the restriction was meant to avoid. Universal
   issuance makes it obviously an account number. It is also the rule
   already applied to patients.
 - **Identifier and qualification evidence are different things.** The
-  identifier is universal (who you are here). The _evidence_ varies: a
+  identifier is universal (who you are here). The *evidence* varies: a
   verified regulator registration where one exists, hospital-verified
   evidence where none does.
 
-  | Role         | Australia                       | India                                |
-  | ------------ | ------------------------------- | ------------------------------------ |
-  | doctor       | AHPRA `MED…`                    | NMC + State Medical Council          |
-  | nurse        | AHPRA `NMW…`                    | INC + State Nursing Council          |
-  | pharmacist   | AHPRA `PHA…`                    | PCI + State Pharmacy Council         |
-  | lab_tech     | **none — not AHPRA-registered** | NCAHP (2021 Act, rollout incomplete) |
-  | tenant_admin | n/a — administrative            | n/a                                  |
+  | Role | Australia | India |
+  | ---- | --------- | ----- |
+  | doctor | AHPRA `MED…` | NMC + State Medical Council |
+  | nurse | AHPRA `NMW…` | INC + State Nursing Council |
+  | pharmacist | AHPRA `PHA…` | PCI + State Pharmacy Council |
+  | lab_tech | **none — not AHPRA-registered** | NCAHP (2021 Act, rollout incomplete) |
+  | tenant_admin | n/a — administrative | n/a |
 
 - **Pharmacist is the strongest gating case, stronger than doctor.**
   Dispensing scheduled drugs legally requires a registered pharmacist in
@@ -481,25 +481,25 @@ the separation is the lesson worth taking:
 - **Registration is not binary.** Provisional, conditional and limited
   registration exist, and scope of practice varies within a profession — a
   nurse practitioner has prescribing rights a registered nurse does not.
-  Registration _class_ may eventually influence which permissions a role
+  Registration *class* may eventually influence which permissions a role
   holds; because roles and permissions are already data rather than model
   relations (D4), that needs no FGA model change.
 - **The privileging layer already exists.** Hospital governance separates
   registration (external, portable), credentialing (a hospital verifies a
   qualification), and privileging (this hospital grants specific rights
   here). Even a fully registered surgeon needs privileges granted at each
-  hospital. **`iam_members` plus FGA role grants _is_ the privileging
+  hospital. **`iam_members` plus FGA role grants *is* the privileging
   layer**, already shipped in this phase. Only the two layers beneath it —
   the provider entity, and evidence attached to the grant — remain.
 - **Two constraints on hospital-issued credentials:** never mint anything
   that reads as a licence (distinct field, distinct label, never rendered
   where a registration number appears); and keep credentials **per-tenant
-  by default** — another tenant's credential is _evidence_ that speeds
+  by default** — another tenant's credential is *evidence* that speeds
   Hospital B's own check, never automatic authority, or Tesserix becomes a
   de facto credentialing body.
 
-_(The regulatory specifics above are unverified against current AHPRA,
-NCAHP and PCI sources and must be checked before implementation.)_
+*(The regulatory specifics above are unverified against current AHPRA,
+NCAHP and PCI sources and must be checked before implementation.)*
 
 ## Appendix — public provider directory (next milestone, not specced)
 
@@ -526,7 +526,7 @@ it is what AHPRA, the Indian Medical Register and the GMC already codify.
   Mirrored regulator data must carry provenance and freshness ("as recorded
   by AHPRA on <date>") and preferably link to the regulator rather than
   assert on Tesserix's authority. Verification state and date must be
-  _visible_, not merely stored — displaying an unverified registration
+  *visible*, not merely stored — displaying an unverified registration
   number implicitly vouches for it.
 - **This is the platform's first unauthenticated, cross-tenant read
   surface.** Everything built in this phase is tenant-scoped behind forced

@@ -64,19 +64,19 @@ constructor.
 **The cost, stated rather than buried.** With N replicas the effective global
 limit is N × configured.
 
-- For the **connection pool** this is _correct_: the pool is per-process, so a
+- For the **connection pool** this is *correct*: the pool is per-process, so a
   per-process limit is the right shape.
-- For **GIP quota** it is _approximate_: the limit bounds each replica's mint
+- For **GIP quota** it is *approximate*: the limit bounds each replica's mint
   rate, not the project's. This is why the tight budget on the mint path is set
   low enough that several replicas together stay well inside project quota.
 
-_Rejected: Redis now, as #689 specifies._ Accurate globally, but adds a required
+*Rejected: Redis now, as #689 specifies.* Accurate globally, but adds a required
 runtime dependency no Go code uses today, a network call per limited request, a
 new request-path failure mode, and operational surface (#7, #45) that does not
 exist. It also front-runs a decision better made when the deployment shape is
 known.
 
-_Rejected: Postgres-backed counters._ No new dependency, but it puts a write on
+*Rejected: Postgres-backed counters.* No new dependency, but it puts a write on
 the request path against the very pool this work protects — close to
 self-defeating — and a shared instance is the wrong place for high-frequency
 counter updates.
@@ -113,12 +113,12 @@ The default applies to every `/v1` route, so no route can be forgotten — the
 same "enforce structurally" reasoning as §4. The tight map holds exactly one
 entry today, and adding to it is a visible decision rather than config sprawl.
 
-_Rejected: route classes (read/write/expensive) declared per route._ More
+*Rejected: route classes (read/write/expensive) declared per route.* More
 expressive and closer to what #447 eventually wants, but every route gains a
 second mandatory declaration and the class boundaries are guesswork until there
 is production traffic to calibrate against.
 
-_Rejected: limiting only the expensive endpoints._ Smallest change, but it
+*Rejected: limiting only the expensive endpoints.* Smallest change, but it
 provides no noisy-neighbour protection — which is #689's actual purpose — and
 every future expensive endpoint must be remembered.
 
@@ -157,19 +157,19 @@ rather than an answer.
 Declared by registered route pattern (`c.FullPath()`), with a reason per entry,
 pinned by an arch test — the same shape as `NoTenantMembership` in #781.
 
-| Route                                   | Reason                                                                                                                                                         |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /v1/iam/me/sign-out`              | A clinician on a shared ward terminal must always be able to end their session.                                                                                |
+| Route | Reason |
+|---|---|
+| `POST /v1/iam/me/sign-out` | A clinician on a shared ward terminal must always be able to end their session. |
 | `POST /v1/iam/subjects/:subject/revoke` | Incident response. An attacker looping requests is precisely what would trip the limiter, at the moment an administrator most needs to cut the credential off. |
 
 **Exempt from the limit, not from the counter.** Usage is still recorded and
 logged, so an exempt route being hammered is visible rather than invisible.
 
-_Rejected: no exemptions, set limits high enough._ Makes the availability of a
+*Rejected: no exemptions, set limits high enough.* Makes the availability of a
 security control a function of a tuning number, and the failure surfaces during
 an incident — the worst moment to learn the threshold was wrong.
 
-_Rejected: exempt by permission rather than route._ Survives renames and travels
+*Rejected: exempt by permission rather than route.* Survives renames and travels
 with authorization, but the mapping is coarse and it couples two systems that
 are currently independent.
 
@@ -195,10 +195,10 @@ The limiter is then exercised on the path developers actually run; the suite
 does not fight it; and there is a test whose failure means the limiter stopped
 working rather than that a threshold drifted.
 
-_Rejected: disable in dev._ The limiter would never be exercised where
+*Rejected: disable in dev.* The limiter would never be exercised where
 developers work, so its first real exercise would be production.
 
-_Rejected: raise the limit until the tests pass._ Tuning a control to fit the
+*Rejected: raise the limit until the tests pass.* Tuning a control to fit the
 tests, which is backwards.
 
 ---
@@ -269,20 +269,20 @@ budget is 429 with `Retry-After`, never a 500 and never a silent delay.
 Per `docs/standards/engineering-principles.md` §5, every assertion is proven able
 to fail before it is trusted.
 
-| ID  | Test                                                                            | Why it exists                                                                                                                                     |
-| --- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1  | A throttled request makes **no OpenFGA call**                                   | Proves D3's placement. If the limiter drifts after `authz`, a flood exhausts OpenFGA before being refused, and nothing else would catch the move. |
-| T2  | Token bucket refills exactly, with an injected clock                            | 119 allowed, 120th denied, advance 500ms, one allowed. No sleeps.                                                                                 |
-| T3  | Tenant bucket exhausted → 429 even when the principal's is fine, and vice versa | Both buckets enforced, not just whichever is checked first.                                                                                       |
-| T4  | The denial names which bucket was exhausted                                     | "You" vs "your whole hospital".                                                                                                                   |
-| T5  | `POST /v1/iam/me/tenant` trips at its tight budget, not the default             | The tight rule is applied, not merely declared.                                                                                                   |
-| T6  | An exempt route is never throttled, at 100× the limit                           | Sign-out and revoke must work during the incident that trips the limiter.                                                                         |
-| T7  | An exempt route is still counted and logged                                     | Exempt from the limit, not from visibility.                                                                                                       |
-| T8  | Key space stays bounded under many distinct tenants and subjects                | An unbounded map keyed by subject is a memory leak.                                                                                               |
-| T9  | `Retry-After` and `RateLimit-*` headers present and correct                     | Offline-first clients back off on these.                                                                                                          |
-| T10 | Arch test: the exemption list is exactly two routes                             | Stops the unsafe set growing silently.                                                                                                            |
-| T11 | Concurrent requests under `-race`                                               | The bucket map is mutated on every request.                                                                                                       |
-| T12 | E2E: deliberately exceed, assert 429 + `Retry-After`, then recover              | Exercises the limiter on the path developers actually run.                                                                                        |
+| ID | Test | Why it exists |
+|---|---|---|
+| T1 | A throttled request makes **no OpenFGA call** | Proves D3's placement. If the limiter drifts after `authz`, a flood exhausts OpenFGA before being refused, and nothing else would catch the move. |
+| T2 | Token bucket refills exactly, with an injected clock | 119 allowed, 120th denied, advance 500ms, one allowed. No sleeps. |
+| T3 | Tenant bucket exhausted → 429 even when the principal's is fine, and vice versa | Both buckets enforced, not just whichever is checked first. |
+| T4 | The denial names which bucket was exhausted | "You" vs "your whole hospital". |
+| T5 | `POST /v1/iam/me/tenant` trips at its tight budget, not the default | The tight rule is applied, not merely declared. |
+| T6 | An exempt route is never throttled, at 100× the limit | Sign-out and revoke must work during the incident that trips the limiter. |
+| T7 | An exempt route is still counted and logged | Exempt from the limit, not from visibility. |
+| T8 | Key space stays bounded under many distinct tenants and subjects | An unbounded map keyed by subject is a memory leak. |
+| T9 | `Retry-After` and `RateLimit-*` headers present and correct | Offline-first clients back off on these. |
+| T10 | Arch test: the exemption list is exactly two routes | Stops the unsafe set growing silently. |
+| T11 | Concurrent requests under `-race` | The bucket map is mutated on every request. |
+| T12 | E2E: deliberately exceed, assert 429 + `Retry-After`, then recover | Exercises the limiter on the path developers actually run. |
 
 ---
 

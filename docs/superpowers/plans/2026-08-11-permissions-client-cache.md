@@ -26,33 +26,31 @@ Zone apps prerender the shell on the server, where localStorage does not exist, 
 
 ## File Structure
 
-| File                                                    | Responsibility                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------ |
-| `backend/internal/modules/iam/me.go` (modify)           | `/me/permissions` returns `subject` + `tenant_id` alongside `data` |
-| `backend/internal/modules/iam/me_test.go` (modify)      | Asserts the identity fields                                        |
-| `packages/api/src/permissions-cache.ts` (create)        | Pure localStorage read/write/clear with TTL + corruption handling  |
-| `packages/api/src/permissions-cache.test.ts` (create)   | Unit tests for the cache module                                    |
-| `packages/api/src/hooks.ts` (modify)                    | `useApiQuery` accepts `placeholderData`                            |
-| `packages/api/src/permissions.tsx` (modify)             | Hydrates from cache, writes through on fresh data                  |
-| `packages/api/src/permissions.test.tsx` (modify)        | Warm-cache paint, write-through, revocation convergence            |
-| `packages/api/src/index.ts` (modify)                    | Exports `clearPermissionsCache`                                    |
-| `packages/ui/src/hms-shell.tsx` (modify)                | Logout links clear the cache                                       |
-| `packages/ui/src/hms-shell.test.tsx` (create)           | Logout click clears the cache                                      |
-| `apps/shell/components/tenant-picker.tsx` (modify)      | Tenant switch clears the cache                                     |
-| `apps/shell/components/tenant-picker.test.tsx` (modify) | Switch clears the cache                                            |
-| `apps/shell/app/login/page.tsx` (modify)                | Successful sign-in clears the cache                                |
+| File | Responsibility |
+|---|---|
+| `backend/internal/modules/iam/me.go` (modify) | `/me/permissions` returns `subject` + `tenant_id` alongside `data` |
+| `backend/internal/modules/iam/me_test.go` (modify) | Asserts the identity fields |
+| `packages/api/src/permissions-cache.ts` (create) | Pure localStorage read/write/clear with TTL + corruption handling |
+| `packages/api/src/permissions-cache.test.ts` (create) | Unit tests for the cache module |
+| `packages/api/src/hooks.ts` (modify) | `useApiQuery` accepts `placeholderData` |
+| `packages/api/src/permissions.tsx` (modify) | Hydrates from cache, writes through on fresh data |
+| `packages/api/src/permissions.test.tsx` (modify) | Warm-cache paint, write-through, revocation convergence |
+| `packages/api/src/index.ts` (modify) | Exports `clearPermissionsCache` |
+| `packages/ui/src/hms-shell.tsx` (modify) | Logout links clear the cache |
+| `packages/ui/src/hms-shell.test.tsx` (create) | Logout click clears the cache |
+| `apps/shell/components/tenant-picker.tsx` (modify) | Tenant switch clears the cache |
+| `apps/shell/components/tenant-picker.test.tsx` (modify) | Switch clears the cache |
+| `apps/shell/app/login/page.tsx` (modify) | Successful sign-in clears the cache |
 
 ---
 
 ### Task 1: Backend returns caller identity with permissions
 
 **Files:**
-
 - Modify: `backend/internal/modules/iam/me.go:58-65`
 - Test: `backend/internal/modules/iam/me_test.go`
 
 **Interfaces:**
-
 - Consumes: `authn.PrincipalFrom(c)` (already imported in `me.go`), `authz.PermissionsFrom(c)`.
 - Produces: `GET /v1/iam/me/permissions` response body `{"data": []string, "subject": string, "tenant_id": string}`. Task 3 consumes `subject` and `tenant_id`.
 
@@ -144,12 +142,10 @@ git commit -m "feat(iam): return caller identity with the permission set (#760)"
 ### Task 2: Permissions cache module
 
 **Files:**
-
 - Create: `packages/api/src/permissions-cache.ts`
 - Test: `packages/api/src/permissions-cache.test.ts`
 
 **Interfaces:**
-
 - Consumes: nothing.
 - Produces:
   - `type PermissionsCacheEntry = { subject: string; tenantId: string; permissions: string[]; storedAt: number }`
@@ -305,10 +301,7 @@ export function readPermissionsCache(): PermissionsCacheEntry | null {
     const raw = window.localStorage.getItem(PERMISSIONS_CACHE_KEY);
     if (raw === null) return null;
     const parsed: unknown = JSON.parse(raw);
-    if (
-      !isEntry(parsed) ||
-      Date.now() - parsed.storedAt > PERMISSIONS_CACHE_TTL_MS
-    ) {
+    if (!isEntry(parsed) || Date.now() - parsed.storedAt > PERMISSIONS_CACHE_TTL_MS) {
       clearPermissionsCache();
       return null;
     }
@@ -355,14 +348,12 @@ git commit -m "feat(api): add permissions cache module with TTL and corruption r
 ### Task 3: Hydrate `usePermissions` from the cache
 
 **Files:**
-
 - Modify: `packages/api/src/hooks.ts:13-23`
 - Modify: `packages/api/src/permissions.tsx`
 - Modify: `packages/api/src/index.ts`
 - Test: `packages/api/src/permissions.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `readPermissionsCache`, `writePermissionsCache`, `PermissionsCacheEntry` from Task 2; the `subject`/`tenant_id` response fields from Task 1.
 - Produces: `useApiQuery<T>(key, path, { poll?: boolean; placeholderData?: T })`; `usePermissions()` keeps its existing shape `{ permissions: Set<string>; isLoading: boolean; can: (p: string) => boolean }`; `@helivanta/api` additionally exports `clearPermissionsCache` for Task 4.
 
@@ -371,10 +362,7 @@ git commit -m "feat(api): add permissions cache module with TTL and corruption r
 Add to `packages/api/src/permissions.test.tsx` — first extend the existing helper so responses carry identity, then add the new cases. Replace the `mockPermissions` helper at the top of the file with:
 
 ```tsx
-import {
-  PERMISSIONS_CACHE_KEY,
-  readPermissionsCache,
-} from "./permissions-cache";
+import { PERMISSIONS_CACHE_KEY, readPermissionsCache } from "./permissions-cache";
 
 function mockPermissions(data: string[]) {
   vi.stubGlobal(
@@ -419,13 +407,9 @@ describe("permissions cache hydration", () => {
       "fetch",
       vi.fn(() => new Promise(() => {})),
     );
-    renderWithProviders(
-      <Can permission="pharmacy.dispense.fulfil">Dispense</Can>,
-    );
+    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
 
-    await waitFor(() =>
-      expect(screen.getByText("Dispense")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Dispense")).toBeInTheDocument());
   });
 
   it("writes the fresh permission set to the cache", async () => {
@@ -446,13 +430,9 @@ describe("permissions cache hydration", () => {
   it("drops a revoked permission once the request resolves", async () => {
     seedCache(["pharmacy.dispense.fulfil"]);
     mockPermissions([]);
-    renderWithProviders(
-      <Can permission="pharmacy.dispense.fulfil">Dispense</Can>,
-    );
+    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
 
-    await waitFor(() =>
-      expect(screen.queryByText("Dispense")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText("Dispense")).not.toBeInTheDocument());
     expect(readPermissionsCache()?.permissions).toEqual([]);
   });
 
@@ -461,9 +441,7 @@ describe("permissions cache hydration", () => {
       "fetch",
       vi.fn(() => new Promise(() => {})),
     );
-    renderWithProviders(
-      <Can permission="pharmacy.dispense.fulfil">Dispense</Can>,
-    );
+    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
 
     expect(screen.queryByText("Dispense")).not.toBeInTheDocument();
   });
@@ -505,13 +483,7 @@ Replace the body of `packages/api/src/permissions.tsx` above `Can` with:
 ```tsx
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { useApiQuery } from "./hooks";
 import {
   readPermissionsCache,
@@ -528,19 +500,14 @@ const PERMISSIONS_KEY = ["iam", "me", "permissions"];
 // need to special-case the string "public" themselves.
 const PUBLIC_PERMISSION = "public";
 
-type PermissionsResponse = {
-  data: string[];
-  subject?: string;
-  tenant_id?: string;
-};
+type PermissionsResponse = { data: string[]; subject?: string; tenant_id?: string };
 
 // Zone apps prerender this tree on the server, where localStorage does not
 // exist. Reading the cache during render would make the hydration render
 // disagree with the server HTML, so the read happens in a layout effect —
 // after hydration commits, but before the browser paints the hydrated
 // tree, so the nav does not visibly pop in.
-const useIsomorphicLayoutEffect =
-  typeof window === "undefined" ? useEffect : useLayoutEffect;
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 function useCachedPermissions(): PermissionsCacheEntry | null {
   const [cached, setCached] = useState<PermissionsCacheEntry | null>(null);
@@ -603,8 +570,7 @@ export function usePermissions(): {
       // from /iam/me/permissions to resolve, so there is nothing to wait
       // on. Every other permission is denied while loading, so a slow
       // response never flashes an action the user cannot perform.
-      permission === PUBLIC_PERMISSION ||
-      (!isLoading && permissions.has(permission)),
+      permission === PUBLIC_PERMISSION || (!isLoading && permissions.has(permission)),
   };
 }
 ```
@@ -616,10 +582,7 @@ Leave the `Can` component below unchanged.
 In `packages/api/src/index.ts`, add:
 
 ```ts
-export {
-  PERMISSIONS_CACHE_KEY,
-  clearPermissionsCache,
-} from "./permissions-cache";
+export { PERMISSIONS_CACHE_KEY, clearPermissionsCache } from "./permissions-cache";
 ```
 
 `PERMISSIONS_CACHE_KEY` is exported so consumer tests assert against the constant instead of re-typing the literal key.
@@ -646,7 +609,6 @@ git commit -m "feat(api): paint nav from cached permissions while revalidating (
 ### Task 4: Clear the cache at login, logout, and tenant switch
 
 **Files:**
-
 - Modify: `packages/ui/src/hms-shell.tsx:108-116` and `:189-194`
 - Create: `packages/ui/src/hms-shell.test.tsx`
 - Modify: `apps/shell/components/tenant-picker.tsx:74-81`
@@ -654,7 +616,6 @@ git commit -m "feat(api): paint nav from cached permissions while revalidating (
 - Modify: `apps/shell/app/login/page.tsx:24-39`
 
 **Interfaces:**
-
 - Consumes: `clearPermissionsCache` and `PERMISSIONS_CACHE_KEY`, both exported from `@helivanta/api` in Task 3. Tests assert against the exported constant — never a re-typed `"hms.permissions.v1"` literal.
 - Produces: nothing downstream.
 
@@ -690,11 +651,7 @@ describe("HmsShell", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({
-          data: ["lab.order.read"],
-          subject: "doc",
-          tenant_id: "tenant-a",
-        }),
+        json: async () => ({ data: ["lab.order.read"], subject: "doc", tenant_id: "tenant-a" }),
       }),
     );
   });
@@ -704,18 +661,14 @@ describe("HmsShell", () => {
     seedCache(["lab.order.read"]);
     renderWithProviders(<HmsShell active="/">content</HmsShell>);
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Lab")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByLabelText("Lab")).toBeInTheDocument());
   });
 
   // A shared hospital terminal must not show the next user the previous
   // user's nav, so signing out drops the cached set.
   it("clears the cached permissions when signing out", async () => {
     seedCache(["lab.order.read"]);
-    const { user } = renderWithProviders(
-      <HmsShell active="/">content</HmsShell>,
-    );
+    const { user } = renderWithProviders(<HmsShell active="/">content</HmsShell>);
 
     await user.click(screen.getByLabelText("Sign out"));
 
@@ -740,11 +693,11 @@ import { usePermissions, clearPermissionsCache } from "@helivanta/api";
 Add this handler inside `HmsShell`, next to the existing `usePersistedFlag` call:
 
 ```tsx
-// Both sign-out links are plain <a> (cross-zone navigation is a hard
-// navigation by design), so this only drops the cached permission set
-// before the browser follows the link — the navigation itself is
-// untouched.
-const onSignOut = () => clearPermissionsCache();
+  // Both sign-out links are plain <a> (cross-zone navigation is a hard
+  // navigation by design), so this only drops the cached permission set
+  // before the browser follows the link — the navigation itself is
+  // untouched.
+  const onSignOut = () => clearPermissionsCache();
 ```
 
 Add `onClick={onSignOut}` to both sign-out anchors — the rail link at `href="/logout"` with `aria-label="Sign out"`, and the header link at `href="/logout"` reading "Sign out".
@@ -759,38 +712,29 @@ Expected: PASS (2 tests). A jsdom "Not implemented: navigation" console notice f
 Append to the existing `describe` in `apps/shell/components/tenant-picker.test.tsx`:
 
 ```tsx
-// A tenant switch changes the whole permission set, so the cached one
-// must not survive the reload that follows.
-it("clears the cached permissions when switching tenants", async () => {
-  window.localStorage.setItem(
-    PERMISSIONS_CACHE_KEY,
-    JSON.stringify({
-      subject: "doc",
-      tenantId: "t1",
-      permissions: ["lab.order.read"],
-      storedAt: Date.now(),
-    }),
-  );
-  signInWithCustomToken.mockResolvedValue({
-    user: {
-      getIdTokenResult: async () => ({
-        claims: { tenant_id: "t2" },
-        token: "id-token",
+  // A tenant switch changes the whole permission set, so the cached one
+  // must not survive the reload that follows.
+  it("clears the cached permissions when switching tenants", async () => {
+    window.localStorage.setItem(
+      PERMISSIONS_CACHE_KEY,
+      JSON.stringify({
+        subject: "doc",
+        tenantId: "t1",
+        permissions: ["lab.order.read"],
+        storedAt: Date.now(),
       }),
-    },
+    );
+    signInWithCustomToken.mockResolvedValue({
+      user: { getIdTokenResult: async () => ({ claims: { tenant_id: "t2" }, token: "id-token" }) },
+    });
+    stubFetch();
+    const { user } = renderWithProviders(<TenantPicker />);
+
+    await waitFor(() => expect(screen.getByTitle("Hospital")).toBeInTheDocument());
+    await user.selectOptions(screen.getByTitle("Hospital"), "t2");
+
+    await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
   });
-  stubFetch();
-  const { user } = renderWithProviders(<TenantPicker />);
-
-  await waitFor(() =>
-    expect(screen.getByTitle("Hospital")).toBeInTheDocument(),
-  );
-  await user.selectOptions(screen.getByTitle("Hospital"), "t2");
-
-  await waitFor(() =>
-    expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull(),
-  );
-});
 ```
 
 Add `PERMISSIONS_CACHE_KEY` to the file's existing `@helivanta/api` import (the test file already imports `renderWithProviders` from `@helivanta/api/testing`; the constant comes from `@helivanta/api`).
@@ -805,12 +749,7 @@ Expected: FAIL — the cache entry is still present after the switch.
 In `apps/shell/components/tenant-picker.tsx`, extend the import:
 
 ```tsx
-import {
-  useApiMutation,
-  useApiQuery,
-  apiFetch,
-  clearPermissionsCache,
-} from "@helivanta/api";
+import { useApiMutation, useApiQuery, apiFetch, clearPermissionsCache } from "@helivanta/api";
 ```
 
 Replace the mutation's `onSuccess` options block:
@@ -846,13 +785,13 @@ import { clearPermissionsCache } from "@helivanta/api";
 In `onSubmit`, replace the success tail so the cache is dropped before navigating:
 
 ```tsx
-if (!res.ok) throw new Error("session");
-// Whoever signs in now owns this browser's permission cache. A
-// session that expired without an explicit sign-out leaves the
-// previous user's entry behind, so clearing here — not only on the
-// logout link — is what keeps the next user from seeing their nav.
-clearPermissionsCache();
-router.replace("/");
+      if (!res.ok) throw new Error("session");
+      // Whoever signs in now owns this browser's permission cache. A
+      // session that expired without an explicit sign-out leaves the
+      // previous user's entry behind, so clearing here — not only on the
+      // logout link — is what keeps the next user from seeing their nav.
+      clearPermissionsCache();
+      router.replace("/");
 ```
 
 - [ ] **Step 10: Run the login tests**
@@ -872,11 +811,9 @@ git commit -m "feat(shell): clear cached permissions on login, logout and tenant
 ### Task 5: Verify the whole slice and open the PR
 
 **Files:**
-
 - Modify: none (verification only, plus the plan/spec docs already committed)
 
 **Interfaces:**
-
 - Consumes: everything from Tasks 1-4.
 - Produces: a PR closing #760.
 

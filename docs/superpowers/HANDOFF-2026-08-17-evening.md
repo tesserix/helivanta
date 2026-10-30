@@ -35,22 +35,22 @@ feature. **Five controls shipped or nearly shipped that existed in code and were
 asserted by nothing.** Every one surfaced only by deliberately breaking the code
 to see whether a test noticed.
 
-| Control                                       | How it was nominal                                                                                                                                                                                                      |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Control | How it was nominal |
+|---|---|
 | `.golangci.yml` depguard + `coverage-gate.sh` | Both matched on the **old module path** after the rebrand, so the cross-module import rule and the 70% floor silently enforced nothing. `make lint-go` reported `0 issues` with a real `lab → pharmacy` import planted. |
-| The D3 token-rotation regression test         | Its fixtures ignored `*http.Request`, so no token was ever validated. The stale-token mutation **passed**. This guarded the highest-risk defect in the whole plan.                                                      |
-| Three `CompleteAfterFactor` tests             | Passed by accident: their `SessionFactors` fixture also reported no TOTP, so they'd have passed with the guard deleted.                                                                                                 |
-| The attempt-expired timing floor              | No test read elapsed time. Deleting `waitUntilFailureFloor` passed the entire suite.                                                                                                                                    |
-| The rate limiter itself                       | `ClientIP()` was attacker-controlled (see below), so every IP-keyed limit was bypassable with a header.                                                                                                                 |
+| The D3 token-rotation regression test | Its fixtures ignored `*http.Request`, so no token was ever validated. The stale-token mutation **passed**. This guarded the highest-risk defect in the whole plan. |
+| Three `CompleteAfterFactor` tests | Passed by accident: their `SessionFactors` fixture also reported no TOTP, so they'd have passed with the guard deleted. |
+| The attempt-expired timing floor | No test read elapsed time. Deleting `waitUntilFailureFloor` passed the entire suite. |
+| The rate limiter itself | `ClientIP()` was attacker-controlled (see below), so every IP-keyed limit was bypassable with a header. |
 
 Also caught this way: **two defects in the task briefs I wrote.** One instructed
 an implementer to prove an arch test by adding a second call to an unexported
-function — that test pins the _wire POST_, not the Go call, so the proof was
+function — that test pins the *wire POST*, not the Go call, so the proof was
 **unfalsifiable**. The other omitted a real `handoff_url` outcome and would have
 shipped a client union that silently mishandled a documented response.
 
-**The practice that works:** for every control, ask _what mutation would break
-this_, apply it, and watch a test fail. A test you have not watched fail against
+**The practice that works:** for every control, ask *what mutation would break
+this*, apply it, and watch a test fail. A test you have not watched fail against
 the specific defect it names is not evidence. The corollary bit us too — see
 "#866 shipped with an unrun suite".
 
@@ -80,7 +80,7 @@ putting it in a vault would add a rotation surface for a public string.
 `make secret-session-key` mints a key in exactly the format the validator
 accepts. A gitleaks gate runs in CI, pinned by tag **and digest** — `:latest`
 floats, and because `.gitleaks.toml` declares a rule carrying only an allowlist,
-a version that _replaced_ rather than _merged_ the default rule would silently
+a version that *replaced* rather than *merged* the default rule would silently
 disable the detector and report `no leaks found` forever.
 
 **Task 4 (proving the OpenBao grant) is deliberately unstarted.** Nothing has
@@ -109,7 +109,7 @@ byte-identical across 1940 dist files. All 13 imported symbols survive in 2.x,
 which is why a major bump compiled untouched.
 
 `.npmrc` was removed. It forced `@tesserix` to GitHub Packages and therefore
-_caused_ a 401 rather than preventing one — and on the Free plan
+*caused* a 401 rather than preventing one — and on the Free plan
 `secrets.PKG_READ_TOKEN` resolved to an empty string.
 
 ### #867 — native TOTP
@@ -119,7 +119,7 @@ A clinician with TOTP enrolled now enters the code on our own page.
 login-client PAT — observed, §1 of the MFA spike.
 
 **The token rotates on every check.** Finalize needs the newest one; reusing the
-creation token fails finalize _after_ a correct code, so the clinician is told
+creation token fails finalize *after* a correct code, so the clinician is told
 their TOTP was wrong. Proven at unit and integration level.
 
 Scope is TOTP only. Email/SMS codes are excluded because the spike could not
@@ -149,7 +149,7 @@ client. **Unconfirmed against a live pod**, since none is deployed.
 
 **Do not copy `go-shared`'s client-IP handling** (filed as
 `tesserix/go-shared#3`). Its `getClientIP` prefers `X-Real-Client-IP` from an
-EnvoyFilter that targets `custom-ingressgateway` — _not_ the gateway most
+EnvoyFilter that targets `custom-ingressgateway` — *not* the gateway most
 services sit behind — carries `downstreamDirectRemoteAddress()`, which is a
 **pod IP**, and is `add`ed rather than replaced. Its fallback then takes XFF's
 **leftmost** entry. Every IP-keyed rate limit in that package is bypassable.
@@ -189,14 +189,14 @@ with no error. Use `perl -pi -e`. Verified — and the dangerous part is the
 "fix": dropping the boundary is how protected identifiers get mangled.
 
 **Leftover `next dev` processes** remain the top local-dev hazard. A surviving
-process holding a port makes turbo fail the whole group and presents as _"the app
-is broken"_.
+process holding a port makes turbo fail the whole group and presents as *"the app
+is broken"*.
 
 ---
 
 ## Pending, in the order I would take them
 
-### 1. #824 — container images and deployment artefacts _(now the critical path)_
+### 1. #824 — container images and deployment artefacts *(now the critical path)*
 
 It blocks **three** things: `TRUSTED_PROXY_CIDRS` has nowhere to be set, #45's
 Task 4 cannot provision secrets into a deployment that does not exist, and the
@@ -215,7 +215,7 @@ enter it in the `secret-service.tesserix.app` console directly.
 
 ### 3. #869 — nothing sweeps `login_attempt`
 
-Rows are removed only on a read _of that id_, so an abandoned attempt leaves a
+Rows are removed only on a read *of that id*, so an abandoned attempt leaves a
 **live Zitadel session token** in Postgres indefinitely.
 `login_attempt_expires_at_idx` exists as if for a reaper that was never written.
 

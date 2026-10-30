@@ -31,13 +31,11 @@
 Fail-closed first. After this task the envelope can carry a destination and the bus will **refuse every one of them**, because nothing has declared any subject directed yet. The capability to honour one arrives in Task 2.
 
 **Files:**
-
 - Modify: `backend/pkg/events/types.go`
 - Modify: `backend/pkg/events/bus.go`
 - Test: `backend/pkg/events/directed_test.go` (create)
 
 **Interfaces:**
-
 - Consumes: nothing.
 - Produces: `events.Event.DestinationTenantID string`; `func (b *Bus) AllowDirected(subjects ...string)`; unexported `func (b *Bus) directedAllowed(subject string) bool`.
 
@@ -265,12 +263,10 @@ git commit -m "feat(932): refuse directed events on undeclared subjects"
 ### Task 2: Honour a declared destination, scoped to exactly one tenant
 
 **Files:**
-
 - Modify: `backend/pkg/events/bus.go`
 - Test: `backend/pkg/events/directed_test.go`
 
 **Interfaces:**
-
 - Consumes: `Event.DestinationTenantID`, `Bus.AllowDirected`, `Bus.directedAllowed` (Task 1).
 - Produces: unexported `func scopeTenant(evt Event) string`.
 
@@ -508,7 +504,6 @@ git commit -m "feat(932): scope the consumer tx to an allowed destination tenant
 ### Task 3: Modules declare directed subjects; the registry validates at boot
 
 **Files:**
-
 - Modify: `backend/internal/platform/module.go`
 - Modify: `backend/internal/platform/registry.go`
 - Modify: `backend/internal/modules/reference/module.go`, `medicore/module.go`, `pharmacy/module.go`, `lab/module.go`, `iam/module.go`
@@ -516,7 +511,6 @@ git commit -m "feat(932): scope the consumer tx to an allowed destination tenant
 - Test: `backend/internal/platform/registry_test.go`, `backend/internal/archtest/events_test.go`
 
 **Interfaces:**
-
 - Consumes: `Bus.AllowDirected` (Task 1).
 - Produces: `platform.Module.DirectedSubjects() []string`; `func (r *Registry) DirectedSubjects() []string`.
 
@@ -691,7 +685,6 @@ git commit -m "feat(932): modules declare directed subjects, validated at boot"
 ### Task 4: Provenance columns are declared and linted
 
 **Files:**
-
 - Modify: `backend/internal/platform/module.go`
 - Modify: `backend/internal/modules/*/module.go` (all five)
 - Modify: `backend/pkg/tenantdb/db.go`
@@ -700,7 +693,6 @@ git commit -m "feat(932): modules declare directed subjects, validated at boot"
 - Test: `backend/pkg/tenantdb/db_test.go`
 
 **Interfaces:**
-
 - Consumes: `platform.Module` (Task 3).
 - Produces: `platform.Module.DirectedWriteTables() []string`; `func (r *Registry) DirectedWriteTables() []string`; `func (d *DB) LintDirectedProvenance(ctx context.Context, tables []string) ([]string, error)`.
 
@@ -932,7 +924,7 @@ In `backend/cmd/api/main.go`, directly after the existing `LintRLS` block (~line
 	}
 ```
 
-If `registry` is constructed _after_ the `LintRLS` call in this file, move this new block to just after the `registry, err := bootstrap.NewRegistry(...)` line instead — it only needs `db` and `registry`.
+If `registry` is constructed *after* the `LintRLS` call in this file, move this new block to just after the `registry, err := bootstrap.NewRegistry(...)` line instead — it only needs `db` and `registry`.
 
 Add the equivalent to `backend/cmd/migrate/main.go` beside its `LintRLS` call, using the same registry source that file already uses. If `cmd/migrate` has no registry, skip it there and note in the commit message that boot is the enforcement point.
 
@@ -961,14 +953,12 @@ git commit -m "feat(932): lint provenance columns on declared directed-write tab
 **No HTTP route is added.** Every `reference` route is `authz.Public` because the module exposes no tenant data; a public endpoint that creates a row in a caller-named tenant would be a genuine hole. The proof is an integration test that publishes through the outbox inside a real `WithTenant` transaction, which exercises the identical path.
 
 **Files:**
-
 - Modify: `backend/internal/modules/reference/contract/events.go`
 - Modify: `backend/internal/modules/reference/module.go`
 - Modify: `backend/internal/modules/reference/consumers.go`
 - Test: `backend/internal/modules/reference/module_test.go`
 
 **Interfaces:**
-
 - Consumes: everything from Tasks 1–4.
 - Produces: `referencecontract.SubjectPingForwarded`, `referencecontract.PingForwardedData{PingID, Message string}`; table `reference_forwarded_pings`.
 
@@ -1160,7 +1150,6 @@ make -C .. lint-go
 go test -race ./...
 ./scripts/coverage-gate.sh
 ```
-
 Expected: all green. `TestEveryConsumedSubjectIsPublished` and `TestPublishesUsesContractConstants` must pass unchanged — they now cover the new subject too.
 
 - [ ] **Step 10: Commit and open the PR**

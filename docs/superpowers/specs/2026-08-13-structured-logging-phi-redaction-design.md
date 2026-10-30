@@ -82,7 +82,7 @@ reads as a noise preference. It is a PHI control.
 **2. An arch test** restricting `gorm.Open` to an allowlist —
 `pkg/tenantdb/db.go` and `internal/testinfra/containers_test.go` — using the
 same AST walk as the existing `TestWithAdminIsOnlyCalledFromTheAllowlist`. This
-is the only mechanism that catches a _new_ `gorm.Open` added elsewhere, which
+is the only mechanism that catches a *new* `gorm.Open` added elsewhere, which
 no amount of care inside `tenantdb.Open` would.
 
 **3. An stderr test** that opens a pool through `tenantdb.Open`, triggers a
@@ -144,14 +144,14 @@ recursively. It was implemented, reviewed adversarially, and taken through two
 fix rounds. Both rounds closed every finding they were given, and both
 introduced new leaks **of the same class**. The class:
 
-| Screened                  | Emitted         | Result                                                                                    |
-| ------------------------- | --------------- | ----------------------------------------------------------------------------------------- |
-| `fmt.Sprint(v)`           | `encoding/json` | `[]*Patient` leaked — pointers print as addresses to `fmt`, are followed by `json`        |
-| `%g`                      | decimal         | `float64(123456789012)` leaked                                                            |
-| reflection-rebuilt struct | `MarshalJSON`   | a patient **name** the marshaller withheld was published _by the redactor_                |
-| `MarshalText()`           | `Error()`       | error text leaked — slog skips `Error()` for `json.Marshaler` but not for `TextMarshaler` |
+| Screened | Emitted | Result |
+|---|---|---|
+| `fmt.Sprint(v)` | `encoding/json` | `[]*Patient` leaked — pointers print as addresses to `fmt`, are followed by `json` |
+| `%g` | decimal | `float64(123456789012)` leaked |
+| reflection-rebuilt struct | `MarshalJSON` | a patient **name** the marshaller withheld was published *by the redactor* |
+| `MarshalText()` | `Error()` | error text leaked — slog skips `Error()` for `json.Marshaler` but not for `TextMarshaler` |
 
-A handler-level redactor has to _predict_ how slog will render each value —
+A handler-level redactor has to *predict* how slog will render each value —
 `json.Marshaler` vs `encoding.TextMarshaler` vs `error` vs `fmt.Stringer`,
 value receiver vs pointer receiver — which means duplicating slog's dispatch
 and re-duplicating it whenever Go changes. Each round did that more accurately
@@ -167,8 +167,8 @@ finding above — in exchange for one `io.Writer`.
 **The byte layer parses the line rather than scanning it.** A first attempt
 hand-rolled a scanner that tracked string boundaries and quoted the marker when
 a match fell outside one. It was implemented to spec and failed two ways that
-a scanner cannot avoid, because it operated on _escaped bytes_ and on _partial
-number tokens_:
+a scanner cannot avoid, because it operated on *escaped bytes* and on *partial
+number tokens*:
 
 - **PHI after a JSON escape leaked.** A newline inside a string is the two
   bytes `\` `n`, and `n` is a word character, so the boundary rule read
@@ -233,10 +233,12 @@ cheaper than the walker it replaced.
 reflection-based implementation was written, reviewed twice and withdrawn over
 five Critical defects; the withdrawn implementation is preserved on
 `backup/678-phitag-reflection`. What shipped under
-[#778](https://github.com/tesserix/helivanta/issues/778) is the _marshal-then-mask_
+[#778](https://github.com/tesserix/helivanta/issues/778) is the *marshal-then-mask*
 replacement described at the end of this section, in
 `backend/pkg/logging/phitag.go`. What follows describes the intent, then why the
 reflection approach was abandoned and what replaced it.
+
+
 
 A name, a date of birth and an address have no shape to match on. The only way
 to know they are PHI is for the type to say so:
@@ -275,16 +277,16 @@ Two rounds produced five confirmed Critical defects, all from one root cause:
 reimplementing `encoding/json`.** Every rule the reconstruction did not
 reproduce became a defect.
 
-| Defect                                                                                          | Cause                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| An untagged wrapper holding `[]patient` leaked every name — `{"Rows":[{"Name":"SECRET-NAME"}]}` | tag detection never looked through a collection element type. This is the ordinary list-response DTO, the most likely shape in the system.                                                                     |
-| `json:"-"` fields were published — `{"Secret":"HIDDEN"}`                                        | the reconstruction keyed on Go field names and ignored json tags, `omitempty` and `-`. The tag layer published what the type withheld, which is the exact constraint the marshaller decline exists to enforce. |
-| The depth cap failed **open** — 8 plaintext names past the limit                                | past `maxPHIDepth` the remaining subtree was handed to the encoder raw. A true cycle was caught only because `encoding/json` bails on cycles; a finite deep chain had no such backstop.                        |
-| Type-cache poisoning across mutually recursive types                                            | `hasPHITag` seeded `false` before recursing, so an outer type could observe the seed and cache `false` permanently. Order-dependent and racy.                                                                  |
-| A 20-node shared-reference DAG hung the logger past 25s                                         | the depth cap was per-branch, not a global node budget, so a DAG re-expanded into a tree. One log line could wedge a request goroutine.                                                                        |
+| Defect | Cause |
+|---|---|
+| An untagged wrapper holding `[]patient` leaked every name — `{"Rows":[{"Name":"SECRET-NAME"}]}` | tag detection never looked through a collection element type. This is the ordinary list-response DTO, the most likely shape in the system. |
+| `json:"-"` fields were published — `{"Secret":"HIDDEN"}` | the reconstruction keyed on Go field names and ignored json tags, `omitempty` and `-`. The tag layer published what the type withheld, which is the exact constraint the marshaller decline exists to enforce. |
+| The depth cap failed **open** — 8 plaintext names past the limit | past `maxPHIDepth` the remaining subtree was handed to the encoder raw. A true cycle was caught only because `encoding/json` bails on cycles; a finite deep chain had no such backstop. |
+| Type-cache poisoning across mutually recursive types | `hasPHITag` seeded `false` before recursing, so an outer type could observe the seed and cache `false` permanently. Order-dependent and racy. |
+| A 20-node shared-reference DAG hung the logger past 25s | the depth cap was per-branch, not a global node budget, so a DAG re-expanded into a tree. One log line could wedge a request goroutine. |
 
 This is the same trap Part D fell into from the other direction: Part D tried to
-predict how `encoding/json` would _render_ a value; Part E tried to _reproduce_
+predict how `encoding/json` would *render* a value; Part E tried to *reproduce*
 that rendering. Both mean duplicating a library's behaviour and being wrong in a
 new way each round.
 
@@ -298,14 +300,14 @@ reconstruct the value at all:
    `helivantalog:"phi"`, applying `encoding/json`'s own field-naming rules.
 3. Walk the marshalled JSON and replace the values at those paths.
 
-Only step 2 reimplements anything, and it reimplements _naming_ rather than
-_rendering_ — a far smaller and fully testable surface. `json:"-"` fields never
+Only step 2 reimplements anything, and it reimplements *naming* rather than
+*rendering* — a far smaller and fully testable surface. `json:"-"` fields never
 appear in the output, so they cannot be published; cycles and deep or wide
 graphs are `encoding/json`'s problem, and it already solves them.
 
 This is what shipped. Beyond the three steps above, two things the withdrawn
 design guessed at are not guessed at here: which json tag names `encoding/json`
-honours is answered by _asking it_ (marshal a synthetic one-field struct and
+honours is answered by *asking it* (marshal a synthetic one-field struct and
 read the emitted key), and its depth/tag conflict rule is mirrored explicitly
 with a fail-closed branch. Both were the source of a name-resolution leak
 during #778's own review, so neither is left to inference.
@@ -322,7 +324,7 @@ by this part.
 There is no reflection walker — that was the withdrawn Part E design (see above
 and #778). Part E as shipped fails closed: a value whose type carries a phi tag
 and which cannot be marshalled, or whose rendering exceeds the size guard or
-cannot be walked, is replaced _whole_ by the marker rather than emitted
+cannot be walked, is replaced *whole* by the marker rather than emitted
 partially masked. A value whose type carries no tag is never touched.
 
 The pattern mechanism is `NewRedactingWriter`: it parses each emitted line as
@@ -385,7 +387,7 @@ Changed:
 - The redaction counter is in-process only until #679 provides a metrics sink.
   With redaction split across two layers it counts both.
 - The arch test allowlists `gorm.Open` call sites; it does not verify the
-  _arguments_ at those sites. The stderr test covers the argument, which is why
+  *arguments* at those sites. The stderr test covers the argument, which is why
   both exist.
 - Redaction applies to what passes through slog. Anything a dependency writes
   directly to stdout bypasses it entirely — which is precisely why the GORM

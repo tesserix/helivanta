@@ -9,7 +9,7 @@ metadata table and the credential API are explicitly **not** in it — see
 was written for GCP Secret Manager and is incompatible with the store the fleet
 actually runs.
 **Depends on:** [#824](https://github.com/tesserix/helivanta/issues/824) (container
-images and deployment artefacts) for delivery. Nothing here can be _delivered_
+images and deployment artefacts) for delivery. Nothing here can be *delivered*
 until Helivanta is deployable.
 **Adjacent:** [#713](https://github.com/tesserix/helivanta/issues/713) owns the broad
 security-scanning pipeline; D5 takes only the secret-scanning gate.
@@ -30,15 +30,15 @@ of secret-store code to Helivanta.
 Recorded because the design rests on it, and because two of these contradict
 what the handoff assumes. Each was checked live, not read from documentation.
 
-| Claim                                                  | How it was checked                                                                                                                                                      |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenBao is live and healthy in `tesseract-prod-in-gke` | `kubectl get pods -n openbao`: `openbao-0/1/2` all `1/1 Running`, bootstrap Job `Completed`                                                                             |
-| Its per-app pattern works today                        | `openbao-secret-store` (ClusterSecretStore) plus four namespaced SecretStores — `homechef-api`, `qdrant`, two `cloudflared` — all `Valid`/`Ready`                       |
-| A production Zitadel exists                            | `zitadel` namespace: 3 replicas `Running`, a `zitadel-login` (Login V2) deployment, its own ingress gateway, a bootstrap CronJob reconciling every ~30 min              |
-| **There is no dev cluster**                            | The `tesseract-devtest-gke` kubeconfig context is stale: `dial tcp 34.151.129.108:443: connect: network is unreachable`. Confirmed by the product owner: prod only.     |
-| **Helivanta is not deployed anywhere**                 | No Dockerfile in this repo; no chart, ArgoCD app, namespace or `namespaceWhitelist` entry for Helivanta in `tesserix-k8s`                                               |
-| Helivanta's dev PATs are not in git                    | `git check-ignore` resolves `dev/zitadel/secrets/` from `.gitignore:21`; `git ls-files dev/` lists only `init-db.sql` and `Caddyfile`                                   |
-| Both boot guards already refuse correctly              | `config.SessionSigningKeySeed` refuses absent, malformed, and the committed dev key outside `HELIVANTA_ENV=dev`; `config.RequireZitadelLoginClientToken` refuses absent |
+| Claim | How it was checked |
+|---|---|
+| OpenBao is live and healthy in `tesseract-prod-in-gke` | `kubectl get pods -n openbao`: `openbao-0/1/2` all `1/1 Running`, bootstrap Job `Completed` |
+| Its per-app pattern works today | `openbao-secret-store` (ClusterSecretStore) plus four namespaced SecretStores — `homechef-api`, `qdrant`, two `cloudflared` — all `Valid`/`Ready` |
+| A production Zitadel exists | `zitadel` namespace: 3 replicas `Running`, a `zitadel-login` (Login V2) deployment, its own ingress gateway, a bootstrap CronJob reconciling every ~30 min |
+| **There is no dev cluster** | The `tesseract-devtest-gke` kubeconfig context is stale: `dial tcp 34.151.129.108:443: connect: network is unreachable`. Confirmed by the product owner: prod only. |
+| **Helivanta is not deployed anywhere** | No Dockerfile in this repo; no chart, ArgoCD app, namespace or `namespaceWhitelist` entry for Helivanta in `tesserix-k8s` |
+| Helivanta's dev PATs are not in git | `git check-ignore` resolves `dev/zitadel/secrets/` from `.gitignore:21`; `git ls-files dev/` lists only `init-db.sql` and `Caddyfile` |
+| Both boot guards already refuse correctly | `config.SessionSigningKeySeed` refuses absent, malformed, and the committed dev key outside `HELIVANTA_ENV=dev`; `config.RequireZitadelLoginClientToken` refuses absent |
 
 The last row is why this spec adds **no boot enforcement**: it already exists
 and is correct. What does not exist is where the values come from.
@@ -53,14 +53,14 @@ there is no other one.
 
 The handoff counts three boot-refusing values. Only two are **secrets**:
 
-| Value                        | Kind                                                       | Home                  |
-| ---------------------------- | ---------------------------------------------------------- | --------------------- |
-| `SESSION_SIGNING_KEY`        | secret — mints every session; a leak is credential forgery | OpenBao               |
-| `ZITADEL_LOGIN_CLIENT_TOKEN` | secret — instance-level; see D2                            | OpenBao               |
-| `HELIVANTA_WEB_ORIGIN`       | **config** — a public origin string                        | deployment env (#824) |
+| Value | Kind | Home |
+|---|---|---|
+| `SESSION_SIGNING_KEY` | secret — mints every session; a leak is credential forgery | OpenBao |
+| `ZITADEL_LOGIN_CLIENT_TOKEN` | secret — instance-level; see D2 | OpenBao |
+| `HELIVANTA_WEB_ORIGIN` | **config** — a public origin string | deployment env (#824) |
 
 `HELIVANTA_WEB_ORIGIN` refuses boot when unset, which is why it reads like a secret,
-but refusing to boot without a value and _being confidential_ are different
+but refusing to boot without a value and *being confidential* are different
 properties. It is the origin Helivanta's own frontend is served from — visible in
 every browser address bar. Filing it as a secret would add a rotation surface
 and an access grant for a public string, and would quietly weaken the property
@@ -88,8 +88,8 @@ sharing one with other products on the instance.
 
 **What this does NOT buy, and must never be described as buying it.** The role
 is still instance-level. A leaked Helivanta PAT can still finalise an auth request for
-any product on the instance. Path scoping (D3) bounds _who can read the secret_;
-it does nothing to bound _what the secret can do once read_. Those are different
+any product on the instance. Path scoping (D3) bounds *who can read the secret*;
+it does nothing to bound *what the secret can do once read*. Those are different
 guarantees and conflating them is how a system acquires a control that is
 decorative.
 
@@ -98,7 +98,7 @@ capability Zitadel does not have. It is recorded at the decision point in code
 and in the provisioning runbook, so the next person to read either learns it
 without having to re-derive it from Zitadel's role model.
 
-**Open item.** Whether creating a machine user on the _shared_ production
+**Open item.** Whether creating a machine user on the *shared* production
 instance needs the platform team's sign-off is unresolved. This spec's position:
 provisioning one is Helivanta's call, because it is additive and affects no other
 product's configuration — whereas flipping `loginV2.required` is explicitly not
@@ -158,7 +158,7 @@ breaking the correspondence every other app in the fleet follows
 **No `{env}` segment, deliberately.** The fleet separates environments by
 cluster and namespace, and there is exactly one cluster (observed above). A
 future staging environment becomes an `hms-staging` namespace with its own
-policy and its own role — _not_ a `/staging/` segment inserted mid-path.
+policy and its own role — *not* a `/staging/` segment inserted mid-path.
 Recorded explicitly because inserting an env segment later would silently
 invalidate every policy prefix at once, and the failure mode is a policy that
 matches nothing while still applying cleanly.
@@ -174,11 +174,11 @@ OpenBao  →  ESO (as the hms-api ServiceAccount)  →  k8s Secret  →  env  �
 Nothing after ESO knows what a vault is. Helivanta keeps reading `os.Getenv`, exactly
 as it does today. **No vendor SDK, no `secrets` package, no resolution layer.**
 
-This is the decision that makes the slice backend-agnostic _in fact_ rather than
+This is the decision that makes the slice backend-agnostic *in fact* rather than
 as a claim. #208 may still choose GCP Secret Manager fleet-wide; if it does,
 Helivanta changes nothing, because switching backends is a `ClusterSecretStore` edit.
 An in-process resolution abstraction would invert that: it would be the one
-place a backend choice _did_ reach Helivanta's code, while being justified as the
+place a backend choice *did* reach Helivanta's code, while being justified as the
 thing that prevents it.
 
 It is also the YAGNI call. A resolution layer with one backend and one consumer
@@ -198,17 +198,17 @@ finding. Helivanta has no secret scanning today and is about to hold its most
 privileged credential.
 
 **It needed an explicit exception, and that exception is the interesting
-part.** This repository _deliberately commits a real Ed25519 key_ —
+part.** This repository *deliberately commits a real Ed25519 key* —
 `config.DevSessionSigningKey`. The scanner was run (`zricethezav/gitleaks`,
 2026-08-17, 309 commits) and it **does** flag it, along with the PHI-redaction
 test fixtures in `pkg/logging` — 9 findings total, all benign. The exception
-is encoded in `.gitleaks.toml` as a _value_-scoped allowlist on the specific
+is encoded in `.gitleaks.toml` as a *value*-scoped allowlist on the specific
 finding regexes, never a rule/path allowlist: each entry is anchored to the
 exact known-benign literal gitleaks extracted, so nothing else committed to
 those same files or lines is exempted.
 
 The reason to be strict about how the exception is expressed is in the handoff:
-GitGuardian fires on the _word_ "password" in field names and comments and
+GitGuardian fires on the *word* "password" in field names and comments and
 produced 11 false positives on a single PR. **A scanner that cries wolf is a
 scanner nobody reads, and a real leak looks exactly like the noise.** A gate
 whose exceptions are broad is worse than no gate, because it produces the
@@ -241,7 +241,7 @@ and `session.Verifier` already reads it. Supporting a second key later is a pure
 code change — a verifier accepting a set of kids — with no token-format
 migration and no invalidation of tokens minted today. This is worth stating
 because the comparable question for [#54](https://github.com/tesserix/helivanta/issues/54)
-(audit-trail identity) genuinely _is_ decided-now-or-never; this one is not, and
+(audit-trail identity) genuinely *is* decided-now-or-never; this one is not, and
 a reader who has internalised #54's constraint would reasonably assume it
 applies here too.
 
@@ -320,7 +320,7 @@ before it is executed, and each is separately reversible:
   after the real validator diverged.
 - **gitleaks gate:** proven to fail. A commit containing a synthetic
   credential must be observed being rejected, and the committed dev key must be
-  observed _not_ being flagged — whether that takes an allowlist entry or is
+  observed *not* being flagged — whether that takes an allowlist entry or is
   already true is D5's open question. A gate nobody has watched reject anything
   is not known to be a gate.
 - **OpenBao:** D7's three assertions, each proven able to fail.

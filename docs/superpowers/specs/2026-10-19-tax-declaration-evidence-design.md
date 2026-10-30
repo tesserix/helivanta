@@ -23,13 +23,13 @@ MedNet (read-only review, 2026-10-19) has no per-employee declaration or evidenc
 
 Under `/workforce/hospitals/{hospital}/hr/payroll/staff/{staff}/tax-declarations/{tax_year}/evidence`:
 
-| Route                           | Permission                    | Behaviour                                                                                                                                           |
-| ------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET ?revision_id=`             | `workforce.payroll.view`      | Evidence for that revision, newest first; 404 when the revision is not this staff member's                                                          |
-| `PUT /{file}`                   | `workforce.payroll.configure` | Registers a file (`revision_id`, `filename`, `content_type`, `size`, `sha256`); idempotent on identical replay; 409 `not_pending`, `evidence_limit` |
-| `PUT /{file}/content`           | `workforce.payroll.configure` | Streams the bytes; verified against size and digest, then queued for scanning                                                                       |
-| `PUT /{file}/retries/{attempt}` | `workforce.payroll.configure` | Re-queues a `scan_error` file                                                                                                                       |
-| `GET /{file}/content`           | `workforce.payroll.view`      | Released bytes of an `available` file; audited, `no-store`                                                                                          |
+| Route | Permission | Behaviour |
+| --- | --- | --- |
+| `GET ?revision_id=` | `workforce.payroll.view` | Evidence for that revision, newest first; 404 when the revision is not this staff member's |
+| `PUT /{file}` | `workforce.payroll.configure` | Registers a file (`revision_id`, `filename`, `content_type`, `size`, `sha256`); idempotent on identical replay; 409 `not_pending`, `evidence_limit` |
+| `PUT /{file}/content` | `workforce.payroll.configure` | Streams the bytes; verified against size and digest, then queued for scanning |
+| `PUT /{file}/retries/{attempt}` | `workforce.payroll.configure` | Re-queues a `scan_error` file |
+| `GET /{file}/content` | `workforce.payroll.view` | Released bytes of an `available` file; audited, `no-store` |
 
 A decision or withdrawal returns 409 `evidence_scanning` while any evidence of the proposal is unscanned.
 

@@ -3,7 +3,7 @@
 **Issue:** [#916](https://github.com/tesserix/helivanta/issues/916)
 **Amends:** D4a of `docs/superpowers/specs/2026-08-15-zitadel-auth-design.md`
 (":140-179"). D4a chose browser-driven renewal on a premise that has since
-lapsed — see D2. D4a's _guarantee_ is preserved; only its mechanism changes.
+lapsed — see D2. D4a's *guarantee* is preserved; only its mechanism changes.
 **Preserves unchanged:** D3 (renewal never moves `idle_deadline`) and every
 test pinning it.
 **Adjacent:** [#915](https://github.com/tesserix/helivanta/issues/915) — moving
@@ -59,12 +59,12 @@ work must not stay in the bundle looking like a fallback.
 
 **Why this and not the alternatives**, all four of which were considered:
 
-| Option                                         | Rejected because                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Top-level `prompt=none` redirect every 5 min   | A full page navigation mid-consultation, losing in-progress form state. Trades a session bug for a clinical-safety one.                                                                                                                                                                                                                                                                                              |
+| Option | Rejected because |
+|---|---|
+| Top-level `prompt=none` redirect every 5 min | A full page navigation mid-consultation, losing in-progress form state. Trades a session bug for a clinical-safety one. |
 | Serve Zitadel same-site (`auth.helivanta.app`) | Cheapest, and genuinely fixes today's case. But the issuer is baked into the shell image at build time (`.github/workflows/images.yml:271,357`), pinned in the API chart (`helivanta-api/values.yaml:217`), boot-checked against `hostedLoginUrl`, and stamped as `iss` on every existing token. And it does nothing for per-tenant custom domains, where the IdP is third-party to every tenant origin permanently. |
-| `SameSite=None` on Zitadel's session cookie    | Makes the IdP session cookie sendable from any site on the internet, to fix a Helivanta problem. Also dies under custom domains.                                                                                                                                                                                                                                                                                     |
-| **Server-side renewal (this spec)**            | Immune to cookie policy, survives per-tenant custom domains, and removes the browser from a security decision.                                                                                                                                                                                                                                                                                                       |
+| `SameSite=None` on Zitadel's session cookie | Makes the IdP session cookie sendable from any site on the internet, to fix a Helivanta problem. Also dies under custom domains. |
+| **Server-side renewal (this spec)** | Immune to cookie policy, survives per-tenant custom domains, and removes the browser from a security decision. |
 
 ## D2 — D4a's premise lapsed; its guarantee does not have to
 
@@ -98,10 +98,10 @@ disabled directly in Zitadel, with no corresponding Helivanta action, must lose
 access within one TTL. That is narrower than "revocation", because revocation is
 already enforced elsewhere — on **every request**, not merely at renewal:
 
-| Mechanism                       | Where                                                | Covers                                                                                                                                                                                               |
-| ------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Credential-revocation watermark | `backend/pkg/authn/authn.go:70-107`, per request     | Self sign-out, admin revoke. `signout.go:92-99`: _"This is the WHOLE of revocation, post-#838 … refused by authn.Middleware on their very next request, regardless of what Zitadel still believes."_ |
-| OpenFGA permission resolve      | `backend/pkg/authz/middleware.go:29-47`, per request | Removed membership, narrowed role — effective on the next request                                                                                                                                    |
+| Mechanism | Where | Covers |
+|---|---|---|
+| Credential-revocation watermark | `backend/pkg/authn/authn.go:70-107`, per request | Self sign-out, admin revoke. `signout.go:92-99`: *"This is the WHOLE of revocation, post-#838 … refused by authn.Middleware on their very next request, regardless of what Zitadel still believes."* |
+| OpenFGA permission resolve | `backend/pkg/authz/middleware.go:29-47`, per request | Removed membership, narrowed role — effective on the next request |
 
 Neither depends on renewal or on any IdP round trip. **Only the pure-Zitadel
 deactivation case rides on renewal**, and this spec keeps it by making the check
@@ -110,7 +110,7 @@ server-side:
 > On renewal the API asks Zitadel, using the login-client PAT, whether the
 > subject is still active, and refuses the renewal if not.
 
-That is a _stronger_ bound than today's, because it no longer depends on the
+That is a *stronger* bound than today's, because it no longer depends on the
 browser being able to reach the IdP. Today, ironically, this check does not run
 at all in production — the round trip it relies on always fails.
 
@@ -128,7 +128,7 @@ Two properties of today's implementation are not incidental and must survive:
    `apps/shell/lib/auth-exchange.ts:33-44`), and that is what carries
    `idle_deadline` forward (`idleDeadlineFor`,
    `backend/internal/modules/iam/login.go:413-435`). A redesign that loses this
-   makes every renewal mint a _fresh_ idle window — silently defeating the idle
+   makes every renewal mint a *fresh* idle window — silently defeating the idle
    timeout (#848) and the shared-ward-terminal threat model behind it. D3 of the
    idle-timeout design and `TestRenewalDoesNotMoveTheIdleDeadline`
    (`login_test.go:596-616`) stay green, untouched.
@@ -155,7 +155,7 @@ The coupling becomes structural instead of a comment describing a gap.
 `e2e/playwright.config.ts:74,94` serves the app at `localhost:4301` while the
 dev Zitadel issuer is `localhost:20080`. For `SameSite` purposes a site is
 scheme + registrable domain — **ports are not part of it** — so dev and CI are
-_same-site_, the cookie is sent, renewal succeeds, and production's cross-site
+*same-site*, the cookie is sent, renewal succeeds, and production's cross-site
 reality is never exercised.
 
 This is the same shape as #894: a harness more permissive than production
@@ -177,5 +177,5 @@ again.
   Renewal and initial login are separable, and this issue is the live defect.
 - **Changing the Zitadel issuer origin.** Considered and rejected in D1.
 - **Session lifetime and idle timeout policy.** `SESSION_TTL`, `IDLE_TIMEOUT`
-  and D3's carry-forward semantics are unchanged. This slice changes _how_
-  renewal happens, never _how long_ a session lives.
+  and D3's carry-forward semantics are unchanged. This slice changes *how*
+  renewal happens, never *how long* a session lives.

@@ -100,18 +100,18 @@ non-directed unless something declared it. When an event carries a
 message rather than honouring it — logged, dead-lettered, no write. A misdeclared
 subject fails loudly instead of quietly performing a cross-tenant write.
 
-_Rejected: a boolean on the event, trusted at face value._ The destination would
+*Rejected: a boolean on the event, trusted at face value.* The destination would
 then be whatever a publishing call site passed, and a cross-tenant write would be
 one typo away in any of ~30 modules. The whole point is that the set of subjects
 allowed to cross a tenant boundary is small, reviewed, and greppable.
 
-_Rejected: allowlisting by consumer instead of by subject._ The consumer is the
+*Rejected: allowlisting by consumer instead of by subject.* The consumer is the
 receiving side; the disclosure decision belongs to the publisher's contract.
 
 **Consequence: a directed subject must have exactly one consumer, or every
 consumer of it must be destination-aware.** The gate is on `Consumer.Subject`
 while the scope is resolved from the envelope, so declaring a subject directed
-re-points the transaction of _every_ consumer of that subject at the
+re-points the transaction of *every* consumer of that subject at the
 destination for any message carrying one — including a consumer written earlier
 by another module that expects the origin's scope, which would keep compiling
 and start writing into a tenant it never heard of.
@@ -204,13 +204,13 @@ inherits an exercised primitive, with the caveat recorded under Limitations.
 
 ## Error handling
 
-| Condition                                | Behaviour                                                               |
-| ---------------------------------------- | ----------------------------------------------------------------------- |
+| Condition | Behaviour |
+|---|---|
 | Destination set, subject not allowlisted | Refuse: log, `Term()` (not redelivered, not published to DLQ), no write |
-| Destination present but not a UUID       | Refuse: log, `Term()` (not redelivered, not published to DLQ), no write |
-| Destination valid, handler errors        | Existing Nak / `maxDeliver` / DLQ path, unchanged                       |
-| No destination                           | Existing same-tenant path, unchanged                                    |
-| Directed write missing provenance        | Rejected by `NOT NULL`; handler error → DLQ                             |
+| Destination present but not a UUID | Refuse: log, `Term()` (not redelivered, not published to DLQ), no write |
+| Destination valid, handler errors | Existing Nak / `maxDeliver` / DLQ path, unchanged |
+| No destination | Existing same-tenant path, unchanged |
+| Directed write missing provenance | Rejected by `NOT NULL`; handler error → DLQ |
 
 Every failure mode ends with no partial write, because the handler already runs
 inside the idempotency claim's transaction.
@@ -286,5 +286,5 @@ Stated explicitly, per the scope-down-never-quality-down rule:
   `UPDATE` rule in `docs/standards/backend.md` already requires.
 - **This is a disclosure mechanism, not a consent mechanism.** It enforces that a
   cross-tenant write is declared, provenance-bearing and isolated. It does not
-  and must not decide _whether_ a disclosure is lawful. That judgement belongs to
+  and must not decide *whether* a disclosure is lawful. That judgement belongs to
   the feature that publishes the event.

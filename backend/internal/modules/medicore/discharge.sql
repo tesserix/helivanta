@@ -13,11 +13,12 @@ CREATE TABLE medicore_discharge_orders (
  note text CHECK (note IS NULL OR (note=btrim(note) AND length(note) BETWEEN 1 AND 500)),
  ordered_by text NOT NULL,
  ordered_at timestamptz NOT NULL DEFAULT clock_timestamp(),
- withdrawal_id uuid UNIQUE CHECK (substring(withdrawal_id::text,15,1)='7'),
+ withdrawal_id uuid CHECK (substring(withdrawal_id::text,15,1)='7'),
  withdrawal_reason text CHECK (withdrawal_reason IS NULL OR (withdrawal_reason=btrim(withdrawal_reason) AND length(withdrawal_reason) BETWEEN 1 AND 500)),
  withdrawn_by text,
  withdrawn_at timestamptz,
  PRIMARY KEY (tenant_id,id),
+ CONSTRAINT medicore_discharge_withdrawal_id UNIQUE (tenant_id,withdrawal_id),
  FOREIGN KEY (tenant_id,hospital_id,admission_id) REFERENCES medicore_admissions (tenant_id,hospital_id,id),
  CONSTRAINT medicore_discharge_withdrawal CHECK (
   (withdrawal_id IS NULL AND withdrawal_reason IS NULL AND withdrawn_by IS NULL AND withdrawn_at IS NULL)

@@ -31,47 +31,45 @@
 
 **New:**
 
-| File                                          | Responsibility                                                                                        |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `backend/pkg/pagination/pagination.go`        | `Params`, `Cursor`, encode/decode/validate, limit parsing. Pure — no gin, no GORM, no table knowledge |
-| `backend/pkg/pagination/pagination_test.go`   | Round-trip, precision, tamper, tenant mismatch, limit validation                                      |
-| `backend/internal/platform/listroute.go`      | `ListRoute[T]` — parse, call handler, `+1` probe, trim, envelope                                      |
-| `backend/internal/platform/listroute_test.go` | Probe/trim/envelope behaviour with a fake handler                                                     |
-| `backend/pkg/tenantdb/keyset.go`              | `ApplyKeyset(tx *gorm.DB, p pagination.Params) *gorm.DB`                                              |
-| `backend/pkg/tenantdb/keyset_test.go`         | Exact-once under concurrent inserts, same-microsecond rows, deleted anchor                            |
-| `packages/api/src/paged.ts`                   | `useApiPagedQuery` — accumulates pages, exposes `loadMore`/`hasMore`                                  |
-| `packages/api/src/paged.test.tsx`             | Appends, stops at the end, resets on key change                                                       |
-| `packages/ui/src/load-more.tsx`               | The shared "Load more" button                                                                         |
-| `e2e/tests/pagination.spec.ts`                | A ward past one page reads to completion                                                              |
+| File | Responsibility |
+|---|---|
+| `backend/pkg/pagination/pagination.go` | `Params`, `Cursor`, encode/decode/validate, limit parsing. Pure — no gin, no GORM, no table knowledge |
+| `backend/pkg/pagination/pagination_test.go` | Round-trip, precision, tamper, tenant mismatch, limit validation |
+| `backend/internal/platform/listroute.go` | `ListRoute[T]` — parse, call handler, `+1` probe, trim, envelope |
+| `backend/internal/platform/listroute_test.go` | Probe/trim/envelope behaviour with a fake handler |
+| `backend/pkg/tenantdb/keyset.go` | `ApplyKeyset(tx *gorm.DB, p pagination.Params) *gorm.DB` |
+| `backend/pkg/tenantdb/keyset_test.go` | Exact-once under concurrent inserts, same-microsecond rows, deleted anchor |
+| `packages/api/src/paged.ts` | `useApiPagedQuery` — accumulates pages, exposes `loadMore`/`hasMore` |
+| `packages/api/src/paged.test.tsx` | Appends, stops at the end, resets on key change |
+| `packages/ui/src/load-more.tsx` | The shared "Load more" button |
+| `e2e/tests/pagination.spec.ts` | A ward past one page reads to completion |
 
 **Modified:**
 
-| File                                                                            | Change                                                      |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `backend/internal/platform/router.go`                                           | `DeclaredRoute` gains `Paginated bool`; `handle` records it |
-| `backend/internal/modules/medicore/visits.go`, `module.go`                      | `list` → repository shape; route → `ListRoute`              |
-| `backend/internal/modules/pharmacy/dispenses.go`, `medications.go`, `module.go` | same, two endpoints                                         |
-| `backend/internal/modules/lab/orders.go`, `module.go`                           | same                                                        |
-| `backend/internal/modules/reference/pings.go`, `module.go`                      | same                                                        |
-| `backend/internal/modules/iam/module.go`                                        | members list → `ListRoute` (500 → contract)                 |
-| `backend/internal/archtest/arch_test.go`                                        | Unpaginated-collection arch test + allowlist                |
-| `backend/scripts/new-module.sh`                                                 | Template emits `ListRoute`                                  |
-| `packages/api/src/index.ts`                                                     | Export `useApiPagedQuery`                                   |
-| `apps/medicore/components/visit-panel.tsx`, `ping-panel.tsx`                    | Load more                                                   |
-| `apps/pharmacy/components/dispense-list.tsx`, `medications-panel.tsx`           | Load more                                                   |
-| `apps/lab/components/order-list.tsx`                                            | Load more                                                   |
-| `docs/standards/backend.md`, `docs/standards/frontend.md`                       | The contract as a binding rule                              |
+| File | Change |
+|---|---|
+| `backend/internal/platform/router.go` | `DeclaredRoute` gains `Paginated bool`; `handle` records it |
+| `backend/internal/modules/medicore/visits.go`, `module.go` | `list` → repository shape; route → `ListRoute` |
+| `backend/internal/modules/pharmacy/dispenses.go`, `medications.go`, `module.go` | same, two endpoints |
+| `backend/internal/modules/lab/orders.go`, `module.go` | same |
+| `backend/internal/modules/reference/pings.go`, `module.go` | same |
+| `backend/internal/modules/iam/module.go` | members list → `ListRoute` (500 → contract) |
+| `backend/internal/archtest/arch_test.go` | Unpaginated-collection arch test + allowlist |
+| `backend/scripts/new-module.sh` | Template emits `ListRoute` |
+| `packages/api/src/index.ts` | Export `useApiPagedQuery` |
+| `apps/medicore/components/visit-panel.tsx`, `ping-panel.tsx` | Load more |
+| `apps/pharmacy/components/dispense-list.tsx`, `medications-panel.tsx` | Load more |
+| `apps/lab/components/order-list.tsx` | Load more |
+| `docs/standards/backend.md`, `docs/standards/frontend.md` | The contract as a binding rule |
 
 ---
 
 ## Task 1: `pkg/pagination` — cursor and limit
 
 **Files:**
-
 - Create: `backend/pkg/pagination/pagination.go`, `backend/pkg/pagination/pagination_test.go`
 
 **Interfaces:**
-
 - Consumes: nothing.
 - Produces: `pagination.Params{Limit int; After *Cursor}`; `pagination.Cursor{TenantID string; CreatedAt time.Time; ID uuid.UUID}`; `func Parse(c *gin.Context, tenantID string) (Params, error)`; `func (Cursor) Encode() string`; `func Decode(raw, tenantID string) (Cursor, error)`; `var ErrInvalidCursor, ErrInvalidLimit error`; `const DefaultLimit = 50`, `MaxLimit = 200`.
 
@@ -384,11 +382,9 @@ git commit -m "feat: add pagination cursors that round-trip full timestamp preci
 ## Task 2: the keyset helper
 
 **Files:**
-
 - Create: `backend/pkg/tenantdb/keyset.go`, `backend/pkg/tenantdb/keyset_test.go`
 
 **Interfaces:**
-
 - Consumes: `pagination.Params` (Task 1).
 - Produces: `func ApplyKeyset(tx *gorm.DB, p pagination.Params) *gorm.DB`.
 
@@ -580,12 +576,10 @@ git commit -m "feat: add a keyset helper that pages by value so inserts and dele
 ## Task 3: `platform.ListRoute` — the compile-enforced route
 
 **Files:**
-
 - Create: `backend/internal/platform/listroute.go`, `backend/internal/platform/listroute_test.go`
 - Modify: `backend/internal/platform/router.go`
 
 **Interfaces:**
-
 - Consumes: `pagination.Params`, `pagination.Cursor`, `pagination.Parse` (Task 1).
 - Produces:
   - `type ListHandler[T Keyed] func(c *gin.Context, p pagination.Params) ([]T, error)`
@@ -875,12 +869,10 @@ git commit -m "feat: add ListRoute so a collection handler cannot return an unpa
 ## Task 4: migrate the six endpoints
 
 **Files:**
-
 - Modify: `backend/internal/modules/medicore/visits.go` + `module.go`; `backend/internal/modules/pharmacy/dispenses.go`, `medications.go` + `module.go`; `backend/internal/modules/lab/orders.go` + `module.go`; `backend/internal/modules/reference/pings.go` + `module.go`; `backend/internal/modules/iam/module.go`
 - Modify: the corresponding `*_test.go` in each module
 
 **Interfaces:**
-
 - Consumes: `platform.ListRoute`, `platform.Keyed`, `tenantdb.ApplyKeyset`, `pagination.Params`.
 - Produces: nothing new. Six endpoints change shape.
 
@@ -1024,13 +1016,13 @@ Change `ApplyKeyset` usage in `list` to ignore the cursor (call `tx.Order("creat
 
 Apply the identical pattern to:
 
-| Module      | Row type     | Handler          | Route          | Permission           |
-| ----------- | ------------ | ---------------- | -------------- | -------------------- |
-| `pharmacy`  | `dispense`   | `dispenses.list` | `/dispenses`   | `PermDispenseRead`   |
-| `pharmacy`  | `medication` | `meds.list`      | `/medications` | `PermMedicationRead` |
-| `lab`       | `order`      | `orders.list`    | `/orders`      | `PermOrderRead`      |
-| `reference` | `ping`       | `pings.list`     | `/pings`       | `authz.Public`       |
-| `iam`       | `member`     | `members.list`   | `/members`     | `PermMemberManage`   |
+| Module | Row type | Handler | Route | Permission |
+|---|---|---|---|---|
+| `pharmacy` | `dispense` | `dispenses.list` | `/dispenses` | `PermDispenseRead` |
+| `pharmacy` | `medication` | `meds.list` | `/medications` | `PermMedicationRead` |
+| `lab` | `order` | `orders.list` | `/orders` | `PermOrderRead` |
+| `reference` | `ping` | `pings.list` | `/pings` | `authz.Public` |
+| `iam` | `member` | `members.list` | `/members` | `PermMemberManage` |
 
 Each gets: a `PageKey` method, the handler signature change, the `ListRoute` registration, and a paginated integration test mirroring Step 1's shape. **Do not skip the per-module test** — the `iam` one matters most, because that endpoint governs who has access to a hospital and it is dropping from a 500-row limit.
 
@@ -1056,12 +1048,10 @@ git commit -m "feat: page all six collection endpoints through ListRoute (#816)"
 ## Task 5: close the hole — arch test and generator
 
 **Files:**
-
 - Modify: `backend/internal/archtest/arch_test.go`, `backend/scripts/new-module.sh`
 - Modify: `docs/standards/backend.md`
 
 **Interfaces:**
-
 - Consumes: `platform.DeclaredRoute.Paginated` (Task 3).
 
 - [ ] **Step 1: Write the failing arch test**
@@ -1169,14 +1159,12 @@ git commit -m "test: fail CI on any collection GET that is not paginated, and ge
 ## Task 6: the frontend affordance
 
 **Files:**
-
 - Create: `packages/api/src/paged.ts`, `packages/api/src/paged.test.tsx`, `packages/ui/src/load-more.tsx`
 - Modify: `packages/api/src/index.ts`, `packages/ui/src/index.ts`
 - Modify: `apps/medicore/components/visit-panel.tsx`, `apps/medicore/components/ping-panel.tsx`, `apps/pharmacy/components/dispense-list.tsx`, `apps/pharmacy/components/medications-panel.tsx`, `apps/lab/components/order-list.tsx`
 - Modify: `docs/standards/frontend.md`
 
 **Interfaces:**
-
 - Produces: `useApiPagedQuery<T>(key: unknown[], path: string): { items: T[]; hasMore: boolean; loadMore: () => void; isPending: boolean; isFetchingMore: boolean }`; `<LoadMore onClick hasMore isLoading />`.
 
 **Why a new hook rather than changing `useApiQuery`:** `useApiQuery` is a thin `useQuery` wrapper used by every panel and by `permissions.tsx`. Reshaping it to `useInfiniteQuery` changes the contract for all of them. A narrow sibling leaves the common case untouched.
@@ -1186,20 +1174,12 @@ git commit -m "test: fail CI on any collection GET that is not paginated, and ge
 ```tsx
 it("appends the next page and stops when has_more is false", async () => {
   const pages = [
-    {
-      data: [{ id: "1" }, { id: "2" }],
-      page: { next_cursor: "c1", has_more: true },
-    },
+    { data: [{ id: "1" }, { id: "2" }], page: { next_cursor: "c1", has_more: true } },
     { data: [{ id: "3" }], page: { next_cursor: null, has_more: false } },
   ];
-  fetchMock.mockImplementation(async (url: string) =>
-    jsonResponse(url.includes("cursor=c1") ? pages[1] : pages[0]),
-  );
+  fetchMock.mockImplementation(async (url: string) => jsonResponse(url.includes("cursor=c1") ? pages[1] : pages[0]));
 
-  const { result } = renderHook(
-    () => useApiPagedQuery<{ id: string }>(["rows"], "/rows"),
-    { wrapper },
-  );
+  const { result } = renderHook(() => useApiPagedQuery<{ id: string }>(["rows"], "/rows"), { wrapper });
 
   await waitFor(() => expect(result.current.items).toHaveLength(2));
   expect(result.current.hasMore).toBe(true);
@@ -1222,21 +1202,12 @@ it("does not duplicate rows when loadMore is called twice in a row", async () =>
   fetchMock.mockImplementation(async (url: string) => {
     if (url.includes("cursor=c1")) {
       await secondInFlight;
-      return jsonResponse({
-        data: [{ id: "3" }],
-        page: { next_cursor: null, has_more: false },
-      });
+      return jsonResponse({ data: [{ id: "3" }], page: { next_cursor: null, has_more: false } });
     }
-    return jsonResponse({
-      data: [{ id: "1" }, { id: "2" }],
-      page: { next_cursor: "c1", has_more: true },
-    });
+    return jsonResponse({ data: [{ id: "1" }, { id: "2" }], page: { next_cursor: "c1", has_more: true } });
   });
 
-  const { result } = renderHook(
-    () => useApiPagedQuery<{ id: string }>(["rows"], "/rows"),
-    { wrapper },
-  );
+  const { result } = renderHook(() => useApiPagedQuery<{ id: string }>(["rows"], "/rows"), { wrapper });
   await waitFor(() => expect(result.current.items).toHaveLength(2));
 
   act(() => result.current.loadMore());
@@ -1246,9 +1217,7 @@ it("does not duplicate rows when loadMore is called twice in a row", async () =>
   await waitFor(() => expect(result.current.hasMore).toBe(false));
   expect(result.current.items.map((r) => r.id)).toEqual(["1", "2", "3"]);
 
-  const cursorCalls = fetchMock.mock.calls.filter(([url]) =>
-    String(url).includes("cursor=c1"),
-  );
+  const cursorCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("cursor=c1"));
   expect(cursorCalls).toHaveLength(1);
 });
 ```
@@ -1294,11 +1263,8 @@ export function useApiPagedQuery<T>(key: unknown[], path: string) {
     queryKey: key,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
-      apiFetch<Page<T>>(
-        pageParam ? `${path}?cursor=${encodeURIComponent(pageParam)}` : path,
-      ),
-    getNextPageParam: (last) =>
-      last.page.has_more ? last.page.next_cursor : undefined,
+      apiFetch<Page<T>>(pageParam ? `${path}?cursor=${encodeURIComponent(pageParam)}` : path),
+    getNextPageParam: (last) => (last.page.has_more ? last.page.next_cursor : undefined),
   });
 
   return {
@@ -1308,8 +1274,7 @@ export function useApiPagedQuery<T>(key: unknown[], path: string) {
     // flight, but calling it during a fetch would still be a request the
     // user did not get feedback for. The button also disables itself.
     loadMore: () => {
-      if (query.hasNextPage && !query.isFetchingNextPage)
-        void query.fetchNextPage();
+      if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
     },
     isPending: query.isPending,
     isFetchingMore: query.isFetchingNextPage,
@@ -1352,12 +1317,7 @@ export function LoadMore({
   if (!hasMore) return null;
   return (
     <div className="border-t px-5 py-3">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onClick}
-        disabled={isLoading}
-      >
+      <Button variant="outline" size="sm" onClick={onClick} disabled={isLoading}>
         {isLoading ? "Loading…" : "Load more"}
       </Button>
     </div>
@@ -1370,7 +1330,7 @@ export function LoadMore({
 For each, swap the query and append the control. `visit-panel.tsx` becomes:
 
 ```tsx
-const visits = useApiPagedQuery<Visit>(["visits"], "/medicore/visits");
+  const visits = useApiPagedQuery<Visit>(["visits"], "/medicore/visits");
 ```
 
 with `visits.data?.data` reads becoming `visits.items`, and `<LoadMore hasMore={visits.hasMore} isLoading={visits.isFetchingMore} onClick={visits.loadMore} />` rendered after the list. Repeat for `ping-panel`, `dispense-list`, `medications-panel`, `order-list`.

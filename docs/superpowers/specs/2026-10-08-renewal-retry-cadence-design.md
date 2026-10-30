@@ -96,4 +96,4 @@ refused renewal) leaves nothing behind, as #781 requires.
   - the component retry reverted to the fixed fallback;
   - the five-minute cap removed;
   - the callback not storing `expires_at`.
-    Each fails the suite.
+  Each fails the suite.

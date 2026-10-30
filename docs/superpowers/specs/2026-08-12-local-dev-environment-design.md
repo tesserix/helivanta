@@ -35,10 +35,10 @@ This design covers those four and nothing else.
 Two dependencies named in #714 predate decisions already taken. This issue
 delivers their equivalents.
 
-| Issue text            | Delivered                               | Why                                                                                                                                                                                                                     |
-| --------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Keycloak, both realms | Firebase Auth (GIP) emulator on `:9099` | Superseded by [ADR 0002](../../adr/0002-gip-not-keycloak.md). There are no realms to stand up.                                                                                                                          |
-| CNPG                  | `postgres:16-alpine` in Compose         | CNPG is a Kubernetes operator with no role in a Compose stack. The Compose Postgres already runs with the non-superuser `hms_app` role and forced RLS that production uses, which is the property the story depends on. |
+| Issue text | Delivered | Why |
+| --- | --- | --- |
+| Keycloak, both realms | Firebase Auth (GIP) emulator on `:9099` | Superseded by [ADR 0002](../../adr/0002-gip-not-keycloak.md). There are no realms to stand up. |
+| CNPG | `postgres:16-alpine` in Compose | CNPG is a Kubernetes operator with no role in a Compose stack. The Compose Postgres already runs with the non-superuser `hms_app` role and forced RLS that production uses, which is the property the story depends on. |
 
 Redis, NATS and OpenFGA are unchanged.
 
@@ -69,15 +69,15 @@ Docker.
 one thing wrong, and discovering them one boot at a time is the experience the
 acceptance criterion objects to.
 
-| Check                   | Message on failure                                                                                       |
-| ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| Docker daemon reachable | `Docker is not running — start Docker Desktop (or 'colima start')`                                       |
-| Compose v2 available    | `Compose v2 required — 'docker compose version' failed`                                                  |
-| Go >= 1.26              | `Go 1.26+ required (backend/go.mod: 1.26.5), found <version>`                                            |
-| Node >= 22              | `Node 22+ required (package.json engines), found <version>`                                              |
-| pnpm present            | `pnpm missing — run 'corepack enable'`                                                                   |
-| `NODE_AUTH_TOKEN` set   | `NODE_AUTH_TOKEN unset — export NODE_AUTH_TOKEN=$(gh auth token)`                                        |
-| Ports free              | `port 5432 held by pid <pid> (<command>) — stop it, or 'make down' if it is a stale Helivanta container` |
+| Check | Message on failure |
+| --- | --- |
+| Docker daemon reachable | `Docker is not running — start Docker Desktop (or 'colima start')` |
+| Compose v2 available | `Compose v2 required — 'docker compose version' failed` |
+| Go >= 1.26 | `Go 1.26+ required (backend/go.mod: 1.26.5), found <version>` |
+| Node >= 22 | `Node 22+ required (package.json engines), found <version>` |
+| pnpm present | `pnpm missing — run 'corepack enable'` |
+| `NODE_AUTH_TOKEN` set | `NODE_AUTH_TOKEN unset — export NODE_AUTH_TOKEN=$(gh auth token)` |
+| Ports free | `port 5432 held by pid <pid> (<command>) — stop it, or 'make down' if it is a stale Helivanta container` |
 
 Ports checked: 5432, 4222, 8222, 6379, 8090, 9099, 8080, 4301, 4302, 4303, 4304.
 
@@ -177,14 +177,14 @@ Changed:
 
 ## Acceptance criteria mapping
 
-| Criterion                                                               | Where met                                                                            |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Criterion | Where met |
+| --- | --- |
 | Stack starts, service boots, login works, two-tenant isolation testable | Already met by `make up` and `scripts/seed-dev.mjs`; verified by `make verify-local` |
-| Port conflict or missing prerequisite names the conflict and fix        | `scripts/preflight.sh`                                                               |
-| Reset command returns a clean seeded state                              | `make reset`                                                                         |
-| Stack survives sleep and restart                                        | `restart: unless-stopped`                                                            |
-| Seeded data identical across machines                                   | Existing deterministic seed, plus the pinned `firebase-tools` fix                    |
-| Works on Apple Silicon and Linux                                        | All five images are multi-arch; no change needed, asserted in docs                   |
+| Port conflict or missing prerequisite names the conflict and fix | `scripts/preflight.sh` |
+| Reset command returns a clean seeded state | `make reset` |
+| Stack survives sleep and restart | `restart: unless-stopped` |
+| Seeded data identical across machines | Existing deterministic seed, plus the pinned `firebase-tools` fix |
+| Works on Apple Silicon and Linux | All five images are multi-arch; no change needed, asserted in docs |
 
 ## Known limitations
 

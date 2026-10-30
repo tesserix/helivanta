@@ -18,7 +18,7 @@ decision made at sign-in is never revisited.**
 
 1. **No revocation check.** `pkg/authn/gip.go:85` calls `VerifyIDToken`, not
    `VerifyIDTokenAndCheckRevoked`. `grep -rn "CheckRevoked\|RevokeRefreshTokens"
-backend/` returns nothing. Disabling an account has no effect on requests
+   backend/` returns nothing. Disabling an account has no effect on requests
    already carrying a valid ID token, for up to an hour.
 
 2. **Sign-out does not sign out.** `apps/shell/app/logout/route.ts` clears the
@@ -33,7 +33,7 @@ backend/` returns nothing. Disabling an account has no effect on requests
    membership has been revoked — their empty set is never examined.
 
 The scope of (3) is narrower than the audit's original phrasing, and the
-correction matters: `iam.switchTenant` _does_ gate on membership before minting
+correction matters: `iam.switchTenant` *does* gate on membership before minting
 a token (`internal/modules/iam/me.go:150`), so a non-member cannot mint their
 way into a tenant. The exposure is **ex-members and revoked members**, not
 arbitrary authenticated users.
@@ -58,13 +58,13 @@ whose `auth_time` predates the subject's watermark is refused. Helivanta-initiat
 revocations write it directly and bite on the very next request, with **no
 identity-provider call on the request path**.
 
-_Rejected: GIP as the per-request authority_ (`VerifyIDTokenAndCheckRevoked`).
+*Rejected: GIP as the per-request authority* (`VerifyIDTokenAndCheckRevoked`).
 Strictly correct for account disable, but it puts a GIP `GetUser` round trip on
 every request — latency on every call, a hard availability dependency, and
 Identity Platform quota consumed proportional to traffic. It also does not cover
 membership removal, which GIP knows nothing about.
 
-_Rejected: GIP cached with a TTL._ Revocation is then never immediate, and the
+*Rejected: GIP cached with a TTL.* Revocation is then never immediate, and the
 window is precisely what an incident responder is trying to close.
 
 **Accepted cost:** an account disabled in the GIP console alone is not honoured
@@ -89,10 +89,10 @@ evaluated against the watermark is not a token that can be trusted.
 
 Two mechanisms, deliberately not generalised into one.
 
-|                        | Scope            | Mechanism           | Effect                            |
-| ---------------------- | ---------------- | ------------------- | --------------------------------- |
-| Sign-out, admin revoke | subject (global) | watermark           | ends sessions in **every** tenant |
-| Membership removal     | tenant           | per-request `Check` | affects **only** that tenant      |
+| | Scope | Mechanism | Effect |
+|---|---|---|---|
+| Sign-out, admin revoke | subject (global) | watermark | ends sessions in **every** tenant |
+| Membership removal | tenant | per-request `Check` | affects **only** that tenant |
 
 Membership removal must never be a watermark write: losing membership in tenant
 A must not touch a session in tenant B, where the person is still legitimately
@@ -124,11 +124,11 @@ This deviates from the `<module>-<purpose>` consumer-naming rule in
 `docs/standards/backend.md`, which assumes a work queue. The deviation and its
 reason are written into that standard as part of this work.
 
-_Rejected: Redis._ No Go code uses Redis today; it would add a runtime
+*Rejected: Redis.* No Go code uses Redis today; it would add a runtime
 dependency and a second source of truth on the authentication hot path, and
 still costs a network call per request.
 
-_Rejected: short-TTL cache with no invalidation._ The TTL then **is** the
+*Rejected: short-TTL cache with no invalidation.* The TTL then **is** the
 revocation delay, which is the property #781 exists to remove.
 
 ### D5 — Sign-out ends all of that subject's sessions
@@ -163,12 +163,12 @@ one call.
 `switchTenant` already uses, expressed once in the model instead of inferred
 twice in Go. The per-request cost is a `Check`, not another `ListObjects`.
 
-_Rejected: a second `ListObjects` for role bindings._ No model change, and it
+*Rejected: a second `ListObjects` for role bindings.* No model change, and it
 cannot drift from `switchTenant` because it is the same code — but it doubles
 FGA load on the hot path, on top of the uncapped `ListObjects` #774 already
 flags.
 
-_Rejected: deriving membership from a non-empty permission set._ Zero extra
+*Rejected: deriving membership from a non-empty permission set.* Zero extra
 calls, but it re-couples the two things this design separates, and gives the
 wrong answer for a member holding a role that grants no permissions.
 
@@ -183,7 +183,7 @@ authz.NoTenantMembership  // authenticated only; membership not examined
 silently gains a membership check. `NoTenantMembership` is deliberately awkward
 to type, and an arch test pins it to an allowlist of exactly four routes.
 
-_Rejected: one marker plus a path-prefix exemption in middleware._ The exemption
+*Rejected: one marker plus a path-prefix exemption in middleware.* The exemption
 becomes an invisible string match rather than a declaration at the route, and a
 new route under `/me` would silently inherit it — the weakest enforcement tier
 in `docs/standards/engineering-principles.md` §4.
@@ -246,10 +246,10 @@ Each replica keeps an LRU of `subject → watermark`, **including negative
 entries** — "not revoked" is the overwhelmingly common answer and the one that
 must not reach Postgres.
 
-| Parameter   | Value                                                       | Reasoning                                                                                                                                                                                                                                     |
-| ----------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Max entries | **10,000**                                                  | Bounds memory at roughly a megabyte. A single hospital's concurrent staff is two orders of magnitude below this, so eviction should effectively never occur; if it does, the evicted entry reads through and is correct, only slower.         |
-| TTL         | **5 minutes**, applied to positive **and** negative entries | The backstop for a missed broadcast, not the propagation mechanism. Five minutes is short enough to bound the abnormal case to something an incident responder can accept and long enough that steady-state traffic does not hammer Postgres. |
+| Parameter | Value | Reasoning |
+|---|---|---|
+| Max entries | **10,000** | Bounds memory at roughly a megabyte. A single hospital's concurrent staff is two orders of magnitude below this, so eviction should effectively never occur; if it does, the evicted entry reads through and is correct, only slower. |
+| TTL | **5 minutes**, applied to positive **and** negative entries | The backstop for a missed broadcast, not the propagation mechanism. Five minutes is short enough to bound the abnormal case to something an incident responder can accept and long enough that steady-state traffic does not hammer Postgres. |
 
 Both are constants in code, not configuration: a deployment that tunes the TTL
 upward silently widens the security window, so changing it should require a code
@@ -260,11 +260,11 @@ correct, never stale.
 
 ### Triggers
 
-| Trigger                                 | Writes watermark                 | Scope                             |
-| --------------------------------------- | -------------------------------- | --------------------------------- |
-| `POST /v1/iam/me/sign-out`              | yes, + GIP `RevokeRefreshTokens` | all tenants                       |
-| `POST /v1/iam/subjects/:subject/revoke` | yes, + GIP `RevokeRefreshTokens` | all tenants                       |
-| Membership removal                      | **no**                           | that tenant only, via the `Check` |
+| Trigger | Writes watermark | Scope |
+|---|---|---|
+| `POST /v1/iam/me/sign-out` | yes, + GIP `RevokeRefreshTokens` | all tenants |
+| `POST /v1/iam/subjects/:subject/revoke` | yes, + GIP `RevokeRefreshTokens` | all tenants |
+| Membership removal | **no** | that tenant only, via the `Check` |
 
 ---
 
@@ -342,7 +342,7 @@ moment the membership check goes live against that store, every `Check` returns
 false and **every user in every tenant is locked out** — a total outage, not a
 degradation.
 
-The boot reconciler is already authoritative (it grants _and_ prunes), so the
+The boot reconciler is already authoritative (it grants *and* prunes), so the
 ordering that saves us is **write model → reconcile → serve**. That ordering
 must be verified rather than assumed. If the reconciler does not already run to
 completion before the listener starts, making it do so is part of this work.
@@ -365,15 +365,15 @@ returns before `ListenAndServe` is reached in `cmd/api/main.go`.
 
 Every failure closes.
 
-| Failure                             | Behaviour                                                                              |
-| ----------------------------------- | -------------------------------------------------------------------------------------- |
-| Cache miss and Postgres unreachable | 503 `authz_unavailable` — never admit                                                  |
-| FGA `Check` fails                   | 503 `authz_unavailable` — matches the existing contract                                |
-| Not a member                        | 403                                                                                    |
-| Outbox publish fails                | Whole transaction rolls back; the revocation did not happen, and the caller is told so |
-| Consumer handler panics             | Existing `recover()` containment naks; replica keeps a stale entry until TTL           |
-| NATS entirely down                  | Writes still succeed and persist; propagation degrades to the TTL bound                |
-| Token has no `auth_time`            | Reject                                                                                 |
+| Failure | Behaviour |
+|---|---|
+| Cache miss and Postgres unreachable | 503 `authz_unavailable` — never admit |
+| FGA `Check` fails | 503 `authz_unavailable` — matches the existing contract |
+| Not a member | 403 |
+| Outbox publish fails | Whole transaction rolls back; the revocation did not happen, and the caller is told so |
+| Consumer handler panics | Existing `recover()` containment naks; replica keeps a stale entry until TTL |
+| NATS entirely down | Writes still succeed and persist; propagation degrades to the TTL bound |
+| Token has no `auth_time` | Reject |
 
 ### The residual propagation window, stated plainly
 
@@ -383,7 +383,7 @@ disconnect, restart mid-flight — it admits until the TTL expires that entry.
 
 **Immediate in the normal case, bounded by the 5-minute TTL in the abnormal
 one.** This is materially different from the rejected cached-GIP option, where
-the TTL _was_ the mechanism and every revocation waited on it.
+the TTL *was* the mechanism and every revocation waited on it.
 
 ---
 
@@ -392,21 +392,21 @@ the TTL _was_ the mechanism and every revocation waited on it.
 Per `docs/standards/engineering-principles.md` §5, every assertion is proven
 able to fail before it is trusted.
 
-| ID  | Test                                                                                      | Why it exists                                                                                                                                   |
-| --- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1  | A **refreshed** token is still rejected — new `iat`, original `auth_time`, post-watermark | The test that fails if someone "simplifies" D2 to `IssuedAt`, reducing revocation to a suggestion                                               |
-| T2  | Revoked membership in tenant A → **403 on a `Public` route**                              | The literal regression test for defect (3)                                                                                                      |
-| T3  | Membership revoked in A → session in **B still works**                                    | Proves D3's two mechanisms stayed separate                                                                                                      |
-| T4  | A user with **zero memberships** can still call `/me/tenants`                             | Proves the lockout edge is handled, not asserted                                                                                                |
-| T5  | **Old-model store, no tenant tuples, fresh boot → member's request succeeds**             | Migration safety; the outage scenario above                                                                                                     |
-| T6  | Postgres unreachable on cache miss → **503, never 200**                                   | Fail-closed, asserted on the real response                                                                                                      |
-| T7  | Watermark **cannot move backwards** under a replayed or late write                        | Idempotent-retry safety on a security control                                                                                                   |
-| T8  | **Cross-site POST to sign-out rejected**                                                  | The CSRF-becomes-DoS case                                                                                                                       |
-| T9  | Two API replicas sharing NATS + Postgres: revoke on one → **the other rejects**           | Proves propagation propagates, rather than testing the publish call and assuming                                                                |
-| T10 | After shell sign-out, **`getIdToken()` + re-POST `/api/session` is refused by the API**   | The shared-workstation guarantee, end to end in Playwright — not "the cookie was cleared", which is the proxy assertion that let this bug exist |
-| T11 | Concurrent revoke + in-flight requests under `-race`                                      | Cache mutation under load                                                                                                                       |
-| T12 | Arch test: the `NoTenantMembership` allowlist is exactly four routes                      | Stops the unsafe set growing silently                                                                                                           |
-| T13 | A cached negative entry **is invalidated** by the event                                   | The cache is the thing most likely to be wrong                                                                                                  |
+| ID | Test | Why it exists |
+|---|---|---|
+| T1 | A **refreshed** token is still rejected — new `iat`, original `auth_time`, post-watermark | The test that fails if someone "simplifies" D2 to `IssuedAt`, reducing revocation to a suggestion |
+| T2 | Revoked membership in tenant A → **403 on a `Public` route** | The literal regression test for defect (3) |
+| T3 | Membership revoked in A → session in **B still works** | Proves D3's two mechanisms stayed separate |
+| T4 | A user with **zero memberships** can still call `/me/tenants` | Proves the lockout edge is handled, not asserted |
+| T5 | **Old-model store, no tenant tuples, fresh boot → member's request succeeds** | Migration safety; the outage scenario above |
+| T6 | Postgres unreachable on cache miss → **503, never 200** | Fail-closed, asserted on the real response |
+| T7 | Watermark **cannot move backwards** under a replayed or late write | Idempotent-retry safety on a security control |
+| T8 | **Cross-site POST to sign-out rejected** | The CSRF-becomes-DoS case |
+| T9 | Two API replicas sharing NATS + Postgres: revoke on one → **the other rejects** | Proves propagation propagates, rather than testing the publish call and assuming |
+| T10 | After shell sign-out, **`getIdToken()` + re-POST `/api/session` is refused by the API** | The shared-workstation guarantee, end to end in Playwright — not "the cookie was cleared", which is the proxy assertion that let this bug exist |
+| T11 | Concurrent revoke + in-flight requests under `-race` | Cache mutation under load |
+| T12 | Arch test: the `NoTenantMembership` allowlist is exactly four routes | Stops the unsafe set growing silently |
+| T13 | A cached negative entry **is invalidated** by the event | The cache is the thing most likely to be wrong |
 
 ---
 

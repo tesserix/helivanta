@@ -219,10 +219,12 @@ Design: [spec](../../superpowers/specs/2026-10-30-deposit-refunds-design.md).
   for one admission with a reason, within what is held (`409 over_held`). Never the cashier who
   pays it (`409 own_approval`).
 - **Paying out** is a receipt with `purpose: refund` from the cashier's open shift, numbered
-  with the counter's receipts: after a final bill (`409 no_final_bill`), at most what is held
-  (`409 over_held`), at most the drawer's cash (`409 drawer_short`), and above the threshold only
+  with the counter's receipts: after a final bill (`409 no_final_bill`), at most the surplus held beyond what
+  the bill still needs (`409 over_held`), at most the drawer's cash (`409 drawer_short`), and above the threshold only
   against an unused approval for exactly that amount (`409 approval_required`). It reduces the
-  shift's expected cash; voided like any receipt while the shift is open.
+  shift's expected cash; voided like any receipt while the shift is open (its approval stays
+  used). Voiding a payment or deposit is refused if the drawer no longer holds that cash
+  (`409 drawer_short`).
 - **Totals** add `refunded_minor`; held is deposits less applied less refunded. A deposit can no
   longer be voided below what was applied or refunded.
 - **The database** holds every rule: final bill, held, drawer, threshold and approval (same

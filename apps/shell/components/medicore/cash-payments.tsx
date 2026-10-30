@@ -81,11 +81,12 @@ export function CashPayments({
         inr &&
         inr.deposit_held_minor > 0 &&
         inr.balance_minor > 0 && <ApplyDeposits hospital={hospital} admissionId={admissionId} />}
-      {hasFinalBill && inr && inr.deposit_held_minor > 0 && (
+      {hasFinalBill && inr && inr.deposit_held_minor - Math.max(inr.balance_minor, 0) > 0 && (
+        // Only the surplus over what the bill still needs is refunded.
         <DepositRefunds
           hospital={hospital}
           admissionId={admissionId}
-          held={inr.deposit_held_minor}
+          held={inr.deposit_held_minor - Math.max(inr.balance_minor, 0)}
           shiftOpen={open !== undefined}
           receiptsKey={key}
         />

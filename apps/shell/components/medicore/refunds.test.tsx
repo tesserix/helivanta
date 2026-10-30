@@ -112,7 +112,9 @@ describe("DepositRefunds", () => {
     await user.clear(await screen.findByLabelText("Refund in cash (INR)"));
     await user.type(screen.getByLabelText("Refund in cash (INR)"), "5001");
     await user.click(screen.getByRole("button", { name: "Pay refund" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("At most what is held");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "At most what is held beyond the bill",
+    );
     expect(puts(fetcher)).toHaveLength(0);
   });
 

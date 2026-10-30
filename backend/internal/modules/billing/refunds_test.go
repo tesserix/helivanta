@@ -1,6 +1,7 @@
 package billing_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -79,7 +80,7 @@ func TestARefundAboveTheThresholdNeedsSomeoneElsesApproval(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, do(w.r, "PUT", w.root+"/refund-policies/"+v7(), "clerk", `{"threshold_minor":2000000}`).Code)
 	policy := v7()
 	status, body := w.put("admin", "/refund-policies/"+policy, `{"threshold_minor":2000000}`)
-	require.Equal(t, http.StatusOK, status, body)
+	require.Equal(t, http.StatusCreated, status, body)
 	status, _ = w.put("admin", "/refund-policies/"+policy, `{"threshold_minor":2000000}`)
 	require.Equal(t, http.StatusOK, status, "a retry replays")
 	res = do(w.r, "GET", w.root+"/refund-policy", "nurse", "")
@@ -105,6 +106,29 @@ func TestARefundAboveTheThresholdNeedsSomeoneElsesApproval(t *testing.T) {
 	require.Contains(t, body, "approval_required", "an approval is used once: %d", status)
 	res = do(w.r, "GET", w.root+"/admissions/"+admission+"/refund-approvals", "nurse", "")
 	require.Contains(t, res.Body.String(), `"used_by":"`)
+	// Voided, the refund's cash is back in the drawer and held again, but its
+	// approval stays used: paying it again needs a new approval.
+	var paidRefund struct {
+		ID string `json:"id"`
+	}
+	res = do(w.r, "GET", w.root+"/admissions/"+admission+"/receipts", "nurse", "")
+	var list struct {
+		Data []struct {
+			ID      string `json:"id"`
+			Purpose string `json:"purpose"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &list))
+	for _, r := range list.Data {
+		if r.Purpose == "refund" {
+			paidRefund.ID = r.ID
+		}
+	}
+	require.NotEmpty(t, paidRefund.ID)
+	status, body = w.put("clerk", "/receipts/"+paidRefund.ID+"/voids/"+v7(), `{"reason":"Paid the wrong relative"}`)
+	require.Equal(t, http.StatusOK, status, body)
+	status, body = w.refund(admission, 2500000, approval)
+	require.Contains(t, body, "approval_required", "a voided refund's approval is not reused: %d", status)
 
 	// The cashier's own approval does not count.
 	own := v7()
@@ -194,10 +218,10 @@ func TestRefundRulesHoldInTheDatabase(t *testing.T) {
 	}
 	// With the threshold out of the way, only what is held refuses it.
 	status, body := w.put("admin", "/refund-policies/"+v7(), `{"threshold_minor":1000000000}`)
-	require.Equal(t, http.StatusOK, status, body)
+	require.Equal(t, http.StatusCreated, status, body)
 	require.Error(t, insertRefund(4000001, noApproval), "never more than held")
 	status, body = w.put("admin", "/refund-policies/"+v7(), `{"threshold_minor":1000000}`)
-	require.Equal(t, http.StatusOK, status, body)
+	require.Equal(t, http.StatusCreated, status, body)
 	require.Error(t, insertRefund(1000001, noApproval), "above the threshold, no approval")
 	own := v7()
 	require.NoError(t, as("user-clerk", func(tx *gorm.DB) error {
@@ -233,4 +257,79 @@ func TestRefundRulesHoldInTheDatabase(t *testing.T) {
 		return tx.Raw(`SELECT billing_shift_expected(?,?) AS v`, testutil.TenantA, shiftID).Scan(&expected).Error
 	}))
 	require.EqualValues(t, 2900000, expected.V, "the drawer nets the refunds")
+}
+
+// Only the surplus is refunded: a deposit still needed for the bill is not
+// unused, applied or not.
+func TestARefundIsCappedAtTheSurplusOverTheBill(t *testing.T) {
+	w := newBedWorld(t)
+	w.priced(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
+	w.counterWithShift(t, "clerk", "IPD-RS", 0)
+	status, body := w.deposit("clerk", admission, 400000)
+	require.Equal(t, http.StatusCreated, status, body)
+	w.charge(admission, patient, 300000)
+	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), time.Now()))
+	status, body = w.post("/admissions/" + admission + "/final-bills")
+	require.Equal(t, http.StatusCreated, status, body)
+	// Nothing applied yet: 4000 held, 3000 due, so 1000 is the surplus.
+	status, body = w.refund(admission, 100001, "")
+	require.Equal(t, http.StatusConflict, status)
+	require.Contains(t, body, "over_held", "the deposit still covers the bill")
+	var counter, shiftID string
+	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT counter_id,shift_id FROM billing_cash_receipts WHERE admission_id=?`, admission).Row().Scan(&counter, &shiftID)
+	}))
+	require.Error(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,purpose,amount_minor,currency)
+ VALUES (?,?,?,?,?,2,'user-clerk',?,'refund',100001,'INR')`, testutil.TenantA, w.hospital, v7(), shiftID, counter, admission).Error
+	}), "the database caps at the surplus too")
+	status, body = w.refund(admission, 100000, "")
+	require.Equal(t, http.StatusCreated, status, body)
+}
+
+// A void never leaves the drawer below zero once cash has gone out.
+func TestAVoidCannotTakeTheDrawerBelowZero(t *testing.T) {
+	w := newBedWorld(t)
+	w.priced(t)
+	// The deposit was taken at another counter.
+	refunded, patient := uuid.NewString(), uuid.NewString()
+	require.NoError(t, w.start(refunded, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
+	w.counterWithShift(t, "clerk2", "IPD-V1", 0)
+	status, body := w.deposit("clerk2", refunded, 500000)
+	require.Equal(t, http.StatusCreated, status, body)
+	w.charge(refunded, patient, 100000)
+	require.NoError(t, w.orderDischarge(refunded, patient, uuid.NewString(), time.Now()))
+	status, body = w.post("/admissions/" + refunded + "/final-bills")
+	require.Equal(t, http.StatusCreated, status, body)
+
+	// This drawer: float 0, a 3000 payment from another patient, then 3000 refunded.
+	w.counterWithShift(t, "clerk", "IPD-V2", 0)
+	payer, other := uuid.NewString(), uuid.NewString()
+	w.charge(payer, other, 300000)
+	status, body = w.pay("clerk", payer, 300000)
+	require.Equal(t, http.StatusCreated, status, body)
+	var paid struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &paid))
+	status, body = w.refund(refunded, 300000, "")
+	require.Equal(t, http.StatusCreated, status, body)
+
+	status, body = w.put("clerk", "/receipts/"+paid.ID+"/voids/"+v7(), `{"reason":"Wrong patient"}`)
+	require.Equal(t, http.StatusConflict, status, "the payment's cash went out as the refund: "+body)
+	require.Contains(t, body, "drawer_short")
+	require.Error(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE billing_cash_receipts SET void_id=?,void_reason='x',voided_at=now() WHERE id=?`, v7(), paid.ID).Error
+	}), "the database refuses it alone")
 }

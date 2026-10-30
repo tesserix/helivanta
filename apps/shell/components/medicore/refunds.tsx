@@ -32,7 +32,8 @@ export function useRefundPolicy(hospital: Hospital) {
 export function RefundPolicySetup({ hospital }: { hospital: Hospital }) {
   const policy = useRefundPolicy(hospital);
   const [id, setId] = useState(() => newBedId());
-  const form = useZodForm(refundPolicySchema, { threshold_minor: Number.NaN });
+  // Starts at what the field shows, 0: a threshold of 0 sends every refund for approval.
+  const form = useZodForm(refundPolicySchema, { threshold_minor: 0 });
   const save = useApiMutation(
     ({ threshold_minor }: { threshold_minor: number }) =>
       apiFetch<RefundPolicy>(`/billing/hospitals/${hospital.id}/refund-policies/${id}`, {
@@ -238,7 +239,7 @@ function PayRefund({
   function submit() {
     if (!Number.isSafeInteger(amount) || amount < 1)
       return setProblem("Enter the amount to refund.");
-    if (amount > held) return setProblem(`At most what is held, ${money(held)}.`);
+    if (amount > held) return setProblem(`At most what is held beyond the bill, ${money(held)}.`);
     if (amount > threshold && !approval)
       return setProblem(`Above ${money(threshold)} a supervisor approves this amount first.`);
     setProblem(null);

@@ -75,6 +75,13 @@ CREATE FUNCTION billing_held(row_tenant uuid,row_admission uuid,row_currency tex
   - billing_received(row_tenant,row_admission,row_currency,'refund')
 $$;
 
+-- What can be refunded: what is held beyond what the bill still needs. A
+-- deposit that still covers the bill is not unused, applied or not.
+CREATE FUNCTION billing_refundable(row_tenant uuid,row_admission uuid,row_currency text) RETURNS bigint LANGUAGE sql STABLE AS $$
+ SELECT billing_held(row_tenant,row_admission,row_currency) - GREATEST(billing_owed(row_tenant,row_admission,row_currency)
+  - billing_received(row_tenant,row_admission,row_currency,'payment') - billing_applied(row_tenant,row_admission,row_currency),0)
+$$;
+
 -- Expected cash nets refunds: they left the drawer.
 CREATE OR REPLACE FUNCTION billing_shift_expected(row_tenant uuid,row_shift uuid) RETURNS bigint LANGUAGE sql STABLE AS $$
  SELECT s.opening_float_minor + COALESCE((SELECT sum(CASE r.purpose WHEN 'refund' THEN -r.amount_minor ELSE r.amount_minor END) FROM billing_cash_receipts r
@@ -111,8 +118,8 @@ BEGIN
    IF NOT EXISTS (SELECT 1 FROM billing_interim_bills b WHERE b.tenant_id=NEW.tenant_id AND b.admission_id=NEW.admission_id AND b.kind='final') THEN
     RAISE EXCEPTION 'a deposit is refunded after a final bill' USING ERRCODE='23514', CONSTRAINT='billing_refund_final_bill';
    END IF;
-   IF NEW.amount_minor > billing_held(NEW.tenant_id,NEW.admission_id,NEW.currency) THEN
-    RAISE EXCEPTION 'a refund is never more than what is held' USING ERRCODE='23514', CONSTRAINT='billing_refund_over_held';
+   IF NEW.amount_minor > billing_refundable(NEW.tenant_id,NEW.admission_id,NEW.currency) THEN
+    RAISE EXCEPTION 'a refund is never more than what is held beyond the bill' USING ERRCODE='23514', CONSTRAINT='billing_refund_over_held';
    END IF;
    IF NEW.amount_minor > billing_shift_expected(NEW.tenant_id,NEW.shift_id) THEN
     RAISE EXCEPTION 'a refund is never more than the drawer holds' USING ERRCODE='23514', CONSTRAINT='billing_refund_drawer';
@@ -140,6 +147,15 @@ BEGIN
  PERFORM 1 FROM billing_cash_shifts WHERE tenant_id=OLD.tenant_id AND id=OLD.shift_id AND status='open' FOR SHARE;
  IF NOT FOUND THEN
   RAISE EXCEPTION 'a receipt is voided only while its shift is open' USING ERRCODE='23514', CONSTRAINT='billing_cash_receipt_shift';
+ END IF;
+ -- Taking cash back out of the record must not leave the drawer below zero:
+ -- it may already have gone out as a refund. The counter lock orders this
+ -- with every receipt and refund at the counter.
+ IF OLD.purpose<>'refund' THEN
+  PERFORM 1 FROM billing_counters WHERE tenant_id=OLD.tenant_id AND id=OLD.counter_id FOR UPDATE;
+  IF billing_shift_expected(OLD.tenant_id,OLD.shift_id) - OLD.amount_minor < 0 THEN
+   RAISE EXCEPTION 'the drawer no longer holds this cash' USING ERRCODE='23514', CONSTRAINT='billing_refund_drawer';
+  END IF;
  END IF;
  IF OLD.purpose='deposit' THEN
   PERFORM pg_advisory_xact_lock(hashtextextended(OLD.tenant_id::text||':billing-bed-days:'||OLD.admission_id::text, 0));

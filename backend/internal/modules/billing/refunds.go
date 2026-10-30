@@ -22,7 +22,7 @@ import (
 const defaultRefundThreshold = 1_000_000
 
 var (
-	errOverHeld         = errors.New("the refund is more than the deposits held for the patient")
+	errOverHeld         = errors.New("the refund is more than the deposits held beyond what the bill still needs")
 	errDrawerShort      = errors.New("the drawer does not hold enough cash for this refund")
 	errApprovalRequired = errors.New("a refund above the threshold needs a supervisor's approval for exactly this amount")
 	errOwnApproval      = errors.New("a refund is approved by someone other than the cashier who pays it")
@@ -39,7 +39,7 @@ func refundable(tx *gorm.DB, tenant string, hospital, admission, shift uuid.UUID
 		Held, Drawer, Limit int64
 	}
 	if err := tx.Raw(`SELECT EXISTS (SELECT 1 FROM billing_interim_bills WHERE tenant_id=? AND admission_id=? AND kind='final') AS final,
- billing_held(?,?,?) AS held, billing_shift_expected(?,?) AS drawer, billing_refund_threshold(?,?) AS "limit"`,
+ billing_refundable(?,?,?) AS held, billing_shift_expected(?,?) AS drawer, billing_refund_threshold(?,?) AS "limit"`,
 		tenant, admission, tenant, admission, shiftCurrency, tenant, shift, tenant, hospital).Scan(&v).Error; err != nil {
 		return err
 	}
@@ -121,6 +121,7 @@ func (h *handlers) setRefundPolicy(c *gin.Context) {
 		return
 	}
 	var out refundPolicy
+	created := false
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
 		var held []refundPolicy
 		if err := tx.Raw(`SELECT hospital_id,threshold_minor,currency,created_by,created_at FROM billing_refund_policies WHERE tenant_id=? AND id=?`, p.TenantID, id).Scan(&held).Error; err != nil {
@@ -137,15 +138,19 @@ func (h *handlers) setRefundPolicy(c *gin.Context) {
 			p.TenantID, hospital, id, *in.ThresholdMinor, shiftCurrency, p.Subject).Error; err != nil {
 			return err
 		}
+		created = true
 		var err error
 		out, err = refundPolicyOf(tx, p.TenantID, hospital)
 		return err
 	})
-	if err != nil {
+	switch {
+	case err != nil:
 		cashFailure(c, err)
-		return
+	case created:
+		respond.Created(c, out)
+	default:
+		respond.OK(c, out)
 	}
-	respond.OK(c, out)
 }
 
 type refundApproval struct {
@@ -201,11 +206,12 @@ func (h *handlers) approveRefund(c *gin.Context) {
 		if known == 0 {
 			return errNoAccount
 		}
-		have, err := depositHeld(tx, p.TenantID, admission, shiftCurrency)
-		if err != nil {
+		// An approval is for the surplus over the bill, as the refund is.
+		var surplus struct{ V int64 }
+		if err := tx.Raw(`SELECT billing_refundable(?,?,?) AS v`, p.TenantID, admission, shiftCurrency).Scan(&surplus).Error; err != nil {
 			return err
 		}
-		if in.AmountMinor > have {
+		if in.AmountMinor > surplus.V {
 			return errOverHeld
 		}
 		if err := tx.Exec(`INSERT INTO billing_refund_approvals (tenant_id,hospital_id,id,admission_id,amount_minor,currency,reason,approved_by) VALUES (?,?,?,?,?,?,?,?)`,

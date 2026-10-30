@@ -286,3 +286,39 @@ describe("CashPayments", () => {
     );
   });
 });
+
+describe("CashPayments refunds", () => {
+  it("offers to refund only the surplus over the bill", async () => {
+    server({ permissions: ["billing.account.read", "billing.cash.collect"], mine: shift() });
+    const account = {
+      admission_id: admission,
+      hospital_id: hospital.id,
+      patient_id: "p",
+      status: "open" as const,
+      opened_at: null,
+      closed_at: null,
+      totals: [
+        {
+          currency: "INR",
+          charged_minor: 300000,
+          reversed_minor: 0,
+          outstanding_minor: 300000,
+          paid_minor: 0,
+          balance_minor: 300000,
+          deposit_held_minor: 300000,
+          applied_minor: 0,
+          refunded_minor: 0,
+        },
+      ],
+      sources: [],
+      bed_days: { configured: true, priced: 0, not_priced: 0 },
+      entry_count: 1,
+      discharge_ordered: true,
+    };
+    renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account} hasFinalBill />,
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByLabelText("Refund in cash (INR)")).not.toBeInTheDocument();
+  });
+});

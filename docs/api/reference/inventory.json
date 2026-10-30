@@ -3929,7 +3929,7 @@
         },
         {
           "id": "0007_billing",
-          "sql_sha256": "a23b5fa23f9e5947da7350e6cfd7b8a8a98d94e005bae539d320463bb0d5f438",
+          "sql_sha256": "b3f319f7e7937c8c331b959d80793584235f6686f554376bfc174c869811e55f",
           "creates_tables": [
             "billing_refund_policies",
             "billing_refund_approvals"

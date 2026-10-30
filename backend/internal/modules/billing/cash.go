@@ -582,6 +582,19 @@ func (h *handlers) voidReceipt(c *gin.Context) {
 		if open == 0 {
 			return errShiftClosed
 		}
+		if r.Purpose != "refund" {
+			// The drawer may no longer hold this cash: it can have gone out as a refund.
+			if err := tx.Exec(`SELECT 1 FROM billing_counters WHERE tenant_id=? AND id=? FOR UPDATE`, p.TenantID, r.CounterID).Error; err != nil {
+				return err
+			}
+			var drawer struct{ V int64 }
+			if err := tx.Raw(`SELECT billing_shift_expected(?,?) AS v`, p.TenantID, r.ShiftID).Scan(&drawer).Error; err != nil {
+				return err
+			}
+			if drawer.V < r.AmountMinor {
+				return errDrawerShort
+			}
+		}
 		if r.Purpose == "deposit" {
 			// What was applied or refunded stays covered by the deposits left.
 			have, err := depositHeld(tx, p.TenantID, r.AdmissionID, r.Currency)

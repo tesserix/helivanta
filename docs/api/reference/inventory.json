@@ -3752,6 +3752,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/collections/:date/export.csv",
+          "permission": "billing.collection.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/collections/:date",
+          "permission": "billing.collection.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift",
           "permission": "billing.cash.collect",
@@ -3840,6 +3858,10 @@
         },
         {
           "permission": "billing.shift.authorise",
+          "roles": []
+        },
+        {
+          "permission": "billing.collection.read",
           "roles": []
         }
       ],

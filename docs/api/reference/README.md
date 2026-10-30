@@ -568,6 +568,8 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/close` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts/mine` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts` | `billing.shift.authorise` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/collections/:date/export.csv` | `billing.collection.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/collections/:date` | `billing.collection.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift` | `billing.cash.collect` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/counters` | `billing.account.read` | true | false |

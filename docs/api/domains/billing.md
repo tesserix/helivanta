@@ -175,8 +175,9 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** UPI, card and other modes; handover; denominations; pickups; refunds; shift
-  and daily collection reports and GL export; events; receipts on bills; deposits (#199).
+- **Not covered:** UPI, card and other modes; handover; denominations; pickups; GL export;
+  events; receipts on bills. Refunds, deposits and the daily collection report came later,
+  below.
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
   it keeps the counter until the grant is restored and the shift closed.
 
@@ -256,3 +257,26 @@ Design: [spec](../../superpowers/specs/2026-10-30-billing-desk-design.md).
 - Needs `billing.account.read` and the hospital's billing grant (`404` without it).
 - The shell's **Billing** zone (`billing.account.read`) shows it with the cash desk; each
   account opens its bills, payments, deposits and refunds, including after release.
+
+## Daily collection (#198 slice 2)
+
+Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
+
+- `GET /billing/hospitals/:hospital/collections/:date` reads one hospital-local day: every shift
+  that opened between that date's midnights in the hospital's bed-charging timezone, with
+  counter, cashier, status, float, standing payments, deposits and refunds, voided receipts,
+  expected, declared, variance and its authorisation. A shift belongs to the day it opened.
+- **Open shifts stay blind:** listed without any money figure, since an administrator may also be
+  the cashier. Totals cover counted shifts (closed or waiting): payments, deposits, refunds, net
+  cash (payments + deposits − refunds), shortages and excesses apart, and counts of open and
+  waiting shifts. `final` is true only for a past date with every shift closed.
+- `GET …/collections/:date/export.csv` is the same day as CSV: a row per shift and a `TOTAL`
+  row, rupees with two decimals, text cells made inert to spreadsheet formulas, no patient or
+  admission identifiers. Each export is audit-logged (`billing.collection.exported`) with its
+  row count and SHA-256, also sent as `X-Export-Row-Count` and `X-Export-Sha256`.
+- Needs `billing.collection.read` (tenant administrators only) and the hospital's billing grant
+  (`404` without it). `409 timezone_unset` with no timezone; `400` for a malformed date or one
+  after the hospital's today; `413 collection_too_large` above 500 shifts.
+- The shell's Billing page shows it as **Collections** to holders of the permission.
+- **Not covered:** finance sign-off and reopening a day; GL posting; other payment modes;
+  per-cashier variance trends; date ranges; events.

@@ -3,7 +3,9 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +17,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -64,9 +67,8 @@ func (h *revocationHandlers) signOut(c *gin.Context) {
 // credential alive elsewhere would be worse — and it is why every
 // revoke is logged with actor, target and tenant.
 func (h *revocationHandlers) adminRevoke(c *gin.Context) {
-	p, ok := authn.PrincipalFrom(c)
+	p, _, ok := authn.ExpectedTenantPrincipal(c)
 	if !ok {
-		respond.Unauthenticated(c, "missing principal")
 		return
 	}
 	target := c.Param("subject")
@@ -80,7 +82,23 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 		respond.NotFound(c, "subject")
 		return
 	}
-	if err := h.revoke(c.Request.Context(), target, time.Now().UTC(), "admin_revoke", p.Subject); err != nil {
+	if err := h.revokeCurrentMember(c.Request.Context(), p, target); err != nil {
+		if errors.Is(err, authz.ErrScopedCredentialRevoked) {
+			respond.Error(c, http.StatusUnauthorized, "credential_revoked", "sign in again to continue")
+			return
+		}
+		if errors.Is(err, errRevocationActorNotAdmin) {
+			respond.Forbidden(c, "current administrator membership required")
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respond.NotFound(c, "subject")
+			return
+		}
+		if errors.Is(err, errRevocationScopeUnavailable) {
+			respondRolesUnavailable(c, err)
+			return
+		}
 		respond.InternalErr(c, err, "could not revoke credentials")
 		return
 	}
@@ -108,23 +126,7 @@ func (h *revocationHandlers) adminRevoke(c *gin.Context) {
 // regardless of what Zitadel still believes.
 func (h *revocationHandlers) revoke(ctx context.Context, subject string, at time.Time, reason, actor string) error {
 	err := h.db.WithSystem(ctx, func(tx *gorm.DB) error {
-		if err := h.checker.RevokeTx(tx, subject, at, reason, actor); err != nil {
-			return err
-		}
-		data, err := json.Marshal(iamcontract.CredentialRevokedData{Subject: subject})
-		if err != nil {
-			return err
-		}
-		// TenantID is deliberately left empty: a revocation is
-		// subject-scoped, not tenant-scoped (spec D3) — it ends every
-		// session for this subject in every tenant. events.Event.TenantID
-		// is not required to be set; the bus only uses it, when present
-		// and a valid UUID, to scope the consuming transaction's RLS GUC
-		// (pkg/events/bus.go), which this event has no need of because
-		// iam_credential_revocations carries no tenant_id at all.
-		return h.bus.Publish(tx, iamcontract.SubjectCredentialRevoked, events.Event{
-			Type: "CredentialRevoked", Version: 1, Data: data,
-		})
+		return h.writeRevocation(tx, subject, at, reason, actor)
 	})
 	if err != nil {
 		return err
@@ -134,4 +136,24 @@ func (h *revocationHandlers) revoke(ctx context.Context, subject string, at time
 	// the revoked credential again, not even for one more request.
 	h.checker.Invalidate(subject)
 	return nil
+}
+
+func (h *revocationHandlers) writeRevocation(tx *gorm.DB, subject string, at time.Time, reason, actor string) error {
+	if err := h.checker.RevokeTx(tx, subject, at, reason, actor); err != nil {
+		return err
+	}
+	data, err := json.Marshal(iamcontract.CredentialRevokedData{Subject: subject})
+	if err != nil {
+		return err
+	}
+	// TenantID is deliberately left empty: a revocation is
+	// subject-scoped, not tenant-scoped (spec D3) — it ends every
+	// session for this subject in every tenant. events.Event.TenantID
+	// is not required to be set; the bus only uses it, when present
+	// and a valid UUID, to scope the consuming transaction's RLS GUC
+	// (pkg/events/bus.go), which this event has no need of because
+	// iam_credential_revocations carries no tenant_id at all.
+	return h.bus.Publish(tx, iamcontract.SubjectCredentialRevoked, events.Event{
+		Type: "CredentialRevoked", Version: 1, Data: data,
+	})
 }

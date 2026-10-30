@@ -59,6 +59,12 @@ billing's own records, and a CSV of the same figures for the ledger.
   Day totals cover counted shifts only, which `final` makes explicit.
 - **Bounded**: at most 500 shifts in a day; more is
   `413 collection_too_large`, not a truncated report.
+- **Voided refunds apart** from voided payments and deposits: a voided refund
+  is cash that never left the drawer, not money taken back.
+- **Finality window:** `opened_at` is the insert time, so a shift opened in the
+  last instant before midnight and committed after a read can appear on a day
+  just reported final. The window is milliseconds; a later sign-off slice
+  closes it by recording the day.
 - **Read in one transaction** under the billing grant, so totals and rows
   agree.
 

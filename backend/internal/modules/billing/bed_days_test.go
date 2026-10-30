@@ -37,7 +37,7 @@ var ist = func() *time.Location { l, _ := time.LoadLocation("Asia/Kolkata"); ret
 func newBedWorld(t *testing.T) *bedWorld {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "nurse": testutil.TenantA, "clerk": testutil.TenantA, "outsider": testutil.TenantA,
-			"clerk2": testutil.TenantA},
+			"clerk2": testutil.TenantA, "adminB": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"admin": {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCounterManage, billing.PermShiftAuthorise,
 				billing.PermCashCollect, billing.PermCollectionRead},
@@ -45,6 +45,7 @@ func newBedWorld(t *testing.T) *bedWorld {
 			"clerk":    {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
 			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise, billing.PermBillIssue},
 			"outsider": {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect, billing.PermCollectionRead},
+			"adminB":   {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCollectionRead},
 		},
 		Modules: []platform.Module{billing.New()},
 	})

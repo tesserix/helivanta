@@ -264,7 +264,7 @@ Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
 
 - `GET /billing/hospitals/:hospital/collections/:date` reads one hospital-local day: every shift
   that opened between that date's midnights in the hospital's bed-charging timezone, with
-  counter, cashier, status, float, standing payments, deposits and refunds, voided receipts,
+  counter, cashier, status, float, standing payments, deposits and refunds, voided receipts (refunds voided apart),
   expected, declared, variance and its authorisation. A shift belongs to the day it opened.
 - **Open shifts stay blind:** listed without any money figure, since an administrator may also be
   the cashier. Totals cover counted shifts (closed or waiting): payments, deposits, refunds, net

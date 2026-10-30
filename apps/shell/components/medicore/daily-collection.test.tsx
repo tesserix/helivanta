@@ -26,8 +26,9 @@ const day = (date: string) => ({
       closed_at: "2026-10-30T11:00:00Z",
       opening_float_minor: 0,
       ...money,
-      voided_count: 1,
+      voided_count: 2,
       voided_minor: 5000,
+      voided_refunds_minor: 50000,
       expected_minor: 420000,
       declared_minor: 419900,
       variance_minor: -100,
@@ -48,6 +49,7 @@ const day = (date: string) => ({
       refunds_minor: null,
       voided_count: null,
       voided_minor: null,
+      voided_refunds_minor: null,
       expected_minor: null,
       declared_minor: null,
       variance_minor: null,
@@ -63,7 +65,9 @@ const day = (date: string) => ({
     counted_shifts: 1,
     open_shifts: 1,
     pending_shifts: 0,
-    voided_receipts: 1,
+    voided_receipts: 2,
+    voided_minor: 5000,
+    voided_refunds_minor: 50000,
   },
 });
 const json = (status: number, body: unknown) =>
@@ -124,7 +128,7 @@ describe("DailyCollectionReport", () => {
     const [, counted, open] = within(table).getAllByRole("row");
     expect(counted).toHaveTextContent("IPD-1");
     expect(counted).toHaveTextContent("INR 5,000.00");
-    expect(counted).toHaveTextContent("1 · INR 50.00");
+    expect(counted).toHaveTextContent("2 · INR 50.00 (refunds INR 500.00)");
     expect(counted).toHaveTextContent("Short INR 1.00");
     expect(counted).toHaveTextContent("Authorised by user-admin: Counted short by one note");
     expect(open).toHaveTextContent("Open, not counted");

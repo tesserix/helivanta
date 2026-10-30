@@ -52,6 +52,7 @@ type collectionShift struct {
 	RefundsMinor        *int64     `json:"refunds_minor"`
 	VoidedCount         *int64     `json:"voided_count"`
 	VoidedMinor         *int64     `json:"voided_minor"`
+	VoidedRefundsMinor  *int64     `json:"voided_refunds_minor"`
 	ExpectedMinor       *int64     `json:"expected_minor"`
 	DeclaredMinor       *int64     `json:"declared_minor"`
 	VarianceMinor       *int64     `json:"variance_minor"`
@@ -72,6 +73,10 @@ type collectionTotals struct {
 	OpenShifts     int   `json:"open_shifts"`
 	PendingShifts  int   `json:"pending_shifts"`
 	VoidedReceipts int64 `json:"voided_receipts"`
+	// Voided takings and voided refunds apart: a voided refund is cash that
+	// never left the drawer, not money taken back from a patient.
+	VoidedMinor        int64 `json:"voided_minor"`
+	VoidedRefundsMinor int64 `json:"voided_refunds_minor"`
 }
 
 type dailyCollection struct {
@@ -104,7 +109,7 @@ func collectionFailure(c *gin.Context, err error) {
 // between days.
 func (h *handlers) collection(c *gin.Context) (dailyCollection, error) {
 	date := c.Param("date")
-	if d, err := time.Parse(time.DateOnly, date); err != nil || d.Format(time.DateOnly) != date {
+	if d, err := time.Parse(time.DateOnly, date); err != nil || d.Format(time.DateOnly) != date || d.Year() < 1 {
 		return dailyCollection{}, errCollectionDate
 	}
 	out := dailyCollection{Date: date, Currency: shiftCurrency, Shifts: []collectionShift{}}
@@ -128,7 +133,8 @@ func (h *handlers) collection(c *gin.Context) (dailyCollection, error) {
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.purpose='deposit'),0) AS deposits_minor,
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.purpose='refund'),0) AS refunds_minor,
  count(r.id) FILTER (WHERE r.voided_at IS NOT NULL) AS voided_count,
- COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL),0) AS voided_minor
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose<>'refund'),0) AS voided_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose='refund'),0) AS voided_refunds_minor
  FROM billing_cash_shifts s
  JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id
  LEFT JOIN billing_cash_receipts r ON r.tenant_id=s.tenant_id AND r.shift_id=s.id
@@ -161,7 +167,7 @@ func (d *dailyCollection) summarise() {
 		switch s.Status {
 		case "open":
 			// Blind until counted: nothing that adds up to the expected cash.
-			s.OpeningFloatMinor, s.PaymentsMinor, s.DepositsMinor, s.RefundsMinor, s.VoidedCount, s.VoidedMinor = nil, nil, nil, nil, nil, nil
+			s.OpeningFloatMinor, s.PaymentsMinor, s.DepositsMinor, s.RefundsMinor, s.VoidedCount, s.VoidedMinor, s.VoidedRefundsMinor = nil, nil, nil, nil, nil, nil, nil
 			t.OpenShifts++
 			d.Final = false
 			continue
@@ -174,6 +180,8 @@ func (d *dailyCollection) summarise() {
 		t.DepositsMinor += *s.DepositsMinor
 		t.RefundsMinor += *s.RefundsMinor
 		t.VoidedReceipts += *s.VoidedCount
+		t.VoidedMinor += *s.VoidedMinor
+		t.VoidedRefundsMinor += *s.VoidedRefundsMinor
 		if v := *s.VarianceMinor; v < 0 {
 			t.ShortageMinor -= v
 		} else {
@@ -221,7 +229,7 @@ func (h *handlers) exportDailyCollection(c *gin.Context) {
 }
 
 var collectionHeader = []string{"date", "timezone", "final", "counter_code", "counter_name", "cashier", "status", "opened_at", "closed_at",
-	"opening_float", "payments", "deposits", "refunds", "net", "voided_receipts", "voided_amount", "expected", "declared", "variance",
+	"opening_float", "payments", "deposits", "refunds", "net", "voided_receipts", "voided_amount", "voided_refunds", "expected", "declared", "variance",
 	"shortage", "excess", "authorised_by", "authorisation_reason"}
 
 func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
@@ -242,7 +250,7 @@ func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 		}
 		row := append(append([]string{}, day...), csvsafe.Text(s.CounterCode), csvsafe.Text(s.CounterName), csvsafe.Text(s.Cashier), s.Status,
 			s.OpenedAt.UTC().Format(time.RFC3339), closed, rupees(s.OpeningFloatMinor), rupees(s.PaymentsMinor), rupees(s.DepositsMinor),
-			rupees(s.RefundsMinor), rupees(net), integer(s.VoidedCount), rupees(s.VoidedMinor), rupees(s.ExpectedMinor), rupees(s.DeclaredMinor),
+			rupees(s.RefundsMinor), rupees(net), integer(s.VoidedCount), rupees(s.VoidedMinor), rupees(s.VoidedRefundsMinor), rupees(s.ExpectedMinor), rupees(s.DeclaredMinor),
 			rupees(s.VarianceMinor), rupees(shortage), rupees(excess), csvsafe.Text(deref(s.AuthorisedBy)), csvsafe.Text(deref(s.AuthorisationReason)))
 		if err := w.Write(row); err != nil {
 			return nil, err
@@ -251,7 +259,7 @@ func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 	// The TOTAL row covers counted shifts only, as the totals do.
 	t := d.Totals
 	total := append(append([]string{}, day...), "TOTAL", "", "", "", "", "", "", rupees(&t.PaymentsMinor), rupees(&t.DepositsMinor),
-		rupees(&t.RefundsMinor), rupees(&t.NetMinor), integer(&t.VoidedReceipts), "", "", "", "", rupees(&t.ShortageMinor), rupees(&t.ExcessMinor), "", "")
+		rupees(&t.RefundsMinor), rupees(&t.NetMinor), integer(&t.VoidedReceipts), rupees(&t.VoidedMinor), rupees(&t.VoidedRefundsMinor), "", "", "", rupees(&t.ShortageMinor), rupees(&t.ExcessMinor), "", "")
 	if err := w.Write(total); err != nil {
 		return nil, err
 	}

@@ -201,7 +201,7 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
           ? "—"
           : shift.voided_count === 0
             ? "None"
-            : `${shift.voided_count} · ${cell(shift.voided_minor)}`}
+            : `${shift.voided_count} · ${cell(shift.voided_minor)}${shift.voided_refunds_minor ? ` (refunds ${cell(shift.voided_refunds_minor)})` : ""}`}
       </td>
       <td className="text-right">{cell(shift.expected_minor)}</td>
       <td className="text-right">{cell(shift.declared_minor)}</td>

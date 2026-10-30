@@ -244,6 +244,8 @@ export type CollectionShift = {
   refunds_minor: number | null;
   voided_count: number | null;
   voided_minor: number | null;
+  /** Refunds voided: cash that never left the drawer, apart from voided takings. */
+  voided_refunds_minor: number | null;
   expected_minor: number | null;
   declared_minor: number | null;
   variance_minor: number | null;
@@ -271,6 +273,8 @@ export type DailyCollection = {
     open_shifts: number;
     pending_shifts: number;
     voided_receipts: number;
+    voided_minor: number;
+    voided_refunds_minor: number;
   };
 };
 

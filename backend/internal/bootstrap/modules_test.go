@@ -25,6 +25,10 @@ func (*fakeUserStateChecker) UserProfile(context.Context, string) (loginclient.U
 	return loginclient.UserProfile{}, nil
 }
 
+func (*fakeUserStateChecker) MembershipEligible(context.Context, string) (bool, error) {
+	return true, nil
+}
+
 func TestModulesReturnsIAMFirst(t *testing.T) {
 	mods := Modules(nil, nil)
 	require.NotEmpty(t, mods)
@@ -106,6 +110,7 @@ func TestNewRegistryGivesIAMTheExactUserStateCheckerPassedIn(t *testing.T) {
 	require.NotNil(t, found, "iam module must be registered")
 	require.Same(t, userState, found.UserStateCheckerForTest(),
 		"bootstrap.NewRegistry must hand the iam module the exact userState checker instance the caller passed in")
+	require.Same(t, userState, found.MembershipIdentityReaderForTest(), "membership eligibility must use the configured identity client")
 	// Same login client for GET /me/profile (#1428): dropped, the account menu 503s for everyone.
 	require.Same(t, userState, found.UserProfileReaderForTest(),
 		"bootstrap.NewRegistry must hand the iam module the same identity provider as its profile reader")

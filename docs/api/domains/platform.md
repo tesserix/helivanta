@@ -133,6 +133,20 @@ breaking change from the production 202 contract described above. The
 identifies consumers, replacement behavior, review and unresolved external
 sunset requirements. No production rollout or sunset date is approved.
 
+### Membership identity eligibility candidate — not deployed
+
+Uncommitted recovery now uses one IAM identity-client GET proving the exact
+subject is an active human with provider-verified email. Machine, inactive,
+deleted and unverified identities are ineligible; ambiguous/mismatched/malformed
+proof and provider failure return unavailable. The reader returns only a boolean.
+The HTTP client consumes one complete response within its 64 KiB bound.
+Committed exact retries return their original receipt after current actor checks
+without re-querying the provider or re-enrolling. Bootstrap wires the same client
+explicitly; an unwired reader fails closed. See the
+[identity eligibility design](../../superpowers/specs/2026-10-30-membership-identity-eligibility.md).
+The generic enrollment POST and full provisioning/contact-verification journey
+remain separate open migration gates.
+
 ### Membership command candidate — local implementation, not deployed
 
 The [removal/recovery design](../../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)

@@ -49,11 +49,11 @@ func (c membershipCommand) input() MembershipCommandInput {
 type membershipCommandHandlers struct {
 	db       *tenantdb.DB
 	bus      *events.Bus
-	identity UserStateChecker
+	identity MembershipIdentityReader
 }
 
 func (m *Module) registerMembershipCommands(g *platform.Router, deps platform.Deps) {
-	h := &membershipCommandHandlers{db: deps.DB, bus: deps.Bus, identity: m.userState}
+	h := &membershipCommandHandlers{db: deps.DB, bus: deps.Bus, identity: m.membershipIdentity}
 	g.PUT("/membership-commands/:id", PermMemberManage, h.put)
 	platform.ListRoute(g, "/membership-commands", PermMemberManage, h.list)
 	platform.ListRoute(g, "/membership-candidates", PermMemberManage, h.candidates)
@@ -209,12 +209,12 @@ func (h *membershipCommandHandlers) put(c *gin.Context) {
 			membershipCommandError(c, errMembershipAuthority)
 			return
 		}
-		state, lookupErr := h.identity.UserState(ctx, in.Subject)
+		eligible, lookupErr := h.identity.MembershipEligible(ctx, in.Subject)
 		if lookupErr != nil {
 			membershipCommandError(c, errMembershipAuthority)
 			return
 		}
-		if !state.IsActive() {
+		if !eligible {
 			respond.Conflict(c, "The account is not currently eligible. Verify it with the identity owner before recovery.")
 			return
 		}

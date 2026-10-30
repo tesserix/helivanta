@@ -50,7 +50,8 @@ type Module struct {
 	// design spec D3). See SetUserStateChecker.
 	userState UserStateChecker
 	// profiles reads the caller's Zitadel profile for GET /me/profile.
-	profiles UserProfileReader
+	profiles           UserProfileReader
+	membershipIdentity MembershipIdentityReader
 }
 
 func New(checker *RevocationChecker) *Module { return &Module{checker: checker} }
@@ -74,6 +75,17 @@ func (m *Module) SetUserStateChecker(u UserStateChecker) *Module {
 func (m *Module) SetUserProfileReader(r UserProfileReader) *Module {
 	m.profiles = r
 	return m
+}
+
+// SetMembershipIdentityReader wires provider eligibility for new membership commands.
+func (m *Module) SetMembershipIdentityReader(r MembershipIdentityReader) *Module {
+	m.membershipIdentity = r
+	return m
+}
+
+// MembershipIdentityReaderForTest exposes bootstrap's eligibility dependency.
+func (m *Module) MembershipIdentityReaderForTest() MembershipIdentityReader {
+	return m.membershipIdentity
 }
 
 func (m *Module) Name() string { return "iam" }

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/uuid"
@@ -146,25 +147,23 @@ func TestMembershipCommandRejectsUntrustedScopeStateAndAuthority(t *testing.T) {
 
 type membershipIdentity struct{}
 
-func (membershipIdentity) UserState(context.Context, string) (loginclient.UserState, error) {
-	return loginclient.UserStateActive, nil
-}
+func (membershipIdentity) MembershipEligible(context.Context, string) (bool, error) { return true, nil }
 
 type controlledMembershipIdentity struct {
 	state       loginclient.UserState
 	unavailable bool
 }
 
-func (p *controlledMembershipIdentity) UserState(context.Context, string) (loginclient.UserState, error) {
+func (p *controlledMembershipIdentity) MembershipEligible(context.Context, string) (bool, error) {
 	if p.unavailable {
-		return 0, errors.New("synthetic identity outage")
+		return false, errors.New("synthetic identity outage")
 	}
-	return p.state, nil
+	return p.state.IsActive(), nil
 }
 
 func TestMembershipCommandRecoveryRequiresActiveIdentityAndReplaysReceiptAfterLaterDisable(t *testing.T) {
 	provider := &controlledMembershipIdentity{state: loginclient.UserStateInactive}
-	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{iam.New(nil).SetUserStateChecker(provider)}})
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(provider)}})
 	target := uuid.New()
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_members(id,tenant_id,subject,role_key) VALUES(?,?,'synthetic-inactive-target','staff_member'),(gen_random_uuid(),?,'user-admin','tenant_admin')`, target, testutil.TenantA, testutil.TenantA).Error
@@ -214,7 +213,7 @@ func TestMembershipCommandRecoveryRequiresActiveIdentityAndReplaysReceiptAfterLa
 
 func TestMembershipCommandRecoveryCreatesFreshOrdinaryMembershipAndOldReceiptCannotRemoveIt(t *testing.T) {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{iam.New(nil).SetUserStateChecker(membershipIdentity{})},
+		Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})},
 	})
 	target := uuid.New()
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
@@ -332,6 +331,83 @@ func TestMembershipCommandOutboxFailureRollsBackMembershipReceiptEpochAndAudit(t
 		require.EqualValues(t, 1, epoch.MemberCount)
 		require.NoError(t, tx.Table("audit_events").Where("resource_id IN ?", []uuid.UUID{target, command}).Count(&count).Error)
 		require.Zero(t, count)
+		return nil
+	}))
+}
+
+func TestMembershipRecoveryRejectsActiveHumanWithoutVerifiedEmail(t *testing.T) {
+	var proof atomic.Value
+	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"unverified@example.invalid","isVerified":false}}}}`)
+	var reads atomic.Int32
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reads.Add(1)
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Equal(t, "/v2/users/synthetic-unverified-target", r.URL.Path)
+		_, _ = w.Write([]byte(proof.Load().(string)))
+	}))
+	t.Cleanup(provider.Close)
+	identity := loginclient.New(provider.URL, "synthetic-provider-token", provider.Client())
+	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"admin": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
+		Modules: []platform.Module{iam.New(nil).SetMembershipIdentityReader(identity)},
+	})
+	target := uuid.New()
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(id,tenant_id,subject,role_key) VALUES(?,?,'synthetic-unverified-target','staff_member'),(gen_random_uuid(),?,'user-admin','tenant_admin')`, target, testutil.TenantA, testutil.TenantA).Error
+	}))
+	removeID := uuid.Must(uuid.NewV7())
+	input := iam.MembershipCommandInput{Operation: "remove", BasisID: target, Subject: "synthetic-unverified-target", RoleKey: "staff_member", ExpectedMembershipEpoch: 1, Reason: "End membership before verified-contact recovery check"}
+	body, err := json.Marshal(input)
+	require.NoError(t, err)
+	removed := membershipCommandRequest(r, http.MethodPut, "/v1/iam/membership-commands/"+removeID.String(), "admin", string(body))
+	require.Equal(t, http.StatusAccepted, removed.Code, removed.Body.String())
+	input.Operation = "recover"
+	input.BasisID = removeID
+	input.ExpectedMembershipEpoch = 2
+	body, err = json.Marshal(input)
+	require.NoError(t, err)
+	path := "/v1/iam/membership-commands/" + uuid.Must(uuid.NewV7()).String()
+	for _, tc := range []struct {
+		name, response string
+		status         int
+	}{
+		{"unverified", proof.Load().(string), http.StatusConflict},
+		{"machine", `{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","machine":{}}}`, http.StatusConflict},
+		{"mismatched_subject", `{"user":{"userId":"different-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":true}}}}`, http.StatusServiceUnavailable},
+		{"ambiguous_verification", `{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":false,"isVerified":true}}}}`, http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proof.Store(tc.response)
+			res := membershipCommandRequest(r, http.MethodPut, path, "admin", string(body))
+			require.Equal(t, tc.status, res.Code, res.Body.String())
+		})
+	}
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("iam_members").Where("subject=?", input.Subject).Count(&count).Error)
+		require.Zero(t, count)
+		require.NoError(t, tx.Table("iam_membership_commands").Count(&count).Error)
+		require.EqualValues(t, 1, count)
+		require.NoError(t, tx.Table("outbox_events").Count(&count).Error)
+		require.EqualValues(t, 1, count)
+		return nil
+	}))
+	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_ACTIVE","human":{"email":{"email":"verified@example.invalid","isVerified":true}}}}`)
+	success := membershipCommandRequest(r, http.MethodPut, path, "admin", string(body))
+	require.Equal(t, http.StatusAccepted, success.Code, success.Body.String())
+	beforeReplay := reads.Load()
+	proof.Store(`{"user":{"userId":"synthetic-unverified-target","state":"USER_STATE_INACTIVE"}}`)
+	replay := membershipCommandRequest(r, http.MethodPut, path, "admin", string(body))
+	require.Equal(t, http.StatusAccepted, replay.Code, replay.Body.String())
+	require.JSONEq(t, success.Body.String(), replay.Body.String())
+	require.Equal(t, beforeReplay, reads.Load(), "a receipt replay must not re-enroll or need another provider observation")
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		require.NoError(t, tx.Table("iam_members").Where("subject=? AND role_key='staff_member'", input.Subject).Count(&count).Error)
+		require.EqualValues(t, 1, count)
+		require.NoError(t, tx.Table("outbox_events").Count(&count).Error)
+		require.EqualValues(t, 2, count, "one removal and one verified recovery, without replay publication")
 		return nil
 	}))
 }

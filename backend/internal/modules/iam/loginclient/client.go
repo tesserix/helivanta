@@ -879,15 +879,19 @@ func (c *Client) UserState(ctx context.Context, id string) (UserState, error) {
 		}
 		return userStateUnset, err
 	}
-	switch wire.User.State {
+	return userState(wire.User.State)
+}
+
+func userState(state string) (UserState, error) {
+	switch state {
 	case "USER_STATE_ACTIVE":
 		return UserStateActive, nil
 	case "USER_STATE_INACTIVE", "USER_STATE_LOCKED", "USER_STATE_SUSPEND", "USER_STATE_DELETED", "USER_STATE_INITIAL":
 		return UserStateInactive, nil
 	case "":
-		return userStateUnset, fmt.Errorf("GET /v2/users/%s: 200 response with no recognizable state field: %w", id, ErrUnavailable)
+		return userStateUnset, fmt.Errorf("identity response with no recognizable state field: %w", ErrUnavailable)
 	default:
-		return userStateUnset, fmt.Errorf("GET /v2/users/%s: unrecognized state %q: %w", id, wire.User.State, ErrUnavailable)
+		return userStateUnset, fmt.Errorf("identity response with unrecognized state: %w", ErrUnavailable)
 	}
 }
 
@@ -1121,8 +1125,12 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any, not
 	if out == nil {
 		return nil
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxSuccessBodyBytes)).Decode(out); err != nil {
-		return fmt.Errorf("loginclient: decode response: %w", err)
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxSuccessBodyBytes+1))
+	if err != nil || len(raw) > maxSuccessBodyBytes {
+		return fmt.Errorf("loginclient: bounded response unavailable: %w", ErrUnavailable)
+	}
+	if err := json.Unmarshal(raw, out); err != nil {
+		return fmt.Errorf("loginclient: decode response: %w", errors.Join(ErrUnavailable, err))
 	}
 	return nil
 }

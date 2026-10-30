@@ -205,6 +205,15 @@ Production needs the exact source/migration approval and provenance manifest.
 Rollback cannot delete evidence or restore old generations; prefer a forward
 correction if a deployed contract or schema must change.
 
+## Current identity eligibility follow-up
+
+The undeployed recovery candidate now requires a matching active human with
+provider-verified email, observed in one GET. See the
+[identity eligibility design](2026-10-30-membership-identity-eligibility.md).
+Active-state-only eligibility is superseded for new recovery commands; committed
+exact replay remains a receipt read, with current actor checks and no new grant.
+This does not migrate the generic POST or deliver account creation/verification.
+
 ## Admin and recipient UI acceptance
 
 1. A current Admin lists exact memberships with roles and IDs, selects one role,

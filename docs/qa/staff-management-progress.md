@@ -227,6 +227,44 @@ The authorization latency SLO and new-workflow browser acceptance remain
 unproven. Existing SQL 0015–0017 remains persisted and unapplied to application
 or production databases; the legacy refusal adds no migration.
 
+The next local [identity eligibility follow-up](../superpowers/specs/2026-10-30-membership-identity-eligibility.md)
+replaces recovery's active-state-only read with one matching active-human and
+verified-email proof. The real PostgreSQL command regression first returned 202
+for an active unverified human where 409 was required, then passed after the gate.
+Provider HTTP tests cover matching, unverified, machine, missing/inactive,
+unknown/ambiguous/malformed evidence, outages, subject mismatch, renamed or
+conflicting fields and bounded complete responses. Restoring the old decoder
+made the second-document and oversized-valid-prefix assertions fail; restoring
+the fix made the full client suite pass. Focused recovery/bootstrap tests pass,
+including receipt replay without another provider read or duplicate outbox event.
+
+Read-only execution of the new reader against the existing local synthetic Admin
+and reviewer returned eligible for both, without displaying private identities
+or credentials. This is client/provider compatibility evidence, not a new user
+verification journey or browser acceptance. The final affected race/coverage run
+passed IAM (81.8%, 317.769 seconds), login client (91.3%), bootstrap (94.1%),
+architecture, API construction (10.6%), Global API (86.7%) and journeys. Vet,
+affected lint (zero issues), API/Global API builds, contractdocs generation/check,
+canonical staff-access check, formatting/diff and staged secret scan also passed.
+No schema, route, event or permission is added by this follow-up. No web code
+changed; normal-role browser and deployed acceptance remain pending.
+
+The identity follow-up's final test command (from `backend/`, using the same
+isolated Docker environment shown above) was:
+
+```sh
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=15m -p=2 -parallel=4 \
+  ./internal/modules/iam/... ./internal/bootstrap/... ./internal/archtest/... \
+  ./cmd/api/... ./internal/globalapi/... ./internal/journey/...
+```
+
+Its affected vet/lint scopes were `./internal/modules/iam/...`,
+`./internal/bootstrap/...` and `./cmd/api/...`; build, contractdocs and canonical
+check commands were unchanged. Local runtime discovery confirmed Zitadel
+`v4.15.3` through its running image and version command, without changing Docker
+context or credentials. Production provider version and provisioning capability
+remain unverified.
+
 The [A01 provisioning audit](staff-identity-provisioning-audit.md) records source
 and versioned primary provider evidence. The current login client exposes active-state and
 presentation-profile reads, without a provisioning/contact-verification workflow.

@@ -50,7 +50,10 @@ removal or recovery journey.
 
 Existing member-list readers and enrollment POST consumers remain distinct and
 supported in this candidate. POST's unrestricted role and historical reenrollment
-behavior require their own coordinated correction and identity-owner workflow.
+behavior require coordinated correction and an identity-owner workflow. The
+[0019 admission candidate](2026-10-31-membership-recovery-admission.md) now refuses
+implicit restoration after retained final removal; first enrollment, privilege
+expansion and external migration remain open.
 This migration does not settle that gap or generation-bound employment eligibility.
 
 ## Review and sunset gate

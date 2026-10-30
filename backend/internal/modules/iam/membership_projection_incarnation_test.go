@@ -2,6 +2,8 @@ package iam_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,12 +17,11 @@ import (
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
-	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestReenrolledMembershipRequiresItsOwnGraphProjection(t *testing.T) {
-	module := iam.New(nil)
-	_, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{module}})
+	module := iam.New(nil).SetMembershipIdentityReader(membershipIdentity{})
+	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {iam.PermMemberManage}}, Modules: []platform.Module{module}})
 	graph, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	registry := platform.NewRegistry()
@@ -30,7 +31,7 @@ func TestReenrolledMembershipRequiresItsOwnGraphProjection(t *testing.T) {
 	original := uuid.New()
 	const subject = "synthetic-incarnation-projection-target"
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO iam_members(id,tenant_id,subject,role_key) VALUES(?,?,?,'staff_member')`, original, testutil.TenantA, subject).Error
+		return tx.Exec(`INSERT INTO iam_members(id,tenant_id,subject,role_key) VALUES(?,?,?,'staff_member'),(gen_random_uuid(),?,'user-admin','tenant_admin')`, original, testutil.TenantA, subject, testutil.TenantA).Error
 	}))
 	data, err := json.Marshal(iamcontract.MemberChangedData{Subject: subject, RoleKey: string(authz.RoleStaffMember)})
 	require.NoError(t, err)
@@ -50,13 +51,15 @@ func TestReenrolledMembershipRequiresItsOwnGraphProjection(t *testing.T) {
 	member, err := authority.IsMember(ctx, subject, testutil.TenantA)
 	require.NoError(t, err)
 	require.True(t, member)
-	replacement := uuid.New()
-	require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, "synthetic-setup-owner"), testutil.TenantA, func(tx *gorm.DB) error {
-		if err := tx.Exec(`DELETE FROM iam_members WHERE tenant_id=? AND id=?`, testutil.TenantA, original).Error; err != nil {
-			return err
-		}
-		return tx.Exec(`INSERT INTO iam_members(id,tenant_id,subject,role_key) VALUES(?,?,?,'staff_member')`, replacement, testutil.TenantA, subject).Error
-	}))
+	removalID := uuid.Must(uuid.NewV7())
+	removed := membershipCommandRequest(r, http.MethodPut, "/v1/iam/membership-commands/"+removalID.String(), "admin", fmt.Sprintf(`{"operation":"remove","basis_id":%q,"subject":%q,"role_key":"staff_member","expected_membership_epoch":1,"reason":"Remove original incarnation before projection recovery"}`, original, subject))
+	require.Equal(t, http.StatusAccepted, removed.Code, removed.Body.String())
+	recovered := membershipCommandRequest(r, http.MethodPut, "/v1/iam/membership-commands/"+uuid.Must(uuid.NewV7()).String(), "admin", fmt.Sprintf(`{"operation":"recover","basis_id":%q,"subject":%q,"role_key":"staff_member","expected_membership_epoch":2,"reason":"Recover an ordinary incarnation with fresh identity proof"}`, removalID, subject))
+	require.Equal(t, http.StatusAccepted, recovered.Code, recovered.Body.String())
+	var receipt iam.MembershipCommand
+	require.NoError(t, json.Unmarshal(recovered.Body.Bytes(), &receipt))
+	replacement := receipt.ResultMembershipID
+
 	require.NotEqual(t, original, replacement)
 	member, err = authority.IsMember(ctx, subject, testutil.TenantA)
 	require.NoError(t, err)

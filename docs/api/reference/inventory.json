@@ -424,6 +424,11 @@
           "creates_tables": [
             "iam_membership_enrollments"
           ]
+        },
+        {
+          "id": "0019_iam_membership_recovery_admission",
+          "sql_sha256": "e4859d0e2686cf59604189259dfb90ba0fd854f76b8dae2375978162fad2c242",
+          "creates_tables": []
         }
       ]
     },

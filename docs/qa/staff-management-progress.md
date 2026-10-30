@@ -1,5 +1,59 @@
 # Staff Management delivery tracker
 
+## Access/RBAC checkpoint — 2026-10-31: ended-membership admission
+
+The current legacy POST regression reproduced implicit restoration after final
+membership removal: expected 409, actual 202. Candidate migration
+`0019_iam_membership_recovery_admission` now rejects zero-to-positive continuity
+without explicit command/removal-basis context, using the already serialized
+continuity row. The handler maps only the named integrity violation to no-store
+`409 membership_recovery_required`. SQL is persisted beside its embedded module
+migration and recorded in the generated contract inventory; no live migration
+has been run.
+
+Real PostgreSQL/NATS HTTP checks pass for ordinary/clinical/admin-role legacy
+restoration refusal, unchanged epoch/membership/audit/outbox, legitimate explicit
+recovery, duplicate repair retaining the recovered ID, direct runtime-role
+inserts with absent/partial contexts, forged non-admin context refusal, tenant
+isolation and an observed final-removal lock wait followed by refusal. These
+are synthetic API/database checks, not normal browser authentication evidence.
+
+Validation checkpoint: full build, full vet, full Go lint (0 issues), contract
+generation/check, contractdocs tests and focused IAM membership journey passed.
+The complete architecture suite and IAM loginclient/contract race suites also
+passed. Full IAM runs exposed historical raw/legacy POST reenrollment in two
+projection fixtures plus the obsolete migration count; both positive fixtures
+now use public removal/recovery commands while preserving stale-projection,
+pending-approval and generation assertions. Targeted leave/identity/projection
+race checks pass. The final full IAM race/coverage run passed in 300.193 seconds
+with 82.0% statement coverage, 288 passing test/subtest events, zero failures
+and eight pre-existing conditional skips. Eight real-Zitadel integration tests skip
+without their separate dev credential environment; this is unrun acceptance,
+not a passing real-provider journey. No new skips were introduced. One full
+architecture invocation omitted the required Docker socket environment and
+failed fixture startup; its corrected full rerun passed without test changes.
+
+
+Commands run from `backend/` with the established disposable Colima socket for
+container-backed suites:
+
+- RED: `go test ./internal/modules/iam -run TestLegacyMembershipGrantCannotReopenEndedMembership -count=1` (202 instead of 409).
+- Final: `go test -json -race -cover ./internal/modules/iam -count=1` (passed; conditional skips above).
+- `go test -race ./internal/modules/iam/loginclient ./internal/modules/iam/contract -count=1` (passed).
+- `go test ./internal/archtest -count=1` (passed).
+- `go test ./internal/journey -run TestIAMGrantMembership -count=1` (passed, in the combined focused architecture/journey invocation).
+- `go test ./cmd/contractdocs -count=1`, `go run ./cmd/contractdocs`, `go run ./cmd/contractdocs -check` (passed).
+- `go vet ./...`, `go build ./...`, `golangci-lint run ./...` (passed; scoped lint rerun after fixture changes also passed).
+- `gofmt -l internal/modules/iam`, `node ../scripts/generate-staff-access.mjs --check`, `git diff --check` and staged redacted Gitleaks scan (passed).
+
+Full A01–A12 remains open: first legacy enrollment/privilege expansion and
+external migration, provisioning/recovery browser acceptance, employment
+suspension/resumption, resignation/termination/contract expiry/rehire and
+cross-module cutoff. Counts remain 10 partial, 10 audit pending, 1 research,
+0 fully accepted. Console CI 41132417027 was rechecked: GitHub's annotation still
+says jobs did not start because payments/spending limits need owner attention.
+No merge, production migration, rollout, release tag or issue closure occurred.
+
 ## Access/RBAC checkpoint — 2026-10-31: operator recovery UI candidate
 
 Console [draft PR #669](https://github.com/tesserix/tesserix-home/pull/669)

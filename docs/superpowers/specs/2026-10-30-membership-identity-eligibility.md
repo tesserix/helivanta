@@ -70,7 +70,11 @@ The stronger eligibility gate changes only an undeployed candidate. Production
 rollout still requires exact source/migration approval and normal Admin/reviewer/
 recipient acceptance. Keep source history and receipts on rollback; do not undo
 verification policy by resurrecting old authority. The legacy generic enrollment
-POST still bypasses this workflow and must be migrated before A02/A11 acceptance.
+POST still permits first enrollment and privilege expansion outside this workflow
+and must be migrated before A02/A11 acceptance. The
+[0019 admission candidate](2026-10-31-membership-recovery-admission.md) now blocks
+implicit restoration of retained ended membership; it does not close those other
+legacy paths.
 
 Test the actual recovery HTTP command against a provider response reporting an
 active but unverified human, proving refusal without membership/epoch/outbox

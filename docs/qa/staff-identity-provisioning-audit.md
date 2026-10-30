@@ -1,5 +1,17 @@
 # Staff identity provisioning audit
 
+## Access/RBAC checkpoint — 2026-10-31: ended-membership admission
+
+Candidate IAM migration `0019_iam_membership_recovery_admission` blocks legacy
+restoration after retained final removal. Explicit recovery and duplicate repair
+remain supported; raw/legacy projection fixtures now exercise public recovery
+without weakening stale-authority assertions. See the
+[current evidence and outstanding gates](staff-management-progress.md#accessrbac-checkpoint--2026-10-31-ended-membership-admission)
+for the reproduced RED, validation results and real-provider/UI limitations.
+This remains an undeployed A02/A11 correction. Full A01–A12 and all 21 Staff
+area acceptance gates remain open; no production migration or rollout occurred.
+
+
 ## Access/RBAC checkpoint — 2026-10-31: operator recovery UI candidate
 
 Console [draft PR #669](https://github.com/tesserix/tesserix-home/pull/669)

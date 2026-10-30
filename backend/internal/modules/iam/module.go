@@ -6,6 +6,7 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -287,7 +289,7 @@ ALTER TABLE login_attempt
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
 	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}, {ID: "0015_iam_membership_commands", SQL: membershipCommandsSchema}, {
 		ID: "0016_iam_membership_candidate_index", ConcurrentIndexes: []tenantdb.ConcurrentIndex{{Name: "iam_members_candidate_history", Table: "iam_members", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}}},
-	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}}
+	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}}
 }
 
 type role struct {
@@ -391,6 +393,12 @@ func (h *memberHandlers) grant(c *gin.Context) {
 		})
 	})
 	if err != nil {
+		var pg *pgconn.PgError
+		if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "iam_membership_recovery_required" {
+			c.Header("Cache-Control", "no-store")
+			respond.Error(c, http.StatusConflict, "membership_recovery_required", "Use an explicit membership recovery command with the retained removal receipt.")
+			return
+		}
 		respond.InternalErr(c, err, "could not grant role")
 		return
 	}

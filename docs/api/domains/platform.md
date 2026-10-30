@@ -133,6 +133,25 @@ breaking change from the production 202 contract described above. The
 identifies consumers, replacement behavior, review and unresolved external
 sunset requirements. No production rollout or sunset date is approved.
 
+### Ended-membership recovery admission candidate — not deployed
+
+Migration `0019_iam_membership_recovery_admission` guards the existing IAM
+continuity row: a zero-to-positive member count requires explicit recovery
+command and removal-basis transaction context. Existing command triggers still
+validate attributable current administration, retained same-subject removal,
+ordinary membership and immutable receipts. The guard serializes on the existing
+row; it does not rely on an earlier application lookup.
+
+Legacy `POST /v1/iam/members` now returns `409 membership_recovery_required` with
+`Cache-Control: no-store` when that tenant/subject has ended membership. Refused
+writes leave membership, epochs, audits and outbox unchanged. Existing current-row
+retries still return the same ID and publish repair intent. Explicit recovery
+uses `PUT /v1/iam/membership-commands/:id` with the retained removal receipt.
+This is a tightened legacy contract requiring coordinated consumer/security
+review and exact production approval. First legacy enrollment, privileged role
+expansion and pre-continuity history remain unresolved. See the
+[admission design](../../superpowers/specs/2026-10-31-membership-recovery-admission.md).
+
 ### First enrollment candidate — not deployed
 
 `PUT /v1/iam/membership-enrollments/:id` is an additive ordinary-membership
@@ -246,9 +265,9 @@ Migration `0017_iam_membership_projection_reader` grants only startup SELECT of
 IAM epoch metadata to the existing system role; ordinary reads retain tenant RLS.
 The delayed-grant and borrowed-old-incarnation assertions now pass in local real
 provider tests, as does preserving a replacement during delayed old revocation.
-The raw DELETE replay defect remains an explicit release/acceptance gap;
-the new commands do not make old callers safe. The legacy DELETE contract is not
-silently changed by this additive candidate. Canonical Go/Zod models are in
+The local raw DELETE refusal and ended-membership POST guard tighten the legacy
+contracts explicitly; coordinated external migration and release acceptance remain
+open. The production baseline retains the old behavior until that reviewed rollout. Canonical Go/Zod models are in
 `contracts/staff-access.json`; no copied frontend wire model is authoritative.
 
 ### Assignment proposals and independent decisions
@@ -399,7 +418,9 @@ bindings require withdrawal and fresh review; no legacy grant is converted.
 The worktree adds `staff_member` to the IAM system-role catalogue, labelled
 "Staff member (membership only)". Existing `POST /v1/iam/members` and
 `DELETE /v1/iam/members/:subject/:role` retain their `iam.member.manage`
-requirement and asynchronous 202 behavior. The role grants tenant membership
+requirement. Production has asynchronous 202 behavior; the local migration
+candidates above explicitly refuse unsafe legacy removal and ended-membership
+restoration. The role grants tenant membership
 and no declared business permissions. It does not create a workforce link,
 hospital grant, scoped assignment or clinical privilege. Existing member events
 retain their payload shape; `role_key` can now carry this additional value.

@@ -124,7 +124,7 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 		Perms: map[string][]authz.Permission{
 			"admin":    {iam.PermMemberManage, assignmentHospitalManage, iam.PermAssignmentManage, permission},
 			"reviewer": {iam.PermAssignmentReview},
-		}, Modules: []platform.Module{scopedProbeIAM{Module: iam.New(nil), permission: permission}, assignmentWorkforceModule()},
+		}, Modules: []platform.Module{scopedProbeIAM{Module: iam.New(nil).SetMembershipIdentityReader(membershipIdentity{}), permission: permission}, assignmentWorkforceModule()},
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, routeGraph) },
 	})
 	upstream := httptest.NewServer(r)
@@ -451,7 +451,11 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	require.Equal(t, 202, removalReplay.Code, removalReplay.Body.String())
 	require.JSONEq(t, removedDoctor.Body.String(), removalReplay.Body.String())
 	assertMembership(2, 0)
-	call("POST", "/v1/iam/members", "admin", `{"subject":"user-target","role_key":"staff_member"}`, 202)
+	var removalReceipt iam.MembershipCommand
+	require.NoError(t, json.Unmarshal(removedDoctor.Body.Bytes(), &removalReceipt))
+	recoveryBody := fmt.Sprintf(`{"operation":"recover","basis_id":%q,"subject":"user-target","role_key":"staff_member","expected_membership_epoch":2,"reason":"Explicit recovery after final-role removal"}`, removalReceipt.ID)
+	recoveredMembership := membershipCommandRequest(gateway, http.MethodPut, "/v1/iam/membership-commands/"+uuid.Must(uuid.NewV7()).String(), "admin", recoveryBody)
+	require.Equal(t, http.StatusAccepted, recoveredMembership.Code, recoveredMembership.Body.String())
 	assertMembership(2, 1)
 	grant, err = authority.AuthorizeScope(t.Context(), request)
 	require.NoError(t, err)

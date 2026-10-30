@@ -385,10 +385,17 @@ func (h *handlers) authoriseShift(c *gin.Context) {
 }
 
 // shifts lists the hospital's shifts, newest first, for the supervisor.
+// ?status=pending_authorisation lists only the variances waiting, so none is
+// hidden behind a page of closed shifts.
 func (h *handlers) shifts(c *gin.Context, params pagination.Params) ([]shift, error) {
+	status := c.Query("status")
+	if status != "" && status != "open" && status != "pending_authorisation" && status != "closed" {
+		respond.BadRequest(c, errors.New("status is open, pending_authorisation or closed"))
+		return nil, nil
+	}
 	var rows []shift
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
-		q := tx.Table("(?) AS shifts", tx.Raw(shiftSelect+` WHERE s.tenant_id=? AND s.hospital_id=?`, p.TenantID, hospital))
+		q := tx.Table("(?) AS shifts", tx.Raw(shiftSelect+` WHERE s.tenant_id=? AND s.hospital_id=? AND (?='' OR s.status=?)`, p.TenantID, hospital, status, status))
 		return tenantdb.ApplyOrderedKeyset(q, params, tenantdb.Keyset{Column: "opened_at", Direction: pagination.NewestFirst}).Find(&rows).Error
 	})
 	if err != nil {

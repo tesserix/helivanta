@@ -159,7 +159,9 @@ function CloseShift({ hospital, shift }: { hospital: Hospital; shift: CashShift 
         method: "PUT",
         body: JSON.stringify({ declared_minor }),
       }),
-    { successToast: "Shift closed", invalidate: [["billing", "my-shift", hospital.id]] },
+    // True either way: a count that differs is recorded but waits for a
+    // supervisor, which the panel then says.
+    { successToast: "Count recorded", invalidate: [["billing", "my-shift", hospital.id]] },
   );
   // Blind: the cashier counts the drawer without being told what to expect.
   return (
@@ -188,12 +190,12 @@ function CloseShift({ hospital, shift }: { hospital: Hospital; shift: CashShift 
 
 function Variances({ hospital }: { hospital: Hospital }) {
   const shifts = useApiPagedQuery<CashShift>(
-    ["billing", "shifts", hospital.id],
-    `/billing/hospitals/${hospital.id}/cash-shifts`,
+    ["billing", "shifts", hospital.id, "pending"],
+    `/billing/hospitals/${hospital.id}/cash-shifts?status=pending_authorisation`,
   );
   if (shifts.isError)
     return <RequestFailure message="Could not load the shifts." retry={shifts.retry} />;
-  const pending = shifts.items.filter((s) => s.status === "pending_authorisation");
+  const pending = shifts.items;
   return (
     <div>
       <h4 className="text-sm font-medium">Variances to authorise</h4>
@@ -272,7 +274,8 @@ function Variance({ hospital, shift }: { hospital: Hospital; shift: CashShift })
 }
 
 function Counters({ hospital }: { hospital: Hospital }) {
-  const counterId = useMemo(() => newBedId(), []);
+  // A new id for each counter added: a retry repeats the same one.
+  const [counterId, setCounterId] = useState(() => newBedId());
   const counters = useApiPagedQuery<CashCounter>(
     ["billing", "counters", hospital.id],
     `/billing/hospitals/${hospital.id}/counters`,
@@ -287,7 +290,10 @@ function Counters({ hospital }: { hospital: Hospital }) {
     {
       successToast: "Counter added",
       invalidate: [["billing", "counters", hospital.id]],
-      onSuccess: () => form.reset({ code: "", name: "" }),
+      onSuccess: () => {
+        form.reset({ code: "", name: "" });
+        setCounterId(newBedId());
+      },
     },
   );
   return (

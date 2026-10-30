@@ -139,7 +139,8 @@ CREATE TRIGGER billing_shift_guard BEFORE INSERT OR UPDATE ON billing_cash_shift
 
 -- A receipt is taken in its cashier's own open shift, numbered next on the
 -- counter, and never for more than the account's balance due in its currency.
--- The shift row is share-locked so a close waits for it; the admission lock
+-- The shift row is share-locked so a close waits for it (the foreign key's
+-- own key-share lock does too); the admission lock
 -- is the one every charge and bill takes, so two receipts are one after the
 -- other against the same balance.
 CREATE FUNCTION billing_receipt_guard() RETURNS trigger LANGUAGE plpgsql AS $$

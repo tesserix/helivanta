@@ -56,7 +56,8 @@ function server(opts: { permissions: string[]; mine?: unknown; shifts?: unknown[
       return opts.mine
         ? json(200, opts.mine)
         : json(404, { error: "no_open_shift", message: "none" });
-    if (url.includes("/cash-shifts")) return page(opts.shifts ?? []);
+    if (url.includes("/cash-shifts?status=pending_authorisation")) return page(opts.shifts ?? []);
+    if (url.includes("/cash-shifts")) return page([]);
     if (url.includes("/counters")) return page([counter]);
     if (url.includes("/receipts")) return page([]);
     return page([]);
@@ -111,6 +112,20 @@ describe("CashDesk", () => {
     await user.click(screen.getByRole("button", { name: "Authorise" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(`/cash-shifts/${pending.id}/authorisation`);
+  });
+
+  it("adds one counter after another, each under its own id", async () => {
+    const fetcher = server({ permissions: ["billing.account.read", "billing.counter.manage"] });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    for (const code of ["IPD-2", "IPD-3"]) {
+      await user.type(await screen.findByLabelText("Code"), code);
+      await user.type(screen.getByLabelText("Name"), `Desk ${code}`);
+      await user.click(screen.getByRole("button", { name: "Add counter" }));
+      await waitFor(() => expect(screen.getByLabelText("Code")).toHaveValue(""));
+    }
+    const ids = puts(fetcher).map(([url]) => url.split("/").pop());
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).not.toEqual(ids[1]);
   });
 
   it("tells the cashier their short count waits for a supervisor", async () => {

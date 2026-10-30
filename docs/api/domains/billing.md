@@ -177,3 +177,5 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 
 - **Not covered:** UPI, card and other modes; handover; denominations; pickups; refunds; shift
   and daily collection reports and GL export; events; receipts on bills; deposits (#199).
+  A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
+  it keeps the counter until the grant is restored and the shift closed.

@@ -135,6 +135,11 @@ func TestCashIsTakenInAShiftAndTheShiftClosesBlind(t *testing.T) {
 	res = do(w.r, "GET", w.root+"/cash-shifts/mine", "clerk", "")
 	require.Contains(t, res.Body.String(), `"variance_minor":-100`, "once closed, the cashier sees the variance")
 
+	res = do(w.r, "GET", w.root+"/cash-shifts?status=pending_authorisation", "admin", "")
+	require.Contains(t, res.Body.String(), shiftID, "a waiting variance is found by its status")
+	res = do(w.r, "GET", w.root+"/cash-shifts?status=closed", "admin", "")
+	require.NotContains(t, res.Body.String(), shiftID)
+	require.Equal(t, http.StatusBadRequest, do(w.r, "GET", w.root+"/cash-shifts?status=lost", "admin", "").Code)
 	status, body = w.put("clerk2", "/cash-shifts/"+shiftID+"/authorisation", `{"reason":"Counted short by one note"}`)
 	require.Equal(t, http.StatusOK, status, body)
 	require.Contains(t, body, `"status":"closed"`)
@@ -302,4 +307,94 @@ func TestAReceiptBeingWrittenHoldsTheBalance(t *testing.T) {
 	close(release)
 	require.NoError(t, <-done)
 	require.Contains(t, <-answer, "over_balance")
+}
+
+// A close waits for a receipt still being written and counts it; a void
+// that arrives while a close holds the shift is refused once it has closed.
+func TestACloseCountsAReceiptStillBeingWrittenAndRefusesALateVoid(t *testing.T) {
+	w := newBedWorld(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	w.charge(admission, patient, 5000)
+	counter, shiftID := w.counterWithShift(t, "clerk", "IPD-8", 1000)
+	status, body := w.pay("clerk", admission, 700)
+	require.Equal(t, http.StatusCreated, status, body)
+	var first struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &first))
+
+	written, release, done := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		done <- w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,amount_minor,currency) VALUES (?,?,?,?,?,2,'user-clerk',?,300,'INR')`,
+				testutil.TenantA, w.hospital, v7(), shiftID, counter, admission).Error; err != nil {
+				return err
+			}
+			close(written)
+			<-release
+			return nil
+		})
+	}()
+	<-written
+	closed := make(chan string, 1)
+	go func() {
+		_, body := w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":2000}`)
+		closed <- body
+	}()
+	select {
+	case body := <-closed:
+		t.Fatalf("the close did not wait for the receipt being written: %s", body)
+	case <-time.After(300 * time.Millisecond):
+	}
+	close(release)
+	require.NoError(t, <-done)
+	body = <-closed
+	require.Contains(t, body, `"expected_minor":2000`, "float 1000 + 700 + the receipt written meanwhile")
+	require.Contains(t, body, `"status":"closed"`)
+
+	status, body = w.put("clerk", "/receipts/"+first.ID+"/voids/"+v7(), `{"reason":"Too late"}`)
+	require.Equal(t, http.StatusConflict, status)
+	require.Contains(t, body, "shift_closed")
+}
+
+func TestAVoidWaitingOnACloseIsRefused(t *testing.T) {
+	w := newBedWorld(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	w.charge(admission, patient, 5000)
+	_, shiftID := w.counterWithShift(t, "clerk", "IPD-10", 0)
+	status, body := w.pay("clerk", admission, 700)
+	require.Equal(t, http.StatusCreated, status, body)
+	var r struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &r))
+
+	locked, release, done := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		// A close in progress: the shift is held while its expected cash is taken.
+		done <- w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`SELECT 1 FROM billing_cash_shifts WHERE id=? FOR UPDATE`, shiftID).Error; err != nil {
+				return err
+			}
+			close(locked)
+			<-release
+			return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=700,declared_minor=700,closed_at=clock_timestamp() WHERE id=?`, shiftID).Error
+		})
+	}()
+	<-locked
+	voided := make(chan string, 1)
+	go func() {
+		_, body := w.put("clerk", "/receipts/"+r.ID+"/voids/"+v7(), `{"reason":"Wrong patient"}`)
+		voided <- body
+	}()
+	time.Sleep(300 * time.Millisecond)
+	close(release)
+	require.NoError(t, <-done)
+	require.Contains(t, <-voided, "shift_closed", "the void waited for the close and found the shift closed")
 }

@@ -3815,7 +3815,7 @@
         },
         {
           "id": "0005_billing",
-          "sql_sha256": "81215ae7d798285ce7b2c67eb98fc211a37d9ecb5a9bc62a3000db85983efd4a",
+          "sql_sha256": "f928d36d6a6cd2a20c1b1aab27af90fbd64e7f880022bf554469f36029c55e4c",
           "creates_tables": [
             "billing_counters",
             "billing_cash_shifts",

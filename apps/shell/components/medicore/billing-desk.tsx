@@ -140,7 +140,7 @@ function Account({ hospital, account }: { hospital: Hospital; account: DeskAccou
     <li className="py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-medium">
+          <p className="font-medium" id={`desk-patient-${account.admission_id}`}>
             <PatientName hospital={hospital} id={account.patient_id} />
           </p>
           <p className="text-sm text-muted-foreground">
@@ -153,7 +153,13 @@ function Account({ hospital, account }: { hospital: Hospital; account: DeskAccou
             {account.refundable_minor > 0 && ` · to refund ${money(account.refundable_minor)}`}
           </p>
         </div>
-        <Button variant="outline" size="sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-expanded={open}
+          aria-describedby={`desk-patient-${account.admission_id}`}
+          onClick={() => setOpen(!open)}
+        >
           {open ? "Close" : "Open"}
         </Button>
       </div>

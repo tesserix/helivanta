@@ -37,14 +37,16 @@ type deskAccount struct {
 
 func (a deskAccount) PageKey() (time.Time, uuid.UUID) { return a.CreatedAt, a.ID }
 
-// deskViews narrow the list to who the desk needs to see.
+// deskViews narrow the list to who the desk needs to see; each matches one
+// partial index on the positions (positions.sql). Fixed strings: no caller
+// text reaches the query.
 var deskViews = map[string]string{
 	"":                  "true",
-	"open":              "status='open' AND NOT discharge_ordered",
-	"discharge_ordered": "status='open' AND discharge_ordered",
-	"to_collect":        "balance_minor > 0",
-	"to_refund":         "refundable_minor > 0",
-	"released":          "status='closed'",
+	"open":              "p.status='open' AND NOT p.discharge_ordered",
+	"discharge_ordered": "p.status='open' AND p.discharge_ordered",
+	"to_collect":        "p.balance_minor > 0",
+	"to_refund":         "p.refundable_minor > 0",
+	"released":          "p.status='closed'",
 }
 
 var errUnknownView = errors.New("view is one of open, discharge_ordered, to_collect, to_refund, released")
@@ -57,16 +59,12 @@ func (h *handlers) deskAccounts(c *gin.Context, params pagination.Params) ([]des
 	}
 	var rows []deskAccount
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
-		// Each figure is the same function the money rules use, so the desk
-		// never shows a balance the counter would compute differently.
-		q := tx.Table(`(SELECT a.admission_id AS id,a.hospital_id,a.patient_id,a.status,a.opened_at,a.closed_at,a.created_at,
- billing_discharge_ordered(a.tenant_id,a.admission_id) AS discharge_ordered,
- billing_owed(a.tenant_id,a.admission_id,'INR') - billing_received(a.tenant_id,a.admission_id,'INR','payment') - billing_applied(a.tenant_id,a.admission_id,'INR') AS balance_minor,
- billing_held(a.tenant_id,a.admission_id,'INR') AS held_minor,
- CASE WHEN EXISTS (SELECT 1 FROM billing_interim_bills b WHERE b.tenant_id=a.tenant_id AND b.admission_id=a.admission_id AND b.kind='final')
-  THEN GREATEST(billing_refundable(a.tenant_id,a.admission_id,'INR'),0) ELSE 0 END AS refundable_minor,
- EXISTS (SELECT 1 FROM billing_interim_bills b WHERE b.tenant_id=a.tenant_id AND b.admission_id=a.admission_id AND b.kind='final') AS has_final_bill
- FROM billing_admission_accounts a WHERE a.tenant_id=? AND a.hospital_id=?) AS accounts`, p.TenantID, hospital).Where(where)
+		// The stored position, kept current by every write that changes it
+		// (positions.sql), read through the view's partial index.
+		q := tx.Table(`(SELECT p.admission_id AS id,p.hospital_id,a.patient_id,p.status,p.discharge_ordered,a.opened_at,a.closed_at,p.account_created_at AS created_at,
+ p.balance_minor,p.deposit_held_minor AS held_minor,p.refundable_minor,p.has_final_bill
+ FROM billing_account_positions p JOIN billing_admission_accounts a ON a.tenant_id=p.tenant_id AND a.admission_id=p.admission_id
+ WHERE p.tenant_id=? AND p.hospital_id=? AND `+where+`) AS accounts`, p.TenantID, hospital)
 		return tenantdb.ApplyOrderedKeyset(q, params, tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).Find(&rows).Error
 	})
 	if err != nil {

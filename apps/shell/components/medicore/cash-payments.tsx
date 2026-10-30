@@ -143,7 +143,11 @@ function TakeCash({
       ),
     {
       successToast: purpose === "deposit" ? "Deposit received" : "Cash received",
-      invalidate: [receiptsKey, ["billing", "account", hospital.id, admissionId]],
+      invalidate: [
+        receiptsKey,
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
       invalidateOnError: true,
       onSuccess: () => setReceiptId(newBedId()),
     },
@@ -206,7 +210,11 @@ function Receipt({
       }),
     {
       successToast: "Receipt voided",
-      invalidate: [receiptsKey, ["billing", "account", hospital.id, receipt.admission_id]],
+      invalidate: [
+        receiptsKey,
+        ["billing", "account", hospital.id, receipt.admission_id],
+        ["billing", "desk", hospital.id],
+      ],
     },
   );
   const label = `${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
@@ -273,7 +281,10 @@ function ApplyDeposits({ hospital, admissionId }: { hospital: Hospital; admissio
       ),
     {
       successToast: "Deposits applied",
-      invalidate: [["billing", "account", hospital.id, admissionId]],
+      invalidate: [
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
       invalidateOnError: true,
       onSuccess: () => setId(newBedId()),
     },

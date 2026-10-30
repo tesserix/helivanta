@@ -74,6 +74,14 @@ describe("BillingDesk", () => {
     );
   });
 
+  it("names each row's Open button by its patient", async () => {
+    server();
+    const { user } = renderWithProviders(<BillingDesk hospital={hospital} />);
+    await chooseOption(user, await screen.findByLabelText("Show"), "To refund");
+    await screen.findByText(/Asha Rao/);
+    expect(screen.getByRole("button", { name: "Open" })).toHaveAccessibleDescription(/Asha Rao/);
+  });
+
   it("says so without a billing grant, and lists nothing", async () => {
     const fetcher = server({ granted: false });
     renderWithProviders(<BillingDesk hospital={hospital} />);

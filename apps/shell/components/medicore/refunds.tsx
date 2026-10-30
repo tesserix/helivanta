@@ -227,6 +227,8 @@ function PayRefund({
       invalidate: [
         receiptsKey,
         ["billing", "account", hospital.id, admissionId],
+        // The billing desk's lists move with the account.
+        ["billing", "desk", hospital.id],
         ["billing", "refund-approvals", hospital.id, admissionId],
       ],
       invalidateOnError: true,

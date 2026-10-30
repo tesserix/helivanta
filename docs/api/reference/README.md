@@ -598,6 +598,7 @@ Migration table declarations:
 - `0005_billing`: `billing_counters`, `billing_cash_shifts`, `billing_cash_receipts`.
 - `0006_billing`: `billing_deposit_applications`.
 - `0007_billing`: `billing_refund_policies`, `billing_refund_approvals`.
+- `0008_billing`: `billing_account_positions`.
 
 ## supply
 

@@ -12,11 +12,21 @@ from the UI.
   balance due (below zero is credit), deposits held, and what can be refunded now (the surplus
   over the bill, once a final bill exists). Views: `to_collect`, `to_refund`,
   `discharge_ordered`, `open` (in the ward), `released`, or all. Needs `billing.account.read`
-  and the hospital's billing grant; every figure comes from the same database functions the
-  money rules use.
+  and the hospital's billing grant. Figures are INR, as every bill and receipt is.
+- **Stored positions.** Each account's INR position (status, discharge ordered, balance due,
+  deposits held, refundable, final bill) is kept in `billing_account_positions`, recomputed
+  from the records by the database on every write that changes it (entries, receipts,
+  applications, bills, discharge orders, the account itself), whatever a writer supplies. Each
+  view reads its own partial index, so a page costs the page, not the hospital's history.
+  Billing's consumers may now read receipts, applications and bills so their writes recompute
+  correctly. Accounts from before positions existed are filled in by the billing worker within
+  a minute of deploy; until then they are absent from the desk, never shown wrong.
 - **A Billing zone** with one page, the billing desk: a hospital at a time, the cash desk, and
   the accounts list, each account opening the existing bills, payments, deposits and refunds
-  panel. Its own zone because the billing desk (receptionists) holds no MediCore clinical read.
+  panel. Its own zone because the billing desk (receptionists) holds no MediCore clinical read; nurses,
+  who read accounts already, see it too.
+- **Lists refresh** after any payment, deposit, application or refund made from an opened
+  account.
 - **The ward board** keeps each occupied bed's balance line and bills; the cash desk moves to
   the billing desk.
 

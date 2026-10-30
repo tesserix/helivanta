@@ -3943,6 +3943,13 @@
             "billing_refund_policies",
             "billing_refund_approvals"
           ]
+        },
+        {
+          "id": "0008_billing",
+          "sql_sha256": "49e759e2b90483181372d677174e22bd5aaaea885418ec0d57edee3874ae426f",
+          "creates_tables": [
+            "billing_account_positions"
+          ]
         }
       ]
     },

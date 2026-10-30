@@ -250,6 +250,9 @@ Design: [spec](../../superpowers/specs/2026-10-30-billing-desk-design.md).
   zero is credit), `deposit_held_minor`, `refundable_minor` (the surplus over the bill, once a
   final bill exists) and `has_final_bill`. Views: `to_collect`, `to_refund`,
   `discharge_ordered`, `open`, `released`, or none for all; another is `400`.
+- Each account's position is stored and recomputed by the database on every write that changes
+  it; each view reads its own partial index. Accounts from before migration `0008_billing`
+  are filled in by the billing worker. Figures are INR.
 - Needs `billing.account.read` and the hospital's billing grant (`404` without it).
 - The shell's **Billing** zone (`billing.account.read`) shows it with the cash desk; each
   account opens its bills, payments, deposits and refunds, including after release.

@@ -52,7 +52,11 @@ export function AdmissionBills({
       }),
     {
       successToast: final ? "Final bill issued" : "Interim bill issued",
-      invalidate: [key, ["billing", "account", hospital.id, admissionId]],
+      invalidate: [
+        key,
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
       // A refusal may mean billing has heard of a discharge order (or its
       // withdrawal) this page has not: refetch, so the button offers the right bill.
       invalidateOnError: true,

@@ -42,6 +42,17 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-employment-periods.json` | Private appointment/contract draft source, commands and immutable revisions; `generate-workforce-employment-periods.mjs` generates Go/Zod models                                                              |
 | `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
 
+Staff access definitions live in `staff-access.json.template_migrations`, an
+ordered canonical history. Each entry records its IAM migration ID, safe generated
+SQL filename, normalized public-definition digest, exact SQL digest and introduced
+versioned templates. The generator validates the complete history before writing
+outputs, preserves migration 0014 byte-for-byte and flattens definitions for the
+existing Go/Zod/UI artifacts. New keys require an additive catalog entry and a
+separately registered/reviewed forward migration; generation alone neither wires
+the migration nor activates a product workflow. Never edit old definitions or
+regenerate old SQL from the latest authority. See the
+[history design](../superpowers/specs/2026-10-31-staff-template-migration-history.md).
+
 Also inspect module-local catalogues such as `backend/internal/modules/emergency/contract/intake.json`; the top-level directory is not the complete schema universe. Existing generators often encode additional checks such as date ordering, normalization, safe integer bounds and scope constraints. Reusing field names while dropping those checks is a breaking validation change.
 
 Enrollment `request_context_projection` metadata also owns the opt-in query,

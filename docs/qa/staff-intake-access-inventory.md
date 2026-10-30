@@ -72,8 +72,11 @@ families, each with one permission. `generate-staff-access.mjs` rejects other
 families/multiple permissions and generates the SQL consumed by historical IAM
 migration 0014. Adding an intake template by simply regenerating this file would
 change a historical migration; that is not a valid forward migration strategy.
-Preserve the exact existing 0014 artifact and introduce canonical, versioned
-additive template evolution before changing published definitions. Server and
+The follow-up catalog correction now preserves the exact 0014 artifact and
+introduces canonical, digest-pinned definition/SQL history for additive template
+versions. This adds no intake role or runtime migration. See the
+[history design](../superpowers/specs/2026-10-31-staff-template-migration-history.md)
+and current tracker for separate implementation/CI evidence. Server and
 Go/Zod/template/SQL artifacts must agree. The current single-grant command guard
 also needs a deliberate compound-permission contract for evidence; nested guarded
 transactions and a copied private permission vocabulary are not substitutes.

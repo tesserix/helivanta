@@ -1,5 +1,14 @@
 # Staff Management workflow acceptance
 
+## Frozen template history — 2026-10-31
+
+The canonical catalog correction prevents ordinary generation from silently
+rewriting existing template authority or SQL. Existing public artifacts and
+migration 0014 are unchanged. See the
+[validation checkpoint](staff-management-progress.md#accessrbac-checkpoint--2026-10-31-frozen-template-migration-history)
+for actual CLI/PostgreSQL evidence and remaining gates. It adds no runtime role,
+migration or employment activation; full A01–A12 remains open.
+
 ## Staff document account binding — 2026-10-31
 
 The source audit reproduced ignored expected-account assertions and unbound

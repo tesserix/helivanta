@@ -1,5 +1,53 @@
 # Staff Management delivery tracker
 
+## Access/RBAC checkpoint — 2026-10-31: frozen template migration history
+
+The actual generator regression proved that editing an existing template permission
+could successfully rewrite historical migration 0014. An independent regression
+also proved that pinning SQL alone missed family changes. The canonical Staff
+contract now stores an ordered template-migration catalog with normalized public-
+definition and exact SQL digests. The generator validates the complete history,
+unique versioned keys, numeric migration phases and safe output paths before any
+model/artifact writes. Invalid or changed history fails closed without partial
+output. Existing generated Go/Zod/UI artifacts and migration 0014 remain byte-for-
+byte unchanged. No intake role or runtime migration is introduced.
+
+A scratch PostgreSQL test applies the generated-equivalent additive fixture,
+verifies all three original permission mappings, the new test-only mapping and
+unknown-key denial, then proves public template discovery stays unchanged and
+an undeclared application template cannot be proposed. The fixture is under
+`backend/internal/modules/iam/testdata`; it is not a registered production migration.
+The actual CLI tests cover unchanged normal/check runs, additive emission, rejected
+historical permission/family/snapshot changes, bad digests, unsafe/reused paths,
+reused IDs/phases/keys, missing history and no partial writes.
+
+Validation: 54 script tests passed with zero skips; full IAM race/coverage passed
+in 296.939 seconds at 82.0%, with 289 passing test/subtest events, zero failures
+and eight existing conditional real-provider skips. The separate real PostgreSQL
+append/discovery/proposal check passed. Full Go vet/build/lint, contractdocs
+freshness and canonical generation/check passed; public artifact diff is empty.
+All 21 frontend lint/format/typecheck tasks passed; final script formatting and
+lint were rechecked successfully after the last test-only addition. No runtime
+frontend files changed, so the prior full UI tests/build are not newly claimed.
+
+Commands run: `node --test scripts/staff-template-migrations.test.mjs` (RED then
+GREEN), `pnpm --filter @helivanta/scripts test`, normal/check Staff generation,
+`go -C backend test -race ./internal/modules/iam -run TestAppendOnlyTemplateSQLPreservesPublishedDefinitions -count=1`,
+`go -C backend test -json -race -cover ./internal/modules/iam -count=1`, full Go
+vet/build/lint, `go -C backend run ./cmd/contractdocs -check`, and
+`pnpm turbo lint format:check type-check`. Exact source review remains in
+[draft PR #1489](https://github.com/tesserix/helivanta/pull/1489).
+
+The [compound command design](../superpowers/specs/2026-10-31-compound-staff-command-authority.md)
+records the actual two-permission evidence consumer and source-lock ordering to
+implement next. It is a design, not implemented compound authority or HR workflow.
+The catalog does not establish old/new consumer compatibility or activate a new
+template. Scoped HR intake, current reviewed actor/person basis, immutable employment
+review, legacy-governance classification, every employment lifecycle/cross-module
+cutoff and normal Admin/recipient/reviewer browser acceptance remain required.
+Counts stay 10 partial, 10 audit pending, 1 research, 0 fully accepted. Full A01–A12
+remains active. No production schema, grant, account, rollout or release changed.
+
 ## Access/RBAC checkpoint — 2026-10-31: Staff document account binding
 
 The source/phase audit now records all **33 HR intake primary-permission routes**

@@ -160,6 +160,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/membership-candidates",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/membership-commands/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-commands",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -326,6 +353,38 @@
           "id": "0014_iam_staff_templates",
           "sql_sha256": "4ef69328d0c9353325b90d5b66feeac5823d4529239b03992da69e6dd9dff1bc",
           "creates_tables": []
+        },
+        {
+          "id": "0015_iam_membership_commands",
+          "sql_sha256": "05596ad13bb1ba5830d5da6a665620dfa34994357a3ec79249b9921bd197856a",
+          "creates_tables": [
+            "iam_membership_commands"
+          ]
+        },
+        {
+          "id": "0016_iam_membership_candidate_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "iam_members_candidate_history",
+              "table": "iam_members",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
         }
       ]
     },

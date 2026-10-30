@@ -150,6 +150,47 @@ Every A-item must cover unauthorized actor, another tenant/hospital, self-review
 
 ### Active Access/RBAC completion work — 2026-10-30
 
+PR [#1480](https://github.com/tesserix/helivanta/pull/1480) merged as
+`7bbdc7c0c41150a01df0907d6b1f2929fdd7b486` after all five required checks passed
+on exact head `4731df96cdfd58ebc1dd34ac7b562b2231e92634`: Go, web, browser E2E,
+scripts and secret scan. Repository visibility was verified public before merge.
+This is a merged-source checkpoint, not a production deployment or A01–A12
+completion. The source admission and transaction-bound security-revocation
+boundaries below remain unchanged.
+
+The follow-up branch has local membership-command implementation, canonical
+Go/Zod models, additive Global API routes, reasoned immutable receipts/history,
+fresh ordinary-membership recovery and Staff Admin controls. New SQL
+`0015_iam_membership_commands` has run only in disposable test databases, not
+the local application database or production. Concurrent-index migration
+`0016_iam_membership_candidate_index` has also passed disposable migration/replay
+tests; a real forced-RLS query plan uses the new ordering index with 100,000
+synthetic neighbouring subjects. Focused real-PostgreSQL race tests
+pass for exact-role removal, preserved other roles, final-removal epoch change,
+new ordinary membership, old-command replay, source/tenant/role/epoch denials,
+inactive/provider-outage recovery refusal and immutable transition evidence.
+Focused shell/API tests pass for required reason/acknowledgement, frozen uncertain
+retry and recovery from the current epoch. Broader tests and real UI acceptance
+are still in progress; the old raw DELETE and event replay regressions remain
+red. This work is not a release candidate and no A-item is newly complete.
+
+A third real PostgreSQL/OpenFGA regression now reproduces re-enrollment borrowing
+an old graph tuple: the original membership is projected through the registered
+consumer, removed, and replaced by a distinct unprojected source row; current
+admission incorrectly reports membership. Exact-incarnation graph proof and
+generation-bound owner eligibility remain required. The three replay/projection
+regressions remain red; the new command/UI work does not close them or prove
+historical Staff-link/legacy-grant cutoffs after recovery.
+
+A same-tenant account-change regression additionally reproduced 202 instead of
+409 in the new command before account pinning. All three new routes now require
+the verified expected tenant/subject pair, and the normal client sends both.
+The current race regression rejects stale, absent or duplicated expected subject
+without mutating the membership. The earlier full Go run passed architecture,
+bootstrap, API and authz but failed the two known replay regressions and a stale
+14-migration count assertion. That assertion now pins both new migrations (16
+total) and passes; it was updated for real schema additions, not removed.
+
 The next [membership removal/recovery design](../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)
 is source-verified and remains proposed. Two disposable local regressions are
 red: repeating a subject/role DELETE after re-enrollment removes the replacement
@@ -221,8 +262,10 @@ IAM race/coverage (82.8%), architecture, bootstrap, API and authz suites passed,
 as did affected vet/lint, API/Global API builds and contractdocs generation/check.
 Its two membership queries used existing indexes in the 100,001-row forced-RLS
 fixture; the locked actor/target query reported 0.080 ms local execution. This is
-not a production SLO. The extended source commit's CI remains a release gate;
-full A01–A12 workflow and deployed acceptance remain open.
+not a production SLO. The extended source commit's required CI passed before
+PR #1480 merged; [post-merge CI](https://github.com/tesserix/helivanta/actions/runs/41014627993)
+also passed on `7bbdc7c`. Production rollout, full A01–A12 workflow and deployed
+acceptance remain open.
 
 ## Delivery evidence and next work
 

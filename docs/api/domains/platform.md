@@ -122,6 +122,67 @@ access check requires refreshing before another attempt.
 
 This does not add actor or membership-incarnation preconditions, a versioned removal command, global identity deletion, employment suspension/offboarding or an admin removal UI. Role removal remains distinct from hospital employment and global login state. A future removal UI must reconcile uncertain outcomes and re-enrollment rather than treating this optional tenant guard as a complete offboarding workflow.
 
+### Membership command candidate — local implementation, not deployed
+
+The [removal/recovery design](../../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)
+has a local command/UI implementation. Its legacy migration, projection ordering,
+full browser and release gates remain open; this is not accepted A02/A11 behavior.
+
+| Operation                             | Contract                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/iam/membership-candidates`   | Current role-incarnation IDs, subject/role assertions and current membership epoch; cursor-paginated         |
+| `PUT /v1/iam/membership-commands/:id` | UUIDv7 command ID; exact `MembershipCommandInput`; immutable `MembershipCommand` receipt on 202              |
+| `GET /v1/iam/membership-commands`     | Cursor-paginated `MembershipCommandHistory`, including current epoch and current-source recovery eligibility |
+
+IAM owns these records. All routes require `iam.member.manage`, the verified
+session tenant and current source administrative membership. Each new route
+requires exactly one `X-Helivanta-Expected-Tenant` and one
+`X-Helivanta-Expected-Subject`, matching the verified session. Missing, duplicate
+or stale assertions return `409 session_changed` before handler owner reads or
+writes; neither assertion selects scope or acting authority. Current actor credentials and
+administrative membership are checked again under transaction-held locks after
+waits, with a five-second budget capped by the acting session's idle deadline.
+History and candidate reads are audited and no-store. The Staff UI uses the
+existing same-origin Global API destination and keys private queries by tenant
+and account. No new role or permission is introduced.
+
+`MembershipCommandInput` contains `operation` (`remove`/`recover`), `basis_id`,
+`subject`, `role_key`, `expected_membership_epoch` and a mandatory bounded reason.
+For removal, the basis is the exact current membership row ID. For recovery, it
+is a retained removal-command ID; the role must be `staff_member`, and a fresh
+identity-owner lookup must report an active account before a new write. This
+does not establish contact verification, identity/background review or clinical
+eligibility. Recovery creates a new membership ID and restores no historical
+role, scoped assignment, login link, employment approval or card. Other roles
+and tenants remain intact. Tenant-administrator removal is refused and requires
+the separate governance/recovery process; this candidate does not implement it.
+
+Migration `0015_iam_membership_commands` preserves immutable tenant-scoped
+receipts, current-epoch references and indexed history. Typed concurrent-index
+migration `0016_iam_membership_candidate_index` adds the tenant/created-at/ID
+ordering index to the existing membership table without a blocking index build.
+Database triggers create
+receipts from actual membership transitions; immutable receipts, audit and
+outbox commit atomically. Final-role removal preserves the existing epoch and
+assignment-revocation semantics. One role's removal does not end membership
+while another role remains. Exact retries by the same currently authorized actor
+return their retained receipt; changed payload or command ownership returns 409.
+A historical recovery receipt remains readable if the target is later disabled
+or its provider is unavailable; returning that receipt performs no new grant.
+
+Invalid input is 400, stale/revoked acting session 401, missing current authority
+or governance removal 403, foreign/missing basis 404, stale epoch/reused command
+or ineligible recovery 409, unavailable authority/provider 503 and failed
+persistence 500. A 202 proves the transaction's receipt, not graph convergence
+or effective hospital access. The UI requires reason/consequence review and
+retains the exact frozen command after an uncertain response.
+
+The legacy raw DELETE and direct grant/revoke projection consumers are still
+present. Their reproduced replay defects are explicit release/acceptance gaps;
+the new commands do not make old callers safe. The legacy contract is not
+silently changed by this additive candidate. Canonical Go/Zod models are in
+`contracts/staff-access.json`; no copied frontend wire model is authoritative.
+
 ### Assignment proposals and independent decisions
 
 The Staff access page at `/workforce/access` uses the existing contracts below for

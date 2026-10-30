@@ -16,6 +16,7 @@ import {
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
 import { StaffMembershipForm } from "./membership-form";
+import { MembershipManagement } from "./membership-management";
 
 type Identity = { tenant_id: string; subject: string; data: string[] };
 const labels: Record<StaffAssignment["status"], string> = {
@@ -56,7 +57,12 @@ export default function StaffAccessPage() {
       ) : (
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
           {identity.data.data.includes("iam.member.manage") && (
-            <StaffMembershipForm tenantId={identity.data.tenant_id} />
+            <>
+              <StaffMembershipForm tenantId={identity.data.tenant_id} />
+              <MembershipManagement
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+            </>
           )}
           {identity.data.data.some(
             (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",

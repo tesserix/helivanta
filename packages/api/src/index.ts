@@ -7,6 +7,7 @@ export * from "./document-queries";
 export * from "./credentials";
 export * from "./login-links";
 export * from "./staff-membership";
+export * from "./membership-commands";
 export * from "./login-link-queries";
 export * from "./benefits";
 export * from "./benefit-coverage-export";

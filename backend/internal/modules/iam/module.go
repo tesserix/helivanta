@@ -272,7 +272,9 @@ ALTER TABLE login_attempt
 			ADD CONSTRAINT iam_credential_revocations_reason_check
 			CHECK (reason IN ('sign_out','admin_revoke','identity_inactive')) NOT VALID;
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
-	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}}
+	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}, {ID: "0015_iam_membership_commands", SQL: membershipCommandsSchema}, {
+		ID: "0016_iam_membership_candidate_index", ConcurrentIndexes: []tenantdb.ConcurrentIndex{{Name: "iam_members_candidate_history", Table: "iam_members", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}}},
+	}}
 }
 
 type role struct {
@@ -450,6 +452,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 	m.registerMe(g, deps)
 	m.registerAssignmentProposals(g, deps)
+	m.registerMembershipCommands(g, deps)
 
 	rev := &revocationHandlers{db: deps.DB, bus: deps.Bus, checker: m.checker, roles: deps.Roles}
 	// NoTenantMembership: a member whose membership was just revoked must

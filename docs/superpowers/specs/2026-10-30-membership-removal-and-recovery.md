@@ -1,6 +1,7 @@
 # Membership removal and recovery
 
-Date: 2026-10-30. Status: proposed implementation design, not an implemented API.
+Date: 2026-10-30. Status: active local command/UI implementation; compatibility,
+projection, browser and release gates remain open. Not deployed or accepted.
 Scope: A02/A11 of the [full RBAC plan](../plans/2026-10-30-staff-rbac-completion.md),
 with A01 identity-owner validation as an activation prerequisite. Related issues:
 #40, #118, #417 and #1053. ADR-0044/0047/0049/0050 apply.
@@ -42,6 +43,14 @@ assertion failed. Current-source admission from PR #1480 separately denies
 effective authority in this situation. These tests establish distinct command
 and projection defects; neither is resolved merely by passing admission tests.
 
+A third real PostgreSQL/OpenFGA regression delivered the original grant through
+the registered owner consumer, removed final membership and inserted a distinct
+new membership without projecting it. Current admission still reported membership
+from the retained old graph tuple. The expected-false assertion failed. Comparing
+source and graph role keys does not bind graph authority to the current row or
+generation. This is an additional re-enrollment gap in A11, not a claim that the
+merged admission fix completes generation enforcement.
+
 IAM owns membership, command receipts, authority and projection. Zitadel owns
 global identity and contact verification. Workforce owns employment and login
 links. A tenant administrator acts under `iam.member.manage` in the verified
@@ -55,6 +64,9 @@ Threats include a stale administrator tab, a compromised current member, replaye
 commands/events and another tenant's administrator. Validate the actor, exact
 target incarnation, verified tenant and current state at the transaction boundary.
 Client-supplied subject/role values are assertions, never acting authority.
+New command/candidate/history routes require exactly one expected-tenant and one
+expected-subject header matching the verified session. This prevents same-tenant
+account changes as well as workspace changes; it adds no header authority.
 
 ## Command and history contract
 
@@ -134,6 +146,24 @@ the existing model, or durable reconciliation with explicit convergence and
 pending-state semantics. Record the accepted guarantee before changing the
 projection consumer. Keep external network work outside database transactions;
 the existing consumer's network-in-Handle pattern is not a reason to expand it.
+
+The graph proof must bind the exact current membership incarnation and each
+effective permission; an activation flag combined with a generic permission
+lookup can still borrow authority from an old incarnation. Inspect the existing
+versioned scoped-assignment pattern and actual resolver/model before selecting a
+model. Trace role discovery/tenant switching, owner projections and boot-time
+tuple pruning as well as request admission. Older revoke/repair work must not
+delete a newer incarnation's authority, even after an external write timeout or
+lost lock. The current role-key intersection remains a useful removal fence;
+it is not that stronger proof. Do not declare a new graph model or migration
+accepted from this proposed direction alone.
+
+Membership recovery also needs owner evidence that historical Staff links and
+legacy hospital/outlet/base grants cannot become eligible merely because source
+membership exists again. The new command does not update another owner's tables
+and does not prove these cutoffs. Retain A03/A04/A11 owner-contract acceptance as
+a release gate; source membership IDs and passing command tests alone are
+insufficient.
 
 ## Legacy compatibility and rollout
 

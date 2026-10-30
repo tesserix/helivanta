@@ -158,11 +158,7 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": [
-          "approve",
-          "reject",
-          "withdraw"
-        ]
+        "enum": ["approve", "reject", "withdraw"]
       },
       {
         "name": "reason",
@@ -190,11 +186,7 @@
       {
         "name": "decision",
         "type": "string",
-        "enum": [
-          "approve",
-          "reject",
-          "withdraw"
-        ]
+        "enum": ["approve", "reject", "withdraw"]
       },
       {
         "name": "reason",
@@ -278,6 +270,220 @@
         "min": 1,
         "max": 32
       }
+    ],
+    "MembershipCommandInput": [
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["remove", "recover"],
+        "binding": "required,oneof=remove recover"
+      },
+      {
+        "name": "basis_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "role_key",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      },
+      {
+        "name": "expected_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "binding": "required,min=1"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      }
+    ],
+    "MembershipCommand": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["remove", "recover"],
+        "binding": "required,oneof=remove recover"
+      },
+      {
+        "name": "basis_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "role_key",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      },
+      {
+        "name": "expected_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "binding": "required,min=1"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "result_membership_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "result_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "binding": "required,min=1"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "MembershipCandidate": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "role_key",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      },
+      {
+        "name": "membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "binding": "required,min=1"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "MembershipCommandHistory": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["remove", "recover"],
+        "binding": "required,oneof=remove recover"
+      },
+      {
+        "name": "basis_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "role_key",
+        "type": "string",
+        "min": 1,
+        "max": 100,
+        "binding": "required,max=100"
+      },
+      {
+        "name": "expected_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "binding": "required,min=1"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "binding": "required,max=500"
+      },
+      {
+        "name": "result_membership_id",
+        "type": "uuid",
+        "binding": "required"
+      },
+      {
+        "name": "result_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "binding": "required,min=1"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "binding": "required,max=200"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "current_membership_epoch",
+        "type": "int64",
+        "min": 1
+      },
+      {
+        "name": "recoverable",
+        "type": "bool"
+      }
     ]
   },
   "templates": [
@@ -286,27 +492,21 @@
       "name": "Leave reviewer",
       "description": "Review hospital leave requests with current staff and account authority.",
       "family": "leave",
-      "permissions": [
-        "workforce.leave.approve"
-      ]
+      "permissions": ["workforce.leave.approve"]
     },
     {
       "key": "workforce.identity_manager.v1",
       "name": "Staff identity checks manager",
       "description": "Prepare identity, background and photo evidence at this hospital; cannot approve the result.",
       "family": "identity",
-      "permissions": [
-        "workforce.identity_checks.manage"
-      ]
+      "permissions": ["workforce.identity_checks.manage"]
     },
     {
       "key": "workforce.identity_reviewer.v1",
       "name": "Staff identity checks reviewer",
       "description": "Independently review staff identity, background and photo evidence; no clinical or payroll authority.",
       "family": "identity",
-      "permissions": [
-        "workforce.identity_checks.review"
-      ]
+      "permissions": ["workforce.identity_checks.review"]
     }
   ]
 }

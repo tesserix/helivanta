@@ -32,9 +32,9 @@ previous recovery tests pass. Full actual-PostgreSQL race/coverage: 55.1% overal
 API 63.8%, store 64.9%, decision 83.6%, successor/root helpers 83.3%, shared scope
 100%. Vet/build/lint (zero issues), four delivery tests, redacted secrets and
 shell/diff checks pass. Schema local Helm lint/template and seven selected tests
-pass. Latest owner CI 41102254872 and schema Repository Tests 41101963585, PR
-Validation 41101963451 and Helm 41101963412 are queued at this checkpoint. Parent
-owner c06e95d passed 41100008521 as historical evidence, not the new head's result.
+pass. Exact owner head passed CI 41102254872. Exact schema head passed Repository Tests
+41101963585, PR Validation 41101963451 and Helm 41101963412. These current-head
+passes do not prove operator/source authorization or full normal-role UI acceptance.
 
 Next: verified-current operator role/source proof, conflict/orphan handling,
 authenticated operator endpoints and minimized activity; prepared-command/profile

@@ -409,6 +409,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /billing/hospitals/:hospital/admissions/:admission/account":               "one admission's account totals; its entries are a paginated list",
 	"GET /billing/hospitals/:hospital/admissions/:admission/bills/:number":         "one bill's header and totals, either kind; its lines are a paginated list",
 	"GET /billing/hospitals/:hospital/admissions/:admission/interim-bills/:number": "one interim bill's header and totals; its lines are a paginated list",
+	"GET /billing/hospitals/:hospital/refund-policy":                               "the hospital's current refund approval threshold; one",
 	"GET /billing/hospitals/:hospital/cash-shifts/mine":                            "the caller's own shift not yet closed; at most one",
 	"GET /billing/hospitals/:hospital/bed-charging":                                "one hospital's bed-charging timezone; its rates are a paginated list",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant":        "one bed's or room's single open stay, or 404/409 ambiguous; never a collection",

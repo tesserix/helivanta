@@ -28,6 +28,7 @@ import {
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { useBillingAccess } from "./admission-account";
+import { RefundPolicySetup } from "./refunds";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -65,6 +66,7 @@ export function CashDesk({ hospital }: { hospital: Hospital }) {
         {cashier && <MyShift hospital={hospital} />}
         {supervisor && <Variances hospital={hospital} />}
         {counters && <Counters hospital={hospital} />}
+        {counters && <RefundPolicySetup hospital={hospital} />}
       </div>
     </Panel>
   );

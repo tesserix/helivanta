@@ -59,6 +59,14 @@ function server(opts: { permissions: string[]; mine?: unknown; shifts?: unknown[
         : json(404, { error: "no_open_shift", message: "none" });
     if (url.includes("/cash-shifts?status=pending_authorisation")) return page(opts.shifts ?? []);
     if (url.includes("/cash-shifts")) return page([]);
+    if (url.endsWith("/refund-policy"))
+      return json(200, {
+        hospital_id: hospital.id,
+        threshold_minor: 1000000,
+        currency: "INR",
+        created_by: null,
+        created_at: null,
+      });
     if (url.includes("/counters")) return page([counter]);
     if (url.includes("/receipts")) return page([]);
     return page([]);
@@ -157,6 +165,7 @@ describe("CashPayments", () => {
         balance_minor: balance,
         deposit_held_minor: over.held ?? 0,
         applied_minor: over.applied ?? 0,
+        refunded_minor: 0,
       },
     ],
     sources: [],
@@ -275,5 +284,41 @@ describe("CashPayments", () => {
     expect(puts(fetcher)[0][0]).toMatch(
       new RegExp(`/admissions/${admission}/deposit-applications/[0-9a-f-]{36}$`),
     );
+  });
+});
+
+describe("CashPayments refunds", () => {
+  it("offers to refund only the surplus over the bill", async () => {
+    server({ permissions: ["billing.account.read", "billing.cash.collect"], mine: shift() });
+    const account = {
+      admission_id: admission,
+      hospital_id: hospital.id,
+      patient_id: "p",
+      status: "open" as const,
+      opened_at: null,
+      closed_at: null,
+      totals: [
+        {
+          currency: "INR",
+          charged_minor: 300000,
+          reversed_minor: 0,
+          outstanding_minor: 300000,
+          paid_minor: 0,
+          balance_minor: 300000,
+          deposit_held_minor: 300000,
+          applied_minor: 0,
+          refunded_minor: 0,
+        },
+      ],
+      sources: [],
+      bed_days: { configured: true, priced: 0, not_priced: 0 },
+      entry_count: 1,
+      discharge_ordered: true,
+    };
+    renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account} hasFinalBill />,
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByLabelText("Refund in cash (INR)")).not.toBeInTheDocument();
   });
 });

@@ -16,6 +16,7 @@ import {
 import { Field, LoadMore, RequestFailure, formatDateTime, useZodForm } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { useMyShift } from "./cash-desk";
+import { DepositRefunds } from "./refunds";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -80,6 +81,16 @@ export function CashPayments({
         inr &&
         inr.deposit_held_minor > 0 &&
         inr.balance_minor > 0 && <ApplyDeposits hospital={hospital} admissionId={admissionId} />}
+      {hasFinalBill && inr && inr.deposit_held_minor - Math.max(inr.balance_minor, 0) > 0 && (
+        // Only the surplus over what the bill still needs is refunded.
+        <DepositRefunds
+          hospital={hospital}
+          admissionId={admissionId}
+          held={inr.deposit_held_minor - Math.max(inr.balance_minor, 0)}
+          shiftOpen={open !== undefined}
+          receiptsKey={key}
+        />
+      )}
       {receipts.isError ? (
         <RequestFailure message="Could not load the receipts." retry={receipts.retry} />
       ) : (
@@ -198,7 +209,7 @@ function Receipt({
       invalidate: [receiptsKey, ["billing", "account", hospital.id, receipt.admission_id]],
     },
   );
-  const label = `${receipt.purpose === "deposit" ? "Deposit" : "Receipt"} ${receipt.counter_code}-${receipt.number}`;
+  const label = `${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
   return (
     <li className="py-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -211,6 +222,7 @@ function Receipt({
           )}
         </span>
         <span className={receipt.voided_at ? "line-through" : undefined}>
+          {receipt.purpose === "refund" ? "−" : ""}
           {formatPharmacyMoney(receipt.amount_minor, receipt.currency)}
         </span>
       </div>

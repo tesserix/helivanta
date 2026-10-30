@@ -33,11 +33,10 @@ func balanceDue(tx *gorm.DB, tenant string, admission uuid.UUID, currency string
 	return v.Due, err
 }
 
-// depositHeld is what deposits brought in, less what was applied.
+// depositHeld is what deposits brought in, less what was applied or refunded.
 func depositHeld(tx *gorm.DB, tenant string, admission uuid.UUID, currency string) (int64, error) {
 	var v struct{ Held int64 }
-	err := tx.Raw(`SELECT billing_received(?,?,?,'deposit') - billing_applied(?,?,?) AS held`,
-		tenant, admission, currency, tenant, admission, currency).Scan(&v).Error
+	err := tx.Raw(`SELECT billing_held(?,?,?) AS held`, tenant, admission, currency).Scan(&v).Error
 	return v.Held, err
 }
 

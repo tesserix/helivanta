@@ -556,6 +556,9 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | POST | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.bill.issue` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/receipts/:receipt` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/receipts` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals/:approval` | `billing.shift.authorise` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/refunds/:receipt` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
@@ -568,6 +571,8 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/counters` | `billing.account.read` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/refund-policies/:policy` | `billing.counter.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/refund-policy` | `billing.account.read` | false | false |
 
 Published subjects:
 
@@ -591,6 +596,7 @@ Migration table declarations:
 - `0004_billing`: `billing_discharge_orders`.
 - `0005_billing`: `billing_counters`, `billing_cash_shifts`, `billing_cash_receipts`.
 - `0006_billing`: `billing_deposit_applications`.
+- `0007_billing`: `billing_refund_policies`, `billing_refund_approvals`.
 
 ## supply
 

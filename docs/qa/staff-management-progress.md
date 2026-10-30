@@ -2,7 +2,40 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
-### Current recovery-operator authority — 2026-10-31
+### Recovery read/proposal service and HTTP — 2026-10-31
+
+Owner `74abd3d` connects current human console proof to an audited exact-command
+recovery read and immutable proposal PUT by UUIDv7 request ID. Source organization/
+project and canonical active tenant/product/entitlement are checked under the real
+operator principal. Original initiator/machine/provider facts survive canonical
+machine rotation. Recovery proposals derive maker from verified identity and
+require reason/evidence; they create no decision, closure, replacement, user,
+membership or dispatch. Independent review remains required.
+
+A test reproduced generic cached success after maker revocation. Explicit route
+exclusion now forces fresh authorization on every retry, with no generic cached
+response. Tests cover rejected forged authority/credentials and malformed inputs,
+read-only operator denial for proposals, live proof withdrawal, source/registry
+changes during I/O, mandatory audit binding/rollback and committed proposal
+retention without disclosure after revocation, followed by exact retry recovery.
+
+Full actual-PostgreSQL owner race/coverage passed (55.4% overall; API 64.8%, store
+65.6%). Vet/build/lint (zero issues), four delivery checks, redacted secret scan
+and diff checks passed. Cross-package integration coverage confirms service
+execution: receipt 94.1%, scope 79.5%, proposal 80.6%, validation 100%. These are
+test coverage figures, not a completion percentage. Callback source proofs drive
+the new HTTP/database tests; previous real v4.15.3 adapter proof is separate.
+Full real-source HTTP and normal HMS Admin/recipient/independent-reviewer UI are
+unproven. New-head CI is tracked separately. No schema/production change, migration,
+merge, deployment, release or completion tag is claimed.
+
+Next: minimized recovery request detail/activity, source conflict/orphan checks,
+independent decision service/API, prepared-command/profile correction and consumer
+UI; recipient setup/sign-in, canonical registration (#12), legacy grants and all
+remaining A01–A12 lifecycle/cross-module cutoff acceptance. Counts remain 10 partial,
+10 audit pending, 1 research, 0 fully accepted. Full Access/RBAC stays active.
+
+### Recovery-operator authority checkpoint at 2e68596 — 2026-10-31
 
 Owner `2e68596` adds a bounded source verifier for active/verified human,
 configured platform organization, direct console-project grant, authoritative

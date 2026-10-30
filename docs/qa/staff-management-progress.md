@@ -449,9 +449,10 @@ The initial combined web run found a panel lint violation (corrected) and sign-i
 test timeouts. The subsequent complete gate passed all 30 tasks, including
 1,200 shell tests and 409 API tests; the final form-control regression also passed.
 CI subsequently detected the newly published query-decoding advisory. Its
-compatible dependency correction and actual-consumer regression are documented
-in the [vulnerability runbook](../runbooks/vulnerability-management.md#expo-query-decoding-2026-10-30);
-no advisory exception was added.
+merged backport from PR #1466 and the additional actual-consumer regression are
+documented in the [vulnerability runbook](../runbooks/vulnerability-management.md).
+The branch uses the main-line backport and its reviewed version-specific audit
+exception; its earlier duplicate ESM adaptation was removed.
 
 CI also reproduced a test-fixture naming defect: a long identity-case test name
 plus its iteration suffix exceeded OpenFGA's 64-character store-name limit.

@@ -2,7 +2,51 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
-### Exact recovery request review — 2026-10-31
+### Exact-account proof and fresh reviewer source view — 2026-10-31
+
+Owner `a3eab89` implements exact frozen-account classification and a freshly
+authorized reviewer source-view POST. Absence requires two actual missing reads
+and stable empty authoritative history. Matching requires retained birth/contact
+and sealed command binding. Removal additionally requires terminal removal, actual
+missing reads and bounded ownership history proving one human birth and the latest
+causal nonce. Unknown, contradictory, stale or saturated proof fails closed.
+No universal contact availability, verified contact or operational access is claimed.
+
+The source view derives all input from the exact private dispatched command,
+validates returned scope/freshness, rechecks live authority and canonical registry,
+then commits mandatory disclosure audit. It exposes only disposition and observed/
+birth time. A replay regression hid changed facts; explicit cache exclusion now
+requires fresh reads and denies revoked authority. It creates no account, retained
+creation receipt, decision, closure or successor. Approval must obtain new proof.
+
+Actual isolated v4.15.3 race tests passed absent/matching/removed proof and the
+previous operator checks. Email delivery advanced source history during immediate
+matching proof; a later fresh proof passed with creation dispatched once. Final
+matching used two proof attempts within the fixture's three-attempt bound.
+An actual projection fault captured the synthetic target's parent/child rows
+privately, produced real GetUser 404 with retained creation history, and verified
+that recovery denied absence. Restore initially failed on a generated notification
+column; the correction recomputes it, verifies every captured row, and restores
+matching proof. Source event history stayed retained; all captured target projection rows are restored.
+
+Full owner PostgreSQL race/coverage passed: 56.0% overall, API 66.0%, store 66.7%,
+provider 87.8%; classifier 93.6%, removal ownership 95.8%, cross-package source-view
+service 85.7%. Vet/build, normal and fixture-tag lint (zero issues), four delivery
+tests, secret/diff checks and both actual-provider race fixtures passed. These
+figures are test coverage, not completion. Configuration/time-budget documentation
+was corrected to actual console environment names and the unchanged two-second
+creation budget. No schema/production change, migration, merge or release occurred.
+
+Database/HTTP source-view tests use callbacks; actual source-protocol/fault proof
+is separate. Real-source full owner HTTP and normal HMS Admin/recipient/independent-
+reviewer UI remain unproven. New-head CI is tracked separately. Next: matching-
+orphan receipt reconciliation and fresh independent decision service/API, explicit
+conflict handling, activity, prepared-command/profile correction, consumer UI,
+recipient setup/sign-in, canonical registration (#12), legacy grants and remaining
+A01–A12 lifecycle/cross-module cutoff acceptance. Counts stay 10 partial,
+10 audit pending, 1 research, 0 fully accepted. Full Access/RBAC stays active.
+
+### Exact request review checkpoint at 2c61d2a — 2026-10-31
 
 Owner `2c61d2a` adds current-human exact-request GET for reviewer evidence:
 maker, requested action, reason/evidence reference, optional proposed successor

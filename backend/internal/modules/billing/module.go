@@ -29,6 +29,8 @@ const (
 	PermCashCollect authz.Permission = "billing.cash.collect"
 	// PermShiftAuthorise authorises a shift's cash variance and lists shifts.
 	PermShiftAuthorise authz.Permission = "billing.shift.authorise"
+	// PermCollectionRead reads and exports a hospital's daily cash collection.
+	PermCollectionRead authz.Permission = "billing.collection.read"
 )
 
 //go:embed accounts.sql
@@ -75,6 +77,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermCashCollect, Roles: []authz.Role{authz.RoleReceptionist}},
 		{Permission: PermCounterManage},
 		{Permission: PermShiftAuthorise},
+		// No finance role exists on the hospital side: administrators only.
+		{Permission: PermCollectionRead},
 	}
 }
 
@@ -111,6 +115,9 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET(hp+"/cash-shifts/mine", PermCashCollect, h.myShift)
 	g.PUT(hp+"/cash-shifts/:shift/close", PermCashCollect, h.closeShift)
 	g.PUT(hp+"/cash-shifts/:shift/authorisation", PermShiftAuthorise, h.authoriseShift)
+	// The daily collection report (#198 slice 2).
+	g.GET(hp+"/collections/:date", PermCollectionRead, h.dailyCollection)
+	g.GET(hp+"/collections/:date/export.csv", PermCollectionRead, h.exportDailyCollection)
 	platform.ListRoute(g, hp+"/cash-shifts", PermShiftAuthorise, h.shifts)
 	g.PUT(hp+"/admissions/:admission/receipts/:receipt", PermCashCollect, h.takeCash)
 	platform.ListRoute(g, hp+"/admissions/:admission/receipts", PermAccountRead, h.receipts)

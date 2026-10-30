@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { readAttachmentFile, sha256Hex } from "./attachment-file";
+import { apiFetchResponse } from "./client";
 import { bedInputSchema, type BedClass } from "./medicore-beds";
 
 // Bed-day charges (#197 slice 2): a hospital's timezone, set once, and its
@@ -226,3 +228,88 @@ export type DeskAccount = {
 };
 
 export type DeskView = "" | "open" | "discharge_ordered" | "to_collect" | "to_refund" | "released";
+
+/** One shift on the daily collection report. Money is null while the shift is open: it closes blind. */
+export type CollectionShift = {
+  shift_id: string;
+  counter_code: string;
+  counter_name: string;
+  cashier: string;
+  status: "open" | "pending_authorisation" | "closed";
+  opened_at: string;
+  closed_at: string | null;
+  opening_float_minor: number | null;
+  payments_minor: number | null;
+  deposits_minor: number | null;
+  refunds_minor: number | null;
+  voided_count: number | null;
+  voided_minor: number | null;
+  /** Refunds voided: cash that never left the drawer, apart from voided takings. */
+  voided_refunds_minor: number | null;
+  expected_minor: number | null;
+  declared_minor: number | null;
+  variance_minor: number | null;
+  authorised_by: string | null;
+  authorisation_reason: string | null;
+};
+
+/** A hospital-local day's cash (#198 slice 2); totals cover counted shifts only. */
+export type DailyCollection = {
+  hospital_id: string;
+  date: string;
+  timezone: string;
+  currency: string;
+  /** A past day with every shift closed. */
+  final: boolean;
+  shifts: CollectionShift[];
+  totals: {
+    payments_minor: number;
+    deposits_minor: number;
+    refunds_minor: number;
+    net_minor: number;
+    shortage_minor: number;
+    excess_minor: number;
+    counted_shifts: number;
+    open_shifts: number;
+    pending_shifts: number;
+    voided_receipts: number;
+    voided_minor: number;
+    voided_refunds_minor: number;
+  };
+};
+
+export const collectionDateSchema = z.object({
+  date: z.string().min(1, "Choose a date").date("Use a valid date"),
+});
+
+export const dailyCollectionPath = (hospitalId: string, date: string) =>
+  `/billing/hospitals/${hospitalId}/collections/${date}`;
+
+// The row count is reported only when the bytes match the digest the export was audited with.
+export async function fetchDailyCollectionCSV(
+  hospitalId: string,
+  date: string,
+  signal: AbortSignal,
+): Promise<{ blob: Blob; filename: string; rows: number }> {
+  signal.throwIfAborted();
+  collectionDateSchema.parse({ date });
+  const response = await apiFetchResponse(`${dailyCollectionPath(hospitalId, date)}/export.csv`, {
+    cache: "no-store",
+    signal,
+  });
+  const filename = `billing-collection-${hospitalId}-${date}.csv`;
+  const rows = response.headers.get("X-Export-Row-Count") ?? "";
+  const digest = response.headers.get("X-Export-Sha256") ?? "";
+  if (
+    response.headers.get("Content-Disposition") !== `attachment; filename="${filename}"` ||
+    !/^text\/csv(?:;|$)/i.test(response.headers.get("Content-Type") ?? "") ||
+    !/^(?:0|[1-9]\d{0,2})$/.test(rows) ||
+    !/^[0-9a-f]{64}$/.test(digest)
+  )
+    throw new Error("The server did not return a valid collection file. Try again.");
+  const blob = await response.blob();
+  const actual = await sha256Hex(await readAttachmentFile(blob, signal));
+  signal.throwIfAborted();
+  if (actual !== digest) throw new Error("The collection file could not be verified. Try again.");
+  return { blob, filename, rows: Number(rows) };
+}

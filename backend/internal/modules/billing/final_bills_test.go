@@ -113,7 +113,8 @@ func TestAWithdrawnDischargeReturnsToInterimBillsInEitherEventOrder(t *testing.T
 	w.priced(t)
 	admission, patient := uuid.NewString(), uuid.NewString()
 	adm := "/admissions/" + admission
-	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
+	bedStay := stay{uuid.NewString(), uuid.NewString(), "general"}
+	require.NoError(t, w.start(admission, patient, bedStay, time.Now().Add(-time.Hour)))
 	w.charge(admission, patient, 2500)
 
 	// An interim bill that already holds everything is still followed by a
@@ -143,6 +144,9 @@ func TestAWithdrawnDischargeReturnsToInterimBillsInEitherEventOrder(t *testing.T
 	code, body = w.post(adm + "/final-bills")
 	require.Equal(t, http.StatusCreated, code, body)
 	require.NoError(t, w.withdrawDischarge(admission, second, now.Add(time.Minute)))
+	code, body = w.post(adm + "/interim-bills")
+	require.Equal(t, http.StatusConflict, code, "an interim bill after a final one still needs something new")
+	require.Contains(t, body, "nothing_new")
 	w.charge(admission, patient, 300)
 	code, body = w.post(adm + "/final-bills")
 	require.Equal(t, http.StatusConflict, code, "the patient stays: no final bill")
@@ -151,6 +155,7 @@ func TestAWithdrawnDischargeReturnsToInterimBillsInEitherEventOrder(t *testing.T
 	require.Equal(t, http.StatusCreated, code, body)
 
 	// Released without an order: the final bill is issued after departure.
+	require.NoError(t, w.end(admission, bedStay, time.Now(), "release"))
 	require.NoError(t, w.release(admission, patient, time.Now()))
 	code, body = w.post(adm + "/interim-bills")
 	require.Equal(t, http.StatusConflict, code)
@@ -184,6 +189,13 @@ func TestBillTablesHoldTheFinalBillRules(t *testing.T) {
 	w.priced(t)
 	require.NoError(t, insert("final"))
 
+	// A stay whose start is still on its way: the database alone refuses a final bill.
+	require.NoError(t, w.end(admission, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now(), "transfer"))
+	require.Error(t, asClerk(func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO billing_interim_bills (tenant_id,hospital_id,admission_id,number,kind,id,issued_by,unpriced_bed_days) VALUES (?,?,?,2,'final',?,'user-clerk',0)`,
+			testutil.TenantA, w.hospital, admission, uuid.Must(uuid.NewV7())).Error
+	}), "no final bill while bed days are still being counted")
+
 	// Priced, but no discharge ordered: the database alone refuses a final bill.
 	other := uuid.NewString()
 	require.NoError(t, w.start(other, uuid.NewString(), stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-time.Hour)))
@@ -199,4 +211,88 @@ func TestBillTablesHoldTheFinalBillRules(t *testing.T) {
 	require.Error(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "system:billing-discharge-ordered"), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE billing_discharge_orders SET ordered_at=now() WHERE admission_id=?`, admission).Error
 	}), "an order is recorded once")
+}
+
+// A final bill never goes out while bed days are still being counted: setup
+// the census has not applied, a stay whose start or end is still on its way,
+// or a midnight inside the census grace.
+func TestAFinalBillWaitsUntilEveryBedDayIsCounted(t *testing.T) {
+	w := newBedWorld(t)
+	pending := func(admission, why string) {
+		t.Helper()
+		code, body := w.post("/admissions/" + admission + "/final-bills")
+		require.Equal(t, http.StatusConflict, code, why+": "+body)
+		require.Contains(t, body, "bed_days_pending", why)
+	}
+	admission, patient := uuid.NewString(), uuid.NewString()
+	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-50*time.Hour)))
+	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), time.Now()))
+
+	// The timezone is saved but the census has not applied it: no day is recorded yet.
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"Asia/Kolkata"}`).Code)
+	pending(admission, "timezone not applied")
+	w.census()
+	code, body := w.post("/admissions/" + admission + "/final-bills")
+	require.Contains(t, body, "bed_days_not_priced", "%d", code)
+	// A rate saved but not applied: the days it would price are not priced yet.
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/general/2020-01-01", "admin", `{"daily_rate_minor":150000,"currency":"INR"}`).Code)
+	pending(admission, "rate not applied")
+	w.census()
+	code, body = w.post("/admissions/" + admission + "/final-bills")
+	require.Equal(t, http.StatusCreated, code, body)
+
+	// No stay known yet: the account came from a pharmacy charge and the order.
+	early := uuid.NewString()
+	w.charge(early, patient, 2500)
+	require.NoError(t, w.orderDischarge(early, patient, uuid.NewString(), time.Now()))
+	pending(early, "no stay recorded")
+
+	// An end whose start has not arrived.
+	require.NoError(t, w.end(admission, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now(), "transfer"))
+	pending(admission, "a stay without its start")
+}
+
+func TestAFinalBillAfterReleaseWaitsForTheLastStayToEnd(t *testing.T) {
+	w := newBedWorld(t)
+	w.priced(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	s := stay{uuid.NewString(), uuid.NewString(), "general"}
+	require.NoError(t, w.start(admission, patient, s, time.Now().Add(-time.Hour)))
+	require.NoError(t, w.release(admission, patient, time.Now()))
+	code, body := w.post("/admissions/" + admission + "/final-bills")
+	require.Equal(t, http.StatusConflict, code, body)
+	require.Contains(t, body, "bed_days_pending", "the stay's end is still on its way: no minimum day yet")
+	require.NoError(t, w.end(admission, s, time.Now(), "release"))
+	code, body = w.post("/admissions/" + admission + "/final-bills")
+	require.Equal(t, http.StatusCreated, code, body)
+	require.Contains(t, body, `"source_module":"bed"`, "the minimum day is on it")
+}
+
+func TestAFinalBillInsideTheMidnightGraceWaits(t *testing.T) {
+	w := newBedWorld(t)
+	w.priced(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	require.NoError(t, w.start(admission, patient, stay{uuid.NewString(), uuid.NewString(), "general"}, time.Now().Add(-50*time.Hour)))
+	require.NoError(t, w.orderDischarge(admission, patient, uuid.NewString(), time.Now()))
+	// As if a midnight passed a minute ago and the census has not counted it.
+	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "system:billing-bed-census"), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`UPDATE billing_bed_stays SET next_census_at=now()+interval '14 minutes' WHERE admission_id=?`, admission).Error
+	}))
+	code, body := w.post("/admissions/" + admission + "/final-bills")
+	require.Equal(t, http.StatusConflict, code, body)
+	require.Contains(t, body, "bed_days_pending")
+}
+
+func TestAFinalBillAfterReleaseWaitsForTheTimezoneToBeApplied(t *testing.T) {
+	w := newBedWorld(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	s := stay{uuid.NewString(), uuid.NewString(), "general"}
+	require.NoError(t, w.start(admission, patient, s, time.Now().Add(-time.Hour)))
+	require.NoError(t, w.end(admission, s, time.Now(), "release"))
+	require.NoError(t, w.release(admission, patient, time.Now()))
+	// Every stay has ended, so only the unapplied timezone says the minimum day is still to come.
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"Asia/Kolkata"}`).Code)
+	code, body := w.post("/admissions/" + admission + "/final-bills")
+	require.Equal(t, http.StatusConflict, code, body)
+	require.Contains(t, body, "bed_days_pending")
 }

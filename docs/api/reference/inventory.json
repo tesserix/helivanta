@@ -3704,7 +3704,7 @@
         },
         {
           "id": "0004_billing",
-          "sql_sha256": "72cea0c59d97deb59a473c57a65936f5de618f03c756e678c969647631bf3288",
+          "sql_sha256": "63d7af7e6540e1728ec0f59c313bfcb9990497ca057ba20a03c8e811f26ec611",
           "creates_tables": [
             "billing_discharge_orders"
           ]

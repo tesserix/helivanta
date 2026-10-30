@@ -53,6 +53,21 @@ CREATE FUNCTION billing_discharge_ordered(row_tenant uuid,row_admission uuid) RE
   AND o.ordered_at IS NOT NULL AND o.withdrawn_at IS NULL)
 $$;
 
+-- Every bed day the stays imply is already recorded: setup applied by the
+-- census, at least one stay, every stay's start known, no open stay past a
+-- midnight the census has not yet counted (the 15-minute grace included), and
+-- after release every stay ended, so the minimum day is settled. Anything
+-- else is a day that may still be added, which a final bill must not miss.
+CREATE FUNCTION billing_bed_days_settled(row_tenant uuid,row_hospital uuid,row_admission uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
+ SELECT EXISTS (SELECT 1 FROM billing_bed_charging c WHERE c.tenant_id=row_tenant AND c.hospital_id=row_hospital AND c.applied_at IS NOT NULL)
+ AND NOT EXISTS (SELECT 1 FROM billing_bed_rates r WHERE r.tenant_id=row_tenant AND r.hospital_id=row_hospital AND r.applied_at IS NULL)
+ AND EXISTS (SELECT 1 FROM billing_bed_stays s WHERE s.tenant_id=row_tenant AND s.admission_id=row_admission)
+ AND NOT EXISTS (SELECT 1 FROM billing_bed_stays s JOIN billing_admission_accounts a ON a.tenant_id=s.tenant_id AND a.admission_id=s.admission_id
+  WHERE s.tenant_id=row_tenant AND s.admission_id=row_admission
+  AND (s.started_at IS NULL
+   OR (s.ended_at IS NULL AND (a.status='closed' OR s.next_census_at IS NULL OR s.next_census_at - interval '15 minutes' <= clock_timestamp()))))
+$$;
+
 ALTER TABLE billing_interim_bills ADD COLUMN kind text NOT NULL DEFAULT 'interim' CHECK (kind IN ('interim','final'));
 
 -- When each kind may be issued, held here as well as by the handler:
@@ -76,6 +91,9 @@ BEGIN
   OR NOT EXISTS (SELECT 1 FROM billing_bed_charging c WHERE c.tenant_id=NEW.tenant_id AND c.hospital_id=NEW.hospital_id)
   OR EXISTS (SELECT 1 FROM billing_bed_days d WHERE d.tenant_id=NEW.tenant_id AND d.admission_id=NEW.admission_id AND d.voided_at IS NULL AND d.priced_at IS NULL)) THEN
   RAISE EXCEPTION 'a final bill needs bed charging set up and every bed day priced' USING ERRCODE='23514', CONSTRAINT='billing_final_bill_priced';
+ END IF;
+ IF NEW.kind='final' AND NOT billing_bed_days_settled(NEW.tenant_id,NEW.hospital_id,NEW.admission_id) THEN
+  RAISE EXCEPTION 'a final bill waits until every bed day is counted' USING ERRCODE='23514', CONSTRAINT='billing_final_bill_settled';
  END IF;
  IF NEW.issued_at IS NOT NULL OR NEW.issuing_xact IS NOT NULL OR NEW.number <> (SELECT COALESCE(max(number),0)+1 FROM billing_interim_bills WHERE tenant_id=NEW.tenant_id AND admission_id=NEW.admission_id) THEN
   RAISE EXCEPTION 'bills are numbered in order as they are issued' USING ERRCODE='23514';

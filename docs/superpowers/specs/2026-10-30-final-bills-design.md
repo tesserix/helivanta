@@ -19,11 +19,16 @@ decides, instead of when the bed is released.
   - **Interim** (unchanged): an open account with no active discharge order.
   - **Final**: once discharge is ordered, or after release (a release without an order is
     still allowed in MediCore). Needs bed charging set up and every bed day priced: a final
-    bill never leaves out a charge it could not price (`409 bed_days_not_priced`).
+    bill never leaves out a charge it could not price (`409 bed_days_not_priced`). It also
+    waits until every bed day is counted (`409 bed_days_pending`): bed setup applied by the
+    census, at least one stay known, every stay's start received, no open stay past a
+    midnight not yet counted (the 15-minute grace included), and after release every stay
+    ended, so the minimum day is settled.
 - **Reissued, never edited.** A final bill freezes the account as issued, like an interim
   bill. Anything after it — a midnight still in the bed, a late pharmacy charge — goes on a
   new final bill; the first stays as issued. Nothing new is `409 nothing_new`, except that
-  a first final bill after interim bills is always new.
+  a first final bill after interim bills is always new; an interim bill after a final one
+  still needs something new.
 - **A withdrawn discharge** returns the account to interim bills; an issued final bill stays
   in the history as issued.
 - **Refusals:** interim once discharge is ordered `409 discharge_ordered`; interim after

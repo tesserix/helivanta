@@ -151,6 +151,33 @@ describe("AdmissionBills", () => {
     expect(shown).not.toHaveTextContent("a later midnight");
   });
 
+  it("offers the final bill after a refusal shows discharge was ordered meanwhile", async () => {
+    let discharge = false;
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (url.includes("/iam/me/permissions"))
+        return json(200, {
+          subject: "user-clerk",
+          data: ["billing.account.read", "billing.bill.issue"],
+        });
+      if (url.endsWith("/account"))
+        return json(200, { status: "open", discharge_ordered: discharge, totals: [], sources: [] });
+      if (init.method === "POST") {
+        discharge = true;
+        return json(409, {
+          error: "discharge_ordered",
+          message: "discharge is ordered; issue the final bill",
+        });
+      }
+      return page([]);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const { user } = renderWithProviders(
+      <AdmissionBills hospital={hospital} admissionId={admission} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Issue interim bill" }));
+    expect(await screen.findByRole("button", { name: "Issue final bill" })).toBeInTheDocument();
+  });
+
   it("says why nothing was issued", async () => {
     server({
       issue: json(409, {

@@ -122,7 +122,10 @@ Design: [spec](../../superpowers/specs/2026-10-30-final-bills-design.md).
 - **One series:** interim and final bills share the admission's numbers. Interim needs an open
   account without an active order (`409 discharge_ordered`, `409 account_closed`); final needs
   an active order or a released account (`409 discharge_not_ordered`), bed charging set up and
-  every bed day priced (`409 bed_days_not_priced`). The database holds the same rules.
+  every bed day priced (`409 bed_days_not_priced`), and every bed day counted
+  (`409 bed_days_pending`): setup applied by the census, every stay's start received, no open
+  stay past an uncounted midnight, and after release every stay ended. The database holds the
+  same rules.
 - **Reissued, never edited:** anything after a final bill goes on a new one; nothing new is
   `409 nothing_new`, but a first final bill after interim ones is always issued. A withdrawn
   discharge returns the account to interim bills.

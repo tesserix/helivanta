@@ -21,6 +21,7 @@ var (
 	errDischargeOrdered = errors.New("discharge is ordered")
 	errNotDischarged    = errors.New("discharge is not ordered")
 	errFinalUnpriced    = errors.New("bed charging is not set up or a bed day is not priced")
+	errBedDaysPending   = errors.New("bed days are still being counted")
 	errAccountClosed    = errors.New("the account is closed")
 	errNothingNew       = errors.New("nothing new since the last bill")
 	errNoBill           = errors.New("bill not found")
@@ -98,9 +99,10 @@ func (h *handlers) issueBill(c *gin.Context, kind string) {
 		if len(status) == 0 {
 			return errNoAccount
 		}
-		var ordered struct{ Ordered, Configured bool }
-		if err := tx.Raw(`SELECT billing_discharge_ordered(?,?) AS ordered, EXISTS (SELECT 1 FROM billing_bed_charging WHERE tenant_id=? AND hospital_id=?) AS configured`,
-			p.TenantID, admission, p.TenantID, hospital).Scan(&ordered).Error; err != nil {
+		var ordered struct{ Ordered, Configured, Settled bool }
+		if err := tx.Raw(`SELECT billing_discharge_ordered(?,?) AS ordered, EXISTS (SELECT 1 FROM billing_bed_charging WHERE tenant_id=? AND hospital_id=?) AS configured,
+ billing_bed_days_settled(?,?,?) AS settled`,
+			p.TenantID, admission, p.TenantID, hospital, p.TenantID, hospital, admission).Scan(&ordered).Error; err != nil {
 			return err
 		}
 		switch {
@@ -112,6 +114,10 @@ func (h *handlers) issueBill(c *gin.Context, kind string) {
 			return errNotDischarged
 		case kind == "final" && !ordered.Configured:
 			return errFinalUnpriced
+		case kind == "final" && !ordered.Settled:
+			// A day the census or a late stay event may still add: the bill
+			// waits for it rather than going out without it.
+			return errBedDaysPending
 		}
 		var at struct {
 			Previous, PreviousUnpriced, Unpriced, Fresh int
@@ -134,7 +140,7 @@ func (h *handlers) issueBill(c *gin.Context, kind string) {
 		if err := tx.Raw(`SELECT kind FROM billing_interim_bills WHERE tenant_id=? AND admission_id=? ORDER BY number DESC LIMIT 1`, p.TenantID, admission).Scan(&lastKind).Error; err != nil {
 			return err
 		}
-		sameKind := len(lastKind) == 0 || lastKind[0] == kind
+		sameKind := len(lastKind) == 0 || lastKind[0] == kind || kind == "interim"
 		if at.Fresh == 0 && at.Unpriced == at.PreviousUnpriced && sameKind {
 			return errNothingNew
 		}
@@ -159,6 +165,8 @@ func (h *handlers) issueBill(c *gin.Context, kind string) {
 		respond.Error(c, http.StatusConflict, "discharge_ordered", "discharge is ordered; issue the final bill")
 	case errors.Is(err, errNotDischarged), errors.As(err, &pg) && pg.ConstraintName == "billing_final_bill_discharge":
 		respond.Error(c, http.StatusConflict, "discharge_not_ordered", "a final bill is issued once a doctor orders discharge or the patient has left")
+	case errors.Is(err, errBedDaysPending), errors.As(err, &pg) && pg.ConstraintName == "billing_final_bill_settled":
+		respond.Error(c, http.StatusConflict, "bed_days_pending", "bed days are still being counted; try again in a few minutes")
 	case errors.Is(err, errFinalUnpriced), errors.As(err, &pg) && pg.ConstraintName == "billing_final_bill_priced":
 		respond.Error(c, http.StatusConflict, "bed_days_not_priced", "a final bill needs bed charging set up and a rate for every bed day")
 	case errors.Is(err, errNothingNew):

@@ -32,17 +32,18 @@ func dischargeConsumers() []events.Consumer {
 			if err := lockAdmission(tx, evt.TenantID, v[2]); err != nil {
 				return err
 			}
-			if err := openAccount(tx, evt.TenantID, v[1], v[2], v[3]); err != nil {
-				return err
-			}
 			if err := tx.Exec(`INSERT INTO billing_discharge_orders (tenant_id,order_id,hospital_id,admission_id,disposition,ordered_at) VALUES (?,?,?,?,?,?)
  ON CONFLICT (tenant_id,order_id) DO UPDATE SET disposition=EXCLUDED.disposition,ordered_at=EXCLUDED.ordered_at WHERE billing_discharge_orders.ordered_at IS NULL`,
 				evt.TenantID, v[0], v[1], v[2], d.Disposition, at).Error; err != nil {
 				return err
 			}
-			return sameDischargeOrder(tx, evt.TenantID, v[0], v[1], v[2], func(o heldOrder) bool {
+			if err := sameDischargeOrder(tx, evt.TenantID, v[0], v[1], v[2], func(o heldOrder) bool {
 				return o.Disposition != nil && *o.Disposition == d.Disposition && o.OrderedAt != nil && o.OrderedAt.Equal(at.Truncate(time.Microsecond))
-			})
+			}); err != nil {
+				return err
+			}
+			// Only an order that is accepted opens the account.
+			return openAccount(tx, evt.TenantID, v[1], v[2], v[3])
 		}},
 		{Name: "billing-discharge-withdrawn", Subject: medicorecontract.SubjectDischargeWithdrawn, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var d medicorecontract.DischargeWithdrawnData

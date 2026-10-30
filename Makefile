@@ -497,6 +497,11 @@ migrate:
 secret-session-key:
 	@cd backend && go run ./cmd/session-key
 
+.PHONY: e2e-payment-provider
+# Loopback-only synthetic provider plus real ephemeral OpenBao for #1478.
+e2e-payment-provider:
+	HELIVANTA_ENV=dev node scripts/e2e-payments-provider.mjs
+
 .PHONY: seed-e2e-clinical
 # Synthetic owner-controlled drug catalogue for the #1389 browser journey only.
 seed-e2e-clinical:

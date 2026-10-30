@@ -1,11 +1,11 @@
 # Hospital billing
 
-[Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2) and interim
-bills (slice 3).
+[Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2), interim
+bills (slice 3) and final bills (slice 4).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
-published events; none writes its tables. Hospital invoices, payer tariffs, GST, final bills,
-deposits and discounts are not built yet (#193, #197, #199, #200, #1045).
+published events; none writes its tables. Hospital invoices, payer tariffs, GST, deposits and
+discounts are not built yet (#193, #197, #199, #200, #1045).
 
 ## Admission accounts (#197 slice 1)
 
@@ -109,6 +109,35 @@ Design: [spec](../../superpowers/specs/2026-10-30-bed-day-charges-design.md).
 
 - **Issuing** needs `billing.bill.issue` (receptionist) and the hospital's billing grant;
   **reading** needs `billing.account.read` and the grant.
-- **Not covered:** the final bill (MediCore publishes no discharge-initiated event yet);
-  scheduled interim bills; deposits and payments on the bill (#199); a print layout; GST
+- **Not covered:** scheduled interim bills; deposits and payments on the bill (#199); a print layout; GST
   (#193); discounts (#200); an `InterimBillIssued` event, which nothing would consume yet.
+
+## Final bills (#197 slice 4)
+
+Design: [spec](../../superpowers/specs/2026-10-30-final-bills-design.md).
+
+- **Discharge orders** from MediCore's `discharge_ordered.v1` and `discharge_withdrawn.v1`
+  ([beds and admissions](beds-and-admissions.md)) are recorded in either order, each once. An
+  order is active until withdrawn; the account shows `discharge_ordered`.
+- **One series:** interim and final bills share the admission's numbers. Interim needs an open
+  account without an active order (`409 discharge_ordered`, `409 account_closed`); final needs
+  an active order or a released account (`409 discharge_not_ordered`), bed charging set up and
+  every bed day priced (`409 bed_days_not_priced`), and every bed day counted
+  (`409 bed_days_pending`): setup applied by the census, every stay's start received, no open
+  stay past an uncounted midnight, and after release every stay ended. The database holds the
+  same rules.
+- **Reissued, never edited:** anything after a final bill goes on a new one; nothing new is
+  `409 nothing_new`, but a first final bill after interim ones is always issued. A withdrawn
+  discharge returns the account to interim bills.
+
+| Route                                                                 | Behaviour                                                       |
+| --------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `POST /billing/hospitals/:hospital/admissions/:admission/final-bills` | `201` with the bill; the `409`s above; `404` without the grant. |
+| `GET …/admissions/:admission/bills`                                   | Bills of both kinds, newest first, paged, each with `kind`.     |
+| `GET …/bills/:number`, `GET …/bills/:number/lines`                    | One bill and its lines, either kind.                            |
+
+- **Issuing** needs `billing.bill.issue` and the grant; **reading** `billing.account.read` and
+  the grant. The interim routes keep answering interim bills only.
+- **Not covered:** deposits and payments on the bill (#199), discharge clearances (#1043),
+  procedure bundles (#196), discounts (#200), GST (#193), a `FinalBillReady` event, and the
+  final bill of a released patient from the ward board (the API serves it).

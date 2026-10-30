@@ -18,9 +18,13 @@ import (
 )
 
 var (
-	errAccountClosed = errors.New("the account is closed")
-	errNothingNew    = errors.New("nothing new since the last bill")
-	errNoBill        = errors.New("bill not found")
+	errDischargeOrdered = errors.New("discharge is ordered")
+	errNotDischarged    = errors.New("discharge is not ordered")
+	errFinalUnpriced    = errors.New("bed charging is not set up or a bed day is not priced")
+	errBedDaysPending   = errors.New("bed days are still being counted")
+	errAccountClosed    = errors.New("the account is closed")
+	errNothingNew       = errors.New("nothing new since the last bill")
+	errNoBill           = errors.New("bill not found")
 )
 
 // interimBill is the account as it stood when the bill was issued. Its
@@ -32,6 +36,7 @@ type interimBill struct {
 	HospitalID      uuid.UUID `json:"hospital_id"`
 	PatientID       uuid.UUID `json:"patient_id"`
 	Number          int       `json:"number"`
+	Kind            string    `json:"kind"`
 	IssuedBy        string    `json:"issued_by"`
 	IssuedAt        time.Time `json:"issued_at"`
 	UnpricedBedDays int       `json:"unpriced_bed_days"`
@@ -62,14 +67,20 @@ type billLine struct {
 
 func (b billLine) PageKey() (time.Time, uuid.UUID) { return b.RecordedAt, b.ID }
 
-const billColumns = "b.id,b.admission_id,b.hospital_id,a.patient_id,b.number,b.issued_by,b.issued_at,b.unpriced_bed_days," +
+const billColumns = "b.id,b.admission_id,b.hospital_id,a.patient_id,b.number,b.kind,b.issued_by,b.issued_at,b.unpriced_bed_days," +
 	"(SELECT count(*) FROM billing_interim_bill_lines l WHERE l.tenant_id=b.tenant_id AND l.admission_id=b.admission_id AND l.number=b.number) AS line_count," +
 	"(SELECT count(*) FROM billing_interim_bill_lines l WHERE l.tenant_id=b.tenant_id AND l.admission_id=b.admission_id AND l.number=b.number AND l.new) AS new_count"
 
 const billFrom = "billing_interim_bills b JOIN billing_admission_accounts a ON a.tenant_id=b.tenant_id AND a.admission_id=b.admission_id"
 
-// issueInterimBill freezes the open account into the next numbered bill.
-func (h *handlers) issueInterimBill(c *gin.Context) {
+func (h *handlers) issueInterimBill(c *gin.Context) { h.issueBill(c, "interim") }
+func (h *handlers) issueFinalBill(c *gin.Context)   { h.issueBill(c, "final") }
+
+// issueBill freezes the account into the next numbered bill. An interim bill
+// is for an open account before discharge is ordered; a final bill for one
+// whose discharge is ordered or whose patient has left, with every bed day
+// priced. The database holds the same rules.
+func (h *handlers) issueBill(c *gin.Context, kind string) {
 	admission, err := uuid.Parse(c.Param("admission"))
 	if err != nil {
 		respond.NotFound(c, "account")
@@ -88,8 +99,25 @@ func (h *handlers) issueInterimBill(c *gin.Context) {
 		if len(status) == 0 {
 			return errNoAccount
 		}
-		if status[0] != "open" {
+		var ordered struct{ Ordered, Configured, Settled bool }
+		if err := tx.Raw(`SELECT billing_discharge_ordered(?,?) AS ordered, EXISTS (SELECT 1 FROM billing_bed_charging WHERE tenant_id=? AND hospital_id=?) AS configured,
+ billing_bed_days_settled(?,?,?) AS settled`,
+			p.TenantID, admission, p.TenantID, hospital, p.TenantID, hospital, admission).Scan(&ordered).Error; err != nil {
+			return err
+		}
+		switch {
+		case kind == "interim" && status[0] != "open":
 			return errAccountClosed
+		case kind == "interim" && ordered.Ordered:
+			return errDischargeOrdered
+		case kind == "final" && status[0] == "open" && !ordered.Ordered:
+			return errNotDischarged
+		case kind == "final" && !ordered.Configured:
+			return errFinalUnpriced
+		case kind == "final" && !ordered.Settled:
+			// A day the census or a late stay event may still add: the bill
+			// waits for it rather than going out without it.
+			return errBedDaysPending
 		}
 		var at struct {
 			Previous, PreviousUnpriced, Unpriced, Fresh int
@@ -102,13 +130,23 @@ func (h *handlers) issueInterimBill(c *gin.Context) {
 			p.TenantID, admission, p.TenantID, admission, p.TenantID, admission).Scan(&at).Error; err != nil {
 			return err
 		}
-		// Nothing the previous bill lacks: refused, which also absorbs a repeated click.
-		if at.Fresh == 0 && at.Unpriced == at.PreviousUnpriced {
+		// A final bill leaves out nothing it could not price.
+		if kind == "final" && at.Unpriced > 0 {
+			return errFinalUnpriced
+		}
+		// Nothing the previous bill lacks: refused, which also absorbs a repeated
+		// click. A first final bill after interim ones is always new: it is final.
+		var lastKind []string
+		if err := tx.Raw(`SELECT kind FROM billing_interim_bills WHERE tenant_id=? AND admission_id=? ORDER BY number DESC LIMIT 1`, p.TenantID, admission).Scan(&lastKind).Error; err != nil {
+			return err
+		}
+		sameKind := len(lastKind) == 0 || lastKind[0] == kind || kind == "interim"
+		if at.Fresh == 0 && at.Unpriced == at.PreviousUnpriced && sameKind {
 			return errNothingNew
 		}
 		number := at.Previous + 1
-		if err := tx.Exec(`INSERT INTO billing_interim_bills (tenant_id,hospital_id,admission_id,number,id,issued_by,unpriced_bed_days) VALUES (?,?,?,?,?,?,?)`,
-			p.TenantID, hospital, admission, number, uuid.Must(uuid.NewV7()), p.Subject, at.Unpriced).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO billing_interim_bills (tenant_id,hospital_id,admission_id,number,kind,id,issued_by,unpriced_bed_days) VALUES (?,?,?,?,?,?,?,?)`,
+			p.TenantID, hospital, admission, number, kind, uuid.Must(uuid.NewV7()), p.Subject, at.Unpriced).Error; err != nil {
 			return err
 		}
 		if err := tx.Exec(`INSERT INTO billing_interim_bill_lines (tenant_id,hospital_id,admission_id,number,id,new)
@@ -116,13 +154,21 @@ func (h *handlers) issueInterimBill(c *gin.Context) {
  FROM billing_account_entries e WHERE e.tenant_id=? AND e.admission_id=?`, hospital, number, at.Previous, p.TenantID, admission).Error; err != nil {
 			return err
 		}
-		out, err = loadBill(tx, p.TenantID, hospital, admission, number)
+		out, err = loadBill(tx, p.TenantID, hospital, admission, number, "")
 		return err
 	})
 	var pg *pgconn.PgError
 	switch {
-	case errors.Is(err, errAccountClosed), errors.As(err, &pg) && pg.ConstraintName == "billing_interim_bill_open":
-		respond.Error(c, http.StatusConflict, "account_closed", "the admission is released; its account waits for the final bill")
+	case errors.Is(err, errAccountClosed):
+		respond.Error(c, http.StatusConflict, "account_closed", "the admission is released; issue the final bill")
+	case errors.Is(err, errDischargeOrdered), errors.As(err, &pg) && pg.ConstraintName == "billing_interim_bill_open":
+		respond.Error(c, http.StatusConflict, "discharge_ordered", "discharge is ordered; issue the final bill")
+	case errors.Is(err, errNotDischarged), errors.As(err, &pg) && pg.ConstraintName == "billing_final_bill_discharge":
+		respond.Error(c, http.StatusConflict, "discharge_not_ordered", "a final bill is issued once a doctor orders discharge or the patient has left")
+	case errors.Is(err, errBedDaysPending), errors.As(err, &pg) && pg.ConstraintName == "billing_final_bill_settled":
+		respond.Error(c, http.StatusConflict, "bed_days_pending", "bed days are still being counted; try again in a few minutes")
+	case errors.Is(err, errFinalUnpriced), errors.As(err, &pg) && pg.ConstraintName == "billing_final_bill_priced":
+		respond.Error(c, http.StatusConflict, "bed_days_not_priced", "a final bill needs bed charging set up and a rate for every bed day")
 	case errors.Is(err, errNothingNew):
 		respond.Error(c, http.StatusConflict, "nothing_new", "nothing has been charged or reversed since the last bill")
 	case err != nil:
@@ -132,9 +178,10 @@ func (h *handlers) issueInterimBill(c *gin.Context) {
 	}
 }
 
-func loadBill(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, number int) (interimBill, error) {
+// loadBill reads one bill; kind "" is either kind.
+func loadBill(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, number int, kind string) (interimBill, error) {
 	var rows []interimBill
-	if err := tx.Table(billFrom).Select(billColumns).Where("b.tenant_id=? AND b.hospital_id=? AND b.admission_id=? AND b.number=?", tenant, hospital, admission, number).Scan(&rows).Error; err != nil {
+	if err := tx.Table(billFrom).Select(billColumns).Where("b.tenant_id=? AND b.hospital_id=? AND b.admission_id=? AND b.number=? AND (?='' OR b.kind=?)", tenant, hospital, admission, number, kind, kind).Scan(&rows).Error; err != nil {
 		return interimBill{}, err
 	}
 	if len(rows) != 1 {
@@ -166,7 +213,13 @@ func billNumber(c *gin.Context) (uuid.UUID, int, bool) {
 	return admission, int(number), err == nil && nerr == nil && number >= 1
 }
 
-func (h *handlers) interimBill(c *gin.Context) {
+// bill answers one bill: the interim routes only interim ones, the bill
+// routes either kind (#197 slice 4).
+func (h *handlers) bill(kind string) func(c *gin.Context) {
+	return func(c *gin.Context) { h.oneBill(c, kind) }
+}
+
+func (h *handlers) oneBill(c *gin.Context, kind string) {
 	admission, number, ok := billNumber(c)
 	if !ok {
 		respond.NotFound(c, "bill")
@@ -175,7 +228,7 @@ func (h *handlers) interimBill(c *gin.Context) {
 	var out interimBill
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
 		var err error
-		out, err = loadBill(tx, p.TenantID, hospital, admission, number)
+		out, err = loadBill(tx, p.TenantID, hospital, admission, number, kind)
 		return err
 	})
 	if errors.Is(err, errNoBill) {
@@ -189,9 +242,15 @@ func (h *handlers) interimBill(c *gin.Context) {
 	respond.OK(c, out)
 }
 
-// interimBills lists the admission's bills, newest first, without totals:
-// each bill's own route has them.
-func (h *handlers) interimBills(c *gin.Context, params pagination.Params) ([]interimBill, error) {
+// bills lists the admission's bills of a kind ("" for both), newest first,
+// without totals: each bill's own route has them.
+func (h *handlers) bills(kind string) func(*gin.Context, pagination.Params) ([]interimBill, error) {
+	return func(c *gin.Context, params pagination.Params) ([]interimBill, error) {
+		return h.listBills(c, params, kind)
+	}
+}
+
+func (h *handlers) listBills(c *gin.Context, params pagination.Params, kind string) ([]interimBill, error) {
 	admission, err := uuid.Parse(c.Param("admission"))
 	if err != nil {
 		respond.NotFound(c, "account")
@@ -206,7 +265,7 @@ func (h *handlers) interimBills(c *gin.Context, params pagination.Params) ([]int
 		if known == 0 {
 			return errNoAccount
 		}
-		q := tx.Table("(SELECT "+billColumns+" FROM "+billFrom+" WHERE b.tenant_id=? AND b.hospital_id=? AND b.admission_id=?) AS bills", p.TenantID, hospital, admission)
+		q := tx.Table("(SELECT "+billColumns+" FROM "+billFrom+" WHERE b.tenant_id=? AND b.hospital_id=? AND b.admission_id=? AND (?='' OR b.kind=?)) AS bills", p.TenantID, hospital, admission, kind, kind)
 		return tenantdb.ApplyOrderedKeyset(q, params, tenantdb.Keyset{Column: "issued_at", Direction: pagination.NewestFirst}).Find(&rows).Error
 	})
 	if err != nil {
@@ -219,7 +278,13 @@ func (h *handlers) interimBills(c *gin.Context, params pagination.Params) ([]int
 	return rows, nil
 }
 
-func (h *handlers) interimBillLines(c *gin.Context, params pagination.Params) ([]billLine, error) {
+func (h *handlers) billLines(kind string) func(*gin.Context, pagination.Params) ([]billLine, error) {
+	return func(c *gin.Context, params pagination.Params) ([]billLine, error) {
+		return h.listBillLines(c, params, kind)
+	}
+}
+
+func (h *handlers) listBillLines(c *gin.Context, params pagination.Params, kind string) ([]billLine, error) {
 	admission, number, ok := billNumber(c)
 	if !ok {
 		respond.NotFound(c, "bill")
@@ -228,7 +293,7 @@ func (h *handlers) interimBillLines(c *gin.Context, params pagination.Params) ([
 	var rows []billLine
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
 		var known int64
-		if err := tx.Table("billing_interim_bills").Where("tenant_id=? AND hospital_id=? AND admission_id=? AND number=?", p.TenantID, hospital, admission, number).Count(&known).Error; err != nil {
+		if err := tx.Table("billing_interim_bills").Where("tenant_id=? AND hospital_id=? AND admission_id=? AND number=? AND (?='' OR kind=?)", p.TenantID, hospital, admission, number, kind, kind).Count(&known).Error; err != nil {
 			return err
 		}
 		if known == 0 {

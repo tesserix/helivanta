@@ -37,7 +37,7 @@ import { PatientName } from "./opd-encounters";
 import { BedSetup } from "./bed-setup";
 import { AdmissionBalance, BillingAccessSetup, useBillingAccess } from "./admission-account";
 import { BedChargingSetup } from "./bed-charging";
-import { InterimBills } from "./interim-bills";
+import { AdmissionBills } from "./admission-bills";
 import { DischargeOrder } from "./discharge-order";
 
 const stateLabel: Record<BedState, string> = {
@@ -246,7 +246,7 @@ function BedRow({
             </p>
           )}
           {billing && bed.admission_id && bills && (
-            <InterimBills hospital={hospital} admissionId={bed.admission_id} />
+            <AdmissionBills hospital={hospital} admissionId={bed.admission_id} />
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -34,6 +34,9 @@ var bedDaysSchema string
 //go:embed interim_bills.sql
 var interimBillsSchema string
 
+//go:embed final_bills.sql
+var finalBillsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -53,7 +56,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -71,9 +74,15 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, hp+"/bed-rates", PermAccountRead, h.bedRates)
 	bills := hp + "/admissions/:admission/interim-bills"
 	g.POST(bills, PermBillIssue, h.issueInterimBill)
-	platform.ListRoute(g, bills, PermAccountRead, h.interimBills)
-	g.GET(bills+"/:number", PermAccountRead, h.interimBill)
-	platform.ListRoute(g, bills+"/:number/lines", PermAccountRead, h.interimBillLines)
+	platform.ListRoute(g, bills, PermAccountRead, h.bills("interim"))
+	g.GET(bills+"/:number", PermAccountRead, h.bill("interim"))
+	platform.ListRoute(g, bills+"/:number/lines", PermAccountRead, h.billLines("interim"))
+	// Final bills, and every bill of either kind in one series (#197 slice 4).
+	g.POST(hp+"/admissions/:admission/final-bills", PermBillIssue, h.issueFinalBill)
+	all := hp + "/admissions/:admission/bills"
+	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
+	g.GET(all+"/:number", PermAccountRead, h.bill(""))
+	platform.ListRoute(g, all+"/:number/lines", PermAccountRead, h.billLines(""))
 }
 
 // Publishes declares none in this slice: nothing consumes billing yet.

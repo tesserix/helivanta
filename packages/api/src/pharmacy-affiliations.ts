@@ -117,4 +117,6 @@ export type AdmissionAccount = {
   /** Bed days counted so far; a day not priced has no amount, never zero. */
   bed_days: { configured: boolean; priced: number; not_priced: number };
   entry_count: number;
+  /** A doctor has ordered discharge (#96): the next bill is the final bill. */
+  discharge_ordered: boolean;
 };

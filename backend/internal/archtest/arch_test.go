@@ -406,6 +406,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /medicore/hospitals/:hospital/access":                                     "the caller's own grant at one hospital; no other subject or patient data",
 	"GET /billing/hospitals/:hospital/access":                                      "the caller's own billing grant at one hospital; no other subject",
 	"GET /billing/hospitals/:hospital/admissions/:admission/account":               "one admission's account totals; its entries are a paginated list",
+	"GET /billing/hospitals/:hospital/admissions/:admission/bills/:number":         "one bill's header and totals, either kind; its lines are a paginated list",
 	"GET /billing/hospitals/:hospital/admissions/:admission/interim-bills/:number": "one interim bill's header and totals; its lines are a paginated list",
 	"GET /billing/hospitals/:hospital/bed-charging":                                "one hospital's bed-charging timezone; its rates are a paginated list",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant":        "one bed's or room's single open stay, or 404/409 ambiguous; never a collection",

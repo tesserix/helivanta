@@ -7,8 +7,8 @@ so a long crafted string stalls the caller. It reaches production through
 Expo Router parses deep links and URL query strings on the device.
 
 The patched release, 0.5.1, is ESM-only. `query-string` 7 loads it with `require`, so an
-override to it would break URL parsing at runtime in the ambulance app. Nothing in the tests
-would catch that.
+override to it would break URL parsing at runtime in the ambulance app. The actual-consumer regression in `scripts/expo-query-decoding.test.mjs` now
+covers that module boundary as well as normal and malformed query parsing.
 
 `patches/decode-uri-component@0.2.2.patch` backports 0.5.1's decoder into 0.2.2. That is a
 single left-to-right pass that decodes valid UTF-8 runs and leaves invalid bytes literal,

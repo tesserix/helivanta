@@ -109,7 +109,7 @@ export const EmploymentPeriodDraftContract = z
     hospital_id: identifier,
     staff_id: identifier,
     version: z.number().int().min(1).max(9007199254740990),
-    status: z.enum(["draft"]),
+    status: z.enum(["draft", "withdrawn"]),
     staff_version: z.number().int().min(1).max(9007199254740990),
     employment_epoch: z.number().int().min(1).max(9007199254740990),
     engagement_kind: z.enum([
@@ -259,3 +259,17 @@ export const EmploymentEvidenceBindingContract = z
   })
   .strict();
 export type EmploymentEvidenceBinding = z.infer<typeof EmploymentEvidenceBindingContract>;
+
+export const EmploymentPeriodWithdrawInputContract = z
+  .object({
+    command_id: identifier,
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type EmploymentPeriodWithdrawInput = z.infer<typeof EmploymentPeriodWithdrawInputContract>;

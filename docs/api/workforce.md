@@ -1131,3 +1131,43 @@ file-owner two-phase document-before-binding order. No remote call runs within a
 write transaction. Application rollback preserves the new private tables; no
 legacy evidence is automatically bound, approved or deleted. Production rollout
 and migration remain a separate exact-revision approval gate.
+
+## Withdrawal of prepared employment terms
+
+`POST /v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/withdraw`
+closes an unsubmitted draft. It uses the same enrollment permission and explicit
+current hospital manager check as draft preparation, and the same expected
+subject/tenant request headers and `no-store` response. It changes no employment,
+login, role, payroll, source Staff record or document-release state.
+
+The canonical `EmploymentPeriodWithdrawInput` requires UUIDv7 `command_id`,
+`expected_version` >= 1 and a nonblank reason of at most 500 characters. The
+command body is bounded to 4 KiB. Only `draft -> withdrawn` is legal. It advances
+one revision and freezes the terms, proposer, source generations and appointment
+reference. The terminal revision's `reason` records cancellation; earlier reasons
+remain in immutable history. A current manager may close obsolete preparation
+after the target Staff source or sponsor changed without restoring that source.
+
+Exact actor/object/intent retries recover their original immutable receipt after
+current access authorization. Changed intent, stale versions, reused commands,
+editing or withdrawing a terminal draft return 409. A missing route permission
+returns 403, a foreign/unavailable Staff or hospital returns 404, invalid input
+returns 400, and unavailable persistence fails closed. Existing audit records
+include withdrawal and receipt recovery. No delete or reopen command is provided.
+
+The new lifecycle read projection is explicit: append `lifecycle=withdrawal-v1`
+to the existing detail/list/history reads. It includes withdrawn records and their
+terminal revisions. Unknown or duplicate lifecycle values return 400. Without
+this parameter, current/list/history responses retain their original draft-only
+status contract; detail of a withdrawn current record returns 404. The UI opts
+in, displays the reason and retained history, and removes edit/withdraw/attachment
+controls for the terminal revision. Historical protected evidence remains subject
+to its existing current authorization and audited download checks.
+
+Migration `0052_workforce_employment_withdrawal` expands status constraints and
+adds trigger-enforced finality, immutable withdrawal terms and rejection of new
+evidence on a closed draft. It changes no legacy business records. Migration and
+application are delivered together; rollback retains the schema/history and old
+application writes cannot reopen terminal records. The older read contract stays
+draft-only. There is no destructive down migration. Approval for the exact
+production revision and migration remains required before deployment.

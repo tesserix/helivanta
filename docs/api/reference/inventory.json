@@ -6984,6 +6984,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/withdraw",
+          "permission": "workforce.enrollment.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
           "permission": "workforce.enrollment.manage",
@@ -8014,6 +8023,11 @@
             "workforce_employment_evidence_bindings",
             "workforce_employment_evidence_history"
           ]
+        },
+        {
+          "id": "0052_workforce_employment_withdrawal",
+          "sql_sha256": "0bcb2078adc9a8fbac5996cc2a45cd5a97a408e5f5ccf0df4f654d6fc2b39e29",
+          "creates_tables": []
         }
       ]
     },

@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import { saveEmploymentPeriodDraft } from "./employment-periods";
+import { saveEmploymentPeriodDraft, withdrawEmploymentPeriod } from "./employment-periods";
 vi.mock("./client", () => ({ apiFetch: vi.fn() }));
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -60,5 +60,65 @@ it("rejects incomplete contractor terms before transmitting", async () => {
   await expect(
     saveEmploymentPeriodDraft(scope, id, { ...input, engagement_kind: "agency_worker" }),
   ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
+it("checks the terminal withdrawal receipt and pins its command to the workspace", async () => {
+  const command = {
+    command_id: input.command_id,
+    expected_version: 1,
+    reason: "Synthetic cancellation",
+  };
+  const terms = {
+    staff_version: input.staff_version,
+    employment_epoch: input.employment_epoch,
+    engagement_kind: input.engagement_kind,
+    duration: input.duration,
+    starts_at: input.starts_at,
+    contracting_party: input.contracting_party,
+    sponsor_id: input.sponsor_id,
+    evidence_reference: input.evidence_reference,
+  };
+  const receipt = {
+    ...terms,
+    id,
+    revision_id: command.command_id,
+    hospital_id: scope.hospitalId,
+    staff_id: scope.staffId,
+    version: 2,
+    status: "withdrawn",
+    reason: command.reason,
+    proposed_by_subject: scope.subject,
+    actor_subject: scope.subject,
+    created_at: "2026-10-29T00:00:00Z",
+    updated_at: "2026-10-29T00:00:00Z",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(receipt);
+  expect(await withdrawEmploymentPeriod(scope, id, command)).toEqual(receipt);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/${id}/withdraw`),
+    expect.objectContaining({
+      method: "POST",
+      cache: "no-store",
+      body: JSON.stringify(command),
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+    }),
+  );
+  for (const change of [
+    { status: "draft" },
+    { staff_id: scope.hospitalId },
+    { actor_subject: "other" },
+    { revision_id: id },
+    { version: 3 },
+    { reason: "Changed reason" },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...receipt, ...change });
+    await expect(withdrawEmploymentPeriod(scope, id, command)).rejects.toThrow("receipt");
+  }
+  vi.mocked(apiFetch).mockClear();
+  await expect(withdrawEmploymentPeriod(scope, id, { ...command, reason: " " })).rejects.toThrow();
   expect(apiFetch).not.toHaveBeenCalled();
 });

@@ -169,10 +169,10 @@ func (h *handlers) attachEmploymentEvidence(c *gin.Context) {
 			return nil
 		}
 		var head EmploymentPeriodDraft
-		if err := tx.Table("workforce_employment_period_drafts").Select("version,staff_version,employment_epoch").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.hospital, s.staff, s.period).Take(&head).Error; err != nil {
+		if err := tx.Table("workforce_employment_period_drafts").Select("version,status,staff_version,employment_epoch").Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", s.p.TenantID, s.hospital, s.staff, s.period).Take(&head).Error; err != nil {
 			return err
 		}
-		if head.Version != s.version || source.StaffVersion != period.StaffVersion || source.EmploymentEpoch != period.EmploymentEpoch {
+		if head.Status != "draft" || head.Version != s.version || source.StaffVersion != period.StaffVersion || source.EmploymentEpoch != period.EmploymentEpoch {
 			return errEmploymentEvidenceConflict
 		}
 		var file document

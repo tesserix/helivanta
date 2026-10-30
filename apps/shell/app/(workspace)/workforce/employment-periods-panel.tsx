@@ -18,6 +18,10 @@ import {
   EmploymentPeriodSourceContract,
   EmploymentPeriodDraftContract,
   EmploymentPeriodDraftInputContract,
+  EmploymentPeriodWithdrawInputContract,
+  withdrawEmploymentPeriod,
+  employmentLifecycleReadPath,
+  type EmploymentPeriodWithdrawInput,
   employmentPeriodsKey,
   employmentPeriodsPath,
   employmentPeriodRequest,
@@ -105,12 +109,14 @@ export function StaffEmploymentPeriods({
   );
   const periods = useApiPagedQuery<unknown>(
     employmentPeriodsKey(scope),
-    employmentPeriodsPath(scope),
+    employmentLifecycleReadPath(employmentPeriodsPath(scope)),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
   const [editor, setEditor] = useState<{ item?: EmploymentPeriodDraft } | null>(null);
   const [history, setHistory] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [withdrawn, setWithdrawn] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<EmploymentPeriodDraft | null>(null);
   const basis = EmploymentPeriodSourceContract.safeParse(source.data);
   const rows = EmploymentPeriodDraftContract.array().safeParse(periods.items);
   const validSource =
@@ -134,7 +140,11 @@ export function StaffEmploymentPeriods({
             review and do not grant access, renew a contract or end employment.
           </p>
         </div>
-        <Button variant="ghost" disabled={editor !== null} onClick={() => confirmLeave(onClose)}>
+        <Button
+          variant="ghost"
+          disabled={editor !== null || withdrawing !== null}
+          onClick={() => confirmLeave(onClose)}
+        >
           Close employment terms
         </Button>
       </div>
@@ -149,6 +159,7 @@ export function StaffEmploymentPeriods({
           {!editor && (
             <Button
               variant="outline"
+              disabled={withdrawing !== null}
               onClick={() => {
                 confirmLeave(() => {
                   setSaved(false);
@@ -178,6 +189,23 @@ export function StaffEmploymentPeriods({
         </>
       )}
       {saved && <p role="status">Employment terms draft saved.</p>}
+      {withdrawn && (
+        <p role="status">Employment draft withdrawn. Earlier revisions are retained.</p>
+      )}
+      {withdrawing && (
+        <EmploymentWithdrawalForm
+          key={withdrawing.id}
+          scope={scope}
+          item={withdrawing}
+          onClose={() => setWithdrawing(null)}
+          onSaved={() => {
+            setWithdrawing(null);
+            setWithdrawn(true);
+            setEvidence(null);
+            setHistory(null);
+          }}
+        />
+      )}
       {periods.isPending ? (
         <p role="status">Loading employment drafts…</p>
       ) : periods.isError || !validRows ? (
@@ -197,24 +225,42 @@ export function StaffEmploymentPeriods({
                 <div>
                   <h4 className="font-medium">{row.evidence_reference}</h4>
                   <p className="text-xs text-muted-foreground">
-                    Draft · Revision {row.version} · {row.engagement_kind.replaceAll("_", " ")}
+                    {row.status === "withdrawn" ? "Withdrawn" : "Draft"} · Revision {row.version} ·{" "}
+                    {row.engagement_kind.replaceAll("_", " ")}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={editor !== null}
-                    onClick={() => {
-                      setSaved(false);
-                      confirmLeave(() => {
-                        setEvidence(null);
-                        setHistory(null);
-                        setEditor({ item: row });
-                      });
-                    }}
-                  >
-                    Edit terms
-                  </Button>
+                  {row.status === "draft" && (
+                    <Button
+                      variant="outline"
+                      disabled={editor !== null || withdrawing !== null}
+                      onClick={() => {
+                        setSaved(false);
+                        confirmLeave(() => {
+                          setEvidence(null);
+                          setHistory(null);
+                          setEditor({ item: row });
+                        });
+                      }}
+                    >
+                      Edit terms
+                    </Button>
+                  )}
+                  {row.status === "draft" && (
+                    <Button
+                      variant="outline"
+                      disabled={editor !== null || withdrawing !== null}
+                      onClick={() =>
+                        confirmLeave(() => {
+                          setSaved(false);
+                          setWithdrawn(false);
+                          setWithdrawing(row);
+                        })
+                      }
+                    >
+                      Withdraw draft
+                    </Button>
+                  )}
                   {canManageDocuments && (
                     <Button
                       variant="outline"
@@ -239,6 +285,7 @@ export function StaffEmploymentPeriods({
                 {new Date(row.starts_at).toLocaleString()} —{" "}
                 {row.ends_at ? new Date(row.ends_at).toLocaleString() : "Ongoing"}
               </p>
+              {row.status === "withdrawn" && <p className="text-sm">{row.reason}</p>}
               {row.contracting_party && <p className="text-sm">{row.contracting_party}</p>}
               {evidence === row.id && (
                 <EmploymentEvidencePanel
@@ -246,6 +293,7 @@ export function StaffEmploymentPeriods({
                   scope={{ ...scope, periodId: row.id, periodVersion: row.version }}
                   staffVersion={row.staff_version}
                   canAttach={
+                    row.status === "draft" &&
                     validSource &&
                     basis.data.staff_version === row.staff_version &&
                     basis.data.employment_epoch === row.employment_epoch
@@ -285,7 +333,7 @@ function EmploymentTermsHistory({
   const confirmLeave = useConfirmLeave();
   const query = useApiPagedQuery<unknown>(
     [...employmentPeriodsKey(scope), id, "history"],
-    `${employmentPeriodsPath(scope)}/${id}/history`,
+    employmentLifecycleReadPath(`${employmentPeriodsPath(scope)}/${id}/history`),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
   const parsed = EmploymentPeriodDraftContract.array().safeParse(query.items);
@@ -304,8 +352,8 @@ function EmploymentTermsHistory({
       <ol className="space-y-2 text-sm">
         {parsed.data.map((row) => (
           <li key={row.revision_id}>
-            Revision {row.version} · {row.evidence_reference} ·{" "}
-            {new Date(row.updated_at).toLocaleString()}
+            Revision {row.version} · {row.status === "withdrawn" ? "Withdrawn" : "Draft"} ·{" "}
+            {row.evidence_reference} · {new Date(row.updated_at).toLocaleString()}
             <p className="text-muted-foreground">{row.reason}</p>
             {canManageDocuments && (
               <Button
@@ -533,5 +581,95 @@ function EmploymentTermsEditor({
         </Button>
       </div>
     </form>
+  );
+}
+
+function EmploymentWithdrawalForm({
+  scope,
+  item,
+  onClose,
+  onSaved,
+}: {
+  scope: EmploymentPeriodScope;
+  item: EmploymentPeriodDraft;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [submitted, setSubmitted] = useState<EmploymentPeriodWithdrawInput | null>(null);
+  const form = useZodForm(EmploymentPeriodWithdrawInputContract.pick({ reason: true }), {
+    reason: "",
+  });
+  const mutation = useApiMutation(
+    (command: EmploymentPeriodWithdrawInput) => withdrawEmploymentPeriod(scope, item.id, command),
+    {
+      invalidate: [employmentPeriodsKey(scope)],
+      onSuccess: onSaved,
+      suppressErrorToast: true,
+    },
+  );
+  const { confirm } = useLeaveGuard(
+    form.formState.isDirty,
+    "employment draft withdrawal",
+    mutation.isPending,
+  );
+  const conflict = mutation.error instanceof ApiError && mutation.error.status === 409;
+  return (
+    <Panel className="p-4">
+      <form
+        aria-label="Withdraw employment draft"
+        className="space-y-4"
+        onSubmit={form.handleSubmit((value) => {
+          const command = submitted ?? {
+            command_id: newEmploymentPeriodId(),
+            expected_version: item.version,
+            reason: value.reason,
+          };
+          setSubmitted(command);
+          mutation.mutate(command);
+        })}
+      >
+        <p>
+          Withdraw {item.evidence_reference} · Revision {item.version}. Earlier terms and evidence
+          remain in protected history. This closes preparation only.
+        </p>
+        <fieldset disabled={mutation.isPending || submitted !== null}>
+          <Field
+            id="employment-withdrawal-reason"
+            label="Withdrawal reason"
+            error={
+              form.formState.errors.reason
+                ? "Enter a withdrawal reason of 1 to 500 characters."
+                : undefined
+            }
+          >
+            <Input id="employment-withdrawal-reason" maxLength={500} {...form.register("reason")} />
+          </Field>
+        </fieldset>
+        {mutation.error && (
+          <p role="alert">
+            {conflict
+              ? "This draft changed. Close this form and reopen the current record before withdrawing."
+              : "Could not confirm withdrawal. Retry the same command to recover its result."}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={mutation.isPending}
+            onClick={() => confirm(onClose)}
+          >
+            Close withdrawal form
+          </Button>
+          <Button type="submit" disabled={mutation.isPending || conflict}>
+            {mutation.isPending
+              ? "Withdrawing…"
+              : submitted
+                ? "Retry same withdrawal"
+                : "Confirm withdrawal"}
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }

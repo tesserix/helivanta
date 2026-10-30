@@ -3,6 +3,8 @@ import {
   EmploymentPeriodDraftContract,
   EmploymentPeriodDraftInputContract,
   type EmploymentPeriodDraftInput,
+  EmploymentPeriodWithdrawInputContract,
+  type EmploymentPeriodWithdrawInput,
 } from "./employment-periods-contract";
 export { v7 as newEmploymentPeriodId } from "uuid";
 export type EmploymentPeriodScope = {
@@ -42,6 +44,7 @@ export async function saveEmploymentPeriodDraft(
   const parsed = EmploymentPeriodDraftContract.safeParse(response);
   if (
     !parsed.success ||
+    parsed.data.status !== "draft" ||
     parsed.data.id !== id ||
     parsed.data.revision_id !== command.command_id ||
     parsed.data.staff_id !== scope.staffId ||
@@ -52,5 +55,36 @@ export async function saveEmploymentPeriodDraft(
     throw new Error(
       "Could not verify the employment draft receipt. Check history before retrying.",
     );
+  return parsed.data;
+}
+
+export const employmentLifecycleReadPath = (path: string) => `${path}?lifecycle=withdrawal-v1`;
+export async function withdrawEmploymentPeriod(
+  scope: EmploymentPeriodScope,
+  id: string,
+  input: EmploymentPeriodWithdrawInput,
+) {
+  const command = EmploymentPeriodWithdrawInputContract.parse(input);
+  const response = await apiFetch<unknown>(`${employmentPeriodsPath(scope)}/${id}/withdraw`, {
+    ...employmentPeriodRequest(scope),
+    method: "POST",
+    body: JSON.stringify(command),
+  });
+  const parsed = EmploymentPeriodDraftContract.safeParse(response);
+  if (
+    !parsed.success ||
+    parsed.data.status !== "withdrawn" ||
+    parsed.data.id !== id ||
+    parsed.data.revision_id !== command.command_id ||
+    parsed.data.staff_id !== scope.staffId ||
+    parsed.data.hospital_id !== scope.hospitalId ||
+    parsed.data.version !== command.expected_version + 1 ||
+    parsed.data.actor_subject !== scope.subject ||
+    parsed.data.reason !== command.reason
+  ) {
+    throw new Error(
+      "Could not verify the employment withdrawal receipt. Check history before retrying.",
+    );
+  }
   return parsed.data;
 }

@@ -130,7 +130,8 @@
         "name": "status",
         "type": "string",
         "enum": [
-          "draft"
+          "draft",
+          "withdrawn"
         ]
       },
       {
@@ -400,6 +401,26 @@
       {
         "name": "updated_at",
         "type": "time"
+      }
+    ],
+    "EmploymentPeriodWithdrawInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
       }
     ]
   }

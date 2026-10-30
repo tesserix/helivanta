@@ -118,3 +118,85 @@ it("keeps unsaved terms until the user explicitly discards them", async () => {
   );
   expect(screen.queryByRole("form", { name: "Employment terms draft" })).not.toBeInTheDocument();
 });
+
+it("withdraws a draft with a required reason and the exact retry command", async () => {
+  const draft = {
+    id: "019a0000-0000-7000-8000-000000000001",
+    revision_id: "019a0000-0000-7000-8000-000000000002",
+    hospital_id: scope.hospitalId,
+    staff_id: scope.staffId,
+    version: 1,
+    status: "draft",
+    staff_version: 1,
+    employment_epoch: 1,
+    engagement_kind: "employee",
+    duration: "ongoing",
+    starts_at: "2026-11-01T00:00:00Z",
+    contracting_party: "",
+    sponsor_id: "",
+    reason: "Synthetic appointment",
+    evidence_reference: "SYN-WITHDRAW-UI",
+    proposed_by_subject: scope.subject,
+    actor_subject: scope.subject,
+    created_at: "2026-10-29T00:00:00Z",
+    updated_at: "2026-10-29T00:00:00Z",
+  };
+  let current = draft;
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        writes.push(body);
+        if (writes.length === 1) return Response.json({ error: "unavailable" }, { status: 503 });
+        current = {
+          ...draft,
+          status: "withdrawn",
+          version: 2,
+          revision_id: body.command_id,
+          reason: body.reason,
+        };
+        return Response.json(current);
+      }
+      if (url.endsWith("employment-source"))
+        return Response.json({
+          hospital_id: scope.hospitalId,
+          staff_id: scope.staffId,
+          staff_version: 1,
+          employment_epoch: 1,
+        });
+      return Response.json({ data: [current], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffEmploymentPeriods staffLabel="Synthetic QA" scope={scope} onClose={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Withdraw draft" }));
+  const form = screen.getByRole("form", { name: "Withdraw employment draft" });
+  expect(screen.getByRole("button", { name: "Prepare employment terms" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Close employment terms" })).toBeDisabled();
+  await user.click(within(form).getByRole("button", { name: "Confirm withdrawal" }));
+  expect(writes).toHaveLength(0);
+  expect(
+    await within(form).findByText("Enter a withdrawal reason of 1 to 500 characters."),
+  ).toBeInTheDocument();
+  await user.type(
+    within(form).getByLabelText("Withdrawal reason"),
+    "Synthetic preparation cancelled",
+  );
+  await user.click(within(form).getByRole("button", { name: "Confirm withdrawal" }));
+  await screen.findByText(
+    "Could not confirm withdrawal. Retry the same command to recover its result.",
+  );
+  expect(within(form).getByLabelText("Withdrawal reason")).toBeDisabled();
+  await user.click(within(form).getByRole("button", { name: "Retry same withdrawal" }));
+  await screen.findByText("Employment draft withdrawn. Earlier revisions are retained.");
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+  expect(screen.queryByRole("button", { name: "Edit terms" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Withdraw draft" })).toBeNull();
+  expect(screen.getByText("Synthetic preparation cancelled")).toBeInTheDocument();
+});

@@ -91,3 +91,9 @@ type EmploymentEvidenceBinding struct {
 	CreatedAt             time.Time `json:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
+
+type EmploymentPeriodWithdrawInput struct {
+	CommandID       uuid.UUID `json:"command_id"`
+	ExpectedVersion *int64    `json:"expected_version"`
+	Reason          string    `json:"reason"`
+}

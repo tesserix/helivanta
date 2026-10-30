@@ -199,7 +199,7 @@ func (h *handlers) putEmploymentPeriodDraft(c *gin.Context) {
 			if err := tx.Table("workforce_employment_period_drafts").Create(values).Error; err != nil {
 				return err
 			}
-		case err == nil && current.Version == *in.ExpectedVersion:
+		case err == nil && current.Status == "draft" && current.Version == *in.ExpectedVersion:
 			changed := tx.Table("workforce_employment_period_drafts").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=?", p.TenantID, hospital, staff, id, *in.ExpectedVersion).Updates(values)
 			if changed.Error != nil {
 				return changed.Error
@@ -231,9 +231,17 @@ func (h *handlers) getEmploymentPeriodDraft(c *gin.Context) {
 	if !ok {
 		return
 	}
+	lifecycle, valid := employmentLifecycleProjection(c)
+	if !valid {
+		return
+	}
 	var result EmploymentPeriodDraft
 	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
-		if err := tx.Table("workforce_employment_period_drafts").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Take(&result).Error; err != nil {
+		query := tx.Table("workforce_employment_period_drafts")
+		if !lifecycle {
+			query = query.Where("status='draft'")
+		}
+		if err := query.Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Take(&result).Error; err != nil {
 			return err
 		}
 		return employmentPeriodAudit(tx, p, hospital, id, "workforce.employment_period.read", result.Version)
@@ -249,9 +257,17 @@ func (h *handlers) listEmploymentPeriodDrafts(c *gin.Context, params pagination.
 	if !ok {
 		return nil, nil
 	}
+	lifecycle, valid := employmentLifecycleProjection(c)
+	if !valid {
+		return nil, nil
+	}
 	rows := []EmploymentPeriodDraft{}
 	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
-		if err := tenantdb.ApplyKeyset(tx, params).Table("workforce_employment_period_drafts").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=?", p.TenantID, hospital, staff).Find(&rows).Error; err != nil {
+		query := tx
+		if !lifecycle {
+			query = query.Where("status='draft'")
+		}
+		if err := tenantdb.ApplyKeyset(query, params).Table("workforce_employment_period_drafts").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=?", p.TenantID, hospital, staff).Find(&rows).Error; err != nil {
 			return err
 		}
 		return employmentPeriodAudit(tx, p, hospital, staff, "workforce.employment_period.list", 0)
@@ -267,13 +283,21 @@ func (h *handlers) employmentPeriodHistory(c *gin.Context, params pagination.Par
 	if !ok {
 		return nil, nil
 	}
+	lifecycle, valid := employmentLifecycleProjection(c)
+	if !valid {
+		return nil, nil
+	}
 	rows := []employmentPeriodRevision{}
 	err := h.employmentPeriodTransaction(c, p, hospital, staff, func(tx *gorm.DB, _ EmploymentPeriodSource) error {
 		var current EmploymentPeriodDraft
 		if err := tx.Table("workforce_employment_period_drafts").Select("id,version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Take(&current).Error; err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyOrderedKeyset(tx, params, tenantdb.Keyset{Column: "updated_at", Direction: pagination.NewestFirst}).Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Find(&rows).Error; err != nil {
+		query := tx
+		if !lifecycle {
+			query = query.Where("status='draft'")
+		}
+		if err := tenantdb.ApplyOrderedKeyset(query, params, tenantdb.Keyset{Column: "updated_at", Direction: pagination.NewestFirst}).Table("workforce_employment_period_history").Select(employmentPeriodColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Find(&rows).Error; err != nil {
 			return err
 		}
 		return employmentPeriodAudit(tx, p, hospital, id, "workforce.employment_period.history.read", current.Version)

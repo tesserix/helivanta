@@ -7,7 +7,7 @@ and [issue map](../../qa/staff-management-open-issues.md) retain remaining scope
 Follow ADR-0048/0049 and ORG-AC-01/02/04/05/06/07/08; do not settle ORG-D2/D5/D6
 by adding a template or claiming a workflow engine exists.
 
-## Source facts and ownership
+## Source facts and ownership at `22b6241`
 
 - `contracts/staff-access.json` defines three shared IAM templates: leave
   reviewer, identity checks manager and identity checks reviewer. None is a
@@ -28,9 +28,11 @@ by adding a template or claiming a workflow engine exists.
   new employment can create a circular prerequisite. Non-digital workers must
   remain supported without creating a global login solely to issue an ID/card.
 
-The registered source inventory has 207 Workforce routes: 22 declare enrollment
+The `22b6241` source inventory has 207 Workforce routes: 22 declare enrollment
 management and 10 document management as their primary permission. These 32
-entries are not the full compound authorization contract. The enrollment helper
+entries are not the full compound authorization contract. The withdrawal
+candidate in PR #1463 adds one enrollment-management route: its inventory has
+208 Workforce routes, 23 enrollment-management and 10 document-management entries. The enrollment helper
 also has credential/reminder and leave-standing/report consumers; changing it
 globally could alter those journeys. A scoped-intake change needs an action/route
 inventory and tests for these existing consumers, not a blanket helper replacement.

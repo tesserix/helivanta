@@ -1,5 +1,34 @@
 # Staff Management workflow acceptance
 
+## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
+
+Identity-owner draft [PR #22](https://github.com/tesserix/onboarding-service/pull/22)
+now contains pushed `293aa359a97ba7a3d853d102b12253914f913ab2`.
+Fresh console write authority guards creation reconciliation and immutable independent
+review decisions. Matching source accounts retain original creation facts and block
+replacement; removed accounts retain historical birth. Approval serializes exact
+birth/absence checks with receipt admission, preventing a stale absence decision
+after a receipt arrives. Replacement atomically prepares a fresh bound successor
+without dispatching an account or granting membership. Entire recovery route family
+bypasses cached response replay. Authority-withdrawal tests cover before commit,
+after commit without disclosure, and authorized recovery of retained history.
+
+Local evidence: full PostgreSQL Go race/coverage suite, vet/build, default and
+provider-fixture lint, four delivery Python tests, redacted Gitleaks and diff checks
+passed. Decision/reconciliation HTTP tests use callback source proofs; actual-provider
+adapter tests from the preceding candidate remain separate evidence. New CI run
+[41125307163](https://github.com/tesserix/onboarding-service/actions/runs/41125307163)
+is queued at this checkpoint; previous `a3eab89` run 41120222174 passed.
+No new migration/schema change, merge, production rollout, tag or issue closure.
+
+**Access/RBAC remains partial.** Next gates include full real-source owner HTTP,
+consumer UI and Admin → recipient → independent reviewer acceptance, followed by
+membership recovery/removal, renewal, all employment/contract lifecycles and
+cross-module cutoff acceptance. No whole-area completion percentage is claimed;
+Staff Management counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
+The earlier checkpoint sections below describe their own evidence dates.
+
+
 Current audit: 2026-10-28. Summary status and the ordered Access/RBAC checklist are maintained in [the delivery tracker](staff-management-progress.md), updated 2026-10-29. Scope is every Staff navigation entry and its complete
 business workflows, including account provisioning/verification/offboarding,
 staff identity/background verification, protected photographs and identity-card

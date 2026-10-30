@@ -28,11 +28,16 @@ const modelJSON = `{
   "type_definitions": [
     { "type": "user" },
     {
+      "type": "membership",
+      "relations": { "subject": { "this": {} } },
+      "metadata": { "relations": { "subject": { "directly_related_user_types": [{ "type": "user" }] } } }
+    },
+    {
       "type": "role",
       "relations": { "assignee": { "this": {} } },
       "metadata": {
         "relations": {
-          "assignee": { "directly_related_user_types": [{ "type": "user" }] }
+          "assignee": { "directly_related_user_types": [{ "type": "user" }, { "type": "membership" }, { "type": "membership", "relation": "subject" }] }
         }
       }
     },

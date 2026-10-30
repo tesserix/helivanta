@@ -61,4 +61,25 @@ func TestReenrolledMembershipRequiresItsOwnGraphProjection(t *testing.T) {
 	member, err = authority.IsMember(ctx, subject, testutil.TenantA)
 	require.NoError(t, err)
 	require.False(t, member, "a new source membership cannot borrow the old incarnation's unrevoked graph projection")
+	roles, err := authority.ListRoles(ctx, subject)
+	require.NoError(t, err)
+	require.Empty(t, roles, "discovery must not borrow old role tuples either")
+	for _, consumer := range module.Consumers(platform.Deps{DB: db, Bus: bus, Authz: graph}) {
+		if consumer.Subject != iamcontract.SubjectMemberRevoked {
+			continue
+		}
+		evt := events.Event{ID: uuid.Must(uuid.NewV7()).String(), Type: "MemberRevoked", Version: 1, TenantID: testutil.TenantA, Data: data}
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error { return consumer.Handle(ctx, tx, evt) }))
+		require.NotNil(t, consumer.AfterCommit)
+		require.NoError(t, consumer.AfterCommit(ctx, evt))
+	}
+	member, err = authority.IsMember(ctx, subject, testutil.TenantA)
+	require.NoError(t, err)
+	require.True(t, member, "the old revoke must reconcile and preserve the current replacement")
+	roles, err = authority.ListRoles(ctx, subject)
+	require.NoError(t, err)
+	require.Equal(t, []authz.RoleBinding{{TenantID: testutil.TenantA, Role: authz.RoleStaffMember}}, roles)
+	oldReady, err := graph.IsMembershipReady(ctx, authz.Membership{TenantID: testutil.TenantA, ID: original.String(), Subject: subject, Role: authz.RoleStaffMember, Epoch: 1})
+	require.NoError(t, err)
+	require.False(t, oldReady)
 }

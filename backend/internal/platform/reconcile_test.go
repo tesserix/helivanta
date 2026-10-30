@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -53,6 +55,14 @@ func (c *capturingWriter) ReadTuplesByTenant(context.Context) (map[string][]auth
 
 func (c *capturingWriter) DeleteTuple(_ context.Context, t authz.Tuple) error {
 	c.deleted = append(c.deleted, t.Key())
+	return nil
+}
+
+func (c *capturingWriter) ProjectMembership(_ context.Context, m authz.Membership) error {
+	if _, err := authz.MembershipTuples(m); err != nil {
+		return err
+	}
+	c.roles = append(c.roles, m.TenantID+"|"+m.Subject+"|"+string(m.Role))
 	return nil
 }
 
@@ -142,35 +152,8 @@ func TestReconcileIsIdempotent(t *testing.T) {
 	require.Equal(t, first*2, len(w.pairs))
 }
 
-// membersMigration creates a table shaped exactly like iam's iam_members
-// (tenant_id, subject, role_key), without importing the iam module —
-// platform cannot import iam (iam imports platform), so this test proves
-// Reconcile's raw-SQL read against that schema using its own fixture,
-// the same way reconcile.go itself never references iam's Go types.
-var membersMigration = []tenantdb.Migration{{
-	ID: "0001_test_iam_members",
-	SQL: `
-		CREATE TABLE iam_members (
-		  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-		  tenant_id uuid NOT NULL,
-		  subject text NOT NULL,
-		  role_key text NOT NULL,
-		  created_at timestamptz NOT NULL DEFAULT now()
-		);
-		ALTER TABLE iam_members ENABLE ROW LEVEL SECURITY;
-		ALTER TABLE iam_members FORCE ROW LEVEL SECURITY;
-		CREATE POLICY tenant_isolation ON iam_members
-		  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-		-- Mirrors iam's 0005_iam. Without it this fixture fails with
-		-- "permission denied for table iam_members" — which is not a
-		-- fixture bug but the real one: BYPASSRLS confers no table
-		-- privileges, so the system role needs an explicit GRANT. The
-		-- harness deliberately grants it nothing (see testinfra), so a
-		-- table that forgets this line here is a table the reconciler
-		-- could not read in production either.
-		GRANT SELECT ON iam_members TO helivanta_system;`,
-}}
+// Reconciliation uses the canonical IAM continuity schema and grants.
+var membersMigration = append(bootstrap.PlatformMigrations(), iam.New(nil).Migrations()...)
 
 const (
 	tenantA = "11111111-1111-1111-1111-111111111111"

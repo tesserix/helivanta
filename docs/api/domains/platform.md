@@ -178,8 +178,16 @@ or effective hospital access. The UI requires reason/consequence review and
 retains the exact frozen command after an uncertain response.
 
 The legacy raw DELETE and direct grant/revoke projection consumers are still
-present. Their reproduced replay defects are explicit release/acceptance gaps;
-the new commands do not make old callers safe. The legacy contract is not
+present in the main-line baseline. The local follow-up now treats those events
+as post-commit reconciliation hints and uses an incarnation-bound graph principal
+for current-row permission/membership proof, discovery, switching, login and
+renewal. Boot reconciliation and onboarding use the same tuple definition.
+Migration `0017_iam_membership_projection_reader` grants only startup SELECT of
+IAM epoch metadata to the existing system role; ordinary reads retain tenant RLS.
+The delayed-grant and borrowed-old-incarnation assertions now pass in local real
+provider tests, as does preserving a replacement during delayed old revocation.
+The raw DELETE replay defect remains an explicit release/acceptance gap;
+the new commands do not make old callers safe. The legacy DELETE contract is not
 silently changed by this additive candidate. Canonical Go/Zod models are in
 `contracts/staff-access.json`; no copied frontend wire model is authoritative.
 

@@ -175,6 +175,18 @@ clients. Move first-party clients to the new command and expose a clear migratio
 error for unsupported legacy removal at the approved contract boundary. Never
 silently map an old DELETE to whichever membership currently exists.
 
+Repository caller inventory on 2026-10-30 found raw DELETE path references in
+`internal/globalapi/staff_membership_test.go`, `internal/journey/iam_membership_test.go`
+and IAM's `assignment_projection_test.go`, `routes_test.go`,
+`membership_incarnation_reproduction_test.go`, `member_workspace_test.go` and
+`assignment_proposals_test.go`. No first-party web, API-package, scripts or E2E
+DELETE caller was found. Their member-list reads and ordinary-enrollment POSTs
+are distinct consumers and must remain supported. The new Staff UI uses the
+incarnation-bound command. This repository search does not establish that
+external consumers do not exist; record the contract/rollout review explicitly.
+Do not replace the raw DELETE's false retry safety with a UI-only fix or remove
+the original regression assertion.
+
 The old grant path also cannot provide explicit recovery if it silently
 re-enrolls a previously removed account. Define its historical-target behavior
 in the same compatibility review and require explicit recovery for ended

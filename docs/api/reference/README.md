@@ -48,8 +48,8 @@ Subscriptions:
 
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
-- `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: false.
-- `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: false.
+- `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
+- `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: true.
 - Fanout broadcast ← `helivanta.in.iam.credential_revoked.v1`.
 
 Migration table declarations:

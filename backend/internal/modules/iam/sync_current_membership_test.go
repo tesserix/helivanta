@@ -23,13 +23,16 @@ func TestDelayedMembershipGrantDoesNotProjectAbsentMembership(t *testing.T) {
 	require.NoError(t, err)
 	data, err := json.Marshal(iamcontract.MemberChangedData{Subject: "synthetic-removed-member", RoleKey: string(authz.RoleStaffMember)})
 	require.NoError(t, err)
-	for _, consumer := range module.Consumers(platform.Deps{Authz: graph}) {
+	for _, consumer := range module.Consumers(platform.Deps{DB: db, Authz: graph}) {
 		if consumer.Subject != iamcontract.SubjectMemberGranted {
 			continue
 		}
+		evt := events.Event{Type: "MemberGranted", Version: 1, TenantID: testutil.TenantA, Data: data}
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-			return consumer.Handle(ctx, tx, events.Event{TenantID: testutil.TenantA, Data: data})
+			return consumer.Handle(ctx, tx, evt)
 		}))
+		require.NotNil(t, consumer.AfterCommit)
+		require.NoError(t, consumer.AfterCommit(ctx, evt))
 		projected, err := graph.IsMember(ctx, "synthetic-removed-member", testutil.TenantA)
 		require.NoError(t, err)
 		require.False(t, projected, "a late grant is a reconciliation hint, not authority to recreate removed membership")

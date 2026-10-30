@@ -19,6 +19,7 @@ import (
 // module through Deps.
 type TupleReconciler interface {
 	TupleWriter
+	ProjectMembership(context.Context, authz.Membership) error
 	ReadTuplesByTenant(ctx context.Context) (map[string][]authz.Tuple, error)
 	// DeleteTuple removes any tuple, whatever its object type. Tenant
 	// edges are deleted through it like every other tuple — prune has no
@@ -46,18 +47,7 @@ func (s tupleSet) has(t authz.Tuple) bool {
 	return ok
 }
 
-// roleTuple and permTuple mirror exactly what authz.Client.GrantRole and
-// GrantPermission write. They must stay in lockstep with those two
-// methods: a drift in relation name or object format would make every
-// backed tuple look orphaned and get deleted on the next boot. The
-// object strings come from authz's own constructors precisely so the
-// format cannot drift here.
-func roleTuple(tenantID, subject string, role authz.Role) authz.Tuple {
-	return authz.Tuple{
-		User: "user:" + subject, Relation: "assignee", Object: authz.RoleObject(tenantID, role),
-	}
-}
-
+// permTuple defines the shared role permission catalogue; membership tuples come from authz.
 func permTuple(tenantID string, perm authz.Permission, role authz.Role) authz.Tuple {
 	return authz.Tuple{
 		User:     authz.RoleObject(tenantID, role),
@@ -153,9 +143,11 @@ func grantPermissions(ctx context.Context, w TupleWriter, grants []authz.Grant, 
 // reverse would be a cycle. The coupling to iam's schema (table name and
 // column names) is deliberate and accepted for that reason.
 type membership struct {
+	ID       string
 	TenantID string
 	Subject  string
 	RoleKey  string
+	Epoch    int64
 }
 
 // Reconcile makes OpenFGA's role and permission tuples match Postgres
@@ -233,7 +225,7 @@ func Reconcile(ctx context.Context, reg *Registry, db *tenantdb.DB, w TupleRecon
 
 	var members []membership
 	err = db.WithAllTenants(ctx, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT tenant_id::text AS tenant_id, subject, role_key FROM iam_members`).
+		return tx.Raw(`SELECT m.id::text AS id,m.tenant_id::text AS tenant_id,m.subject,m.role_key,e.epoch FROM iam_members m LEFT JOIN iam_subject_membership_epochs e ON e.tenant_id=m.tenant_id AND e.subject=m.subject AND e.member_count>0`).
 			Scan(&members).Error
 	})
 	if err != nil {
@@ -298,7 +290,7 @@ func usableMembershipCount(members []membership) int {
 // set, bucketed by tenant, for prune to compare against. Both halves are
 // built in one pass so the written set and the kept set can never
 // disagree.
-func applyGrants(ctx context.Context, reg *Registry, w TupleWriter, members []membership) (map[string]tupleSet, error) {
+func applyGrants(ctx context.Context, reg *Registry, w TupleReconciler, members []membership) (map[string]tupleSet, error) {
 	grants, err := GrantsFor(reg)
 	if err != nil {
 		return nil, fmt.Errorf("reconcile: %w", err)
@@ -317,10 +309,17 @@ func applyGrants(ctx context.Context, reg *Registry, w TupleWriter, members []me
 				"tenant_id", m.TenantID, "subject", m.Subject, "role_key", m.RoleKey)
 			continue
 		}
-		if err := w.GrantRole(ctx, m.TenantID, m.Subject, role); err != nil {
-			return nil, fmt.Errorf("grant role %s to %s in %s: %w", role, m.Subject, m.TenantID, err)
+		projection := authz.Membership{TenantID: m.TenantID, ID: m.ID, Subject: m.Subject, Role: role, Epoch: m.Epoch}
+		tuples, err := authz.MembershipTuples(projection)
+		if err != nil {
+			return nil, fmt.Errorf("invalid current membership %s: %w", m.ID, err)
 		}
-		desired[m.TenantID].add(roleTuple(m.TenantID, m.Subject, role))
+		if err := w.ProjectMembership(ctx, projection); err != nil {
+			return nil, fmt.Errorf("project current membership %s: %w", m.ID, err)
+		}
+		for _, tuple := range tuples {
+			desired[m.TenantID].add(tuple)
+		}
 
 		// The tenant edge is written per (tenant, role) and is what makes
 		// membership derivable. Writing it here, keyed off a membership

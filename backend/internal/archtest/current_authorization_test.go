@@ -35,6 +35,14 @@ func TestCurrentIAMAuthorityPreservesApprovedPermissionMatrix(t *testing.T) {
 				require.NoError(t, graph.GrantTenantRole(ctx, tenant, role))
 				require.NoError(t, graph.GrantRole(ctx, tenant, subject, role))
 			}
+			var memberRow struct {
+				ID    string
+				Epoch int64
+			}
+			require.NoError(t, db.WithTenant(ctx, tenantA, func(tx *gorm.DB) error {
+				return tx.Table("iam_members AS m").Select("m.id::text AS id,e.epoch").Joins("JOIN iam_subject_membership_epochs e ON e.tenant_id=m.tenant_id AND e.subject=m.subject").Where("m.tenant_id=? AND m.subject=?", tenantA, subject).Take(&memberRow).Error
+			}))
+			require.NoError(t, graph.ProjectMembership(ctx, authz.Membership{TenantID: tenantA, ID: memberRow.ID, Subject: subject, Role: role, Epoch: memberRow.Epoch}))
 			permissions, err := authority.Resolve(ctx, subject, tenantA)
 			require.NoError(t, err)
 			for permission, roles := range approvedPermissionMatrix {

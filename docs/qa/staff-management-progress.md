@@ -158,6 +158,34 @@ This is a merged-source checkpoint, not a production deployment or A01–A12
 completion. The source admission and transaction-bound security-revocation
 boundaries below remain unchanged.
 
+The next local [incarnation graph implementation](../superpowers/specs/2026-10-30-membership-incarnation-graph.md)
+now binds graph permission/membership proof to each immutable row, actual subject,
+role, tenant and continuity epoch. It rereads source after provider checks and
+uses the same adapter for genuine login, discovery, switching and renewal.
+Membership events reconcile current source after the event claim commits;
+network work no longer holds that claim transaction open. Boot reconciliation
+uses the same tuple factory, keeps current incarnation tuples and retires old
+ones. Hospital onboarding now uses this path as well.
+
+The absent-membership delayed-grant and re-enrollment-borrowing regressions now
+pass locally with real PostgreSQL/OpenFGA, including delayed old revocation that
+preserves the replacement. The raw subject/role DELETE regression remains red.
+Real provider/proxy tests reject incomplete, malformed, conflicting and failed
+proofs instead of accepting partial authority. Focused signed-session, source
+race, boot/prune, HTTP seam and approved permission-matrix checks pass. The
+fixed-source affected race/coverage run passed authorization, reconciliation,
+architecture, bootstrap and API suites. IAM's only failing test is the retained
+unsafe raw-DELETE replay regression. Vet, affected linter (zero issues), API and
+Global API builds, and contractdocs generation/check passed. No new source is
+merged or deployed and no A-item is newly complete.
+
+Migration `0017_iam_membership_projection_reader` grants only SELECT of IAM
+continuity metadata to the existing system role for startup reconciliation.
+Ordinary permission and role-discovery reads still use normal forced-RLS tenant
+transactions. This migration is persisted in the source registry and has run
+only in disposable fixtures. The IAM migration-count assertion now pins all 17
+IDs. The local application database and production have not been migrated.
+
 The follow-up branch has local membership-command implementation, canonical
 Go/Zod models, additive Global API routes, reasoned immutable receipts/history,
 fresh ordinary-membership recovery and Staff Admin controls. New SQL
@@ -171,15 +199,16 @@ new ordinary membership, old-command replay, source/tenant/role/epoch denials,
 inactive/provider-outage recovery refusal and immutable transition evidence.
 Focused shell/API tests pass for required reason/acknowledgement, frozen uncertain
 retry and recovery from the current epoch. Broader tests and real UI acceptance
-are still in progress; the old raw DELETE and event replay regressions remain
-red. This work is not a release candidate and no A-item is newly complete.
+are still in progress. At the `e58511e7` checkpoint all three replay/projection
+regressions were red; the graph follow-up above now fixes two. This work is not a
+release candidate and no A-item is newly complete.
 
-A third real PostgreSQL/OpenFGA regression now reproduces re-enrollment borrowing
+A third real PostgreSQL/OpenFGA regression originally reproduced re-enrollment borrowing
 an old graph tuple: the original membership is projected through the registered
 consumer, removed, and replaced by a distinct unprojected source row; current
-admission incorrectly reports membership. Exact-incarnation graph proof and
-generation-bound owner eligibility remain required. The three replay/projection
-regressions remain red; the new command/UI work does not close them or prove
+admission incorrectly reported membership. Exact-incarnation graph proof is now
+implemented locally and this assertion passes. Generation-bound owner eligibility
+remains required; neither this graph proof nor the command/UI work proves
 historical Staff-link/legacy-grant cutoffs after recovery.
 
 A same-tenant account-change regression additionally reproduced 202 instead of
@@ -188,18 +217,19 @@ the verified expected tenant/subject pair, and the normal client sends both.
 The current race regression rejects stale, absent or duplicated expected subject
 without mutating the membership. The earlier full Go run passed architecture,
 bootstrap, API and authz but failed the two known replay regressions and a stale
-14-migration count assertion. That assertion now pins both new migrations (16
-total) and passes; it was updated for real schema additions, not removed.
+14-migration count assertion. That assertion was updated for real schema
+additions, not removed; the current follow-up pins 17 migration IDs.
 
 The next [membership removal/recovery design](../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)
-is source-verified and remains proposed. Two disposable local regressions are
-red: repeating a subject/role DELETE after re-enrollment removes the replacement
+is source-verified and remains unaccepted. Two disposable local regressions
+originally failed: repeating a subject/role DELETE after re-enrollment removes the replacement
 membership, and a historical grant delivered through the real registered
 consumer recreates graph membership when IAM has no membership. The first used
 real PostgreSQL/NATS; the second additionally used real OpenFGA. No production or
 local application memberships were changed. Current-source admission separately
-denies stale graph authority, but these command/recovery/projection gaps remain
-open. Neither red reproduction is acceptance evidence for a completed workflow.
+denies stale graph authority; the later local incarnation proof fixes the delayed
+grant/re-enrollment graph gaps. Command migration and owner recovery/cutoff gates
+remain open. A reproduced defect is not acceptance evidence for a completed workflow.
 The full objective remains A01–A12.
 
 The user selected full Access/RBAC completion again, including every A01–A12

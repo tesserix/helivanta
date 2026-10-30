@@ -25,9 +25,11 @@ import (
 // recordingWriter captures tuple writes so tests can assert the consumer
 // applied them, without needing an OpenFGA container.
 type recordingWriter struct {
-	mu      sync.Mutex
-	granted []string
-	revoked []string
+	mu            sync.Mutex
+	granted       []string
+	revoked       []string
+	legacyRevoked []string
+	projected     map[string]authz.Membership
 }
 
 func (w *recordingWriter) GrantRole(_ context.Context, tenantID, subject string, role authz.Role) error {
@@ -40,7 +42,42 @@ func (w *recordingWriter) GrantRole(_ context.Context, tenantID, subject string,
 func (w *recordingWriter) RevokeRole(_ context.Context, tenantID, subject string, role authz.Role) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.revoked = append(w.revoked, tenantID+"|"+subject+"|"+string(role))
+	w.legacyRevoked = append(w.legacyRevoked, tenantID+"|"+subject+"|"+string(role))
+	return nil
+}
+
+func (w *recordingWriter) ProjectMembership(_ context.Context, m authz.Membership) error {
+	object, err := m.Object()
+	if err != nil {
+		return err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.projected == nil {
+		w.projected = make(map[string]authz.Membership)
+	}
+	w.projected[object] = m
+	w.granted = append(w.granted, m.TenantID+"|"+m.Subject+"|"+string(m.Role))
+	return nil
+}
+func (w *recordingWriter) ReadMembershipBindings(_ context.Context, subject, tenant string) ([]authz.Tuple, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var result []authz.Tuple
+	for object, m := range w.projected {
+		if m.TenantID == tenant && m.Subject == subject {
+			result = append(result, authz.Tuple{User: "user:" + subject, Relation: "subject", Object: object})
+		}
+	}
+	return result, nil
+}
+func (w *recordingWriter) RetireMembershipBinding(_ context.Context, binding authz.Tuple) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if m, ok := w.projected[binding.Object]; ok {
+		w.revoked = append(w.revoked, m.TenantID+"|"+m.Subject+"|"+string(m.Role))
+		delete(w.projected, binding.Object)
+	}
 	return nil
 }
 

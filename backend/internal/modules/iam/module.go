@@ -274,7 +274,7 @@ ALTER TABLE login_attempt
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
 	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}, {ID: "0015_iam_membership_commands", SQL: membershipCommandsSchema}, {
 		ID: "0016_iam_membership_candidate_index", ConcurrentIndexes: []tenantdb.ConcurrentIndex{{Name: "iam_members_candidate_history", Table: "iam_members", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}}},
-	}}
+	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}}
 }
 
 type role struct {

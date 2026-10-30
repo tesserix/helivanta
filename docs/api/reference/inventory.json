@@ -254,12 +254,12 @@
         {
           "name": "iam-fga-sync",
           "subject": "helivanta.in.iam.member_granted.v1",
-          "after_commit": false
+          "after_commit": true
         },
         {
           "name": "iam-fga-sync-revoke",
           "subject": "helivanta.in.iam.member_revoked.v1",
-          "after_commit": false
+          "after_commit": true
         }
       ],
       "broadcasts": [
@@ -385,6 +385,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0017_iam_membership_projection_reader",
+          "sql_sha256": "3f394505085d4aa6fa98d35fa4c0dcddff03b09ac448acca4bbcf5c5f3e4c059",
+          "creates_tables": []
         }
       ]
     },

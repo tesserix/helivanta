@@ -42,8 +42,10 @@ walkthrough does not prove independent approval.
    provisioning/contact verification, including provider reconciliation. The
    [membership design](../specs/2026-10-30-membership-removal-and-recovery.md)
    records current source gaps, durable commands, legacy-client migration,
-   projection ordering and Admin/recipient acceptance; it is not an implemented
-   API or a closed acceptance gate.
+   projection ordering and Admin/recipient acceptance. Local implementation is
+   active; it is not an accepted/deployed API or a closed acceptance gate. The
+   [incarnation graph design](../specs/2026-10-30-membership-incarnation-graph.md)
+   adds current-row proof to admission, discovery, projection and boot pruning.
 3. Inventory all HR intake/document authorization phases, introduce scoped HR
    intake without broadening shared enrollment consumers, then implement safe
    current-person basis and immutable independent employment review. Follow the

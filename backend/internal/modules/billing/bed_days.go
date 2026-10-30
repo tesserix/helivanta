@@ -227,6 +227,9 @@ func reconcileBedDays(tx *gorm.DB, tenant string, admission uuid.UUID) error {
 	if err := priceDays(tx, tenant, hospital, admission); err != nil {
 		return err
 	}
+	if err := taxDays(tx, tenant, hospital, admission); err != nil {
+		return err
+	}
 	// The next look at an open stay is its next midnight, past the grace;
 	// rows already right are left alone, so the audit trail records changes.
 	return tx.Exec(`UPDATE billing_bed_stays s SET next_census_at=x.v,census_failures=0 FROM (SELECT occupancy_id,CASE WHEN started_at IS NOT NULL AND ended_at IS NULL
@@ -244,7 +247,15 @@ func voidDay(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, d liveDa
 	if !d.Priced {
 		return nil
 	}
-	return postEntry(tx, tenant, hospital, admission, "bed", "reversal", uuid.Must(uuid.NewV7()), d.ID, bedDocument(d.CensusDate), *d.AmountMinor, *d.Currency, d.CensusAt)
+	if err := postEntry(tx, tenant, hospital, admission, "bed", "reversal", uuid.Must(uuid.NewV7()), d.ID, bedDocument(d.CensusDate), *d.AmountMinor, *d.Currency, d.CensusAt); err != nil {
+		return err
+	}
+	// The day's tax goes with it.
+	var tax []int64
+	if err := tx.Raw(`SELECT cgst_minor+sgst_minor FROM billing_gst_lines WHERE tenant_id=? AND bed_day_id=?`, tenant, d.ID).Scan(&tax).Error; err != nil || len(tax) == 0 {
+		return err
+	}
+	return postEntry(tx, tenant, hospital, admission, "gst", "reversal", uuid.Must(uuid.NewV7()), d.ID, gstDocument(d.CensusDate), tax[0], "INR", d.CensusAt)
 }
 
 // priceDays prices every live unpriced day a rate covers, at the rate in
@@ -274,6 +285,37 @@ func priceDays(tx *gorm.DB, tenant string, hospital, admission uuid.UUID) error 
 }
 
 func bedDocument(day time.Time) string { return "Bed day " + day.Format(time.DateOnly) }
+
+func gstDocument(day time.Time) string { return "GST, bed day " + day.Format(time.DateOnly) }
+
+// taxDays records the GST on every priced, live, taxable day of a registered
+// hospital not yet taxed, and charges it to the account. The database
+// decides what is taxable and computes the tax (gst.sql); this only finds the
+// days its policy covers, so a day it refuses is never offered.
+func taxDays(tx *gorm.DB, tenant string, hospital, admission uuid.UUID) error {
+	var taxed []struct {
+		BedDayID   uuid.UUID
+		CensusDate time.Time
+		CensusAt   time.Time
+		Tax        int64
+	}
+	if err := tx.Raw(`INSERT INTO billing_gst_lines (tenant_id,bed_day_id) SELECT d.tenant_id,d.id FROM billing_bed_days d
+  JOIN billing_gst_registrations g ON g.tenant_id=d.tenant_id AND g.hospital_id=d.hospital_id AND g.effective_from<=d.census_date
+  CROSS JOIN LATERAL billing_gst_room_policy(d.census_date) p
+ WHERE d.tenant_id=? AND d.admission_id=? AND d.priced_at IS NOT NULL AND d.voided_at IS NULL
+  AND d.bed_class <> ALL(p.exempt_classes) AND d.daily_rate_minor > p.threshold_minor
+  AND NOT EXISTS (SELECT 1 FROM billing_gst_lines l WHERE l.tenant_id=d.tenant_id AND l.bed_day_id=d.id)
+ RETURNING bed_day_id,census_date,(SELECT census_at FROM billing_bed_days b WHERE b.tenant_id=billing_gst_lines.tenant_id AND b.id=billing_gst_lines.bed_day_id) AS census_at,cgst_minor+sgst_minor AS tax`,
+		tenant, admission).Scan(&taxed).Error; err != nil {
+		return err
+	}
+	for _, t := range taxed {
+		if err := postEntry(tx, tenant, hospital, admission, "gst", "charge", t.BedDayID, t.BedDayID, gstDocument(t.CensusDate), t.Tax, "INR", t.CensusAt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func exactlyOne(res *gorm.DB) error {
 	if res.Error != nil {
@@ -369,13 +411,15 @@ func applySetup(ctx context.Context, db *tenantdb.DB, deadline time.Time) error 
 	var setups []struct {
 		TenantID   uuid.UUID
 		HospitalID uuid.UUID
+		Kind       string
 		BedClass   *string
 		Effective  *time.Time `gorm:"column:effective_from"`
 	}
 	if err := db.WithAllTenants(ctx, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT tenant_id,hospital_id,bed_class,effective_from FROM (
-  SELECT tenant_id,hospital_id,NULL::text AS bed_class,NULL::date AS effective_from,created_at FROM billing_bed_charging WHERE applied_at IS NULL
-  UNION ALL SELECT tenant_id,hospital_id,bed_class,effective_from,created_at FROM billing_bed_rates WHERE applied_at IS NULL) u
+		return tx.Raw(`SELECT kind,tenant_id,hospital_id,bed_class,effective_from FROM (
+  SELECT 'charging' AS kind,tenant_id,hospital_id,NULL::text AS bed_class,NULL::date AS effective_from,created_at FROM billing_bed_charging WHERE applied_at IS NULL
+  UNION ALL SELECT 'rate',tenant_id,hospital_id,bed_class,effective_from,created_at FROM billing_bed_rates WHERE applied_at IS NULL
+  UNION ALL SELECT 'gst',tenant_id,hospital_id,NULL,effective_from,created_at FROM billing_gst_registrations WHERE applied_at IS NULL) u
  WHERE created_at <= now()-make_interval(secs => ?) ORDER BY created_at LIMIT ?`, censusSettle.Seconds(), censusBatch).Scan(&setups).Error
 	}); err != nil {
 		return err
@@ -387,8 +431,13 @@ func applySetup(ctx context.Context, db *tenantdb.DB, deadline time.Time) error 
 		tenant := s.TenantID.String()
 		var admissions []uuid.UUID
 		if err := db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
-			if s.BedClass == nil {
+			switch s.Kind {
+			case "charging":
 				return tx.Raw(`SELECT DISTINCT admission_id FROM billing_bed_stays WHERE tenant_id=? AND hospital_id=?`, s.TenantID, s.HospitalID).Scan(&admissions).Error
+			case "gst":
+				// Days already priced from the registration on are taxed now.
+				return tx.Raw(`SELECT DISTINCT admission_id FROM billing_bed_days WHERE tenant_id=? AND hospital_id=? AND census_date>=? AND priced_at IS NOT NULL AND voided_at IS NULL`,
+					s.TenantID, s.HospitalID, *s.Effective).Scan(&admissions).Error
 			}
 			return tx.Raw(`SELECT DISTINCT admission_id FROM billing_bed_days WHERE tenant_id=? AND hospital_id=? AND bed_class=? AND census_date>=? AND priced_at IS NULL AND voided_at IS NULL`,
 				s.TenantID, s.HospitalID, *s.BedClass, *s.Effective).Scan(&admissions).Error
@@ -407,8 +456,11 @@ func applySetup(ctx context.Context, db *tenantdb.DB, deadline time.Time) error 
 			}
 		}
 		if err := db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
-			if s.BedClass == nil {
+			switch s.Kind {
+			case "charging":
 				return tx.Exec(`UPDATE billing_bed_charging SET applied_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND applied_at IS NULL`, s.TenantID, s.HospitalID).Error
+			case "gst":
+				return tx.Exec(`UPDATE billing_gst_registrations SET applied_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND applied_at IS NULL`, s.TenantID, s.HospitalID).Error
 			}
 			return tx.Exec(`UPDATE billing_bed_rates SET applied_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND bed_class=? AND effective_from=? AND applied_at IS NULL`,
 				s.TenantID, s.HospitalID, *s.BedClass, *s.Effective).Error

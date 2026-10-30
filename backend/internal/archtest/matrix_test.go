@@ -287,6 +287,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	medicore.PermBedConfigure:       {authz.RoleTenantAdmin},
 	billing.PermAccessManage:        {authz.RoleTenantAdmin},
 	billing.PermRateManage:          {authz.RoleTenantAdmin},
+	billing.PermBillIssue:           {authz.RoleReceptionist, authz.RoleTenantAdmin},
 	billing.PermAccountRead:         {authz.RoleNurse, authz.RoleReceptionist, authz.RoleTenantAdmin},
 	medicore.PermAdmissionManage:    {authz.RoleNurse, authz.RoleReceptionist, authz.RoleTenantAdmin},
 	medicore.PermAllergyRead:        {authz.RoleDoctor, authz.RoleNurse, authz.RoleTenantAdmin},

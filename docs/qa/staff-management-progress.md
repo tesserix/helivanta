@@ -549,3 +549,44 @@ composition, weekly off/overnight overlaps, effective-version concurrency,
 role/isolation, downstream and production QA remain open. Historical checkpoints
 above keep their earlier counts. Private evidence:
 `local-roster-area-retired-reference-history.jpg`.
+
+## Shift groups and weekly-template layout QA — 2026-10-30
+
+Local normal Staff Admin UI continued the same synthetic hospital workflow. An
+empty shift group was rejected, then a current day-shift revision was selected
+and the group saved. A weekly working day without area/shift selections was
+rejected. Selecting the same shift twice on Monday was rejected before any
+save. Weekly off/on preserved the entered choices. A corrected Monday-only
+pattern saved with Tuesday–Sunday off; full reload/reopen and immutable history
+retained its choices. Group and template retirement each saved revision 2;
+subsequent history reads retained both revisions and original timings. The
+area was reactivated only after replacing its retired reference with a current
+shift revision. At the end, group/template are retired at revision 2, area at
+revision 4, day shift at revision 4 and night shift at revision 5. No Staff
+assignment, dated roster, attendance or payroll action was performed.
+
+The walkthrough exposed an actual layout obstruction with long area/shift
+labels: Monday's fieldset expanded into Tuesday's grid track, and a browser
+hit test at Remove's center returned Tuesday's fieldset. The functional component
+remove/correct/resubmit test passed before the layout fix, so it is supplementary
+behavior coverage, not claimed as a failing layout regression. The production
+code correction is one line: constrain the weekday fieldset's minimum width.
+After loading the updated source, the visible button's center hit Monday's
+Remove button, clicking removed only slot two, and the corrected pattern saved.
+At 1280 px, weekday cards did not overlap and no button extended outside its
+fieldset. At 768 px, cards did not overlap, no control overflowed and the page
+fit the viewport. The viewport override was reset.
+
+Private evidence includes `local-weekly-remove-obstructed-before.jpg`,
+`local-weekly-remove-layout-fixed.jpg`, `local-weekly-layout-1280.jpg`,
+`local-weekly-template-retired-history.jpg` and
+`local-shift-group-retired-history.jpg`. The restricted local fixture separately
+had no hospital roster configuration or Add controls after fresh normal login;
+that is denial evidence, not an independent approval.
+
+The count remains **10 partial, 10 audit pending, 1 research, 0 fully accepted**.
+Different-shift overlaps, overnight/weekly-off spill, effective-date concurrency,
+full multi-hospital/current-actor isolation, downstream assignment/population and
+production QA remain open. No API, role, schema, dependency or migration changes
+are introduced by this layout correction. Final package/web/CI evidence belongs
+in the associated PR before merge; no additional domain completion is claimed.

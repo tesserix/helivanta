@@ -362,3 +362,56 @@ it("resets a same-record replacement only after confirmation", async () => {
   );
   expect(screen.getByLabelText("Description")).toHaveValue("Synthetic policy");
 });
+
+it("removes a rejected second weekly shift and preserves the first allocation", async () => {
+  const writes = mock();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await chooseOption(
+    user,
+    await screen.findByRole("combobox", { name: "Configuration" }),
+    "Weekly templates",
+  );
+  await user.click(await screen.findByRole("button", { name: "Add weekly template" }));
+  await user.type(screen.getByLabelText("Name"), "Synthetic weekly correction");
+  await user.type(screen.getByLabelText("Code"), "SYN-WEEKLY-CORRECTION");
+  await user.click(screen.getByRole("checkbox", { name: "Monday weekly off" }));
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Monday first area" }),
+    /Synthetic Area/,
+  );
+  await chooseOption(user, screen.getByRole("combobox", { name: "Monday first shift" }), /SYN-DAY/);
+  await user.click(screen.getByRole("button", { name: "Add second shift for Monday" }));
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Monday second area" }),
+    /Synthetic Area/,
+  );
+  await chooseOption(
+    user,
+    screen.getByRole("combobox", { name: "Monday second shift" }),
+    /SYN-DAY/,
+  );
+  await user.click(
+    screen.getByRole("checkbox", { name: "I reviewed the effective date and scheduling rules" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Save configuration" }));
+  expect(await screen.findByText("Choose each shift once per day.")).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.click(screen.getByRole("button", { name: "Remove second shift for Monday" }));
+  expect(screen.queryByRole("combobox", { name: "Monday second area" })).not.toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Monday first area" })).toHaveTextContent(
+    "Synthetic Area",
+  );
+  expect(screen.getByRole("combobox", { name: "Monday first shift" })).toHaveTextContent("SYN-DAY");
+  await user.click(screen.getByRole("button", { name: "Save configuration" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  const input = writes[0]!.body as { days: { allocations: unknown[] }[] };
+  expect(input.days[0]!.allocations).toEqual([
+    { area_revision_id: areaRevision, shift_revision_id: revision },
+  ]);
+});

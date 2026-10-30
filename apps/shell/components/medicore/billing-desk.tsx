@@ -7,6 +7,7 @@ import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { BillingAccessSetup, useBillingAccess } from "./admission-account";
 import { AdmissionBills } from "./admission-bills";
 import { CashDesk } from "./cash-desk";
+import { DailyCollectionReport } from "./daily-collection";
 import { PatientName } from "./opd-encounters";
 
 const views: { value: DeskView; label: string }[] = [
@@ -82,6 +83,7 @@ export function BillingDesk({ hospital }: { hospital: Hospital }) {
   return (
     <div className="space-y-6">
       <CashDesk hospital={hospital} />
+      <DailyCollectionReport hospital={hospital} />
       <Panel>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h3 className="font-semibold">Admission accounts</h3>

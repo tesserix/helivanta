@@ -2,6 +2,51 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
+### Atomic reviewed recovery and historical self-review — 2026-10-31
+
+Owner `a99551f7ee120e4890e9d342dd626aedd2a279c9` is pushed in draft PR #22.
+Independent decision, prepared successor, permanent root/parent lineage and audit
+commit atomically; approval itself performs no provider dispatch. Exact retry
+retains reviewer/reason/successor ID and original server-selected provider ID/nonce.
+Final rejection, one competing replacement winner, audit rollback and bare-approval
+failure are verified. Generation-linked FKs and unique parent/request/successor
+prevent branching/cycles with indexed point reads. Historical root/intermediate
+creators and accounts remain excluded from later-generation review; actual tests
+reproduced that bypass before the fix and now reject it.
+
+Normal creation admits the reviewed successor and blocks closed/superseded parents.
+Receipts preserve late/historical creation facts and add only recovery state and
+successor command ID. Observation/creation deny authority before/during-source
+closure; no private operator reason/identity or child provider binding is exposed.
+Actual application-role decision/retry and lineage mutation denial pass. These
+are store/contract/race checks, not verified current operator authorization or
+normal operator/HMS Admin/recipient/independent-reviewer UI acceptance.
+
+Canonical schema `325012bc6fbaf199413dbce6ed58406be4ca66e5`, chart 0.3.62,
+SHA-256 `aa89167dad24dcfb3fd71e305cad29f573d1604ffc99ee75f9e8f459b4880756`,
+is published, hash-verified and pinned for owner CI. Actual local catalog checks
+confirm six new indexes valid/ready, seven lineage FKs valid and onboarding
+SELECT/INSERT with UPDATE/DELETE/TRUNCATE denied. Bootstrap ON_ERROR_STOP=0 means
+Job success is not migration proof; actual state validation remains a release gate.
+
+Fifteen added tests (11 transaction/lineage, four API scenarios) plus fourteen
+previous recovery tests pass. Full actual-PostgreSQL race/coverage: 55.1% overall,
+API 63.8%, store 64.9%, decision 83.6%, successor/root helpers 83.3%, shared scope
+100%. Vet/build/lint (zero issues), four delivery tests, redacted secrets and
+shell/diff checks pass. Schema local Helm lint/template and seven selected tests
+pass. Latest owner CI 41102254872 and schema Repository Tests 41101963585, PR
+Validation 41101963451 and Helm 41101963412 are queued at this checkpoint. Parent
+owner c06e95d passed 41100008521 as historical evidence, not the new head's result.
+
+Next: verified-current operator role/source proof, conflict/orphan handling,
+authenticated operator endpoints and minimized activity; prepared-command/profile
+correction; normal operator/HMS Admin/recipient/reviewer UI; recipient authenticator
+setup/sign-in; canonical production registration (#12); legacy staff/link/grant
+classification; remaining A01–A12 lifecycle and cross-module cutoff acceptance.
+No operator write endpoint is exposed and no merge, production migration, rollout,
+release, issue closure or completion tag occurred. Full Access/RBAC remains open;
+Staff Management area counts are unchanged.
+
 ### Recovery requests and independent decision records — 2026-10-31
 
 Owner `713076bd9ef832730ca69088637c03261e9170fa` (runtime unchanged from

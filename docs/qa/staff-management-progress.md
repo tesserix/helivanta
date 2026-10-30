@@ -59,8 +59,8 @@ the current delivery state.
 
 ## Quantitative checkpoint — 2026-10-30
 
-The 21 tracked areas currently comprise **8 partial (38.1%)**, **12 audit pending
-(57.1%)** and **1 research/proposal (4.8%)**. **0/21 are fully accepted (0%)**;
+The 21 tracked areas currently comprise **9 partial (42.9%)**, **11 audit pending
+(52.4%)** and **1 research/proposal (4.8%)**. **0/21 are fully accepted (0%)**;
 all 21 still have acceptance work. These are area-status percentages, not an
 estimate that 38.1% of engineering effort is complete. The remaining scenarios
 vary substantially in size, so no defensible overall effort or time percentage
@@ -79,7 +79,7 @@ remain open; a directory status or draft term is not proof of operational cutoff
 | HR setup                        | Partial                                     | Broad create/edit/history/retire/reactivate coverage across masters                                                                                                                                             | Complete dependency, referenced-record, duplicate/concurrency, isolation and deployed acceptance                                                                                                                    |
 | Identity and background checks  | Partial; draft preparation released         | All three unreviewed draft types, create/edit/current/history, immutable snapshots, required fields, replay and scope/actor/source-generation guards                                                            | Protected evidence binding, immutable submission, independent approve/reject/revoke, effective validity, source changes and historical self-review denial                                                           |
 | Photographs and ID cards        | Partial foundations                         | Photograph preparation metadata; protected file scanning/release/recovery foundations                                                                                                                           | Trusted PNG/JPEG validation, purpose-bound photo review, self-photo request, frozen branded card issue, independent authorization, preview/print, expiry, loss/reissue and offboarding                              |
-| Shifts                          | Audit pending                               | Existing implementation                                                                                                                                                                                         | Day/night/overnight rules, breaks/grace/locum, edits/history, invalid timing and referenced retirement                                                                                                              |
+| Shifts                          | Partial; local workflow audited             | Synthetic overnight create/edit, validation, revision history, retire/reactivate and reload; unsaved navigation/cancel/history protection fixed                                                                 | Referenced retirement, multi-hospital/current-account scope, downstream roster effects and deployed acceptance                                                                                                      |
 | Roster setup                    | Audit pending                               | Existing implementation                                                                                                                                                                                         | Areas/groups/templates, composition/applicability, effective versions and referenced retirement                                                                                                                     |
 | Roster policy                   | Audit pending                               | Existing implementation                                                                                                                                                                                         | Staff/template assignments, conflicts, effective versions and inactive/transferred staff                                                                                                                            |
 | Rosters                         | Audit pending                               | Existing implementation                                                                                                                                                                                         | Populate/allocate, overlaps, credentials/leave, freeze/correct/discard, overnight dates and downstream consequences                                                                                                 |
@@ -468,3 +468,36 @@ transaction/disclosure guards described in the access/review continuation plan.
 Independent employment/identity review, effective lifecycle enforcement, transfers,
 photo/card issuance, operational scheduling and payroll/document issuance remain
 open. This bounded draft transition does not complete those journeys.
+
+## Shift definition audit and navigation correction — 2026-10-30
+
+Local administrator UI QA in the designated synthetic hospital created an
+unallocated night/locum shift, 22:00–06:00 (480 minutes, next day), with break,
+grace and overtime configuration. Blank required fields, equal times, a break
+as long as the shift and half-day OT above full-day OT were rejected. The code
+became immutable after creation. Edit, retirement and reactivation retained
+revisions 1–4 after reload. The restricted local fixture had no hospital access
+or Add shift action. This is denial evidence, not independent approval.
+
+The audit reproduced silent loss of unsaved text on Staff directory navigation.
+The correction reuses the shell navigation guard for route changes, Cancel,
+hospital selection and Add/Edit/history replacement; pending saves cannot be
+interrupted. Component regressions were observed red before the fix. Eight
+focused tests pass, including same-form replacement, focus return and pending
+writes. Real local UI verified route and Cancel prompts, Keep editing retained
+the exact text, and explicit Discard opened history with the saved revision.
+Closing history restored focus to its opener. A final UI save retired the
+unallocated synthetic shift as revision 5, without a false discard prompt;
+reload retained all five revisions and original timing/rules. No roster,
+attendance or payroll action was performed.
+
+Validation: `pnpm turbo lint format:check type-check` passed 21 tasks;
+`pnpm turbo test` passed all seven package tasks; `pnpm turbo build` passed both
+build tasks; script tests passed 19/19, under Node 24. Private screenshots include
+`local-shift-unsaved-navigation-guard.jpg` and
+`local-shift-guard-retired-history.jpg`. No API, permission, schema or migration
+changed. Related story #1036 and umbrella #118 remain open. Referenced-shift
+retirement, multi-hospital/current-account scope, consumer and production QA are
+still required. Shifts moves from Audit pending to Partial: **9 partial,
+11 audit pending, 1 research, 0 fully accepted**. These are area counts, not an
+effort-completion percentage. Earlier checkpoints retain their historical counts.

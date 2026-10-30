@@ -2,6 +2,44 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
+### Current recovery-operator authority — 2026-10-31
+
+Owner `2e68596` adds a bounded source verifier for active/verified human,
+configured platform organization, direct console-project grant, authoritative
+organization/project/grant state and current role definitions/keys. Token-time
+roles and grant projections alone cannot authorize recovery. Relevant source
+heads must remain unchanged across snapshot reads; stale, malformed, ambiguous,
+changing or saturated proof fails closed. No source roles/memberships are changed.
+
+HTTP authentication now retains verified console-token origin; registered
+machines remain products. A regression reproduced the lost origin before the
+fix. Recovery policy rejects legacy-origin admins, product machines and customer
+credentials; operators can only read, administrators can propose/decide subject
+to later live proof and target checks. These new actions/source proof are not yet
+wired to operator service endpoints.
+
+An explicitly selected actual isolated Zitadel v4.15.3 test passed current proof,
+grant deactivation denial/reactivation, removed-role-definition write denial with
+read preservation and disabled-human denial. Backend-created synthetic operator
+authority is a protocol fixture, not human-login or normal HMS Admin/recipient/
+independent-reviewer UI acceptance. TLS tests additionally cover foreign scope,
+stale contact/state, missing/malformed history, churn/saturation, redirects,
+ambient cookies and provider errors.
+
+Full actual-PostgreSQL owner race/coverage passed: 56.4% overall, API 63.8%,
+authz 95.2%, store 64.9%, provider 86.7%, operator verifier 94.0%. Vet/build/lint
+(zero issues), four delivery tests and redacted secret/diff checks passed.
+No schema changed. New-head CI is tracked separately from local evidence;
+no merge, production migration, rollout, release or completion tag is claimed.
+
+Next: audited service integration using the actual operator principal and fresh
+canonical registry/source scope; conflict/orphan proof; authenticated recovery
+endpoints/activity and prepared-command/profile correction; normal operator/HMS
+Admin/recipient/reviewer UI; recipient authenticator setup, canonical production
+registration (#12), legacy grants and all remaining A01–A12 lifecycle/cross-module
+cutoff acceptance. Counts remain 10 partial, 10 audit pending, 1 research,
+0 fully accepted. Full Access/RBAC remains the active objective.
+
 ### Atomic reviewed recovery and historical self-review — 2026-10-31
 
 Owner `a99551f7ee120e4890e9d342dd626aedd2a279c9` is pushed in draft PR #22.

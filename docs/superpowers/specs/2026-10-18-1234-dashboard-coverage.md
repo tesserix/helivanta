@@ -12,23 +12,23 @@ The UI uses the existing permission hook; it makes no new network requests, expa
 
 ## Metric/source contract
 
-| Measurement | Current source and scope | Permission / missing dependency |
-| --- | --- | --- |
-| OPD/IPD registrations | `GET /medicore/insights`, current tenant; visits created within inclusive dates in the selected IANA timezone | `medicore.visit.read`; no hospital selector on this source |
-| ED attendance, triage, waiting, disposition | No ED encounter registry on main | Requires explicit hospital clinical grant and clinical event source; #1017/#1234 |
-| Emergency transport cases, dispatch, readiness | Separate EmergencyConnect ownership; draft #1233 under #1220 | Must use EmergencyConnect's own access; transport intake is not ED attendance |
-| Delivery episodes | No maternity event source | #817; actual delivery timestamp and hospital; multiple babies can belong to one delivery |
-| Babies born, live births, stillbirths | No birth-event source; demographics are excluded | #818/#1059; baby's outcome and event timestamp, including twins and corrections |
-| Admissions, discharges, inpatient census | Existing IPD registration cohort is not an admission/discharge ledger | #1017/#1234; admissions/discharges need separate events and current census a snapshot |
-| Occupied/staffed beds, occupancy | No authoritative bed denominator or occupancy source | #106/#386; do not divide registrations by beds or substitute licensed capacity |
-| Procedures, OT, cancellations | No completed procedure/event reporting feed | Clinical analytics #1017; planned and completed procedures are separate |
-| Deaths | No death-event reporting source | #818/#1059; date of death/event and confirmed scope, not patient demographics |
-| Laboratory task cohort | `GET /lab/insights`, tenant-level current status of orders created in the period | `lab.order.read`; critical results and turnaround need additional result/event sources |
-| Pharmacy dispense-task cohort | `GET /pharmacy/insights`, tenant-level current status of tasks created in the period | `pharmacy.dispense.read`; not sales, inventory or dispense-event throughput |
-| Pharmacy stock and expiry | Outlet-scoped register in `/pharmacy/stock`, explicit cutoff, units, saved outlet timezone | `pharmacy.stock.read` plus live outlet grant; no hospital roll-up feed; #1060/#162 |
-| Finance, collections, outstanding | Outlet-scoped pharmacy payables workspace, not hospital revenue | `pharmacy.accounts.read` plus live outlet grant; #580 owns hospital finance; never add currencies |
-| Staff by profession/status | `/workforce/hospitals/{id}/insights`, current snapshot | Explicit workforce hospital access; independent of historical clinical filters; not attendance or roster coverage |
-| Facilities, safety and compliance | No hospital-wide dashboard aggregate | #294/#573; require module-owned scopes, status and event/snapshot definitions |
+| Measurement                                    | Current source and scope                                                                                      | Permission / missing dependency                                                                                   |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| OPD/IPD registrations                          | `GET /medicore/insights`, current tenant; visits created within inclusive dates in the selected IANA timezone | `medicore.visit.read`; no hospital selector on this source                                                        |
+| ED attendance, triage, waiting, disposition    | No ED encounter registry on main                                                                              | Requires explicit hospital clinical grant and clinical event source; #1017/#1234                                  |
+| Emergency transport cases, dispatch, readiness | Separate EmergencyConnect ownership; draft #1233 under #1220                                                  | Must use EmergencyConnect's own access; transport intake is not ED attendance                                     |
+| Delivery episodes                              | No maternity event source                                                                                     | #817; actual delivery timestamp and hospital; multiple babies can belong to one delivery                          |
+| Babies born, live births, stillbirths          | No birth-event source; demographics are excluded                                                              | #818/#1059; baby's outcome and event timestamp, including twins and corrections                                   |
+| Admissions, discharges, inpatient census       | Existing IPD registration cohort is not an admission/discharge ledger                                         | #1017/#1234; admissions/discharges need separate events and current census a snapshot                             |
+| Occupied/staffed beds, occupancy               | No authoritative bed denominator or occupancy source                                                          | #106/#386; do not divide registrations by beds or substitute licensed capacity                                    |
+| Procedures, OT, cancellations                  | No completed procedure/event reporting feed                                                                   | Clinical analytics #1017; planned and completed procedures are separate                                           |
+| Deaths                                         | No death-event reporting source                                                                               | #818/#1059; date of death/event and confirmed scope, not patient demographics                                     |
+| Laboratory task cohort                         | `GET /lab/insights`, tenant-level current status of orders created in the period                              | `lab.order.read`; critical results and turnaround need additional result/event sources                            |
+| Pharmacy dispense-task cohort                  | `GET /pharmacy/insights`, tenant-level current status of tasks created in the period                          | `pharmacy.dispense.read`; not sales, inventory or dispense-event throughput                                       |
+| Pharmacy stock and expiry                      | Outlet-scoped register in `/pharmacy/stock`, explicit cutoff, units, saved outlet timezone                    | `pharmacy.stock.read` plus live outlet grant; no hospital roll-up feed; #1060/#162                                |
+| Finance, collections, outstanding              | Outlet-scoped pharmacy payables workspace, not hospital revenue                                               | `pharmacy.accounts.read` plus live outlet grant; #580 owns hospital finance; never add currencies                 |
+| Staff by profession/status                     | `/workforce/hospitals/{id}/insights`, current snapshot                                                        | Explicit workforce hospital access; independent of historical clinical filters; not attendance or roster coverage |
+| Facilities, safety and compliance              | No hospital-wide dashboard aggregate                                                                          | #294/#573; require module-owned scopes, status and event/snapshot definitions                                     |
 
 ## Acceptance and failure handling
 

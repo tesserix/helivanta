@@ -14,7 +14,7 @@
 - **No unscoped fallback, ever** (D2). An empty org id is `ErrUnavailable`, not a request.
 - **No new round trip** (D1). If a task adds a second `GET /v2/sessions/{id}` per login, it has missed the design.
 - **Do not touch #856 / #901.** KNOWN LIMITATIONS §1 stays exactly as written; only §2 is deleted.
-- **Prove every assertion can fail**: mutate the implementation, watch the test fail, revert — *and confirm the mutation actually applied to the file* before trusting what the test then says.
+- **Prove every assertion can fail**: mutate the implementation, watch the test fail, revert — _and confirm the mutation actually applied to the file_ before trusting what the test then says.
 - **Commit messages:** single line, conventional commits, no signature, no `Co-Authored-By`.
 - **Before done:** `make lint-go` clean, `cd backend && ./scripts/coverage-gate.sh` green, `go test -race ./...` green.
 
@@ -22,15 +22,15 @@
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `backend/internal/modules/iam/loginclient/client.go` | `requestOption`/`withOrgID`, `do` variadic opts, `LoginPolicyForOrg` + `InstanceLoginPolicyForDisplay`, `sessionSubject` |
-| `backend/internal/modules/iam/loginclient/client_test.go` | Header-on-the-wire, empty-org-id refusal, existing `LoginPolicy` tests moved to the new names |
-| `backend/internal/modules/iam/loginclient/sufficiency.go` | `classifyEnrolledMethods` returns the subject; `CompleteIfSufficient` scopes the read; KNOWN LIMITATIONS §2 deleted |
-| `backend/internal/modules/iam/loginclient/sufficiency_test.go` | Fixtures gain `organizationId`; a missing org id hands off |
-| `backend/internal/modules/iam/loginui.go` | Display call site renamed |
-| `backend/internal/archtest/arch_test.go` | `InstanceLoginPolicyForDisplay` is unreachable from `sufficiency.go` |
-| `backend/internal/modules/iam/loginui_integration_test.go` | The live second-org proof (D5) |
+| File                                                           | Responsibility                                                                                                           |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `backend/internal/modules/iam/loginclient/client.go`           | `requestOption`/`withOrgID`, `do` variadic opts, `LoginPolicyForOrg` + `InstanceLoginPolicyForDisplay`, `sessionSubject` |
+| `backend/internal/modules/iam/loginclient/client_test.go`      | Header-on-the-wire, empty-org-id refusal, existing `LoginPolicy` tests moved to the new names                            |
+| `backend/internal/modules/iam/loginclient/sufficiency.go`      | `classifyEnrolledMethods` returns the subject; `CompleteIfSufficient` scopes the read; KNOWN LIMITATIONS §2 deleted      |
+| `backend/internal/modules/iam/loginclient/sufficiency_test.go` | Fixtures gain `organizationId`; a missing org id hands off                                                               |
+| `backend/internal/modules/iam/loginui.go`                      | Display call site renamed                                                                                                |
+| `backend/internal/archtest/arch_test.go`                       | `InstanceLoginPolicyForDisplay` is unreachable from `sufficiency.go`                                                     |
+| `backend/internal/modules/iam/loginui_integration_test.go`     | The live second-org proof (D5)                                                                                           |
 
 ---
 
@@ -39,9 +39,11 @@
 **Files:** `client.go`, `client_test.go`
 
 **Interfaces:**
+
 - Produces: `LoginPolicyForOrg(ctx, orgID)` and `InstanceLoginPolicyForDisplay(ctx)`, both consumed by Tasks 2 and 3. `LoginPolicy` ceases to exist under that name.
 
 **Steps:**
+
 - [ ] Add `requestOptions{orgID string}` / `requestOption func(*requestOptions)` / `withOrgID(string) requestOption` (D4). `do` gains `opts ...requestOption` and sets `x-zitadel-orgid` **itself** from the accumulated `orgID` — an option must not be able to reach `*http.Request` (that shape would let a future option overwrite `Authorization`).
 - [ ] Split `LoginPolicy` into an unexported `loginPolicy(ctx, opts ...requestOption)` holding today's entire body (anchor check, `mfaPolicyKeys` loop, rename guard), plus two exported wrappers:
   - `LoginPolicyForOrg(ctx, orgID)` — `orgID == ""` returns `LoginPolicy{}, fmt.Errorf(...: %w, ErrUnavailable)` **before any HTTP call**.
@@ -60,10 +62,12 @@
 **Files:** `sufficiency.go`, `client.go`, `sufficiency_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 1's `LoginPolicyForOrg`.
 - Produces: nothing later tasks depend on.
 
 **Steps:**
+
 - [ ] Rename `sessionUserID` → `sessionSubject`, returning `sessionSubject{UserID, OrgID string}` decoded from `factors.user.{id,organizationId}`. Keep today's fail-closed empty-`UserID` check unchanged. **Do not** validate `OrgID` here (D2: one control point, at the policy call).
 - [ ] `enrolledMethodTypes` takes a `userID` rather than a session id, so the session read happens exactly once per login. `classifyEnrolledMethods` performs the session read and returns the subject alongside `totpEnrolled, uncollectible`.
 - [ ] `CompleteIfSufficient` passes `subject.OrgID` to `LoginPolicyForOrg`. The existing fail-closed branch (`slog.Warn` + `OutcomeHandoff`) already covers a refused empty org id — do not add a second branch.
@@ -82,6 +86,7 @@
 **Files:** `loginui.go`, `arch_test.go`
 
 **Steps:**
+
 - [ ] `LoginUIHandlers.AuthRequest` calls `InstanceLoginPolicyForDisplay`. Update the surrounding doc comment: the value is advisory, may be wrong on a multi-org instance, and is not what enforces anything.
 - [ ] Archtest: parse `loginclient/sufficiency.go` and assert `InstanceLoginPolicyForDisplay` is not referenced anywhere in it — modelled on the existing `sufficient{}`-construction test in `arch_test.go`, with a failure message naming #913 and saying what to use instead.
 - [ ] Prove the archtest can fail: temporarily add the call to `sufficiency.go`, watch it fail, revert.
@@ -93,6 +98,7 @@
 **Files:** `loginui_integration_test.go`
 
 **Steps:**
+
 - [ ] Add an org-scoped variant of `managementAPICall` (an `orgID` argument that sets `x-zitadel-orgid`, empty meaning "unscoped, as today") rather than a parallel copy of the function.
 - [ ] Helper `createOrgWithUser(t, env, seedToken)` → `(orgID, loginName string)`: `POST /management/v1/orgs`, then `createImportedUser` scoped to that org. `t.Cleanup` deletes the org and **reads it back** to prove the delete took.
 - [ ] `TestIntegration_ForceMFAPolicyInAnotherOrg_HandsOffInsteadOfCompleting` per D5: second org forces MFA, login client's own org left at default, real `POST /v1/auth/login/password` as the second-org user → `handoff_url` present, `callback_url` absent.

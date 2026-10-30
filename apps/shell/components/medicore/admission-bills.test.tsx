@@ -22,6 +22,8 @@ const bill = (number: number, kind: "interim" | "final" = "interim") => ({
   issued_by: "user-clerk",
   issued_at: "2026-10-30T06:00:00Z",
   unpriced_bed_days: 2,
+  paid_minor: 100000,
+  deposit_held_minor: 20000,
   line_count: 2,
   new_count: 1,
   totals: [
@@ -138,6 +140,8 @@ describe("AdmissionBills", () => {
     const shown = await screen.findByRole("region", { name: "Final bill 2" });
     expect(shown).toHaveTextContent("Final bill 2 — not a tax invoice");
     expect(shown).toHaveTextContent("a later midnight in the bed or a late charge is added");
+    // Owed 1,500.00 less paid 1,000.00 less held 200.00.
+    expect(shown).toHaveTextContent("to pay INR 300.00");
     expect(screen.getByRole("button", { name: "Interim bill 1" })).toBeInTheDocument();
   });
 

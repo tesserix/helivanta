@@ -3545,6 +3545,33 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application",
+          "permission": "billing.bill.issue",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/entries",
           "permission": "billing.account.read",
@@ -3846,6 +3873,13 @@
             "billing_counters",
             "billing_cash_shifts",
             "billing_cash_receipts"
+          ]
+        },
+        {
+          "id": "0006_billing",
+          "sql_sha256": "6e1079e3fde89b7ff517d7a7361c80a6dee8c6768162e98347c39481fc9fdd58",
+          "creates_tables": [
+            "billing_deposit_applications"
           ]
         }
       ]

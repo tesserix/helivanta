@@ -165,7 +165,6 @@ committed activation change yet. Keep production activation gated until rendered
 and negative policy tests, the final application image, policy/credential delivery
 and an authenticated isolated-tenant production journey are verified.
 
-
 ## Consent-ledger scale finding and correction
 
 The tagged ledger plan test populates 100,000 consent rows and 100,000 recipient

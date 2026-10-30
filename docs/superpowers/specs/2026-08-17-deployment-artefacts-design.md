@@ -29,20 +29,20 @@ deployed home and closes that gap.
 
 Each checked live. Four of these contradict what #824 or the handoff assumes.
 
-| Claim | How it was checked |
-|---|---|
-| Helivanta has no build or deployment artefacts | No `Dockerfile`, `charts/` or ArgoCD app in this repo; `grep -rln helivanta` across `tesserix-k8s` returns only `charts/thirdparty/openbao/values.yaml` and `argocd/prod/projects/security.yaml` |
-| The `helivanta` namespace holds exactly one object | `kubectl get all,externalsecret,secretstore -n helivanta` → only `SecretStore/openbao-helivanta-api`, `Valid`/`Ready` |
-| **Nothing verifies image signatures** | `kubectl get clusterpolicy` on `tesseract-prod-in-gke` → only `tig-audit-breakglass`, `tig-deny-unauthorized-delete`, `tig-deny-unauthorized-writes`. No `verifyImages` policy exists; Kyverno policies live in the separate `tesserix-governance` repo |
-| Images are pushed to ghcr.io and pulled through a GAR mirror | `charts/apps/homechef-api/values.yaml`: `asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/home-chef-app/homechef-api` |
-| **The API hard-requires NATS and OpenFGA at boot** | `backend/cmd/api/main.go:171` (`events.NewBus`), `:214` (`authz.NewClient`); `/readyz` gates on both (`:239-240`) |
-| **Next bakes rewrites into the build** | `apps/shell/.next/routes-manifest.json` contains the literal `http://localhost:4302/medicore`. `MEDICORE_URL`/`API_URL` are build-time, not runtime |
-| `NEXT_PUBLIC_*` are inlined and the build refuses without them | `apps/shell/lib/env.ts` — `defineEnv` with `z.string().url()` / `.min(1)`, and its own comment: "NEXT_PUBLIC_ vars are inlined at build time" |
-| SIGTERM is already handled | `main.go:136` `signal.NotifyContext(…SIGINT, SIGTERM)`; `:419` `httpSrv.Shutdown` |
-| `/readyz` already runs real checks | `internal/httpserver/server.go:75-84` iterates `readyChecks` and returns 503 naming the failed one. Not a static 200 |
-| `migrate` depends only on Postgres | `backend/cmd/migrate/main.go` header — written so seeding and CI need not boot NATS and OpenFGA |
-| **`helivanta.app` resolves to nothing** | `dig helivanta.app NS` → `algin/nola.ns.cloudflare.com` (same zone account as `tesserix.app`), but `dig A` is empty, and `k8s/cluster/cloudflared/configmap.yaml` routes only `tesserix.app`, `*.tesserix.app`, `mark8ly.com`, `*.mark8ly.com`, then `http_status:404` |
-| A precise precedent exists, 18 days old | `argocd/prod/apps/dwellm8/` — postgres (CNPG), nats, openfga, db-schema-bootstrap, secrets, network-policies, api, temporal, under an app-of-apps |
+| Claim                                                          | How it was checked                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Helivanta has no build or deployment artefacts                 | No `Dockerfile`, `charts/` or ArgoCD app in this repo; `grep -rln helivanta` across `tesserix-k8s` returns only `charts/thirdparty/openbao/values.yaml` and `argocd/prod/projects/security.yaml`                                                                       |
+| The `helivanta` namespace holds exactly one object             | `kubectl get all,externalsecret,secretstore -n helivanta` → only `SecretStore/openbao-helivanta-api`, `Valid`/`Ready`                                                                                                                                                  |
+| **Nothing verifies image signatures**                          | `kubectl get clusterpolicy` on `tesseract-prod-in-gke` → only `tig-audit-breakglass`, `tig-deny-unauthorized-delete`, `tig-deny-unauthorized-writes`. No `verifyImages` policy exists; Kyverno policies live in the separate `tesserix-governance` repo                |
+| Images are pushed to ghcr.io and pulled through a GAR mirror   | `charts/apps/homechef-api/values.yaml`: `asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/home-chef-app/homechef-api`                                                                                                                               |
+| **The API hard-requires NATS and OpenFGA at boot**             | `backend/cmd/api/main.go:171` (`events.NewBus`), `:214` (`authz.NewClient`); `/readyz` gates on both (`:239-240`)                                                                                                                                                      |
+| **Next bakes rewrites into the build**                         | `apps/shell/.next/routes-manifest.json` contains the literal `http://localhost:4302/medicore`. `MEDICORE_URL`/`API_URL` are build-time, not runtime                                                                                                                    |
+| `NEXT_PUBLIC_*` are inlined and the build refuses without them | `apps/shell/lib/env.ts` — `defineEnv` with `z.string().url()` / `.min(1)`, and its own comment: "NEXT_PUBLIC_ vars are inlined at build time"                                                                                                                          |
+| SIGTERM is already handled                                     | `main.go:136` `signal.NotifyContext(…SIGINT, SIGTERM)`; `:419` `httpSrv.Shutdown`                                                                                                                                                                                      |
+| `/readyz` already runs real checks                             | `internal/httpserver/server.go:75-84` iterates `readyChecks` and returns 503 naming the failed one. Not a static 200                                                                                                                                                   |
+| `migrate` depends only on Postgres                             | `backend/cmd/migrate/main.go` header — written so seeding and CI need not boot NATS and OpenFGA                                                                                                                                                                        |
+| **`helivanta.app` resolves to nothing**                        | `dig helivanta.app NS` → `algin/nola.ns.cloudflare.com` (same zone account as `tesserix.app`), but `dig A` is empty, and `k8s/cluster/cloudflared/configmap.yaml` routes only `tesserix.app`, `*.tesserix.app`, `mark8ly.com`, `*.mark8ly.com`, then `http_status:404` |
+| A precise precedent exists, 18 days old                        | `argocd/prod/apps/dwellm8/` — postgres (CNPG), nats, openfga, db-schema-bootstrap, secrets, network-policies, api, temporal, under an app-of-apps                                                                                                                      |
 
 The "nothing verifies signatures" row is why D5 says what it says. The
 `routes-manifest.json` row is why D4 exists at all.
@@ -51,13 +51,13 @@ The "nothing verifies signatures" row is why D5 says what it says. The
 
 ## D1 — Three slices, cut on dependency edges
 
-| Slice | Repo | Delivers |
-|---|---|---|
-| **1a** | `tesserix-k8s` only | CNPG Postgres, NATS, OpenFGA, db-schema-bootstrap, network policies, app-of-apps |
+| Slice  | Repo                         | Delivers                                                                                |
+| ------ | ---------------------------- | --------------------------------------------------------------------------------------- |
+| **1a** | `tesserix-k8s` only          | CNPG Postgres, NATS, OpenFGA, db-schema-bootstrap, network policies, app-of-apps        |
 | **1b** | `helivanta` + `tesserix-k8s` | Dockerfiles, CI, charts, Kargo, cloudflared/DNS, the D7 boot guard — **a real sign-in** |
-| **2** | both | `medicore`, `pharmacy`, `lab` zones |
+| **2**  | both                         | `medicore`, `pharmacy`, `lab` zones                                                     |
 
-The 1a/1b cut is not arbitrary. It falls on a repo boundary *and* on a real
+The 1a/1b cut is not arbitrary. It falls on a repo boundary _and_ on a real
 dependency edge: the API cannot become ready until all three of its
 dependencies are healthy (observed above), so standing them up first means the
 first Helivanta pod that fails to start has **one** candidate cause rather than
@@ -119,8 +119,7 @@ them.
 carries baked `localhost` rewrites that are unreachable in production only
 because the ingress routes those paths away first. If ingress path
 configuration ever drifts, a request falls through to the shell and it attempts
-to proxy to `localhost:4302` — producing a confusing 502 rather than a clean
-404. Zone URLs are therefore built as in-cluster Service DNS
+to proxy to `localhost:4302` — producing a confusing 502 rather than a clean 404. Zone URLs are therefore built as in-cluster Service DNS
 (`http://helivanta-medicore.helivanta.svc.cluster.local:4302`), so the fallback
 path works rather than lying. This costs nothing and removes the trap.
 
@@ -192,12 +191,12 @@ the change, not merely that the new one does.
 
 ## D7 — `TRUSTED_PROXY_CIDRS` refuses boot outside dev, with an explicit opt-out
 
-| Value | `HELIVANTA_ENV=dev` | Otherwise |
-|---|---|---|
-| unset or empty | empty list, raw TCP peer | **refuse boot** |
-| `none` | raw TCP peer | raw TCP peer |
-| valid CIDR list | trusted | trusted |
-| every entry malformed | empty list | **refuse boot**, message distinct from unset |
+| Value                 | `HELIVANTA_ENV=dev`      | Otherwise                                    |
+| --------------------- | ------------------------ | -------------------------------------------- |
+| unset or empty        | empty list, raw TCP peer | **refuse boot**                              |
+| `none`                | raw TCP peer             | raw TCP peer                                 |
+| valid CIDR list       | trusted                  | trusted                                      |
+| every entry malformed | empty list               | **refuse boot**, message distinct from unset |
 
 This raises the control from the repository's weakest rung to its second —
 `docs/standards/engineering-principles.md` §4 ranks "impossible to express" >
@@ -235,7 +234,7 @@ input. `TestTrustedProxyCIDRsAllMalformedYieldsEmptyNotError`
 all-garbage case lands on the same fail-closed answer as unset "rather than a
 boot failure".
 
-D7 preserves that test's *principle* — all-garbage still resolves identically
+D7 preserves that test's _principle_ — all-garbage still resolves identically
 to unset — while changing what "unset" means outside dev. Because the guard is
 a separate method, `Load()` still returns an empty list and the test still
 passes untouched. What must change is its **comment**, which will otherwise
@@ -253,7 +252,7 @@ the wrong place.
 It lands in slice 1b, in the same change as the chart that sets it, so it never
 blocks a deployment on a value with nowhere to live.
 
-## D8 — #45 Task 4 is a step *inside* 1b, not a thing 1b unblocks
+## D8 — #45 Task 4 is a step _inside_ 1b, not a thing 1b unblocks
 
 The handoff and #824 both record Task 4 as blocked on this issue. That is the
 wrong way round, and following it would deadlock.
@@ -284,12 +283,12 @@ directly, per the runbook.
 
 ## D9 — The database is named `helivanta`; only the RLS-bound role keeps `hms`
 
-| Identifier | Production | Why |
-|---|---|---|
-| database | `helivanta` | No migration references it |
-| owner role (`ADMIN_DATABASE_URL`) | `helivanta` | Named only by bootstrap SQL, which this slice writes |
-| application role (`APP_DATABASE_URL`) | `hms_app` | **Unchanged** — migrations and every RLS policy name it |
-| RLS predicate | `hms_tenant_visible()` | **Unchanged** — same reason |
+| Identifier                            | Production             | Why                                                     |
+| ------------------------------------- | ---------------------- | ------------------------------------------------------- |
+| database                              | `helivanta`            | No migration references it                              |
+| owner role (`ADMIN_DATABASE_URL`)     | `helivanta`            | Named only by bootstrap SQL, which this slice writes    |
+| application role (`APP_DATABASE_URL`) | `hms_app`              | **Unchanged** — migrations and every RLS policy name it |
+| RLS predicate                         | `hms_tenant_visible()` | **Unchanged** — same reason                             |
 
 The rebrand's D5 kept `hms_app` and `hms_tenant_visible()` because migrations
 are append-only, so renaming a role means a new migration mutating roles on

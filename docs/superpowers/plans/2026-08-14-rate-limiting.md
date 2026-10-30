@@ -19,11 +19,11 @@
 - `pnpm turbo lint type-check test build` green.
 - **Limits and bursts:**
 
-  | Scope | Rate | Burst |
-  |---|---|---|
-  | default, per tenant | 600/min | 100 |
-  | default, per principal | 120/min | 20 |
-  | `POST /v1/iam/me/tenant`, per principal | 10/min | 3 |
+  | Scope                                   | Rate    | Burst |
+  | --------------------------------------- | ------- | ----- |
+  | default, per tenant                     | 600/min | 100   |
+  | default, per principal                  | 120/min | 20    |
+  | `POST /v1/iam/me/tenant`, per principal | 10/min  | 3     |
 
 - **`now time.Time` is a parameter to `Allow`, never `time.Now()` inside.** This is what makes refill exactly assertable without sleeps.
 - Applied at the `/v1` group only. `/healthz` and `/readyz` stay unlimited — a throttled readiness probe takes a healthy replica out of service.
@@ -36,34 +36,36 @@
 
 **New:**
 
-| File | Responsibility |
-|---|---|
-| `backend/pkg/ratelimit/ratelimit.go` | `Limiter` interface, `Decision`, `Rule`, `Rules` |
-| `backend/pkg/ratelimit/memory.go` | The in-memory token bucket + LRU bound |
-| `backend/pkg/ratelimit/memory_test.go` | Refill with an injected clock, bounds, races |
-| `backend/pkg/ratelimit/middleware.go` | Gin middleware: two buckets, exemptions, headers |
-| `backend/pkg/ratelimit/middleware_test.go` | Both buckets, denial naming, exemptions, headers |
-| `backend/internal/archtest/ratelimit_test.go` | The exemption allowlist arch test |
-| `e2e/tests/ratelimit.spec.ts` | Deliberately trip the limiter, assert 429 and recovery |
+| File                                          | Responsibility                                         |
+| --------------------------------------------- | ------------------------------------------------------ |
+| `backend/pkg/ratelimit/ratelimit.go`          | `Limiter` interface, `Decision`, `Rule`, `Rules`       |
+| `backend/pkg/ratelimit/memory.go`             | The in-memory token bucket + LRU bound                 |
+| `backend/pkg/ratelimit/memory_test.go`        | Refill with an injected clock, bounds, races           |
+| `backend/pkg/ratelimit/middleware.go`         | Gin middleware: two buckets, exemptions, headers       |
+| `backend/pkg/ratelimit/middleware_test.go`    | Both buckets, denial naming, exemptions, headers       |
+| `backend/internal/archtest/ratelimit_test.go` | The exemption allowlist arch test                      |
+| `e2e/tests/ratelimit.spec.ts`                 | Deliberately trip the limiter, assert 429 and recovery |
 
 **Modified:**
 
-| File | Change |
-|---|---|
-| `backend/internal/platform/respond/respond.go` | Add `TooManyRequests` |
-| `backend/internal/config/config.go` | Rate-limit settings from env |
-| `backend/cmd/api/main.go` | Construct the limiter, insert the middleware |
-| `docs/standards/backend.md` | The rule |
-| `Makefile` / `dev/.env` | The E2E's generous budget |
+| File                                           | Change                                       |
+| ---------------------------------------------- | -------------------------------------------- |
+| `backend/internal/platform/respond/respond.go` | Add `TooManyRequests`                        |
+| `backend/internal/config/config.go`            | Rate-limit settings from env                 |
+| `backend/cmd/api/main.go`                      | Construct the limiter, insert the middleware |
+| `docs/standards/backend.md`                    | The rule                                     |
+| `Makefile` / `dev/.env`                        | The E2E's generous budget                    |
 
 ---
 
 ## Task 1: the limiter
 
 **Files:**
+
 - Create: `backend/pkg/ratelimit/ratelimit.go`, `memory.go`, `memory_test.go`
 
 **Interfaces:**
+
 - Produces:
   - `type Decision struct { Allowed bool; RetryAfter time.Duration; Limit int; Remaining int; Reset time.Duration }`
   - `type Rule struct { Rate int; Burst int; Per time.Duration }` — `Rate` events per `Per`
@@ -417,9 +419,11 @@ git commit -m "feat: add an in-memory token bucket with an injected clock and a 
 ## Task 2: the 429 response helper
 
 **Files:**
+
 - Modify: `backend/internal/platform/respond/respond.go`, `respond_test.go`
 
 **Interfaces:**
+
 - Produces: `func TooManyRequests(c *gin.Context, message string, d ratelimit.Decision)`.
 
 Wait — `respond` importing `ratelimit` would put a `pkg/` dependency into `internal/platform`, which is the direction the codebase already has (`pkg/authz` imports `internal/platform/respond`, an inversion the foundation audit flagged). **Do not deepen it.** Take primitives instead:
@@ -517,9 +521,11 @@ git commit -m "feat: add a 429 helper whose Retry-After never rounds down to zer
 ## Task 3: the middleware
 
 **Files:**
+
 - Create: `backend/pkg/ratelimit/middleware.go`, `middleware_test.go`
 
 **Interfaces:**
+
 - Consumes: `Limiter`, `Rule`, `Decision` (Task 1); `respond.TooManyRequests` (Task 2); `authn.PrincipalFrom`.
 - Produces:
   - `type Config struct { Tenant, Principal Rule; Tight map[string]Rule; Exempt map[string]string }`
@@ -787,10 +793,12 @@ git commit -m "feat: limit per tenant and per principal, exempting the controls 
 ## Task 4: wire it, and prove the placement
 
 **Files:**
+
 - Modify: `backend/internal/config/config.go`, `backend/cmd/api/main.go`
 - Create: `backend/internal/archtest/ratelimit_test.go`
 
 **Interfaces:**
+
 - Consumes: `ratelimit.Middleware`, `ratelimit.Config`, `ratelimit.NewMemory`.
 - Produces: `config.Config` gains `RateLimitTenantPerMin`, `RateLimitPrincipalPerMin`, `RateLimitMintPerMin int`.
 
@@ -926,6 +934,7 @@ git commit -m "feat: limit before the OpenFGA call, with exemptions pinned by an
 ## Task 5: the standards entry
 
 **Files:**
+
 - Modify: `docs/standards/backend.md`
 
 - [ ] **Step 1: Document the rule**
@@ -968,6 +977,7 @@ git commit -m "docs: record the rate limiting contract and its fail-open directi
 ## Task 6: the E2E, and not fighting our own suite
 
 **Files:**
+
 - Create: `e2e/tests/ratelimit.spec.ts`
 - Modify: `Makefile` or `dev/.env` (whichever holds the dev environment for `make up`)
 
@@ -1001,7 +1011,9 @@ import { login } from "./support/login";
 // broken — and the dev stack deliberately runs generous limits so the
 // rest of the suite is not throttled, which would otherwise mean the
 // limiter is never exercised at all before production.
-test("exceeding the budget is refused with a Retry-After, and recovers", async ({ page }) => {
+test("exceeding the budget is refused with a Retry-After, and recovers", async ({
+  page,
+}) => {
   await login(page);
 
   const result = await page.evaluate(async () => {
@@ -1011,20 +1023,31 @@ test("exceeding the budget is refused with a Retry-After, and recovers", async (
       fetch("/api/v1/iam/me/tenant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: "11111111-1111-1111-1111-111111111111" }),
+        body: JSON.stringify({
+          tenant_id: "11111111-1111-1111-1111-111111111111",
+        }),
       });
 
     for (let i = 0; i < 2000; i++) {
       const res = await attempt();
       if (res.status === 429) {
-        return { status: 429, retryAfter: res.headers.get("Retry-After"), attempts: i + 1 };
+        return {
+          status: 429,
+          retryAfter: res.headers.get("Retry-After"),
+          attempts: i + 1,
+        };
       }
     }
     return { status: 0, retryAfter: null, attempts: 2000 };
   });
 
-  expect(result.status, `never refused after ${result.attempts} attempts`).toBe(429);
-  expect(result.retryAfter, "a refusal must tell the client when to retry").toBeTruthy();
+  expect(result.status, `never refused after ${result.attempts} attempts`).toBe(
+    429,
+  );
+  expect(
+    result.retryAfter,
+    "a refusal must tell the client when to retry",
+  ).toBeTruthy();
   expect(Number(result.retryAfter)).toBeGreaterThan(0);
 });
 ```

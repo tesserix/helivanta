@@ -45,7 +45,7 @@ pointing at Helivanta's `/login`. The instance-wide `LOGINV2_BASEURI` is not cha
 
 The Zitadel instance is shared with every other Tesserix product, and the
 instance-level setting applies to every app on it. Scoping per-app is what makes
-the *base URI* change Helivanta's alone: another product's login must not move
+the _base URI_ change Helivanta's alone: another product's login must not move
 because Helivanta rebranded its own.
 
 **Qualification, found while implementing (#854 Task 1) and recorded honestly
@@ -57,7 +57,7 @@ sufficient on our stack: with the instance-wide
 dev stack therefore runs
 `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"`
 (`docker-compose.dev.yml`), and **that half is instance-wide, not per-app**.
-Per that file's own comment it is *not* a no-op: any other product currently
+Per that file's own comment it is _not_ a no-op: any other product currently
 getting Login V2 implicitly from the instance-wide flag would fall back to its
 own per-app setting, or to Login V1 if it has none. So the guarantee this
 section makes holds for the base URI and **does not** hold for the `required`
@@ -66,7 +66,7 @@ belongs to the platform team, and Helivanta must not make it unilaterally. In de
 where Helivanta and the Management Console are the only apps, the flip is contained.
 
 **This is the first thing to prove.** The per-app setting is confirmed to exist
-in the v4 documentation but was *not* exercised in the spike. If it turns out not
+in the v4 documentation but was _not_ exercised in the spike. If it turns out not
 to work on our instance, the whole approach is instance-wide and must go back to
 the platform team before anything else is built. It is therefore task one, not a
 detail discovered late.
@@ -77,7 +77,7 @@ and D3's handoff path depends on it existing.
 ## D2 — The Go API holds the credential; the page holds none
 
 `IAM_LOGIN_CLIENT` is an **instance-level** role. A holder can finalise an auth
-request for *any* app on the instance, including other Tesserix products. It is
+request for _any_ app on the instance, including other Tesserix products. It is
 the most privileged secret Helivanta has ever held.
 
 It lives in the Go API, which already has secret loading, the rate limiter
@@ -92,11 +92,11 @@ they are the same subject matter as `iam`'s existing `POST /v1/auth/login`, and
 a module whose only content is three unauthenticated handlers would have split
 the login flow across two modules for no gain:
 
-| Route | Purpose |
-|---|---|
-| `GET /v1/auth/login/request/:id` | Validate the auth request is real and current; return only what the form needs |
-| `POST /v1/auth/login/password` | Password check, then finalise; returns `callbackUrl` |
-| `POST /v1/auth/login/handoff/:id` | Hand the auth request to the hosted login (D3) |
+| Route                             | Purpose                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /v1/auth/login/request/:id`  | Validate the auth request is real and current; return only what the form needs |
+| `POST /v1/auth/login/password`    | Password check, then finalise; returns `callbackUrl`                           |
+| `POST /v1/auth/login/handoff/:id` | Hand the auth request to the hosted login (D3)                                 |
 
 All three run before any principal exists, and all three sit behind the existing
 unauthenticated limiter — the **same** `ratelimit.Limiter` instance `V1Chain` and
@@ -109,7 +109,7 @@ different threat from an auth-request read.
 three are `authz.Public`. They are not, and cannot be: `authz.Public` is an
 opt-out available to routes registered through `*platform.Router`, and none of
 these three go through it. They are mounted directly on the gin engine via
-`bootstrap.MountUnauthenticated`, which is the repo's *other*, narrower
+`bootstrap.MountUnauthenticated`, which is the repo's _other_, narrower
 mechanism for a deliberate bypass — every route there is enumerated in
 `bootstrap.UnauthenticatedRoutes` with the reason it cannot work any other way,
 and `archtest.TestEveryEngineRouteIsDeclaredOrAllowlisted` fails CI for any
@@ -128,18 +128,18 @@ at stake if it is skipped.
 
 This slice implements email + password. Passkeys are #570, MFA is #41.
 
-Scoping *down* is fine; being *incorrect* for the cases we exclude is not. Each
+Scoping _down_ is fine; being _incorrect_ for the cases we exclude is not. Each
 unsupported case hands the **same auth request** to the hosted login, which
 completes it and returns to the same callback:
 
-| Case | Helivanta behaviour |
-|---|---|
-| MFA required by org policy (D4) | Handoff. Not an error. |
-| MFA: user has voluntarily enrolled a factor (D4) | Handoff. Verified live 2026-08-16 (#854 Task 8): `GET /v2/users/{id}/authentication_methods`, reachable with the login-client PAT, lists a user's enrolled methods independent of org policy — a password-only session hands off when it reports anything besides `AUTHENTICATION_METHOD_TYPE_PASSWORD`. |
-| Password change required | **Not handled — reversed from the original design.** Verified live 2026-08-16 (#854 Task 8, spike §5): a user imported with `passwordChangeRequired:true` produces a session create, a session read, and a finalize that are byte-identical in shape to a normal user's — Zitadel signals this to a login client **nowhere in the flow**. Helivanta's own `POST /v1/auth/login/password` against such a user returns 200 with a valid `callback_url`, same as any other successful login. There is no field to branch on, so this row cannot be implemented as "handoff" without an extra `GET /v2/users/{id}` read on every login. Documented as a known limitation at the decision point in `sufficiency.go` and filed as [#856](https://github.com/tesserix/helivanta/issues/856) rather than fixed in this slice. **Closed 2026-10-08 (#856):** checked natively before every finalize, after every factor, and changed in Helivanta's own form — see `2026-10-08-password-change-required-design.md`. |
-| Federated hospital IdP | Handoff — this is the capability Zitadel was chosen for and must never break silently. **Corrected 2026-10-08 (#950):** a user whose account merely *carries* an IdP link (`AUTHENTICATION_METHOD_TYPE_IDP`) but signs in with a password is **not** this case and completes like a password-only user; see `2026-10-08-idp-link-is-not-a-factor-design.md` D1. Signing in *with* the IdP is #423. |
-| Locked out | Zitadel's answer, shown inline. Never worded as a wrong password. |
-| Unknown user / wrong password | D5. |
+| Case                                             | Helivanta behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MFA required by org policy (D4)                  | Handoff. Not an error.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| MFA: user has voluntarily enrolled a factor (D4) | Handoff. Verified live 2026-08-16 (#854 Task 8): `GET /v2/users/{id}/authentication_methods`, reachable with the login-client PAT, lists a user's enrolled methods independent of org policy — a password-only session hands off when it reports anything besides `AUTHENTICATION_METHOD_TYPE_PASSWORD`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Password change required                         | **Not handled — reversed from the original design.** Verified live 2026-08-16 (#854 Task 8, spike §5): a user imported with `passwordChangeRequired:true` produces a session create, a session read, and a finalize that are byte-identical in shape to a normal user's — Zitadel signals this to a login client **nowhere in the flow**. Helivanta's own `POST /v1/auth/login/password` against such a user returns 200 with a valid `callback_url`, same as any other successful login. There is no field to branch on, so this row cannot be implemented as "handoff" without an extra `GET /v2/users/{id}` read on every login. Documented as a known limitation at the decision point in `sufficiency.go` and filed as [#856](https://github.com/tesserix/helivanta/issues/856) rather than fixed in this slice. **Closed 2026-10-08 (#856):** checked natively before every finalize, after every factor, and changed in Helivanta's own form — see `2026-10-08-password-change-required-design.md`. |
+| Federated hospital IdP                           | Handoff — this is the capability Zitadel was chosen for and must never break silently. **Corrected 2026-10-08 (#950):** a user whose account merely _carries_ an IdP link (`AUTHENTICATION_METHOD_TYPE_IDP`) but signs in with a password is **not** this case and completes like a password-only user; see `2026-10-08-idp-link-is-not-a-factor-design.md` D1. Signing in _with_ the IdP is #423.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Locked out                                       | Zitadel's answer, shown inline. Never worded as a wrong password.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Unknown user / wrong password                    | D5.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 The handoff is a redirect to the hosted login's URL for that `authRequest` id.
 Because the auth request is the same object, the user finishes in the same flow
@@ -183,15 +183,15 @@ Helivanta evaluates is local** — Helivanta only ever creates password sessions
 today — no external IdP is configured", which is false: the shared
 `auth.tesserix.app` instance has `AllowExternalIDP: true` and other Tesserix
 products link accounts to Google. The assumption that holds is about the
-*session*, not the account; an IdP-linked user who signs in here with a password
+_session_, not the account; an IdP-linked user who signs in here with a password
 is a local sign-in, and the fold gives the right answer. See
 `2026-10-08-idp-link-is-not-a-factor-design.md` D2. If Helivanta ever signs users
-in *with* an IdP (#423), this fold-together stops being correct for those
+in _with_ an IdP (#423), this fold-together stops being correct for those
 sessions and must be revisited: the sufficiency check would need to know which
 kind of session it is evaluating, not just read one bool.
 
 Both keys are registered in one list (`mfaPolicyKeys` in
-`loginclient/client.go`) that drives *both* the read and the
+`loginclient/client.go`) that drives _both_ the read and the
 rename/re-casing guard, so a third such field discovered later is a one-place
 change. A test pins that the read really is list-driven, because a list that
 guards a key without reading it is a silent MFA bypass.
@@ -206,10 +206,10 @@ Zitadel finalize call appears in exactly that one place.
 
 Observed:
 
-| Case | Status | Body | Time |
-|---|---|---|---|
-| Wrong password | 400 | `COMMAND-3M0fs`, `failedAttempts` | 0.72–0.78s |
-| Unknown user | 404 | `QUERY-Dfbg2` | 0.013s |
+| Case           | Status | Body                              | Time       |
+| -------------- | ------ | --------------------------------- | ---------- |
+| Wrong password | 400    | `COMMAND-3M0fs`, `failedAttempts` | 0.72–0.78s |
+| Unknown user   | 404    | `QUERY-Dfbg2`                     | 0.013s     |
 
 Two enumeration oracles: the status code, and a ~55× timing difference (an
 unknown user never reaches the password hash). Anyone can learn which clinicians
@@ -227,7 +227,7 @@ tied to Zitadel's hash cost and will need revisiting if that changes.
 
 **The equalisation is not unconditional, and this spec must not claim it is.**
 The floor closes the gap only while the real wrong-password latency stays
-*below* it. Zitadel applies a per-account escalating backoff past roughly ten
+_below_ it. Zitadel applies a per-account escalating backoff past roughly ten
 consecutive failures against the same login name (see "no account lockout"
 above, and `MinFailedLoginDuration`'s comment): from ~1.83s at attempt 10 it
 exceeds the 1500ms floor, and `respondEqualisedFailure` only ever waits **up
@@ -255,14 +255,14 @@ D5a made this a contract because `e2e/tests/support/login.ts` drives login by
 accessible name, and a rename fails all eleven specs at once at the login step —
 which reads as a broken application rather than a renamed label.
 
-The contract survives this spec unchanged, and gets *better*: the names are now
+The contract survives this spec unchanged, and gets _better_: the names are now
 in our repo instead of a foreign container's markup, so the e2e suite stops
 depending on an upstream build's DOM. The suite's login helper is repointed at
 our form as part of this work.
 
 The form uses `useZodForm` + `Field` from `@helivanta/ui` with `noValidate`, per the
 frontend standards, and `@tesserix/web`'s `AuthLayout`/`AuthCard` chrome the
-login page already uses — this time *with* the credential parts.
+login page already uses — this time _with_ the credential parts.
 
 ---
 
@@ -274,7 +274,7 @@ login page already uses — this time *with* the credential parts.
 - **Auth request unknown, expired or already used** → the form says the sign-in
   attempt expired and offers to start again. This is reachable in normal use: a
   browser left on the login page overnight.
-- **Finalize fails after a successful password check** → the user is *not* told
+- **Finalize fails after a successful password check** → the user is _not_ told
   they are signed in. The session is only ever real once the callback exchange
   succeeds.
 - Every failure is logged with the auth request id and the outcome, and **never**
@@ -284,7 +284,7 @@ login page already uses — this time *with* the credential parts.
 ## Testing
 
 - **Go unit tests** against a faked Zitadel: a table with one row per D3 case and
-  each D5 case, asserting status, body and that finalize was *not* called for the
+  each D5 case, asserting status, body and that finalize was _not_ called for the
   handoff rows.
 - **A D4 regression test that is the point of the whole spec**: with the policy
   reporting `forceMfa`, assert no finalize call is made. This test must be seen
@@ -357,7 +357,7 @@ found a **per-account escalating backoff**: ~830ms for the first 9 consecutive
 failures against one login name, then ~1.83s, ~2.83s, ~3.85s, ~4.86s in blocks
 of five, keyed on accumulated failures rather than request rate, and reset by a
 single successful login. It is a delay, not a lockout — the distinction this
-section's headline still holds — but it is emphatically *something acting on*
+section's headline still holds — but it is emphatically _something acting on_
 `failedAttempts`. See `MinFailedLoginDuration` in
 `backend/internal/modules/iam/loginui.go` for the measurement, and D5 below for
 what it costs the timing-equalisation guarantee.

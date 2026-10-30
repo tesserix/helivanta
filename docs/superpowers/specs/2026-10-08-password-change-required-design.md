@@ -98,10 +98,10 @@ already does (native-MFA spec D2: the browser never sees a Zitadel token). A new
 `stage` column (`0007_iam`; `0006_iam` is #948's `enrolling` flag) records which
 step the row is waiting for:
 
-| stage | written by | accepted by |
-|---|---|---|
-| `factor` | Password, on `OutcomeFactorRequired` or (#948, with `enrolling`) `OutcomeEnrollmentRequired` | `POST /v1/auth/login/factor`, or `/enroll` when `enrolling` |
-| `password_change` | Password, or Factor/Enroll via `AdvanceToPasswordChange`, on `OutcomePasswordChangeRequired` | `POST /v1/auth/login/password-change` |
+| stage             | written by                                                                                   | accepted by                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `factor`          | Password, on `OutcomeFactorRequired` or (#948, with `enrolling`) `OutcomeEnrollmentRequired` | `POST /v1/auth/login/factor`, or `/enroll` when `enrolling` |
+| `password_change` | Password, or Factor/Enroll via `AdvanceToPasswordChange`, on `OutcomePasswordChangeRequired` | `POST /v1/auth/login/password-change`                       |
 
 `enrolling` stays #948's sub-mode of the factor step, deciding between the two
 code routes. `stage` decides between the factor step and the change step.
@@ -136,7 +136,7 @@ rule.
    - **`new_password == current_password` gets 422 `password_unchanged`.** This
      is not cosmetic. Zitadel's `ChangePassword` passes both to passwap's
      `VerifyAndUpdate`, which returns `ErrPasswordNoChange`. Zitadel's
-     `convertLoginPasswapErr` turns that into an *internal* error (500,
+     `convertLoginPasswapErr` turns that into an _internal_ error (500,
      `COMMAND-CahN2`) after pushing a password-check-**failed** event that counts
      toward the user's lockout (`verifyPasswordWithLockoutPolicy`). Letting it
      through would answer an honest "I typed the same password" with an outage
@@ -155,11 +155,12 @@ rule.
    lives only in page memory and is never persisted (D6).
 4. **Map Zitadel's answer.**
 
-   | Zitadel | Helivanta |
-   |---|---|
-   | 400 `DOMAIN-HuJf6` / `co3Xw` / `VoaRj` / `ZBv4H` / `ZDLwA` (complexity: length, lower, upper, number, symbol) | 422 `password_rejected`, naming the rule. Row kept; the user tries again. |
-   | any credential refusal (`IsCredentialRefusal`: wrong current password, locked, …) | Row deleted; 403 `sign_in_incomplete`. The browser sent what the user typed a moment ago, so a mismatch is anomalous and the attempt ends rather than becoming a guessing surface. |
-   | `ErrUnavailable` | 503, row kept. |
+   | Zitadel                                                                                                       | Helivanta                                                                                                                                                                          |
+   | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | 400 `DOMAIN-HuJf6` / `co3Xw` / `VoaRj` / `ZBv4H` / `ZDLwA` (complexity: length, lower, upper, number, symbol) | 422 `password_rejected`, naming the rule. Row kept; the user tries again.                                                                                                          |
+   | any credential refusal (`IsCredentialRefusal`: wrong current password, locked, …)                             | Row deleted; 403 `sign_in_incomplete`. The browser sent what the user typed a moment ago, so a mismatch is anomalous and the attempt ends rather than becoming a guessing surface. |
+   | `ErrUnavailable`                                                                                              | 503, row kept.                                                                                                                                                                     |
+
 5. **Re-decide, then finalize.** `CompleteAfterPasswordChange` (D5) runs.
    `OutcomeComplete` deletes the row and answers `{callback_url}`. A refusal
    deletes the row and answers 403, as the other paths do.
@@ -216,7 +217,7 @@ third producer, and the archtest's finalize call-site pin is unchanged.
 
 ## Not covered
 
-- **The expiry *warning*** (`expireWarnDays`). This is a notice before expiry,
+- **The expiry _warning_** (`expireWarnDays`). This is a notice before expiry,
   not a gate. Zitadel's own login does not show it either.
 - **Users in `INITIAL` state** (no password yet). They cannot reach this flow,
   because a password session cannot be created for them.

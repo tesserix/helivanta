@@ -1676,7 +1676,7 @@ Read `docs/standards/frontend.md` for the full rules. The short version and wher
 
 | Concern       | Rule                                              | Reference                                     |
 | ------------- | ------------------------------------------------- | --------------------------------------------- |
-| Data          | useApiQuery/useApiMutation from @helivanta/api          | apps/medicore/components/visit-panel.tsx      |
+| Data          | useApiQuery/useApiMutation from @helivanta/api    | apps/medicore/components/visit-panel.tsx      |
 | Forms         | useZodForm + Field, noValidate, inline errors     | apps/shell/app/login/page.tsx                 |
 | Feedback      | sonner toasts; ConfirmDialog for destructive only | packages/ui/src/confirm-dialog.tsx            |
 | Empty/loading | EmptyState + app/loading.tsx skeletons            | apps/pharmacy/components/dispense-list.tsx    |

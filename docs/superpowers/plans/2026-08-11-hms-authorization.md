@@ -4,7 +4,7 @@
 
 **Goal:** Make OpenFGA the single authorization decision point for Helivanta — every route declares a permission at compile time, permissions resolve in one FGA call per request, and an `iam` module owns tenant membership and roles as a rebuildable system of record.
 
-**Architecture:** Permissions are FGA *objects* (`perm:<tenantID>/<permission>`) granted to role objects (`role:<tenantID>/<key>`), so roles and permissions are data — the FGA model never changes when a zone, permission or role is added. `authz.Middleware` runs after `authn.Middleware` and resolves the caller's whole permission set for the token's tenant with one `ListObjects` call; `authz.Require(perm)` is then an in-memory lookup. `Module.Routes` takes a `*platform.Router` whose verb methods require an `authz.Permission` argument, making an undeclared route inexpressible. The `iam` module writes membership rows plus an outbox event in one transaction; the `iam-fga-sync` consumer applies tuples idempotently, so FGA is fully rebuildable from Postgres.
+**Architecture:** Permissions are FGA _objects_ (`perm:<tenantID>/<permission>`) granted to role objects (`role:<tenantID>/<key>`), so roles and permissions are data — the FGA model never changes when a zone, permission or role is added. `authz.Middleware` runs after `authn.Middleware` and resolves the caller's whole permission set for the token's tenant with one `ListObjects` call; `authz.Require(perm)` is then an in-memory lookup. `Module.Routes` takes a `*platform.Router` whose verb methods require an `authz.Permission` argument, making an undeclared route inexpressible. The `iam` module writes membership rows plus an outbox event in one transaction; the `iam-fga-sync` consumer applies tuples idempotently, so FGA is fully rebuildable from Postgres.
 
 **Tech Stack:** Go 1.26, Gin, GORM + PostgreSQL 16 (forced RLS), NATS JetStream, `github.com/openfga/go-sdk` v0.8.2, `github.com/testcontainers/testcontainers-go/modules/openfga` v0.43.0, Next.js 16, React 19, TanStack Query, Tailwind v4, pnpm + Turborepo, Playwright.
 
@@ -2646,32 +2646,50 @@ describe("Can", () => {
 
   it("renders children when the permission is held", async () => {
     mockPermissions(["pharmacy.dispense.fulfil"]);
-    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
+    renderWithProviders(
+      <Can permission="pharmacy.dispense.fulfil">Dispense</Can>,
+    );
 
-    await waitFor(() => expect(screen.getByText("Dispense")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Dispense")).toBeInTheDocument(),
+    );
   });
 
   it("renders nothing when the permission is missing", async () => {
     mockPermissions(["medicore.visit.read"]);
-    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
+    renderWithProviders(
+      <Can permission="pharmacy.dispense.fulfil">Dispense</Can>,
+    );
 
-    await waitFor(() => expect(screen.queryByText("Dispense")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText("Dispense")).not.toBeInTheDocument(),
+    );
   });
 
   it("renders the fallback when the permission is missing", async () => {
     mockPermissions([]);
     renderWithProviders(
-      <Can permission="pharmacy.dispense.fulfil" fallback={<span>Not allowed</span>}>
+      <Can
+        permission="pharmacy.dispense.fulfil"
+        fallback={<span>Not allowed</span>}
+      >
         Dispense
       </Can>,
     );
 
-    await waitFor(() => expect(screen.getByText("Not allowed")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Not allowed")).toBeInTheDocument(),
+    );
   });
 
   it("renders nothing while permissions are loading", () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
-    renderWithProviders(<Can permission="pharmacy.dispense.fulfil">Dispense</Can>);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    renderWithProviders(
+      <Can permission="pharmacy.dispense.fulfil">Dispense</Can>,
+    );
 
     expect(screen.queryByText("Dispense")).not.toBeInTheDocument();
   });
@@ -2789,7 +2807,9 @@ import { ZONES, visibleZones } from "./zones";
 
 describe("visibleZones", () => {
   it("hides zones whose permission the user lacks", () => {
-    const keys = visibleZones((p) => p === "pharmacy.dispense.read").map((z) => z.key);
+    const keys = visibleZones((p) => p === "pharmacy.dispense.read").map(
+      (z) => z.key,
+    );
 
     expect(keys).toContain("pharmacy");
     expect(keys).not.toContain("lab");
@@ -2826,7 +2846,12 @@ Expected: FAIL — `visibleZones` is not exported
 In `packages/ui/src/zones.ts`, extend the types and every entry, then add the filter:
 
 ```ts
-export type ZonePage = { label: string; href: string; icon: LucideIcon; permission: string };
+export type ZonePage = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  permission: string;
+};
 
 export type Zone = {
   key: string;
@@ -2847,9 +2872,13 @@ Append:
 // only avoids showing doors that will not open. The dashboard always
 // stays so a user with no permissions still lands somewhere coherent.
 export function visibleZones(can: (permission: string) => boolean): Zone[] {
-  return ZONES.filter((zone) => zone.key === "dashboard" || can(zone.permission)).map((zone) => ({
+  return ZONES.filter(
+    (zone) => zone.key === "dashboard" || can(zone.permission),
+  ).map((zone) => ({
     ...zone,
-    pages: zone.pages.filter((page) => page.permission === "public" || can(page.permission)),
+    pages: zone.pages.filter(
+      (page) => page.permission === "public" || can(page.permission),
+    ),
   }));
 }
 ```
@@ -2901,7 +2930,9 @@ describe("TenantPicker", () => {
     );
     renderWithProviders(<TenantPicker />);
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("combobox")).toBeInTheDocument(),
+    );
     expect(screen.getAllByRole("option")).toHaveLength(2);
   });
 });
@@ -2924,7 +2955,10 @@ type Membership = { tenant_id: string; roles: string[] };
  * The backend re-checks membership — this only offers the choices.
  */
 export function TenantPicker() {
-  const { data } = useApiQuery<{ data: Membership[] }>(["iam", "me", "tenants"], "/iam/me/tenants");
+  const { data } = useApiQuery<{ data: Membership[] }>(
+    ["iam", "me", "tenants"],
+    "/iam/me/tenants",
+  );
   const memberships = data?.data ?? [];
 
   const switchTenant = useApiMutation(
@@ -3293,7 +3327,9 @@ async function login(page, user: { email: string; password: string }) {
   await expect(page).not.toHaveURL(/\/login/);
 }
 
-test("admin creates a visit and it lands in pharmacy and lab", async ({ page }) => {
+test("admin creates a visit and it lands in pharmacy and lab", async ({
+  page,
+}) => {
   await login(page, ADMIN);
 
   const patient = `E2E Patient ${Date.now()}`;
@@ -3318,20 +3354,26 @@ test("pharmacist sees only the pharmacy zone", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Lab" })).toHaveCount(0);
 });
 
-test("pharmacist cannot create a visit even by navigating directly", async ({ page }) => {
+test("pharmacist cannot create a visit even by navigating directly", async ({
+  page,
+}) => {
   await login(page, PHARMACIST);
   await page.goto("/medicore/opd");
 
   // The UI hides the action; the API is the enforcement point, so the
   // form must be absent rather than merely disabled.
-  await expect(page.getByRole("button", { name: /create visit/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /create visit/i })).toHaveCount(
+    0,
+  );
 });
 
 test("pharmacist can dispense", async ({ page }) => {
   await login(page, PHARMACIST);
   await page.goto("/pharmacy");
 
-  await expect(page.getByRole("button", { name: /dispense/i }).first()).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /dispense/i }).first(),
+  ).toBeVisible();
 });
 ```
 
@@ -3420,4 +3462,4 @@ git commit -m "feat: migrate-only entrypoint, local verification and cross-zone 
 
 **Ordering risk:** Task 4 changes the `Module` interface and every module's `Routes` signature at once, so the tree does not compile mid-task. Its steps are ordered so that Step 8 is the first full build; a reviewer should treat Task 4 as atomic.
 
-**Scope note on Task 14:** Task 14 is beyond the spec, added because "the whole stack runs locally" is this phase's real definition of done and because Task 9 Step 4 introduces a seed-ordering trap that should not survive the phase. It is deliberately limited to *verifying and unblocking* the existing `make dev` flow — a migrate-only entrypoint, a health-check script, a second seeded user, and the cross-zone e2e journey. It does **not** attempt broader local-dev hardening (container-per-service parity with production, hot-reload for the Go API, seeded clinical fixtures, offline `@tesserix/web` mirroring). If the local developer experience needs that, it deserves its own spec rather than being smuggled into an authorization phase.
+**Scope note on Task 14:** Task 14 is beyond the spec, added because "the whole stack runs locally" is this phase's real definition of done and because Task 9 Step 4 introduces a seed-ordering trap that should not survive the phase. It is deliberately limited to _verifying and unblocking_ the existing `make dev` flow — a migrate-only entrypoint, a health-check script, a second seeded user, and the cross-zone e2e journey. It does **not** attempt broader local-dev hardening (container-per-service parity with production, hot-reload for the Go API, seeded clinical fixtures, offline `@tesserix/web` mirroring). If the local developer experience needs that, it deserves its own spec rather than being smuggled into an authorization phase.

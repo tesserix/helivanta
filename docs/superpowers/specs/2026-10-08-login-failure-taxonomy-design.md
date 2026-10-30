@@ -16,15 +16,15 @@ the password and TOTP checks a login client drives answer 400 for several
 distinct conditions. All `InvalidArgument` and `FailedPrecondition` errors
 surface as 400 through the gateway:
 
-| Zitadel id | Meaning | Source |
-|---|---|---|
-| `COMMAND-3M0fs` | password does not match (`Errors.User.Password.Invalid`) | `user_human_password.go`, `ErrPasswordInvalid` |
-| `EVENT-8isk2` | TOTP code invalid | `domain/human_otp.go`, `VerifyTOTP` |
-| `TOTP-Auw0a` | TOTP code replayed | `domain/human_otp.go`, `CheckReuse` |
-| `COMMAND-JLK35`, `COMMAND-SFA3t` | user locked (password path) | `verifyPasswordWithLockoutPolicy` |
-| `COMMAND-SF3fg` | user locked (TOTP path) | `checkTOTP` |
-| `COMMAND-3nJ4t` | user has no password set | `verifyPasswordWithLockoutPolicy` |
-| `COMMAND-3n77z` | user not found (precondition form) | `verifyPasswordWithLockoutPolicy` |
+| Zitadel id                       | Meaning                                                  | Source                                         |
+| -------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
+| `COMMAND-3M0fs`                  | password does not match (`Errors.User.Password.Invalid`) | `user_human_password.go`, `ErrPasswordInvalid` |
+| `EVENT-8isk2`                    | TOTP code invalid                                        | `domain/human_otp.go`, `VerifyTOTP`            |
+| `TOTP-Auw0a`                     | TOTP code replayed                                       | `domain/human_otp.go`, `CheckReuse`            |
+| `COMMAND-JLK35`, `COMMAND-SFA3t` | user locked (password path)                              | `verifyPasswordWithLockoutPolicy`              |
+| `COMMAND-SF3fg`                  | user locked (TOTP path)                                  | `checkTOTP`                                    |
+| `COMMAND-3nJ4t`                  | user has no password set                                 | `verifyPasswordWithLockoutPolicy`              |
+| `COMMAND-3n77z`                  | user not found (precondition form)                       | `verifyPasswordWithLockoutPolicy`              |
 
 A locked account and a wrong password are indistinguishable in our logs. The
 handler then logs a two-valued `outcome` and drops the Zitadel id that
@@ -44,13 +44,13 @@ by parsing an error string. The id is still the only thing kept from the body;
 
 ### D2 — A 400 is classified by its id, and an unknown id is not "bad credentials"
 
-| 400 id | Sentinel |
-|---|---|
-| `COMMAND-3M0fs`, `EVENT-8isk2`, `TOTP-Auw0a` | `ErrBadCredentials` |
-| `COMMAND-JLK35`, `COMMAND-SFA3t`, `COMMAND-SF3fg` | `ErrAccountLocked` (new) |
-| `COMMAND-3nJ4t` | `ErrPasswordNotSet` (new) |
-| `COMMAND-3n77z` | `ErrUserNotFound` |
-| anything else, including no id | `ErrRejected` (new) |
+| 400 id                                            | Sentinel                  |
+| ------------------------------------------------- | ------------------------- |
+| `COMMAND-3M0fs`, `EVENT-8isk2`, `TOTP-Auw0a`      | `ErrBadCredentials`       |
+| `COMMAND-JLK35`, `COMMAND-SFA3t`, `COMMAND-SF3fg` | `ErrAccountLocked` (new)  |
+| `COMMAND-3nJ4t`                                   | `ErrPasswordNotSet` (new) |
+| `COMMAND-3n77z`                                   | `ErrUserNotFound`         |
+| anything else, including no id                    | `ErrRejected` (new)       |
 
 `ErrRejected` is the honest name for "Zitadel refused and we do not recognise
 why". It replaces the old fold into `ErrBadCredentials`, which asserted a cause

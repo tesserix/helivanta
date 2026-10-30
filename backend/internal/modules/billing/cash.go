@@ -80,14 +80,16 @@ const shiftSelect = `SELECT s.id,s.hospital_id,s.counter_id,c.code AS counter_co
  FROM billing_cash_shifts s JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id`
 
 type receipt struct {
-	ID          uuid.UUID  `json:"id"`
-	HospitalID  uuid.UUID  `json:"hospital_id"`
-	ShiftID     uuid.UUID  `json:"shift_id"`
-	CounterID   uuid.UUID  `json:"counter_id"`
-	CounterCode string     `json:"counter_code" gorm:"->"`
-	Number      int        `json:"number"`
-	Cashier     string     `json:"cashier"`
-	AdmissionID uuid.UUID  `json:"admission_id"`
+	ID          uuid.UUID `json:"id"`
+	HospitalID  uuid.UUID `json:"hospital_id"`
+	ShiftID     uuid.UUID `json:"shift_id"`
+	CounterID   uuid.UUID `json:"counter_id"`
+	CounterCode string    `json:"counter_code" gorm:"->"`
+	Number      int       `json:"number"`
+	Cashier     string    `json:"cashier"`
+	AdmissionID uuid.UUID `json:"admission_id"`
+	// payment, or deposit: the patient's money held until applied (#199).
+	Purpose     string     `json:"purpose"`
 	AmountMinor int64      `json:"amount_minor"`
 	Currency    string     `json:"currency"`
 	ReceivedAt  time.Time  `json:"received_at"`
@@ -98,7 +100,7 @@ type receipt struct {
 
 func (r receipt) PageKey() (time.Time, uuid.UUID) { return r.ReceivedAt, r.ID }
 
-const receiptSelect = `SELECT r.id,r.hospital_id,r.shift_id,r.counter_id,c.code AS counter_code,r.number,r.cashier,r.admission_id,r.amount_minor,r.currency,
+const receiptSelect = `SELECT r.id,r.hospital_id,r.shift_id,r.counter_id,c.code AS counter_code,r.number,r.cashier,r.admission_id,r.purpose,r.amount_minor,r.currency,
  r.received_at,r.void_id,r.void_reason,r.voided_at FROM billing_cash_receipts r JOIN billing_counters c ON c.tenant_id=r.tenant_id AND c.id=r.counter_id`
 
 func cashFailure(c *gin.Context, err error) {
@@ -112,6 +114,10 @@ func cashFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "no_open_shift", err.Error())
 	case errors.Is(err, errShiftClosed), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_shift":
 		respond.Error(c, http.StatusConflict, "shift_closed", errShiftClosed.Error())
+	case errors.Is(err, errAccountClosed), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_deposit_open":
+		respond.Error(c, http.StatusConflict, "account_closed", "the patient has left; take the balance as a payment")
+	case errors.Is(err, errDepositApplied), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_deposit_applied":
+		respond.Error(c, http.StatusConflict, "deposit_applied", errDepositApplied.Error())
 	case errors.Is(err, errOverBalance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_balance":
 		respond.Error(c, http.StatusConflict, "over_balance", "the amount is more than the balance due; an advance is a deposit")
 	case errors.Is(err, errOwnVariance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_own_variance":
@@ -427,9 +433,13 @@ func loadReceipt(tx *gorm.DB, tenant string, hospital, id uuid.UUID) (receipt, e
 	return rows[0], nil
 }
 
-// takeCash records a cash receipt against the admission's account in the
-// caller's open shift.
-func (h *handlers) takeCash(c *gin.Context) {
+func (h *handlers) takeCash(c *gin.Context)    { h.receive(c, "payment") }
+func (h *handlers) takeDeposit(c *gin.Context) { h.receive(c, "deposit") }
+
+// receive records cash against the admission's account in the caller's open
+// shift: a payment, capped at the balance due, or a deposit, held for the
+// patient on an open account (#199).
+func (h *handlers) receive(c *gin.Context, purpose string) {
 	admission, ok1 := uuid.Parse(c.Param("admission"))
 	receiptID, ok2 := v7(c, "receipt")
 	var in struct {
@@ -449,7 +459,7 @@ func (h *handlers) takeCash(c *gin.Context) {
 		}
 		held, err := loadReceipt(tx, p.TenantID, hospital, receiptID)
 		if err == nil {
-			if held.AdmissionID != admission || held.AmountMinor != in.AmountMinor || held.Currency != in.Currency || held.Cashier != p.Subject {
+			if held.AdmissionID != admission || held.Purpose != purpose || held.AmountMinor != in.AmountMinor || held.Currency != in.Currency || held.Cashier != p.Subject {
 				return errCashConflict
 			}
 			out = held
@@ -458,12 +468,15 @@ func (h *handlers) takeCash(c *gin.Context) {
 		if !errors.Is(err, errNoReceipt) {
 			return err
 		}
-		var account int64
-		if err := tx.Table("billing_admission_accounts").Where("tenant_id=? AND hospital_id=? AND admission_id=?", p.TenantID, hospital, admission).Count(&account).Error; err != nil {
+		var status []string
+		if err := tx.Raw(`SELECT status FROM billing_admission_accounts WHERE tenant_id=? AND hospital_id=? AND admission_id=? FOR SHARE`, p.TenantID, hospital, admission).Scan(&status).Error; err != nil {
 			return err
 		}
-		if account == 0 {
+		if len(status) == 0 {
 			return errNoAccount
+		}
+		if purpose == "deposit" && status[0] != "open" {
+			return errAccountClosed
 		}
 		var open []struct {
 			ID        uuid.UUID
@@ -478,18 +491,18 @@ func (h *handlers) takeCash(c *gin.Context) {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("billing_counters").Where("tenant_id=? AND id=?", p.TenantID, open[0].CounterID).Select("id").Find(&[]struct{ ID uuid.UUID }{}).Error; err != nil {
 			return err
 		}
-		var due struct{ Due int64 }
-		if err := tx.Raw(`SELECT COALESCE((SELECT sum(CASE kind WHEN 'charge' THEN amount_minor ELSE -amount_minor END) FROM billing_account_entries WHERE tenant_id=? AND admission_id=? AND currency=?),0)
- - COALESCE((SELECT sum(amount_minor) FROM billing_cash_receipts WHERE tenant_id=? AND admission_id=? AND currency=? AND voided_at IS NULL),0) AS due`,
-			p.TenantID, admission, in.Currency, p.TenantID, admission, in.Currency).Scan(&due).Error; err != nil {
-			return err
+		if purpose == "payment" {
+			due, err := balanceDue(tx, p.TenantID, admission, in.Currency)
+			if err != nil {
+				return err
+			}
+			if in.AmountMinor > due {
+				return errOverBalance
+			}
 		}
-		if in.AmountMinor > due.Due {
-			return errOverBalance
-		}
-		if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,amount_minor,currency)
- VALUES (?,?,?,?,?,(SELECT COALESCE(max(number),0)+1 FROM billing_cash_receipts WHERE tenant_id=? AND counter_id=?),?,?,?,?)`,
-			p.TenantID, hospital, receiptID, open[0].ID, open[0].CounterID, p.TenantID, open[0].CounterID, p.Subject, admission, in.AmountMinor, in.Currency).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,purpose,amount_minor,currency)
+ VALUES (?,?,?,?,?,(SELECT COALESCE(max(number),0)+1 FROM billing_cash_receipts WHERE tenant_id=? AND counter_id=?),?,?,?,?,?)`,
+			p.TenantID, hospital, receiptID, open[0].ID, open[0].CounterID, p.TenantID, open[0].CounterID, p.Subject, admission, purpose, in.AmountMinor, in.Currency).Error; err != nil {
 			return err
 		}
 		created = true
@@ -547,6 +560,16 @@ func (h *handlers) voidReceipt(c *gin.Context) {
 		}
 		if open == 0 {
 			return errShiftClosed
+		}
+		if r.Purpose == "deposit" {
+			// What was applied against the bill stays covered by the deposits left.
+			have, err := depositHeld(tx, p.TenantID, r.AdmissionID, r.Currency)
+			if err != nil {
+				return err
+			}
+			if have < r.AmountMinor {
+				return errDepositApplied
+			}
 		}
 		if err := changedOne(tx.Exec(`UPDATE billing_cash_receipts SET void_id=?,void_reason=?,voided_at=clock_timestamp() WHERE tenant_id=? AND id=? AND voided_at IS NULL`,
 			voidID, why, p.TenantID, receiptID)); err != nil {

@@ -128,7 +128,6 @@ migration remain separate named approval actions. Full Staff Management also
 requires self-service, supervision/postings, departments and the broader delivery
 matrix; this slice must not be labelled as that entire goal.
 
-
 ## Next implementation: reviewer discovery and queue
 
 This is the next development boundary, not an implemented API. Reuse the parent
@@ -179,7 +178,6 @@ rejected because it violates ownership. Existing database/FGA resources carry th
 incremental query cost; query plans and page-size/failure measurements are release
 gates. Live migration and rollout still need named approval.
 
-
 Discovery is now implemented in development. The existing leave contract/generator
 owns its hospital ID/name model. Platform `FilteredListRoute` owns bounded scanning,
 probe trimming, caller/route-bound continuation and filtering, including empty
@@ -193,7 +191,6 @@ assignment withdrawal and expiry discovery. Queue/detail and UI implementation
 and local browser evidence are recorded below and in the Staff acceptance ledger.
 Retained-history measurements are recorded below; they do not establish the
 provisional production latency target.
-
 
 ## Queue/detail and UI implementation update
 
@@ -230,11 +227,11 @@ retains RLS, constraints, request days/events and attributed command transitions
 1,000 withdrawn login-link proposals, one current reviewed link and 52 pending
 requests. The endpoint returns 50 queue items plus a two-item tail.
 
-| Query | SQL rows | Planning ms | Execution ms | Shared hits | Shared reads |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Hospital discovery | 1 | 0.173 | 0.150 | 6 | 0 |
-| Queue first page, including probe | 51 | 4.000 | 6.241 | 1,520 | 0 |
-| Queue continuation | 2 | 4.271 | 3.255 | 1,469 | 0 |
+| Query                             | SQL rows | Planning ms | Execution ms | Shared hits | Shared reads |
+| --------------------------------- | -------: | ----------: | -----------: | ----------: | -----------: |
+| Hospital discovery                |        1 |       0.173 |        0.150 |           6 |            0 |
+| Queue first page, including probe |       51 |       4.000 |        6.241 |       1,520 |            0 |
+| Queue continuation                |        2 |       4.271 |        3.255 |       1,469 |            0 |
 
 Discovery used `workforce_login_links_review_discovery`; both queue pages used
 `workforce_leave_requests_review_queue`. The test checks these plans, returned

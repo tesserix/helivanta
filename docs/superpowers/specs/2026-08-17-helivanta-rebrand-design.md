@@ -19,14 +19,14 @@ than it buys in progress.
 Each checked, not assumed. Three of these are why this is cheap now and will not
 be later.
 
-| Claim | How it was checked |
-|---|---|
-| 324 tracked files contain `hms` | `git ls-files \| xargs grep -ril hms` — 143 backend, 64 apps, 61 docs, 26 packages, 10 scripts, 8 e2e, plus root config |
-| 110 Go files / 364 lines carry the module path | `grep -rn "github.com/tesserix/helivanta" --include="*.go"` |
-| **All three `@helivanta/*` packages are private at `0.0.0`** | `packages/{api,config,ui}/package.json` — `private: true`, never published, so no external consumer breaks |
-| **Production Zitadel has no HMS app** | No `hms`-named config objects in the prod `zitadel` namespace; the dev app is provisioned by `scripts/lib/zitadel.mjs` at first boot |
-| **Nothing is deployed** | No Dockerfile, chart or ArgoCD app (#824). There is no running configuration to migrate. |
-| OpenBao holds no HMS secrets | `namespace/hms`, `serviceaccount/hms-api` and `SecretStore/openbao-helivanta-api` exist but are empty — #45 Task 4 was held |
+| Claim                                                        | How it was checked                                                                                                                   |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 324 tracked files contain `hms`                              | `git ls-files \| xargs grep -ril hms` — 143 backend, 64 apps, 61 docs, 26 packages, 10 scripts, 8 e2e, plus root config              |
+| 110 Go files / 364 lines carry the module path               | `grep -rn "github.com/tesserix/helivanta" --include="*.go"`                                                                          |
+| **All three `@helivanta/*` packages are private at `0.0.0`** | `packages/{api,config,ui}/package.json` — `private: true`, never published, so no external consumer breaks                           |
+| **Production Zitadel has no HMS app**                        | No `hms`-named config objects in the prod `zitadel` namespace; the dev app is provisioned by `scripts/lib/zitadel.mjs` at first boot |
+| **Nothing is deployed**                                      | No Dockerfile, chart or ArgoCD app (#824). There is no running configuration to migrate.                                             |
+| OpenBao holds no HMS secrets                                 | `namespace/hms`, `serviceaccount/hms-api` and `SecretStore/openbao-helivanta-api` exist but are empty — #45 Task 4 was held          |
 
 **The consequence that shapes this spec:** almost nothing here is a breaking
 change. No published package, no live deployment, no production IdP app, no
@@ -39,12 +39,12 @@ care.
 
 The bare word, never the TLD. `helivanta.app` is a domain, not an identifier.
 
-| Current form | Becomes | Appears in |
-|---|---|---|
-| `hms` | `helivanta` | module path, package names, dirs, k8s, OpenBao |
-| `HMS` | `HELIVANTA` | env var prefixes |
-| `HMS` (prose, as the product) | `Helivanta` | docs, comments, UI copy |
-| `Hms` | `Helivanta` | Go identifiers, React components |
+| Current form                  | Becomes     | Appears in                                     |
+| ----------------------------- | ----------- | ---------------------------------------------- |
+| `hms`                         | `helivanta` | module path, package names, dirs, k8s, OpenBao |
+| `HMS`                         | `HELIVANTA` | env var prefixes                               |
+| `HMS` (prose, as the product) | `Helivanta` | docs, comments, UI copy                        |
+| `Hms`                         | `Helivanta` | Go identifiers, React components               |
 
 **`HMS` is also an acronym, and that is the trap.** It expands to "Hospital
 Management System" — a generic description of the category. `Helivanta` is a
@@ -54,7 +54,7 @@ system platform" into gibberish.
 The rule: **the name renames, the description stays.** `README.md`'s "Hospital
 Management System platform" becomes "Helivanta — a hospital management system
 platform". Lowercase generic usage describing the category is left alone; every
-use of `HMS` as *this product's name* becomes `Helivanta`.
+use of `HMS` as _this product's name_ becomes `Helivanta`.
 
 This cannot be done by `sed` alone, and the plan must not pretend otherwise.
 
@@ -74,7 +74,7 @@ identifier — and that cost is paid on every read by every reader, forever,
 while the historical-accuracy cost is paid once by whoever cares about
 provenance, who has `git log` and this spec.
 
-**Ruling, 2026-08-17.** During Task 4 the question arose again for *other*
+**Ruling, 2026-08-17.** During Task 4 the question arose again for _other_
 spikes, which also contain transcribed artifacts: a `docker ps` listing in
 `spikes/2026-08-15-zitadel-spike.md` and a literal Zitadel API response body in
 `spikes/2026-08-15-zitadel-topology.md`. The product owner ruled that **those
@@ -155,7 +155,7 @@ renaming the environment variables, and it applies here identically. The cookie
 **does** rename; see the plan's Task 3.
 
 Migrations are append-only (`docs/standards/backend.md`), so renaming a role
-means a *new* migration mutating roles on live data, plus every RLS policy and
+means a _new_ migration mutating roles on live data, plus every RLS policy and
 connection string that names them — to change a string no user, and almost no
 developer, ever reads. The blast radius is inside the one component where
 mistakes are least recoverable.
@@ -166,12 +166,12 @@ abandoned half-done. It was not: this is the line, and this is why.
 
 ## D6 — Zitadel, Kubernetes and OpenBao identifiers rename
 
-| Identifier | Becomes | Why it is free |
-|---|---|---|
-| Zitadel app `hms-web`, client, org `HMS` | `helivanta-web`, org `Helivanta` | dev-only; provisioned by `scripts/lib/zitadel.mjs` at first boot, and prod has no HMS app |
-| k8s `namespace/hms`, `serviceaccount/hms-api` | `helivanta`, `helivanta-api` | created 2026-08-17, empty, nothing scheduled |
-| `kv/data/hms/hms-api/*`, `SecretStore/openbao-hms-api` | `kv/data/helivanta/helivanta-api/*`, `openbao-helivanta-api` | no secret was ever written; #45 Task 4 was held for exactly this |
-| `tesserix-k8s` whitelist entry | `helivanta` / `helivanta-api` | one PR against the infra repo |
+| Identifier                                             | Becomes                                                      | Why it is free                                                                            |
+| ------------------------------------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Zitadel app `hms-web`, client, org `HMS`               | `helivanta-web`, org `Helivanta`                             | dev-only; provisioned by `scripts/lib/zitadel.mjs` at first boot, and prod has no HMS app |
+| k8s `namespace/hms`, `serviceaccount/hms-api`          | `helivanta`, `helivanta-api`                                 | created 2026-08-17, empty, nothing scheduled                                              |
+| `kv/data/hms/hms-api/*`, `SecretStore/openbao-hms-api` | `kv/data/helivanta/helivanta-api/*`, `openbao-helivanta-api` | no secret was ever written; #45 Task 4 was held for exactly this                          |
+| `tesserix-k8s` whitelist entry                         | `helivanta` / `helivanta-api`                                | one PR against the infra repo                                                             |
 
 **Renaming the Zitadel app mints a new client ID.** `NEXT_PUBLIC_ZITADEL_CLIENT_ID`
 changes with it, in `.env.example`, `docker-compose.dev.yml` and CI's build env.
@@ -189,23 +189,23 @@ catch it.
    accessible name — `Email`, `Password`, `Sign in` (login-client spec D6).
    These are **UI copy, not identifiers, and must not change.** A rename that
    touches them fails all eleven specs at the login step, which reads as a
-   broken application rather than a renamed label. *Check:* the full e2e suite
+   broken application rather than a renamed label. _Check:_ the full e2e suite
    passes, and the three accessible names are asserted unchanged by grep before
    the suite is run.
 
 2. **The arch tests.** `internal/archtest` walks package paths. After a module
-   move it could match *nothing* and pass while enforcing nothing — the worst
+   move it could match _nothing_ and pass while enforcing nothing — the worst
    failure mode this codebase has, and the one its own principles single out.
-   *Check:* deliberately introduce a violation the arch test should catch
+   _Check:_ deliberately introduce a violation the arch test should catch
    (a module importing another module) and observe it FAIL after the rename.
    A passing arch suite proves nothing on its own here.
 
 3. **The gitleaks allowlist.** `.gitleaks.toml` and `docs/runbooks/secrets.md`
-   hardcode `kv/data/helivanta/*`. *Check:* the pinned scanner reports clean AND is
+   hardcode `kv/data/helivanta/*`. _Check:_ the pinned scanner reports clean AND is
    observed still firing on a probe — clean alone is what an inert gate reports.
 
 4. **Zitadel dev bootstrap.** `scripts/lib/zitadel.mjs` and the compose stack
-   provision the app. *Check:* a full local sign-in completes against a freshly
+   provision the app. _Check:_ a full local sign-in completes against a freshly
    reset stack — `make reset && make up` then an actual login, not a green
    build.
 

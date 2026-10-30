@@ -23,11 +23,11 @@ The tag handler already sees every attribute: it resolves `LogValuer`s and
 walks groups and `WithAttrs`. It now also checks each value's size, mirroring
 how `log/slog`'s JSON handler renders that kind (`appendJSONValue`):
 
-| Kind | How slog renders it | How it is measured |
-|---|---|---|
-| `KindString` | JSON string | `stringCost` |
+| Kind                                                 | How slog renders it            | How it is measured        |
+| ---------------------------------------------------- | ------------------------------ | ------------------------- |
+| `KindString`                                         | JSON string                    | `stringCost`              |
 | `KindAny`, an `error` that is not a `json.Marshaler` | its `Error()` as a JSON string | `stringCost(err.Error())` |
-| `KindAny`, anything else | `encoding/json` | `renderBound` (#904) |
+| `KindAny`, anything else                             | `encoding/json`                | `renderBound` (#904)      |
 
 Numbers, bools, durations and times have a fixed small size and are not
 checked. A tagged value keeps #904's path unchanged.

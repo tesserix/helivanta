@@ -40,11 +40,11 @@ print:
 
 The candidate causes leave different traces:
 
-| Cause | Evidence |
-|---|---|
-| Ryuk pruning the session | `kill`/`die`/`destroy` across many containers in the same second; no OOM line |
-| Kernel OOM killer | one `die` with exitCode 137, `OOMKilled=true`, and an "Out of memory: Killed process" line |
-| Something else | whatever the events show; at minimum, the exact second and the actor |
+| Cause                    | Evidence                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| Ryuk pruning the session | `kill`/`die`/`destroy` across many containers in the same second; no OOM line              |
+| Kernel OOM killer        | one `die` with exitCode 137, `OOMKilled=true`, and an "Out of memory: Killed process" line |
+| Something else           | whatever the events show; at minimum, the exact second and the actor                       |
 
 An empty result prints an explicit line, such as "no container died" or "no
 OOM kill in the kernel log". These are findings, so the step does not use
@@ -83,6 +83,7 @@ line "no reaper container was seen", and it is uploaded with the events.
 ### D5: testcontainers' own log is on in every test binary
 
 The second real occurrence (run 37731855071, on #966) carried Ryuk's log.
+
 - 22 clients connected over the run, and none lived past 05:23:54, when the
   last other package (`pkg/events`) exited.
 - Ten seconds later Ryuk pruned, removing 24 containers. iam was still
@@ -91,6 +92,7 @@ The second real occurrence (run 37731855071, on #966) carried Ryuk's log.
   None matches iam, whose only container at that point was its Postgres.
 
 Two causes were tested locally and excluded:
+
 - **GC finalizing a dropped container's reaper connection:** a dropped
   `tcnats.Run` handle under 20 forced GCs kept its connection.
 - **iam not connecting at all locally:** run alone, iam holds its connection
@@ -130,6 +132,7 @@ accept, not for Ryuk to be listening. So the handshake read EOF.
 termination channel as if connected. Ryuk never counted iam as a client,
 and pruned the session 10s after every other binary had exited, with iam
 still running. That is every observation above:
+
 - the prune burst;
 - no connection attributable to iam;
 - 24 containers removed against 22 connections;

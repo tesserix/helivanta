@@ -59,10 +59,12 @@ checked **before** anything is applied, not discovered during a sync. This task
 writes no manifests; it produces a recorded answer.
 
 **Files:**
+
 - Create: none
 - Modify: none
 
 **Interfaces:**
+
 - Produces: a recorded verdict — either "TIG does not restrict `helivanta`" or
   the exact subject/resource restriction Tasks 2-7 must satisfy. Every later
   task assumes this verdict.
@@ -81,6 +83,7 @@ done
 
 Read each policy's `spec.rules[].match` and `.exclude`. Answer three questions
 in writing:
+
 1. Does any rule match `namespaces: [helivanta]` or a wildcard covering it?
 2. Does any rule restrict by `subjects`/`clusterRoles` in a way that excludes
    the ArgoCD application controller's ServiceAccount?
@@ -126,6 +129,7 @@ No files change. Nothing to commit; the verdict is the deliverable.
 ### Task 2: ArgoCD project and namespace network policies
 
 **Files:**
+
 - Create: `argocd/prod/projects/helivanta.yaml` (in `tesserix-k8s`)
 - Create: `charts/apps/helivanta-network-policies/Chart.yaml`
 - Create: `charts/apps/helivanta-network-policies/values.yaml`
@@ -138,6 +142,7 @@ No files change. Nothing to commit; the verdict is the deliverable.
   `charts/apps/dwellm8-network-policies/`
 
 **Interfaces:**
+
 - Consumes: Task 1's verdict.
 - Produces: AppProject `helivanta` (referenced by every Application in Tasks
   3-7 as `spec.project: helivanta`), and a namespace that denies by default.
@@ -219,6 +224,7 @@ created, because CNPG reconciles role passwords from the projected Secrets and
 a missing Secret leaves a role with a password nobody holds.
 
 **Files:**
+
 - Create: `charts/apps/helivanta-postgres/templates/externalsecret.yaml`
   (the chart skeleton is created here; the `Cluster` lands in Task 4)
 - Create: `charts/apps/helivanta-postgres/Chart.yaml`
@@ -226,6 +232,7 @@ a missing Secret leaves a role with a password nobody holds.
 - Reference: `charts/apps/dwellm8-postgres/templates/externalsecret.yaml`
 
 **Interfaces:**
+
 - Consumes: `SecretStore/openbao-helivanta-api` (pre-existing, `Valid`/`Ready`).
 - Produces: three Kubernetes Secrets, each with `username` and `password` keys —
   `helivanta-postgres-app-credentials` (owner `helivanta`),
@@ -262,7 +269,7 @@ app segment is what the policy is scoped to.
 **Corrected 2026-08-17.** This step originally gave a `bao kv put` loop. That
 was written without checking the runbook, and the CLI path is worse here for a
 reason worth recording: OpenBao's services are all `ClusterIP` with no external
-ingress, so a CLI write needs a port-forward *plus* a human-usable token — and
+ingress, so a CLI write needs a port-forward _plus_ a human-usable token — and
 the chart configures Kubernetes auth, which binds ServiceAccounts rather than
 people. Obtaining a human token means reaching for a privileged credential to
 do a job the console already has exactly the right, narrower grant for. The
@@ -364,7 +371,7 @@ names this as the assertion that can silently be wrong.
 The probe must target a path **outside** `kv/data/helivanta/*` — pointing it at
 our own path only repeats Step 4. But it must not target another product's real
 secret. If the policy is over-broad, this test does not report a failure; it
-*succeeds*, and a real cross-product credential is now in a session log. A test
+_succeeds_, and a real cross-product credential is now in a session log. A test
 whose failure mode is a secret disclosure is the wrong test.
 
 An unused path does not work either, and this is the trap #45's D7 names
@@ -395,7 +402,7 @@ re-apply, and confirm it returns to `SecretSynced`.
 **All three halves are required.** The canary must exist (or a denial proves
 nothing), the read must be refused (the actual assertion), and the revert must
 restore `SecretSynced` (or the "denial" may just be a broken manifest). If the
-read instead *succeeds* and returns `not-a-secret`, the `read-helivanta` policy
+read instead _succeeds_ and returns `not-a-secret`, the `read-helivanta` policy
 is over-broad — stop, and fix the policy before any real secret is written.
 
 Delete the canary afterwards: `bao kv metadata delete kv/scope-probe/helivanta-denial`.
@@ -412,6 +419,7 @@ git commit -m "feat: project helivanta postgres role passwords from OpenBao"
 ### Task 4: The CNPG Postgres cluster
 
 **Files:**
+
 - Modify: `charts/apps/helivanta-postgres/values.yaml`
 - Create: `charts/apps/helivanta-postgres/templates/cluster.yaml`
 - Create: `charts/apps/helivanta-postgres/templates/scheduled-backup.yaml`
@@ -420,6 +428,7 @@ git commit -m "feat: project helivanta postgres role passwords from OpenBao"
   `argocd/prod/apps/dwellm8/dwellm8-postgres.yaml`
 
 **Interfaces:**
+
 - Consumes: the three Secrets from Task 3.
 - Produces: Service `helivanta-postgres-rw.helivanta.svc.cluster.local:5432`,
   database `helivanta`, owner role `helivanta`, application roles `hms_app` and
@@ -540,12 +549,14 @@ here. This task creates only what `migrate` cannot: the `openfga` database, and
 the grants that `dev/init-db.sql` performs locally.
 
 **Files:**
+
 - Create: `argocd/prod/apps/helivanta/helivanta-db-schema-bootstrap.yaml`
 - Reference: `argocd/prod/apps/dwellm8/dwellm8-db-schema-bootstrap.yaml`,
   `charts/apps/db-schema-bootstrap/` (shared chart — read `values.yaml` for the
   `targets` contract before writing values)
 
 **Interfaces:**
+
 - Consumes: the `-rw` Service and owner credentials from Task 4.
 - Produces: database `openfga` **owned by role `helivanta`** (not by `openfga`),
   with the `openfga` role granted CONNECT plus CREATE on the database and on
@@ -635,6 +646,7 @@ git commit -m "feat: bootstrap helivanta schema grants and the openfga database"
 ### Task 6: NATS with JetStream, and OpenFGA on its Postgres datastore
 
 **Files:**
+
 - Create: `charts/apps/nats/values-helivanta.yaml` (shared chart, new values file)
 - Create: `argocd/prod/apps/helivanta/helivanta-nats.yaml`
 - Create: `charts/apps/helivanta-openfga/` (Chart.yaml, values.yaml, and
@@ -642,6 +654,7 @@ git commit -m "feat: bootstrap helivanta schema grants and the openfga database"
 - Create: `argocd/prod/apps/helivanta/helivanta-openfga.yaml`
 
 **Interfaces:**
+
 - Consumes: Task 4's `-rw` Service, Task 3's `helivanta-postgres-openfga-credentials`,
   Task 5's `openfga` database.
 - Produces: `nats://helivanta-nats.helivanta.svc.cluster.local:4222` and
@@ -746,12 +759,14 @@ git commit -m "feat: add helivanta NATS with JetStream and OpenFGA on postgres"
 ### Task 7: App-of-apps, and the network policy proven to deny
 
 **Files:**
+
 - Create: `argocd/prod/apps/helivanta/kustomization.yaml`
 - Create: `argocd/prod/apps/helivanta-app-of-apps.yaml`
 - Modify: `argocd/prod/apps/kustomization.yaml` (add the app-of-apps)
 - Create: `argocd/prod/apps/helivanta/helivanta-network-policies.yaml`
 
 **Interfaces:**
+
 - Consumes: every Application from Tasks 2-6.
 - Produces: a single ArgoCD entry point for the namespace. Slice 1b adds
   `helivanta-api.yaml` and `helivanta-shell.yaml` to this kustomization.
@@ -821,6 +836,7 @@ unprotected.
 - [ ] **Step 5: Update the dev stack to the new database names (spec D9)**
 
 In the **`helivanta`** repository:
+
 - `dev/init-db.sql`: `ALTER DEFAULT PRIVILEGES FOR ROLE hms` → `FOR ROLE helivanta`.
 - `docker-compose.dev.yml`: `POSTGRES_USER: hms` → `helivanta`,
   `POSTGRES_PASSWORD: hms` → `helivanta`, `POSTGRES_DB: hms` → `helivanta`.

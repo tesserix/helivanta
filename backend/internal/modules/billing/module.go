@@ -46,6 +46,9 @@ var finalBillsSchema string
 //go:embed cash.sql
 var cashSchema string
 
+//go:embed deposits.sql
+var depositsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -70,7 +73,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -104,6 +107,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT(hp+"/admissions/:admission/receipts/:receipt", PermCashCollect, h.takeCash)
 	platform.ListRoute(g, hp+"/admissions/:admission/receipts", PermAccountRead, h.receipts)
 	g.PUT(hp+"/receipts/:receipt/voids/:void", PermCashCollect, h.voidReceipt)
+	// Deposits (#199 slice 1).
+	g.PUT(hp+"/admissions/:admission/deposits/:receipt", PermCashCollect, h.takeDeposit)
+	g.PUT(hp+"/admissions/:admission/deposit-applications/:application", PermBillIssue, h.applyDeposits)
+	platform.ListRoute(g, hp+"/admissions/:admission/deposit-applications", PermAccountRead, h.depositApplications)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

@@ -8,8 +8,7 @@ Spec: `docs/superpowers/specs/2026-10-08-idp-link-is-not-a-factor-design.md`
       called; `PASSWORD`+`IDP`+`TOTP` asks for TOTP; `PASSWORD`+`IDP`+`OTP_EMAIL`
       still refused. `CompleteAfterFactor`: `PASSWORD`+`IDP`+`TOTP` verified
       completes; with `OTP_EMAIL` also enrolled, refused and not finalized.
-- [x] Integration (`loginui_integration_test.go`): throwaway Google-shaped IdP
-      + throwaway user + `POST /v2/users/{id}/links`; password login answers
+- [x] Integration (`loginui_integration_test.go`): throwaway Google-shaped IdP + throwaway user + `POST /v2/users/{id}/links`; password login answers
       200 with `callback_url` carrying `code` and `state`. IdP deleted and
       verified gone in cleanup.
 - [x] Run against unchanged code; record the failures.

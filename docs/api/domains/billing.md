@@ -1,11 +1,11 @@
 # Hospital billing
 
 [Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2), interim
-bills (slice 3), final bills (slice 4) and cash counters (#198 slice 1).
+bills (slice 3), final bills (slice 4), cash counters (#198 slice 1) and deposits (#199 slice 1).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
-published events; none writes its tables. Hospital invoices, payer tariffs, GST, deposits and
-discounts are not built yet (#193, #197, #199, #200, #1045).
+published events; none writes its tables. Hospital invoices, payer tariffs, GST, deposit refunds
+and discounts are not built yet (#193, #197, #199, #200, #1045).
 
 ## Admission accounts (#197 slice 1)
 
@@ -179,3 +179,32 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
   and daily collection reports and GL export; events; receipts on bills; deposits (#199).
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
   it keeps the counter until the grant is restored and the shift closed.
+
+## Deposits (#199 slice 1)
+
+Design: [spec](../../superpowers/specs/2026-10-30-deposits-design.md).
+
+- **Taken at the counter** as a receipt with `purpose: deposit`, in the cashier's open shift, on
+  an open account (`409 account_closed` after release). No cap: an advance is money beyond what
+  is owed. Numbered with the counter's receipts and counted in the shift's expected cash; voided
+  like any receipt while the shift is open, but never below what was applied
+  (`409 deposit_applied`).
+- **Held for the patient, not revenue.** A held deposit does not reduce the balance due.
+- **Applied against the final bill** by the billing desk (`billing.bill.issue`) once one is
+  issued (`409 no_final_bill`): the server applies the lesser of what is held and the balance
+  due, recorded with that final bill's number (`409 nothing_to_apply` when either is zero).
+- **Payments** stay capped at the balance due, now net of applied deposits.
+- **Totals** per currency add `deposit_held_minor` and `applied_minor`; balance is outstanding
+  less paid less applied. Every bill issued from now on records, set by the database, the INR
+  `paid_minor` (payments and applied deposits) and `deposit_held_minor` at issue; a final bill
+  shows what is left to pay or to refund.
+
+| Route                                                                      | Behaviour                                   |
+| -------------------------------------------------------------------------- | ------------------------------------------- |
+| `PUT /billing/hospitals/:hospital/admissions/:admission/deposits/:receipt` | Take a deposit: `201`; a retry `200`.       |
+| `PUT …/admissions/:admission/deposit-applications/:application`            | Apply held deposits against the final bill. |
+| `GET …/admissions/:admission/deposit-applications`                         | A page of applications, newest first.       |
+
+- **Not covered:** refunds of unused deposits; top-up alerts; deposit policies by bed class or
+  procedure; required admission deposits; transfer between admissions; OPD deposits; events;
+  GL liability posting.

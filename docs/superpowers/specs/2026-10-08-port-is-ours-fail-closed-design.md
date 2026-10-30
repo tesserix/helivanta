@@ -29,11 +29,11 @@ That is a fail-open inside a control whose whole purpose is to fail closed.
 stdout keeps its contract: pids, one per line. The exit status carries what
 stdout cannot:
 
-| Status | Meaning |
-|---|---|
-| 0 | every listener on the port was attributed, including when there are none |
-| 2 | no answer: the platform's tool is missing or failed (#920) |
-| 3 | at least one listener on the port could not be attributed to a pid |
+| Status | Meaning                                                                  |
+| ------ | ------------------------------------------------------------------------ |
+| 0      | every listener on the port was attributed, including when there are none |
+| 2      | no answer: the platform's tool is missing or failed (#920)               |
+| 3      | at least one listener on the port could not be attributed to a pid       |
 
 A new status, rather than a placeholder pid such as `?` in stdout. Every
 caller passes stdout straight to `kill`, `ps -p` or `pid_is_ours`, and a
@@ -120,16 +120,16 @@ over a port that is not ours.
   - a `netstat` row on a different port with the same suffix (`:15432` vs
     `:5432`) does not;
   - no `netstat` gives status 2.
-  These are checked against recorded `netstat` output shape, not on a Mac.
+    These are checked against recorded `netstat` output shape, not on a Mac.
 - **Real foreign listener.** A listener is started as root through
   `sudo -n`, and the suite, running non-root, asserts:
   - `port_holders` status 3;
   - `port_is_ours` false;
   - preflight exits 1 and names the cannot-identify cause.
-  This proves the premise, that `ss` omits the field, on the CI runner. CI sets
-  `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`, so the case fails rather than reporting
-  "n/a" if it cannot run there. On a laptop without passwordless sudo it says
-  "n/a" out loud.
+    This proves the premise, that `ss` omits the field, on the CI runner. CI sets
+    `PREFLIGHT_TEST_REQUIRE_FOREIGN=1`, so the case fails rather than reporting
+    "n/a" if it cannot run there. On a laptop without passwordless sudo it says
+    "n/a" out loud.
 - **Mutation.** Each of these is reverted in turn, and the suite must fail
   each time:
   - the status-3 branch;

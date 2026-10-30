@@ -30,11 +30,11 @@ build.
 shell's `rewrites()` destinations, `API_URL` included, are resolved into the
 routes manifest at build time. The three e2e stacks differ in exactly those:
 
-| Stack | Zitadel app (client id from) | `API_URL` | Port |
-|---|---|---|---|
-| main | `dev/zitadel/secrets/zitadel.env` | `:8080` | 4301 |
-| idle-timeout | `…/zitadel-idle-timeout.env` | `:8099` | 4399 |
-| renewal | `…/zitadel-renewal.env` | `:8098` | 4398 |
+| Stack        | Zitadel app (client id from)      | `API_URL` | Port |
+| ------------ | --------------------------------- | --------- | ---- |
+| main         | `dev/zitadel/secrets/zitadel.env` | `:8080`   | 4301 |
+| idle-timeout | `…/zitadel-idle-timeout.env`      | `:8099`   | 4399 |
+| renewal      | `…/zitadel-renewal.env`           | `:8098`   | 4398 |
 
 So the shell is built three times. The zones are built once each, against the
 main stack, which is what they served before.

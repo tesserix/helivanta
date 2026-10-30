@@ -545,6 +545,9 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application` | `billing.bill.issue` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
 | POST | `/v1/billing/hospitals/:hospital/admissions/:admission/final-bills` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number/lines` | `billing.account.read` | true | false |
@@ -587,6 +590,7 @@ Migration table declarations:
 - `0003_billing`: `billing_interim_bills`, `billing_interim_bill_lines`.
 - `0004_billing`: `billing_discharge_orders`.
 - `0005_billing`: `billing_counters`, `billing_cash_shifts`, `billing_cash_receipts`.
+- `0006_billing`: `billing_deposit_applications`.
 
 ## supply
 

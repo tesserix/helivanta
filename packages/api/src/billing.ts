@@ -56,6 +56,9 @@ export type InterimBill = {
   issued_at: string;
   /** Bed days without a rate when issued: no amount, never zero. */
   unpriced_bed_days: number;
+  /** INR paid and deposits held when issued (#199); null on older bills. */
+  paid_minor: number | null;
+  deposit_held_minor: number | null;
   line_count: number;
   new_count: number;
   /** Only on the bill itself; the list leaves them empty. */
@@ -122,6 +125,7 @@ export type CashReceipt = {
   number: number;
   cashier: string;
   admission_id: string;
+  purpose: "payment" | "deposit";
   amount_minor: number;
   currency: string;
   received_at: string;

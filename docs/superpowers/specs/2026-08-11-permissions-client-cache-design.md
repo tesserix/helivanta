@@ -11,12 +11,12 @@ Cross-zone navigation is a hard navigation between separate Next apps (by design
 
 ## Decision summary
 
-| Decision | Choice |
-|---|---|
-| Cache identity | Both: identity returned in the permissions payload **and** explicit clearing at login/logout/tenant-switch choke points |
+| Decision            | Choice                                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Cache identity      | Both: identity returned in the permissions payload **and** explicit clearing at login/logout/tenant-switch choke points             |
 | Storage & hydration | Bespoke localStorage entry fed to the existing query as targeted `initialData` (no persister dependency, only this query persisted) |
-| TTL | 24 hours; older entries are ignored on hydration |
-| Trust model | Unchanged — presentation-only; the API remains the enforcement layer |
+| TTL                 | 24 hours; older entries are ignored on hydration                                                                                    |
+| Trust model         | Unchanged — presentation-only; the API remains the enforcement layer                                                                |
 
 Delivered as one vertical slice: backend change + `@helivanta/api`/`@helivanta/ui`/shell changes + tests on both sides, folded into a single PR closing #760.
 
@@ -27,7 +27,11 @@ Delivered as one vertical slice: backend change + `@helivanta/api`/`@helivanta/u
 `GET /iam/me/permissions` (`backend/internal/modules/iam/me.go`) additionally returns the caller's identity from the already-resolved `authn.Principal`:
 
 ```json
-{ "data": ["medicore.visit.read", "..."], "subject": "<uid>", "tenant_id": "<uuid>" }
+{
+  "data": ["medicore.visit.read", "..."],
+  "subject": "<uid>",
+  "tenant_id": "<uuid>"
+}
 ```
 
 Additive change; existing consumers only read `data`.

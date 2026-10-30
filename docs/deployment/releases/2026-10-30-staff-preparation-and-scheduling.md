@@ -55,7 +55,7 @@ A fresh normal restricted-reviewer login retained hospital-scope denial and
 payroll denial. The denied payroll page now correctly displays Payroll setup.
 A fresh normal owner login first showed the ungranted tenant; selecting the
 fixture's verified tenant exposed the existing explicit hospital-manager grant.
-No role, membership or hospital grant was expanded.
+No QA account role, membership or hospital grant was expanded during these checks.
 
 In the designated synthetic hospital, the Admin created a separate ongoing
 employee preparation, verified the mandatory withdrawal reason, withdrew it,

@@ -2,7 +2,45 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
-### Recovery read/proposal service and HTTP — 2026-10-31
+### Exact recovery request review — 2026-10-31
+
+Owner `2c61d2a` adds current-human exact-request GET for reviewer evidence:
+maker, requested action, reason/evidence reference, optional proposed successor
+initiator and retained decision/successor command ID. Original source account,
+nonce, contact/profile and machine bindings are omitted. Two live operator/source
+checks surround mandatory audited inspection, followed by a fresh transactional
+read. Request, decision and lineage use one statement snapshot; a decision
+committed during reverification appears in the final view. No approval authority
+or membership eligibility is inferred from a request read.
+
+Tests pass for undecided/final rejection/complete replacement snapshots, incomplete
+approval denial, foreign or missing requests, malformed input, audit rollback,
+source outage, revoked authority/entitlement and canonical rotation. A new regression
+reproduced proposal/decision commits paired with `denied` audit outcomes; both
+stores now reject those outcomes and retain no business action. Full final
+actual-PostgreSQL race suite, vet/build/lint (zero issues), four delivery tests,
+redacted secret scan and diff checks passed. Coverage: API 65.6%, store 66.7%;
+request store read 90.0%, HTTP handler 94.1%, cross-package service 89.7%.
+These are coverage figures, not a Staff completion percentage.
+
+Pinned v4.15.3 primary-source research now records why empty user projection or
+search checkpoint cannot prove absence: rows/checkpoint are read separately, and
+projection progress is not payload conformance. Next source proof must classify
+the exact frozen account and reconcile matching orphans; replacement preparation
+must not claim universal contact availability or operational access. The source
+checkout was preserved, and findings were checked with `git show` at the pinned
+tag. Owner canonical-registration issue #12 was rechecked and remains OPEN.
+
+New HTTP/database tests use source callbacks. Real-source full HTTP and normal
+HMS Admin/recipient/independent-reviewer UI remain unproven. Parent 74abd3d CI
+41111788806 passed; new-head CI is tracked separately. No schema/production change,
+migration, merge, deployment, release or completion tag is claimed. Next: exact-
+object source conflict/orphan proof, independent decision service/API, activity,
+prepared-command/profile correction, consumer UI and remaining A01–A12 lifecycles/
+cross-module cutoff acceptance. Counts stay 10 partial, 10 audit pending,
+1 research, 0 fully accepted. Full Access/RBAC remains active.
+
+### Recovery read/proposal checkpoint at 74abd3d — 2026-10-31
 
 Owner `74abd3d` connects current human console proof to an audited exact-command
 recovery read and immutable proposal PUT by UUIDv7 request ID. Source organization/

@@ -2,6 +2,23 @@
 
 Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
+### Access/RBAC continuation — 2026-10-31
+
+Identity-owner draft [PR #22](https://github.com/tesserix/onboarding-service/pull/22)
+now contains committed/pushed `e3dc7e5`: protected command receipts, fresh source
+observations, matching-dispatch reconciliation, atomic disclosure audit, replay
+cache exclusion and strict source JSON. The full owner race suite with actual
+isolated PostgreSQL, vet, build and lint passed again. Exact-head CI 41066660408
+was queued at this checkpoint. This candidate remains unmerged/undeployed.
+
+The [identity audit](staff-identity-provisioning-audit.md#owner-receiptobservation-checkpoint--2026-10-31)
+records the open provider projection-synchronization gate and corrected explicit
+product registration requirement. Creation submission/recovery, real recipient
+verification, consumer UI, legacy reconciliation and the remaining A01–A12
+lifecycle/cross-module acceptance are still required. Counts remain **10 partial,
+10 audit pending, 1 research, 0 fully accepted**; the full Access/RBAC objective
+remains open. The production checkpoint below is unchanged.
+
 ## Status and completion rules
 
 - **Partial**: implementation and some evidence exist, but required journeys or checks remain open.

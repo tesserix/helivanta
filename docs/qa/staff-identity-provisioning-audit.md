@@ -1,5 +1,46 @@
 # Staff identity provisioning audit
 
+## Owner receipt/observation checkpoint — 2026-10-31
+
+Owner draft PR #22 now includes commit
+`e3dc7e58c8fd36b27b45a07ff485fc4eba48e257`: exact protected receipt reads,
+fresh observations, read-only reconciliation of matching dispatches, mandatory
+atomic disclosure audit and strict provider JSON decoding. Observation requests
+bypass the generic replay cache; real database/API regressions cover changed
+verification and entitlement withdrawal with the same Idempotency-Key. Denial
+audit attempts have a separate two-second cancellation-independent deadline.
+The product key must be explicitly configured; ADR-0031's `hms` fixture is not a
+production default, and canonical registration remains under owner issue #12.
+
+The full owner `go test -race -p 1 ./...`, `go vet ./...`, `go build ./...`
+and `golangci-lint run ./...` passed again against the isolated PostgreSQL
+fixture on 2026-10-31 (zero lint issues). Exact-head CI
+[41066660408](https://github.com/tesserix/onboarding-service/actions/runs/41066660408)
+was queued when this checkpoint was recorded. Baseline owner CI 41052581748 and
+schema gates at `18d42798` passed. No new migration or production action occurred.
+
+Primary-source review of Zitadel v4.15.3 also established an open synchronization
+gate: user/metadata query helpers can proceed to SQL after projection-trigger
+failure. Stable repeated rows alone do not prove current eligibility. No actual
+running-provider projection-failure exploit has been reproduced. Before enrollment
+consumes these observations, reproduce failure and prove an authoritative source
+boundary. No enrollment consumer currently uses the new observations.
+
+The management `POST /management/v1/users/{id}/changes/_search` is a candidate
+read-only boundary: `ListUserChanges` requires `user.read`, scopes to the current
+organisation and exact user aggregate, and searches the event store with
+`AwaitOpenTransactions`. Its query supports sequence/limit/order, not event-type
+filtering; its response contains private editor details. Any consumer must bound
+and minimize that response and distinguish relevant identity/metadata changes
+from unrelated login/password events. Metadata rows have independent revisions;
+comparing every event against the user's row revision would incorrectly deny
+normal accounts. This is research evidence, not an accepted implementation.
+
+Creation PUT, contact reservations, bounded history, operator recovery, real
+recipient verification/account setup, consumer UI and all remaining A01–A12
+acceptance gates remain open. The candidate is committed/pushed, unmerged and
+undeployed; no broad area is newly accepted.
+
 Date: 2026-10-30. Scope: A01/A02 prerequisites for the full Access/RBAC plan.
 Status: source and provider-contract findings; implementation and runtime
 acceptance remain open. Related issues #417 and #1053 remain open.

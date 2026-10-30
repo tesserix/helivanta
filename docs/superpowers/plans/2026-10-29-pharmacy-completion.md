@@ -31,3 +31,17 @@ unreviewed drug/tax policy or perform real patient/payment transactions.
 - Pharmacy Go lint passes. API/event inventory was regenerated and checked;
   canonical refund input is generated from `contracts/pharmacy.json`.
 - The complete browser journey and production deployment are still pending.
+
+## Prescription evidence local evidence (#1467)
+
+- Observed red for G/H/H1 quotes without images (200 instead of 409).
+- Absent/pending/rejected/scan-error evidence refuses; another prescription's
+  clean image grants nothing. Actual owner processor release permits the same
+  previously refused command, whose replay neither sells nor invoices twice.
+- Direct SQL attempting a prescription sale without released evidence is refused.
+- Prescription and H1 regression tests pass with `-race`; existing sale fixtures
+  now upload and scan through owner APIs/processor rather than writing projections.
+- The full pharmacy run found one custom H1 formula-export fixture without an
+  image; corrected it through the same owner flow and rechecked the affected suite.
+- Pharmacy lint and generated contract inventory checks pass. Worker dependency
+  remains explicit; production enforcement is not activated yet.

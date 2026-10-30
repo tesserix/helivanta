@@ -280,3 +280,57 @@ Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
 - The shell's Billing page shows it as **Collections** to holders of the permission.
 - **Not covered:** finance sign-off and reopening a day; GL posting; other payment modes;
   per-cashier variance trends; date ranges; events.
+
+## GST on rooms and the tax invoice (#193 slice 1)
+
+Design: [spec](../../superpowers/specs/2026-10-31-gst-room-invoices-design.md). Finance or tax
+review of the policy is required before production use.
+
+- **The rule:**
+  - Health care by a clinical establishment is exempt (12/2017-CT(Rate) s.74).
+  - The exception is a room other than ICU, CCU, ICCU or NICU charged above ₹5,000 a day
+    (proviso by 04/2022-CT(Rate)).
+  - Such a room is taxed at 2.5% CGST + 2.5% SGST under SAC 9993 (03/2022-CT(Rate) entry 31A),
+    from 2022-07-18.
+- **The policy** is the versioned SQL function `billing_gst_room_policy(date)`, version
+  `IN-ROOM-2022-07-18`. It exempts the `icu` and `nicu` classes and taxes the whole charge when
+  the day's rate is above 500000 paise. An amendment is a new version in a migration.
+- **Registration:**
+  - `PUT /billing/hospitals/:hospital/gst-registration` `{gstin,legal_name,address,effective_from}`
+    needs `billing.tax.manage` (tenant administrators only) and is set once.
+  - The GSTIN's state, PAN pattern and check character are validated (`400`).
+  - The effective date is the hospital's tomorrow or later, so no settled bill gains tax (`409 registration_backdated`), and the
+    hospital's timezone is required (`409 not_configured`).
+  - A registered hospital's bed rates are INR (`409 rates_not_inr`).
+  - `GET` returns the registration, with `applied_at` once the census has applied it.
+- **Tax as it accrues:**
+  - The census records a GST line for each priced, live, taxable day from the registration on.
+    The database computes it: per day, half up in paise, CGST and SGST each.
+  - The tax is posted as a `gst` charge. When the day is voided, its tax is reversed with it.
+  - Balances, receipts, deposits, refunds, positions and bills include the tax with no other
+    change. A final bill waits until a new registration is applied.
+- **Tax invoices:**
+  - `PUT …/admissions/:admission/tax-invoices/:invoice` `{recipient_name,recipient_address}`
+    (`billing.bill.issue`) issues an invoice-cum-bill of supply (CGST Rules 46, 46A) once a final
+    bill exists. A retry replays.
+  - It carries every standing room charge dated from the registration that is on no invoice
+    yet, taxable or exempt, as snapshot lines. Pharmacy charges are not on it, because pharmacy
+    issues its own GST invoice.
+  - It is numbered `IP/<yyyy>/<n>` per GSTIN and financial year (April to March, by the
+    hospital's date), consecutively, under a lock. The database sets the supplier, place of supply
+    (the GSTIN's state), date and number.
+  - `GET …/tax-invoices`, `GET …/tax-invoices/:invoice` (with totals: value, taxable, exempt, CGST,
+    SGST, total) and `GET …/tax-invoices/:invoice/lines` read them.
+- **Refusals:**
+  - `409 gst_unregistered`, `409 no_final_bill`, `409 nothing_to_invoice`;
+  - `409 credit_note_required` once an invoiced room charge is reversed (credit notes are not
+    built yet).
+- **The shell:** the Billing page has a GST panel for administrators. Each admission's bills list
+  its tax invoices, with the desk's issue form after a final bill.
+- **Not covered:**
+  - credit and debit notes;
+  - IRN or e-invoicing, QR codes and PDFs;
+  - IGST and B2B recipients;
+  - GST on other hospital services;
+  - changing or backdating a registration;
+  - returns and exports.

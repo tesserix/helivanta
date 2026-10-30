@@ -313,3 +313,80 @@ export async function fetchDailyCollectionCSV(
   if (actual !== digest) throw new Error("The collection file could not be verified. Try again.");
   return { blob, filename, rows: Number(rows) };
 }
+
+/** A hospital's GST registration (#193): set once; rooms are taxed from its date once applied. */
+export type GstRegistration = {
+  hospital_id: string;
+  gstin: string;
+  legal_name: string;
+  address: string;
+  effective_from: string;
+  created_by: string;
+  created_at: string;
+  /** When the census began taxing from it; null until then. */
+  applied_at: string | null;
+};
+
+// The pattern only: the server also checks the state code and check character.
+export const gstRegistrationSchema = z.object({
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "Enter the 15-character GSTIN"),
+  legal_name: z.string().trim().min(1, "Enter the legal name").max(200, "At most 200 characters"),
+  address: z.string().trim().min(1, "Enter the address").max(500, "At most 500 characters"),
+  effective_from: z.string().date("Choose the date it takes effect"),
+});
+
+/** An invoice-cum-bill of supply for an admission's rooms (INR paise). */
+export type TaxInvoice = {
+  id: string;
+  hospital_id: string;
+  admission_id: string;
+  number: string;
+  issue_date: string;
+  issued_at: string;
+  issued_by: string;
+  gstin: string;
+  supplier_name: string;
+  supplier_address: string;
+  state_code: string;
+  recipient_name: string;
+  recipient_address: string;
+  lines: number;
+  value_minor: number;
+  taxable_minor: number;
+  exempt_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  total_minor: number;
+  currency: string;
+};
+
+export type TaxInvoiceLine = {
+  entry_id: string;
+  census_date: string;
+  bed_class: BedClass;
+  sac: string;
+  policy_version: string;
+  value_minor: number;
+  taxable: boolean;
+  cgst_bp: number;
+  sgst_bp: number;
+  cgst_minor: number;
+  sgst_minor: number;
+};
+
+export const taxInvoiceSchema = z.object({
+  recipient_name: z
+    .string()
+    .trim()
+    .min(1, "Enter the name on the invoice")
+    .max(200, "At most 200 characters"),
+  recipient_address: z
+    .string()
+    .trim()
+    .min(1, "Enter the address")
+    .max(500, "At most 500 characters"),
+});

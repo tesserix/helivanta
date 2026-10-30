@@ -65,11 +65,14 @@ From 2022-07-18:
 - **Intra-state only:** CGST + SGST, no IGST. A room is supplied where the hospital is,
   and patients are unregistered recipients. B2B invoices to a registered recipient come
   later.
-- **No backdating.** A registration takes effect from a date not before the hospital's
-  today, and needs the hospital's timezone (bed charging). Once recorded, the census
-  taxes the hospital's priced, live, taxable days dated on or after it, including days
-  already priced, and a final bill waits until it is applied. Days before it are never
-  taxed or invoiced. Backdated tax is a finance decision for later.
+- **From tomorrow at the earliest.** A registration takes effect from the hospital's
+  tomorrow or later, and needs the hospital's timezone (bed charging).
+  - Today is refused (review finding): a room day dated today may already be on a final
+    bill the patient has settled, and taxing it would reopen that account.
+  - Once recorded, the census taxes the hospital's priced, live, taxable days dated on or
+    after it, including any already priced, and a final bill waits until it is applied.
+  - Days before it are never taxed or invoiced. Backdated tax is a finance decision for
+    later.
 - **Set once:** GSTIN, legal name and address. Changing a registration is a later slice.
 - **The GSTIN is validated:** 15 characters, the PAN-based pattern and the check
   character (the standard base-36 mod-36 checksum); its first two digits are the state.
@@ -100,7 +103,7 @@ From 2022-07-18:
 
 ## Rules enforced in the database
 
-- **Registration:** set once; its effective date is at least the hospital's today; it
+- **Registration:** set once; its effective date is after the hospital's today; it
   needs the hospital's timezone.
 - **GST lines:** each is computed by a trigger from the bed day, the policy in force on
   its date, and the registration, never from caller values. It is refused unless the day

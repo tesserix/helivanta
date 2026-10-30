@@ -453,6 +453,14 @@ compatible dependency correction and actual-consumer regression are documented
 in the [vulnerability runbook](../runbooks/vulnerability-management.md#expo-query-decoding-2026-10-30);
 no advisory exception was added.
 
+CI also reproduced a test-fixture naming defect: a long identity-case test name
+plus its iteration suffix exceeded OpenFGA's 64-character store-name limit.
+The shared isolation helper now bounds an ASCII-readable prefix while retaining
+its per-test stable, per-iteration unique suffix. Long/Unicode names and repeated
+iterations have a regression test. This changes test identifiers, not production
+role or identity behavior. The current checkout declares Go 1.27.3; full local
+validation uses that version and the QA VM's direct Docker socket.
+
 All broad acceptance counts remain 8 partial, 12 audit pending, 1 research and
 0 fully accepted. The scoped HR intake role still needs the action/route and
 transaction/disclosure guards described in the access/review continuation plan.

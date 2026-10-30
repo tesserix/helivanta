@@ -1,6 +1,7 @@
 package testinfra
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -30,6 +31,23 @@ func TestIsolationKeyDiffersAcrossIterationsWithTheSameName(t *testing.T) {
 	for _, k := range []string{first, second} {
 		if !strings.HasPrefix(k, "TestRepeated_i") {
 			t.Fatalf("key %q does not start with the test name, which keeps it readable in NATS and OpenFGA", k)
+		}
+	}
+}
+
+func TestIsolationKeyFitsSharedServiceIdentifierLimits(t *testing.T) {
+	pattern := regexp.MustCompile(`^[a-zA-Z0-9_]{3,64}$`)
+	for _, name := range []string{strings.Repeat("LongTestName", 20), "Test/subtest with spaces/スタッフ", "", "TestIdentityCaseDatabasePreservesPrivateHistoryAndDraftState"} {
+		scope := &sameNameTB{TB: t, name: name}
+		first := IsolationKey(scope)
+		if !pattern.MatchString(first) {
+			t.Fatalf("key %q is not a bounded shared-service identifier", first)
+		}
+		if again := IsolationKey(scope); first != again {
+			t.Fatalf("one test changed key from %q to %q", first, again)
+		}
+		if second := IsolationKey(&sameNameTB{TB: t, name: name}); first == second {
+			t.Fatalf("different test iterations share %q", first)
 		}
 	}
 }

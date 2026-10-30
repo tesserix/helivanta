@@ -2,6 +2,7 @@ package testinfra
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -18,7 +19,8 @@ import (
 // 1's events and store tuples, and failed in ways indistinguishable from a
 // real regression.
 //
-// The key is t.Name() plus a sequence number that is unique in the process.
+// The key is a bounded ASCII test-name prefix plus a process-unique sequence.
+// OpenFGA store names accept at most 64 characters.
 // It is stable for one *testing.T, so two buses or clients in the same test
 // that are meant to share state still do. A new iteration is a new
 // *testing.T, so it gets a new key. A new process starts new containers
@@ -35,7 +37,17 @@ func IsolationKey(t testing.TB) string {
 		return k
 	}
 	isolationSeq++
-	k := fmt.Sprintf("%s_i%d", t.Name(), isolationSeq)
+	name := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' {
+			return r
+		}
+		return '_'
+	}, t.Name())
+	suffix := fmt.Sprintf("_i%d", isolationSeq)
+	if limit := 64 - len(suffix); len(name) > limit {
+		name = name[:limit]
+	}
+	k := name + suffix
 	isolationKeys[t] = k
 	t.Cleanup(func() {
 		isolationMu.Lock()

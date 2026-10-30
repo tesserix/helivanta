@@ -4,7 +4,8 @@ Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the sum
 
 ### Recovery requests and independent decision records — 2026-10-31
 
-Owner `fd65aca6e37faa95dafeeb8e8fdf1e378b5711b5` is pushed in draft PR #22.
+Owner `713076bd9ef832730ca69088637c03261e9170fa` (runtime unchanged from
+`fd65aca6e37faa95dafeeb8e8fdf1e378b5711b5`) is pushed in draft PR #22.
 Its new store operation retains exact recovery proposal input and mandatory audit
 atomically. Current canonical machine/entitlement/source scope is rechecked;
 original command/initiator/provider-user facts survive machine-credential rotation.
@@ -22,16 +23,17 @@ one replacement approval wins concurrently. Closing unresolved investigation
 permits later reviewed replacement and preserves the original dispatch/root.
 An approved row alone authorizes no dispatch, linking or operational membership.
 
-Thirteen new actual-PostgreSQL tests passed, including self/target review,
+Fourteen new actual-PostgreSQL tests passed, including self/target review,
 forged/NULL bindings, mandatory evidence, final rejection, closure/replacement,
 twelve concurrent replacement approvals with one winner, actual application-role
 mutation denial, machine rotation, withdrawal/scope drift, immutable retry and
-audit rollback/binding. Full owner race/coverage passed: 54.5% overall, API 63.8%,
+audit rollback/binding. Actual application-role proposal and exact retry also
+passed. Full owner race/coverage passed: 54.5% overall, API 63.8%,
 store 62.7%, proposal operation 87.0%. Vet/build/lint (zero issues), four delivery
 checks, redacted secrets and shell/diff checks passed. Schema local Helm
-lint/template and seven selected repository tests passed. Owner CI 41095221845
-is queued; schema PR validation 41094188936 passed, repository 41094188917 and
-Helm 41094188898 remain running. Earlier passes are historical, not substitutes.
+lint/template and seven selected repository tests passed. Latest owner CI 41095777733 is pending. Schema head passed PR validation
+41094188936, repository 41094188917 and Helm 41094188898. Earlier owner passes
+are historical, not substitutes for the new owner head.
 
 Still required: atomic reviewed decision execution/successor/root lineage,
 current verified operator authority and owner/consumer endpoints, conflict/orphan

@@ -56,6 +56,9 @@ export type InterimBill = {
   issued_at: string;
   /** Bed days without a rate when issued: no amount, never zero. */
   unpriced_bed_days: number;
+  /** INR paid and deposits held when issued (#199); null on older bills. */
+  paid_minor: number | null;
+  deposit_held_minor: number | null;
   line_count: number;
   new_count: number;
   /** Only on the bill itself; the list leaves them empty. */
@@ -122,6 +125,8 @@ export type CashReceipt = {
   number: number;
   cashier: string;
   admission_id: string;
+  purpose: "payment" | "deposit" | "refund";
+  approval_id: string | null;
   amount_minor: number;
   currency: string;
   received_at: string;
@@ -160,3 +165,64 @@ export const cashReceiptSchema = z.object({
 export const cashReasonSchema = z.object({
   reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
 });
+
+// Refunds of unused deposits (#199 slice 2): above the hospital's threshold a
+// supervisor approves the amount first; the cashier pays it from the drawer.
+
+export type RefundPolicy = {
+  hospital_id: string;
+  threshold_minor: number;
+  currency: string;
+  /** Null while the default (₹10,000) applies. */
+  created_by: string | null;
+  created_at: string | null;
+};
+
+export type RefundApproval = {
+  id: string;
+  admission_id: string;
+  amount_minor: number;
+  currency: string;
+  reason: string;
+  approved_by: string;
+  approved_at: string;
+  /** The refund receipt that used it, once paid. */
+  used_by: string | null;
+};
+
+export const refundPolicySchema = z.object({
+  threshold_minor: z
+    .number({ message: "Enter the threshold" })
+    .int("Enter the threshold")
+    .min(0, "Enter the threshold")
+    .max(1_000_000_000, "Too large"),
+});
+
+export const refundApprovalSchema = z.object({
+  amount_minor: z
+    .number({ message: "Enter the amount" })
+    .int("Enter the amount")
+    .min(1, "Enter the amount")
+    .max(1_000_000_000, "Too large"),
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
+});
+
+/** An admission account as the billing desk lists it (INR figures). */
+export type DeskAccount = {
+  admission_id: string;
+  hospital_id: string;
+  patient_id: string;
+  status: "open" | "closed";
+  discharge_ordered: boolean;
+  opened_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  /** Left to pay; below zero is credit. */
+  balance_minor: number;
+  deposit_held_minor: number;
+  /** Refundable now: the surplus over the bill, once a final bill exists. */
+  refundable_minor: number;
+  has_final_bill: boolean;
+};
+
+export type DeskView = "" | "open" | "discharge_ordered" | "to_collect" | "to_refund" | "released";

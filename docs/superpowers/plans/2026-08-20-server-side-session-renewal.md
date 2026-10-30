@@ -31,18 +31,18 @@ Do not re-litigate these; they are observed, not assumed:
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `backend/internal/modules/iam/loginclient/client.go` | `UserState(ctx, userID)` — reads the subject's Zitadel state via the PAT |
-| `backend/internal/modules/iam/renew.go` (create) | `POST /v1/auth/renew` handler |
-| `backend/internal/modules/iam/renew_test.go` (create) | Handler tests, incl. fail-closed and idle-deadline carry-forward |
-| `backend/internal/modules/iam/module.go` | Route registration + permission declaration |
-| `apps/shell/lib/renew.ts` | Same-origin renew call; interval driven by the server's hint |
-| `apps/shell/lib/oidc.ts` | Remove `silent_redirect_uri` |
-| `apps/shell/app/api/auth/silent-renew/` | Delete the route and its test |
-| `apps/shell/components/session-renewal.tsx` | Honour the server-supplied next-renew hint |
-| `e2e/`, `docker-compose.dev.yml`, `playwright.config.ts` | Cross-site harness + renewal survival test (D6) |
-| `docs/superpowers/specs/2026-08-15-zitadel-auth-design.md` | Record that D4a is amended by this spec |
+| File                                                       | Responsibility                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `backend/internal/modules/iam/loginclient/client.go`       | `UserState(ctx, userID)` — reads the subject's Zitadel state via the PAT |
+| `backend/internal/modules/iam/renew.go` (create)           | `POST /v1/auth/renew` handler                                            |
+| `backend/internal/modules/iam/renew_test.go` (create)      | Handler tests, incl. fail-closed and idle-deadline carry-forward         |
+| `backend/internal/modules/iam/module.go`                   | Route registration + permission declaration                              |
+| `apps/shell/lib/renew.ts`                                  | Same-origin renew call; interval driven by the server's hint             |
+| `apps/shell/lib/oidc.ts`                                   | Remove `silent_redirect_uri`                                             |
+| `apps/shell/app/api/auth/silent-renew/`                    | Delete the route and its test                                            |
+| `apps/shell/components/session-renewal.tsx`                | Honour the server-supplied next-renew hint                               |
+| `e2e/`, `docker-compose.dev.yml`, `playwright.config.ts`   | Cross-site harness + renewal survival test (D6)                          |
+| `docs/superpowers/specs/2026-08-15-zitadel-auth-design.md` | Record that D4a is amended by this spec                                  |
 
 ---
 
@@ -53,6 +53,7 @@ Do not re-litigate these; they are observed, not assumed:
 **Interfaces:** Produces `UserState` / `IsActive`, consumed by Task 2.
 
 **Steps:**
+
 - [ ] Add a method reading `GET /v2/users/{id}` with the login-client PAT and returning whether the subject is active. Model it on `sessionSubject`/`enrolledMethodTypes` — same `do` call, same `url.PathEscape`, same doc-comment density citing the live verification above.
 - [ ] **Fail closed, structurally:** an unreadable or unrecognised state must be an ERROR, never "active". Do not return a bare bool that a transport failure can make `false`-then-inverted into a pass. Follow `LoginPolicy`'s precedent: never a zero value with a nil error.
 - [ ] Map a 404 (user deleted upstream) to "not active", not to an error — a deleted user must not renew.
@@ -69,10 +70,12 @@ Do not re-litigate these; they are observed, not assumed:
 **Interfaces:** Consumes Task 1. Produces the endpoint and response shape Task 3 consumes.
 
 **Context the implementer needs.** Renewal today is `POST /v1/auth/login` with a fresh `id_token` (`login.go:203-331`). The new endpoint takes **no token at all** — the session cookie is the credential. It must reuse, not reimplement:
+
 - `idleDeadlineFor` (`login.go:413-435`) — the carry-forward that keeps the idle timeout real (D4).
 - The OpenFGA membership re-check that `Login` performs, so a since-revoked member is refused (`TestLogin_RenewalForSinceRevokedMemberIsRefused`, `login_test.go:297-330`).
 
 **Steps:**
+
 - [ ] Handler: verify the existing session cookie → subject + tenant; refuse (401) if absent, invalid, expired, or past `idle_deadline`.
 - [ ] Re-check the subject's Zitadel state (Task 1). Not active → refuse. Unreadable → **refuse** (D3 fail-closed), with a comment arguing the direction at the branch.
 - [ ] Re-check OpenFGA membership for the cookie's tenant; refuse if it is gone.
@@ -90,10 +93,11 @@ Do not re-litigate these; they are observed, not assumed:
 **Files:** `apps/shell/lib/renew.ts`, `apps/shell/lib/oidc.ts`, `apps/shell/components/session-renewal.tsx`, delete `apps/shell/app/api/auth/silent-renew/`, plus the affected tests
 
 **Steps:**
+
 - [ ] `renewSession` becomes a same-origin `POST /api/v1/auth/renew` with `credentials: "same-origin"`. No `signinSilent`, no `id_token`.
 - [ ] **Delete** `silent_redirect_uri` (`oidc.ts:38`) and the silent-renew route + test. A mechanism that cannot work must not remain looking like a fallback (D1).
 - [ ] `SessionRenewal` schedules from the server's next-renew hint (D5) rather than the hardcoded `RENEWAL_INTERVAL_MS`. Keep a sane bounded fallback if the hint is absent, and say in a comment why the bound exists.
-- [ ] **CORRECTED mid-execution (2026-08-20).** This step originally said "preserve today's failure behaviour: a failed renewal still sends the user to `/login`". That is **wrong** against the endpoint Task 2 actually built, and the original wording is kept here only so the change is legible. Today's blanket redirect was safe when renewal could only fail for auth reasons; the new endpoint **fails closed on a Zitadel outage**, so a blanket redirect would evict every clinician simultaneously mid-consultation on a backend blip — #916's own harm from a different cause. A 429 from `RenewRateLimitRule` would do the same. The client must therefore distinguish *"this session is over"* (401/404 → log out) from *"the server could not answer right now"* (429/503/network → retry, bounded by the session's own `exp`, since once the cookie lapses the next request 401s anyway). Argue the policy in a comment at the decision point.
+- [ ] **CORRECTED mid-execution (2026-08-20).** This step originally said "preserve today's failure behaviour: a failed renewal still sends the user to `/login`". That is **wrong** against the endpoint Task 2 actually built, and the original wording is kept here only so the change is legible. Today's blanket redirect was safe when renewal could only fail for auth reasons; the new endpoint **fails closed on a Zitadel outage**, so a blanket redirect would evict every clinician simultaneously mid-consultation on a backend blip — #916's own harm from a different cause. A 429 from `RenewRateLimitRule` would do the same. The client must therefore distinguish _"this session is over"_ (401/404 → log out) from _"the server could not answer right now"_ (429/503/network → retry, bounded by the session's own `exp`, since once the cookie lapses the next request 401s anyway). Argue the policy in a comment at the decision point.
 - [ ] Update `renew.test.ts`, `session-renewal.test.tsx`, `auth-exchange.test.ts` to the new shape. `auth-exchange.ts` keeps carrying the cookie for the INITIAL login exchange — do not remove that (D4).
 - [ ] Frontend gate is **five** tasks: `pnpm turbo lint type-check test build format:check`.
 
@@ -106,6 +110,7 @@ Do not re-litigate these; they are observed, not assumed:
 **Context.** `playwright.config.ts:74,94` serves the app at `localhost:4301` with the IdP at `localhost:20080`. Ports are not part of a "site", so dev is **same-site** and the production cross-site condition is never exercised. This is why no test caught #916.
 
 **Steps:**
+
 - [ ] Serve the app and the IdP on **different registrable domains** in dev/CI — e.g. `helivanta.localhost` and `auth.tesserix.localhost`. Chrome treats `*.localhost` as loopback (secure context) while they are distinct sites. Verify the browser really does treat them as cross-site rather than assuming it.
 - [ ] E2E: sign in, remain idle across at least one renewal interval, assert **still authenticated** (not bounced to `/login`).
 - [ ] **Prove this test would have caught #916**: run it against the OLD iframe renewal (stash the Task 3 change) and record that it fails. A harness fix never seen to catch the bug it was built for is not a fix. Put the observed failure in the task report and the PR body.

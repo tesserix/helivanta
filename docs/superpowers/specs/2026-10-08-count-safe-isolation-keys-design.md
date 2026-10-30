@@ -6,6 +6,7 @@
 
 `go test -race -count=3 ./pkg/events/ ./internal/modules/reference/` on
 `main` failed nine times across five tests:
+
 - `TestNamespacedBusesDoNotShareSubjects`
 - `TestOutboxPublishDispatchConsume`
 - `TestHandleMsgDeadLettersAfterMaxDeliver`
@@ -29,6 +30,7 @@ name.
 ### D2: `testinfra.IsolationKey(t)` is the only isolation key
 
 The key is `t.Name()`, then `_i`, then a process-unique sequence number.
+
 - **Within a test:** it is cached per `testing.TB`, so it is stable, and two
   buses or clients in one test that are meant to share state still do.
 - **Across iterations:** a new iteration is a new `*testing.T`, so it gets a
@@ -39,6 +41,7 @@ The key is `t.Name()`, then `_i`, then a process-unique sequence number.
   names readable.
 
 All 25 call sites change:
+
 - NATS namespaces in `pkg/events`, `iam`'s sign-out tests and
   `testutil.ModuleHarness`;
 - OpenFGA stores in `pkg/authz`, `internal/platform` and `internal/archtest`.

@@ -29,7 +29,7 @@ The threat is really two, and they need different controls:
    hospital NAT one egress IP covers hundreds of staff — a budget tight
    enough to stop an attacker throttles a shift change. Out of scope here,
    deliberately, per the issue's correction comment.
-2. **Authenticated flood** — a caller holding a *valid* Zitadel token
+2. **Authenticated flood** — a caller holding a _valid_ Zitadel token
    hammering the endpoint genuinely reaches OpenFGA's `ListRoles`, which
    every tenant's traffic shares. **This is what this spec closes.**
 
@@ -115,7 +115,7 @@ legitimate renewal, timing out every open tab within one `SessionTTL`.
 
 `pkg/ratelimit.Memory.Allow` has no error return today (no backing store to
 be unavailable), so there is no decision-can't-be-made path to fail open
-*from* yet. The one place this endpoint's wiring genuinely can "not decide"
+_from_ yet. The one place this endpoint's wiring genuinely can "not decide"
 is a nil `Limiter` — an unwired dependency, the shape a future refactor or a
 partially-constructed test double could produce. `LoginHandlers.Login`
 treats that the same as engineering-principles §3's #7 Redis note already

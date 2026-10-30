@@ -6,6 +6,7 @@
 Previous / Next, a total, tabs and the URL as state.
 
 **Architecture:**
+
 - The platform's counted list gains a guarded form, so outlet-scoped pharmacy reads can run
   their access check inside the snapshot that counts and fetches.
 - Five counted routes reuse the existing scope helpers.
@@ -68,10 +69,12 @@ Vitest, Playwright.
 ### Task 1: Guarded counted list in the platform
 
 **Files:**
+
 - Modify: `backend/internal/platform/listroute.go`
 - Test: `backend/internal/platform/counted_listroute_test.go`
 
 **Interfaces:**
+
 - Produces:
   ```go
   // CountedQuery is a counted list that needs work inside its snapshot.
@@ -94,7 +97,7 @@ Vitest, Playwright.
   its scope, with `Fail` unused.
 
 - [ ] **Step 1: Write the failing tests** in `counted_listroute_test.go`, reusing
-  `countedHarness`:
+      `countedHarness`:
   - `TestGuardedListGuardErrorUsesResponder`:
     - The Guard returns `gorm.ErrRecordNotFound`, and `Fail` answers `respond.NotFound`.
     - Expect 404.
@@ -111,7 +114,7 @@ Vitest, Playwright.
     - Expect After to receive exactly the page's rows: length 2 at `?limit=2`.
     - An After error goes to `Fail`.
 - [ ] **Step 2: Run** `cd backend && go test ./internal/platform -run 'GuardedList' -count=1`.
-  Expected: FAIL (undefined: `platform.GuardedCountedListRoute`).
+      Expected: FAIL (undefined: `platform.GuardedCountedListRoute`).
 - [ ] **Step 3: Implement** `GuardedCountedListRoute` in `listroute.go`:
   - Move the body of `CountedListRoute` into it.
   - Inside `WithTenantSnapshot`, call Guard, then count, offset count and fetch, then After.
@@ -120,13 +123,14 @@ Vitest, Playwright.
   - `declare` records `Counted: true` as before.
   - Rewrite `CountedListRoute` as an adapter over it.
 - [ ] **Step 4: Run** `go test ./internal/platform -count=1` and
-  `go test ./internal/modules/pharmacy -run 'Dispense' -count=1`.
-  Expected: PASS, the existing counted and dispense tests unchanged.
+      `go test ./internal/modules/pharmacy -run 'Dispense' -count=1`.
+      Expected: PASS, the existing counted and dispense tests unchanged.
 - [ ] **Step 5: Commit** `feat(platform): counted lists can guard their snapshot (#576)`
 
 ### Task 2: Pharmacy read guard; counted bills and inventory audit
 
 **Files:**
+
 - Modify:
   - `backend/internal/modules/pharmacy/catalogue.go` (the `transaction` preamble)
   - `backend/internal/modules/pharmacy/payables.go`
@@ -134,8 +138,10 @@ Vitest, Playwright.
 - Test: `backend/internal/modules/pharmacy/counted_lists_test.go` (new)
 
 **Interfaces:**
+
 - Consumes: Task 1's `GuardedCountedListRoute`, `CountedQuery`.
 - Produces:
+
   ```go
   // outletAccess sets the pharmacy session settings and checks the caller's
   // outlet grant. lock takes FOR SHARE (writes); a read-only snapshot cannot.
@@ -152,7 +158,7 @@ Vitest, Playwright.
   - Gin 1.12 matches the static segment before `:id`.
 
 - [ ] **Step 1: Write the failing tests.** The harness is modelled on `overviewHarness`, with
-  the editor, ungranted and foreign tokens:
+      the editor, ungranted and foreign tokens:
   - `TestCountedPayablesTotalsMatchPaging`:
     - Seed 3 overdue, 2 due this week and 1 settled bill.
     - Page with `limit=2` to the end, for no filter, `due=overdue` and `due=week`.
@@ -167,7 +173,7 @@ Vitest, Playwright.
   - `TestCountedPharmacyListsUnavailableIs503`: make the access check fail, the same way the
     existing 503 test in `catalogue_test.go` does, and expect 503.
 - [ ] **Step 2: Run** `go test ./internal/modules/pharmacy -run 'Counted' -count=1`. Expected:
-  FAIL with 404 from the router (route not registered).
+      FAIL with 404 from the router (route not registered).
 - [ ] **Step 3: Implement.**
   - Extract `outletAccess` from `transaction`. Locked and unlocked differ only by the
     `FOR SHARE OF a,o` clause.
@@ -181,12 +187,13 @@ Vitest, Playwright.
   - Audit handler: scope over the `pharmacy_inventory_audit` view; `Rows` is its select list.
   - Register both with `tenantdb.Keyset{Column: "created_at"}`.
 - [ ] **Step 4: Run** `go test ./internal/modules/pharmacy -count=1`. Expected: PASS, the whole
-  package.
+      package.
 - [ ] **Step 5: Commit** `feat(pharmacy): counted supplier bills and inventory audit (#576)`
 
 ### Task 3: Counted safety concerns and catalogue
 
 **Files:**
+
 - Modify:
   - `backend/internal/modules/pharmacy/batch_safety.go`
   - `backend/internal/modules/pharmacy/inventory.go` (routes)
@@ -194,6 +201,7 @@ Vitest, Playwright.
 - Test: `backend/internal/modules/pharmacy/counted_lists_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 2's `outletReadGuard`.
 - Produces:
   - `GET …/stock/safety-incidents/recent`, with no query filters. The scope is
@@ -207,8 +215,7 @@ Vitest, Playwright.
     - `Rows` selects `productColumns`.
     - `After` is `attachTax`.
     - `Fail` is `catalogueError`.
-    - With `tax=unclassified` on an outlet whose country has no tax scheme, the answer is
-      400. The page never sends it (spec D3).
+    - With `tax=unclassified` on an outlet whose country has no tax scheme, the answer is 400. The page never sends it (spec D3).
 
 - [ ] **Step 1: Write the failing tests:**
   - `TestCountedRecentSafetyTotal`: the total equals the rows reached by paging, and equals
@@ -224,18 +231,19 @@ Vitest, Playwright.
     - Every row carries `tax`.
   - Extend `TestCountedPharmacyListsRefuseWithoutAccess` with the three new routes.
 - [ ] **Step 2: Run** `go test ./internal/modules/pharmacy -run 'Counted' -count=1`. Expected:
-  FAIL on the new routes with 404.
+      FAIL on the new routes with 404.
 - [ ] **Step 3: Implement** the three handlers on `outletReadGuard`.
 - [ ] **Step 4: Run** `go test ./internal/modules/pharmacy -count=1` and
-  `go test ./internal/archtest -count=1`. Expected: PASS. The counted routes are paginated,
-  so archtest needs no allowlist.
+      `go test ./internal/archtest -count=1`. Expected: PASS. The counted routes are paginated,
+      so archtest needs no allowlist.
 - [ ] **Step 5: Run** `go run ./cmd/contractdocs`, then `go run ./cmd/contractdocs -check`.
-  Add the five routes to `docs/api/domains/pharmacy.md`. Expected: check clean.
+      Add the five routes to `docs/api/domains/pharmacy.md`. Expected: check clean.
 - [ ] **Step 6: Commit** `feat(pharmacy): counted safety concerns and catalogue (#576)`
 
 ### Task 4: URL paging hook; Supplier bills on tabs
 
 **Files:**
+
 - Create: `apps/shell/lib/use-url-page.ts`, `apps/shell/lib/use-url-page.test.tsx`
 - Modify:
   - `apps/shell/components/pharmacy/dispense-list.tsx` (use the hook; behaviour unchanged)
@@ -246,6 +254,7 @@ Vitest, Playwright.
   - `packages/api/src/page-query.ts` (pass `request` through to `useApiQuery`)
 
 **Interfaces:**
+
 - Produces:
   ```ts
   // The page, cursor and links of a URL-paged list (#1295 D5). `list` is
@@ -254,13 +263,16 @@ Vitest, Playwright.
   export function useUrlPage(list: Record<string, string>): {
     page: number;
     cursor: string | null;
-    first: string;                       // page 1 of this list
-    previousHref: string | null;         // null after a reload: Pager offers First page
+    first: string; // page 1 of this list
+    previousHref: string | null; // null after a reload: Pager offers First page
     nextHref: (next: string | null) => string | null;
     hrefFor: (list: Record<string, string>) => string; // another list, page 1
   };
   // Step back a page when an open later page empties (#1295 D6).
-  export function useStepBackWhenEmpty(query: { isPending: boolean; isError: boolean; items: unknown[] }, url: ReturnType<typeof useUrlPage>): boolean; // true while stepping back
+  export function useStepBackWhenEmpty(
+    query: { isPending: boolean; isError: boolean; items: unknown[] },
+    url: ReturnType<typeof useUrlPage>,
+  ): boolean; // true while stepping back
   ```
   - Empty values are left out of the URL.
   - `useApiPageQuery(key, path, cursor, { poll?, limit?, request? })`.
@@ -284,7 +296,7 @@ Vitest, Playwright.
   - `overview-tiles.test.tsx`: the bill links are `/pharmacy/accounts?tab=overdue` and
     `?tab=week`.
 - [ ] **Step 2: Run** `pnpm --filter shell test -- use-url-page accounts-panel overview-tiles`.
-  Expected: FAIL.
+      Expected: FAIL.
 - [ ] **Step 3: Implement:**
   - The hook: lift the visited-cursor logic from `DispenseList`, then refactor
     `DispenseList` onto it.
@@ -294,12 +306,13 @@ Vitest, Playwright.
     - The audit table renders only on its tab.
   - Remove `initialDue` from the workspace.
 - [ ] **Step 4: Run** `pnpm --filter shell test` and `pnpm --filter @helivanta/api test`.
-  Expected: PASS, including the unchanged `dispense-list.test.tsx`.
+      Expected: PASS, including the unchanged `dispense-list.test.tsx`.
 - [ ] **Step 5: Commit** `feat(pharmacy): supplier bills on tabs and pages (#576)`
 
 ### Task 5: Catalogue on tabs and pages
 
 **Files:**
+
 - Modify:
   - `apps/shell/components/pharmacy/catalogue-panel.tsx`
   - `apps/shell/components/pharmacy/tax-classification.test.tsx` or a new
@@ -309,6 +322,7 @@ Vitest, Playwright.
     `?tax=unclassified`)
 
 **Interfaces:**
+
 - Consumes: Task 4's `useUrlPage`.
 - Tabs `all | active | discontinued | withdrawn` map to `status`. URL values `q` and `tax`.
 - Without a tax scheme, `tax` is dropped from the list key and the request.
@@ -320,7 +334,7 @@ Vitest, Playwright.
   - without a tax scheme, `?tax=unclassified` is not sent and no toggle is shown;
   - "1–25 of N" is shown.
 - [ ] **Step 2: Run** `pnpm --filter shell test -- catalogue tax-classification`. Expected:
-  FAIL.
+      FAIL.
 - [ ] **Step 3: Implement:**
   - The search form submits through `router.replace(url.hrefFor({...}))`, keyed by `q` as
     `WaitingSearch` is.
@@ -332,12 +346,14 @@ Vitest, Playwright.
 ### Task 6: Expiry & safety on tabs and pages
 
 **Files:**
+
 - Modify:
   - `apps/shell/components/pharmacy/batch-safety.tsx` and `batch-safety.test.tsx`
   - `pharmacy-workspace.tsx` (drop `showRecent`)
   - `overview-tiles.tsx` and its test (the safety link becomes `/pharmacy/safety?tab=recent`)
 
 **Interfaces:**
+
 - Consumes: `useUrlPage`, and `useApiPageQuery` with `request: requestFor(scope)`.
 - Tabs `recent | batch`. The default is `recent`, and an old `?recorded=30d` lands there.
 - `batch` reads `?batch=<id>`. Choosing a batch in `SafetyBatchPicker` sets it with
@@ -352,15 +368,16 @@ Vitest, Playwright.
   - a 404 for the batch shows "This batch is not at this outlet" and no list;
   - the tile link is `?tab=recent`.
 - [ ] **Step 2: Run** `pnpm --filter shell test -- batch-safety overview-tiles`. Expected:
-  FAIL.
+      FAIL.
 - [ ] **Step 3: Implement.** `RecentConcerns` is always rendered on its tab.
-  `SelectedBatchSafety` takes the batch from the URL, not from state.
+      `SelectedBatchSafety` takes the batch from the URL, not from state.
 - [ ] **Step 4: Run** `pnpm --filter shell test`. Expected: PASS.
 - [ ] **Step 5: Commit** `feat(pharmacy): expiry and safety on tabs and pages (#576)`
 
 ### Task 7: e2e, docs and gates
 
 **Files:**
+
 - Modify:
   - `e2e/tests/pharmacy-overview.spec.ts` (the links land on tabs; each total equals the
     tile's count)
@@ -376,7 +393,7 @@ Vitest, Playwright.
 
 - [ ] **Step 1:** Update the specs, then rebuild the shell and restart the API.
 - [ ] **Step 2: Run** `npx playwright test --project=specs --reporter=line --workers=2` from
-  `e2e/`. Expected: all pass.
+      `e2e/`. Expected: all pass.
 - [ ] **Step 3: Run the gates** from the Global Constraints, one at a time. Expected: all
-  green.
+      green.
 - [ ] **Step 4: Commit** `test(pharmacy): paged lists end to end (#576)`

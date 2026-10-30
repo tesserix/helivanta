@@ -187,6 +187,19 @@ it("names every rail link with both of its labels", () => {
   expect(railName(ZONES.find((zone) => zone.key === "lab")!)).toBe("Lab");
 });
 
+describe("billing desk", () => {
+  it("opens for the billing desk without MediCore clinical access", () => {
+    const zone = visibleZones(canWith(["billing.account.read"])).find((z) => z.key === "billing");
+    expect(zone?.href).toBe("/billing");
+    expect(visibleZones(canWith(["billing.account.read"])).some((z) => z.key === "medicore")).toBe(
+      false,
+    );
+    expect(visibleZones(canWith(["medicore.visit.read"])).some((z) => z.key === "billing")).toBe(
+      false,
+    );
+  });
+});
+
 describe("zone order", () => {
   it("lists zones grouped by use, settings last", () => {
     expect(ZONES.map((zone) => zone.key)).toEqual([
@@ -196,6 +209,7 @@ describe("zone order", () => {
       "lab",
       "pharmacy",
       "emergency",
+      "billing",
       "supply",
       "workforce",
       "settings",

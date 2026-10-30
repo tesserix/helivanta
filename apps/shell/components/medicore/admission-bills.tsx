@@ -52,7 +52,11 @@ export function AdmissionBills({
       }),
     {
       successToast: final ? "Final bill issued" : "Interim bill issued",
-      invalidate: [key, ["billing", "account", hospital.id, admissionId]],
+      invalidate: [
+        key,
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
       // A refusal may mean billing has heard of a discharge order (or its
       // withdrawal) this page has not: refetch, so the button offers the right bill.
       invalidateOnError: true,
@@ -100,7 +104,12 @@ export function AdmissionBills({
         isLoading={bills.isFetchingMore}
         onClick={bills.loadMore}
       />
-      <CashPayments hospital={hospital} admissionId={admissionId} account={account.data} />
+      <CashPayments
+        hospital={hospital}
+        admissionId={admissionId}
+        account={account.data}
+        hasFinalBill={bills.items.some((b) => b.kind === "final")}
+      />
     </div>
   );
 }
@@ -141,6 +150,9 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
           ? "Nothing charged"
           : `Owed ${b.totals.map((t) => formatPharmacyMoney(t.outstanding_minor, t.currency)).join(" + ")}`}
       </p>
+      {b.kind === "final" && b.paid_minor !== null && b.deposit_held_minor !== null && (
+        <FinalAmount bill={b} />
+      )}
       {b.unpriced_bed_days > 0 && (
         // A day without a rate has no amount: said so, never counted as zero.
         <p className="text-destructive">
@@ -178,5 +190,19 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
         onClick={lines.loadMore}
       />
     </section>
+  );
+}
+
+// What the patient still pays, or is refunded, as the final bill stood when
+// issued: owed less paid less deposits held (INR, #199).
+function FinalAmount({ bill }: { bill: InterimBill }) {
+  const owed = bill.totals.find((t) => t.currency === "INR")?.outstanding_minor ?? 0;
+  const left = owed - (bill.paid_minor ?? 0) - (bill.deposit_held_minor ?? 0);
+  const money = (minor: number) => formatPharmacyMoney(minor, "INR");
+  return (
+    <p>
+      Paid {money(bill.paid_minor ?? 0)} · deposits held {money(bill.deposit_held_minor ?? 0)} ·{" "}
+      <strong>{left >= 0 ? `to pay ${money(left)}` : `to refund ${money(-left)}`}</strong>
+    </p>
   );
 }

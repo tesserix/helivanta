@@ -10,10 +10,10 @@
 **Issue:** [#838](https://github.com/tesserix/helivanta/issues/838).
 **Status:** draft 2026-08-15.
 **Decides:** how Helivanta is provisioned on `auth.tesserix.app`, and where hospitals live.
-**Companion to:** `2026-08-15-zitadel-auth-design.md` (which decides the *protocol* —
-Helivanta mints its own session). This decides the *topology*.
+**Companion to:** `2026-08-15-zitadel-auth-design.md` (which decides the _protocol_ —
+Helivanta mints its own session). This decides the _topology_.
 **Rests on:** `spikes/2026-08-15-zitadel-spike.md`, `spikes/2026-08-15-zitadel-topology.md`.
-Claims marked *(observed)* were seen against a running Zitadel v4.15.3.
+Claims marked _(observed)_ were seen against a running Zitadel v4.15.3.
 
 ---
 
@@ -30,11 +30,11 @@ is the Zitadel `sub`.
 
 Zitadel's three relevant concepts, since the names mislead:
 
-| | What it actually is |
-|---|---|
-| **Organization** | a container of *people*, and where login policy and **IdP federation attach** |
-| **Project** | a container of *applications and their roles* |
-| **Application** | an OIDC client — client id, redirect URIs |
+|                  | What it actually is                                                           |
+| ---------------- | ----------------------------------------------------------------------------- |
+| **Organization** | a container of _people_, and where login policy and **IdP federation attach** |
+| **Project**      | a container of _applications and their roles_                                 |
+| **Application**  | an OIDC client — client id, redirect URIs                                     |
 
 The trap is reading "project" as a tenancy unit because it sounds like one. It
 is not; tenancy in Zitadel lives at the **org** level. That single fact decides
@@ -62,7 +62,7 @@ the floor every other product must meet.
 owns the instance and should bless or replace it; nothing in this document
 depends on the answer beyond the org's name.
 
-*Rejected: a project per hospital.* Roles would have to be re-declared per
+_Rejected: a project per hospital._ Roles would have to be re-declared per
 hospital and kept in sync with OpenFGA's copy — two sources of truth for one
 fact. Onboarding a hospital would touch Zitadel. And decisively: **IdPs attach
 to organizations, not projects**, so hospital-as-project cannot deliver
@@ -79,23 +79,23 @@ project, no client, no grant, no second system in the onboarding path, and no
 second registry of "which hospitals exist" to drift out of sync.
 
 This is only safe because of the companion spec: Helivanta mints its own session, so
-Zitadel's structure is nearly irrelevant at runtime. Zitadel answers *who
-authenticated and when*; Helivanta decides *which hospital*, having checked OpenFGA.
+Zitadel's structure is nearly irrelevant at runtime. Zitadel answers _who
+authenticated and when_; Helivanta decides _which hospital_, having checked OpenFGA.
 
-*Rejected: one organization per hospital.* This is Zitadel's canonical B2B shape
+_Rejected: one organization per hospital._ This is Zitadel's canonical B2B shape
 and it does buy real things — per-hospital login policy, per-hospital admins,
 per-hospital SSO. Two findings sank it for this domain:
 
-- *(observed)* the `urn:zitadel:iam:org:id:{id}` scope — the mechanism that
+- _(observed)_ the `urn:zitadel:iam:org:id:{id}` scope — the mechanism that
   would scope a login to one hospital — is a **membership** restriction. A user
-  granted into an org, rather than resident in it, is refused outright: *"User
-  could not be found"*. **The mechanism that would express "log in at this
+  granted into an org, rather than resident in it, is refused outright: _"User
+  could not be found"_. **The mechanism that would express "log in at this
   hospital" actively rejects the clinician who works at two.**
 - It puts Zitadel in the hospital-onboarding path permanently, to serve a
   capability no customer has yet asked for.
 
-*(observed)* cross-org access via **user grants** does work cleanly — one login,
-no redirect, stable `sub`. So org-per-hospital is not *impossible*; it is simply
+_(observed)_ cross-org access via **user grants** does work cleanly — one login,
+no redirect, stable `sub`. So org-per-hospital is not _impossible_; it is simply
 more machinery than the domain needs today, and D5 keeps the door open.
 
 ### D3 — Zitadel authenticates, OpenFGA authorizes, and neither does the other's job
@@ -104,8 +104,8 @@ more machinery than the domain needs today, and D5 keeps the door open.
 to own the OIDC client.
 
 Zitadel's RBAC is flat: role names attached to a user, per project. Helivanta's
-questions are relational — may this doctor see *this* patient, given the care
-team; may this pharmacist dispense in *this* hospital but only read in that one.
+questions are relational — may this doctor see _this_ patient, given the care
+team; may this pharmacist dispense in _this_ hospital but only read in that one.
 Zitadel cannot express those; OpenFGA is built for them, and Helivanta already has its
 permission matrix there with a role × permission test suite over it.
 
@@ -114,12 +114,12 @@ holding "who can do what", drifting, with whichever is consulted last winning.
 The companion spec already forbids roles in the Helivanta session for a related
 reason — a role in a token is a stale answer that survives until expiry.
 
-*Rejected: Zitadel project grants as a product-entitlement gate* ("may this
+_Rejected: Zitadel project grants as a product-entitlement gate_ ("may this
 person use Helivanta at all"). Helivanta already answers it — the login exchange refuses a
 subject who belongs to no tenant. A second gate means two places to grant access
 and one more way to be locked out for a reason nobody can find. If the platform
 team later wants central entitlement across products, Helivanta must still not
-*depend* on it.
+_depend_ on it.
 
 ### D4 — Identity is keyed on `sub` now; the audit trail must not be
 
@@ -127,14 +127,14 @@ Helivanta keys identity on the Zitadel `sub`, as built. No indirection is introd
 by #838.
 
 That is a reversal of an earlier recommendation in this conversation, on
-evidence: *(observed)* `sub` is stable across org contexts, and *(observed)*
+evidence: _(observed)_ `sub` is stable across org contexts, and _(observed)_
 SSO can be added to an org that already has password users without changing it
 (D5). The migration that indirection was insuring against is much less likely
 than argued.
 
 **But `sub` must not become the permanent identity in the one place that cannot
 be rewritten.** This is not hypothetical: Helivanta is migrating identity providers
-*right now*, and GIP subjects and Zitadel subjects are unrelated values. Had Helivanta
+_right now_, and GIP subjects and Zitadel subjects are unrelated values. Had Helivanta
 shipped an audit trail keyed on GIP subjects a year ago, this week's work would
 be silently corrupting it — resolving past accesses to the wrong person, or to
 nobody.
@@ -147,13 +147,13 @@ possible, because audit records cannot be rewritten.
 
 ### D5 — SSO is a config change, deferred until asked
 
-*(observed)* on v4.15.3: adding a login policy and IdP to an org that already
+_(observed)_ on v4.15.3: adding a login policy and IdP to an org that already
 has password users, then linking an existing user to it, leaves `sub` and
 `resourceOwner` unchanged. A config change, not a migration.
 
 Because links are per user, multiple IdPs on the Helivanta org can serve different
 hospitals' staff — a hospital demanding federation does not require its own
-organization. **NOT VERIFIED:** a complete login *through* a linked external
+organization. **NOT VERIFIED:** a complete login _through_ a linked external
 IdP; only link-and-readback was exercised.
 
 **Nothing is configured now.** No IdP, no federation, no per-hospital policy.
@@ -218,7 +218,7 @@ yet, and waiting for it would block the frontend for a cosmetic reason. Zitadel'
 stock login already works — MFA, password reset and lockout included — so Helivanta
 points at it now and the branded build swaps in later. The redirect target does
 not change; only its appearance does. Nothing is thrown away, which is what makes
-this an interim *appearance* rather than an interim *solution*.
+this an interim _appearance_ rather than an interim _solution_.
 
 **Contract on the login component, and it is load-bearing for the e2e suite.**
 `e2e/tests/support/login.ts` drives the form by accessible name — currently
@@ -252,7 +252,7 @@ behave identically:
   They want occupancy, revenue and staffing across both. They have **no care
   relationship with any patient**.
 
-Both are "a parent with children". What the parent may *see* is not the same,
+Both are "a parent with children". What the parent may _see_ is not the same,
 and conflating them has a specific cost: if the parent relationship implies
 widened read access, a business owner acquires row-level access to patient
 records across both hospitals. Under the DPDP Act that is a purpose-limitation
@@ -281,11 +281,11 @@ already works.
 
 ## What to provision
 
-| Object | Name | Purpose |
-|---|---|---|
-| Organization | `Helivanta` | holds clinicians; where an IdP would attach |
-| Project | `Helivanta` | owns the client; **no roles defined** |
-| Application | `helivanta-web` | OIDC client for the shell — auth code + PKCE |
+| Object       | Name             | Purpose                                             |
+| ------------ | ---------------- | --------------------------------------------------- |
+| Organization | `Helivanta`      | holds clinicians; where an IdP would attach         |
+| Project      | `Helivanta`      | owns the client; **no roles defined**               |
+| Application  | `helivanta-web`  | OIDC client for the shell — auth code + PKCE        |
 | Machine user | `helivanta-seed` | management API for dev/CI seeding, with an org role |
 
 Per-environment: dev runs its own local Zitadel (v4.15.3, matching production).
@@ -322,5 +322,5 @@ credential are platform-team operations, not Helivanta ones.
 - Cross-branch **patient identity** (is a patient treated at two branches one
   record?). That is master-data management, not access control: a wrong merge is
   a patient-safety event and effectively unrecoverable, a duplicate is merely
-  annoying. Group *visibility* can ship without committing to it.
+  annoying. Group _visibility_ can ship without committing to it.
 - Per-hospital SSO implementation, until a customer asks.

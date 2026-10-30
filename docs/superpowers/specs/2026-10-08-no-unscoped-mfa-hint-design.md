@@ -2,6 +2,7 @@
 
 **Issue:** [#917](https://github.com/tesserix/helivanta/issues/917)
 **Amends:**
+
 - `2026-08-20-login-policy-org-scope-design.md` (D3 and its residual)
 - `2026-08-17-native-mfa-auth-components-design.md` (D5's `requireMfa`)
 
@@ -43,6 +44,7 @@ known, before the password. It is rejected because it would build an
 **account-enumeration oracle**. An endpoint that answers "this login name's
 org forces MFA" before any credential is checked tells an unauthenticated
 caller:
+
 - whether a login name exists at all (an unknown name has no org to read);
 - which org's policy a known name falls under.
 

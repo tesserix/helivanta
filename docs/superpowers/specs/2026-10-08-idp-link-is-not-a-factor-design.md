@@ -35,8 +35,8 @@ cannot sign in to Helivanta at all.
 
 ## D1 — An IdP link is an alternative first factor, not an uncollectible second one
 
-Zitadel's `authentication_methods` list answers one question: *which ways can
-this user authenticate?* `PASSWORD`, `PASSKEY` and `IDP` are first factors;
+Zitadel's `authentication_methods` list answers one question: _which ways can
+this user authenticate?_ `PASSWORD`, `PASSKEY` and `IDP` are first factors;
 `TOTP`, `U2F`, `OTP_SMS` and `OTP_EMAIL` are second factors. Whether a second
 factor is **required** on a given session is decided by the org login policy
 (`forceMfa`, `forceMfaLocalOnly`) and by what the user enrolled; whether a
@@ -46,21 +46,21 @@ request without asking for the IdP as well.
 
 So the classification changes:
 
-| Enrolled alongside `PASSWORD`                  | Before (#949)               | Now                                                                      |
-| ---------------------------------------------- | --------------------------- | ------------------------------------------------------------------------ |
-| `IDP`                                          | `RefusalFactorUnsupported`  | **neutral**: treated exactly like a password-only account                |
-| `IDP` + `TOTP`                                 | `RefusalFactorUnsupported`  | **`OutcomeFactorRequired`**: native TOTP prompt, same as `TOTP` alone    |
-| `IDP` + `TOTP`, after a verified code          | `RefusalFactorUnsupported`  | **complete**                                                             |
-| `IDP` + any of `PASSKEY`/`U2F`/`OTP_*`         | `RefusalFactorUnsupported`  | unchanged: refused, enrolled methods logged                              |
-| `PASSKEY`, `U2F`, `OTP_SMS`, `OTP_EMAIL`       | `RefusalFactorUnsupported`  | unchanged                                                                |
-| nothing, `forceMfa` on                         | `RefusalMFAEnrollmentRequired` | unchanged here; superseded the same day by `OutcomeEnrollmentRequired` (#948, `2026-10-08-native-totp-enrolment-design.md`) |
+| Enrolled alongside `PASSWORD`            | Before (#949)                  | Now                                                                                                                         |
+| ---------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `IDP`                                    | `RefusalFactorUnsupported`     | **neutral**: treated exactly like a password-only account                                                                   |
+| `IDP` + `TOTP`                           | `RefusalFactorUnsupported`     | **`OutcomeFactorRequired`**: native TOTP prompt, same as `TOTP` alone                                                       |
+| `IDP` + `TOTP`, after a verified code    | `RefusalFactorUnsupported`     | **complete**                                                                                                                |
+| `IDP` + any of `PASSKEY`/`U2F`/`OTP_*`   | `RefusalFactorUnsupported`     | unchanged: refused, enrolled methods logged                                                                                 |
+| `PASSKEY`, `U2F`, `OTP_SMS`, `OTP_EMAIL` | `RefusalFactorUnsupported`     | unchanged                                                                                                                   |
+| nothing, `forceMfa` on                   | `RefusalMFAEnrollmentRequired` | unchanged here; superseded the same day by `OutcomeEnrollmentRequired` (#948, `2026-10-08-native-totp-enrolment-design.md`) |
 
 **Why `PASSKEY` stays refused while `IDP` does not, when both are first
 factors.** The distinction is not what Zitadel requires but what the product
 has decided. The 2026-10-07 spec records the product owner's choice that an
 account with a passkey must have it removed in Zitadel until native passkeys
 (#422) ship; this spec does not reopen that. A linked IdP is different in one
-practical way: it is created *by another product* on a shared instance, with
+practical way: it is created _by another product_ on a shared instance, with
 no action in Helivanta and nothing the clinician can see or undo from
 Helivanta, so refusing on it locks users out of one product for having used
 another. Passkeys and U2F keys are enrolled deliberately, by the user, in a
@@ -83,7 +83,7 @@ link, but who signed in here with a password, is a local sign-in for the
 purposes of `forceMfaLocalOnly`, and the fold gives the right answer. The
 "no external IdP is configured" wording in both specs is withdrawn and
 replaced with this session-based statement. The fold must still be revisited
-when Helivanta signs users in *with* an IdP (#423).
+when Helivanta signs users in _with_ an IdP (#423).
 
 ## D3 — Proof
 
@@ -97,7 +97,7 @@ when Helivanta signs users in *with* an IdP (#423).
 - Integration, real Zitadel: a throwaway user is given an IdP link
   (`POST /v2/users/{id}/links` against a throwaway Google-shaped provider
   created for the test and deleted after it), and `POST
-  /v1/auth/login/password` answers 200 with a `callback_url` carrying `code`
+/v1/auth/login/password` answers 200 with a `callback_url` carrying `code`
   and `state`.
 - Each new assertion was run against the pre-change code and failed.
 

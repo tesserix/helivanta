@@ -1,11 +1,11 @@
 # Hospital billing
 
 [Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2), interim
-bills (slice 3), final bills (slice 4) and cash counters (#198 slice 1).
+bills (slice 3), final bills (slice 4), cash counters (#198 slice 1), deposits and their refunds (#199 slices 1–2).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
-published events; none writes its tables. Hospital invoices, payer tariffs, GST, deposits and
-discounts are not built yet (#193, #197, #199, #200, #1045).
+published events; none writes its tables. Hospital invoices, payer tariffs, GST and discounts are
+not built yet (#193, #197, #199, #200, #1045).
 
 ## Admission accounts (#197 slice 1)
 
@@ -179,3 +179,80 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
   and daily collection reports and GL export; events; receipts on bills; deposits (#199).
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
   it keeps the counter until the grant is restored and the shift closed.
+
+## Deposits (#199 slice 1)
+
+Design: [spec](../../superpowers/specs/2026-10-30-deposits-design.md).
+
+- **Taken at the counter** as a receipt with `purpose: deposit`, in the cashier's open shift, on
+  an open account (`409 account_closed` after release). No cap: an advance is money beyond what
+  is owed. Numbered with the counter's receipts and counted in the shift's expected cash; voided
+  like any receipt while the shift is open, but never below what was applied
+  (`409 deposit_applied`).
+- **Held for the patient, not revenue.** A held deposit does not reduce the balance due.
+- **Applied against the final bill** by the billing desk (`billing.bill.issue`) once one is
+  issued (`409 no_final_bill`): the server applies the lesser of what is held and the balance
+  due, recorded with that final bill's number (`409 nothing_to_apply` when either is zero).
+- **Payments** stay capped at the balance due, now net of applied deposits.
+- **Totals** per currency add `deposit_held_minor` and `applied_minor`; balance is outstanding
+  less paid less applied. Every bill issued from now on records, set by the database, the INR
+  `paid_minor` (payments and applied deposits) and `deposit_held_minor` at issue; a final bill
+  shows what is left to pay or to refund.
+
+| Route                                                                      | Behaviour                                   |
+| -------------------------------------------------------------------------- | ------------------------------------------- |
+| `PUT /billing/hospitals/:hospital/admissions/:admission/deposits/:receipt` | Take a deposit: `201`; a retry `200`.       |
+| `PUT …/admissions/:admission/deposit-applications/:application`            | Apply held deposits against the final bill. |
+| `GET …/admissions/:admission/deposit-applications`                         | A page of applications, newest first.       |
+
+- **Not covered:** top-up alerts; deposit policies by bed class or
+  procedure; required admission deposits; transfer between admissions; OPD deposits; events;
+  GL liability posting.
+
+## Deposit refunds (#199 slice 2)
+
+Design: [spec](../../superpowers/specs/2026-10-30-deposit-refunds-design.md).
+
+- **Threshold per hospital,** set by a tenant administrator (`billing.counter.manage`) as a new
+  version each time; the latest applies; none set is ₹10,000.
+- **Approval** above the threshold: a supervisor (`billing.shift.authorise`) approves one amount
+  for one admission with a reason, within what is held (`409 over_held`). Never the cashier who
+  pays it (`409 own_approval`).
+- **Paying out** is a receipt with `purpose: refund` from the cashier's open shift, numbered
+  with the counter's receipts: after a final bill (`409 no_final_bill`), at most the surplus held beyond what
+  the bill still needs (`409 over_held`), at most the drawer's cash (`409 drawer_short`), and above the threshold only
+  against an unused approval for exactly that amount (`409 approval_required`). It reduces the
+  shift's expected cash; voided like any receipt while the shift is open (its approval stays
+  used). Voiding a payment or deposit is refused if the drawer no longer holds that cash
+  (`409 drawer_short`).
+- **Totals** add `refunded_minor`; held is deposits less applied less refunded. A deposit can no
+  longer be voided below what was applied or refunded.
+- **The database** holds every rule: final bill, held, drawer, threshold and approval (same
+  admission and amount, unused, someone else), and the drawer netting refunds.
+
+| Route                                                                                 | Behaviour                                     |
+| ------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `GET /billing/hospitals/:hospital/refund-policy`                                      | The threshold in force, or the default.       |
+| `PUT …/refund-policies/:policy` `{threshold_minor}`                                   | Set a new threshold version.                  |
+| `PUT …/admissions/:admission/refund-approvals/:approval` `{amount_minor,reason}`      | Approve a refund amount.                      |
+| `GET …/admissions/:admission/refund-approvals`                                        | Approvals, each with the refund that used it. |
+| `PUT …/admissions/:admission/refunds/:receipt` `{amount_minor,currency,approval_id?}` | Pay a refund from the open shift.             |
+
+- **Not covered:** refunds by UPI or bank transfer; un-applying deposits (a credit after an
+  application stays unrefundable); refunds of payments; ward refund requests; events; GL.
+
+## Billing desk
+
+Design: [spec](../../superpowers/specs/2026-10-30-billing-desk-design.md).
+
+- `GET /billing/hospitals/:hospital/accounts?view=` lists the hospital's admission accounts,
+  newest first, paged, each with `status`, `discharge_ordered`, and INR `balance_minor` (below
+  zero is credit), `deposit_held_minor`, `refundable_minor` (the surplus over the bill, once a
+  final bill exists) and `has_final_bill`. Views: `to_collect`, `to_refund`,
+  `discharge_ordered`, `open`, `released`, or none for all; another is `400`.
+- Each account's position is stored and recomputed by the database on every write that changes
+  it; each view reads its own partial index. Accounts from before migration `0008_billing`
+  are filled in by the billing worker. Figures are INR.
+- Needs `billing.account.read` and the hospital's billing grant (`404` without it).
+- The shell's **Billing** zone (`billing.account.read`) shows it with the cash desk; each
+  account opens its bills, payments, deposits and refunds, including after release.

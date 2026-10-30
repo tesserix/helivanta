@@ -119,6 +119,12 @@ type total struct {
 	// after payment can leave the balance below zero, in the patient's credit.
 	PaidMinor    int64 `json:"paid_minor"`
 	BalanceMinor int64 `json:"balance_minor"`
+	// Deposits (#199): held for the patient, and applied against the account.
+	// Balance is outstanding less paid less applied.
+	DepositHeldMinor int64 `json:"deposit_held_minor"`
+	AppliedMinor     int64 `json:"applied_minor"`
+	// Deposits paid back in cash (#199 slice 2); held nets them.
+	RefundedMinor int64 `json:"refunded_minor"`
 }
 
 type accountView struct {
@@ -176,28 +182,34 @@ func (h *handlers) account(c *gin.Context) {
  WHERE tenant_id=? AND admission_id=? GROUP BY currency ORDER BY currency`, p.TenantID, admission).Scan(&row.Totals).Error; err != nil {
 			return err
 		}
-		var paid []struct {
-			Currency  string
-			PaidMinor int64
+		var money []struct {
+			Currency                                   string
+			PaidMinor, DepositMinor, Applied, Refunded int64
 		}
-		if err := tx.Raw(`SELECT currency,sum(amount_minor) AS paid_minor FROM billing_cash_receipts WHERE tenant_id=? AND admission_id=? AND voided_at IS NULL GROUP BY currency`,
-			p.TenantID, admission).Scan(&paid).Error; err != nil {
+		if err := tx.Raw(`SELECT currency, COALESCE(sum(amount_minor) FILTER (WHERE purpose='payment'),0) AS paid_minor, COALESCE(sum(amount_minor) FILTER (WHERE purpose='deposit'),0) AS deposit_minor,
+ COALESCE(sum(amount_minor) FILTER (WHERE purpose='refund'),0) AS refunded,
+ billing_applied(?,?,currency) AS applied FROM billing_cash_receipts WHERE tenant_id=? AND admission_id=? AND voided_at IS NULL GROUP BY currency`,
+			p.TenantID, admission, p.TenantID, admission).Scan(&money).Error; err != nil {
 			return err
 		}
-		for _, pd := range paid {
-			found := false
-			for i := range row.Totals {
-				if row.Totals[i].Currency == pd.Currency {
-					row.Totals[i].PaidMinor, found = pd.PaidMinor, true
+		for _, m := range money {
+			i := -1
+			for j := range row.Totals {
+				if row.Totals[j].Currency == m.Currency {
+					i = j
 				}
 			}
-			if !found {
-				row.Totals = append(row.Totals, total{Currency: pd.Currency, PaidMinor: pd.PaidMinor})
+			if i < 0 {
+				row.Totals = append(row.Totals, total{Currency: m.Currency})
+				i = len(row.Totals) - 1
 			}
+			row.Totals[i].PaidMinor, row.Totals[i].AppliedMinor = m.PaidMinor, m.Applied
+			row.Totals[i].RefundedMinor = m.Refunded
+			row.Totals[i].DepositHeldMinor = m.DepositMinor - m.Applied - m.Refunded
 		}
 		for i := range row.Totals {
 			row.Totals[i].OutstandingMinor = row.Totals[i].ChargedMinor - row.Totals[i].ReversedMinor
-			row.Totals[i].BalanceMinor = row.Totals[i].OutstandingMinor - row.Totals[i].PaidMinor
+			row.Totals[i].BalanceMinor = row.Totals[i].OutstandingMinor - row.Totals[i].PaidMinor - row.Totals[i].AppliedMinor
 		}
 		row.Sources = []source{}
 		if err := tx.Raw(`SELECT source_module,currency,COALESCE(sum(CASE kind WHEN 'charge' THEN amount_minor ELSE -amount_minor END),0) AS outstanding_minor

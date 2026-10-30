@@ -15,7 +15,7 @@ Spec: `docs/superpowers/specs/2026-10-08-shellcheck-gate-design.md`
   - `docs/standards/frontend.md` no longer records the gap;
   - `CLAUDE.md` names the gate.
 - [x] Discovery tests in `preflight.test.sh`, and the mutations in spec
-  §Tests.
+      §Tests.
 - [x] Gates:
   - `make lint-shell` clean;
   - `make test-scripts` as a non-root user with

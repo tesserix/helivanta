@@ -80,6 +80,7 @@ Pure Go, no infrastructure. Start here — it is the control this whole critical
 path exists to enable, and it is independently testable.
 
 **Files:**
+
 - Modify: `backend/internal/config/config.go`
 - Create: `backend/internal/config/trustedproxy.go`
 - Create: `backend/internal/config/trustedproxy_test.go`
@@ -87,21 +88,22 @@ path exists to enable, and it is independently testable.
 - Modify: `.env.example`
 
 **Interfaces:**
+
 - Produces: `func (c Config) RequireTrustedProxyCIDRs() error`, called from
   `main.go` and aborting boot on error. Task 5 sets the value from the chart.
 
 **The behaviour, exactly:**
 
-| `TRUSTED_PROXY_CIDRS` | `HELIVANTA_ENV=dev` | Otherwise |
-|---|---|---|
-| unset or empty | empty list, raw TCP peer | **refuse boot** |
-| `none` | raw TCP peer | raw TCP peer |
-| valid CIDR list | trusted | trusted |
-| every entry malformed | empty list | **refuse boot**, message distinct from unset |
+| `TRUSTED_PROXY_CIDRS` | `HELIVANTA_ENV=dev`      | Otherwise                                    |
+| --------------------- | ------------------------ | -------------------------------------------- |
+| unset or empty        | empty list, raw TCP peer | **refuse boot**                              |
+| `none`                | raw TCP peer             | raw TCP peer                                 |
+| valid CIDR list       | trusted                  | trusted                                      |
+| every entry malformed | empty list               | **refuse boot**, message distinct from unset |
 
 - [ ] **Step 1: Write the failing tests**
 
-Six cases, each asserting the *specific* failure, not merely that an error
+Six cases, each asserting the _specific_ failure, not merely that an error
 occurred:
 
 ```go
@@ -148,7 +150,7 @@ It must read `os.Getenv("TRUSTED_PROXY_CIDRS")` **itself**. `Load()` has already
 discarded the raw string via `getenvCIDRList`, so the parsed slice cannot
 distinguish "unset" from "the only entry was a typo".
 
-Treat `none` case-insensitively after trimming, and make it the *only* accepted
+Treat `none` case-insensitively after trimming, and make it the _only_ accepted
 sentinel — not `off`, `false` or an empty-looking value.
 
 - [ ] **Step 4: Run them and watch them pass**
@@ -181,11 +183,13 @@ mandatory outside dev.
 ### Task 2: The backend image
 
 **Files:**
+
 - Create: `Dockerfile.api`
 - Create: `.dockerignore`
 - Modify: `Makefile` (add `image-api`)
 
 **Interfaces:**
+
 - Produces: an image running `/app/api` as a non-root user, honouring SIGTERM,
   stamping version metadata. Task 4 builds it; Task 5 runs it.
 
@@ -224,13 +228,14 @@ docker build -f Dockerfile.api -t helivanta-api:local .
 docker run --rm --entrypoint="" helivanta-api:local id 2>&1 || echo "no shell — expected for distroless"
 docker inspect helivanta-api:local --format '{{.Config.User}}'
 ```
+
 Expected: `65532:65532`. A distroless image with `User` empty is running as root
 and the base tag is wrong.
 
 - [ ] **Step 3: Prove SIGTERM is honoured — the mutation**
 
 `main.go:136` installs the handler and `:419` calls `Shutdown`, but nothing has
-confirmed the *container* delivers the signal to PID 1 rather than to a shell
+confirmed the _container_ delivers the signal to PID 1 rather than to a shell
 wrapper. Start the container, send SIGTERM, and assert it exits **0** promptly:
 
 ```bash
@@ -238,6 +243,7 @@ docker run -d --name sigterm-probe helivanta-api:local
 docker stop -t 30 sigterm-probe
 docker inspect sigterm-probe --format '{{.State.ExitCode}} {{.State.OOMKilled}}'
 ```
+
 Expected exit code `0`. An exit code of `137` means it was SIGKILLed after the
 grace period — the handler never ran, and the migration batch worker (#788) and
 outbox dispatcher would be cut mid-work.
@@ -258,10 +264,12 @@ docker run --rm --entrypoint=/bin/sh helivanta-api:local -c 'echo reachable' && 
 `apps/shell/lib/env.ts` refuses to build without it.
 
 **Files:**
+
 - Create: `Dockerfile.shell`
 - Modify: `.dockerignore`, `Makefile` (add `image-shell`)
 
 **Interfaces:**
+
 - Produces: an image serving the shell on 4301 from Next standalone output.
 
 - [ ] **Step 1: Write the Dockerfile**
@@ -276,13 +284,14 @@ Build args, all required: `NEXT_PUBLIC_ZITADEL_ISSUER_URL`,
 
 - [ ] **Step 2: Prove the values were actually baked — the mutation**
 
-Building with a value and *rendering* it are different. Build with a sentinel
+Building with a value and _rendering_ it are different. Build with a sentinel
 client ID and grep the built bundle for it:
 
 ```bash
 docker build -f Dockerfile.shell --build-arg NEXT_PUBLIC_ZITADEL_CLIENT_ID=SENTINEL-123 ... -t shell:probe .
 docker run --rm --entrypoint="" shell:probe sh -c 'grep -rl SENTINEL-123 .next/static | head -3'
 ```
+
 Expected: at least one match. No match means the build arg never reached the
 bundle and the deployed app will fail OIDC at runtime with a green build — the
 exact failure D6 of the rebrand spec warns about.
@@ -292,6 +301,7 @@ exact failure D6 of the rebrand spec warns about.
 ```bash
 docker run --rm --entrypoint="" shell:probe cat .next/routes-manifest.json | grep -o 'http://[^"]*' | sort -u
 ```
+
 Expected: in-cluster Service DNS. Any `localhost` means the build args did not
 apply, and in production those rewrites become unreachable-but-wrong config —
 spec D3's recorded trap.
@@ -307,10 +317,12 @@ Run it, `curl -I localhost:4301`, expect 200 or a redirect to `/login`.
 ### Task 4: CI — build, scan, sign, publish
 
 **Files:**
+
 - Create: `.github/workflows/images.yml`
 - Modify: `.github/workflows/ci.yml` only if needed (do not duplicate its jobs)
 
 **Interfaces:**
+
 - Produces: `ghcr.io/tesserix/helivanta/{helivanta-api,helivanta-shell}` tagged
   `main-<sha7>`, with an SBOM and a Cosign signature. Task 8 promotes them.
 
@@ -338,7 +350,7 @@ Syft SBOM and Cosign keyless (GitHub OIDC) per image, attached by digest.
 cluster runs three TIG governance policies and no `verifyImages` policy, and
 `grep -rli cosign` across `tesserix-k8s` returns nothing. Helivanta is the
 fleet's first signed image. The justification is asymmetry, not rigour: a
-signature binds to a digest, so an image promoted unsigned must be *rebuilt* to
+signature binds to a digest, so an image promoted unsigned must be _rebuilt_ to
 be signed, and a rebuilt digest is a different artifact than the one tested.
 
 - [x] **Step 3: Prove the Trivy gate fails — the mutation**
@@ -360,7 +372,7 @@ production CI, so it is not worth opening.
 
 `cosign verify --certificate-identity-regexp ... ghcr.io/tesserix/helivanta/helivanta-api@<digest>`
 Expected: verification succeeds. Record that this proves the signature is
-*present and valid*, not that anything enforces it.
+_present and valid_, not that anything enforces it.
 
 - [ ] **Step 5: Commit**
 
@@ -379,12 +391,14 @@ only a running pod could find.
 Work in `tesserix-k8s`.
 
 **Files:**
+
 - Create: `charts/apps/helivanta-api/{Chart.yaml,values.yaml}`
 - Create: `charts/apps/helivanta-api/templates/{deployment,service,externalsecret,serviceaccount,pdb}.yaml`
 - Create: `argocd/prod/apps/helivanta/helivanta-api.yaml`
 - Modify: `argocd/prod/apps/helivanta/kustomization.yaml`
 
 **Interfaces:**
+
 - Consumes: slice 1a's Services and the two OpenBao boot secrets.
 - Produces: Service `helivanta-api.helivanta.svc.cluster.local:8080`. Task 6
   routes `/api/*` to it.
@@ -481,7 +495,7 @@ real evidence for a claim that evidence did not support.
    NetworkPolicy admitting every mesh namespace on 8080 — which establishes
    reachability and nothing more. Zitadel is multi-tenant and resolves the
    instance from the HOST HEADER, so it answered `404 Instance not found
-   (ExternalDomain is auth.tesserix.app)`. It also has to be the public value
+(ExternalDomain is auth.tesserix.app)`. It also has to be the public value
    regardless: that is the `iss` on the tokens this API verifies.
 
 Also caught, silently wrong rather than fatal: **`SESSION_ISSUER` was unset**, so
@@ -524,6 +538,7 @@ through the Istio ingress, settles that.
 ### Task 6: The shell chart, and Istio routing
 
 **Files:**
+
 - Create: `charts/apps/helivanta-shell/` (chart + templates)
 - Create: `charts/apps/helivanta-istio/templates/{gateway,virtualservice}.yaml`
 - Create: `argocd/prod/apps/helivanta/{helivanta-shell,helivanta-istio}.yaml`
@@ -552,6 +567,7 @@ and confirm a real API response, then confirm the backend log shows the path as
 ### Task 7: `helivanta.app` reaches the cluster
 
 **Files:**
+
 - Modify: `k8s/cluster/cloudflared/configmap.yaml` (in `tesserix-k8s`)
 
 - [ ] **Step 1: Add the hostnames**
@@ -561,7 +577,7 @@ the `http_status:404` fallback, alongside the existing `tesserix.app` and
 `mark8ly.com` entries. Purely additive; edit no existing rule.
 
 - [ ] **Step 2: Add the DNS record** pointing at the tunnel. The zone already
-exists in the same Cloudflare account — same nameservers as `tesserix.app`.
+      exists in the same Cloudflare account — same nameservers as `tesserix.app`.
 
 - [ ] **Step 3: Prove you broke nothing — the mutation that matters here**
 
@@ -576,6 +592,7 @@ This configmap is **fleet-wide**. After the change, confirm `tesserix.app` and
 ### Task 8: Kargo promotion
 
 **Files:**
+
 - Create: Kargo `Warehouse` + `Stage` for helivanta (follow `kargo-manifests`)
 - Modify: `argocd/prod/apps/helivanta-app-of-apps.yaml` if needed
 
@@ -595,10 +612,10 @@ unremovable — dwellm8's recorded failure.
 
 Merged #909 (a docs fix), then followed it the whole way with no hand-editing:
 
-| | tag | digest |
-|---|---|---|
+|        | tag            | digest                  |
+| ------ | -------------- | ----------------------- |
 | before | `main-8d52639` | `sha256:6a95303c…43617` |
-| after  | `b162aa48…`     | `sha256:7574408e…08618` |
+| after  | `b162aa48…`    | `sha256:7574408e…08618` |
 
 The chain, each link observed rather than assumed: images published for
 `b162aa4` → `advance-deploy` fast-forwarded `deploy` to it → the Warehouse
@@ -618,7 +635,7 @@ TWO defects were caught during the rollout, both by reading live objects rather
 than trusting green checks:
 
 1. **The full-sha tag published as `sha-<40>`, not `<40>`.** `docker/metadata-
-   action`'s `type=sha` defaults to `prefix=sha-`, while the Stage names the
+action`'s `type=sha` defaults to `prefix=sha-`, while the Stage names the
    bare id from `commitFrom(...).ID`. The tag it named would not have existed,
    the pod would have pulled a 404, and the GAR mirror would have negative-
    cached it into an ImagePullBackOff that does not recover — the exact failure
@@ -687,10 +704,10 @@ inference is not the deliverable; the observation is.
 Both halves, in one run, in this order deliberately: exhaust the real bucket
 first, then try to escape it.
 
-| Burst | Requests | Result |
-|---|---|---|
-| A — no `X-Forwarded-For` | 25 | 429s appear after ~18 — the limiter DOES trigger |
-| B — unique forged `X-Forwarded-For` per request (`203.0.113.1..10`) | 10 | still refused; **zero** new buckets |
+| Burst                                                               | Requests | Result                                           |
+| ------------------------------------------------------------------- | -------- | ------------------------------------------------ |
+| A — no `X-Forwarded-For`                                            | 25       | 429s appear after ~18 — the limiter DOES trigger |
+| B — unique forged `X-Forwarded-For` per request (`203.0.113.1..10`) | 10       | still refused; **zero** new buckets              |
 
 Status codes alone were ambiguous (token refill explains some 200-class
 responses in B), so the decision came from the logs, which record the computed

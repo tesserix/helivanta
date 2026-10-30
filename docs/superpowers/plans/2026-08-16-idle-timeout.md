@@ -32,12 +32,14 @@
 ### Task 1: The session token carries `idle_deadline`
 
 **Files:**
+
 - Modify: `backend/pkg/session/session.go` (add to `Claims` and `tokenClaims`)
 - Modify: `backend/pkg/session/signer.go` (`Mint` signature)
 - Modify: `backend/pkg/session/verifier.go` (map the claim, refuse when absent)
 - Test: `backend/pkg/session/session_test.go`
 
 **Interfaces:**
+
 - Produces:
   - `Claims.IdleDeadline time.Time`
   - `func (s *Signer) Mint(subject, tenantID string, authTime, idleDeadline time.Time) (string, error)`
@@ -92,6 +94,7 @@ Write `newSignerVerifier` and `mintLegacyTokenWithoutIdleDeadline` following the
 ```bash
 cd backend && go test ./pkg/session/... -run Idle -v
 ```
+
 Expected: compile failure — `Mint` takes 3 arguments.
 
 - [ ] **Step 3: Implement**
@@ -111,7 +114,7 @@ Add to `Claims`:
 	IdleDeadline time.Time
 ```
 
-Add `IdleDeadline int64 \`json:"idle_deadline"\`` to `tokenClaims`. Extend `Mint` with the parameter and refuse a zero value alongside the existing checks. In `Verify`, refuse when `claims.IdleDeadline == 0`, and map it to `time.Unix(...).UTC()`.
+Add `IdleDeadline int64 \`json:"idle_deadline"\``to`tokenClaims`. Extend `Mint`with the parameter and refuse a zero value alongside the existing checks. In`Verify`, refuse when `claims.IdleDeadline == 0`, and map it to `time.Unix(...).UTC()`.
 
 - [ ] **Step 4: Run and watch them pass**
 
@@ -135,10 +138,12 @@ git commit -m "feat: Helivanta session tokens carry an idle deadline (#848)"
 ### Task 2: The middleware refuses an idle-expired session
 
 **Files:**
+
 - Modify: `backend/pkg/authn/authn.go` (the check, and `Principal`)
 - Test: `backend/pkg/authn/authn_test.go`
 
 **Interfaces:**
+
 - Consumes: `session.Claims.IdleDeadline`
 - Produces: `Principal.IdleDeadline time.Time`
 
@@ -229,12 +234,13 @@ deadline where the test is not about idling), and do not weaken any existing
 assertion to make it compile.
 
 **Files:**
+
 - Modify: `backend/internal/modules/iam/login.go:210` (login AND renewal — the same endpoint)
 - Modify: `backend/internal/modules/iam/me.go:210` (tenant switch)
 - Modify: `backend/internal/config/config.go` (`IdleTimeout`)
 - Test: `backend/internal/modules/iam/login_test.go`, `me_test.go`
 
-**The crux, which the implementer must understand before writing code:** renewal (spec D4a) is `POST /v1/auth/login` run again with a fresh Zitadel token — the *same handler* as a first login. So the handler cannot tell them apart by route. The discriminator is **the caller's existing Helivanta session cookie**:
+**The crux, which the implementer must understand before writing code:** renewal (spec D4a) is `POST /v1/auth/login` run again with a fresh Zitadel token — the _same handler_ as a first login. So the handler cannot tell them apart by route. The discriminator is **the caller's existing Helivanta session cookie**:
 
 - A valid, non-idle-expired session cookie on the request ⇒ this is a re-mint (renewal). **Carry its `idle_deadline` forward unchanged.**
 - No cookie, or one that fails verification ⇒ a genuine new login. **Set `idle_deadline = now + IdleTimeout`.**
@@ -332,12 +338,14 @@ git commit -m "feat: carry the idle deadline through renewal and tenant switch (
 ### Task 4: `POST /v1/auth/session/activity`
 
 **Files:**
+
 - Create: `backend/internal/modules/iam/activity.go`
 - Create: `backend/internal/modules/iam/activity_test.go`
 - Modify: `backend/internal/modules/iam/module.go` (register the route)
 - Modify: `backend/cmd/api/main.go` (wire the handler)
 
 **Interfaces:**
+
 - Produces: `POST /v1/auth/session/activity` → `200 {"idle_deadline":"<RFC3339>"}`
 
 This route sits INSIDE the authenticated chain (it requires a live session), so it is declared through `*platform.Router` like any other route rather than added to `UnauthenticatedRoutes`. It needs no permission beyond membership — use the codebase's existing convention for a self-service route (see how `me.go`'s routes are declared).
@@ -408,11 +416,13 @@ git commit -m "feat: an activity endpoint that extends the idle deadline (#848)"
 ### Task 5: Interaction tracking in `@helivanta/ui`
 
 **Files:**
+
 - Create: `packages/ui/src/idle-timer.ts` (framework-free timer + broadcast logic)
 - Create: `packages/ui/src/idle-timer.test.ts`
 - Modify: `packages/ui/src/hms-shell.tsx` (mount it)
 
 **Interfaces:**
+
 - Produces:
   - `ACTIVITY_DEBOUNCE_MS = 60_000`, `WARNING_LEAD_MS = 120_000`
   - `createIdleTracker({ onActivity, onWarn, onExpire })` returning `{ start, stop, noteDeadline(d: Date) }`
@@ -425,7 +435,11 @@ Keep the timer logic in a plain module with no React, so it is testable without 
 it("calls onActivity at most once per debounce window under a burst", () => {
   vi.useFakeTimers();
   const onActivity = vi.fn();
-  const t = createIdleTracker({ onActivity, onWarn: vi.fn(), onExpire: vi.fn() });
+  const t = createIdleTracker({
+    onActivity,
+    onWarn: vi.fn(),
+    onExpire: vi.fn(),
+  });
   t.start();
   for (let i = 0; i < 50; i++) window.dispatchEvent(new Event("keydown"));
   expect(onActivity).toHaveBeenCalledTimes(1);
@@ -436,7 +450,11 @@ it("calls onActivity at most once per debounce window under a burst", () => {
 
 it("does not treat mouse movement alone as activity", () => {
   const onActivity = vi.fn();
-  const t = createIdleTracker({ onActivity, onWarn: vi.fn(), onExpire: vi.fn() });
+  const t = createIdleTracker({
+    onActivity,
+    onWarn: vi.fn(),
+    onExpire: vi.fn(),
+  });
   t.start();
   window.dispatchEvent(new Event("mousemove"));
   expect(onActivity).not.toHaveBeenCalled();
@@ -444,7 +462,8 @@ it("does not treat mouse movement alone as activity", () => {
 
 it("warns at the lead time before the deadline and expires at it", () => {
   vi.useFakeTimers();
-  const onWarn = vi.fn(), onExpire = vi.fn();
+  const onWarn = vi.fn(),
+    onExpire = vi.fn();
   const t = createIdleTracker({ onActivity: vi.fn(), onWarn, onExpire });
   t.start();
   t.noteDeadline(new Date(Date.now() + 5 * 60_000));
@@ -459,7 +478,11 @@ it("warns at the lead time before the deadline and expires at it", () => {
 it("a later deadline from another tab cancels a pending warning", () => {
   vi.useFakeTimers();
   const onWarn = vi.fn();
-  const t = createIdleTracker({ onActivity: vi.fn(), onWarn, onExpire: vi.fn() });
+  const t = createIdleTracker({
+    onActivity: vi.fn(),
+    onWarn,
+    onExpire: vi.fn(),
+  });
   t.start();
   t.noteDeadline(new Date(Date.now() + 3 * 60_000));
   t.noteDeadline(new Date(Date.now() + 15 * 60_000)); // another tab was active
@@ -496,6 +519,7 @@ git commit -m "feat: shared idle interaction tracking for every Helivanta app (#
 ### Task 6: The warning modal
 
 **Files:**
+
 - Create: `packages/ui/src/idle-warning.tsx`
 - Create: `packages/ui/src/idle-warning.test.tsx`
 - Modify: `packages/ui/src/hms-shell.tsx`
@@ -506,7 +530,9 @@ git commit -m "feat: shared idle interaction tracking for every Helivanta app (#
 it("shows a live countdown and a Stay signed in button", async () => {
   renderWithProviders(<IdleWarning secondsRemaining={120} onStay={vi.fn()} />);
   expect(screen.getByRole("dialog")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /stay signed in/i })).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /stay signed in/i }),
+  ).toBeInTheDocument();
   expect(screen.getByText(/2:00|120/)).toBeInTheDocument();
 });
 
@@ -539,6 +565,7 @@ git commit -m "feat: warn two minutes before an idle session ends (#848)"
 ### Task 7: Teardown on expiry, and honest wording on `/login`
 
 **Files:**
+
 - Modify: `packages/ui/src/hms-shell.tsx` (wire `onExpire`)
 - Modify: `packages/ui/src/zitadel-session.ts` (an idle mark alongside `SIGNED_OUT_MARK`)
 - Modify: `apps/shell/app/login/page.tsx` (the third message)
@@ -550,7 +577,9 @@ git commit -m "feat: warn two minutes before an idle session ends (#848)"
 it("says the session ended through inactivity, not that the user signed out", async () => {
   window.sessionStorage.setItem(IDLE_ENDED_MARK, "1");
   renderWithProviders(<LoginPage />);
-  expect(await screen.findByText(/ended after a period of inactivity/i)).toBeInTheDocument();
+  expect(
+    await screen.findByText(/ended after a period of inactivity/i),
+  ).toBeInTheDocument();
   expect(screen.queryByText(/you are signed out/i)).not.toBeInTheDocument();
 });
 ```
@@ -584,6 +613,7 @@ git commit -m "feat: end an idle session in this browser and say so on /login (#
 important rule.
 
 **Files:**
+
 - Modify: `apps/shell/lib/auth-exchange.ts`
 - Test: `apps/shell/lib/auth-exchange.test.ts`
 
@@ -606,13 +636,15 @@ default, and its failure mode is silent. Two lines move it to CI-failure level.
 
 ```ts
 it("sends the session cookie, because the backend's renewal-vs-login discriminator depends on it", async () => {
-  const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify({ ok: true }), { status: 200 }),
-  );
+  const fetchSpy = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
   await exchangeIdToken("id-token", "11111111-1111-1111-1111-111111111111");
 
   const [url, init] = fetchSpy.mock.calls[0];
-  expect(String(url).startsWith("/")).toBe(true);           // same-origin, relative
+  expect(String(url).startsWith("/")).toBe(true); // same-origin, relative
   expect((init as RequestInit).credentials).toBe("same-origin");
 });
 ```
@@ -622,6 +654,7 @@ it("sends the session cookie, because the backend's renewal-vs-login discriminat
 ```bash
 pnpm --filter shell test -- auth-exchange
 ```
+
 Expected: FAIL — `credentials` is `undefined`.
 
 - [ ] **Step 3: Make it explicit**
@@ -650,6 +683,7 @@ git commit -m "fix: pin the session cookie the idle-deadline discriminator depen
 ### Task 8: End-to-end proof, and the documentation loop
 
 **Files:**
+
 - Create: `e2e/tests/idle-timeout.spec.ts`
 - Modify: `scripts/seed-dev.mjs` (the new spec's account pair — the suite derives accounts from spec filenames)
 - Modify: `docs/standards/backend.md`, `docs/standards/frontend.md`
@@ -689,6 +723,7 @@ against the main stack, then a swap to the fixture for
 ```bash
 make e2e
 ```
+
 Expected: phase one reports 11 passed, phase two reports 1 passed (12 total, in two runs rather than one). A bare `pnpm --filter e2e exec playwright test --reporter=list` still runs, and still reports 11 passed — it excludes "idle-timeout" on purpose, not by omission.
 
 - [ ] **Step 4: Document**

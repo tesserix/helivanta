@@ -43,7 +43,7 @@ func newBedWorld(t *testing.T) *bedWorld {
 				billing.PermCashCollect},
 			"nurse":    {billing.PermAccountRead},
 			"clerk":    {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
-			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise},
+			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise, billing.PermBillIssue},
 			"outsider": {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
 		},
 		Modules: []platform.Module{billing.New()},

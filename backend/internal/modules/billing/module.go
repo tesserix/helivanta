@@ -46,6 +46,15 @@ var finalBillsSchema string
 //go:embed cash.sql
 var cashSchema string
 
+//go:embed deposits.sql
+var depositsSchema string
+
+//go:embed refunds.sql
+var refundsSchema string
+
+//go:embed positions.sql
+var positionsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -70,7 +79,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -81,6 +90,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.DELETE(hp+"/access/:subject", PermAccessManage, h.revokeAccess)
 	g.GET(hp+"/access", PermAccountRead, h.myAccess)
 	g.GET(hp+"/admissions/:admission/account", PermAccountRead, h.account)
+	// The billing desk's list of accounts, by what they need (#197–#199).
+	platform.ListRoute(g, hp+"/accounts", PermAccountRead, h.deskAccounts)
 	platform.ListRoute(g, hp+"/admissions/:admission/entries", PermAccountRead, h.entries)
 	g.PUT(hp+"/bed-charging", PermRateManage, h.setBedCharging)
 	g.GET(hp+"/bed-charging", PermAccountRead, h.bedChargingSetup)
@@ -104,6 +115,16 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT(hp+"/admissions/:admission/receipts/:receipt", PermCashCollect, h.takeCash)
 	platform.ListRoute(g, hp+"/admissions/:admission/receipts", PermAccountRead, h.receipts)
 	g.PUT(hp+"/receipts/:receipt/voids/:void", PermCashCollect, h.voidReceipt)
+	// Deposits (#199 slice 1).
+	g.PUT(hp+"/admissions/:admission/deposits/:receipt", PermCashCollect, h.takeDeposit)
+	g.PUT(hp+"/admissions/:admission/deposit-applications/:application", PermBillIssue, h.applyDeposits)
+	platform.ListRoute(g, hp+"/admissions/:admission/deposit-applications", PermAccountRead, h.depositApplications)
+	// Refunds of unused deposits (#199 slice 2).
+	g.GET(hp+"/refund-policy", PermAccountRead, h.refundPolicy)
+	g.PUT(hp+"/refund-policies/:policy", PermCounterManage, h.setRefundPolicy)
+	g.PUT(hp+"/admissions/:admission/refund-approvals/:approval", PermShiftAuthorise, h.approveRefund)
+	platform.ListRoute(g, hp+"/admissions/:admission/refund-approvals", PermAccountRead, h.refundApprovals)
+	g.PUT(hp+"/admissions/:admission/refunds/:receipt", PermCashCollect, h.payRefund)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

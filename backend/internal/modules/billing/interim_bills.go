@@ -40,10 +40,14 @@ type interimBill struct {
 	IssuedBy        string    `json:"issued_by"`
 	IssuedAt        time.Time `json:"issued_at"`
 	UnpricedBedDays int       `json:"unpriced_bed_days"`
-	LineCount       int64     `json:"line_count"`
-	NewCount        int64     `json:"new_count"`
-	Totals          []total   `json:"totals" gorm:"-"`
-	Sources         []source  `json:"sources" gorm:"-"`
+	// INR paid (payments and applied deposits) and deposits held when issued
+	// (#199); none on bills issued before deposits existed.
+	PaidMinor        *int64   `json:"paid_minor"`
+	DepositHeldMinor *int64   `json:"deposit_held_minor"`
+	LineCount        int64    `json:"line_count"`
+	NewCount         int64    `json:"new_count"`
+	Totals           []total  `json:"totals" gorm:"-"`
+	Sources          []source `json:"sources" gorm:"-"`
 }
 
 func (interimBill) TableName() string                 { return "billing_interim_bills" }
@@ -67,7 +71,7 @@ type billLine struct {
 
 func (b billLine) PageKey() (time.Time, uuid.UUID) { return b.RecordedAt, b.ID }
 
-const billColumns = "b.id,b.admission_id,b.hospital_id,a.patient_id,b.number,b.kind,b.issued_by,b.issued_at,b.unpriced_bed_days," +
+const billColumns = "b.id,b.admission_id,b.hospital_id,a.patient_id,b.number,b.kind,b.issued_by,b.issued_at,b.unpriced_bed_days,b.paid_minor,b.deposit_held_minor," +
 	"(SELECT count(*) FROM billing_interim_bill_lines l WHERE l.tenant_id=b.tenant_id AND l.admission_id=b.admission_id AND l.number=b.number) AS line_count," +
 	"(SELECT count(*) FROM billing_interim_bill_lines l WHERE l.tenant_id=b.tenant_id AND l.admission_id=b.admission_id AND l.number=b.number AND l.new) AS new_count"
 

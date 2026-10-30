@@ -16,6 +16,7 @@ import {
 import { Field, LoadMore, RequestFailure, formatDateTime, useZodForm } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { useMyShift } from "./cash-desk";
+import { DepositRefunds } from "./refunds";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -29,11 +30,15 @@ export function CashPayments({
   hospital,
   admissionId,
   account,
+  hasFinalBill = false,
 }: {
   hospital: Hospital;
   admissionId: string;
   account: AdmissionAccount | undefined;
+  /** A final bill has been issued: held deposits may be applied (#199). */
+  hasFinalBill?: boolean;
 }) {
+  const { can } = usePermissions();
   const { open } = useMyShift(hospital);
   const path = `/billing/hospitals/${hospital.id}/admissions/${admissionId}/receipts`;
   const key = ["billing", "receipts", hospital.id, admissionId];
@@ -43,7 +48,12 @@ export function CashPayments({
     <div className="space-y-2 border-t border-border pt-2 text-sm">
       {inr && (
         <p>
-          Paid {formatPharmacyMoney(inr.paid_minor, "INR")} ·{" "}
+          Paid {formatPharmacyMoney(inr.paid_minor, "INR")}
+          {inr.applied_minor > 0 &&
+            ` · deposits applied ${formatPharmacyMoney(inr.applied_minor, "INR")}`}
+          {inr.deposit_held_minor > 0 &&
+            ` · deposits held ${formatPharmacyMoney(inr.deposit_held_minor, "INR")}`}
+          {" · "}
           {inr.balance_minor < 0
             ? `in credit ${formatPharmacyMoney(-inr.balance_minor, "INR")}`
             : `balance due ${formatPharmacyMoney(inr.balance_minor, "INR")}`}
@@ -53,7 +63,31 @@ export function CashPayments({
         <TakeCash
           hospital={hospital}
           admissionId={admissionId}
+          purpose="payment"
           due={inr.balance_minor}
+          receiptsKey={key}
+        />
+      )}
+      {open && account?.status === "open" && (
+        <TakeCash
+          hospital={hospital}
+          admissionId={admissionId}
+          purpose="deposit"
+          receiptsKey={key}
+        />
+      )}
+      {hasFinalBill &&
+        can("billing.bill.issue") &&
+        inr &&
+        inr.deposit_held_minor > 0 &&
+        inr.balance_minor > 0 && <ApplyDeposits hospital={hospital} admissionId={admissionId} />}
+      {hasFinalBill && inr && inr.deposit_held_minor - Math.max(inr.balance_minor, 0) > 0 && (
+        // Only the surplus over what the bill still needs is refunded.
+        <DepositRefunds
+          hospital={hospital}
+          admissionId={admissionId}
+          held={inr.deposit_held_minor - Math.max(inr.balance_minor, 0)}
+          shiftOpen={open !== undefined}
           receiptsKey={key}
         />
       )}
@@ -82,15 +116,19 @@ export function CashPayments({
   );
 }
 
+// Payments are capped at the balance due; a deposit, the patient's money
+// held until the final bill, is not.
 function TakeCash({
   hospital,
   admissionId,
+  purpose,
   due,
   receiptsKey,
 }: {
   hospital: Hospital;
   admissionId: string;
-  due: number;
+  purpose: "payment" | "deposit";
+  due?: number;
   receiptsKey: unknown[];
 }) {
   // One receipt id per form: a retried submit repeats the same receipt.
@@ -100,12 +138,16 @@ function TakeCash({
   const take = useApiMutation(
     ({ amount_minor }: { amount_minor: number }) =>
       apiFetch<CashReceipt>(
-        `/billing/hospitals/${hospital.id}/admissions/${admissionId}/receipts/${receiptId}`,
+        `/billing/hospitals/${hospital.id}/admissions/${admissionId}/${purpose === "deposit" ? "deposits" : "receipts"}/${receiptId}`,
         { method: "PUT", body: JSON.stringify({ amount_minor, currency: "INR" }) },
       ),
     {
-      successToast: "Cash received",
-      invalidate: [receiptsKey, ["billing", "account", hospital.id, admissionId]],
+      successToast: purpose === "deposit" ? "Deposit received" : "Cash received",
+      invalidate: [
+        receiptsKey,
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
       invalidateOnError: true,
       onSuccess: () => setReceiptId(newBedId()),
     },
@@ -113,17 +155,18 @@ function TakeCash({
   return (
     <form
       noValidate
-      aria-label="Take cash"
+      aria-label={purpose === "deposit" ? "Take a deposit" : "Take cash"}
       className="flex flex-wrap items-end gap-2"
       onSubmit={form.handleSubmit(({ amount_minor }) => {
         // Checked here to say why; the server refuses it too (an advance is a deposit).
-        setOver(amount_minor > due);
-        if (amount_minor <= due) take.mutate({ amount_minor });
+        const tooMuch = due !== undefined && amount_minor > due;
+        setOver(tooMuch);
+        if (!tooMuch) take.mutate({ amount_minor });
       })}
     >
       <CurrencyAmountField
-        id={`cash-${admissionId}`}
-        label="Cash received"
+        id={`${purpose}-${admissionId}`}
+        label={purpose === "deposit" ? "Deposit received" : "Cash received"}
         currency="INR"
         initialMinor={0}
         error={form.formState.errors.amount_minor?.message}
@@ -132,11 +175,12 @@ function TakeCash({
         }
       />
       <Button type="submit" size="sm" disabled={take.isPending}>
-        Take cash
+        {purpose === "deposit" ? "Take deposit" : "Take cash"}
       </Button>
       {over && (
         <p role="alert" className="w-full text-destructive">
-          At most the balance due, {formatPharmacyMoney(due, "INR")}; an advance is a deposit.
+          At most the balance due, {formatPharmacyMoney(due ?? 0, "INR")}; take an advance as a
+          deposit.
         </p>
       )}
     </form>
@@ -166,10 +210,14 @@ function Receipt({
       }),
     {
       successToast: "Receipt voided",
-      invalidate: [receiptsKey, ["billing", "account", hospital.id, receipt.admission_id]],
+      invalidate: [
+        receiptsKey,
+        ["billing", "account", hospital.id, receipt.admission_id],
+        ["billing", "desk", hospital.id],
+      ],
     },
   );
-  const label = `Receipt ${receipt.counter_code}-${receipt.number}`;
+  const label = `${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
   return (
     <li className="py-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -182,6 +230,7 @@ function Receipt({
           )}
         </span>
         <span className={receipt.voided_at ? "line-through" : undefined}>
+          {receipt.purpose === "refund" ? "−" : ""}
           {formatPharmacyMoney(receipt.amount_minor, receipt.currency)}
         </span>
       </div>
@@ -218,5 +267,31 @@ function Receipt({
         </form>
       )}
     </li>
+  );
+}
+
+function ApplyDeposits({ hospital, admissionId }: { hospital: Hospital; admissionId: string }) {
+  // One id per click until it succeeds: a retried click repeats the same application.
+  const [id, setId] = useState(() => newBedId());
+  const apply = useApiMutation(
+    () =>
+      apiFetch(
+        `/billing/hospitals/${hospital.id}/admissions/${admissionId}/deposit-applications/${id}`,
+        { method: "PUT" },
+      ),
+    {
+      successToast: "Deposits applied",
+      invalidate: [
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
+      invalidateOnError: true,
+      onSuccess: () => setId(newBedId()),
+    },
+  );
+  return (
+    <Button size="sm" variant="outline" disabled={apply.isPending} onClick={() => apply.mutate()}>
+      Apply deposits to the final bill
+    </Button>
   );
 }

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { useApiPagedQuery } from "@helivanta/api";
 import type { AdmissionAccount } from "@helivanta/api";
 import { chooseOption } from "../../test/select";
 import { CashDesk } from "./cash-desk";
@@ -58,6 +60,14 @@ function server(opts: { permissions: string[]; mine?: unknown; shifts?: unknown[
         : json(404, { error: "no_open_shift", message: "none" });
     if (url.includes("/cash-shifts?status=pending_authorisation")) return page(opts.shifts ?? []);
     if (url.includes("/cash-shifts")) return page([]);
+    if (url.endsWith("/refund-policy"))
+      return json(200, {
+        hospital_id: hospital.id,
+        threshold_minor: 1000000,
+        currency: "INR",
+        created_by: null,
+        created_at: null,
+      });
     if (url.includes("/counters")) return page([counter]);
     if (url.includes("/receipts")) return page([]);
     return page([]);
@@ -136,11 +146,14 @@ describe("CashDesk", () => {
 });
 
 describe("CashPayments", () => {
-  const account = (balance: number): AdmissionAccount => ({
+  const account = (
+    balance: number,
+    over: { held?: number; applied?: number; status?: "open" | "closed" } = {},
+  ): AdmissionAccount => ({
     admission_id: admission,
     hospital_id: hospital.id,
     patient_id: "p",
-    status: "open",
+    status: over.status ?? "open",
     opened_at: null,
     closed_at: null,
     totals: [
@@ -149,8 +162,11 @@ describe("CashPayments", () => {
         charged_minor: 500000,
         reversed_minor: 0,
         outstanding_minor: 500000,
-        paid_minor: 500000 - balance,
+        paid_minor: 500000 - balance - (over.applied ?? 0),
         balance_minor: balance,
+        deposit_held_minor: over.held ?? 0,
+        applied_minor: over.applied ?? 0,
+        refunded_minor: 0,
       },
     ],
     sources: [],
@@ -168,7 +184,7 @@ describe("CashPayments", () => {
     await user.clear(await screen.findByLabelText("Cash received (INR)"));
     await user.type(screen.getByLabelText("Cash received (INR)"), "1600");
     await user.click(screen.getByRole("button", { name: "Take cash" }));
-    expect(await screen.findByText(/an advance is a deposit/)).toBeInTheDocument();
+    expect(await screen.findByText(/take an advance as a deposit/)).toBeInTheDocument();
     expect(puts(fetcher)).toHaveLength(0);
 
     await user.clear(screen.getByLabelText("Cash received (INR)"));
@@ -182,6 +198,31 @@ describe("CashPayments", () => {
       amount_minor: 150000,
       currency: "INR",
     });
+  });
+
+  it("refreshes the billing desk's lists after taking cash", async () => {
+    const fetcher = server({ permissions: cashier, mine: shift() });
+    let deskFetches = 0;
+    function DeskProbe() {
+      useApiPagedQuery(["billing", "desk", hospital.id, "to_collect"], "/probe-desk");
+      return null;
+    }
+    const counting = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (String(url).includes("/probe-desk")) deskFetches++;
+      return fetcher(url, init);
+    });
+    vi.stubGlobal("fetch", counting);
+    const { user } = renderWithProviders(
+      <>
+        <DeskProbe />
+        <CashPayments hospital={hospital} admissionId={admission} account={account(150000)} />
+      </>,
+    );
+    await waitFor(() => expect(deskFetches).toBe(1));
+    await user.clear(await screen.findByLabelText("Cash received (INR)"));
+    await user.type(screen.getByLabelText("Cash received (INR)"), "1500");
+    await user.click(screen.getByRole("button", { name: "Take cash" }));
+    await waitFor(() => expect(deskFetches).toBe(2));
   });
 
   it("offers no payment without an open shift", async () => {
@@ -202,5 +243,108 @@ describe("CashPayments", () => {
     expect(screen.getByText(/in credit INR 200.00/)).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByLabelText("Cash received (INR)")).not.toBeInTheDocument();
+  });
+
+  it("takes a deposit beyond the balance due, while the account is open", async () => {
+    const fetcher = server({ permissions: cashier, mine: shift() });
+    const { user } = renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(0)} />,
+    );
+    expect(screen.queryByLabelText("Cash received (INR)")).not.toBeInTheDocument();
+    await user.clear(await screen.findByLabelText("Deposit received (INR)"));
+    await user.type(screen.getByLabelText("Deposit received (INR)"), "20000");
+    await user.click(screen.getByRole("button", { name: "Take deposit" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/admissions/${admission}/deposits/[0-9a-f-]{36}$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      amount_minor: 2000000,
+      currency: "INR",
+    });
+  });
+
+  it("takes no deposit once the patient has left", async () => {
+    server({ permissions: cashier, mine: shift() });
+    renderWithProviders(
+      <CashPayments
+        hospital={hospital}
+        admissionId={admission}
+        account={account(1000, { status: "closed" })}
+      />,
+    );
+    expect(await screen.findByLabelText("Cash received (INR)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Deposit received (INR)")).not.toBeInTheDocument();
+  });
+
+  it("applies held deposits once a final bill exists, for the billing desk", async () => {
+    const fetcher = server({ permissions: [...cashier, "billing.bill.issue"] });
+    const held = account(150000, { held: 50000 });
+    function Desk() {
+      const [final, setFinal] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setFinal(true)}>
+            final bill issued
+          </button>
+          <CashPayments
+            hospital={hospital}
+            admissionId={admission}
+            account={held}
+            hasFinalBill={final}
+          />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(<Desk />);
+    expect(screen.getByText(/deposits held INR 500.00/)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(
+      screen.queryByRole("button", { name: "Apply deposits to the final bill" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "final bill issued" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Apply deposits to the final bill" }),
+    );
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/admissions/${admission}/deposit-applications/[0-9a-f-]{36}$`),
+    );
+  });
+});
+
+describe("CashPayments refunds", () => {
+  it("offers to refund only the surplus over the bill", async () => {
+    server({ permissions: ["billing.account.read", "billing.cash.collect"], mine: shift() });
+    const account = {
+      admission_id: admission,
+      hospital_id: hospital.id,
+      patient_id: "p",
+      status: "open" as const,
+      opened_at: null,
+      closed_at: null,
+      totals: [
+        {
+          currency: "INR",
+          charged_minor: 300000,
+          reversed_minor: 0,
+          outstanding_minor: 300000,
+          paid_minor: 0,
+          balance_minor: 300000,
+          deposit_held_minor: 300000,
+          applied_minor: 0,
+          refunded_minor: 0,
+        },
+      ],
+      sources: [],
+      bed_days: { configured: true, priced: 0, not_priced: 0 },
+      entry_count: 1,
+      discharge_ordered: true,
+    };
+    renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account} hasFinalBill />,
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByLabelText("Refund in cash (INR)")).not.toBeInTheDocument();
   });
 });

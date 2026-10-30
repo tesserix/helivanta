@@ -2,6 +2,7 @@ import {
   Ambulance,
   ArrowLeftRight,
   BadgeCheck,
+  Banknote,
   BedDouble,
   BellRing,
   BookOpen,
@@ -282,6 +283,26 @@ export const ZONES: Zone[] = [
         href: "/emergency/receiving",
         icon: Hospital,
         permission: "emergency.receiving.read",
+      },
+    ],
+  },
+  {
+    // The billing desk (#197–#199): its own zone, since the billing desk
+    // (receptionists) holds no MediCore clinical read.
+    key: "billing",
+    label: "Billing",
+    railLabel: "Billing",
+    icon: Banknote,
+    href: "/billing",
+    permission: "billing.account.read",
+    hue: "amber",
+    group: "operations",
+    pages: [
+      {
+        label: "Billing desk",
+        href: "/billing",
+        icon: Banknote,
+        permission: "billing.account.read",
       },
     ],
   },

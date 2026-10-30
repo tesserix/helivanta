@@ -36,11 +36,13 @@ The spec's actor is a registration clerk. `authz.systemRoles` has five roles and
 Named `receptionist` rather than `registration_clerk` because it names the person, not one feature's view of them — it will still be the right name when appointments and queueing arrive.
 
 **Files:**
+
 - Modify: `backend/pkg/authz/authz.go`
 - Modify: `backend/internal/archtest/matrix_test.go`
 - Test: `backend/pkg/authz/authz_test.go`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `authz.RoleReceptionist authz.Role = "receptionist"`, included in `authz.systemRoles`.
 
@@ -107,10 +109,12 @@ git commit -m "feat(70): add the receptionist system role"
 The spec is explicit that this ruleset, not the encoder, is where correctness lives. Pure functions only: no database, no clock, no HTTP.
 
 **Files:**
+
 - Create: `backend/internal/modules/patientmaster/matching/normalize.go`
 - Test: `backend/internal/modules/patientmaster/matching/normalize_test.go`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `func NormalizeName(raw string) string`, `func PhoneticKey(raw string) string`.
 
@@ -308,10 +312,12 @@ git commit -m "feat(70): normalise Indian name variants for patient matching"
 ### Task 3: Scoring and the three bands
 
 **Files:**
+
 - Create: `backend/internal/modules/patientmaster/matching/score.go`
 - Test: `backend/internal/modules/patientmaster/matching/score_test.go`
 
 **Interfaces:**
+
 - Consumes: `NormalizeName`, `PhoneticKey` (Task 2).
 - Produces:
 
@@ -572,12 +578,14 @@ git commit -m "feat(70): score patient candidates into block, review and no-matc
 ### Task 4: The module, its tables, and tenant isolation
 
 **Files:**
+
 - Create (via generator): `backend/internal/modules/patientmaster/module.go`
 - Modify: `backend/internal/bootstrap/modules.go` (or wherever `bootstrap.NewRegistry` lists modules)
 - Modify: `backend/internal/archtest/arch_test.go` (`allModules()`)
 - Test: `backend/internal/modules/patientmaster/module_test.go`
 
 **Interfaces:**
+
 - Consumes: `authz.RoleReceptionist` (Task 1).
 - Produces: `patientmaster.New() *Module`; permissions `PermPatientRead authz.Permission = "patient.read"`, `PermPatientRegister authz.Permission = "patient.register"`; tables `patients`, `patient_identifiers`, `patient_consents`, `patient_duplicate_overrides`.
 
@@ -786,11 +794,13 @@ git commit -m "feat(70): add the patientmaster module with tenant-isolated patie
 ### Task 5: Registration — block, offer candidates, or override
 
 **Files:**
+
 - Create: `backend/internal/modules/patientmaster/patients.go`
 - Modify: `backend/internal/modules/patientmaster/module.go` (`Routes`)
 - Test: `backend/internal/modules/patientmaster/patients_test.go`
 
 **Interfaces:**
+
 - Consumes: `matching.Candidate`, `matching.Rank`, `matching.BandConfident`, `matching.DefaultThresholds`, `NormalizeName`, `PhoneticKey` (Tasks 2-3); `PermPatientRegister`, `PermPatientRead` (Task 4).
 - Produces: `POST /v1/patients`, `GET /v1/patients/:id`, `GET /v1/patients` (keyset list).
 
@@ -924,12 +934,14 @@ git commit -m "feat(70): register patients, blocking confident duplicates with a
 ### Task 6: Events, carrying no PHI
 
 **Files:**
+
 - Create: `backend/internal/modules/patientmaster/contract/events.go`
 - Modify: `backend/internal/modules/patientmaster/module.go` (`Publishes`), `patients.go` (publish)
 - Modify: `backend/internal/archtest/event_payload_test.go`
 - Test: `backend/internal/modules/patientmaster/patients_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 5's `register`.
 - Produces: `patientmastercontract.SubjectPatientRegistered = "helivanta.in.patientmaster.registered.v1"`, `PatientRegisteredData{PatientID string}`.
 
@@ -1017,7 +1029,7 @@ Expected: PASS.
 
 - [ ] **Step 7: Prove the PHI test can fail**
 
-Temporarily add `GivenName string \`json:"given_name"\`` to `PatientRegisteredData` and populate it. Confirm TWO things fail: `TestRegisteredEventCarriesOnlyTheID`, and the archtest payload classifier (the new field is unclassified). Revert both.
+Temporarily add `GivenName string \`json:"given_name"\``to`PatientRegisteredData`and populate it. Confirm TWO things fail:`TestRegisteredEventCarriesOnlyTheID`, and the archtest payload classifier (the new field is unclassified). Revert both.
 
 - [ ] **Step 8: Commit**
 
@@ -1031,12 +1043,14 @@ git commit -m "feat(70): publish patient.registered carrying only the patient id
 ### Task 7: `visit_created` gains `patient_id`, additively
 
 **Files:**
+
 - Modify: `backend/internal/modules/medicore/contract/events.go`
 - Modify: `backend/internal/modules/medicore/visits.go`
 - Modify: `backend/internal/archtest/event_payload_test.go`
 - Test: `backend/internal/modules/medicore/module_test.go`
 
 **Interfaces:**
+
 - Consumes: nothing from patientmaster (modules never import modules) — the visit carries an id the caller supplies.
 - Produces: `medicorecontract.VisitCreatedData.PatientID string`.
 
@@ -1081,7 +1095,7 @@ In `backend/internal/modules/medicore/contract/events.go`, add to `VisitCreatedD
 
 - [ ] **Step 4: Populate it**
 
-In `backend/internal/modules/medicore/visits.go`: add `PatientID string \`json:"patient_id" binding:"omitempty,uuid"\`` to `createVisitRequest`, store it on the visit row (migration `0003_medicore` adding a nullable `patient_id uuid` column — append-only, do not edit `0001` or `0002`), and set it on the published payload.
+In `backend/internal/modules/medicore/visits.go`: add `PatientID string \`json:"patient_id" binding:"omitempty,uuid"\``to`createVisitRequest`, store it on the visit row (migration `0003_medicore`adding a nullable`patient_id uuid`column — append-only, do not edit`0001`or`0002`), and set it on the published payload.
 
 `omitempty` because visits opened before patients exist must keep working; this is the transition D7 describes, not a hard cutover.
 

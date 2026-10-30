@@ -17,13 +17,13 @@ org `Helivanta`, seeded user `test@hms.dev`.
 > `/login` was never reached.
 >
 > **The flip is not a no-op**, and `docker-compose.dev.yml`'s own comment at
-> that setting says so: any other product getting Login V2 *implicitly* from
+> that setting says so: any other product getting Login V2 _implicitly_ from
 > the instance-wide flag falls back to its own per-app setting — or to Login
 > V1, if it has none — the moment `required` goes to `false`. In dev that is
 > harmless (Helivanta is the only app configured here besides the Management
 > Console). On the shared instance it is a cross-product change and belongs to
 > the platform team. This qualifies spec D1's "another product's login must
-> not move": the *per-app base URI* is Helivanta's alone, but the instance-wide
+> not move": the _per-app base URI_ is Helivanta's alone, but the instance-wide
 > `required` flag this workaround also needs is not, and the two were
 > conflated in D1 as originally written. See D1 for the corrected claim.
 >
@@ -97,16 +97,16 @@ The org policy was restored to default afterwards; re-read confirms
 
 ## 3. Failed and unknown logins are distinguishable — two ways
 
-| Case | Status | Body | Time (3 runs) |
-|---|---|---|---|
-| Correct password | 200 | `{sessionId, sessionToken}` | — |
-| Wrong password | **400** | `COMMAND-3M0fs` "Password is invalid", `CredentialsCheckError` with `failedAttempts` | **0.72–0.78s** |
-| Unknown user | **404** | `QUERY-Dfbg2` "User could not be found" | **0.013s** |
+| Case             | Status  | Body                                                                                 | Time (3 runs)  |
+| ---------------- | ------- | ------------------------------------------------------------------------------------ | -------------- |
+| Correct password | 200     | `{sessionId, sessionToken}`                                                          | —              |
+| Wrong password   | **400** | `COMMAND-3M0fs` "Password is invalid", `CredentialsCheckError` with `failedAttempts` | **0.72–0.78s** |
+| Unknown user     | **404** | `QUERY-Dfbg2` "User could not be found"                                              | **0.013s**     |
 
 Both the status code and a **~55× timing difference** are user-enumeration
 oracles. The timing gap is the password hash: an unknown user never reaches it.
 
-Helivanta must therefore return one identical response for both, *and* equalise the
+Helivanta must therefore return one identical response for both, _and_ equalise the
 timing — mapping the status codes alone leaves the oracle intact and would look
 fixed. `failedAttempts` must never reach the browser.
 
@@ -131,7 +131,7 @@ password always succeeds.
 > The full measurement and its consequences are recorded at
 > `MinFailedLoginDuration` in `backend/internal/modules/iam/loginui.go`.
 
-So there is still no *lockout*, and the request rate limiter (#841/#851) remains
+So there is still no _lockout_, and the request rate limiter (#841/#851) remains
 the only control Helivanta itself applies. That is a real gap and it exists **now**,
 independent of this work — it is not introduced by the login client. Tracked as
 [#855](https://github.com/tesserix/helivanta/issues/855).

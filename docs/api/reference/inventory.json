@@ -3510,6 +3510,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/accounts",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/account",
           "permission": "billing.account.read",
           "authentication_required": true,
@@ -3542,6 +3551,33 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application",
+          "permission": "billing.bill.issue",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3614,6 +3650,33 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals/:approval",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refunds/:receipt",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3719,6 +3782,24 @@
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void",
           "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/refund-policies/:policy",
+          "permission": "billing.counter.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/refund-policy",
+          "permission": "billing.account.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -3846,6 +3927,28 @@
             "billing_counters",
             "billing_cash_shifts",
             "billing_cash_receipts"
+          ]
+        },
+        {
+          "id": "0006_billing",
+          "sql_sha256": "6e1079e3fde89b7ff517d7a7361c80a6dee8c6768162e98347c39481fc9fdd58",
+          "creates_tables": [
+            "billing_deposit_applications"
+          ]
+        },
+        {
+          "id": "0007_billing",
+          "sql_sha256": "b3f319f7e7937c8c331b959d80793584235f6686f554376bfc174c869811e55f",
+          "creates_tables": [
+            "billing_refund_policies",
+            "billing_refund_approvals"
+          ]
+        },
+        {
+          "id": "0008_billing",
+          "sql_sha256": "49e759e2b90483181372d677174e22bd5aaaea885418ec0d57edee3874ae426f",
+          "creates_tables": [
+            "billing_account_positions"
           ]
         }
       ]

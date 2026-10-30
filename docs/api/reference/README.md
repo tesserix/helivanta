@@ -541,10 +541,14 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | DELETE | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/access/:subject` | `billing.access.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/access` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/accounts` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/account` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application` | `billing.bill.issue` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
 | POST | `/v1/billing/hospitals/:hospital/admissions/:admission/final-bills` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number/lines` | `billing.account.read` | true | false |
@@ -553,6 +557,9 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | POST | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills` | `billing.bill.issue` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/receipts/:receipt` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/receipts` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals/:approval` | `billing.shift.authorise` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/refunds/:receipt` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
@@ -565,6 +572,8 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/counters` | `billing.account.read` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/refund-policies/:policy` | `billing.counter.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/refund-policy` | `billing.account.read` | false | false |
 
 Published subjects:
 
@@ -587,6 +596,9 @@ Migration table declarations:
 - `0003_billing`: `billing_interim_bills`, `billing_interim_bill_lines`.
 - `0004_billing`: `billing_discharge_orders`.
 - `0005_billing`: `billing_counters`, `billing_cash_shifts`, `billing_cash_receipts`.
+- `0006_billing`: `billing_deposit_applications`.
+- `0007_billing`: `billing_refund_policies`, `billing_refund_approvals`.
+- `0008_billing`: `billing_account_positions`.
 
 ## supply
 

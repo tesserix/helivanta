@@ -34,7 +34,7 @@ CREATE FUNCTION billing_gst_room_policy(on_date date)
  WHERE v.effective_from <= on_date ORDER BY v.effective_from DESC LIMIT 1
 $$;
 
--- A hospital's GST registration, set once, from its own today or later.
+-- A hospital's GST registration, set once, from its own tomorrow or later.
 CREATE TABLE billing_gst_registrations (
  tenant_id uuid NOT NULL,
  hospital_id uuid NOT NULL,
@@ -51,13 +51,16 @@ CREATE TABLE billing_gst_registrations (
  FOREIGN KEY (tenant_id,hospital_id) REFERENCES billing_bed_charging (tenant_id,hospital_id)
 );
 
--- Not backdated: days before it were never charged tax, and taxing them
--- now is a finance decision. Rates at a registered hospital are INR, the
--- only currency GST is computed in.
+-- From tomorrow at the earliest: a room day dated today or before may already
+-- be on a final bill the patient has settled, and adding tax to it would
+-- reopen that account. Taxing past days is a finance decision. Rates at a
+-- registered hospital are INR, the only currency GST is computed in. The
+-- hospital's bed-charging row is locked so a rate and a registration being
+-- written at once are checked one after the other.
 CREATE FUNCTION billing_gst_registration_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- IF NEW.effective_from < (SELECT (now() AT TIME ZONE c.timezone)::date FROM billing_bed_charging c WHERE c.tenant_id=NEW.tenant_id AND c.hospital_id=NEW.hospital_id) THEN
-  RAISE EXCEPTION 'a GST registration takes effect from the hospital''s today or later' USING ERRCODE='23514', CONSTRAINT='billing_gst_backdated';
+ IF NEW.effective_from <= (SELECT (now() AT TIME ZONE c.timezone)::date FROM billing_bed_charging c WHERE c.tenant_id=NEW.tenant_id AND c.hospital_id=NEW.hospital_id FOR UPDATE) THEN
+  RAISE EXCEPTION 'a GST registration takes effect from the hospital''s tomorrow or later' USING ERRCODE='23514', CONSTRAINT='billing_gst_backdated';
  END IF;
  IF EXISTS (SELECT 1 FROM billing_bed_rates r WHERE r.tenant_id=NEW.tenant_id AND r.hospital_id=NEW.hospital_id AND r.currency<>'INR') THEN
   RAISE EXCEPTION 'a GST-registered hospital''s bed rates are in INR' USING ERRCODE='23514', CONSTRAINT='billing_gst_inr';
@@ -70,6 +73,7 @@ CREATE TRIGGER billing_gst_registration_fixed BEFORE UPDATE ON billing_gst_regis
 
 CREATE FUNCTION billing_bed_rate_inr() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ PERFORM 1 FROM billing_bed_charging c WHERE c.tenant_id=NEW.tenant_id AND c.hospital_id=NEW.hospital_id FOR UPDATE;
  IF NEW.currency<>'INR' AND EXISTS (SELECT 1 FROM billing_gst_registrations g WHERE g.tenant_id=NEW.tenant_id AND g.hospital_id=NEW.hospital_id) THEN
   RAISE EXCEPTION 'a GST-registered hospital''s bed rates are in INR' USING ERRCODE='23514', CONSTRAINT='billing_gst_inr';
  END IF;
@@ -146,6 +150,12 @@ CREATE OR REPLACE FUNCTION billing_bed_days_settled(row_tenant uuid,row_hospital
   WHERE s.tenant_id=row_tenant AND s.admission_id=row_admission
   AND (s.started_at IS NULL
    OR (s.ended_at IS NULL AND (a.status='closed' OR s.next_census_at IS NULL OR s.next_census_at - interval '15 minutes' <= clock_timestamp()))))
+$$;
+
+-- The Indian financial year of a date, April to March: 2026-04-01 to
+-- 2027-03-31 is 2627.
+CREATE FUNCTION billing_financial_year(d date) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+ SELECT to_char(d - interval '3 months','YY') || to_char(d + interval '9 months','YY')
 $$;
 
 -- The invoice-cum-bill of supply (CGST Rules 46, 46A) for an admission's
@@ -241,8 +251,7 @@ BEGIN
  NEW.gstin := g.gstin; NEW.supplier_name := g.legal_name; NEW.supplier_address := g.address;
  NEW.state_code := substr(g.gstin,1,2);
  NEW.issue_date := today;
- -- April to March: 2026-04-01 to 2027-03-31 is 2627.
- NEW.financial_year := to_char(today - interval '3 months','YY') || to_char(today + interval '9 months','YY');
+ NEW.financial_year := billing_financial_year(today);
  PERFORM pg_advisory_xact_lock(hashtextextended(NEW.tenant_id::text||':billing-tax-invoice:'||NEW.gstin||':'||NEW.financial_year, 0));
  NEW.serial := (SELECT COALESCE(max(serial),0)+1 FROM billing_tax_invoices WHERE tenant_id=NEW.tenant_id AND gstin=NEW.gstin AND financial_year=NEW.financial_year);
  NEW.issued_at := clock_timestamp();
@@ -270,10 +279,12 @@ BEGIN
  SELECT * INTO t FROM billing_gst_lines l WHERE l.tenant_id=NEW.tenant_id AND l.bed_day_id=d.id;
  -- The day's tax must already be on the account if the policy taxes it.
  IF (t.bed_day_id IS NOT NULL) <> (d.bed_class <> ALL(p.exempt_classes) AND d.daily_rate_minor > p.threshold_minor) THEN
-  RAISE EXCEPTION 'a room day''s tax is not yet recorded' USING ERRCODE='23514', CONSTRAINT='billing_tax_invoice_line';
+  -- Not the desk's error: the census and the policy disagree.
+  RAISE EXCEPTION 'a room day''s tax is not yet recorded' USING ERRCODE='23514', CONSTRAINT='billing_tax_invoice_untaxed';
  END IF;
  NEW.census_date := d.census_date; NEW.bed_class := d.bed_class; NEW.value_minor := d.daily_rate_minor;
- NEW.sac := p.sac; NEW.policy_version := p.version;
+ -- The version the tax was computed under, not a later one.
+ NEW.sac := COALESCE(t.sac, p.sac); NEW.policy_version := COALESCE(t.policy_version, p.version);
  NEW.taxable := t.bed_day_id IS NOT NULL;
  NEW.cgst_bp := COALESCE(t.cgst_bp,0); NEW.sgst_bp := COALESCE(t.sgst_bp,0);
  NEW.cgst_minor := COALESCE(t.cgst_minor,0); NEW.sgst_minor := COALESCE(t.sgst_minor,0);

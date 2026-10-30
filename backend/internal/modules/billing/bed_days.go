@@ -302,7 +302,7 @@ func taxDays(tx *gorm.DB, tenant string, hospital, admission uuid.UUID) error {
 	if err := tx.Raw(`INSERT INTO billing_gst_lines (tenant_id,bed_day_id) SELECT d.tenant_id,d.id FROM billing_bed_days d
   JOIN billing_gst_registrations g ON g.tenant_id=d.tenant_id AND g.hospital_id=d.hospital_id AND g.effective_from<=d.census_date
   CROSS JOIN LATERAL billing_gst_room_policy(d.census_date) p
- WHERE d.tenant_id=? AND d.admission_id=? AND d.priced_at IS NOT NULL AND d.voided_at IS NULL
+ WHERE d.tenant_id=? AND d.admission_id=? AND d.priced_at IS NOT NULL AND d.voided_at IS NULL AND d.currency='INR'
   AND d.bed_class <> ALL(p.exempt_classes) AND d.daily_rate_minor > p.threshold_minor
   AND NOT EXISTS (SELECT 1 FROM billing_gst_lines l WHERE l.tenant_id=d.tenant_id AND l.bed_day_id=d.id)
  RETURNING bed_day_id,census_date,(SELECT census_at FROM billing_bed_days b WHERE b.tenant_id=billing_gst_lines.tenant_id AND b.id=billing_gst_lines.bed_day_id) AS census_at,cgst_minor+sgst_minor AS tax`,

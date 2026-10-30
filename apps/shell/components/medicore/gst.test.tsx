@@ -110,11 +110,11 @@ afterEach(() => {
 });
 
 describe("GstSetup", () => {
-  it("records the registration from the hospital's today, refusing a malformed GSTIN inline", async () => {
+  it("records the registration from the hospital's tomorrow, refusing a malformed GSTIN inline", async () => {
     const fetcher = server();
     const { user } = renderWithProviders(<GstSetup hospital={hospital} />);
     const from = await screen.findByLabelText("Taxed from");
-    expect(from).toHaveValue("2026-10-31");
+    expect(from).toHaveValue("2026-11-01");
     await user.type(screen.getByLabelText("GSTIN"), "27AAPFU0939");
     await user.type(screen.getByLabelText("Legal name"), "TEST General Hospital Pvt Ltd");
     await user.type(screen.getByLabelText("Registered address"), "1 MG Road, Pune");
@@ -130,7 +130,7 @@ describe("GstSetup", () => {
       gstin: "27AAPFU0939F1ZV",
       legal_name: "TEST General Hospital Pvt Ltd",
       address: "1 MG Road, Pune",
-      effective_from: "2026-10-31",
+      effective_from: "2026-11-01",
     });
   });
 

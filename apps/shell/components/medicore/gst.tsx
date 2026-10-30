@@ -98,15 +98,19 @@ function GstPanel({ hospital }: { hospital: Hospital }) {
 }
 
 function RegistrationForm({ hospital, timezone }: { hospital: Hospital; timezone: string }) {
-  // The hospital's own date (en-CA formats as YYYY-MM-DD).
-  const [today] = useState(() =>
-    new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date()),
-  );
+  // The hospital's own tomorrow, the earliest a registration may take effect
+  // (en-CA formats as YYYY-MM-DD; noon UTC keeps the calendar step exact).
+  const [tomorrow] = useState(() => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
+    const next = new Date(`${today}T12:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    return next.toISOString().slice(0, 10);
+  });
   const form = useZodForm(gstRegistrationSchema, {
     gstin: "",
     legal_name: "",
     address: "",
-    effective_from: today,
+    effective_from: tomorrow,
   });
   const save = useApiMutation(
     (values: z.infer<typeof gstRegistrationSchema>) =>
@@ -131,7 +135,7 @@ function RegistrationForm({ hospital, timezone }: { hospital: Hospital; timezone
         <Input id="gst-gstin" autoComplete="off" {...form.register("gstin")} />
       </Field>
       <Field id="gst-from" label="Taxed from" error={errors.effective_from?.message}>
-        <Input id="gst-from" type="date" min={today} {...form.register("effective_from")} />
+        <Input id="gst-from" type="date" min={tomorrow} {...form.register("effective_from")} />
       </Field>
       <Field id="gst-name" label="Legal name" error={errors.legal_name?.message}>
         <Input id="gst-name" {...form.register("legal_name")} />
@@ -144,7 +148,8 @@ function RegistrationForm({ hospital, timezone }: { hospital: Hospital; timezone
           Record GST registration
         </Button>
         <p className="text-sm text-muted-foreground">
-          Set once, from today or later: it cannot be changed or backdated here.
+          Set once, from tomorrow at the earliest, so no bill already settled gains tax. It cannot
+          be changed or backdated here.
         </p>
       </div>
     </form>

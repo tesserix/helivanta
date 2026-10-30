@@ -299,7 +299,7 @@ review of the policy is required before production use.
   - `PUT /billing/hospitals/:hospital/gst-registration` `{gstin,legal_name,address,effective_from}`
     needs `billing.tax.manage` (tenant administrators only) and is set once.
   - The GSTIN's state, PAN pattern and check character are validated (`400`).
-  - The effective date is not before the hospital's today (`409 registration_backdated`), and the
+  - The effective date is the hospital's tomorrow or later, so no settled bill gains tax (`409 registration_backdated`), and the
     hospital's timezone is required (`409 not_configured`).
   - A registered hospital's bed rates are INR (`409 rates_not_inr`).
   - `GET` returns the registration, with `applied_at` once the census has applied it.

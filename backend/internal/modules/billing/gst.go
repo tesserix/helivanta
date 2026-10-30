@@ -50,7 +50,7 @@ func gstFailure(c *gin.Context, err error) {
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_gstin":
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "the GSTIN is not valid: check its state code, PAN and check character")
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_gst_backdated":
-		respond.Error(c, http.StatusConflict, "registration_backdated", "a GST registration takes effect from the hospital's today or later")
+		respond.Error(c, http.StatusConflict, "registration_backdated", "a GST registration takes effect from the hospital's tomorrow or later")
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_gst_inr":
 		respond.Error(c, http.StatusConflict, "rates_not_inr", "a GST-registered hospital's bed rates are in INR")
 	case errors.As(err, &pg) && pg.Code == "23503" && pg.ConstraintName == "billing_gst_registrations_tenant_id_hospital_id_fkey":
@@ -98,13 +98,22 @@ func (h *handlers) setGstRegistration(c *gin.Context) {
 	}
 	var out gstRegistration
 	err = h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
-		if err := tx.Exec(`INSERT INTO billing_gst_registrations (tenant_id,hospital_id,gstin,legal_name,address,effective_from,created_by) VALUES (?,?,?,?,?,?,?)
+		// A recorded registration answers a retry, on any later day: its
+		// insert trigger would refuse the date before the conflict is seen.
+		var held []gstRegistration
+		if err := tx.Raw(gstRegistrationSelect, p.TenantID, hospital).Scan(&held).Error; err != nil {
+			return err
+		}
+		if len(held) == 0 {
+			if err := tx.Exec(`INSERT INTO billing_gst_registrations (tenant_id,hospital_id,gstin,legal_name,address,effective_from,created_by) VALUES (?,?,?,?,?,?,?)
  ON CONFLICT (tenant_id,hospital_id) DO NOTHING`, p.TenantID, hospital, in.GSTIN, name, address, in.EffectiveFrom, p.Subject).Error; err != nil {
-			return err
+				return err
+			}
+			if err := tx.Raw(gstRegistrationSelect, p.TenantID, hospital).Scan(&held).Error; err != nil {
+				return err
+			}
 		}
-		if err := tx.Raw(gstRegistrationSelect, p.TenantID, hospital).Scan(&out).Error; err != nil {
-			return err
-		}
+		out = held[0]
 		if out.GSTIN != in.GSTIN || out.LegalName != name || out.Address != address || out.EffectiveFrom != in.EffectiveFrom {
 			return errSetDifferent
 		}

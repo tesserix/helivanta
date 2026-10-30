@@ -4038,7 +4038,7 @@
         },
         {
           "id": "0009_billing",
-          "sql_sha256": "8e3cffa8fe8713d6cd33af06c8173f2f71987142e6f6f48ac36bdb20a8a77329",
+          "sql_sha256": "5c0da2e22daa964293a1c1391e01eff4162f8174eec271b53e822fc7eb7aadf9",
           "creates_tables": [
             "billing_gst_registrations",
             "billing_gst_lines",

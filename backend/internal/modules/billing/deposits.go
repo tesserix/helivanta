@@ -119,7 +119,7 @@ func (h *handlers) applyDeposits(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "no_final_bill", errNoFinalBill.Error())
 	case errors.Is(err, errNothingToApply), errors.As(err, &pg) && pg.ConstraintName == "billing_deposit_application_bound":
 		respond.Error(c, http.StatusConflict, "nothing_to_apply", errNothingToApply.Error())
-	case errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "billing_deposit_applications_pkey":
+	case errors.Is(err, errCashConflict), errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "billing_deposit_applications_pkey":
 		respond.Conflict(c, errCashConflict.Error())
 	case err != nil:
 		failure(c, err)

@@ -90,7 +90,7 @@ function Weekday({
     form.setValue(`days.${index}.weekly_off`, off, { shouldDirty: true, shouldValidate: false });
   };
   return (
-    <fieldset aria-label={name} className="rounded-xl border bg-muted/15 p-4">
+    <fieldset aria-label={name} className="min-w-0 rounded-xl border bg-muted/15 p-4">
       <legend className="px-1 text-sm font-semibold">{name}</legend>
       <div className="mb-4 flex justify-end">
         <label className="flex items-center gap-2 text-xs">

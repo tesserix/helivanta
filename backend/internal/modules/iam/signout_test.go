@@ -19,6 +19,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/pkg/audit"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -136,6 +137,7 @@ func newSignoutHarness(t *testing.T, cfg signoutHarnessConfig) (*gin.Engine, *te
 	t.Cleanup(cancel)
 
 	migs := append(tenantdb.Migrations(), events.Migrations()...)
+	migs = append(migs, audit.Migrations()...)
 	migs = append(migs, New(nil).Migrations()...)
 	require.NoError(t, db.Migrate(ctx, migs))
 	bad, err := db.LintRLS(ctx)

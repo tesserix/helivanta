@@ -81,6 +81,53 @@ func TestCurrentAuthorizationDeniesRemovedRoleDespiteStaleGraph(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, read(), "a late grant replay cannot restore removed IAM membership")
 }
 
+func TestCredentialRevocationScopeWithSignedSessionsAndRealGraph(t *testing.T) {
+	_, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(nil)}})
+	graph, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
+	require.NoError(t, err)
+	registry := platform.NewRegistry()
+	require.NoError(t, registry.Register(iam.New(nil)))
+	for _, tenant := range []string{testutil.TenantA, testutil.TenantB} {
+		require.NoError(t, platform.ReconcileTenant(ctx, registry, graph, tenant))
+		require.NoError(t, graph.GrantTenantRole(ctx, tenant, authz.RoleStaffMember))
+		require.NoError(t, graph.GrantRole(ctx, tenant, "synthetic-global-target", authz.RoleStaffMember))
+	}
+	require.NoError(t, graph.GrantTenantRole(ctx, testutil.TenantA, authz.RoleTenantAdmin))
+	require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, "synthetic-current-admin", authz.RoleTenantAdmin))
+	for _, member := range []struct {
+		tenant, subject string
+		role            authz.Role
+	}{
+		{testutil.TenantA, "synthetic-current-admin", authz.RoleTenantAdmin},
+		{testutil.TenantB, "synthetic-global-target", authz.RoleStaffMember},
+	} {
+		require.NoError(t, db.WithTenant(ctx, member.tenant, func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,?,?)`, member.tenant, member.subject, member.role).Error
+		}))
+	}
+	authority, err := iam.NewCurrentAuthorization(db, registry, graph)
+	require.NoError(t, err)
+	checker := iam.NewRevocationChecker(db)
+	signer, verifier := testutil.NewSessionSignerForTest(t)
+	r := gin.New()
+	api := platform.NewRouter(r.Group("/v1", authn.Middleware(authn.NewSessionVerifier(verifier), checker), authz.Middleware(authority)), authority)
+	iam.New(checker).Routes(api, platform.Deps{DB: db, Bus: bus, Roles: graph})
+	actor, err := signer.Mint("synthetic-current-admin", testutil.TenantA, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
+	require.NoError(t, err)
+	target, err := signer.Mint("synthetic-global-target", testutil.TenantB, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, testutil.Do(r, http.MethodGet, "/v1/iam/me/permissions", target, "").Code)
+	denied := testutil.Do(r, http.MethodPost, "/v1/iam/subjects/synthetic-global-target/revoke", actor, "")
+	require.Equal(t, http.StatusNotFound, denied.Code, denied.Body.String())
+	require.Equal(t, http.StatusOK, testutil.Do(r, http.MethodGet, "/v1/iam/me/permissions", target, "").Code, "a stale graph target binding must not end the other tenant's signed session")
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-global-target','staff_member')`, testutil.TenantA).Error
+	}))
+	accepted := testutil.Do(r, http.MethodPost, "/v1/iam/subjects/synthetic-global-target/revoke", actor, "")
+	require.Equal(t, http.StatusOK, accepted.Code, accepted.Body.String())
+	require.Equal(t, http.StatusUnauthorized, testutil.Do(r, http.MethodGet, "/v1/iam/me/permissions", target, "").Code, "a current authorized explicit security action must retain its global effect")
+}
+
 func TestCurrentAuthorizationRequiresBothSourcesAndKnownRoles(t *testing.T) {
 	_, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{iam.New(nil)}})
 	graph, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
@@ -284,4 +331,12 @@ func TestCurrentAuthorizationBoundsLookupInLargeTenant(t *testing.T) {
 	}))
 	require.True(t, strings.Contains(plan, `"Node Type": "Index Only Scan"`) || strings.Contains(plan, `"Node Type": "Index Scan"`) || strings.Contains(plan, `"Node Type": "Bitmap Index Scan"`), plan)
 	t.Logf("100,001-row current membership lookup: %s", plan)
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT subject,role_key FROM iam_members
+			WHERE tenant_id=? AND ((subject=? AND role_key=?) OR (subject=? AND role_key IN ?))
+			ORDER BY subject,role_key LIMIT ? FOR SHARE`, testutil.TenantA, "synthetic-scale-admin", authz.RoleTenantAdmin,
+			"synthetic-scale-99999", authz.SystemRoles(), len(authz.SystemRoles())+2).Scan(&plan).Error
+	}))
+	require.True(t, strings.Contains(plan, `"Node Type": "Index Scan"`) || strings.Contains(plan, `"Node Type": "Bitmap Index Scan"`), plan)
+	t.Logf("100,001-row locked revocation membership lookup: %s", plan)
 }

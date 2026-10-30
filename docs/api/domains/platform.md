@@ -50,6 +50,28 @@ uses its existing role-list contract. See the
 [design and acceptance limits](../../superpowers/specs/2026-10-30-current-tenant-role-authority.md)
 and the [full A01–A12 plan](../../superpowers/plans/2026-10-30-staff-rbac-completion.md).
 
+### Current source for administrative credential revocation
+
+The explicit security action `POST /v1/iam/subjects/:subject/revoke` retains its
+global session effect; it is not a hospital employment or membership removal.
+The candidate honors the optional `X-Helivanta-Expected-Tenant` precondition
+before external lookup (`409 session_changed` for stale/malformed assertions).
+Graph lookup must succeed and bind the target to the verified acting tenant.
+
+The write additionally requires the current administrative membership and fresh
+credential watermark of the actor, plus a current known target membership in
+that tenant. Deterministically ordered credential advisory locks and shared
+membership row locks fence the existing watermark/outbox transaction, including
+source changes during external lookup or lock waits. An absent target returns
+404, a removed administrator returns 403, a revoked/expired acting credential
+returns 401 and unavailable authorization returns 503. Persistence failure
+returns 500 and rolls back the watermark and event. No new wire payload, event,
+permission or migration is introduced. Memberships in other tenants are retained;
+the existing target credential invalidation remains deliberately global.
+
+Self-sign-out keeps its separate authenticated self-service path. See the
+[revocation-scope design](../../superpowers/specs/2026-10-30-current-credential-revocation-scope.md).
+
 ## Shared capability contracts
 
 | Capability                    | Current source                                                             | Contract/review requirement                                                                                                              |

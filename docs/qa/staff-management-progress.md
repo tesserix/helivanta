@@ -175,14 +175,35 @@ removed after the architecture guard rejected it. The final complete architectur
 race suite passed, including every declared role against the independent
 permission matrix, unsupported foreign graph authority and stale role removal.
 
-The local candidate is healthy behind the local Global API. Chrome blocked
-normal navigation to the local identity-provider hostname with
-`ERR_BLOCKED_BY_CLIENT`; fresh normal-login UI acceptance remains unverified.
+The local candidate is healthy behind the local Global API. The first browser
+attempt used an unregistered numeric-loopback callback. Read-only metadata from
+the configured local identity provider identified the registered
+`http://helivanta.localhost:4399` origin; using it restored the Staff access UI
+without changing browser protections or identity-provider permissions. Existing
+Admin-session reads pass; fresh normal-login UI acceptance remains unverified.
 This candidate is not production-deployed. No A-item or broad Staff area is
 marked complete. Incarnation-bound membership commands/UI, provisioning,
 reviewed employment, legacy-grant classification and effective cross-owner
 lifecycle cutoffs remain in the full plan. The broad counts remain 10 partial,
 10 audit pending, 1 research and 0 fully accepted.
+
+A second A06/A11 source finding concerned explicit global credential revocation:
+the old handler trusted a stale graph target binding after that target left the
+acting tenant. The [transaction-bound revocation candidate](../superpowers/specs/2026-10-30-current-credential-revocation-scope.md)
+now requires current actor/target memberships and a fresh acting credential,
+including after real credential-lock waits. Scoped target loss returns 404,
+administrative role loss 403 and acting credential revocation 401; source outage
+returns 503. The existing workspace precondition rejects stale requests before
+external lookup. Real NATS observation verifies the unchanged global envelope;
+other-tenant memberships remain intact. A failing real outbox INSERT rolls back
+the watermark. Self and reciprocal administrator revocation are tested without
+lock upgrades or deadlock. No new production migration is added. The prior
+admission commit's five required CI checks passed. The extended candidate's full
+IAM race/coverage (82.8%), architecture, bootstrap, API and authz suites passed,
+as did affected vet/lint, API/Global API builds and contractdocs generation/check.
+Its two membership queries used existing indexes in the 100,001-row forced-RLS
+fixture; the locked actor/target query reported 0.080 ms local execution. This is
+not a production SLO. The extended commit still needs CI and normal UI acceptance.
 
 ## Delivery evidence and next work
 

@@ -35,6 +35,12 @@ cross-owner lifecycle cutoffs. Those remain in the
 [full A01–A12 plan](../superpowers/plans/2026-10-30-staff-rbac-completion.md).
 Tenant discovery/switching retains its existing role-list contract.
 
+The explicit administrative credential-revocation write also checks current
+actor/target membership and fresh actor credentials under ordered source locks;
+see its [transaction design](../superpowers/specs/2026-10-30-current-credential-revocation-scope.md).
+Its existing explicit global session effect is preserved. Hospital-local
+employment and membership actions remain separate from this security action.
+
 Reject event ordering/boot reconciliation as the sole current authority check;
 reject SQL-only authorization because it bypasses graph denial/unavailability.
 The existing bounded indexed lookup adds database work without new infrastructure

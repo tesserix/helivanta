@@ -328,6 +328,20 @@ check, changed-file formatting and diff checks passed. Go vet/build scopes and
 contractdocs commands are as above; affected and architecture lint passed.
 No current-head browser/deployed acceptance or latency SLO claim follows.
 
+The enrollment candidate was committed and pushed as `549f2f93` in draft
+[PR #1489](https://github.com/tesserix/helivanta/pull/1489). Its CI run
+`41045911107` failed browser test discovery before executing any scenarios:
+`import.meta` in the new fixture is incompatible with Playwright's CommonJS
+loading. The exact local discovery command reproduced that syntax error. Using
+`resolve(__dirname, ...)`, as the suite's existing environment loader does,
+restored discovery of all three Staff access scenarios. E2E typecheck, lint and
+format checks passed. The complete browser workflow and remaining live CI jobs
+must still be checked; discovery alone is not enrollment acceptance. This
+correction changes fixture path resolution only, with no runtime API or SQL
+change. The command was `mise exec node@24 -- pnpm --filter e2e exec playwright
+test tests/staff-access.spec.ts --list`; package checks used the
+`@helivanta/e2e` filter with `type-check`, `lint` and `format:check`.
+
 The [A01 provisioning audit](staff-identity-provisioning-audit.md) records source
 and versioned primary provider evidence. The current login client exposes active-state and
 presentation-profile reads, without a provisioning/contact-verification workflow.

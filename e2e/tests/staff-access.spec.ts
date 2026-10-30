@@ -1,8 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { ZITADEL_ORIGIN } from "./support/hosts";
 import { login, specPharmacist } from "./support/login";
 
@@ -58,7 +57,7 @@ test("administrator first-enrolls a verified identity without business permissio
     !issuer.hostname.endsWith(".localhost")
   )
     throw new Error("Enrollment fixtures require a local identity provider.");
-  const secretDir = fileURLToPath(new URL("../../dev/zitadel/secrets/", import.meta.url));
+  const secretDir = resolve(__dirname, "../../dev/zitadel/secrets");
   const pat = readFileSync(join(secretDir, "helivanta-seed.pat"), "utf8").trim();
   const email = `e2e-enrollment-${randomUUID()}@helivanta.dev`;
   const password = randomBytes(24).toString("base64url") + "Aa1!";

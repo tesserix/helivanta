@@ -43,6 +43,11 @@ func newImageScenario(t *testing.T) imageScenario {
 	require.NoError(t, err)
 	w := newPrescriptionWorld(t, files)
 	rx := w.record(t)
+	return imageScenarioForPrescription(t, w, cloud, rx)
+}
+
+func imageScenarioForPrescription(t *testing.T, w prescriptionWorld, cloud *testinfra.GCSProtocol, rx string) imageScenario {
+	t.Helper()
 	var page bytes.Buffer
 	require.NoError(t, png.Encode(&page, image.NewRGBA(image.Rect(0, 0, 2, 2))))
 	data := page.Bytes()

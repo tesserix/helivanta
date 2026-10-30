@@ -16,8 +16,11 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -30,6 +33,9 @@ type saleWorld struct {
 	db                   *tenantdb.DB
 	quarantine, sellable string
 	taxFrom              string
+	cloud                *testinfra.GCSProtocol
+	files                *attachments.GCS
+	bus                  *events.Bus
 }
 
 // newSaleWorld is an outlet on 1 Nov 2026 (IST) with a quarantine and a
@@ -37,7 +43,10 @@ type saleWorld struct {
 func newSaleWorld(t *testing.T, ready bool) saleWorld {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
-	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+	cloud := testinfra.NewGCSProtocol(t)
+	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
+	require.NoError(t, err)
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "clerk": testutil.TenantA, "owner": testutil.TenantA, "stocker": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"editor":     salePerms,
@@ -47,13 +56,13 @@ func newSaleWorld(t *testing.T, ready bool) saleWorld {
 			// The owner's sale and catalogue reads, without prescriptions.
 			"owner":   {"pharmacy.catalogue.read", "pharmacy.sale.read", "pharmacy.tax.manage", "pharmacy.discount.manage"},
 			"foreign": salePerms,
-		}, Modules: []platform.Module{pharmacy.New()},
+		}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: true,
 	})
 	seedPharmacyOutlet(t, r)
 	for _, s := range []string{"user-editor", "user-pharmacist", "user-clerk", "user-owner", "user-stocker"} {
 		grantCatalogue(t, r, s, "editor")
 	}
-	w := saleWorld{r: r, db: db, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
+	w := saleWorld{r: r, db: db, cloud: cloud, files: files, bus: bus, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
 	require.Equal(t, 200, do(r, "PUT", stockPath("locations/"+w.quarantine), "editor", `{"code":"TEST-Q","name":"TEST Quarantine"}`).Code)
 	require.Equal(t, 200, do(r, "PUT", stockPath("locations/"+w.sellable), "editor", `{"code":"TEST-SHELF","name":"TEST Shelf","stock_status":"sellable"}`).Code)
 	if ready {

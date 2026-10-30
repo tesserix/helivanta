@@ -323,6 +323,7 @@ The source is Drugs Rules 1945, Rule 65 (CDSCO 2022 compilation): Schedule H and
 
   Each refusal is 409 `not_sellable` with its reason. A sale whose allocation spans several batches is one dispensing. A replay dispenses nothing more.
 
+- **Released image evidence (#1467).** New G/H/H1 quotes and sales require at least one terminal `available` image for the exact tenant/outlet/prescription. Missing, pending, rejected or failed scans refuse with `409 not_sellable`. The new insert guard enforces the same rule independently of the handler. Images are retained and available status cannot be revoked under the existing lifecycle. Migration `0029_pharmacy` preserves historical invoices and replay. Deploy only after #1406 worker acceptance.
 - **Database guarantees.** The sale-line guard locks the cited prescription line and checks product, date, units, dispensings and addresses itself. A line carries a citation exactly when its class is not `none`. A bug in the handler cannot dispense more than the prescriber allowed.
 - **Walk-in buyer.** A sale takes an optional `buyer: {name?, phone?}` (phone `^\+?[0-9]{6,15}$`). It is shown with the invoice to `pharmacy.sale.read` holders and never published.
 - **Not covered.** Directions to dispense at intervals (the pharmacist records the number of dispensings), an age limit (the rules set none), Schedule X and NDPS (#165, #171), and the H1 register report (#1062).

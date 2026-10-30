@@ -135,6 +135,7 @@ func TestTheH1RegisterExportCannotCarryAFormula(t *testing.T) {
 	body := fmt.Sprintf(`{"prescriber_name":"=HYPERLINK(1)","prescriber_registration":"MMC/2011/04567","prescriber_council":"Maharashtra Medical Council","prescribed_on":"2026-10-30","patient_name":"TEST Ravi Kumar","prescriber_address":%q,"patient_address":%q,"lines":[{"prescribed_as":"TEST as written","product_id":%q,"quantity_units":10,"dispensings_allowed":1}]}`,
 		prescriberAddress, patientAddress, h1)
 	require.Equal(t, http.StatusCreated, do(w.r, "PUT", licencePath("/prescriptions/"+id), "pharmacist", body).Code)
+	w.releasePrescriptionImage(t, id)
 	code, _, out := w.sell(t, rxSale(h1, 10, tenUnits, id, ""))
 	require.Equal(t, http.StatusCreated, code, out)
 	res := do(w.r, "GET", h1Path("/export?from=2026-11-01&to=2026-11-01"), "pharmacist", "")

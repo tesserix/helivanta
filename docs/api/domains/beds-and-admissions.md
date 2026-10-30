@@ -1,6 +1,6 @@
 # Beds, admissions, transfers and discharge
 
-[Contract index](../README.md) · **proposal for domain review; slice 1 implemented (below)**
+[Contract index](../README.md) · **proposal for domain review; bed slice 1 and discharge orders implemented (below)**
 
 ## Implemented: slice 1 (#106, 2026-10-29)
 
@@ -15,6 +15,18 @@ The [slice 1 design](../../superpowers/specs/2026-10-29-bed-occupancy-slice-1-de
 - **Who is in a bed:** `GET …/beds/:bed/occupant` and `…/rooms/:room/occupant` answer `404 no_occupant` for an empty bed or room, and `409 ambiguous` for a room with several occupied beds, never a guess.
 - **Events:** `bed_occupancy_started.v1`, `bed_occupancy_ended.v1` and `admission_released.v1`, carrying ids and times; a start also names the bed's ward, room and bed codes and its class (`bed_class`), from which [billing](billing.md#bed-day-charges-197-slice-2) prices the stay.
 - **Row security:** the bed tables require the session subject's MediCore hospital grant.
+
+## Implemented: discharge orders (#96 slice 1, 2026-10-30)
+
+The [design](../../superpowers/specs/2026-10-30-discharge-orders-design.md) is in MediCore, migration `0008_medicore`.
+
+- **A doctor orders discharge** for an admitted patient with `PUT …/admissions/:admission/discharge-orders/:order` `{disposition, note?}`: disposition `home` or `transfer_out`, note 1–500 characters. It needs `medicore.discharge.order` (doctors) and the MediCore hospital grant. `201`, or `200` for the same order again.
+- **One active order per admission**, enforced by a partial unique index: another is `409 already_ordered`. The patient must be admitted: otherwise `409 not_admitted`.
+- **Withdrawn, never edited:** `PUT …/discharge-orders/:order/withdrawals/:withdrawal` `{reason}` while the patient is admitted. The order keeps what it said, and a new order may follow.
+- **The release completes it.** The release stays the ward's departure; the active order stays on the admission as who decided and when. The release does not require an order yet.
+- **Shown** on the bed board (`discharge_order_id`, `discharge_disposition`, `discharge_ordered_at`) and as `discharge` on `GET …/admissions/:admission`.
+- **Events:** `discharge_ordered.v1` (order, admission, patient and hospital ids, disposition, time) and `discharge_withdrawn.v1` (ids and time). The note and reason stay in MediCore.
+- **Not covered:** discharge summary, medication reconciliation, departmental clearances (#1043), discharge against advice, absconding and death with their own fields, referrals, a planned discharge time, worklists (#983).
 
 Sources: [#106 bed management](https://github.com/tesserix/helivanta/issues/106), [#107 wards](https://github.com/tesserix/helivanta/issues/107), [#983 inpatient worklists](https://github.com/tesserix/helivanta/issues/983), [#1043 ward hierarchy and discharge gates](https://github.com/tesserix/helivanta/issues/1043), [#96 discharge](https://github.com/tesserix/helivanta/issues/96), [#197 admission billing](https://github.com/tesserix/helivanta/issues/197). Their acceptance criteria are requirements, not evidence of existing APIs.
 

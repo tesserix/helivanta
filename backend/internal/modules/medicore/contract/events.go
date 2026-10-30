@@ -147,3 +147,31 @@ type AdmissionReleasedData struct {
 	ReleasedAt  string `json:"released_at"`
 	Reason      string `json:"reason"`
 }
+
+// SubjectDischargeOrdered is published when a doctor orders an admitted
+// patient's discharge (#96): clinical readiness, before the release, which is
+// the departure. Billing starts the final bill from it.
+const SubjectDischargeOrdered = "helivanta.in.medicore.discharge_ordered.v1"
+
+// DischargeOrderedData is the v1 payload of SubjectDischargeOrdered.
+type DischargeOrderedData struct {
+	OrderID     string `json:"order_id"`
+	AdmissionID string `json:"admission_id"`
+	PatientID   string `json:"patient_id"`
+	HospitalID  string `json:"hospital_id"`
+	// home or transfer_out; the doctor's note stays in MediCore.
+	Disposition string `json:"disposition"`
+	OrderedAt   string `json:"ordered_at"`
+}
+
+// SubjectDischargeWithdrawn is published when a doctor withdraws a discharge
+// order before the patient leaves.
+const SubjectDischargeWithdrawn = "helivanta.in.medicore.discharge_withdrawn.v1"
+
+// DischargeWithdrawnData is the v1 payload of SubjectDischargeWithdrawn.
+type DischargeWithdrawnData struct {
+	OrderID     string `json:"order_id"`
+	AdmissionID string `json:"admission_id"`
+	HospitalID  string `json:"hospital_id"`
+	WithdrawnAt string `json:"withdrawn_at"`
+}

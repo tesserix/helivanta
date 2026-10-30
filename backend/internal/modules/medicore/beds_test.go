@@ -32,18 +32,22 @@ type bedWorld struct {
 func newBedWorld(t *testing.T) bedWorld {
 	t.Helper()
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"admin": testutil.TenantA, "desk": testutil.TenantA, "nurse": testutil.TenantA, "reader": testutil.TenantA, "outsider": testutil.TenantA, "deskB": testutil.TenantB},
+		Tokens: map[string]string{"admin": testutil.TenantA, "desk": testutil.TenantA, "nurse": testutil.TenantA, "reader": testutil.TenantA, "outsider": testutil.TenantA, "deskB": testutil.TenantB,
+			"doctor": testutil.TenantA, "doctor2": testutil.TenantA, "doctorOut": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
-			"admin":    {medicore.PermAccessManage, medicore.PermBedConfigure, medicore.PermVisitRead},
-			"desk":     {medicore.PermAdmissionManage, medicore.PermVisitRead},
-			"nurse":    {medicore.PermAdmissionManage, medicore.PermVisitRead},
-			"reader":   {medicore.PermVisitRead},
-			"outsider": {medicore.PermAdmissionManage, medicore.PermVisitRead},
-			"deskB":    {medicore.PermAdmissionManage, medicore.PermVisitRead},
+			"admin":     {medicore.PermAccessManage, medicore.PermBedConfigure, medicore.PermVisitRead},
+			"desk":      {medicore.PermAdmissionManage, medicore.PermVisitRead},
+			"nurse":     {medicore.PermAdmissionManage, medicore.PermVisitRead},
+			"reader":    {medicore.PermVisitRead},
+			"outsider":  {medicore.PermAdmissionManage, medicore.PermVisitRead},
+			"deskB":     {medicore.PermAdmissionManage, medicore.PermVisitRead},
+			"doctor":    {medicore.PermDischargeOrder, medicore.PermVisitRead},
+			"doctor2":   {medicore.PermDischargeOrder, medicore.PermVisitRead},
+			"doctorOut": {medicore.PermDischargeOrder, medicore.PermVisitRead},
 		},
 		Modules: []platform.Module{medicore.New()},
 	})
-	for _, subject := range []string{"user-admin", "user-desk", "user-nurse", "user-reader"} {
+	for _, subject := range []string{"user-admin", "user-desk", "user-nurse", "user-reader", "user-doctor", "user-doctor2"} {
 		require.Equal(t, http.StatusOK, do(r, "PUT", "/v1/medicore/hospitals/"+hospitalA.String()+"/access/"+subject, "admin", "").Code)
 	}
 	return bedWorld{r, db, ctx}

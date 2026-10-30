@@ -10,7 +10,38 @@ Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the sum
 - Record local positive UI QA separately from production positive or denial QA. A test count, route, screenshot, migration job or published release alone does not establish workflow completion.
 - Keep issues open until their actual acceptance criteria pass. Legacy issue references to Keycloak or proposed tables must be reconciled with current Zitadel/IAM/Workforce ownership before implementation.
 
-## Current delivery checkpoint — 2026-10-30
+## Current production release — c20a220, 2026-10-30
+
+The user approved revision `c20a220267cc4e71cc169c47b3ef7220612da1ce` and all four
+pending migrations. Kargo promotion `prod.01m659npxcq1ejdjcv41942wbe.06dda82`
+succeeded. All six application workloads have two updated/ready/available
+replicas on this source; API, Global API and shell are Synced/Healthy. The normal
+migration job applied `0002_billing`, `0003_billing`, `0008_medicore` and
+`0052_workforce_employment_withdrawal`, with durable `schema_migrations` receipts.
+RLS is enabled and forced on all 11 inspected new/related tables.
+
+The [release record](../deployment/releases/2026-10-30-staff-preparation-and-scheduling.md)
+and [SQL provenance manifest](../deployment/releases/2026-10-30-staff-preparation-and-scheduling.json)
+persist canonical SQL paths, source hashes, registration, application times and
+future environment replay instructions. Historical SQL stays in Git and the
+embedded owner migration registry; future corrections require new IDs.
+
+Production normal-login QA verified restricted Staff/payroll denial and the
+correct payroll heading; Admin preparation/required reason/withdrawal/reload and
+immutable history; unchanged inactive Staff; preserved original draft; shift and
+roster unsaved-input guards; long-label weekly layout/Remove; and retained shift
+and area retirement history. Only designated synthetic records were changed;
+no Staff allocation, dated roster, attendance or payroll action was performed.
+
+All required PR CI gates and final image publication passed. Runtime files match
+the fully tested PR head, with only the reviewed payroll documentation correction
+added at merge. Final-source contractdocs check passed. Full local web checks
+passed 30 tasks (1,222 shell and 409 API tests). See the release record for exact
+CI references and the distinction between local, production and schema evidence.
+The broad acceptance count remains **10 partial, 10 audit pending, 1 research,
+0 fully accepted**; the lifecycle, review, payroll/PDF and letter gaps remain open.
+
+## Previous production checkpoint — 22b6241, 2026-10-30
 
 - **Production:** `22b6241ed0ece7180d713b77145104a63d95d343`,
   [employment draft and evidence release](https://github.com/tesserix/helivanta/releases/tag/2026-10-30-staff-employment-evidence),
@@ -54,8 +85,8 @@ Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the sum
 No broad Staff area or umbrella issue is newly marked complete. Deployment of
 private drafts/evidence does not implement employment approval, access activation,
 expiry, suspension, resignation, termination, rehire, payroll runs or letters.
-Historical checkpoints below retain the state when recorded; this checkpoint is
-the current delivery state.
+Historical checkpoints retain the state when recorded. The c20a220 release
+checkpoint above is the current production state.
 
 ## Quantitative checkpoint — 2026-10-30
 

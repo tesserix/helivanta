@@ -1,5 +1,67 @@
 # Staff identity provisioning audit
 
+## Actual recipient contact UI verification — 2026-10-31
+
+A fresh browser visit reproduced a missing fixture dependency: the isolated
+v4.15.3 provider redirected to Login V2, but that UI was absent. Added a separate
+loopback-only Login V2 v4.15.3 container, pinned to upstream image digest
+`sha256:906081d8c5b8760321fa811d670e680247f768e5c4bdd4edb73d3ea942800385`.
+Its dedicated IAM_LOGIN_CLIENT machine has a private, two-day credential; it is
+not a Staff or operational access grant. Original instance-feature configuration
+was saved privately before changing only this isolated fixture's Login V2 base
+URI. Added pinned Mailpit local capture on the fixture network; its UI is
+loopback-only and no external email delivery was configured.
+
+Normal browser actions used the existing role-free synthetic account: enter
+login name, request a fresh invitation, read the delivered email and submit its
+code. The provider changed to active/verified; the unchanged owner adapter then
+observed active plus email_verified=true and the exact retained creation time.
+Fresh provider queries returned zero memberships and zero user grants. No
+password, passkey or verified-contact override was set by this test.
+
+The next visible screen is Choose authentication method (Password/Passkeys).
+Full authenticator setup, subsequent sign-in, actual canonical registry proof,
+HMS Admin/Global API consumption and independent reviewer acceptance remain
+open. This proves actual recipient contact verification through upstream UI,
+not the complete A01 provisioning or Access/RBAC journey. The browser is retained
+for continuing recipient setup; private evidence/setup and recovery captures are
+0600 under the existing authorized QA fixture directory. All changes were local;
+production was untouched.
+
+## Private command history — 2026-10-31
+
+Owner commit `9fd472d49b148ff4b1c207da609602b1b1d8d533` is pushed in draft
+[PR #22](https://github.com/tesserix/onboarding-service/pull/22). Exact-command
+history now returns bounded action/outcome/UTC summaries with current product,
+tenant, source and original-initiator checks. Opaque hash-only cursors preserve
+15-minute expiry across service instances and exclude later appends until
+refresh. Mandatory disclosure-audit failure returns no page or new cursor.
+Human viewer authorization remains the Helivanta consumer's responsibility.
+
+Canonical SQL is persisted at `1acc9d687cd161bf77689424fdbb3a1716decd9c`,
+chart 0.3.59, SHA-256
+`8e2f89da8e6f4771a7d0af3ca075094f2ec622ab6f0ce38475f9b7660018b382`.
+Schema-owner PR #1616 passed Repository Tests 41085750101, PR Validation
+41085749902 and Helm/template/security 41085750047. Its ephemeral cursor cache
+is separate from the four immutable identity ledgers. Actual application-role
+tests verified continuation/cleanup, expired-only deletion, no UPDATE/TRUNCATE,
+a 1,000-row cleanup limit and skipped locked rows. Narrow UPDATE(token_hash)
+privilege permits PostgreSQL row locks; forced RLS rejects actual updates.
+
+Full local owner race/coverage passed (54.3% overall, API 63.8%, store 61.6%),
+plus vet/build/lint (zero issues), redacted secret scan, four delivery tests,
+shell/diff checks and a Linux/arm64 image build. A rolled-back 100,001-row audit
+fixture used the partial index in 0.046 ms; this is query-plan evidence, not an
+API SLO. Exact-head CI [41089960472](https://github.com/tesserix/onboarding-service/actions/runs/41089960472)
+passed all applicable gates, including the container build/smoke/scan job.
+
+Operator resolution/replacement/conflict/orphan handling, actual recipient
+contact delivery/setup, canonical production product registration (owner #12),
+Global API/Admin/recipient/independent-reviewer UI, legacy classification and
+all remaining A01–A12 lifecycle/cross-module acceptance stay open. No merge,
+production rollout or migration occurred. Counts remain 10 partial, 10 audit
+pending, 1 research and 0 fully accepted.
+
 ## Creation command and contact roots — 2026-10-31
 
 Owner runtime `f7bc16899dcfe81cc8c0b3a9a4f003bc6da419d0` adds actual creation PUT

@@ -89,8 +89,7 @@ a second command ID after a timeout. Retain the receipt after target removal.
 
 Out-of-scope target/receipt returns 404, missing current permission 403, stale
 workspace/epoch/incarnation or command reuse 409, invalid input 400, invalid
-acting session 401, unavailable identity/authority 503 and failed persistence
-500. Responses and history are no-store. Do not disclose another tenant's
+acting session 401, unavailable identity/authority 503 and failed persistence 500. Responses and history are no-store. Do not disclose another tenant's
 membership or identity-provider profile during error handling.
 
 ## Concurrency and current authority

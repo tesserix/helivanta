@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	paymentscontract "github.com/tesserix/helivanta/internal/modules/payments/contract"
+	billingcontract "github.com/tesserix/helivanta/internal/modules/billing/contract"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -28,6 +29,9 @@ const PermAccountManage authz.Permission = "payments.account.manage"
 //go:embed payments.sql
 var schema string
 
+//go:embed requesters.sql
+var requestersSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -39,7 +43,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_payments", SQL: schema}}
+	return []tenantdb.Migration{{ID: "0001_payments", SQL: schema}, {ID: "0002_payments", SQL: requestersSchema}}
 }
 
 func serviceFor(deps platform.Deps) *service {
@@ -57,23 +61,50 @@ func (m *Module) Publishes() []string {
 
 // Consumers record each request and cancel in the bus transaction and do
 // the provider calls after it commits (AfterCommit, run on every delivery),
-// so no consumer holds a database connection while Razorpay answers.
+// so no consumer holds a database connection while Razorpay answers. Each
+// requester publishes its own subjects; the payload shapes match.
 func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 	svc := serviceFor(deps)
-	requested := func(evt events.Event) (openRequest, error) {
-		var d pharmacycontract.PaymentRequestedData
-		err := json.Unmarshal(evt.Data, &d)
-		return openRequest{Requester: paymentscontract.RequesterPharmacy, RequestID: d.RequestID, AmountMinor: d.AmountMinor,
-			Currency: d.Currency, ExpiresInSeconds: d.ExpiresInSeconds}, err
+	pharmacy := requesterConsumers(svc, paymentscontract.RequesterPharmacy, pharmacycontract.SubjectPaymentRequested, pharmacycontract.SubjectPaymentCancelled,
+		func(evt events.Event) (openRequest, error) {
+			var d pharmacycontract.PaymentRequestedData
+			err := json.Unmarshal(evt.Data, &d)
+			return openRequest{RequestID: d.RequestID, AmountMinor: d.AmountMinor, Currency: d.Currency, ExpiresInSeconds: d.ExpiresInSeconds}, err
+		},
+		func(evt events.Event) (openRequest, error) {
+			var d pharmacycontract.PaymentCancelledData
+			err := json.Unmarshal(evt.Data, &d)
+			return openRequest{RequestID: d.RequestID, AmountMinor: d.AmountMinor, Currency: d.Currency}, err
+		})
+	billing := requesterConsumers(svc, paymentscontract.RequesterBilling, billingcontract.SubjectPaymentRequested, billingcontract.SubjectPaymentCancelled,
+		func(evt events.Event) (openRequest, error) {
+			var d billingcontract.PaymentRequestedData
+			err := json.Unmarshal(evt.Data, &d)
+			return openRequest{RequestID: d.RequestID, AmountMinor: d.AmountMinor, Currency: d.Currency, ExpiresInSeconds: d.ExpiresInSeconds}, err
+		},
+		func(evt events.Event) (openRequest, error) {
+			var d billingcontract.PaymentCancelledData
+			err := json.Unmarshal(evt.Data, &d)
+			return openRequest{RequestID: d.RequestID, AmountMinor: d.AmountMinor, Currency: d.Currency}, err
+		})
+	return append(pharmacy, billing...)
+}
+
+// requesterConsumers serve one requester's request and cancel subjects. The
+// requester is set here, never taken from the payload.
+func requesterConsumers(svc *service, requester, requestSubject, cancelSubject string, requested, cancelled func(events.Event) (openRequest, error)) []events.Consumer {
+	as := func(decode func(events.Event) (openRequest, error)) func(events.Event) (openRequest, error) {
+		return func(evt events.Event) (openRequest, error) {
+			r, err := decode(evt)
+			r.Requester = requester
+			return r, err
+		}
 	}
-	cancelled := func(evt events.Event) (openRequest, error) {
-		var d pharmacycontract.PaymentCancelledData
-		err := json.Unmarshal(evt.Data, &d)
-		return openRequest{Requester: paymentscontract.RequesterPharmacy, RequestID: d.RequestID, AmountMinor: d.AmountMinor, Currency: d.Currency}, err
-	}
+	requested, cancelled = as(requested), as(cancelled)
+	requestName, cancelName := "payments-"+requester+"-request", "payments-"+requester+"-cancel"
 	return []events.Consumer{{
-		Name:    "payments-pharmacy-request",
-		Subject: pharmacycontract.SubjectPaymentRequested,
+		Name:    requestName,
+		Subject: requestSubject,
 		Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			r, err := requested(evt)
 			if err != nil {
@@ -86,11 +117,11 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			if err != nil {
 				return err
 			}
-			return svc.open(tenantdb.WithActor(ctx, "system:payments-pharmacy-request"), evt.TenantID, r.Requester, r.RequestID)
+			return svc.open(tenantdb.WithActor(ctx, "system:"+requestName), evt.TenantID, r.Requester, r.RequestID)
 		},
 	}, {
-		Name:    "payments-pharmacy-cancel",
-		Subject: pharmacycontract.SubjectPaymentCancelled,
+		Name:    cancelName,
+		Subject: cancelSubject,
 		Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			r, err := cancelled(evt)
 			if err != nil {
@@ -103,7 +134,7 @@ func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
 			if err != nil {
 				return err
 			}
-			return svc.cancelNow(tenantdb.WithActor(ctx, "system:payments-pharmacy-cancel"), evt.TenantID, r.Requester, r.RequestID)
+			return svc.cancelNow(tenantdb.WithActor(ctx, "system:"+cancelName), evt.TenantID, r.Requester, r.RequestID)
 		},
 	}}
 }

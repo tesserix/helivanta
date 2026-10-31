@@ -19,6 +19,10 @@ const (
 // payment requests.
 const RequesterPharmacy = "pharmacy"
 
+// RequesterBilling is the requester value for the hospital billing desk's
+// UPI requests (#198, #211).
+const RequesterBilling = "billing"
+
 // Failure reasons carried by SubjectIntentFailed.
 const (
 	ReasonProviderNotConfigured = "provider_not_configured"

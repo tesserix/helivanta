@@ -30,7 +30,22 @@ const invoice = {
   cgst_minor: 15000,
   sgst_minor: 15000,
   total_minor: 1430000,
+  creditable_lines: 0,
   currency: "INR",
+};
+const note = {
+  ...invoice,
+  id: "0199e000-0000-7000-8000-0000000000c1",
+  number: "CN/2627/1",
+  invoice_id: invoice.id,
+  invoice_number: invoice.number,
+  invoice_date: "2026-10-31",
+  issue_date: "2026-11-01",
+  lines: 1,
+  value_minor: 600000,
+  taxable_minor: 600000,
+  exempt_minor: 0,
+  total_minor: 630000,
 };
 const lines = [
   {
@@ -64,7 +79,15 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const page = (data: unknown[]) => json(200, { data, page: { next_cursor: null, has_more: false } });
 
-function server(opts: { perms?: string[]; registered?: boolean; zone?: boolean } = {}) {
+function server(
+  opts: {
+    perms?: string[];
+    registered?: boolean;
+    zone?: boolean;
+    creditable?: number;
+    notes?: (typeof note)[];
+  } = {},
+) {
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.includes("/iam/me/permissions"))
       return json(200, {
@@ -88,9 +111,12 @@ function server(opts: { perms?: string[]; registered?: boolean; zone?: boolean }
       return opts.zone === false
         ? json(404, { error: "not_configured", message: "not set up" })
         : json(200, { hospital_id: hospital.id, timezone: "Asia/Kolkata" });
+    if (url.includes("/credit-notes/") && init?.method === "PUT") return json(201, note);
     if (url.includes("/tax-invoices/") && init?.method === "PUT") return json(201, invoice);
     if (url.endsWith("/lines")) return page(lines);
-    if (url.endsWith("/tax-invoices")) return page([invoice]);
+    if (url.endsWith("/tax-invoices"))
+      return page([{ ...invoice, creditable_lines: opts.creditable ?? 0 }]);
+    if (url.endsWith("/credit-notes")) return page(opts.notes ?? []);
     return page([]);
   });
   vi.stubGlobal("fetch", fetcher);
@@ -219,5 +245,81 @@ describe("TaxInvoices", () => {
     renderWithProviders(<TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />);
     await screen.findByRole("button", { name: "IP/2627/1" });
     expect(screen.queryByRole("button", { name: "Issue tax invoice" })).not.toBeInTheDocument();
+  });
+
+  it("issues a credit note for an invoice's reversed days under a fresh UUIDv7 id", async () => {
+    const fetcher = server({ creditable: 1 });
+    const { user } = renderWithProviders(
+      <TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />,
+    );
+    expect(await screen.findByText(/1 reversed, awaiting a credit note/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "IP/2627/1" }));
+    await user.click(await screen.findByRole("button", { name: "Issue credit note" }));
+    await waitFor(() => expect(calls(fetcher, "PUT")).toHaveLength(1));
+    const [url, init] = calls(fetcher, "PUT")[0]!;
+    expect(String(url)).toMatch(
+      new RegExp(
+        `/admissions/${admission}/tax-invoices/${invoice.id}/credit-notes/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-`,
+      ),
+    );
+    expect((init as RequestInit).body).toBeUndefined();
+    expect(await screen.findByText("Credit note issued")).toBeInTheDocument();
+  });
+
+  it("refreshes the invoice when a credit note is refused", async () => {
+    let creditable = 1;
+    const fetcher = server({ creditable: 1 });
+    const base = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/credit-notes/") && init?.method === "PUT") {
+        creditable = 0;
+        return json(409, { error: "nothing_to_credit", message: "nothing to credit" });
+      }
+      if (url.endsWith("/tax-invoices"))
+        return page([{ ...invoice, creditable_lines: creditable }]);
+      return base(url, init);
+    });
+    const { user } = renderWithProviders(
+      <TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />,
+    );
+    await user.click(await screen.findByRole("button", { name: "IP/2627/1" }));
+    await user.click(await screen.findByRole("button", { name: "Issue credit note" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Issue credit note" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("offers no credit note without a reversed line or without the desk's permission", async () => {
+    server();
+    const { user, unmount } = renderWithProviders(
+      <TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />,
+    );
+    await user.click(await screen.findByRole("button", { name: "IP/2627/1" }));
+    await screen.findByRole("table", { name: "Invoice lines" });
+    expect(screen.queryByRole("button", { name: "Issue credit note" })).not.toBeInTheDocument();
+    unmount();
+    server({ creditable: 1, perms: ["billing.account.read"] });
+    const view = renderWithProviders(
+      <TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />,
+    );
+    await view.user.click(await screen.findByRole("button", { name: "IP/2627/1" }));
+    await screen.findByRole("table", { name: "Invoice lines" });
+    expect(screen.queryByRole("button", { name: "Issue credit note" })).not.toBeInTheDocument();
+  });
+
+  it("lists credit notes against their invoice and opens one", async () => {
+    server({ notes: [note] });
+    const { user } = renderWithProviders(
+      <TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />,
+    );
+    await user.click(await screen.findByRole("button", { name: "CN/2627/1" }));
+    expect(screen.getByText(/against IP\/2627\/1 · INR 6,300.00/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Credit note CN/2627/1 against IP/2627/1 of 2026-10-31"),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Credit note lines" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Credit note totals")).toHaveTextContent(
+      "Total creditedINR 6,300.00",
+    );
   });
 });

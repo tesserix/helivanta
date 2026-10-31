@@ -546,6 +546,9 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number/lines` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills/:number` | `billing.account.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/bills` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note/lines` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note` | `billing.account.read` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes` | `billing.account.read` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications` | `billing.account.read` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt` | `billing.cash.collect` | false | false |
@@ -560,6 +563,7 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals/:approval` | `billing.shift.authorise` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/refund-approvals` | `billing.account.read` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/refunds/:receipt` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/lines` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice` | `billing.bill.issue` | false | false |
@@ -608,6 +612,7 @@ Migration table declarations:
 - `0007_billing`: `billing_refund_policies`, `billing_refund_approvals`.
 - `0008_billing`: `billing_account_positions`.
 - `0009_billing`: `billing_gst_registrations`, `billing_gst_lines`, `billing_tax_invoices`, `billing_tax_invoice_lines`.
+- `0010_billing`: `billing_credit_notes`, `billing_credit_note_lines`.
 
 ## supply
 

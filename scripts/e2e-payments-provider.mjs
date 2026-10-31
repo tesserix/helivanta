@@ -107,13 +107,13 @@ const policy = families
     `path "transit/hmac/${key}" { capabilities = ["update"] }`,
   ])
   .join("\n");
-await vault("PUT", "/v1/sys/policies/acl/helivanta-e2e-api", { policy });
-await vault("POST", "/v1/auth/kubernetes/role/helivanta-e2e-api", {
+await vault("PUT", "/v1/sys/policies/acl/e2e", { policy });
+await vault("POST", "/v1/auth/kubernetes/role/e2e", {
   role_type: "jwt",
   bound_audiences: ["helivanta-e2e"],
   bound_subject: "helivanta-e2e-api",
   user_claim: "sub",
-  token_policies: ["helivanta-e2e-api"],
+  token_policies: ["e2e"],
   token_ttl: 300,
   token_max_ttl: 300,
 });
@@ -275,7 +275,7 @@ const values = {
   RAZORPAY_API_URL: origin,
   OPENBAO_ADDR: bao,
   OPENBAO_TRANSIT_MOUNT: "transit",
-  OPENBAO_AUTH_ROLE: "helivanta-e2e-api",
+  OPENBAO_AUTH_ROLE: "e2e",
   OPENBAO_TOKEN_PATH: tokenFile,
   HELIVANTA_E2E_PAYMENT_PROVIDER_URL: origin,
   HELIVANTA_E2E_PAYMENT_DRIVER_TOKEN: driverToken,

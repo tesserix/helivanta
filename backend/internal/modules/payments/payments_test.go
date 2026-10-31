@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	billingcontract "github.com/tesserix/helivanta/internal/modules/billing/contract"
 	"github.com/tesserix/helivanta/internal/modules/payments" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -480,4 +481,30 @@ func TestSlowProviderHoldsNoConnections(t *testing.T) {
 	require.Equal(t, http.StatusOK, do(w.r, "GET", "/v1/payments/razorpay-account", "admA", "").Code)
 	require.Less(t, time.Since(start), time.Second, "other routes answer while eight checks wait on the provider")
 	wg.Wait()
+}
+
+// The billing desk is a second requester (#198, #211): its own subjects, its
+// own requester value, the same intent lifecycle.
+func TestBillingRequester(t *testing.T) {
+	w := newWorld(t, vaultClient(t))
+	w.configure(t)
+	enqueue := func(subject string, v any) {
+		data, _ := json.Marshal(v)
+		require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return events.Enqueue(tx, subject, events.Event{Type: "Payment", Version: 1, TenantID: testutil.TenantA, Data: data})
+		}))
+	}
+	req := uuid.Must(uuid.NewV7()).String()
+	enqueue(billingcontract.SubjectPaymentRequested, billingcontract.PaymentRequestedData{RequestID: req, Purpose: billingcontract.PaymentPurposeAdmissionPayment,
+		AmountMinor: 25000, Currency: "INR", ExpiresInSeconds: 300})
+	w.waitFor(t, req, "intent_opened")
+	var requester string
+	require.NoError(t, w.db.WithTenant(w.ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT requester FROM payment_intents WHERE request_id=?`, req).Scan(&requester).Error
+	}))
+	require.Equal(t, "billing", requester)
+	require.Contains(t, fmt.Sprint(w.outcomesData(t, req)), `"requester": "billing"`, "the outcome names billing, so the pharmacy ignores it")
+
+	enqueue(billingcontract.SubjectPaymentCancelled, billingcontract.PaymentCancelledData{RequestID: req, AmountMinor: 25000, Currency: "INR"})
+	w.waitFor(t, req, "intent_opened", "intent_cancelled")
 }

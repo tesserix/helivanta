@@ -527,6 +527,8 @@ Subscriptions:
 
 - `payments-pharmacy-request` ← `helivanta.in.pharmacy.payment_requested.v1`; after-commit hook: true.
 - `payments-pharmacy-cancel` ← `helivanta.in.pharmacy.payment_cancelled.v1`; after-commit hook: true.
+- `payments-billing-request` ← `helivanta.in.billing.payment_requested.v1`; after-commit hook: true.
+- `payments-billing-cancel` ← `helivanta.in.billing.payment_cancelled.v1`; after-commit hook: true.
 
 Migration table declarations:
 
@@ -568,6 +570,8 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests/:request` | `billing.cash.collect` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
@@ -586,15 +590,23 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void` | `billing.cash.collect` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/refund-policies/:policy` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/refund-policy` | `billing.account.read` | false | false |
+| POST | `/v1/billing/hospitals/:hospital/upi-requests/:request/cancel` | `billing.cash.collect` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/upi-requests/:request` | `billing.cash.collect` | false | false |
 
 Published subjects:
 
-None.
+- `helivanta.in.billing.payment_requested.v1`
+- `helivanta.in.billing.payment_cancelled.v1`
 
 Subscriptions:
 
 - `billing-discharge-ordered` ← `helivanta.in.medicore.discharge_ordered.v1`; after-commit hook: false.
 - `billing-discharge-withdrawn` ← `helivanta.in.medicore.discharge_withdrawn.v1`; after-commit hook: false.
+- `billing-upi-opened` ← `helivanta.in.payments.intent_opened.v1`; after-commit hook: false.
+- `billing-upi-failed` ← `helivanta.in.payments.intent_failed.v1`; after-commit hook: false.
+- `billing-upi-paid` ← `helivanta.in.payments.intent_paid.v1`; after-commit hook: false.
+- `billing-upi-expired` ← `helivanta.in.payments.intent_expired.v1`; after-commit hook: false.
+- `billing-upi-cancelled` ← `helivanta.in.payments.intent_cancelled.v1`; after-commit hook: false.
 - `billing-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `billing-admission-released` ← `helivanta.in.medicore.admission_released.v1`; after-commit hook: false.
 - `billing-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
@@ -613,6 +625,7 @@ Migration table declarations:
 - `0008_billing`: `billing_account_positions`.
 - `0009_billing`: `billing_gst_registrations`, `billing_gst_lines`, `billing_tax_invoices`, `billing_tax_invoice_lines`.
 - `0010_billing`: `billing_credit_notes`, `billing_credit_note_lines`.
+- `0011_billing`: `billing_upi_requests`.
 
 ## supply
 

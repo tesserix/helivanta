@@ -20,7 +20,10 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-type handlers struct{ db *tenantdb.DB }
+type handlers struct {
+	db  *tenantdb.DB
+	bus *events.Bus
+}
 
 var (
 	errNoHospital = errors.New("hospital not found")
@@ -125,6 +128,9 @@ type total struct {
 	AppliedMinor     int64 `json:"applied_minor"`
 	// Deposits paid back in cash (#199 slice 2); held nets them.
 	RefundedMinor int64 `json:"refunded_minor"`
+	// UPI payments waiting on an answer (#211): not paid, but held against
+	// the balance so a cash payment does not take the same rupees.
+	UpiWaitingMinor int64 `json:"upi_waiting_minor"`
 }
 
 type accountView struct {
@@ -208,6 +214,9 @@ func (h *handlers) account(c *gin.Context) {
 			row.Totals[i].DepositHeldMinor = m.DepositMinor - m.Applied - m.Refunded
 		}
 		for i := range row.Totals {
+			if err := tx.Raw(`SELECT billing_upi_waiting(?,?,?)`, p.TenantID, admission, row.Totals[i].Currency).Scan(&row.Totals[i].UpiWaitingMinor).Error; err != nil {
+				return err
+			}
 			row.Totals[i].OutstandingMinor = row.Totals[i].ChargedMinor - row.Totals[i].ReversedMinor
 			row.Totals[i].BalanceMinor = row.Totals[i].OutstandingMinor - row.Totals[i].PaidMinor - row.Totals[i].AppliedMinor
 		}
@@ -306,7 +315,7 @@ func ids(values ...string) ([]uuid.UUID, bool) {
 }
 
 func consumers() []events.Consumer {
-	return append(dischargeConsumers(), []events.Consumer{
+	return append(append(dischargeConsumers(), upiOutcomeConsumers()...), []events.Consumer{
 		{Name: "billing-bed-occupancy-started", Subject: medicorecontract.SubjectBedOccupancyStarted, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var d medicorecontract.BedOccupancyStartedData
 			if evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &d) != nil {

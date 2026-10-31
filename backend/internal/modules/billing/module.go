@@ -7,6 +7,7 @@ package billing
 import (
 	_ "embed"
 
+	billingcontract "github.com/tesserix/helivanta/internal/modules/billing/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -65,6 +66,9 @@ var gstSchema string
 //go:embed credit_notes.sql
 var creditNotesSchema string
 
+//go:embed upi.sql
+var upiSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -93,11 +97,11 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB}
+	h := &handlers{db: deps.DB, bus: deps.Bus}
 	g := r.Group("/billing")
 	hp := "/hospitals/:hospital"
 	g.PUT(hp+"/access/:subject", PermAccessManage, h.grantAccess)
@@ -132,6 +136,12 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT(hp+"/admissions/:admission/receipts/:receipt", PermCashCollect, h.takeCash)
 	platform.ListRoute(g, hp+"/admissions/:admission/receipts", PermAccountRead, h.receipts)
 	g.PUT(hp+"/receipts/:receipt/voids/:void", PermCashCollect, h.voidReceipt)
+	// UPI at the desk (#198 slice 3, #211): asked in the cashier's shift,
+	// confirmed by payments, recorded as a receipt.
+	g.PUT(hp+"/admissions/:admission/upi-requests/:request", PermCashCollect, h.putUpiRequest)
+	platform.ListRoute(g, hp+"/admissions/:admission/upi-requests", PermAccountRead, h.upiRequests)
+	g.GET(hp+"/upi-requests/:request", PermCashCollect, h.upiRequest)
+	g.POST(hp+"/upi-requests/:request/cancel", PermCashCollect, h.cancelUpiRequest)
 	// Deposits (#199 slice 1).
 	g.PUT(hp+"/admissions/:admission/deposits/:receipt", PermCashCollect, h.takeDeposit)
 	g.PUT(hp+"/admissions/:admission/deposit-applications/:application", PermBillIssue, h.applyDeposits)
@@ -162,8 +172,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, all+"/:number/lines", PermAccountRead, h.billLines(""))
 }
 
-// Publishes declares none in this slice: nothing consumes billing yet.
-func (m *Module) Publishes() []string { return nil }
+// Publishes the desk's UPI requests and cancels, for payments.
+func (m *Module) Publishes() []string {
+	return []string{billingcontract.SubjectPaymentRequested, billingcontract.SubjectPaymentCancelled}
+}
 
 // DirectedSubjects declares none: billing publishes nothing that creates
 // data in another tenant.

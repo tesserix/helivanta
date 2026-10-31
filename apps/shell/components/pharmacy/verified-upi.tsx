@@ -322,20 +322,40 @@ function UnusedPaymentRefund({
   );
 }
 
-function PaymentState({
+/** What a UPI panel shows of a request: the pharmacy's and the billing desk's alike. */
+export type UpiPaymentView = Pick<
+  PharmacyCounterPayment,
+  | "status"
+  | "qr_image_url"
+  | "expires_at"
+  | "failure_reason"
+  | "rrn"
+  | "late"
+  | "created_at"
+  | "amount_minor"
+>;
+
+/**
+ * One UPI request's state at a counter (#1386 C-4b, #211). The waiting note
+ * says what the confirmed payment allows; it never shows paid on anything
+ * but paid.
+ */
+export function PaymentState({
   payment: p,
   now,
   money,
   onCancel,
   cancelling,
   onRestart,
+  waitingNote = "The sale can be posted once Razorpay confirms the payment. A screenshot is not a payment.",
 }: {
-  payment: PharmacyCounterPayment;
+  payment: UpiPaymentView;
   now: number;
   money: (minor: number) => string;
   onCancel: () => void;
   cancelling: boolean;
   onRestart: () => void;
+  waitingNote?: string;
 }) {
   const again = (
     <Button type="button" variant="outline" className="mt-2" onClick={onRestart}>
@@ -374,10 +394,7 @@ function PaymentState({
               · {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")} left
             </span>
           </p>
-          <p className="text-xs text-muted-foreground">
-            The sale can be posted once Razorpay confirms the payment. A screenshot is not a
-            payment.
-          </p>
+          <p className="text-xs text-muted-foreground">{waitingNote}</p>
           <Button type="button" variant="outline" onClick={onCancel} disabled={cancelling}>
             Cancel UPI
           </Button>

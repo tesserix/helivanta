@@ -266,6 +266,29 @@ describe("TaxInvoices", () => {
     expect(await screen.findByText("Credit note issued")).toBeInTheDocument();
   });
 
+  it("refreshes the invoice when a credit note is refused", async () => {
+    let creditable = 1;
+    const fetcher = server({ creditable: 1 });
+    const base = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/credit-notes/") && init?.method === "PUT") {
+        creditable = 0;
+        return json(409, { error: "nothing_to_credit", message: "nothing to credit" });
+      }
+      if (url.endsWith("/tax-invoices"))
+        return page([{ ...invoice, creditable_lines: creditable }]);
+      return base(url, init);
+    });
+    const { user } = renderWithProviders(
+      <TaxInvoices hospital={hospital} admissionId={admission} hasFinalBill />,
+    );
+    await user.click(await screen.findByRole("button", { name: "IP/2627/1" }));
+    await user.click(await screen.findByRole("button", { name: "Issue credit note" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Issue credit note" })).not.toBeInTheDocument(),
+    );
+  });
+
   it("offers no credit note without a reversed line or without the desk's permission", async () => {
     server();
     const { user, unmount } = renderWithProviders(

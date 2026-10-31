@@ -212,6 +212,18 @@ func TestCreditNoteRulesHoldInTheDatabase(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "written only as it is issued", "no line outside its note's issue")
 
+	// A credited charge is not credited again, even by a note issued properly.
+	err = asClerk(func(tx *gorm.DB) error {
+		again := v7()
+		if err := tx.Exec(`INSERT INTO billing_credit_notes (tenant_id,hospital_id,admission_id,id,invoice_id,issued_by) VALUES (?,?,?,?,?,'user-clerk')`,
+			testutil.TenantA, w.hospital, admission, again, invoice).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO billing_credit_note_lines (tenant_id,hospital_id,admission_id,credit_note_id,invoice_id,entry_id) VALUES (?,?,?,?,?,?)`,
+			testutil.TenantA, w.hospital, admission, again, invoice, entry).Error
+	})
+	requireConstraint(t, err, "billing_credit_note_line", "a charge is credited once")
+
 	// A charge still standing is not creditable.
 	note := v7()
 	err = asClerk(func(tx *gorm.DB) error {

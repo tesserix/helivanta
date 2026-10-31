@@ -334,6 +334,9 @@ function IssueCreditNote({
   const issue = useApiMutation(() => apiFetch<CreditNote>(`${path}/${id}`, { method: "PUT" }), {
     successToast: "Credit note issued",
     invalidate,
+    // A refusal (another clerk credited it first) refreshes the invoice, so
+    // the button goes with the reversed lines it was for.
+    invalidateOnError: true,
     onSuccess: (note) => {
       setId(newBedId());
       onIssued(note.id);

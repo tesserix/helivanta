@@ -44,6 +44,8 @@ function CollectionPanel({ hospital }: { hospital: Hospital }) {
         <p className="mt-1 text-sm text-muted-foreground">
           Each shift that opened on the day, by the hospital&apos;s date, with the cash it took and
           whether its drawer matched. Open shifts are not counted until their cashier closes them.
+          UPI is shown apart: it is at the bank, not in the drawer, and a payment that lands after
+          its QR closed is added to the shift that asked for it.
         </p>
       </div>
       {setup.isPending ? (
@@ -133,6 +135,7 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
                 <th className="text-right">Expected</th>
                 <th className="text-right">Declared</th>
                 <th className="text-right">Variance</th>
+                <th className="text-right">UPI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -155,6 +158,8 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
         <Total label="Excesses" value={money(totals.excess_minor)} />
         <Total label="Counted shifts" value={String(totals.counted_shifts)} />
         <Total label="Voided receipts" value={String(totals.voided_receipts)} />
+        <Total label="UPI payments" value={money(totals.upi_payments_minor)} />
+        <Total label="UPI deposits" value={money(totals.upi_deposits_minor)} />
       </dl>
       <CollectionExport hospital={hospital} date={date} />
     </div>
@@ -207,6 +212,13 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
       <td className="text-right">{cell(shift.declared_minor)}</td>
       <td className="text-right">
         {v === null ? "—" : v === 0 ? "Matched" : v < 0 ? `Short ${money(-v)}` : `Over ${money(v)}`}
+      </td>
+      <td className="text-right">
+        {shift.upi_payments_minor === null || shift.upi_deposits_minor === null
+          ? "—"
+          : shift.upi_deposits_minor > 0
+            ? `${cell(shift.upi_payments_minor)} + deposits ${cell(shift.upi_deposits_minor)}`
+            : cell(shift.upi_payments_minor)}
       </td>
     </tr>
   );

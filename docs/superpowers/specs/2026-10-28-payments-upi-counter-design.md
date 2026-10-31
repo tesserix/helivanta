@@ -273,7 +273,8 @@ intent_id)` pairs, through `WithAllTenants`. This is a reviewed entry in the
   interface that names no call site's provider.
 - Webhook secret rotation with overlap, circuit breakers, and an
   OpenTelemetry span chain.
-- Billing, MediConnect and subscription requesters.
+- MediConnect and subscription requesters. (Hospital billing became the second
+  requester in #211: `2026-11-01-billing-upi-design.md`.)
 
 ## Prerequisites outside this repo
 

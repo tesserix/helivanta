@@ -51,6 +51,7 @@ linters:
             - "github.com/tesserix/helivanta/internal/modules/mediconnect/contract"
             - "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
             - "github.com/tesserix/helivanta/internal/modules/payments/contract"
+            - "github.com/tesserix/helivanta/internal/modules/billing/contract"
             - "github.com/tesserix/helivanta/internal/modules/lab/contract"
             - "github.com/tesserix/helivanta/internal/modules/iam/contract"
             - "github.com/tesserix/helivanta/internal/modules/reference/contract"

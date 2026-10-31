@@ -67,7 +67,7 @@ move the request, and a trigger writes the receipt on the paid transition.
   totals `upi_waiting_minor`, collection UPI fields.
 - `pharmacy/verified-upi.tsx`: export `PaymentState` with a `waitingNote` prop.
 - `medicore/billing-upi.tsx`: amount + purpose, QR, follows the request, resumes a
-  waiting one, cancels on demand; toasts "UPI payment received".
+  waiting one, cancels on demand; announces "UPI payment received" with the receipt number (a status line: the receipt is written by the server, not by a mutation of this screen), and refreshes receipts, account and desk through `useApiRefresh`.
 - `cash-payments.tsx`: UPI option; cash cap nets waiting UPI; receipts show UPI/RRN/late,
   no void on UPI. `daily-collection.tsx`: UPI columns.
 - Vitest: paid flow, resume, cancel, cap, report columns.

@@ -417,6 +417,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /billing/hospitals/:hospital/gst-registration":                            "the hospital's one GST registration",
 	"GET /billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice": "one tax invoice's header and totals; its lines are a paginated list",
 	"GET /billing/hospitals/:hospital/admissions/:admission/credit-notes/:note":    "one credit note's header and totals; its lines are a paginated list",
+	"GET /billing/hospitals/:hospital/upi-requests/:request":                       "one UPI request's state, polled by the desk until payments answers",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant":        "one bed's or room's single open stay, or 404/409 ambiguous; never a collection",
 	"GET /medicore/hospitals/:hospital/encounters/:id":                             "one grant-checked encounter; the hospital's encounters use cursor pagination",
 	"GET /medicore/insights":                                                       "one aggregate response, maximum 366 calendar buckets and two clinical categories; no patient rows",

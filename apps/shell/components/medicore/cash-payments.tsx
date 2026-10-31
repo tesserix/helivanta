@@ -15,6 +15,7 @@ import {
 } from "@helivanta/api";
 import { Field, LoadMore, RequestFailure, formatDateTime, useZodForm } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
+import { BillingUpi } from "./billing-upi";
 import { useMyShift } from "./cash-desk";
 import { DepositRefunds } from "./refunds";
 
@@ -44,6 +45,8 @@ export function CashPayments({
   const key = ["billing", "receipts", hospital.id, admissionId];
   const receipts = useApiPagedQuery<CashReceipt>(key, path);
   const inr = account?.totals.find((t) => t.currency === "INR");
+  // What a new payment may take: UPI already waiting holds its share (#211).
+  const payable = inr ? inr.balance_minor - inr.upi_waiting_minor : 0;
   return (
     <div className="space-y-2 border-t border-border pt-2 text-sm">
       {inr && (
@@ -57,24 +60,45 @@ export function CashPayments({
           {inr.balance_minor < 0
             ? `in credit ${formatPharmacyMoney(-inr.balance_minor, "INR")}`
             : `balance due ${formatPharmacyMoney(inr.balance_minor, "INR")}`}
+          {inr.upi_waiting_minor > 0 &&
+            ` · UPI waiting ${formatPharmacyMoney(inr.upi_waiting_minor, "INR")}`}
         </p>
       )}
-      {open && inr && inr.balance_minor > 0 && (
+      {open && inr && payable > 0 && (
         <TakeCash
           hospital={hospital}
           admissionId={admissionId}
           purpose="payment"
-          due={inr.balance_minor}
+          due={payable}
+          receiptsKey={key}
+        />
+      )}
+      {open && inr && (payable > 0 || inr.upi_waiting_minor > 0) && (
+        <BillingUpi
+          hospital={hospital}
+          admissionId={admissionId}
+          purpose="payment"
+          shift={open}
+          max={payable}
           receiptsKey={key}
         />
       )}
       {open && account?.status === "open" && (
-        <TakeCash
-          hospital={hospital}
-          admissionId={admissionId}
-          purpose="deposit"
-          receiptsKey={key}
-        />
+        <>
+          <TakeCash
+            hospital={hospital}
+            admissionId={admissionId}
+            purpose="deposit"
+            receiptsKey={key}
+          />
+          <BillingUpi
+            hospital={hospital}
+            admissionId={admissionId}
+            purpose="deposit"
+            shift={open}
+            receiptsKey={key}
+          />
+        </>
       )}
       {hasFinalBill &&
         can("billing.bill.issue") &&
@@ -217,12 +241,14 @@ function Receipt({
       ],
     },
   );
-  const label = `${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
+  const label = `${receipt.mode === "upi" ? "UPI " : ""}${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
   return (
     <li className="py-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>
           {label} · {formatDateTime(receipt.received_at)} · {receipt.cashier}
+          {receipt.rrn && ` · RRN ${receipt.rrn}`}
+          {receipt.late && " · arrived after the QR closed"}
           {receipt.voided_at && (
             <Badge variant="outline" className="ml-2">
               Void: {receipt.void_reason}
@@ -234,16 +260,21 @@ function Receipt({
           {formatPharmacyMoney(receipt.amount_minor, receipt.currency)}
         </span>
       </div>
-      {mine && can("billing.cash.collect") && !receipt.voided_at && !voiding && (
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`Void ${label}`}
-          onClick={() => setVoiding(true)}
-        >
-          Void
-        </Button>
-      )}
+      {/* UPI is at the bank: a void hands cash back, so only cash is voided. */}
+      {mine &&
+        receipt.mode === "cash" &&
+        can("billing.cash.collect") &&
+        !receipt.voided_at &&
+        !voiding && (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Void ${label}`}
+            onClick={() => setVoiding(true)}
+          >
+            Void
+          </Button>
+        )}
       {voiding && !receipt.voided_at && (
         <form
           noValidate

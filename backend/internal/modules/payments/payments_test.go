@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/tesserix/helivanta/internal/modules/payments" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	billingcontract "github.com/tesserix/helivanta/internal/modules/billing/contract"
+	"github.com/tesserix/helivanta/internal/modules/payments" //nolint:depguard // external test package importing the module under test (self-import), not cross-module coupling
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"

@@ -175,9 +175,9 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** UPI, card and other modes; handover; denominations; pickups; GL export;
-  events; receipts on bills. Refunds, deposits and the daily collection report came later,
-  below.
+- **Not covered:** card and other modes; handover; denominations; pickups; GL export;
+  events; receipts on bills. Refunds, deposits, the daily collection report and UPI came
+  later, below.
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
   it keeps the counter until the grant is restored and the shift closed.
 
@@ -278,8 +278,53 @@ Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
   (`404` without it). `409 timezone_unset` with no timezone; `400` for a malformed date or one
   after the hospital's today; `413 collection_too_large` above 500 shifts.
 - The shell's Billing page shows it as **Collections** to holders of the permission.
-- **Not covered:** finance sign-off and reopening a day; GL posting; other payment modes;
+- **Not covered:** finance sign-off and reopening a day; GL posting; card and other modes;
   per-cashier variance trends; date ranges; events.
+- **UPI** (#211, below) is reported beside the cash, never in it: `upi_payments_minor` and
+  `upi_deposits_minor` per shift and in the totals, and `upi_payments`, `upi_deposits` as the
+  CSV's last two columns. The cash columns, net and drawer figures count cash only. A UPI
+  payment that lands after its QR closed is added to the shift that asked, so a past day's
+  UPI line can change; its cash figures never do.
+
+## UPI at the desk (#198 slice 3, #211)
+
+Design: [spec](../../superpowers/specs/2026-11-01-billing-upi-design.md). Payments
+confirms the money with Razorpay; billing records the receipt.
+
+- **Asking:** a cashier with an open shift asks for a UPI payment or deposit on an
+  admission's account. Billing records the request and publishes
+  `helivanta.in.billing.payment_requested.v1` (purpose `admission_payment` or
+  `admission_deposit`, amount, INR, 300 seconds; no patient, admission or hospital) in the
+  same transaction. A payment fits the balance due less UPI payments still waiting
+  (`409 over_balance`); a deposit needs an open account (`409 account_closed`).
+- **Waiting holds the money:** until payments answers, a payment's amount is held against
+  the balance (`upi_waiting_minor` on the account): cash payments and deposit applications
+  cannot cover it too. A request unanswered 15 minutes after it was asked holds nothing and
+  blocks nothing.
+- **Paid makes the receipt:** on `intent_paid` for the request's amount and currency, the
+  request becomes `paid` and the database writes its receipt in the same transaction:
+  `mode: upi`, numbered next on the counter, in the shift that asked (closed or not), with
+  the request's id. A payment reported after the request was told expired or cancelled is
+  recorded the same way and marked `late`; it can leave the account in credit, which this
+  slice does not refund.
+- **Never in the drawer:** expected cash, the refund drawer check and voids count cash
+  only; a UPI receipt is never voided (`409 upi_receipt`). A shift does not close while one
+  of its requests waits (`409 upi_waiting`).
+- **Outcomes:** billing's consumers (`billing-upi-opened`, `-failed`, `-paid`, `-expired`,
+  `-cancelled`) ignore other requesters and move the request only along its lifecycle;
+  paid is final. The database holds the same edges; only the cashier who asked cancels.
+
+| Route                                                                        | Behaviour                                                                                                                                          |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/admissions/:admission/upi-requests/:request` `{purpose,amount_minor}` | Ask: `201`; a retry `200`; another body under the id `409`. `billing.cash.collect`.                                                                |
+| `GET …/admissions/:admission/upi-requests`                                   | The admission's requests, newest first. `billing.account.read`.                                                                                    |
+| `GET …/upi-requests/:request`                                                | One request's state, QR, RRN and receipt number. `billing.cash.collect`.                                                                           |
+| `POST …/upi-requests/:request/cancel`                                        | The asking cashier cancels a `requested` or `awaiting_payment` request; it waits in `cancelling` for the answer (`409 upi_not_open` once settled). |
+
+- Receipts carry `mode`, `rrn` and `late`.
+- **Not covered:** card, netbanking, wallets; refunds over UPI, including a late payment's
+  credit (finance refunds in the Razorpay dashboard); handover, denominations, pickups; UPI
+  outside the billing desk; releasing a patient on an unconfirmed payment.
 
 ## GST on rooms and the tax invoice (#193 slice 1)
 

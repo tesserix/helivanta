@@ -12,8 +12,8 @@ import (
 
 	"gorm.io/gorm"
 
-	paymentscontract "github.com/tesserix/helivanta/internal/modules/payments/contract"
 	billingcontract "github.com/tesserix/helivanta/internal/modules/billing/contract"
+	paymentscontract "github.com/tesserix/helivanta/internal/modules/payments/contract"
 	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"

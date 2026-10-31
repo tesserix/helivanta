@@ -140,11 +140,14 @@ func (h *handlers) setBedRate(c *gin.Context) {
 		}
 		return nil
 	})
+	var pg *pgconn.PgError
 	switch {
 	case errors.Is(err, errNotConfigured):
 		respond.Error(c, http.StatusConflict, "not_configured", "set the hospital's timezone before its bed rates")
 	case errors.Is(err, errSetDifferent):
 		respond.Error(c, http.StatusConflict, "already_set", "a different rate is set for this class from this date; set a rate from a later date")
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_gst_inr":
+		respond.Error(c, http.StatusConflict, "rates_not_inr", "a GST-registered hospital's bed rates are in INR")
 	case err != nil:
 		failure(c, err)
 	default:

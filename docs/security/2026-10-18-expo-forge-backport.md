@@ -1,5 +1,23 @@
 # Expo CLI: Forge DigestAlgorithm verification backport
 
+## Superseded by upstream 1.4.1 — 2026-10-31
+
+Expo CLI and its code-signing certificate helper now resolve pinned upstream
+`node-forge@1.4.1`. The old 1.4.0 patch and its
+`GHSA-86w9-cpqp-85rv` audit exception are removed. The actual-consumer RSA
+regressions remain: the malformed nested DigestAlgorithm signature is rejected,
+a valid SHA-256 signature verifies, and a changed message fails verification.
+The advisory metadata still lists no fixed version for that older finding;
+the executed public vectors establish the behavior of the installed package.
+The production audit also identifies 1.4.1 as the fix for the newly reported
+Forge advisories. The unrelated decoder backport and exception remain in place.
+
+This upgrade protects certificate/signature tooling from crafted cryptographic
+input crossing a dependency boundary. It changes no Staff permissions, schema,
+identity-provider policy or employment lifecycle behavior.
+
+## Historical backport record
+
 The new Expo SDK 57 native toolchain brings `@expo/cli -> node-forge@1.4.0`.
 The audit reports [GHSA-86w9-cpqp-85rv / CVE-2026-85393](https://github.com/advisories/GHSA-86w9-cpqp-85rv):
 RSA PKCS#1 v1.5 verification can ignore extra nested DigestAlgorithm elements.

@@ -37,14 +37,15 @@ var ist = func() *time.Location { l, _ := time.LoadLocation("Asia/Kolkata"); ret
 func newBedWorld(t *testing.T) *bedWorld {
 	r, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"admin": testutil.TenantA, "nurse": testutil.TenantA, "clerk": testutil.TenantA, "outsider": testutil.TenantA,
-			"clerk2": testutil.TenantA},
+			"clerk2": testutil.TenantA, "adminB": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"admin": {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCounterManage, billing.PermShiftAuthorise,
-				billing.PermCashCollect},
+				billing.PermCashCollect, billing.PermCollectionRead, billing.PermTaxManage},
 			"nurse":    {billing.PermAccountRead},
 			"clerk":    {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
 			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise, billing.PermBillIssue},
-			"outsider": {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
+			"outsider": {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect, billing.PermCollectionRead},
+			"adminB":   {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCollectionRead},
 		},
 		Modules: []platform.Module{billing.New()},
 	})
@@ -166,6 +167,7 @@ func TestBedDaysFollowTheMidnightCensusAcrossATransfer(t *testing.T) {
 	require.Contains(t, do(w.r, "GET", w.root+"/bed-charging", "nurse", "").Body.String(), `"timezone":"Asia/Kolkata"`)
 	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/general/2026-01-01", "admin", `{"daily_rate_minor":150000,"currency":"INR"}`).Code)
 	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/icu/2026-01-01", "admin", `{"daily_rate_minor":600000,"currency":"INR"}`).Code)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/nicu/2026-01-01", "admin", `{"daily_rate_minor":700000,"currency":"INR"}`).Code, "a NICU bed is priced like any class")
 	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-rates/icu/2026-01-01", "admin", `{"daily_rate_minor":600000,"currency":"INR"}`).Code, "the same rate again is accepted")
 	require.Equal(t, http.StatusConflict, do(w.r, "PUT", w.root+"/bed-rates/icu/2026-01-01", "admin", `{"daily_rate_minor":650000,"currency":"INR"}`).Code, "a rate is fixed once set")
 	require.Equal(t, http.StatusBadRequest, do(w.r, "PUT", w.root+"/bed-rates/suite/2026-01-01", "admin", `{"daily_rate_minor":1,"currency":"INR"}`).Code, "only a known bed class")

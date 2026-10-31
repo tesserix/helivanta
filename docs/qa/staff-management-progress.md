@@ -1,6 +1,6 @@
 # Staff Management delivery tracker
 
-Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
 ## Status and completion rules
 
@@ -10,7 +10,55 @@ Updated: 2026-10-30. Owner: Helivanta Staff Management delivery. This is the sum
 - Record local positive UI QA separately from production positive or denial QA. A test count, route, screenshot, migration job or published release alone does not establish workflow completion.
 - Keep issues open until their actual acceptance criteria pass. Legacy issue references to Keycloak or proposed tables must be reconciled with current Zitadel/IAM/Workforce ownership before implementation.
 
-## Current production release — c20a220, 2026-10-30
+## Current-source access continuation — 2026-10-31
+
+Source basis: current main `5a618f86`. Scoped leave commands, discovery and the
+separate reviewer UI already exist on this source; their existence does not close
+the full Access/RBAC objective. Historical results from older checkouts are not
+current-source release evidence.
+
+Two current-source UI regressions reproduced: a failed selected-request read
+left independently loaded private history visible, and a failed history read
+left decision controls enabled. The leave-request panel now hides history when
+the selected request cannot be verified and withholds decisions while detail or
+history verification is pending, refreshing or failed. Existing successful
+filing, review, withdrawal and revocation behavior remains covered. This changes
+UI handling only; it grants no role and changes no server authorization, schema
+or migration.
+
+Focused red/green evidence: `/tmp/current-staff-read-red.log` and
+`/tmp/current-staff-read-green.log` (10 passing tests). Full current-source shell
+tests passed 1,266 tests in 245.19 s, plus shell typecheck, lint, formatting and
+production build. Build validation supplied `API_URL=http://localhost:8081`,
+the repository's development Global API origin; the first build correctly
+refused to proceed without an explicit production-build gateway origin. Commands
+run with installed Node 24.22.1: `pnpm install --frozen-lockfile`,
+`pnpm --filter @helivanta/shell test`, `type-check`, `lint` and `build`,
+scoped Prettier, and `git diff --check`.
+
+The eight previously unrun real Zitadel provider tests now all pass, with no
+skips, against the existing localhost identity fixture (28.546 s):
+`go test -race -json ./internal/modules/iam -run '^TestIntegration_' -count=1`.
+The private launcher loaded existing dev credentials into the child environment
+without printing or committing them. The mode-0600 evidence file is
+`current-main-zitadel-provider-20261031.jsonl` in the existing private QA bundle.
+This covers password success/failure indistinguishability, enforced MFA variants,
+enrolled-factor handoff, IdP-linked password login, foreign-organization policy
+and native TOTP enrollment. It is provider integration evidence, not a completed
+Staff provisioning or employment journey.
+
+Fresh browser/CI/merge/deployment acceptance for this candidate remains open.
+The next HR-intake inventory confirms 208 Workforce routes, including 23 primary
+enrollment-management routes and 10 primary document-management routes. Compound
+credential, reminder, leave-standing/report and storage/disclosure consumers
+remain part of the required action matrix; adding a template or globally
+replacing `enrollmentScope` is insufficient. Continue the
+[source-verified plan](../superpowers/plans/2026-10-30-staff-access-and-review-continuation.md)
+for scoped HR intake and an independent current-person/employment review basis.
+All A01–A12 completion gates below remain applicable. No Staff area is marked
+complete and no production rollout, migration or access expansion is claimed.
+
+## Last recorded production release — c20a220, 2026-10-30
 
 The user approved revision `c20a220267cc4e71cc169c47b3ef7220612da1ce` and all four
 pending migrations. Kargo promotion `prod.01m659npxcq1ejdjcv41942wbe.06dda82`
@@ -86,7 +134,7 @@ No broad Staff area or umbrella issue is newly marked complete. Deployment of
 private drafts/evidence does not implement employment approval, access activation,
 expiry, suspension, resignation, termination, rehire, payroll runs or letters.
 Historical checkpoints retain the state when recorded. The c20a220 release
-checkpoint above is the current production state.
+checkpoint above is the last recorded production state.
 
 ## Quantitative checkpoint — 2026-10-30
 

@@ -15,8 +15,9 @@ import {
 import { LoadMore, RequestFailure, formatDateTime } from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { CashPayments } from "./cash-payments";
+import { TaxInvoices } from "./gst";
 
-const sourceLabel: Record<string, string> = { pharmacy: "Medicine", bed: "Bed day" };
+const sourceLabel: Record<string, string> = { pharmacy: "Medicine", bed: "Bed day", gst: "GST" };
 
 const kindLabel = { interim: "Interim bill", final: "Final bill" } as const;
 
@@ -104,6 +105,11 @@ export function AdmissionBills({
         isLoading={bills.isFetchingMore}
         onClick={bills.loadMore}
       />
+      <TaxInvoices
+        hospital={hospital}
+        admissionId={admissionId}
+        hasFinalBill={bills.items.some((b) => b.kind === "final")}
+      />
       <CashPayments
         hospital={hospital}
         admissionId={admissionId}
@@ -135,7 +141,7 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
       </p>
       <p className="text-xs text-muted-foreground">
         Issued {formatDateTime(b.issued_at)} by {b.issued_by}. Medicine is billed on the pharmacy's
-        GST invoice; bed days are before tax.
+        GST invoice; bed days are before tax, and GST on a room, where it applies, is its own line.
       </p>
       {b.kind === "final" && open && (
         // Before the patient leaves, a midnight still in the bed is a bed day this

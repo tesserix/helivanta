@@ -25,11 +25,11 @@ var (
 	errNoFinalBill    = errors.New("deposits are applied once a final bill is issued")
 )
 
-// balanceDue is what is owed less payments and applied deposits.
+// balanceDue is what a new payment or application may still cover: owed
+// less payments, applied deposits and UPI payments waiting on an answer.
 func balanceDue(tx *gorm.DB, tenant string, admission uuid.UUID, currency string) (int64, error) {
 	var v struct{ Due int64 }
-	err := tx.Raw(`SELECT billing_owed(?,?,?) - billing_received(?,?,?,'payment') - billing_applied(?,?,?) AS due`,
-		tenant, admission, currency, tenant, admission, currency, tenant, admission, currency).Scan(&v).Error
+	err := tx.Raw(`SELECT billing_payable(?,?,?) AS due`, tenant, admission, currency).Scan(&v).Error
 	return v.Due, err
 }
 

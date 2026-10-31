@@ -3596,6 +3596,16 @@
           "name": "payments-pharmacy-cancel",
           "subject": "helivanta.in.pharmacy.payment_cancelled.v1",
           "after_commit": true
+        },
+        {
+          "name": "payments-billing-request",
+          "subject": "helivanta.in.billing.payment_requested.v1",
+          "after_commit": true
+        },
+        {
+          "name": "payments-billing-cancel",
+          "subject": "helivanta.in.billing.payment_cancelled.v1",
+          "after_commit": true
         }
       ],
       "broadcasts": [],
@@ -3610,6 +3620,11 @@
             "payment_provider_payments",
             "payment_webhook_deliveries"
           ]
+        },
+        {
+          "id": "0002_payments",
+          "sql_sha256": "6b09a3e0d1339e5cc4ec4f6c8cfe52319dd0854c9c6968c39e299edf77ebdab2",
+          "creates_tables": []
         }
       ]
     },
@@ -3888,6 +3903,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests/:request",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/bed-charging",
           "permission": "billing.account.read",
@@ -4048,6 +4081,24 @@
           "membership_required": true,
           "paginated": false,
           "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/billing/hospitals/:hospital/upi-requests/:request/cancel",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/upi-requests/:request",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
         }
       ],
       "grants": [
@@ -4095,7 +4146,10 @@
           "roles": []
         }
       ],
-      "publishes": [],
+      "publishes": [
+        "helivanta.in.billing.payment_requested.v1",
+        "helivanta.in.billing.payment_cancelled.v1"
+      ],
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
@@ -4107,6 +4161,31 @@
         {
           "name": "billing-discharge-withdrawn",
           "subject": "helivanta.in.medicore.discharge_withdrawn.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-upi-opened",
+          "subject": "helivanta.in.payments.intent_opened.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-upi-failed",
+          "subject": "helivanta.in.payments.intent_failed.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-upi-paid",
+          "subject": "helivanta.in.payments.intent_paid.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-upi-expired",
+          "subject": "helivanta.in.payments.intent_expired.v1",
+          "after_commit": false
+        },
+        {
+          "name": "billing-upi-cancelled",
+          "subject": "helivanta.in.payments.intent_cancelled.v1",
           "after_commit": false
         },
         {
@@ -4219,6 +4298,13 @@
           "creates_tables": [
             "billing_credit_notes",
             "billing_credit_note_lines"
+          ]
+        },
+        {
+          "id": "0011_billing",
+          "sql_sha256": "76b7a02c72f46db02fa9f05f9e1e4e7e5521b0697cf3b9c908e583cd422f7f02",
+          "creates_tables": [
+            "billing_upi_requests"
           ]
         }
       ]

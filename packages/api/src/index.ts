@@ -16,7 +16,7 @@ export * from "./hr-masters";
 export * from "./shifts";
 export { defineEnv } from "./env";
 export { AppProviders } from "./providers";
-export { useApiMutation, useApiQuery } from "./hooks";
+export { useApiMutation, useApiQuery, useApiRefresh } from "./hooks";
 export { useApiPagedQuery, type Page, type UseApiPagedQueryResult } from "./paged";
 export { useApiPageQuery, PAGE_SIZE, type UseApiPageQueryResult } from "./page-query";
 export { Can, usePermissions, type PermissionsResponse } from "./permissions";

@@ -128,6 +128,11 @@ export type CashReceipt = {
   cashier: string;
   admission_id: string;
   purpose: "payment" | "deposit" | "refund";
+  /** UPI is confirmed by the provider and never in the drawer (#211). */
+  mode: "cash" | "upi";
+  /** The UPI reference, and whether it landed after its QR closed. */
+  rrn: string | null;
+  late: boolean;
   approval_id: string | null;
   amount_minor: number;
   currency: string;
@@ -251,6 +256,9 @@ export type CollectionShift = {
   variance_minor: number | null;
   authorised_by: string | null;
   authorisation_reason: string | null;
+  /** UPI taken in the shift: at the bank, apart from the cash columns. */
+  upi_payments_minor: number | null;
+  upi_deposits_minor: number | null;
 };
 
 /** A hospital-local day's cash (#198 slice 2); totals cover counted shifts only. */
@@ -275,6 +283,8 @@ export type DailyCollection = {
     voided_receipts: number;
     voided_minor: number;
     voided_refunds_minor: number;
+    upi_payments_minor: number;
+    upi_deposits_minor: number;
   };
 };
 
@@ -402,3 +412,36 @@ export const taxInvoiceSchema = z.object({
     .min(1, "Enter the address")
     .max(500, "At most 500 characters"),
 });
+
+/**
+ * A UPI payment or deposit the billing desk asked for (#198, #211). Paid means
+ * payments fetched a captured payment for this amount from Razorpay, and the
+ * receipt was recorded; nothing the payer shows the cashier makes it paid.
+ */
+export type BillingUpiRequest = {
+  id: string;
+  hospital_id: string;
+  shift_id: string;
+  counter_id: string;
+  counter_code: string;
+  cashier: string;
+  admission_id: string;
+  purpose: "payment" | "deposit";
+  amount_minor: number;
+  currency: string;
+  status:
+    "requested" | "awaiting_payment" | "cancelling" | "paid" | "failed" | "expired" | "cancelled";
+  qr_image_url: string | null;
+  expires_at: string | null;
+  failure_reason: "provider_not_configured" | "provider_unavailable" | "provider_rejected" | null;
+  provider_payment_id: string | null;
+  rrn: string | null;
+  paid_at: string | null;
+  late: boolean;
+  created_at: string;
+  /** The receipt a paid request made, on its counter. */
+  receipt_number: number | null;
+};
+
+export const billingUpiRequestPath = (hospitalId: string, id: string) =>
+  `/billing/hospitals/${hospitalId}/upi-requests/${id}`;

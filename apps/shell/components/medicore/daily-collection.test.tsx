@@ -34,6 +34,8 @@ const day = (date: string) => ({
       variance_minor: -100,
       authorised_by: "user-admin",
       authorisation_reason: "Counted short by one note",
+      upi_payments_minor: 75000,
+      upi_deposits_minor: 30000,
     },
     {
       shift_id: "s2",
@@ -55,6 +57,8 @@ const day = (date: string) => ({
       variance_minor: null,
       authorised_by: null,
       authorisation_reason: null,
+      upi_payments_minor: null,
+      upi_deposits_minor: null,
     },
   ],
   totals: {
@@ -68,6 +72,8 @@ const day = (date: string) => ({
     voided_receipts: 2,
     voided_minor: 5000,
     voided_refunds_minor: 50000,
+    upi_payments_minor: 75000,
+    upi_deposits_minor: 30000,
   },
 });
 const json = (status: number, body: unknown) =>
@@ -139,6 +145,10 @@ describe("DailyCollectionReport", () => {
     const totals = screen.getByLabelText("Day totals");
     expect(totals).toHaveTextContent("Net cashINR 4,200.00");
     expect(totals).toHaveTextContent("ShortagesINR 1.00");
+    // UPI apart from the drawer's cash.
+    expect(counted).toHaveTextContent("INR 750.00 + deposits INR 300.00");
+    expect(totals).toHaveTextContent("UPI paymentsINR 750.00");
+    expect(totals).toHaveTextContent("UPI depositsINR 300.00");
   });
 
   it("reads another day when one is chosen", async () => {

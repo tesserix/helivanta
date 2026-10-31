@@ -1,7 +1,7 @@
 # Staff review release candidate — 2026-11-01
 
 Status: prepared, not deployed. Staff source `f1d3cdee` is reconciled with current
-main `563ae311`; the final revision/CI/image evidence is required before promotion.
+main `6dbb5c6c`; the final revision/CI/image evidence is required before promotion.
 
 Production discovery: `c20a220267cc4e71cc169c47b3ef7220612da1ce`, namespace
 `helivanta`, project `tesseracthub-480811`, context
@@ -15,8 +15,8 @@ database backups report completed. No production mutation has occurred.
 The [machine-readable manifest](2026-11-01-staff-review-candidate.json) records
 every pending owner/ID, canonical SQL path, embed source/variable, exact SQL hash
 and structured concurrent-index declaration. Production has 166 IDs; this
-candidate registers 191, with no unknown applied IDs. The complete pending set
-is **25 migrations**, including inherited Billing, MediCore and Pharmacy changes.
+candidate registers 193, with no unknown applied IDs. The complete pending set
+is **27 migrations**, including inherited Billing, MediCore and Pharmacy changes.
 
 | Owner     | Migration                                       | Canonical source                                                             |
 | --------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -29,6 +29,7 @@ is **25 migrations**, including inherited Billing, MediCore and Pharmacy changes
 | iam       | `0021_iam_employment_templates`                 | `backend/internal/modules/iam/assignment_employment_templates_generated.sql` |
 | medicore  | `0009_medicore`                                 | `backend/internal/modules/medicore/nicu.sql`                                 |
 | pharmacy  | `0028_pharmacy`                                 | `backend/internal/modules/pharmacy/unused_payment_refunds.sql`               |
+| payments  | `0002_payments`                                 | `backend/internal/modules/payments/requesters.sql`                           |
 | billing   | `0004_billing`                                  | `backend/internal/modules/billing/final_bills.sql`                           |
 | billing   | `0005_billing`                                  | `backend/internal/modules/billing/cash.sql`                                  |
 | billing   | `0006_billing`                                  | `backend/internal/modules/billing/deposits.sql`                              |
@@ -36,6 +37,7 @@ is **25 migrations**, including inherited Billing, MediCore and Pharmacy changes
 | billing   | `0008_billing`                                  | `backend/internal/modules/billing/positions.sql`                             |
 | billing   | `0009_billing`                                  | `backend/internal/modules/billing/gst.sql`                                   |
 | billing   | `0010_billing`                                  | `backend/internal/modules/billing/credit_notes.sql`                          |
+| billing   | `0011_billing`                                  | `backend/internal/modules/billing/upi.sql`                                   |
 | workforce | `0053_workforce_hr_intake`                      | `backend/internal/modules/workforce/hr_intake.sql`                           |
 | workforce | `0054_workforce_person_reviews`                 | `backend/internal/modules/workforce/person_reviews.sql`                      |
 | workforce | `0055_workforce_person_provenance_index`        | `backend/internal/modules/workforce/module.go`                               |
@@ -67,9 +69,10 @@ open. No umbrella Staff or Access/RBAC issue is closed by this release.
 
 ## Promotion and recovery
 
-Keep the repository public. Merge after required CI; wait for both images to be
-scanned, signed and published and for `deploy` to advance. Obtain approval naming
-that final image revision and all 25 migrations, then promote through Kargo.
+Keep the repository public. The user authorized admin-bypass merge and production
+deployment. Finish combined-source validation, merge with that bypass, then wait
+for both images to be scanned, signed and published and for `deploy` to advance.
+Promote the exact merged revision with all 27 migrations through Kargo.
 Verify exact images/replicas, migration IDs/timestamps, Argo health, expected
 unauthenticated denial and normal synthetic Staff Admin/reviewer UI.
 

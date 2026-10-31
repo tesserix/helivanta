@@ -2,10 +2,10 @@
   "status": "prepared_not_deployed",
   "production_baseline": "c20a220267cc4e71cc169c47b3ef7220612da1ce",
   "staff_source_commit": "f1d3cdee",
-  "integrated_main_commit": "563ae311",
+  "integrated_main_commit": "6dbb5c6ce42f014ef6fcc0bbc980fc6ca89d224f",
   "production_applied_migration_count": 166,
-  "candidate_registered_migration_count": 191,
-  "pending_migration_count": 25,
+  "candidate_registered_migration_count": 193,
+  "pending_migration_count": 27,
   "pending_migrations": [
     {
       "owner": "iam",
@@ -115,6 +115,16 @@
       "embed_source": "backend/internal/modules/pharmacy/module.go"
     },
     {
+      "owner": "payments",
+      "id": "0002_payments",
+      "sql_sha256": "6b09a3e0d1339e5cc4ec4f6c8cfe52319dd0854c9c6968c39e299edf77ebdab2",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/payments/module.go",
+      "canonical_sql": "backend/internal/modules/payments/requesters.sql",
+      "embedded_variable": "requestersSchema",
+      "embed_source": "backend/internal/modules/payments/module.go"
+    },
+    {
       "owner": "billing",
       "id": "0004_billing",
       "sql_sha256": "63d7af7e6540e1728ec0f59c313bfcb9990497ca057ba20a03c8e811f26ec611",
@@ -191,6 +201,16 @@
       "registration_source": "backend/internal/modules/billing/module.go",
       "canonical_sql": "backend/internal/modules/billing/credit_notes.sql",
       "embedded_variable": "creditNotesSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0011_billing",
+      "sql_sha256": "76b7a02c72f46db02fa9f05f9e1e4e7e5521b0697cf3b9c908e583cd422f7f02",
+      "creates_tables": ["billing_upi_requests"],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/upi.sql",
+      "embedded_variable": "upiSchema",
       "embed_source": "backend/internal/modules/billing/module.go"
     },
     {
@@ -346,5 +366,5 @@
     }
   ],
   "recovery": "Preserve expanded schema and immutable receipts/history. Prefer forward correction; any live rollback requires separate approval. No destructive down migrations.",
-  "approval": "Approve the final validated production image revision and this complete migration set before Kargo promotion."
+  "approval": "User authorized admin-bypass merge and deployment; validate the combined tree and promote only the exact published, scanned and signed merged revision with this complete migration set."
 }

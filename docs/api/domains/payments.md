@@ -4,8 +4,10 @@ Owner: the `payments` module (#210, #1386 C-4a). Design:
 [payments and UPI at the counter](../../superpowers/specs/2026-10-28-payments-upi-counter-design.md).
 
 Payments owns money state: the tenant's provider account, payment intents
-and what the provider reported. A requester (the pharmacy domain today)
-owns what the money is for and whether it was used. They talk only through
+and what the provider reported. A requester (the pharmacy domain, and the
+hospital billing desk since #211) owns what the money is for and whether it
+was used. The requester is set by the subject the request arrived on, never
+taken from the payload. They talk only through
 outbox events; neither reads the other's tables.
 
 ## Provider account
@@ -17,10 +19,11 @@ outbox events; neither reads the other's tables.
 
 ## Intents
 
-| Event in                                     | Effect                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `helivanta.in.pharmacy.payment_requested.v1` | One intent per request (a redelivery does nothing). No account: `intent_failed{provider_not_configured}`. Otherwise one Razorpay UPI QR (`upi_qr`, `single_use`, `fixed_amount`, `close_by` = expiry; INR, 120–7200 s) with a 10 s timeout and no retry, made after the consumer commits (an intent still `opening` after 45 s is failed): `intent_opened` or `intent_failed{provider_unavailable | provider_rejected}`. |
-| `helivanta.in.pharmacy.payment_cancelled.v1` | Closes the QR, then checks: `intent_paid` if money landed, else `intent_cancelled`. A cancel that arrives before its request leaves a `cancelled` tombstone, and the request then opens no QR.                                                                                                                                                                                                    |
+| Event in                                                             | Effect                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `helivanta.in.pharmacy.payment_requested.v1`                         | One intent per request (a redelivery does nothing). No account: `intent_failed{provider_not_configured}`. Otherwise one Razorpay UPI QR (`upi_qr`, `single_use`, `fixed_amount`, `close_by` = expiry; INR, 120–7200 s) with a 10 s timeout and no retry, made after the consumer commits (an intent still `opening` after 45 s is failed): `intent_opened` or `intent_failed{provider_unavailable | provider_rejected}`. |
+| `helivanta.in.pharmacy.payment_cancelled.v1`                         | Closes the QR, then checks: `intent_paid` if money landed, else `intent_cancelled`. A cancel that arrives before its request leaves a `cancelled` tombstone, and the request then opens no QR.                                                                                                                                                                                                    |
+| `helivanta.in.billing.payment_requested.v1`, `…payment_cancelled.v1` | The same, for requester `billing` (#198, #211): the billing desk's UPI payments and deposits on an admission account.                                                                                                                                                                                                                                                                             |
 
 An intent is paid only by a payment fetched from the Razorpay API, `captured`,
 with the intent's amount and currency. Every captured payment is stored once

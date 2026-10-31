@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "799ed6fc08f444934baa83dfdfeafd5569a875239b470cec6a5ab4545c7a9117",
+  "registry_sha256": "a26a4da278f7fbe7fad24188e1e1e55905e564e80f386da225e98c20646ee8b5",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 708,
-    "unclassified": 699
+    "total": 719,
+    "unclassified": 710
   },
   "entries": [
     {
@@ -97,6 +97,66 @@
         "source": "backend/internal/modules/billing/module.go",
         "name": "billing-pharmacy-admission-reversal",
         "subject": "helivanta.in.pharmacy.admission_charge_reversed.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer billing billing-upi-cancelled helivanta.in.payments.intent_cancelled.v1",
+      "kind": "consumer",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "name": "billing-upi-cancelled",
+        "subject": "helivanta.in.payments.intent_cancelled.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer billing billing-upi-expired helivanta.in.payments.intent_expired.v1",
+      "kind": "consumer",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "name": "billing-upi-expired",
+        "subject": "helivanta.in.payments.intent_expired.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer billing billing-upi-failed helivanta.in.payments.intent_failed.v1",
+      "kind": "consumer",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "name": "billing-upi-failed",
+        "subject": "helivanta.in.payments.intent_failed.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer billing billing-upi-opened helivanta.in.payments.intent_opened.v1",
+      "kind": "consumer",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "name": "billing-upi-opened",
+        "subject": "helivanta.in.payments.intent_opened.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer billing billing-upi-paid helivanta.in.payments.intent_paid.v1",
+      "kind": "consumer",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "name": "billing-upi-paid",
+        "subject": "helivanta.in.payments.intent_paid.v1",
         "after_commit": false
       },
       "review": null
@@ -278,6 +338,30 @@
         "name": "patient-registration-review-withdrawal",
         "subject": "helivanta.in.mediconnect.registration_review_withdrawn.v1",
         "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer payments payments-billing-cancel helivanta.in.billing.payment_cancelled.v1",
+      "kind": "consumer",
+      "module": "payments",
+      "registration": {
+        "source": "backend/internal/modules/payments/module.go",
+        "name": "payments-billing-cancel",
+        "subject": "helivanta.in.billing.payment_cancelled.v1",
+        "after_commit": true
+      },
+      "review": null
+    },
+    {
+      "id": "consumer payments payments-billing-request helivanta.in.billing.payment_requested.v1",
+      "kind": "consumer",
+      "module": "payments",
+      "registration": {
+        "source": "backend/internal/modules/payments/module.go",
+        "name": "payments-billing-request",
+        "subject": "helivanta.in.billing.payment_requested.v1",
+        "after_commit": true
       },
       "review": null
     },
@@ -854,6 +938,22 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/upi-requests",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing GET /v1/billing/hospitals/:hospital/bed-charging",
       "kind": "http",
       "module": "billing",
@@ -998,6 +1098,22 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/upi-requests/:request",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/upi-requests/:request",
+        "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing POST /v1/billing/hospitals/:hospital/admissions/:admission/final-bills",
       "kind": "http",
       "module": "billing",
@@ -1022,6 +1138,22 @@
         "method": "POST",
         "path": "/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills",
         "permission": "billing.bill.issue",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing POST /v1/billing/hospitals/:hospital/upi-requests/:request/cancel",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "POST",
+        "path": "/v1/billing/hospitals/:hospital/upi-requests/:request/cancel",
+        "permission": "billing.cash.collect",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
@@ -1150,6 +1282,22 @@
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note",
         "permission": "billing.bill.issue",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/admissions/:admission/upi-requests/:request",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/upi-requests/:request",
+        "permission": "billing.cash.collect",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

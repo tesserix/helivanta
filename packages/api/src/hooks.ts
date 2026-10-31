@@ -111,3 +111,15 @@ export function useApiMutation<TData, TVars = void>(
     },
   });
 }
+
+/**
+ * useApiRefresh refreshes cached queries after a change the screen learned
+ * of by polling rather than by its own mutation: a UPI payment confirmed by
+ * the provider (#211), which wrote a receipt the screen did not post.
+ */
+export function useApiRefresh(): (keys: unknown[][]) => void {
+  const queryClient = useQueryClient();
+  return (keys) => {
+    for (const key of keys) void queryClient.invalidateQueries({ queryKey: key });
+  };
+}

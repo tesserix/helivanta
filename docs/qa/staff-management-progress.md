@@ -3,18 +3,19 @@
 ## Deployment preparation with current main — 2026-11-01
 
 The user requested deployment of the tested Staff candidate before continuing.
-Source is committed as `f1d3cdee` and reconciled with current main `563ae311`.
+Source is committed as `f1d3cdee` and reconciled with current main `6dbb5c6c`.
 The single merge conflict was the same calendar-test correction; main's equivalent
 deterministic clock was retained. Combined full Go coverage and web gates are
 running. Earlier results below apply to their own source, not the new tree.
 
 Read-only discovery confirms production `c20a2202`, healthy application replicas/
 Argo and completed scheduled backups. Its ledger has 166 IDs; this registry has
-191 and no unknown applied IDs. The [release manifest](../deployment/releases/2026-11-01-staff-review-candidate.md)
-persists **all 25 pending migrations**, including inherited non-Staff financial
-and clinical owners. Final CI/images and approval of the named revision/migration
-set are required before manual Kargo promotion. No production mutation occurred.
-The current ledger has 708 surfaces, nine source classifications, 699 unclassified
+193 and no unknown applied IDs. The [release manifest](../deployment/releases/2026-11-01-staff-review-candidate.md)
+persists **all 27 pending migrations**, including inherited non-Staff financial
+and clinical owners. The user authorized admin-bypass merge and production deployment. Final
+combined validation and published/scanned/signed images are still required before
+manual Kargo promotion. No production mutation occurred.
+The current ledger has 719 surfaces, nine source classifications, 710 unclassified
 and zero full cutoff acceptances. Full Access/RBAC remains incomplete.
 
 ## Independent employment decisions candidate — 2026-11-01

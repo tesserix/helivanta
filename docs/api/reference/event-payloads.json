@@ -1,4 +1,60 @@
 {
+  "helivanta.in.billing.payment_cancelled.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:34",
+    "go_type": "PaymentCancelledData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "amount_minor",
+        "currency"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.billing.payment_requested.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:24",
+    "go_type": "PaymentRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "expires_in_seconds": {
+          "type": "integer"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "purpose",
+        "amount_minor",
+        "currency",
+        "expires_in_seconds"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.drugmaster.catalogue_published.v1": {
     "source": "backend/internal/modules/drugmaster/contract/events.go:31",
     "go_type": "CataloguePublishedData",
@@ -1136,7 +1192,7 @@
     }
   },
   "helivanta.in.payments.intent_cancelled.v1": {
-    "source": "backend/internal/modules/payments/contract/events.go:69",
+    "source": "backend/internal/modules/payments/contract/events.go:73",
     "go_type": "IntentCancelledData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1160,7 +1216,7 @@
     }
   },
   "helivanta.in.payments.intent_expired.v1": {
-    "source": "backend/internal/modules/payments/contract/events.go:63",
+    "source": "backend/internal/modules/payments/contract/events.go:67",
     "go_type": "IntentExpiredData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1184,7 +1240,7 @@
     }
   },
   "helivanta.in.payments.intent_failed.v1": {
-    "source": "backend/internal/modules/payments/contract/events.go:44",
+    "source": "backend/internal/modules/payments/contract/events.go:48",
     "go_type": "IntentFailedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1212,7 +1268,7 @@
     }
   },
   "helivanta.in.payments.intent_opened.v1": {
-    "source": "backend/internal/modules/payments/contract/events.go:37",
+    "source": "backend/internal/modules/payments/contract/events.go:41",
     "go_type": "IntentOpenedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1245,7 +1301,7 @@
     }
   },
   "helivanta.in.payments.intent_paid.v1": {
-    "source": "backend/internal/modules/payments/contract/events.go:52",
+    "source": "backend/internal/modules/payments/contract/events.go:56",
     "go_type": "IntentPaidData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

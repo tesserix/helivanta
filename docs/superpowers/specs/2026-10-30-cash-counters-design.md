@@ -58,6 +58,6 @@ expected.
 
 ## Not covered
 
-UPI, card, netbanking and wallet; handover between cashiers; denominations; mid-shift
+UPI (since added: `2026-11-01-billing-upi-design.md`), card, netbanking and wallet; handover between cashiers; denominations; mid-shift
 pickups; refunds; shift-close and daily collection reports and GL export; events
 (`ShiftOpened` …), which nothing consumes yet; receipts on bills; deposits (#199).

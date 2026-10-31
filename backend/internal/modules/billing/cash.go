@@ -33,6 +33,8 @@ var (
 	errNotPending   = errors.New("the shift has no variance waiting for authorisation")
 	errNoCounter    = errors.New("counter not found")
 	errNoReceipt    = errors.New("receipt not found")
+	errUpiWaiting   = errors.New("a UPI payment in this shift is still waiting; cancel it or wait for its answer")
+	errUpiVoid      = errors.New("a UPI receipt is not voided: the money is at the bank")
 	counterCode     = regexp.MustCompile(`^[A-Z0-9][A-Z0-9-]{0,19}$`)
 )
 
@@ -98,12 +100,18 @@ type receipt struct {
 	VoidID      *uuid.UUID `json:"-"`
 	VoidReason  *string    `json:"void_reason"`
 	VoidedAt    *time.Time `json:"voided_at"`
+	// cash, or upi: confirmed by the provider, never in the drawer (#211).
+	Mode string `json:"mode"`
+	// The UPI reference and whether it landed after its QR closed.
+	RRN  *string `json:"rrn" gorm:"->"`
+	Late bool    `json:"late" gorm:"->"`
 }
 
 func (r receipt) PageKey() (time.Time, uuid.UUID) { return r.ReceivedAt, r.ID }
 
 const receiptSelect = `SELECT r.id,r.hospital_id,r.shift_id,r.counter_id,c.code AS counter_code,r.number,r.cashier,r.admission_id,r.purpose,r.approval_id,r.amount_minor,r.currency,
- r.received_at,r.void_id,r.void_reason,r.voided_at FROM billing_cash_receipts r JOIN billing_counters c ON c.tenant_id=r.tenant_id AND c.id=r.counter_id`
+ r.received_at,r.void_id,r.void_reason,r.voided_at,r.mode,u.rrn,COALESCE(u.late,false) AS late FROM billing_cash_receipts r JOIN billing_counters c ON c.tenant_id=r.tenant_id AND c.id=r.counter_id
+ LEFT JOIN billing_upi_requests u ON u.tenant_id=r.tenant_id AND u.id=r.upi_request_id`
 
 func cashFailure(c *gin.Context, err error) {
 	var pg *pgconn.PgError
@@ -132,6 +140,10 @@ func cashFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "approval_required", errApprovalRequired.Error())
 	case errors.Is(err, errOverBalance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_balance":
 		respond.Error(c, http.StatusConflict, "over_balance", "the amount is more than the balance due; an advance is a deposit")
+	case errors.Is(err, errUpiWaiting), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_upi_waiting":
+		respond.Error(c, http.StatusConflict, "upi_waiting", errUpiWaiting.Error())
+	case errors.Is(err, errUpiVoid), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_upi_void":
+		respond.Error(c, http.StatusConflict, "upi_receipt", errUpiVoid.Error())
 	case errors.Is(err, errOwnVariance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_own_variance":
 		respond.Error(c, http.StatusConflict, "own_variance", errOwnVariance.Error())
 	case errors.Is(err, errNotPending):
@@ -567,6 +579,9 @@ func (h *handlers) voidReceipt(c *gin.Context) {
 		}
 		if r.Cashier != p.Subject {
 			return errNoReceipt
+		}
+		if r.Mode == "upi" {
+			return errUpiVoid
 		}
 		if r.VoidedAt != nil {
 			if *r.VoidID != voidID || *r.VoidReason != why {

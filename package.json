@@ -28,18 +28,13 @@
       "brace-expansion@>=4 <5.0.12": "^5.0.12",
       "js-yaml@>=4 <4.3.2": "^4.3.2",
       "source-map-js@<1.2.2": "^1.2.2",
-      "@expo/cli@57.0.32>zod": "4.6.6",
       "eslint-plugin-react-hooks@7.1.1>zod": "4.6.6",
       "node-forge": "1.4.1"
     },
     "auditConfig": {
       "ignoreGhsas": [
-        "GHSA-vfj7-8cjw-p6xm",
-        "GHSA-qr28-fpjm-wq7f"
+        "GHSA-vfj7-8cjw-p6xm"
       ]
-    },
-    "patchedDependencies": {
-      "decode-uri-component@0.2.2": "patches/decode-uri-component@0.2.2.patch"
     }
   }
 }

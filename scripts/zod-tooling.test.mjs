@@ -6,11 +6,12 @@ const appRequire = createRequire(new URL("../apps/ambulanceconnect/package.json"
 const expoRequire = createRequire(appRequire.resolve("expo/package.json"));
 const cliRequire = createRequire(expoRequire.resolve("@expo/cli/package.json"));
 const { z } = cliRequire("zod");
+const { validate } = cliRequire("@expo/schema-utils");
 const { PluginSchema, DevToolsPluginOutputSchema } = cliRequire(
-  "./build/src/start/server/DevToolsPlugin.schema.js",
+  "./build/src/start/server/devtools/DevToolsPlugin.schema.js",
 );
 const { createMCPDevToolsExtensionSchema } = cliRequire(
-  "./build/src/start/server/createMCPDevToolsExtensionSchema.js",
+  "./build/src/start/server/mcp/createMCPDevToolsExtensionSchema.js",
 );
 
 test("Expo's resolved validator stops at a collection limit", () => {
@@ -21,7 +22,7 @@ test("Expo's resolved validator stops at a collection limit", () => {
 });
 
 test("Expo plugin validation preserves command types and rejects unknown input", () => {
-  const plugin = PluginSchema.parse({
+  const plugin = {
     packageName: "synthetic-plugin",
     packageRoot: "/synthetic",
     cliExtensions: {
@@ -36,8 +37,9 @@ test("Expo plugin validation preserves command types and rejects unknown input",
         },
       ],
     },
-  });
-  const schema = createMCPDevToolsExtensionSchema(plugin);
+  };
+  assert.doesNotThrow(() => validate(PluginSchema, plugin));
+  const schema = createMCPDevToolsExtensionSchema(plugin, z);
   assert.deepEqual(schema.parse({ command: "inspect", count: 2 }), {
     command: "inspect",
     count: 2,
@@ -49,13 +51,9 @@ test("Expo plugin validation preserves command types and rejects unknown input",
   ]) {
     assert.equal(schema.safeParse(input).success, false);
   }
-  assert.equal(PluginSchema.safeParse({ packageName: "" }).success, false);
-  assert.deepEqual(
-    DevToolsPluginOutputSchema.parse([{ type: "text", text: "ready", level: "info" }]),
-    [{ type: "text", text: "ready", level: "info" }],
+  assert.throws(() => validate(PluginSchema, { packageName: "" }));
+  assert.doesNotThrow(() =>
+    validate(DevToolsPluginOutputSchema, [{ type: "text", text: "ready", level: "info" }]),
   );
-  assert.equal(
-    DevToolsPluginOutputSchema.safeParse([{ type: "audio", url: "invalid" }]).success,
-    false,
-  );
+  assert.throws(() => validate(DevToolsPluginOutputSchema, [{ type: "audio", url: "invalid" }]));
 });

@@ -1,5 +1,15 @@
 # Expo Router: decode-uri-component linear decoder backport
 
+## Retired with Expo SDK 58
+
+Expo Router 58.0.29 replaced query-string with URLSearchParams. The vulnerable
+decoder is no longer in the dependency graph, so the backport and audit exception
+are removed. The regressions now exercise the installed router's URL helpers and
+query parsing, including the bounded malformed-input attack. This remains a
+historical record of the SDK 57 mitigation below.
+
+## Historical backport
+
 The audit reports [GHSA-qr28-fpjm-wq7f](https://github.com/advisories/GHSA-qr28-fpjm-wq7f):
 `decode-uri-component` up to 0.5.0 decodes malformed percent-encoded runs in quadratic time,
 so a long crafted string stalls the caller. It reaches production through

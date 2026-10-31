@@ -320,15 +320,33 @@ review of the policy is required before production use.
     hospital's date), consecutively, under a lock. The database sets the supplier, place of supply
     (the GSTIN's state), date and number.
   - `GET …/tax-invoices`, `GET …/tax-invoices/:invoice` (with totals: value, taxable, exempt, CGST,
-    SGST, total) and `GET …/tax-invoices/:invoice/lines` read them.
+    SGST, total, and `creditable_lines`, its reversed lines awaiting a credit note) and
+    `GET …/tax-invoices/:invoice/lines` read them.
+- **Credit notes** ([spec](../../superpowers/specs/2026-10-31-gst-credit-notes-design.md)):
+  - `PUT …/tax-invoices/:invoice/credit-notes/:note` (`billing.bill.issue`, no body) issues a
+    credit note (CGST Act s.34(1), Rule 53(1A)) for every line of that invoice whose room charge
+    was reversed and is on no credit note. A retry replays; the same id on another invoice is
+    `409`.
+  - Its lines copy the invoice's (value, SAC, policy version, rates and tax), and its supplier
+    and recipient are the invoice's; the clerk issuing it is its signatory.
+  - It is numbered `CN/<yyyy>/<n>` per GSTIN and financial year of issue, under a lock.
+  - It is refused after 30 November following the end of the invoice's financial year
+    (s.34(2)): `409 credit_note_deadline_passed`. An earlier annual return also closes it,
+    which the system does not know.
+  - `409 nothing_to_credit` when nothing on the invoice awaits one.
+  - `GET …/admissions/:admission/credit-notes`, `GET …/credit-notes/:note` and
+    `GET …/credit-notes/:note/lines` read them.
 - **Refusals:**
   - `409 gst_unregistered`, `409 no_final_bill`, `409 nothing_to_invoice`;
-  - `409 credit_note_required` once an invoiced room charge is reversed (credit notes are not
-    built yet).
+  - `409 credit_note_required` while an invoiced room charge is reversed and not yet credited.
 - **The shell:** the Billing page has a GST panel for administrators. Each admission's bills list
-  its tax invoices, with the desk's issue form after a final bill.
+  its tax invoices, with the desk's issue form after a final bill, and its credit notes; an
+  invoice with reversed days offers "Issue credit note".
 - **Not covered:**
-  - credit and debit notes;
+  - debit notes, and credit notes for discounts or anything other than a reversed room day;
+  - one credit note across several invoices;
+  - whether the 2025 proviso to s.34(2) bars the tax reduction when the patient was refunded
+    (tax review);
   - IRN or e-invoicing, QR codes and PDFs;
   - IGST and B2B recipients;
   - GST on other hospital services;

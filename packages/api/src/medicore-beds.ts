@@ -4,7 +4,15 @@ import { z } from "zod";
 export { v7 as newBedId } from "uuid";
 
 export type BedClass =
-  "general" | "semi_private" | "private" | "icu" | "hdu" | "isolation" | "neonatal" | "day_care";
+  | "general"
+  | "semi_private"
+  | "private"
+  | "icu"
+  | "hdu"
+  | "isolation"
+  | "neonatal"
+  | "nicu"
+  | "day_care";
 export type BedState = "available" | "occupied" | "cleaning" | "out_of_service";
 
 export const bedClassLabel: Record<BedClass, string> = {
@@ -14,7 +22,8 @@ export const bedClassLabel: Record<BedClass, string> = {
   icu: "ICU",
   hdu: "HDU",
   isolation: "Isolation",
-  neonatal: "Neonatal",
+  neonatal: "Neonatal ward",
+  nicu: "NICU",
   day_care: "Day care",
 };
 
@@ -112,6 +121,7 @@ export const bedInputSchema = z.object({
     "hdu",
     "isolation",
     "neonatal",
+    "nicu",
     "day_care",
   ]),
 });

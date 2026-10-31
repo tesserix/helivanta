@@ -29,6 +29,10 @@ const (
 	PermCashCollect authz.Permission = "billing.cash.collect"
 	// PermShiftAuthorise authorises a shift's cash variance and lists shifts.
 	PermShiftAuthorise authz.Permission = "billing.shift.authorise"
+	// PermCollectionRead reads and exports a hospital's daily cash collection.
+	PermCollectionRead authz.Permission = "billing.collection.read"
+	// PermTaxManage records a hospital's GST registration.
+	PermTaxManage authz.Permission = "billing.tax.manage"
 )
 
 //go:embed accounts.sql
@@ -55,6 +59,9 @@ var refundsSchema string
 //go:embed positions.sql
 var positionsSchema string
 
+//go:embed gst.sql
+var gstSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -75,11 +82,15 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermCashCollect, Roles: []authz.Role{authz.RoleReceptionist}},
 		{Permission: PermCounterManage},
 		{Permission: PermShiftAuthorise},
+		// No finance role exists on the hospital side: administrators only.
+		{Permission: PermCollectionRead},
+		// A GSTIN binds the hospital legally: administrators only.
+		{Permission: PermTaxManage},
 	}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -111,6 +122,9 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.GET(hp+"/cash-shifts/mine", PermCashCollect, h.myShift)
 	g.PUT(hp+"/cash-shifts/:shift/close", PermCashCollect, h.closeShift)
 	g.PUT(hp+"/cash-shifts/:shift/authorisation", PermShiftAuthorise, h.authoriseShift)
+	// The daily collection report (#198 slice 2).
+	g.GET(hp+"/collections/:date", PermCollectionRead, h.dailyCollection)
+	g.GET(hp+"/collections/:date/export.csv", PermCollectionRead, h.exportDailyCollection)
 	platform.ListRoute(g, hp+"/cash-shifts", PermShiftAuthorise, h.shifts)
 	g.PUT(hp+"/admissions/:admission/receipts/:receipt", PermCashCollect, h.takeCash)
 	platform.ListRoute(g, hp+"/admissions/:admission/receipts", PermAccountRead, h.receipts)
@@ -125,6 +139,14 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT(hp+"/admissions/:admission/refund-approvals/:approval", PermShiftAuthorise, h.approveRefund)
 	platform.ListRoute(g, hp+"/admissions/:admission/refund-approvals", PermAccountRead, h.refundApprovals)
 	g.PUT(hp+"/admissions/:admission/refunds/:receipt", PermCashCollect, h.payRefund)
+	// GST on rooms and the admission tax invoice (#193 slice 1).
+	g.PUT(hp+"/gst-registration", PermTaxManage, h.setGstRegistration)
+	g.GET(hp+"/gst-registration", PermAccountRead, h.gstRegistration)
+	inv := hp + "/admissions/:admission/tax-invoices"
+	g.PUT(inv+"/:invoice", PermBillIssue, h.issueTaxInvoice)
+	platform.ListRoute(g, inv, PermAccountRead, h.taxInvoices)
+	g.GET(inv+"/:invoice", PermAccountRead, h.taxInvoice)
+	platform.ListRoute(g, inv+"/:invoice/lines", PermAccountRead, h.taxInvoiceLines)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

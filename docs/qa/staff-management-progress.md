@@ -1,5 +1,38 @@
 # Staff Management delivery tracker
 
+Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+
+## Integration and complete owner-suite checkpoint — 2026-10-31
+
+Credential-refresh source `a8e149eb` is pushed to draft PR #1489. Complete
+Workforce race/coverage passes: 521 passing test/subtest events, zero skips or
+failures, 83.7% statement coverage, 467.639 seconds. Complete IAM race/coverage
+passes: 300 passing events, 82.4%, 339.735 seconds; eight conditional provider
+skips are separately resolved by eight real-provider passes in 29.983 seconds.
+The complete final journey race suite passes in 57.342 seconds, including all
+19 file-boundary scenarios. Authn/harness races, full vet/build, affected lint,
+contract freshness, formatting/diff and staged redacted secret scanning pass.
+Normal local Admin download and fresh restricted-reviewer UI evidence are
+recorded below; the local API remains on `a8e149eb`.
+
+GitHub reports the PR conflicting with current main, so quality CI did not start
+for that source; its separate image workflow is live. Integration with main
+`4587b55b` is prepared in an isolated worktree, retaining the original live test
+checkout. The sole conflict was this tracker; both complete histories are
+preserved. Main's leave privacy fix and unrelated billing/MediCore changes are
+retained. Canonical contract generation/check, full vet/build and clean conflict/
+diff checks pass on the combined source. Its bootstrap/Global API/architecture/
+journey races and web validation remain separate pending gates.
+
+The combined canonical registry has **19 IAM / 171 module migrations**. Main
+contributes `0009_billing` and `0009_medicore`; their source SQL/registrations are
+retained. This integration adds no new Staff migration, and neither inherited
+migration has been run against the existing application fixture or production.
+Historical 169-migration checkpoints remain accurate for their earlier source.
+No merge to main, production rollout, release, issue closure or A01–A12 completion
+is claimed. Full scoped HR/person/employment and every lifecycle cutoff remain
+required.
+
 ## Original credential and identity across private file I/O — 2026-10-31
 
 Real signed-session IAM/PostgreSQL/OpenFGA/Global API regressions reproduced
@@ -812,7 +845,55 @@ remains open. The production checkpoint below is unchanged.
 - Record local positive UI QA separately from production positive or denial QA. A test count, route, screenshot, migration job or published release alone does not establish workflow completion.
 - Keep issues open until their actual acceptance criteria pass. Legacy issue references to Keycloak or proposed tables must be reconciled with current Zitadel/IAM/Workforce ownership before implementation.
 
-## Current production release — c20a220, 2026-10-30
+## Current-source access continuation — 2026-10-31
+
+Source basis: current main `5a618f86`. Scoped leave commands, discovery and the
+separate reviewer UI already exist on this source; their existence does not close
+the full Access/RBAC objective. Historical results from older checkouts are not
+current-source release evidence.
+
+Two current-source UI regressions reproduced: a failed selected-request read
+left independently loaded private history visible, and a failed history read
+left decision controls enabled. The leave-request panel now hides history when
+the selected request cannot be verified and withholds decisions while detail or
+history verification is pending, refreshing or failed. Existing successful
+filing, review, withdrawal and revocation behavior remains covered. This changes
+UI handling only; it grants no role and changes no server authorization, schema
+or migration.
+
+Focused red/green evidence: `/tmp/current-staff-read-red.log` and
+`/tmp/current-staff-read-green.log` (10 passing tests). Full current-source shell
+tests passed 1,266 tests in 245.19 s, plus shell typecheck, lint, formatting and
+production build. Build validation supplied `API_URL=http://localhost:8081`,
+the repository's development Global API origin; the first build correctly
+refused to proceed without an explicit production-build gateway origin. Commands
+run with installed Node 24.22.1: `pnpm install --frozen-lockfile`,
+`pnpm --filter @helivanta/shell test`, `type-check`, `lint` and `build`,
+scoped Prettier, and `git diff --check`.
+
+The eight previously unrun real Zitadel provider tests now all pass, with no
+skips, against the existing localhost identity fixture (28.546 s):
+`go test -race -json ./internal/modules/iam -run '^TestIntegration_' -count=1`.
+The private launcher loaded existing dev credentials into the child environment
+without printing or committing them. The mode-0600 evidence file is
+`current-main-zitadel-provider-20261031.jsonl` in the existing private QA bundle.
+This covers password success/failure indistinguishability, enforced MFA variants,
+enrolled-factor handoff, IdP-linked password login, foreign-organization policy
+and native TOTP enrollment. It is provider integration evidence, not a completed
+Staff provisioning or employment journey.
+
+Fresh browser/CI/merge/deployment acceptance for this candidate remains open.
+The next HR-intake inventory confirms 208 Workforce routes, including 23 primary
+enrollment-management routes and 10 primary document-management routes. Compound
+credential, reminder, leave-standing/report and storage/disclosure consumers
+remain part of the required action matrix; adding a template or globally
+replacing `enrollmentScope` is insufficient. Continue the
+[source-verified plan](../superpowers/plans/2026-10-30-staff-access-and-review-continuation.md)
+for scoped HR intake and an independent current-person/employment review basis.
+All A01–A12 completion gates below remain applicable. No Staff area is marked
+complete and no production rollout, migration or access expansion is claimed.
+
+## Last recorded production release — c20a220, 2026-10-30
 
 The user approved revision `c20a220267cc4e71cc169c47b3ef7220612da1ce` and all four
 pending migrations. Kargo promotion `prod.01m659npxcq1ejdjcv41942wbe.06dda82`
@@ -888,7 +969,7 @@ No broad Staff area or umbrella issue is newly marked complete. Deployment of
 private drafts/evidence does not implement employment approval, access activation,
 expiry, suspension, resignation, termination, rehire, payroll runs or letters.
 Historical checkpoints retain the state when recorded. The c20a220 release
-checkpoint above is the current production state.
+checkpoint above is the last recorded production state.
 
 ## Quantitative checkpoint — 2026-10-30
 

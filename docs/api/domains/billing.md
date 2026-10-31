@@ -175,8 +175,9 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** UPI, card and other modes; handover; denominations; pickups; refunds; shift
-  and daily collection reports and GL export; events; receipts on bills; deposits (#199).
+- **Not covered:** UPI, card and other modes; handover; denominations; pickups; GL export;
+  events; receipts on bills. Refunds, deposits and the daily collection report came later,
+  below.
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
   it keeps the counter until the grant is restored and the shift closed.
 
@@ -256,3 +257,80 @@ Design: [spec](../../superpowers/specs/2026-10-30-billing-desk-design.md).
 - Needs `billing.account.read` and the hospital's billing grant (`404` without it).
 - The shell's **Billing** zone (`billing.account.read`) shows it with the cash desk; each
   account opens its bills, payments, deposits and refunds, including after release.
+
+## Daily collection (#198 slice 2)
+
+Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
+
+- `GET /billing/hospitals/:hospital/collections/:date` reads one hospital-local day: every shift
+  that opened between that date's midnights in the hospital's bed-charging timezone, with
+  counter, cashier, status, float, standing payments, deposits and refunds, voided receipts (refunds voided apart),
+  expected, declared, variance and its authorisation. A shift belongs to the day it opened.
+- **Open shifts stay blind:** listed without any money figure, since an administrator may also be
+  the cashier. Totals cover counted shifts (closed or waiting): payments, deposits, refunds, net
+  cash (payments + deposits − refunds), shortages and excesses apart, and counts of open and
+  waiting shifts. `final` is true only for a past date with every shift closed.
+- `GET …/collections/:date/export.csv` is the same day as CSV: a row per shift and a `TOTAL`
+  row, rupees with two decimals, text cells made inert to spreadsheet formulas, no patient or
+  admission identifiers. Each export is audit-logged (`billing.collection.exported`) with its
+  row count and SHA-256, also sent as `X-Export-Row-Count` and `X-Export-Sha256`.
+- Needs `billing.collection.read` (tenant administrators only) and the hospital's billing grant
+  (`404` without it). `409 timezone_unset` with no timezone; `400` for a malformed date or one
+  after the hospital's today; `413 collection_too_large` above 500 shifts.
+- The shell's Billing page shows it as **Collections** to holders of the permission.
+- **Not covered:** finance sign-off and reopening a day; GL posting; other payment modes;
+  per-cashier variance trends; date ranges; events.
+
+## GST on rooms and the tax invoice (#193 slice 1)
+
+Design: [spec](../../superpowers/specs/2026-10-31-gst-room-invoices-design.md). Finance or tax
+review of the policy is required before production use.
+
+- **The rule:**
+  - Health care by a clinical establishment is exempt (12/2017-CT(Rate) s.74).
+  - The exception is a room other than ICU, CCU, ICCU or NICU charged above ₹5,000 a day
+    (proviso by 04/2022-CT(Rate)).
+  - Such a room is taxed at 2.5% CGST + 2.5% SGST under SAC 9993 (03/2022-CT(Rate) entry 31A),
+    from 2022-07-18.
+- **The policy** is the versioned SQL function `billing_gst_room_policy(date)`, version
+  `IN-ROOM-2022-07-18`. It exempts the `icu` and `nicu` classes and taxes the whole charge when
+  the day's rate is above 500000 paise. An amendment is a new version in a migration.
+- **Registration:**
+  - `PUT /billing/hospitals/:hospital/gst-registration` `{gstin,legal_name,address,effective_from}`
+    needs `billing.tax.manage` (tenant administrators only) and is set once.
+  - The GSTIN's state, PAN pattern and check character are validated (`400`).
+  - The effective date is the hospital's tomorrow or later, so no settled bill gains tax (`409 registration_backdated`), and the
+    hospital's timezone is required (`409 not_configured`).
+  - A registered hospital's bed rates are INR (`409 rates_not_inr`).
+  - `GET` returns the registration, with `applied_at` once the census has applied it.
+- **Tax as it accrues:**
+  - The census records a GST line for each priced, live, taxable day from the registration on.
+    The database computes it: per day, half up in paise, CGST and SGST each.
+  - The tax is posted as a `gst` charge. When the day is voided, its tax is reversed with it.
+  - Balances, receipts, deposits, refunds, positions and bills include the tax with no other
+    change. A final bill waits until a new registration is applied.
+- **Tax invoices:**
+  - `PUT …/admissions/:admission/tax-invoices/:invoice` `{recipient_name,recipient_address}`
+    (`billing.bill.issue`) issues an invoice-cum-bill of supply (CGST Rules 46, 46A) once a final
+    bill exists. A retry replays.
+  - It carries every standing room charge dated from the registration that is on no invoice
+    yet, taxable or exempt, as snapshot lines. Pharmacy charges are not on it, because pharmacy
+    issues its own GST invoice.
+  - It is numbered `IP/<yyyy>/<n>` per GSTIN and financial year (April to March, by the
+    hospital's date), consecutively, under a lock. The database sets the supplier, place of supply
+    (the GSTIN's state), date and number.
+  - `GET …/tax-invoices`, `GET …/tax-invoices/:invoice` (with totals: value, taxable, exempt, CGST,
+    SGST, total) and `GET …/tax-invoices/:invoice/lines` read them.
+- **Refusals:**
+  - `409 gst_unregistered`, `409 no_final_bill`, `409 nothing_to_invoice`;
+  - `409 credit_note_required` once an invoiced room charge is reversed (credit notes are not
+    built yet).
+- **The shell:** the Billing page has a GST panel for administrators. Each admission's bills list
+  its tax invoices, with the desk's issue form after a final bill.
+- **Not covered:**
+  - credit and debit notes;
+  - IRN or e-invoicing, QR codes and PDFs;
+  - IGST and B2B recipients;
+  - GST on other hospital services;
+  - changing or backdating a registration;
+  - returns and exports.

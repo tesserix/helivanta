@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { readAttachmentFile, sha256Hex } from "./attachment-file";
+import { apiFetchResponse } from "./client";
 import { bedInputSchema, type BedClass } from "./medicore-beds";
 
 // Bed-day charges (#197 slice 2): a hospital's timezone, set once, and its
@@ -226,3 +228,165 @@ export type DeskAccount = {
 };
 
 export type DeskView = "" | "open" | "discharge_ordered" | "to_collect" | "to_refund" | "released";
+
+/** One shift on the daily collection report. Money is null while the shift is open: it closes blind. */
+export type CollectionShift = {
+  shift_id: string;
+  counter_code: string;
+  counter_name: string;
+  cashier: string;
+  status: "open" | "pending_authorisation" | "closed";
+  opened_at: string;
+  closed_at: string | null;
+  opening_float_minor: number | null;
+  payments_minor: number | null;
+  deposits_minor: number | null;
+  refunds_minor: number | null;
+  voided_count: number | null;
+  voided_minor: number | null;
+  /** Refunds voided: cash that never left the drawer, apart from voided takings. */
+  voided_refunds_minor: number | null;
+  expected_minor: number | null;
+  declared_minor: number | null;
+  variance_minor: number | null;
+  authorised_by: string | null;
+  authorisation_reason: string | null;
+};
+
+/** A hospital-local day's cash (#198 slice 2); totals cover counted shifts only. */
+export type DailyCollection = {
+  hospital_id: string;
+  date: string;
+  timezone: string;
+  currency: string;
+  /** A past day with every shift closed. */
+  final: boolean;
+  shifts: CollectionShift[];
+  totals: {
+    payments_minor: number;
+    deposits_minor: number;
+    refunds_minor: number;
+    net_minor: number;
+    shortage_minor: number;
+    excess_minor: number;
+    counted_shifts: number;
+    open_shifts: number;
+    pending_shifts: number;
+    voided_receipts: number;
+    voided_minor: number;
+    voided_refunds_minor: number;
+  };
+};
+
+export const collectionDateSchema = z.object({
+  date: z.string().min(1, "Choose a date").date("Use a valid date"),
+});
+
+export const dailyCollectionPath = (hospitalId: string, date: string) =>
+  `/billing/hospitals/${hospitalId}/collections/${date}`;
+
+// The row count is reported only when the bytes match the digest the export was audited with.
+export async function fetchDailyCollectionCSV(
+  hospitalId: string,
+  date: string,
+  signal: AbortSignal,
+): Promise<{ blob: Blob; filename: string; rows: number }> {
+  signal.throwIfAborted();
+  collectionDateSchema.parse({ date });
+  const response = await apiFetchResponse(`${dailyCollectionPath(hospitalId, date)}/export.csv`, {
+    cache: "no-store",
+    signal,
+  });
+  const filename = `billing-collection-${hospitalId}-${date}.csv`;
+  const rows = response.headers.get("X-Export-Row-Count") ?? "";
+  const digest = response.headers.get("X-Export-Sha256") ?? "";
+  if (
+    response.headers.get("Content-Disposition") !== `attachment; filename="${filename}"` ||
+    !/^text\/csv(?:;|$)/i.test(response.headers.get("Content-Type") ?? "") ||
+    !/^(?:0|[1-9]\d{0,2})$/.test(rows) ||
+    !/^[0-9a-f]{64}$/.test(digest)
+  )
+    throw new Error("The server did not return a valid collection file. Try again.");
+  const blob = await response.blob();
+  const actual = await sha256Hex(await readAttachmentFile(blob, signal));
+  signal.throwIfAborted();
+  if (actual !== digest) throw new Error("The collection file could not be verified. Try again.");
+  return { blob, filename, rows: Number(rows) };
+}
+
+/** A hospital's GST registration (#193): set once; rooms are taxed from its date once applied. */
+export type GstRegistration = {
+  hospital_id: string;
+  gstin: string;
+  legal_name: string;
+  address: string;
+  effective_from: string;
+  created_by: string;
+  created_at: string;
+  /** When the census began taxing from it; null until then. */
+  applied_at: string | null;
+};
+
+// The pattern only: the server also checks the state code and check character.
+export const gstRegistrationSchema = z.object({
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "Enter the 15-character GSTIN"),
+  legal_name: z.string().trim().min(1, "Enter the legal name").max(200, "At most 200 characters"),
+  address: z.string().trim().min(1, "Enter the address").max(500, "At most 500 characters"),
+  effective_from: z.string().date("Choose the date it takes effect"),
+});
+
+/** An invoice-cum-bill of supply for an admission's rooms (INR paise). */
+export type TaxInvoice = {
+  id: string;
+  hospital_id: string;
+  admission_id: string;
+  number: string;
+  issue_date: string;
+  issued_at: string;
+  issued_by: string;
+  gstin: string;
+  supplier_name: string;
+  supplier_address: string;
+  state_code: string;
+  recipient_name: string;
+  recipient_address: string;
+  lines: number;
+  value_minor: number;
+  taxable_minor: number;
+  exempt_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  total_minor: number;
+  currency: string;
+};
+
+export type TaxInvoiceLine = {
+  entry_id: string;
+  census_date: string;
+  bed_class: BedClass;
+  sac: string;
+  policy_version: string;
+  value_minor: number;
+  taxable: boolean;
+  cgst_bp: number;
+  sgst_bp: number;
+  cgst_minor: number;
+  sgst_minor: number;
+};
+
+export const taxInvoiceSchema = z.object({
+  recipient_name: z
+    .string()
+    .trim()
+    .min(1, "Enter the name on the invoice")
+    .max(200, "At most 200 characters"),
+  recipient_address: z
+    .string()
+    .trim()
+    .min(1, "Enter the address")
+    .max(500, "At most 500 characters"),
+});

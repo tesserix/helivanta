@@ -6,7 +6,7 @@
 
 The [slice 1 design](../../superpowers/specs/2026-10-29-bed-occupancy-slice-1-design.md) is in MediCore, migration `0007_medicore`. Everything else on this page is still a proposal.
 
-- **Hierarchy:** ward → room → bed, with immutable codes per hospital, and the bed classes `general`, `semi_private`, `private`, `icu`, `hdu`, `isolation`, `neonatal` and `day_care`. Setup routes need `medicore.bed.configure`, which only tenant administrators hold.
+- **Hierarchy:** ward → room → bed, with immutable codes per hospital, and the bed classes `general`, `semi_private`, `private`, `icu`, `hdu`, `isolation`, `neonatal` (a newborn ward), `nicu` (neonatal intensive care, which GST exempts like `icu`; migration `0009_medicore`) and `day_care`. Setup routes need `medicore.bed.configure`, which only tenant administrators hold.
 - **Bed state:** `available`, `occupied`, `cleaning` or `out_of_service`. A state moves only with an append-only `medicore_bed_transitions` row for exactly the next version, and the database holds the legal moves. A released or vacated bed always goes to `cleaning` first.
 - **Admissions:** direct, into an available bed, with no reservations yet. Intent is `elective` or `emergency`, and the database allows one active admission per patient per hospital.
 - **Occupancy intervals:** gist exclusions keep stays from overlapping, per bed and per admission. A transfer closes one stay and opens the next at the same instant.

@@ -332,7 +332,7 @@ func (h *encounterHandlers) putBed(c *gin.Context) {
 		return
 	}
 	if err := c.ShouldBindJSON(&in); err != nil || !codePattern.MatchString(in.Code) || !bedClasses[in.BedClass] {
-		respond.BadRequest(c, errors.New("a bed has a code of up to 20 capital letters, digits and dashes, and a bed class of general, semi_private, private, icu, hdu, isolation, neonatal or day_care"))
+		respond.BadRequest(c, errors.New("a bed has a code of up to 20 capital letters, digits and dashes, and a bed class of general, semi_private, private, icu, hdu, isolation, neonatal, nicu or day_care"))
 		return
 	}
 	var row bedView

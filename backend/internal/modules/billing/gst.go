@@ -62,7 +62,7 @@ func gstFailure(c *gin.Context, err error) {
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_tax_invoice_final_bill":
 		respond.Error(c, http.StatusConflict, "no_final_bill", "a tax invoice is issued once a final bill exists")
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_tax_invoice_credit_note":
-		respond.Error(c, http.StatusConflict, "credit_note_required", "an invoiced room charge was reversed; it needs a credit note, which is not available yet")
+		respond.Error(c, http.StatusConflict, "credit_note_required", "an invoiced room charge was reversed; issue that invoice's credit note first")
 	case errors.Is(err, errNothingToBill), errors.As(err, &pg) && (pg.ConstraintName == "billing_tax_invoice_complete" || pg.ConstraintName == "billing_tax_invoice_line"):
 		respond.Error(c, http.StatusConflict, "nothing_to_invoice", errNothingToBill.Error())
 	case errors.Is(err, errTaxConflict), errors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "billing_tax_invoices_pkey":
@@ -157,14 +157,16 @@ type taxInvoice struct {
 	RecipientAddress string    `json:"recipient_address"`
 	// From the lines: what was supplied, the taxable part, the exempt part,
 	// each tax and the total, in INR paise.
-	Lines        int    `json:"lines"`
-	ValueMinor   int64  `json:"value_minor"`
-	TaxableMinor int64  `json:"taxable_minor"`
-	ExemptMinor  int64  `json:"exempt_minor"`
-	CGSTMinor    int64  `json:"cgst_minor" gorm:"column:cgst_minor"`
-	SGSTMinor    int64  `json:"sgst_minor" gorm:"column:sgst_minor"`
-	TotalMinor   int64  `json:"total_minor"`
-	Currency     string `json:"currency" gorm:"-"`
+	Lines        int   `json:"lines"`
+	ValueMinor   int64 `json:"value_minor"`
+	TaxableMinor int64 `json:"taxable_minor"`
+	ExemptMinor  int64 `json:"exempt_minor"`
+	CGSTMinor    int64 `json:"cgst_minor" gorm:"column:cgst_minor"`
+	SGSTMinor    int64 `json:"sgst_minor" gorm:"column:sgst_minor"`
+	TotalMinor   int64 `json:"total_minor"`
+	// Reversed lines awaiting a credit note.
+	CreditableLines int    `json:"creditable_lines"`
+	Currency        string `json:"currency" gorm:"-"`
 }
 
 func (t taxInvoice) PageKey() (time.Time, uuid.UUID) { return t.IssuedAt, t.ID }
@@ -174,7 +176,8 @@ const taxInvoiceSelect = `SELECT i.id,i.hospital_id,i.admission_id,i.number,to_c
  count(l.entry_id) AS lines,COALESCE(sum(l.value_minor),0) AS value_minor,
  COALESCE(sum(l.value_minor) FILTER (WHERE l.taxable),0) AS taxable_minor,COALESCE(sum(l.value_minor) FILTER (WHERE NOT l.taxable),0) AS exempt_minor,
  COALESCE(sum(l.cgst_minor),0) AS cgst_minor,COALESCE(sum(l.sgst_minor),0) AS sgst_minor,
- COALESCE(sum(l.value_minor+l.cgst_minor+l.sgst_minor),0) AS total_minor
+ COALESCE(sum(l.value_minor+l.cgst_minor+l.sgst_minor),0) AS total_minor,
+ (SELECT count(*) FROM billing_creditable(i.tenant_id,i.id)) AS creditable_lines
  FROM billing_tax_invoices i LEFT JOIN billing_tax_invoice_lines l ON l.tenant_id=i.tenant_id AND l.invoice_id=i.id`
 
 const taxInvoiceGroup = ` GROUP BY i.tenant_id,i.id`

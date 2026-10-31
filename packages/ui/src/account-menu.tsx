@@ -41,7 +41,7 @@ export function AccountMenu({
         ) : (
           <CircleUser className="h-7 w-7" aria-hidden="true" />
         )}
-        {name ? <span className="sr-only">Account: </span> : null}
+        {name ? <span className="sr-only">Account:</span> : null}{" "}
         <span className="max-w-40 truncate">{name || "Account"}</span>
       </PopoverTrigger>
       <PopoverContent align="end" aria-label="Account" className="w-72 p-0">

@@ -1,5 +1,29 @@
 # Staff Management delivery tracker
 
+## Membership recovery UI and compound expiry — 2026-10-31
+
+The candidate source `e848beaf` is now running behind the existing local Global
+API and registered UI origin. Older local APIs/UI were captured before switching;
+a private database backup preceded canonical local migration startup. Migration
+receipts and exact registered SQL/index definitions remain saved for replay.
+
+Normal UI QA passed Admin first enrollment and retained receipt/reload;
+recipient login with administration/payroll denial; Admin removal; removed
+recipient fresh-login denial; explicit ordinary recovery with retained removal
+and recovery history; recovered recipient login with continued administration/
+payroll denial; and existing restricted reviewer sign-in with unchanged six-row
+read-only directory. Read-only source evidence confirms a new ordinary membership
+ID, generation 2 and no hospital grant, Staff link or scoped proposal. The IdP
+verified-email state was setup, not contact-verification acceptance. No employment
+or privileged access was approved.
+
+Two-grant earliest-expiry rollback now has direct real-service race evidence.
+The restored test passes (25.230 s); selecting the later expiry makes it fail
+with deadline rather than authority denial (27.510 s). Vet/lint pass. The
+[local UI record](2026-10-31-staff-membership-recovery-local-ui.md) separates exact
+source, private evidence, observation limits and all remaining full A01–A12 gates.
+No whole Staff area, production release or lifecycle cutoff is marked complete.
+
 ## Compound command authority — local implementation, 2026-10-31
 
 Full Access/RBAC A01–A12 remains open. IAM now has an additive bounded compound

@@ -57,17 +57,11 @@ func TestCompoundAssignmentCommand(t *testing.T) {
 	authority := iam.NewScopedAuthorizer(db, fga)
 	guard, ok := authority.(authz.CompoundScopedCommandGuard)
 	require.True(t, ok)
-	checks := make([]authz.ScopeCheck, 0, 2)
-	for _, role := range []struct {
-		template   string
-		permission authz.Permission
-	}{
-		{"workforce.identity_manager.v1", "workforce.identity_checks.manage"},
-		{"workforce.identity_reviewer.v1", "workforce.identity_checks.review"},
-	} {
+	propose := func(template string, expires time.Time) string {
+		t.Helper()
 		id := uuid.Must(uuid.NewV7()).String()
 		path := "/v1/iam/assignment-proposals/" + id
-		body := fmt.Sprintf(`{"hospital_id":%q,"subject":"user-target","template_key":%q,"reason":"Synthetic compound command verification","valid_from":%q,"expires_at":%q}`, hospital, role.template, time.Now().UTC().Format(time.RFC3339), time.Now().UTC().Add(time.Hour).Format(time.RFC3339))
+		body := fmt.Sprintf(`{"hospital_id":%q,"subject":"user-target","template_key":%q,"reason":"Synthetic compound command verification","valid_from":%q,"expires_at":%q}`, hospital, template, time.Now().UTC().Format(time.RFC3339Nano), expires.Format(time.RFC3339Nano))
 		call("PUT", path, "admin", body, 200)
 		require.EventuallyWithT(t, func(c *assert.CollectT) {
 			var proposal iam.ProposalOutput
@@ -76,6 +70,17 @@ func TestCompoundAssignmentCommand(t *testing.T) {
 			require.Equal(c, "pending_review", proposal.Status)
 		}, 20*time.Second, 50*time.Millisecond)
 		call("POST", path+"/decision", "reviewer", `{"expected_version":2,"decision":"approve","reason":"Independent synthetic review"}`, 200)
+		return id
+	}
+	checks := make([]authz.ScopeCheck, 0, 2)
+	for _, role := range []struct {
+		template   string
+		permission authz.Permission
+	}{
+		{"workforce.identity_manager.v1", "workforce.identity_checks.manage"},
+		{"workforce.identity_reviewer.v1", "workforce.identity_checks.review"},
+	} {
+		propose(role.template, time.Now().UTC().Add(time.Hour))
 		checks = append(checks, authz.ScopeCheck{Request: authz.ScopeRequest{TenantID: testutil.TenantA, Subject: "user-target", HospitalID: hospital, Permission: role.permission}})
 	}
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -214,4 +219,39 @@ func TestCompoundAssignmentCommand(t *testing.T) {
 	err = guard.WithScopeGrants(ctx, checks, authTime, write)
 	require.ErrorIs(t, err, authz.ErrScopedCommandDenied)
 	require.EqualValues(t, 2, countWrites(), "withdrawn evidence cannot commit another owner write")
+
+	expires := time.Now().UTC().Add(15 * time.Second)
+	expiring := propose("workforce.identity_manager.v1", expires)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		for i := range checks {
+			grant, err := authority.AuthorizeScope(t.Context(), checks[i].Request)
+			require.NoError(c, err)
+			require.NotEmpty(c, grant.AssignmentID)
+			checks[i].Grant = grant
+		}
+		require.Equal(c, expiring, checks[1].Grant.AssignmentID)
+		require.Equal(c, checks[0].Grant.ScopeEpoch, checks[1].Grant.ScopeEpoch)
+	}, 10*time.Second, 50*time.Millisecond)
+	beforeExpiry := time.NewTimer(time.Until(expires.Add(-time.Second)))
+	defer beforeExpiry.Stop()
+	select {
+	case <-beforeExpiry.C:
+	case <-t.Context().Done():
+		t.Fatal("fixture canceled before source expiry boundary")
+	}
+	startedWrite := false
+	err = guard.WithScopeGrants(ctx, checks, authTime, func(commandCtx context.Context) error {
+		if err := write(commandCtx); err != nil {
+			return err
+		}
+		startedWrite = true
+		<-commandCtx.Done()
+		return commandCtx.Err()
+	})
+	require.True(t, startedWrite, "both grants must be current when the product command begins")
+	require.ErrorIs(t, err, authz.ErrScopedCommandDenied, "the earlier source expiry must cancel before the five-second command budget")
+	require.EqualValues(t, 2, countWrites(), "expiry must roll back the product write")
+	longLived, err := authority.AuthorizeScope(t.Context(), checks[0].Request)
+	require.NoError(t, err)
+	require.NotEmpty(t, longLived.AssignmentID, "the other required grant remains valid")
 }

@@ -14,14 +14,12 @@ overrides:
   source-map-js@<1.2.2: ^1.2.2
   '@expo/cli@57.0.32>zod': 4.6.6
   eslint-plugin-react-hooks@7.1.1>zod: 4.6.6
+  node-forge: 1.4.1
 
 patchedDependencies:
   decode-uri-component@0.2.2:
     hash: e6c6450c91ce60512d4d8664b4d6b13356775a9b2c6ad43942c871d31c35c112
     path: patches/decode-uri-component@0.2.2.patch
-  node-forge@1.4.0:
-    hash: b6876574a5de19521a766856b293aeae2689848c5d8dab03f93040be0a64b8b4
-    path: patches/node-forge@1.4.0.patch
 
 importers:
 
@@ -5869,8 +5867,8 @@ packages:
       encoding:
         optional: true
 
-  node-forge@1.4.0:
-    resolution: {integrity: sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==}
+  node-forge@1.4.1:
+    resolution: {integrity: sha512-w5/MfWaeMrpR/5ba6fZyAUTLSuE6aYz7H/3cYrqwZEmf5eQS3IaaLgJt4MBv7HglGFWmV22K8h4U18RJQmw/ow==}
     engines: {node: '>= 6.13.0'}
 
   node-int64@0.4.0:
@@ -8255,7 +8253,7 @@ snapshots:
       glob: 13.0.6
       lan-network: 0.2.1
       multitars: 1.0.2
-      node-forge: 1.4.0(patch_hash=b6876574a5de19521a766856b293aeae2689848c5d8dab03f93040be0a64b8b4)
+      node-forge: 1.4.1
       npm-package-arg: 11.0.3
       ora: 3.4.0
       picomatch: 4.0.7
@@ -8292,7 +8290,7 @@ snapshots:
 
   '@expo/code-signing-certificates@0.0.6':
     dependencies:
-      node-forge: 1.4.0(patch_hash=b6876574a5de19521a766856b293aeae2689848c5d8dab03f93040be0a64b8b4)
+      node-forge: 1.4.1
 
   '@expo/config-plugins@57.0.11(typescript@6.0.3)':
     dependencies:
@@ -14230,7 +14228,7 @@ snapshots:
     dependencies:
       whatwg-url: 5.0.0
 
-  node-forge@1.4.0(patch_hash=b6876574a5de19521a766856b293aeae2689848c5d8dab03f93040be0a64b8b4): {}
+  node-forge@1.4.1: {}
 
   node-int64@0.4.0: {}
 

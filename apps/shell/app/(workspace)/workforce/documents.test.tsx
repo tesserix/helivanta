@@ -670,3 +670,57 @@ it("clears protected file state when a command reports a changed workspace", asy
   expect(screen.queryByRole("button", { name: "Retry previous request" })).not.toBeInTheDocument();
   await waitFor(() => expect(onContextChanged).toHaveBeenCalled());
 });
+
+it("reads scoped HR document records and files without a legacy hospital grant", async () => {
+  const requests: string[] = [];
+  const fetcher = vi.fn(async (url: string) => {
+    const path = new URL(url, "https://example.invalid");
+    if (path.pathname.endsWith("/iam/me/permissions"))
+      return Response.json({ tenant_id: tenant, subject: "synthetic-scoped-hr", data: [] });
+    if (path.pathname.includes("/workforce/hospitals/")) {
+      requests.push(url);
+      if (path.searchParams.get("hr_intake") !== "v1")
+        return Response.json(
+          { error: "forbidden", message: "Scoped intake required" },
+          { status: 403 },
+        );
+      if (path.pathname.endsWith("/document-records"))
+        return Response.json({
+          uploads_available: true,
+          records: [
+            {
+              record_kind: "enrollment",
+              record_id: staff.id,
+              label: "Staff enrollment",
+              categories: ["employment_evidence"],
+            },
+          ],
+        });
+      return Response.json({ data: [evidence], page: { has_more: false, next_cursor: null } });
+    }
+    return Response.json({ data: [] });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffDocumentPanel
+        hospital={{ id: hospital.id, name: hospital.name }}
+        staff={staff}
+        scope={{ tenantId: tenant, subject: "synthetic-scoped-hr", hrIntake: true }}
+        onContextChanged={vi.fn()}
+        onClose={vi.fn()}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("synthetic-evidence.png")).toBeInTheDocument();
+  expect(
+    requests.some((url) =>
+      new URL(url, "https://example.invalid").pathname.endsWith("/document-records"),
+    ),
+  ).toBe(true);
+  expect(
+    requests.some((url) => new URL(url, "https://example.invalid").pathname.endsWith("/documents")),
+  ).toBe(true);
+  for (const url of requests)
+    expect(new URL(url, "https://example.invalid").searchParams.get("hr_intake")).toBe("v1");
+});

@@ -1,5 +1,374 @@
 # Staff Management workflow acceptance
 
+## Independent employment decisions — source checkpoint, 2026-11-01
+
+Workforce 0061 and IAM 0021 add separate scoped employment-review authority,
+independent decisions, preparer withdrawal, reviewer revocation and immutable
+receipts. Signed Global API and real owner SQL probes cover self/historical author
+denial, explicit workspace/mode, legal transitions, exact retry/changed intent,
+source/evidence cutoff and ending stale records. A reproduced database approval
+bypass after evidence revocation is fixed. Selected-source RLS preserves original
+write/delete boundaries; a selected active contractor sponsor is visible without
+general enrollment authority. Approval leaves the joiner inactive; later draft
+edits preserve approved historical terms.
+
+SDK 33 targeted / 503 full API tests, Staff Access 33 page tests, Node 55 template/
+inventory tests, workspace type checks, Go vet/build/lint and explicit permission
+matrix check pass. Full corrected Workforce/Global API/arch/contractdocs race
+passes (476.356s/162.995s/99.914s/6.666s); IAM race passes (411.506s). Decision
+audit/outbox rollback probes pass. A scanner-role policy compatibility regression
+was reproduced and fixed without widening scanner grants. The broad default-ten-
+minute Workforce runs timed out; the final isolated run uses the repository's
+20-minute allowance and passes. Full web gates pass 22/22 tasks, with 503 API,
+1,316 shell and 268 shared UI tests. A reproduced pharmacy prior-day test now
+pins its clock instead of depending on the real calendar. These facts are
+implementation/test evidence, not normal browser/provider acceptance.
+
+**A01–A12 remains incomplete.** Review inbox/history/protected bytes and workspace,
+provider/scanner/browser QA, operational employment generation, full provisioning/
+recovery/renewal/suspension/exit/expiry/rehire, legacy/governance classification and
+all consumer cutoffs remain required. The ledger has 704 surfaces, 9 source
+classifications, 695 unclassified and zero runtime cutoff acceptances. No live
+migration, production rollout or repository release occurred in this continuation.
+Earlier sections below are historical checkpoints superseded by this one.
+
+## Immutable employment submissions — 2026-11-01
+
+Workforce 0060 and canonical Go/Zod/SDK source now freeze exact terms, person
+finding, evidence/classification references and contributor history under both
+scoped HR permissions. Original command retries return immutable facts; changed
+intent is refused. Current applicability reflects source changes, inactive
+sponsors, revoked findings and unavailable evidence. This prepares a pending
+record; it does not approve employment, activate access or create a login.
+
+Signed Global API tests observed the missing route and stale sponsor state fail
+before correction. They prove required inputs, legacy denial, separately scoped
+Staff Admin access, historical author retention after role withdrawal, immutable
+children, narrow finding-read purpose and audit/outbox rollback plus exact retry.
+Current Workforce/Global API race pass (516.755s/75.593s); corrected arch/contractdocs
+race pass (58.675s/8.944s). The bounded GET and all five event fields have explicit
+review declarations. Full web checks pass 22 tasks (16 cached), with 488 API tests
+including 18 new SDK cases. Vet/build/lint and generated/source checks pass.
+
+Actual provider/scanner and normal Staff Admin/reviewer browser acceptance remain
+open. Independent employment decisions, scoped reviewer setup, reviewer-specific
+protected bytes/UI, operational generation, legacy/governance review and all
+A01–A12 lifecycle/consumer cutoffs remain open. The older candidate has not been
+upgraded or silently reauthorized; no existing fixture or production mutation,
+commit, push, merge or deployment occurred.
+
+## Employment evidence and historical origin — 2026-10-31
+
+Workforce 0059 is persisted as an additive source/test candidate. Employment
+preparers are recorded without attributing scanner workers; `creation_captured`
+distinguishes complete new-file origin from unproven historical records. Later
+writes cannot turn old provenance into complete history. Person-review commands
+and SQL approval reject unavailable origin without erasing old receipts.
+
+The signed Global API regression observed missing employment contributors, then
+legacy identity evidence incorrectly accepted with 200 rather than 409. Both
+are corrected. Before/after-migration fixtures, known-positive visibility,
+immutable history, scope privacy, failed contributor persistence rollback and
+idempotent recovery pass. Removing the SQL approval guard made its new assertion
+fail; source restoration is verified. Current Global API/arch/contractdocs race
+suites, vet/build/lint and generated checks pass. The complete current-source
+Workforce race suite also passes in 457.787s. This accepts the local creation-
+provenance regression fix, not the full employment or Access/RBAC workflow.
+
+Storage/scanner are protocol fixtures. Normal browser and actual provider QA,
+immutable employment submissions/independent decisions, explicit operational
+activation and all A01–A12 lifecycle/consumer gates remain open. The next review
+contract is a design, not a deployed API. A new private candidate binary exists;
+no existing QA/production runtime, schema or authority was mutated. Prior local
+upgrade scope does not silently authorize the new binary or migration 0059.
+
+## Operational-consumer classification prerequisite — 2026-10-31
+
+The [source ledger](staff-operational-access-inventory.md) now mechanically covers
+698 registered surfaces (644 module HTTP routes, 43 async subscriptions, one
+broadcast and ten unauthenticated allowlist entries). Four encounter routes are
+source-classified, with their missing reviewed-employment cutoff explicit;
+694 remain unclassified. Source and registration changes invalidate reviews,
+and CI verifies ledger drift. All 15 checker tests pass, including observed
+red/green omissions and unchanged-output rejection. Contractdocs check passes.
+
+Classification is not operational acceptance, a legacy-grant migration or an
+exemption. No source-reviewed route is marked cutoff-ready. Background/Temporal
+and external execution paths still need separate wiring/authority review. Normal
+Staff Admin/reviewer/recipient/provider QA, independently reviewed employment,
+effective-time lifecycle enforcement and the full A01–A12 goal remain open.
+No runtime, schema, account, grant or production mutation occurred.
+
+## Person-review persistence failure recovery — 2026-10-31
+
+Real disposable Postgres faults now prove audit and outbox INSERT failures roll
+back submission and independent approval through the signed Global API. Failed
+submissions leave no head/history/evidence/contributors or successful audit/event;
+failed approvals retain the exact pending record and unchanged durable counts.
+The same original command succeeds after fault removal without duplicate effects.
+A known committed record is visible in the same owner read context, so empty
+counts are meaningful. System-role private-table restrictions were preserved.
+Probe records are retired via revocation, not deletion.
+
+The full Global API race rerun passed in 57.905s; vet and affected lint pass.
+The tracker preserves initial fixture mistakes (reader privilege, canonical
+review/audit names and probe isolation) and the corrected proof. No application
+binary, migration, web code or live state changed. Local-upgrade approval remains
+pending. Broker outage delivery, remaining failure/race/provenance/performance
+and normal UI/provider gates remain open, as do full employment/A01–A12 cutoffs.
+
+## Manager preparation and historical receipt source gates — 2026-10-31
+
+Manager preparation now uses source-bound released image metadata (migration
+0058), required policy/finding/date/validity/association attestations and frozen
+submission recovery. SDK metadata/history enforce original workspace/resource,
+source version, bounded cursor consistency and cancellation. History is labelled
+historical; newer receipts prevent further actions until reopening, including
+after paging back. No history receipt activates employment/access.
+
+Signed owner proofs cover unreleased/unrelated/other-Staff exclusion, tenant/
+version RLS, private projection, SQL write/delete denial, attributable reads and
+actor-link cutoff/recovery. Full owner race verification passed all four packages;
+the latest complete Global API race pass includes deletion denial. All nine shared
+framework test-bearing packages also passed (IAM/authz/platform/tenantdb and
+subpackages). Final web lint/typecheck/test/build passed 22 tasks, with
+1,312 shell/470 API/268 UI tests, including 23 page tests. The tracker retains
+initial failures, fixture/type corrections and exact commands/logs; none of those
+corrections weakened owner guards or disabled validation rules.
+
+Normal local UI acceptance is still **unproven**. Read-only discovery found the
+live HR-intake API and local Colima QA database still at Workforce 0053. Exactly
+0054–0058 are pending. The candidate binary is built and a protected consistent
+snapshot was restored in an isolated ephemeral same-image container with all
+321 table counts matching. This is database restoration proof only. A named
+local-fixture schema/API upgrade approval request is pending; no existing runtime,
+schema, grant, credential, membership or production state was changed. Silence
+is not approval and expired proposals are not extended.
+
+Remaining: normal maker/checker/provider/scanner QA, staff-specific collection/
+filtering where required, large-fixture plans and remaining failure/race/provenance
+proofs. Independent employment consumption and every A01–A12 lifecycle/consumer
+cutoff stay open. Full Access/RBAC, merge, release and rollout remain unaccepted.
+
+## Person-review decision UI candidate — 2026-10-31
+
+The new Staff navigation entry and decision workspace render canonical scoped
+hospital discovery, inbox/status pagination, protected detail/evidence and human
+approve/reject, submitting-manager withdrawal and reviewer revocation. Recorded
+receipts are distinguished from current effectiveness. Required reason/attestations,
+original command/version retry, dirty form/navigation guards, no self-review,
+empty discovery continuation, tenant transition and private refusal handling pass
+16 component tests. Existing Staff cutoff consumers also pass their focused
+regressions; navigation passes 51 tests. The tracker preserves initial failures,
+fixture corrections and exact logs. Full web lint/typecheck/test/build passed
+all 22 tasks in 4m54.313s (1,305 shell/457 API/268 UI tests).
+
+The existing local Admin browser opened the new route and displayed explicit
+unavailable-access handling. This is **not** a positive scoped-person-review or
+scanner acceptance journey. The expired intake proposal was not approved or
+extended. No new grant or UI-fixture/production migration was performed.
+
+Manager preparation/eligible-evidence discovery, immutable history/recovery UI,
+normal maker/checker/provider/scanner QA, remaining performance/failure/race gates
+and the entire reviewed employment/A01–A12 consumer lifecycle remain open.
+
+## Person-review inbox and target selection: owner/client candidate — 2026-10-31
+
+Manager-only Staff browse/exact-ID search and manager/reviewer summary inbox now
+use held IAM authority, active reviewed actor links, verified hospital scope,
+mandatory original workspace assertions and attributable per-row audits.
+Canonical Go/Zod projections exclude private findings and evidence. Migrations
+0056/0057 persist the read-purpose policy changes and concurrent inbox index;
+only disposable test application is established.
+
+Signed owner journeys prove inactive-target selection, case-insensitive exact
+lookup, no legacy-admin/reviewer target browsing, strict mandatory input,
+recorded-status filtering and revoked-actor inbox denial. Direct forced-RLS
+checks deny Staff updates and review transitions (42501), retain destructive
+operation denial (23514), hide private documents/history/evidence/contributors
+and isolate another tenant. The deletion test's original zero-row expectation
+was corrected to the existing guard's explicit rejection; no guard was weakened.
+Pagination and approval-transition additions passed the full Global API race
+rerun in 61.711s. The tracker retains failing and corrected logs.
+
+All 32 focused client tests and the corrected full 22-task web run pass
+(1,289 shell/457 API); the initial web run caught a test tuple typing error.
+Contractdocs, vet/build/lint pass. Global API/architecture/contractdocs race suites
+pass; the broad Workforce migration regression suite subsequently passed in
+540.466s. All four test-bearing packages passed for that backend checkpoint.
+
+Not accepted: manager/reviewer UI, real scanner and normal browser journeys,
+large-fixture query plans and remaining concurrency/failure/provenance gates;
+independently reviewed employment consumption and full A01–A12 lifecycles/
+consumer cutoff remain open. No deployment, live migration, merge or release.
+
+## Person-review hospital discovery: scoped candidate — 2026-10-31
+
+Signed Global API tests now prove hospital discovery through current identity
+assignments and independently reviewed actor links, with separate submit/review
+capabilities. Legacy administration or an actor link alone gives no discovery
+row. Mandatory workspace assertions, bounded/filtered empty-page continuation,
+actor/route cursor isolation and revoked-link cutoff pass the expanded journey.
+The client rejects unverifiable capabilities, response fields/cursors and results
+after cancellation. No new SQL policy, migration or HR/document permission is
+introduced by discovery. Valid second-tenant/same-reviewer isolation and an
+attributable audit assertion pass the latest complete Global API race run.
+Architecture and contractdocs race suites also pass. The tracker records
+red/green evidence and complete web/static results; the broader discovery-checkpoint Workforce race
+suite subsequently passed in 567.371s.
+
+The inbox/target search and manager/reviewer UI remain absent. These discovery
+checks do not establish real-scanner/browser acceptance or close independently
+reviewed employment, any full A01–A12 lifecycle, deployment or release.
+
+## Person-review evidence bytes: owner/client validation — 2026-10-31
+
+Purpose-bound evidence release now pins the original authority, actor link,
+review revision, source and evidence generations across storage I/O. Signed
+Global API tests deny old requests after assignment/link replacement, source or
+review/evidence changes; fresh authorized requests recover. Unavailable/corrupt
+bytes deny without a successful-download audit. Review authority does not grant
+generic document access. The client checks file membership, MIME, size, SHA-256
+and cancellation before producing a Blob.
+
+Workforce, architecture and contractdocs passed the race/coverage run. Its Global
+API test failed on an incorrect revocation URL; after correcting that fixture,
+the complete Global API race/coverage rerun passed. Two controlled mutation runs
+prove the original-authority and review-revision assertions detect unsafe byte
+release. Full web passed 22 tasks (1,289 shell/445 API tests); vet/build/lint and
+contractdocs passed. The progress tracker records exact logs and measured
+function coverage. Preserve the failed run as part of the evidence.
+
+**Not accepted yet:** discovery/inbox and manager/reviewer UI; actual scanner and
+normal browser journeys; remaining historical/contributor, expiry, dependency,
+outbox and lock-wait proofs; measured query plans; independently reviewed
+employment and all A01–A12 operational consumer cutoffs. Protocol fixtures do not
+prove actual provider/scanner acceptance. No new migration was applied to the UI
+fixture or production, and no complete Access/RBAC claim is made.
+
+## Inactive-joiner person finding: owner/client candidate — 2026-10-31
+
+The real signed Global API/IAM/OpenFGA/Postgres test now exercises an inactive
+worker with no login: released identity evidence, manager submission, separate
+reviewer finding, receipt/history and reasoned withdrawal/revocation. Staff stays
+inactive and no login link or broad permission is fabricated. Current source
+changes invalidate present effectiveness without rewriting the original receipt.
+Purpose-bound SQL tests exclude unrelated files and foreign tenants and deny
+review-purpose document edits, history rewrites and late contributor insertion.
+Required account intent cannot omit or null its declared-subject field.
+
+Initial broader tests found benefits/tax and architecture integration failures;
+the hook is now limited to enrollment identity evidence and the explicit route/
+event classifications are registered. The corrected four owner/architecture/
+contractdocs test packages pass under `-race` with 699 test/subtest pass events.
+Vet/build/lint, contractdocs normal/check, all 17 affected generator checks, all
+38 template-history tests and all 22 web tasks pass (1,289 shell/439 API tests).
+The delivery tracker records commands and failure/final logs.
+
+**Not accepted yet:** discovery/inbox and manager/reviewer UI; current-authority
+evidence byte release; real scanner; the remaining identity-history, dependency,
+outbox and lock-wait acceptance; and employment/operational consumer integration.
+Migrations 0054/0055 are tested source artifacts, not applied to the existing UI
+fixture or production. This checkpoint does not close a full A01–A12 workflow.
+
+## Local onboarding maker/checker preparation — 2026-10-31
+
+- Normal local Admin login and the explicit server-supported onboarding catalog
+  succeeded. The UI recorded a hospital-scoped, three-hour intake proposal for
+  the existing synthetic QA recipient; it grants no authority while pending.
+- Owner hospital verification advanced the real proposal from version 1 to 2.
+  A distinct normal-login approver can inspect it and prepare the reasoned
+  confirmation. Activation is awaiting the specific user confirmation required
+  for this new confidential-data grant; no decision was submitted.
+- Recipient intake, inactive-joiner edits, actual scanner/evidence journeys and
+  revoked/stale recipient access remain unverified for this local candidate.
+- Two catalog-refresh regressions failed before the UI fix and all 29 access
+  tests passed afterward. Retained onboarding commands now disable on an
+  unavailable, refreshing or unsupported catalog while preserving form state.
+- Full web lint/typecheck/test/build passed all 22 tasks after that fix, with
+  1,289 shell and 425 API tests. See the delivery tracker for commands/logs and
+  the private evidence bundle for the precise proposal, actors and screenshots.
+
+These checks do not complete independent employment review or A01–A12.
+
+## Current local restricted-account browser checks — 2026-10-31
+
+- Reloading the existing 4399 candidate first reproduced middleware `Invalid URL`
+  because its launcher omitted the required public IdP issuer. Restoring existing
+  fixture configuration recovered the UI; no application authorization was changed.
+- The existing synthetic pharmacist/reviewer session sees the six-record,
+  hospital-specific read-only directory without enrollment or editing controls.
+- Direct navigation to `/workforce/access` denies assignment administration.
+- Direct navigation to `/workforce/payroll-setup` denies payroll access with the
+  correct Payroll setup heading.
+
+These are local restricted-account smoke checks only. They do not establish
+normal maker/checker/intake-user journeys, real-scanner acceptance, employment
+approval, operational activation, offboarding or production acceptance.
+
+The current candidate's full web run passed all 22 lint/typecheck/test/build
+tasks in 4m0.439s, including 1,287 shell and 425 API tests. All 38 template-history
+tests and both changed canonical generator checks passed separately. Direct local
+PostgreSQL reads confirmed all four expected migration receipts and enabled/forced
+RLS on the inspected Staff, login-link, document and IAM assignment tables. See
+the delivery tracker for commands, evidence paths and remaining full-scope gates.
+
+## Scoped HR directory and discovery candidate — 2026-10-31
+
+This is uncommitted local source after integration `4d0d5f7c`, not merged/deployed
+acceptance. Full Access/RBAC A01–A12 remains open. Source inventory and canonical
+projection/capabilities are linked from the current tracker.
+
+- Actual IAM maker/checker assignment and independently reviewed actor link give
+  ordinary Staff membership no global business permissions or hospital-manager
+  row. Scoped enrollment prepares inactive Staff and rejects activation.
+- Directory regression returned an empty list where two scoped Staff were
+  expected. Opt-in held authorization fixes list/detail, preserves legacy
+  discovery, rejects invalid selectors and missing original workspace, and denies
+  both reads after actor-link cutoff. Unknown Staff stays 404.
+- Bounded hospital discovery regression returned 404. The new route filters at
+  most 20 current link candidates by both held IAM grants and the locked current
+  actor. It returns canonical hospital capabilities; no assignment/link receipt
+  is exposed. Legacy managers without the reviewed scoped assignment/link do not
+  appear, excessive candidate limits return 400, and revoked actor links remove
+  the hospital from discovery.
+- Focused real IAM/Postgres/OpenFGA/Global API race journeys passed directory in
+  13.831 seconds and discovery in 13.748 seconds. These cases also retain both
+  in-flight assignment and actor-link replacement denials around protocol file
+  reads. Storage/scanner protocol fixtures are distinct from real-scanner and
+  normal browser acceptance.
+- API package typecheck, 413 tests and lint passed under Node 24.11.1. Contract
+  generation/check, full Go vet/build and affected lint passed (zero issues).
+  Full Workforce/Global API/journey/architecture races with the added original-
+  workspace negatives are running; their terminal result must be recorded before
+  broad acceptance. Read-only masters, client/UI integration, actual scanner/UI
+  and full employment/lifecycle/cross-owner requirements remain unfinished.
+
+## Intake setup choices and assignment account guard — 2026-10-31
+
+The current candidate adds a separately filtered IAM intake assignment list;
+maker/checker reads succeed, ordinary intake administration denies, and legacy
+leave/identity lists stay closed. An expected-account defect was reproduced for
+both private list reads (200) and retained form writes (200 creating a proposal
+as the replacement actor). The restored owner guard returns 409 for mismatched,
+empty or repeated supplied account assertions, prevents the write entirely, and
+the SDK sends both original workspace assertions. Legacy omission remains a
+separate compatibility/full A04 gate. Focused command journey: 13.679 seconds.
+
+Read-only HR master list/history initially returned 404. The migration now retains
+one permissive policy per table, unchanged write checks and restrictive deletion
+boundaries. The owner journey reads immutable setup revisions, persists/reloads a
+department selection, denies API master writes and proves database SQLSTATE 42501
+for an intake-context update despite the master-context flag. Full focused
+journey: 14.557 seconds. Actor-link cutoff also denies these reads.
+
+The assignment page passes 27 tests: canonical server-confirmed intake selection,
+legacy/changed-permission catalog refusal and existing independent decision,
+renewal and uncertain request preservation. Ordinary scoped intake UI, actual
+scanner/browser acceptance, full current-source owner/web gates and every
+employment/lifecycle consumer remain required. No production change or A01–A12
+completion is claimed.
+
 ## Frozen template history — 2026-10-31
 
 The canonical catalog correction prevents ordinary generation from silently
@@ -28,7 +397,6 @@ without weakening stale-authority assertions. See the
 for the reproduced RED, validation results and real-provider/UI limitations.
 This remains an undeployed A02/A11 correction. Full A01–A12 and all 21 Staff
 area acceptance gates remain open; no production migration or rollout occurred.
-
 
 ## Access/RBAC checkpoint — 2026-10-31: operator recovery UI candidate
 
@@ -73,7 +441,6 @@ renewal, all employment/contract lifecycles and cross-module cutoff acceptance
 remain open. Staff Management counts stay 10 partial, 10 audit pending, 1 research,
 0 fully accepted. No merge, production deployment, issue closure or release tag.
 
-
 ## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
 
 Follow-up source-integrated HTTP evidence is pushed at `17e3dc90323a3d2c6ac410488b3c1295d792fc4d`
@@ -111,7 +478,6 @@ membership recovery/removal, renewal, all employment/contract lifecycles and
 cross-module cutoff acceptance. No whole-area completion percentage is claimed;
 Staff Management counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
 The earlier checkpoint sections below describe their own evidence dates.
-
 
 Current audit: 2026-10-28. Summary status and the ordered Access/RBAC checklist are maintained in [the delivery tracker](staff-management-progress.md), updated 2026-10-29. Scope is every Staff navigation entry and its complete
 business workflows, including account provisioning/verification/offboarding,

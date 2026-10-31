@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "./client";
+import { STAFF_HR_INTAKE_CONTEXT } from "./staff-directory-contract";
 import { staffSchema, type Staff } from "./workspace";
 import {
   enrollmentProfileSchema,
@@ -105,7 +106,22 @@ export const EMPTY_ENROLLMENT: EnrollmentInput = {
   experiences: [],
 };
 
-export type EnrollmentRequestScope = { tenantId: string; subject: string };
+export type EnrollmentRequestScope = { tenantId: string; subject: string; hrIntake?: boolean };
+export function withStaffIntakeScope(path: string, scope: EnrollmentRequestScope): string {
+  if (scope.hrIntake !== true) return path;
+  const [resource, query] = path.split("?", 2);
+  const params = new URLSearchParams(query);
+  const values = params.getAll(STAFF_HR_INTAKE_CONTEXT.query);
+  if (values.length > 1 || (values.length === 1 && values[0] !== STAFF_HR_INTAKE_CONTEXT.version))
+    throw new Error("The Staff intake request scope is not supported.");
+  params.set(STAFF_HR_INTAKE_CONTEXT.query, STAFF_HR_INTAKE_CONTEXT.version);
+  return `${resource}?${params}`;
+}
+export function staffIntakeScopeKey(scope: EnrollmentRequestScope): string {
+  return scope.hrIntake === true
+    ? `${STAFF_HR_INTAKE_CONTEXT.query}:${STAFF_HR_INTAKE_CONTEXT.version}`
+    : "legacy";
+}
 export function enrollmentRequestOptions(
   scope: EnrollmentRequestScope,
 ): Pick<RequestInit, "cache" | "headers"> {
@@ -122,6 +138,6 @@ export function isEnrollmentAccessChanged(error: unknown): boolean {
   return (
     error instanceof ApiError &&
     ([401, 403, 404].includes(error.status) ||
-      (error.status === 409 && error.code === "session_changed"))
+      (error.status === 409 && ["session_changed", "workspace_changed"].includes(error.code)))
   );
 }

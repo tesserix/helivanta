@@ -285,3 +285,53 @@ it("does not carry an uncertain classification command into another account", as
   expect(screen.getByRole("button", { name: "Save classification" })).toBeEnabled();
   expect(mocks.save).toHaveBeenCalledTimes(1);
 });
+
+it("uses scoped HR authority and the original workspace for classification choices", async () => {
+  mocks.can.mockReturnValue(false);
+  renderWithProviders(
+    <DocumentClassificationEditor
+      scope={{ ...scope, hrIntake: true }}
+      file={file}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(
+    await screen.findByRole("combobox", { name: "Document classification" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save classification" })).toBeInTheDocument();
+  const [, path, options] = mocks.masters.mock.lastCall!;
+  expect(new URL(path, "https://example.invalid").searchParams.get("hr_intake")).toBe("v1");
+  expect(new URL(path, "https://example.invalid").searchParams.get("kind")).toBe(
+    "document_category",
+  );
+  expect(new Headers(options.request.headers).get("X-Helivanta-Expected-Tenant")).toBe(
+    scope.tenantId,
+  );
+  expect(new Headers(options.request.headers).get("X-Helivanta-Expected-Subject")).toBe(
+    scope.subject,
+  );
+});
+
+it("clears classification controls and notifies Staff when a saved change is denied", async () => {
+  const changed = vi.fn();
+  mocks.save.mockRejectedValue(new ApiError("forbidden", "Synthetic reviewed actor cutoff", 403));
+  renderWithProviders(
+    <DocumentClassificationEditor
+      scope={{ ...scope, hrIntake: true }}
+      file={file}
+      onContextChanged={changed}
+      onClose={vi.fn()}
+    />,
+  );
+  await userEvent.click(screen.getByRole("combobox", { name: "Document classification" }));
+  await userEvent.click(screen.getByRole("option", { name: /Synthetic active category/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Save classification" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+  expect(
+    await screen.findByText("Staff access changed. Reopen Staff to verify your current workspace."),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("combobox", { name: "Document classification" }),
+  ).not.toBeInTheDocument();
+  expect(changed).toHaveBeenCalled();
+});

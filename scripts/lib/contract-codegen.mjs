@@ -44,6 +44,7 @@ export function emitModels(models, kindSchema) {
       if (f.enum) schema = `z.enum(${JSON.stringify(f.enum)})`;
       if (array) {
         schema = `z.array(${schema})`;
+        if (f.min !== undefined) schema += `.min(${f.min})`;
         if (f.max !== undefined) schema += `.max(${f.max})`;
       } else if (!f.enum) {
         if (base === "string" && ["code", "name", "text"].includes(f.format)) schema += ".trim()";

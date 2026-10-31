@@ -23,4 +23,40 @@ export const staffAccessTemplates = [
     family: "identity",
     permissions: ["workforce.identity_checks.review"],
   },
+  {
+    key: "workforce.hr_intake.v1",
+    name: "HR intake administrator",
+    description:
+      "Prepare hospital Staff profiles, employment drafts and protected evidence; cannot approve employment or grant access.",
+    family: "intake",
+    permissions: ["workforce.enrollment.manage", "workforce.documents.manage"],
+  },
+  {
+    key: "workforce.employment_reviewer.v1",
+    name: "Staff employment terms reviewer",
+    description:
+      "Independently review hospital employment terms and selected evidence; no access activation, clinical or payroll authority.",
+    family: "employment",
+    permissions: ["workforce.employment.review"],
+  },
 ] as const;
+export const staffAccessTemplateCatalogs = {
+  "legacy-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+  ],
+  "hr-intake-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+  ],
+  "employment-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+  ],
+} as const;

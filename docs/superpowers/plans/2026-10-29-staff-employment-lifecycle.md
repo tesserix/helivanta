@@ -44,3 +44,43 @@ The next record/contractor slice is designed in
 Existing contractor/locum/trainee/volunteer engagement types are already supported;
 the missing workflow is reviewed, versioned employment/contract lineage and its
 effective authority/closure, not merely adding a dropdown option.
+
+## Registered-consumer baseline — 2026-10-31
+
+- [x] Derive a checked ledger from every registered module HTTP route, async
+      subscription, broadcast and unauthenticated allowlist entry; keep missing
+      source reviews explicit and reject stale/removed/duplicate classifications.
+- [x] Add source-pinned classifications for the four directly inspected MediCore
+      encounter handlers; record missing reviewed-employment cutoff as remaining
+      work rather than runtime acceptance.
+- [ ] Complete the other 695 registered source classifications and trace the
+      separately wired background/Temporal/external execution paths.
+- [ ] Implement reviewed employment and every consumer cutoff with normal
+      Admin/reviewer/recipient UI and signed-session boundary proof. The ledger
+      classification check alone cannot satisfy this item or authorize activation.
+
+## Employment-evidence contributor prerequisite — 2026-10-31
+
+- [x] Reproduce missing employment-evidence provenance through the existing
+      signed Global API/scoped HR intake upload flow.
+- [x] Persist Workforce 0059 to extend only the owner-maintained enrollment
+      evidence contributor trigger; retain immutable, private history and no
+      fabricated legacy backfill.
+- [x] Verify human attribution, worker exclusion, duplicate commands,
+      unauthorized scopes and atomic failure through real owner transactions.
+- [x] Reproduce late edits wrongly satisfying old identity-file provenance; add
+      captured-creation checks and before/after-0059 upgrade proof.
+- [x] Finish current-source full owner/arch/lint validation after that fix.
+      Workforce/Global API/arch/contractdocs race, vet/build/lint and generated
+      checks pass; real-provider/browser acceptance remains separately open.
+- [ ] Consume exact frozen terms/evidence/person-review contributors in the
+      separate independently reviewed employment submission/decision workflow.
+      Contributor capture alone neither approves employment nor closes A01–A12.
+
+The immutable submission/decision candidate is specified in
+[independent employment review](../specs/2026-10-31-independent-employment-review.md)
+and [its delivery plan](2026-10-31-independent-employment-review.md). Source now includes Workforce 0060/0061 and IAM 0021 with signed API/SQL/SDK
+checks and separate reviewer-assignment UI. This does not establish normal review
+workspace/browser acceptance, operational activation or complete A01–A12. The
+current ledger has 704 registered surfaces, nine source classifications and zero
+complete employment-cutoff acceptances.

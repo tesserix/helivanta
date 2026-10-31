@@ -13,6 +13,8 @@ import {
 import {
   apiFetch,
   enrollmentRequestOptions,
+  withStaffIntakeScope,
+  staffIntakeScopeKey,
   isEnrollmentAccessChanged,
   ENROLLMENT_REQUEST_CONTEXT_PROJECTION,
   type EnrollmentRequestScope,
@@ -66,7 +68,7 @@ export function EnrollmentEditor({
   scope,
   onContextChanged,
 }: {
-  hospital: Hospital;
+  hospital: Pick<Hospital, "id" | "name">;
   staff?: Staff;
   onClose: () => void;
   scope: EnrollmentRequestScope;
@@ -74,13 +76,17 @@ export function EnrollmentEditor({
 }) {
   const [id] = useState(() => staff?.id ?? crypto.randomUUID());
   const [reload, setReload] = useState(0);
-  const path = `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}&${ENROLLMENT_CONTACT_MASTERS_PROJECTION.query}=${ENROLLMENT_CONTACT_MASTERS_PROJECTION.version}&${ENROLLMENT_REQUEST_CONTEXT_PROJECTION.query}=${ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version}`;
+  const path = withStaffIntakeScope(
+    `/workforce/hospitals/${hospital.id}/staff/${id}/enrollment?${ENROLLMENT_PROFILE_MASTERS_PROJECTION.query}=${ENROLLMENT_PROFILE_MASTERS_PROJECTION.version}&${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.query}=${ENROLLMENT_QUALIFICATION_MASTERS_PROJECTION.version}&${ENROLLMENT_CONTACT_MASTERS_PROJECTION.query}=${ENROLLMENT_CONTACT_MASTERS_PROJECTION.version}&${ENROLLMENT_REQUEST_CONTEXT_PROJECTION.query}=${ENROLLMENT_REQUEST_CONTEXT_PROJECTION.version}`,
+    scope,
+  );
   const query = useApiQuery<StaffEnrollment>(
     [
       "workforce",
       "enrollment",
       scope.tenantId,
       scope.subject,
+      staffIntakeScopeKey(scope),
       hospital.id,
       id,
       reload,
@@ -159,7 +165,9 @@ export function EnrollmentEditor({
         },
         expected_version: query.data.version,
       }
-    : EMPTY_ENROLLMENT;
+    : scope.hrIntake === true
+      ? { ...EMPTY_ENROLLMENT, staff: { ...EMPTY_ENROLLMENT.staff, employment_status: "inactive" } }
+      : EMPTY_ENROLLMENT;
   return (
     <EnrollmentForm
       key={`${id}:${reload}`}
@@ -185,7 +193,7 @@ function EnrollmentForm({
   scope,
   onContextChanged,
 }: {
-  hospital: Hospital;
+  hospital: Pick<Hospital, "id" | "name">;
   scope: EnrollmentRequestScope;
   onContextChanged: () => void;
   path: string;
@@ -198,13 +206,27 @@ function EnrollmentForm({
   const firstAddressUse = form.watch("addresses.0.use") ?? "current";
   const [confirmReload, setConfirmReload] = useState(false);
   const supervisors = useApiPagedQuery<Staff>(
-    ["workforce", "supervisors", scope.tenantId, scope.subject, hospital.id],
-    `/workforce/hospitals/${hospital.id}/staff`,
+    [
+      "workforce",
+      "supervisors",
+      scope.tenantId,
+      scope.subject,
+      staffIntakeScopeKey(scope),
+      hospital.id,
+    ],
+    withStaffIntakeScope(`/workforce/hospitals/${hospital.id}/staff`, scope),
     { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
   const masters = useApiPagedQuery<HRMaster>(
-    ["workforce", "master-choices", scope.tenantId, scope.subject, hospital.id],
-    `/workforce/hospitals/${hospital.id}/hr/masters`,
+    [
+      "workforce",
+      "master-choices",
+      scope.tenantId,
+      scope.subject,
+      staffIntakeScopeKey(scope),
+      hospital.id,
+    ],
+    withStaffIntakeScope(`/workforce/hospitals/${hospital.id}/hr/masters`, scope),
     { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
   useEffect(() => {
@@ -402,6 +424,7 @@ function EnrollmentForm({
     name: FieldPath<EnrollmentInput>,
     label: string,
     options: { value: string; label: string }[],
+    disabled = false,
   ) => (
     <FormSelectField
       key={name}
@@ -410,6 +433,7 @@ function EnrollmentForm({
       id={`enrollment-${name.replaceAll(".", "-")}`}
       label={label}
       options={options}
+      disabled={disabled}
     />
   );
   const remove = (label: string, action: () => void) => (
@@ -518,7 +542,9 @@ function EnrollmentForm({
           <section id="staff-employment" className={cardClass}>
             {sectionHeading(
               "employment",
-              "Employment details do not grant application access or clinical privileges.",
+              scope.hrIntake === true
+                ? "Employment activation and status changes require independent review."
+                : "Employment details do not grant application access or clinical privileges.",
             )}
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {select(
@@ -526,10 +552,15 @@ function EnrollmentForm({
                 "Job category",
                 Object.entries(JOB_LABELS).map(([value, label]) => ({ value, label })),
               )}
-              {select("staff.employment_status", "Employment status", [
-                { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
-              ])}
+              {select(
+                "staff.employment_status",
+                "Employment status",
+                [
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ],
+                scope.hrIntake === true,
+              )}
               {select(
                 "profile.engagement_type",
                 "Engagement type",

@@ -66,7 +66,11 @@ func (staffDocuments) permissions(bool) (authz.Permission, authz.Permission) {
 	return PermDocumentManage, authz.Public
 }
 
-func refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+func (h *handlers) refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+	if c.Query(hrIntakeQuery) == hrIntakeVersion && intakeDocumentGate(gate) {
+		// Every following owner phase resolves and holds the scoped requirements.
+		return true
+	}
 	if !authn.Refresh(c) {
 		return false
 	}
@@ -105,8 +109,14 @@ func (in *documentInput) valid(staffID uuid.UUID) bool {
 }
 
 func documentOwner(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID) (staff, error) {
-	if err := enrollmentScope(tx, p, hospital); err != nil {
+	var intake bool
+	if err := tx.Raw(`SELECT workforce_hr_intake_context(?::uuid,?::uuid)`, p.TenantID, hospital).Scan(&intake).Error; err != nil {
 		return staff{}, err
+	}
+	if !intake {
+		if err := enrollmentScope(tx, p, hospital); err != nil {
+			return staff{}, err
+		}
 	}
 	var owner staff
 	err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(staffColumns+",version").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID).First(&owner).Error
@@ -166,7 +176,7 @@ func (h *handlers) putDocument(c *gin.Context) {
 func (h *handlers) registerDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, id uuid.UUID, in documentInput) {
 	var saved document
 	var created bool
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		if err := gate.authorize(tx, p, hospital, staffID, true); err != nil {
 			return err
 		}
@@ -225,7 +235,7 @@ func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]do
 		return nil, nil
 	}
 	var rows []document
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
 		if _, err := documentOwner(tx, p, hospital, staffID); err != nil {
 			return err
 		}
@@ -236,6 +246,10 @@ func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]do
 		return nil, nil
 	}
 	if err != nil {
+		if c.Query(hrIntakeQuery) == hrIntakeVersion {
+			respondIntakeError(c, err)
+			return nil, nil
+		}
 		return nil, errors.New("staff document listing unavailable")
 	}
 	return rows, nil

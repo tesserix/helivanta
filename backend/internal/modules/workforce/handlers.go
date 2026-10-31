@@ -352,11 +352,11 @@ func (h *handlers) getStaff(c *gin.Context) {
 		return
 	}
 	var row staff
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err = h.intakeReadTransaction(c, p, hospital, func(tx *gorm.DB) error {
 		return tx.Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
 	})
 	if err != nil {
-		respondError(c, err)
+		respondIntakeError(c, err)
 		return
 	}
 	respondDirectoryStaff(c, row, projection)
@@ -373,10 +373,14 @@ func (h *handlers) listStaff(c *gin.Context, params pagination.Params) ([]staff,
 		return nil, nil
 	}
 	var rows []staff
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err = h.intakeReadTransaction(c, p, hospital, func(tx *gorm.DB) error {
 		return tenantdb.ApplyKeyset(tx, params).Select(staffColumns).Where("tenant_id = ? AND hospital_id = ?", p.TenantID, hospital).Find(&rows).Error
 	})
 	if err != nil {
+		if _, projected := c.Request.URL.Query()[hrIntakeQuery]; projected {
+			respondIntakeError(c, err)
+			return nil, nil
+		}
 		return nil, errors.New("workforce list operation failed")
 	}
 	return rows, nil

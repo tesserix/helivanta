@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
+import type { staffAccessTemplates } from "./staff-access-templates";
 import {
   ProposalInputContract,
   ProposalOutputContract,
@@ -38,7 +39,7 @@ const historyPage = z.object({ data: z.array(ProposalHistoryContract), page: pag
 const decisionPage = z
   .object({ data: z.array(ProposalDecisionRecordContract), page: pageInfo })
   .strict();
-export type StaffAssignmentFamily = "leave" | "identity";
+export type StaffAssignmentFamily = (typeof staffAccessTemplates)[number]["family"];
 
 type PageOptions = {
   family?: StaffAssignmentFamily;
@@ -46,6 +47,12 @@ type PageOptions = {
   signal?: AbortSignal;
 };
 const base = "/iam/assignment-proposals";
+const assignmentLists: Record<StaffAssignmentFamily, string> = {
+  leave: base,
+  identity: "/iam/identity-assignment-proposals",
+  intake: "/iam/intake-assignment-proposals",
+  employment: "/iam/employment-assignment-proposals",
+};
 export const staffAssignmentsKey = (scope: StaffAssignmentScope) => [
   "iam",
   "staff-assignments",
@@ -55,7 +62,10 @@ export const staffAssignmentsKey = (scope: StaffAssignmentScope) => [
 function options(scope: StaffAssignmentScope): RequestInit {
   return {
     cache: "no-store",
-    headers: { "X-Helivanta-Expected-Tenant": identifier.parse(scope.tenantId) },
+    headers: {
+      "X-Helivanta-Expected-Tenant": identifier.parse(scope.tenantId),
+      "X-Helivanta-Expected-Subject": scope.subject,
+    },
   };
 }
 function query(page: PageOptions) {
@@ -65,10 +75,10 @@ function query(page: PageOptions) {
 }
 export async function listStaffAssignments(scope: StaffAssignmentScope, page: PageOptions = {}) {
   return assignmentPage.parse(
-    await apiFetch(
-      `${page.family === "identity" ? "/iam/identity-assignment-proposals" : base}?${query(page)}`,
-      { ...options(scope), signal: page.signal },
-    ),
+    await apiFetch(`${assignmentLists[page.family ?? "leave"]}?${query(page)}`, {
+      ...options(scope),
+      signal: page.signal,
+    }),
   );
 }
 function owned(id: string, response: unknown) {

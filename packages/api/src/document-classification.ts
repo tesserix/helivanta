@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
+import { withStaffIntakeScope } from "./enrollment";
 import { documentPath, documentHeaders, type DocumentScope } from "./documents";
 import {
   documentClassificationSchema,
@@ -34,7 +35,7 @@ export async function readDocumentClassification(
   signal: AbortSignal,
 ): Promise<DocumentClassification> {
   const value = documentClassificationSchema.parse(
-    await apiFetch(documentClassificationPath(scope, file), {
+    await apiFetch(withStaffIntakeScope(documentClassificationPath(scope, file), scope), {
       headers: documentHeaders(scope),
       cache: "no-store",
       signal,
@@ -53,7 +54,7 @@ export async function saveDocumentClassification(
   const input = documentClassificationInputSchema.parse(command);
   input.classification_revision_id = input.classification_revision_id.toLowerCase();
   const value = documentClassificationSchema.parse(
-    await apiFetch(documentClassificationPath(scope, file), {
+    await apiFetch(withStaffIntakeScope(documentClassificationPath(scope, file), scope), {
       method: "PUT",
       headers: documentHeaders(scope),
       body: JSON.stringify(input),
@@ -84,11 +85,14 @@ export async function readDocumentClassificationHistory(
   const query = new URLSearchParams({ limit: "20" });
   if (cursor) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
   const value = historyPage.parse(
-    await apiFetch(`${documentClassificationPath(scope, file)}/history?${query}`, {
-      headers: documentHeaders(scope),
-      cache: "no-store",
-      signal,
-    }),
+    await apiFetch(
+      withStaffIntakeScope(`${documentClassificationPath(scope, file)}/history?${query}`, scope),
+      {
+        headers: documentHeaders(scope),
+        cache: "no-store",
+        signal,
+      },
+    ),
   );
   if (value.page.has_more !== Boolean(value.page.next_cursor))
     throw new Error("Document classification history could not be continued safely.");

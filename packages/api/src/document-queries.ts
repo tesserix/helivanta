@@ -1,5 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
+import { staffIntakeScopeKey, withStaffIntakeScope } from "./enrollment";
 import { z } from "zod";
 import { apiFetch, POLL_INTERVAL_MS } from "./client";
 import { documentPath, documentHeaders, type DocumentScope } from "./documents";
@@ -19,6 +20,7 @@ export function documentQueryKey(scope: DocumentScope): string[] {
     scope.subject,
     scope.hospitalId,
     scope.staffId,
+    ...(scope.hrIntake === true ? [staffIntakeScopeKey(scope)] : []),
   ];
 }
 export function useDocumentRecords(scope: DocumentScope, enabled: boolean) {
@@ -26,7 +28,7 @@ export function useDocumentRecords(scope: DocumentScope, enabled: boolean) {
     queryKey: [...documentQueryKey(scope), "records"],
     queryFn: async ({ signal }) =>
       documentRecordsSchema.parse(
-        await apiFetch(`${documentPath(scope)}/document-records`, {
+        await apiFetch(withStaffIntakeScope(`${documentPath(scope)}/document-records`, scope), {
           headers: documentHeaders(scope),
           cache: "no-store",
           signal,
@@ -47,7 +49,10 @@ export function useStaffDocuments(scope: DocumentScope, cursor: string | null, e
     queryFn: async ({ signal }): Promise<Page<StaffDocument>> => {
       const page = pageSchema.parse(
         await apiFetch(
-          `${documentPath(scope)}/documents${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+          withStaffIntakeScope(
+            `${documentPath(scope)}/documents${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+            scope,
+          ),
           { headers: documentHeaders(scope), cache: "no-store", signal },
         ),
       );

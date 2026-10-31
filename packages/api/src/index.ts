@@ -102,6 +102,7 @@ export * from "./emergency-receiving";
 export { notifySessionChanged, SESSION_CHANGE_KEY } from "./session-change";
 
 export * from "./staff-access-templates";
+export { TemplateDefinitionContract } from "./staff-access-contract";
 export * from "./identity-checks-contract";
 
 export * from "./identity-checks";
@@ -109,7 +110,16 @@ export * from "./identity-checks";
 export * from "./pharmacy-stock-overview";
 export * from "./staff-directory-contract";
 export * from "./staff-directory";
+export * from "./staff-intake-queries";
 export * from "./employment-periods-contract";
 export * from "./employment-periods";
 
 export * from "./employment-evidence";
+export * from "./person-review-contract";
+export * from "./person-reviews";
+export * from "./person-review-scopes";
+export * from "./person-review-browse";
+export * from "./person-review-queries";
+export * from "./person-review-selection";
+export * from "./employment-review-contract";
+export * from "./employment-reviews";

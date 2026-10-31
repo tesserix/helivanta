@@ -85,7 +85,7 @@ export function StaffDocumentPanel({
   onContextChanged,
   onClose,
 }: {
-  hospital: Hospital;
+  hospital: Pick<Hospital, "id" | "name"> & Partial<Pick<Hospital, "access_level">>;
   staff: Staff;
   scope: EnrollmentRequestScope;
   onContextChanged: () => void;
@@ -98,7 +98,9 @@ export function StaffDocumentPanel({
     heading.current?.scrollIntoView({ block: "start", behavior: "smooth" });
     heading.current?.focus();
   }, []);
-  const allowed = hospital.access_level === "manager" && can("workforce.documents.manage");
+  const allowed =
+    scope.hrIntake === true ||
+    (hospital.access_level === "manager" && can("workforce.documents.manage"));
   return (
     <Panel flush aria-labelledby="staff-documents-heading" className="mt-6 scroll-mt-24">
       <header className="flex items-start justify-between gap-4 border-b px-6 py-5">
@@ -503,6 +505,7 @@ function DocumentWorkspace({
             key={classifying.id}
             scope={scope}
             file={classifying}
+            onContextChanged={onContextChanged}
             onClose={() => setClassifying(null)}
           />
         </div>

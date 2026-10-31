@@ -150,3 +150,21 @@ describe("staff file classification contract", () => {
     }
   });
 });
+
+it("keeps scoped HR classification reads and writes on the exact file", async () => {
+  const fetch = vi.fn(async () => Response.json(saved));
+  vi.stubGlobal("fetch", fetch);
+  const intake = { ...scope, hrIntake: true };
+  await readDocumentClassification(intake, file, controller.signal);
+  await saveDocumentClassification(
+    intake,
+    file,
+    { expected_version: 0, classification_revision_id: reference },
+    controller.signal,
+  );
+  for (const [url] of fetch.mock.calls as unknown as Array<[string]>) {
+    const parsed = new URL(url, "https://example.invalid");
+    expect(parsed.searchParams.get("hr_intake")).toBe("v1");
+    expect(parsed.pathname).toMatch(new RegExp(`/documents/${file}/classification$`));
+  }
+});

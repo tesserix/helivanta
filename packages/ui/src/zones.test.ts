@@ -301,3 +301,8 @@ it("shows the scoped leave review entry without tenant-wide business grants", ()
   const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
   expect(pages.some((page) => page.href === "/workforce/leave-review")).toBe(true);
 });
+
+it("shows person reviews without tenant-wide identity or document grants", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/person-reviews")).toBe(true);
+});

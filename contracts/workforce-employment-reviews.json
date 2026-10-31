@@ -1,0 +1,372 @@
+{
+  "models": {
+    "EmploymentReviewEvidenceSelection": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      }
+    ],
+    "EmploymentReviewSubmissionInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "period_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "person_review_id",
+        "type": "uuid"
+      },
+      {
+        "name": "person_review_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "person_review_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "evidence",
+        "type": "[]EmploymentReviewEvidenceSelection",
+        "min": 1,
+        "max": 20
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 300,
+        "format": "text"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "terms_examined",
+        "type": "bool"
+      },
+      {
+        "name": "known_associations_disclosed",
+        "type": "bool"
+      }
+    ],
+    "EmploymentReviewEvidence": [
+      {
+        "name": "binding",
+        "type": "EmploymentEvidenceBinding"
+      },
+      {
+        "name": "classification_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "classification_revision_id",
+        "type": "string",
+        "min": 0,
+        "max": 36
+      }
+    ],
+    "EmploymentReview": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "withdrawn", "revoked"]
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "period_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "period_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "person_review_id",
+        "type": "uuid"
+      },
+      {
+        "name": "person_review_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "person_review_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 300,
+        "format": "text"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "terms_examined",
+        "type": "bool"
+      },
+      {
+        "name": "known_associations_disclosed",
+        "type": "bool"
+      },
+      {
+        "name": "access_intent",
+        "type": "string",
+        "enum": ["digital", "non_digital"]
+      },
+      {
+        "name": "declared_subject",
+        "type": "string",
+        "min": 0,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "decision_reason",
+        "type": "string",
+        "min": 0,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "reviewer_terms_examined",
+        "type": "bool"
+      },
+      {
+        "name": "independent_person_confirmed",
+        "type": "bool"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      },
+      {
+        "name": "terms",
+        "type": "EmploymentPeriodDraft",
+        "orm_ignore": true
+      },
+      {
+        "name": "evidence",
+        "type": "[]EmploymentReviewEvidence",
+        "min": 1,
+        "max": 20,
+        "orm_ignore": true
+      }
+    ],
+    "EmploymentReviewView": [
+      {
+        "name": "review",
+        "type": "EmploymentReview"
+      },
+      {
+        "name": "current_state",
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "revoked",
+          "source_changed",
+          "person_unavailable",
+          "evidence_unavailable"
+        ]
+      },
+      {
+        "name": "can_approve",
+        "type": "bool"
+      },
+      {
+        "name": "can_reject",
+        "type": "bool"
+      },
+      {
+        "name": "can_withdraw",
+        "type": "bool"
+      },
+      {
+        "name": "can_revoke",
+        "type": "bool"
+      }
+    ],
+    "EmploymentReviewDecisionInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "terms_examined",
+        "type": "bool"
+      },
+      {
+        "name": "independent_person_confirmed",
+        "type": "bool"
+      }
+    ],
+    "EmploymentReviewActionInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ]
+  }
+}

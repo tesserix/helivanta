@@ -17,7 +17,7 @@ func (h *handlers) documentRecords(c *gin.Context) {
 		return
 	}
 	choices := []documentRecordChoice{{RecordKind: "enrollment", RecordID: staffID, Label: "Staff enrollment", Categories: documentCategoryBindings["enrollment"]}}
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
 		if _, err := documentOwner(tx, p, hospital, staffID); err != nil {
 			return err
 		}

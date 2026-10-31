@@ -1,5 +1,10 @@
 import { apiFetch } from "./client";
 import {
+  withStaffIntakeScope,
+  staffIntakeScopeKey,
+  type EnrollmentRequestScope,
+} from "./enrollment";
+import {
   EmploymentPeriodDraftContract,
   EmploymentPeriodDraftInputContract,
   type EmploymentPeriodDraftInput,
@@ -7,9 +12,7 @@ import {
   type EmploymentPeriodWithdrawInput,
 } from "./employment-periods-contract";
 export { v7 as newEmploymentPeriodId } from "uuid";
-export type EmploymentPeriodScope = {
-  tenantId: string;
-  subject: string;
+export type EmploymentPeriodScope = EnrollmentRequestScope & {
   hospitalId: string;
   staffId: string;
 };
@@ -22,6 +25,7 @@ export const employmentPeriodsKey = (scope: EmploymentPeriodScope) => [
   scope.subject,
   scope.hospitalId,
   scope.staffId,
+  ...(scope.hrIntake === true ? [staffIntakeScopeKey(scope)] : []),
 ];
 export const employmentPeriodRequest = (scope: EmploymentPeriodScope) => ({
   cache: "no-store" as const,
@@ -36,11 +40,14 @@ export async function saveEmploymentPeriodDraft(
   input: EmploymentPeriodDraftInput,
 ) {
   const command = EmploymentPeriodDraftInputContract.parse(input);
-  const response = await apiFetch<unknown>(`${employmentPeriodsPath(scope)}/${id}`, {
-    ...employmentPeriodRequest(scope),
-    method: "PUT",
-    body: JSON.stringify(command),
-  });
+  const response = await apiFetch<unknown>(
+    withStaffIntakeScope(`${employmentPeriodsPath(scope)}/${id}`, scope),
+    {
+      ...employmentPeriodRequest(scope),
+      method: "PUT",
+      body: JSON.stringify(command),
+    },
+  );
   const parsed = EmploymentPeriodDraftContract.safeParse(response);
   if (
     !parsed.success ||
@@ -65,11 +72,14 @@ export async function withdrawEmploymentPeriod(
   input: EmploymentPeriodWithdrawInput,
 ) {
   const command = EmploymentPeriodWithdrawInputContract.parse(input);
-  const response = await apiFetch<unknown>(`${employmentPeriodsPath(scope)}/${id}/withdraw`, {
-    ...employmentPeriodRequest(scope),
-    method: "POST",
-    body: JSON.stringify(command),
-  });
+  const response = await apiFetch<unknown>(
+    withStaffIntakeScope(`${employmentPeriodsPath(scope)}/${id}/withdraw`, scope),
+    {
+      ...employmentPeriodRequest(scope),
+      method: "POST",
+      body: JSON.stringify(command),
+    },
+  );
   const parsed = EmploymentPeriodDraftContract.safeParse(response);
   if (
     !parsed.success ||

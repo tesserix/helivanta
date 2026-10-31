@@ -1,5 +1,9 @@
 import { apiFetch } from "./client";
-import { saveEmploymentPeriodDraft, withdrawEmploymentPeriod } from "./employment-periods";
+import {
+  saveEmploymentPeriodDraft,
+  withdrawEmploymentPeriod,
+  employmentPeriodsKey,
+} from "./employment-periods";
 vi.mock("./client", () => ({ apiFetch: vi.fn() }));
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -52,6 +56,13 @@ it("pins the Staff workspace and verifies the owner's receipt", async () => {
         "X-Helivanta-Expected-Subject": scope.subject,
       },
     }),
+  );
+  await saveEmploymentPeriodDraft({ ...scope, hrIntake: true }, id, input);
+  expect(vi.mocked(apiFetch).mock.lastCall?.[0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-periods/${id}?hr_intake=v1`,
+  );
+  expect(employmentPeriodsKey({ ...scope, hrIntake: true })).not.toEqual(
+    employmentPeriodsKey(scope),
   );
   vi.mocked(apiFetch).mockResolvedValue({ ...receipt, staff_id: scope.hospitalId });
   await expect(saveEmploymentPeriodDraft(scope, id, input)).rejects.toThrow("receipt");
@@ -106,6 +117,10 @@ it("checks the terminal withdrawal receipt and pins its command to the workspace
         "X-Helivanta-Expected-Subject": scope.subject,
       },
     }),
+  );
+  await withdrawEmploymentPeriod({ ...scope, hrIntake: true }, id, command);
+  expect(vi.mocked(apiFetch).mock.lastCall?.[0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-periods/${id}/withdraw?hr_intake=v1`,
   );
   for (const change of [
     { status: "draft" },

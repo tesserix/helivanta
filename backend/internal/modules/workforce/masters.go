@@ -79,9 +79,11 @@ func (h *handlers) listMasters(c *gin.Context, params pagination.Params) ([]hrMa
 		return nil, nil
 	}
 	rows := []hrMaster{}
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
-			return err
+	err := h.intakeReadTransaction(c, p, hospital, func(tx *gorm.DB) error {
+		if c.Query(hrIntakeQuery) != hrIntakeVersion {
+			if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
+				return err
+			}
 		}
 		q := tenantdb.ApplyKeyset(tx, params).Where("tenant_id = ? AND hospital_id = ?", p.TenantID, hospital)
 		if kind != "" {
@@ -90,7 +92,7 @@ func (h *handlers) listMasters(c *gin.Context, params pagination.Params) ([]hrMa
 		return q.Find(&rows).Error
 	})
 	if err != nil {
-		respondError(c, err)
+		respondIntakeError(c, err)
 		return nil, nil
 	}
 	return rows, nil
@@ -107,9 +109,11 @@ func (h *handlers) masterHistory(c *gin.Context, params pagination.Params) ([]hr
 		return nil, nil
 	}
 	rows := []hrMasterRevision{}
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
-			return err
+	err = h.intakeReadTransaction(c, p, hospital, func(tx *gorm.DB) error {
+		if c.Query(hrIntakeQuery) != hrIntakeVersion {
+			if err := requireStaffAccess(tx, p.TenantID, hospital, false); err != nil {
+				return err
+			}
 		}
 		var master hrMaster
 		if err := tx.Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&master).Error; err != nil {
@@ -118,7 +122,7 @@ func (h *handlers) masterHistory(c *gin.Context, params pagination.Params) ([]hr
 		return tenantdb.ApplyKeyset(tx, params).Where("tenant_id = ? AND hospital_id = ? AND master_id = ?", p.TenantID, hospital, id).Find(&rows).Error
 	})
 	if err != nil {
-		respondError(c, err)
+		respondIntakeError(c, err)
 		return nil, nil
 	}
 	return rows, nil

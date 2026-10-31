@@ -5,6 +5,29 @@ is recorded separately. This inventory is a prerequisite for the full scoped HR
 intake/employment-review implementation, not evidence that it is implemented.
 Read with ADR-0049 and the 2026-10-30 access/review continuation plan.
 
+## Current candidate delta — 2026-10-31
+
+The original 33-route table below is retained as its source snapshot. The current
+uncommitted integration candidate opts 24 enrollment/employment/evidence/Staff-file
+routes into explicit `hr_intake=v1` authority. Credential/register/reminder and
+leave consumers remain on their existing boundaries; shared `enrollmentScope`
+is unchanged. The exact two-permission intake template uses additive IAM
+migration 0020 and Workforce purpose-bound RLS migration 0053. Frozen default
+catalog discovery remains the original three templates; `hr-intake-v1` explicitly
+selects four. Compound IAM guards hold both evidence permissions at owner phases.
+
+Additional directory list/detail consumers now accept the explicit intake
+projection, and `/v1/workforce/hr-intake-scopes` returns bounded, reauthorized
+hospital capabilities from current reviewed actor links. Canonical
+`workforce-directory.json` generates those capabilities and the selector. No
+legacy hospital access row is manufactured. Directory/discovery tests each
+reproduced their missing behavior before passing. Read-only HR master list/history choices now use the same opt-in authority,
+preserving write checks and referenced enrollment revisions. Staff Access has a
+separate intake-family list and explicit canonical catalog verification. The
+ordinary intake workspace/client consumers remain unfinished; these proofs do not establish a usable
+normal-browser workflow, reviewed employment eligibility or A01–A12 completion.
+See the [tracker](staff-management-progress.md) and [intake design](../superpowers/specs/2026-10-31-scoped-hr-intake.md).
+
 ## Actual registered routes
 
 The generated registry has 23 enrollment-management routes and 10 document-

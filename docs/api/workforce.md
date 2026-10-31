@@ -2,6 +2,230 @@
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
+## Pre-employment current-person review candidate
+
+The current source adds a private human person-finding review for inactive
+joiners and workers requesting no login. This does not activate employment,
+create an operational account link, enroll a tenant member, issue an ID card or
+grant business permissions. Existing active-employment identity-case and login
+guards remain unchanged. Normal UI acceptance and employment consumption are
+still required; this candidate is not deployed or a completed employment journey.
+
+Workforce owns the source identity hash/epoch, immutable review receipts,
+prospective identity-document contributors and released-evidence pins. Canonical
+input: `contracts/workforce-person-reviews.json`; generator:
+`node scripts/generate-workforce-person-reviews.mjs [--check]`. API-client methods
+are exported from `@helivanta/api` in `person-reviews.ts`; all requests go through
+Global API and include the original expected tenant/subject, with no-store caching.
+
+| Registered owner route under `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews` | Scope and behavior                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT `/:review`                                                                            | Current identity-check manager plus own reviewed active actor link; complete immutable pending submission, 8 KiB limit.                                                                        |
+| GET `/:review`                                                                            | Current identity manager/reviewer plus reviewed actor link; audited original receipt **and separate current effectiveness**.                                                                   |
+| GET `/:review/history`                                                                    | Same read authority; audited cursor pagination, default 50/max 200. Frozen evidence is bounded to ten files per receipt.                                                                       |
+| POST `/:review/decision`                                                                  | Current identity reviewer and independent actor; approve/reject with exact expected version and UUIDv7 command.                                                                                |
+| POST `/:review/withdrawal`                                                                | Current identity manager who submitted it; reasoned pending withdrawal, preserving history.                                                                                                    |
+| POST `/:review/revocation`                                                                | Current identity reviewer; reasoned revocation of an approved finding, including after a source correction.                                                                                    |
+| GET `/:review/evidence/:file/content`                                                     | Current identity manager/reviewer plus own reviewed active actor link; one frozen identity image, capped at 10 MiB; original authority and review/source/file lineage rechecked after storage. |
+
+`GET /v1/workforce/person-review-scopes` now discovers hospitals from the
+caller's own reviewed active actor links and held current identity assignments.
+The canonical response row is `{hospital_id,name,can_submit,can_review}`;
+capabilities are independent and confer no authority on later commands. Legacy
+hospital administration alone yields no row. Both original workspace assertions
+are mandatory. The scan defaults/caps at 20 candidates plus a probe, with a
+caller/tenant/route-bound cursor. Empty filtered pages may still have
+`has_more:true`; follow the opaque continuation. Excessive limits and cross-actor/
+route cursors return 400, absent/mismatched workspace 409, unavailable authorization 503. Checks have a five-second budget capped by session idleness and four-way
+concurrency; each visible hospital has a locked current actor/grant audit.
+`listPersonReviewScopes` verifies canonical capabilities and continuation through
+Global API, with no-store and cancellation checks. No generic document/HR grants
+or additional database policies/migrations are introduced by this read route.
+
+Two additional registered reads support human target selection and review work:
+
+| Owner read under `/v1/workforce/hospitals/:hospital` | Authority and response                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST `/person-review-targets/search`                 | Current identity manager and reviewed active actor link; strict body `{employee_code:""}` browses or a nonempty Staff ID performs case-insensitive exact lookup. Rows contain Staff ID/name, hospital/record IDs, employment status, source Staff version and creation time. Inactive joiners remain selectable. |
+| GET `/person-review-inbox`                           | Current identity manager/reviewer and reviewed active actor link; defaults to recorded `pending`, with one explicit `status` from the existing review statuses. Rows contain review/Staff/hospital IDs, current Staff ID/name, recorded status/version/validity and creation time.                               |
+
+Both use the existing cursor envelope (default 50/max 200), mandatory original
+workspace assertions, current held assignment plus supervision/actor locks and
+per-disclosed-row audit. A cursor is a position, not authority; every SQL query
+scopes the verified tenant and hospital. Clients reset paging on scope/filter
+changes. Exact Staff ID terms belong only in the 1 KiB strict JSON body; omitted,
+null, invalid and unknown input fields return 400. An unknown exact code gives an
+empty authorized list. Missing authority/current actor returns 403; unavailable
+authorization or bounded lock failure returns 503. SQL/audit failures return no
+successful list. Lists do not authorize subsequent commands.
+
+Summary rows omit private findings, policy, declared account associations, decision
+reasons and evidence. Recorded status does not establish present effectiveness:
+open the protected detail before review/decision. Migrations
+`0056_workforce_person_review_browse` and
+`0057_workforce_person_review_inbox_index` add purpose-scoped reads and the
+concurrent hospital/status/time keyset index. Existing WITH CHECK expressions,
+forced RLS, one permissive policy and deletion restrictions remain. Browse context
+does not confer profile, document, review-history or contributor access and does
+not permit Staff edits or review transitions. The owner clients
+`searchPersonReviewTargets` and `listPersonReviewInbox` validate canonical rows,
+original hospital, requested Staff ID/status, pagination consistency and cancellation.
+
+`POST /v1/workforce/hospitals/:hospital/identity-staff/:id/person-review-evidence/search`
+now supports manager preparation. Its strict 1 KiB body pins `staff_version`,
+`employment_epoch` and `identity_hash`; all are required. Only the current scoped
+identity manager with an active reviewed actor link can select metadata. Original
+workspace assertions and live identity refresh precede held source/actor checks.
+A changed basis returns 409. The paginated projection includes file/hospital/Staff
+IDs, record version, filename, MIME, size and creation time, excluding storage
+keys, object generations and uploader/account associations. Only scan-released
+PNG/JPEG enrollment identity evidence for that Staff/source version is listed.
+Migration `0058_workforce_person_evidence_selection` extends one permissive
+read policy with an explicit selection context, preserving old WITH CHECK and
+delete guards; it grants no generic document/upload/classification/contributor or
+binary authority. Per-row audits commit with the read. Listing scan release does
+not establish person identity or complete contributor provenance; submission still
+freezes and revalidates the evidence. `searchPersonReviewEvidence` verifies scope,
+source version, canonical fields, pagination and cancellation through Global API.
+
+The `/workforce/person-reviews` UI candidate now supports manager Staff-ID lookup,
+current identity-basis review, purpose-bound evidence selection and mandatory
+policy/finding/date/validity/association attestations. Digital account intent is an
+explicit unverified account declaration, never provisioning or linking. No default
+validity or policy is fabricated. Local validity input is converted to an instant;
+observation dates remain explicit UTC dates. Source change/refusal clears private
+context; uncertain submissions retain the same review ID, command, source and
+payload until a verified receipt. The inbox/detail supports independent reviewer
+approval/rejection, submitting-manager withdrawal and reviewer revocation.
+
+Protected immutable history now uses `listPersonReviewHistory`: canonical, ordered
+receipts bind the original review/Staff/hospital/workspace, reject duplicate or
+out-of-order versions and preserve opaque continuation/cancellation. The history
+UI labels historical receipts separately from effectiveness. Seeing a newer
+receipt disables new actions and evidence release until the finding is reopened;
+that restriction survives paging back and closing history. Current detail is
+labelled as the finding when opened; mutations still require fresh owner authority
+and exact version. History does not resolve an uncertain command or grant access.
+Staff-specific collection/filtering, positive normal-browser/scanner acceptance
+and remaining failure/concurrency/performance gates remain open.
+The evidence route authorizes only its review's frozen file, never general document downloads.
+It pins the original assignment, actor/link/employment epoch, review revision,
+identity source/epoch and full file/scan/classification lineage. IAM assignment or
+actor-link replacement does not authorize an in-flight disclosure; a fresh request
+is required. Storage runs outside database locks with a five-second budget capped
+by session idleness, followed by fresh held owner authorization and an attributable
+disclosure audit before bytes are returned. Missing/inactive actors return 403,
+while genuinely invisible target objects remain 404. HR intake alone cannot submit
+or decide a person finding.
+
+Source/evidence/finding revocation or revision changes during storage return 409
+without bytes or a successful-download audit. Storage failure or corrupt content
+returns 503. Global API enforces no-store responses; the owner also uses attachment,
+nosniff and sandbox headers. The client validates the original review/workspace,
+current effectiveness, bound file, type/length and SHA-256, and checks cancellation
+before publishing a Blob. Published evidence metadata is bounded to the owner's
+10 MiB file limit and 1–10 frozen files per review.
+
+Submissions require the exact source Staff version, employment epoch and identity
+hash; policy/finding references, UTC observation date and future validity instant;
+explicit account intent and declared subject; positive human-examination and
+known-association attestations; and 1–10 scan-released enrollment identity files.
+For `non_digital`, explicitly send `declared_subject: ""`; omitted/null is invalid.
+A digital subject is a recorded declaration, not independently verified account
+ownership or an operational login link. The review preserves that distinction.
+
+Frozen evidence includes record version, content hash, quarantine/released object
+generations, scan attempt/signatures and classification revision. Bound RLS reads
+exclude unrelated files, employment evidence and another tenant. Contributor
+history cannot be appended after the original submission transaction; snapshots,
+evidence and history are immutable. Existing files without sufficient attributable
+identity-document provenance return an unresolved-source conflict; do not infer
+legacy uploader identity or silently mark a finding successful. Prospective
+provenance collection is limited to enrollment `identity_evidence`, preserving
+benefit/tax and other evidence-owner authorization.
+
+Submission and decision replays reauthorize the current actor and return the
+original immutable receipt for the same normalized intent. Changed intent under
+the command ID, reused IDs or stale versions return 409. Missing/null/invalid
+required input returns 400; invisible objects 404; missing action or a
+self/contributor reviewer 403; missing/changed workspace assertions 409; unavailable
+authorization 503. Scoped command/lock budgets and current-owner-time checks
+remain in force. Sensitive reads are audited as well as mutations.
+
+Detail has `{ review, current_state }`. Persisted receipt status is `pending`,
+`approved`, `rejected`, `withdrawn` or `revoked`; current state can additionally be
+`expired`, `source_changed` or `evidence_unavailable`. An old approved receipt never
+implies present eligibility. Human review remains a policy-attributable finding,
+not automated government/biometric verification or proof that an undisclosed
+second identity cannot exist. Historical target subjects and frozen contributors
+remain excluded from approval even after operational links change.
+
+Migration `0054_workforce_person_reviews` owns the head/history/evidence/contributor
+storage and forced RLS; `0055_workforce_person_provenance_index` uses the owning
+concurrent-index mechanism for the populated audit source. Neither has been applied
+to the existing UI fixture or production. Minimized audit and identifier-only
+`helivanta.in.workforce.person_review_changed.v1` outbox facts commit together.
+The event carries hospital/Staff/review/revision IDs and version, with no human
+finding, policy, account association, filename, content hash or decision reason.
+
+See the [implementation design](../superpowers/specs/2026-10-31-pre-employment-person-review.md)
+and [delivery plan](../superpowers/plans/2026-10-31-pre-employment-person-review.md)
+for the outstanding manager/reviewer UI, remaining failure/concurrency, real-scanner/
+browser and employment-generation acceptance work. Full A01–A12
+remains open.
+
+## Scoped HR intake (unreleased candidate)
+
+Assignment administrators explicitly use
+`GET /v1/iam/intake-assignment-proposals` for the intake family. Existing leave
+and identity lists retain their original membership. All assignment proposal,
+decision and history routes honor an optional original-account assertion as well
+as the original-tenant assertion: a mismatched, empty or repeated supplied
+`X-Helivanta-Expected-Subject` returns 409 `session_changed` before owner access
+or mutation. The assignment SDK sends both original workspace assertions.
+Legacy clients omitting the account assertion retain their existing admission;
+this compatibility does not establish full old-client lifecycle acceptance.
+
+IAM's independently reviewed `workforce.hr_intake.v1` assignment carries exactly
+`workforce.enrollment.manage` and `workforce.documents.manage` at one hospital.
+It creates no hospital manager/reader grant, global business permission, or
+employment activation authority. The actor also requires a current independently
+reviewed login link to active Staff. This is the existing actor policy; complete
+reviewed employment-generation eligibility remains an A01–A12 release gate.
+
+`GET /v1/workforce/hr-intake-scopes` scans at most 20 current actor-link candidates
+per page and reauthorizes both permissions with held IAM guards and the reviewed
+actor source. It returns hospital ID/name and explicit `can_prepare_staff` and
+`can_manage_staff_documents` capabilities. Those fields are generated from
+`contracts/workforce-directory.json`; they are discovery observations, never
+receipts authorizing a subsequent command. Cursor scope binds the original
+account and route; filtered empty pages retain continuation. Missing authorization
+dependencies deny rather than report a successful empty capability list.
+
+Discovery requires exact original `X-Helivanta-Expected-Tenant` and
+`X-Helivanta-Expected-Subject` headers. Staff directory list/detail and enrollment,
+employment preparation/evidence and Staff-file consumers select `hr_intake=v1`
+and require the same original workspace. Unknown, empty or repeated projection
+selectors return 400; missing workspace returns 409; missing current authority
+returns 403; out-of-scope Staff returns 404; unavailable scoped authority returns 503. Legacy directory discovery remains unchanged without this projection.
+Directory reads require current enrollment authority and enforce hospital RLS.
+HR setup list/history reads also accept this projection under current enrollment
+authority. They expose existing versioned choices for onboarding; the migration
+retains the original write checks and restrictive deletion behavior. Intake
+cannot maintain setup records, including when an internal master-context flag
+is present. Selecting a department revision uses the existing enrollment
+reference checks and preserves the owner-resolved label after reload.
+Status activation/change through intake returns 409 `employment_review_required`.
+
+Private file operations retain original credential, assignment and reviewed actor
+references across storage I/O; a newly approved replacement cannot authorize the
+old request. Files stay quarantined until the separate worker's scan/release.
+Hospital discovery and owner API tests use real IAM/Postgres/OpenFGA; protocol
+storage fixtures do not establish real-scanner or browser acceptance. The assignment UI verifies the explicit frozen server catalog before offering
+Staff onboarding assignments; missing or incompatible definitions stay
+unavailable. The intake user workspace, full lifecycle enforcement, real-scanner
+and normal browser/deployed acceptance are still required before release.
+
 ## Reviewed account links (worktree implementation)
 
 Workforce owns the hospital-local binding and immutable review history; IAM owns
@@ -1159,6 +1383,115 @@ file-owner two-phase document-before-binding order. No remote call runs within a
 write transaction. Application rollback preserves the new private tables; no
 legacy evidence is automatically bound, approved or deleted. Production rollout
 and migration remain a separate exact-revision approval gate.
+
+### Immutable employment submissions and independent decisions — source candidate
+
+The current implementation candidate adds these owner routes through Global API:
+
+| Route                                                                                                               | Behavior                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `PUT /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}?hr_intake=v1`                     | Create an immutable pending submission under UUIDv7 review and command IDs                                 |
+| `GET /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}?hr_intake=v1`                     | Protected frozen record, recorded/current states and owner-computed preparer capabilities                  |
+| `GET /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}?employment_review=v1`             | Review-only selected source metadata and owner-computed decision capabilities                              |
+| `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/decision?employment_review=v1`   | Independent approval/rejection, exact expected version, UUIDv7 command, reason and both human attestations |
+| `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/withdrawal?hr_intake=v1`         | Original preparer withdraws pending terms, including stale submissions                                     |
+| `POST /v1/workforce/hospitals/{hospital}/staff/{staff}/employment-reviews/{review}/revocation?employment_review=v1` | Independent reviewer revokes approved terms, including unavailable evidence/source                         |
+
+Preparation requires exact original expected-tenant/subject headers, both live
+scoped HR-intake permissions, and an active independently reviewed actor Staff/login
+link. Reviewer GET/decision/revocation instead require the separate current
+hospital-scoped `workforce.employment.review` permission and reviewed actor link.
+Exactly one projection is required; missing, mixed and duplicate modes are refused. Neither legacy administration nor identity-review permission supplies the
+new command authority. An administrator with separately reviewed scoped HR
+permissions uses those grants, with no legacy fallback. The target may be inactive
+or non-digital; submission neither activates employment nor creates a login,
+IAM grant, card or clinical privilege.
+
+Canonical `workforce-employment-reviews.json` generates the Go/Zod contract. An
+8 KiB command pins current Staff version/epoch/hash, exact open terms ID/revision/
+version, exact current approved person finding ID/revision/version, one to twenty
+explicit binding ID/revision/version selections, policy reference/reason and both
+required human attestations. Unknown fields, missing/null versions, duplicate
+selections and absent attestations are rejected. Policy references are recorded
+human references, not automatic legal-policy activation or certification.
+
+Workforce migration `0060_workforce_employment_review_submissions` retains head,
+immutable history/receipt, selected immutable evidence-history references,
+classification revision and exact contributor set. Its owner SQL source gathers
+Staff preparation, historical terms authors, selected binding/document authors
+and the person finding's frozen preparers. A withdrawn role does not erase an
+older terms author. Incomplete document origin, unreleased evidence, changed
+references, expired/revoked person findings and inactive sponsors fail closed.
+Child sets cannot be added or rewritten after their submission transaction.
+
+Head/history/children, minimized success audit and identifier-only
+`helivanta.in.workforce.employment_review_changed.v1` outbox commit together.
+Exact replay reauthorizes and returns the immutable command receipt, including
+when current applicability later changed. Changed intent or command reuse returns
+409; a receipt never restores evidence or authority. Later terms edits, sponsor
+inactivation, finding revocation and file revocation change current applicability
+while retaining recorded facts. Sensitive reads are audited. Scoped person-finding
+read purpose is limited to the selected finding and cannot mutate it.
+
+Workforce forward-only migration `0061_workforce_employment_review_decisions`
+adds pending → approved/rejected/withdrawn and approved → revoked transitions.
+The immutable source, selected children and original transaction ID cannot change;
+every revision/receipt remains attributable. Both decisions require a trimmed
+reason and actual terms-examined/independence attestations. Self, declared-subject,
+frozen-contributor and historical Staff/login associations cannot review or revoke.
+Withdrawal/revocation clear current-action examination flags; earlier approval
+attestations remain in history. Ending a stale record does not require eligible
+source evidence. Approval revalidates current Staff/draft/finding/binding/release/
+scan/classification/provenance in the application and owner SQL. Head, history,
+minimized decision audit and identifier-only outbox commit atomically.
+
+IAM additive migration `0021_iam_employment_templates` declares only the new
+review permission in `workforce.employment_reviewer.v1`. `employment-v1` exposes
+five exact definitions; existing `legacy-v1` and `hr-intake-v1` retain three and
+four. Staff Access offers a separate employment assignment area only after exact
+server catalog verification, and blocks retained actions when verification fails.
+The tenant-admin registry declaration does not replace scoped owner authority.
+
+GET distinguishes recorded status (`pending`, `approved`, `rejected`, `withdrawn`,
+`revoked`) from current applicability, including `source_changed`,
+`person_unavailable` and `evidence_unavailable`. It returns `can_approve`,
+`can_reject`, `can_withdraw`, `can_revoke`; capabilities require current authority,
+independence and legal state. Later draft edits invalidate pending submissions;
+they do not alone invalidate approved historical terms. Receipt retries never
+restore revoked authority/evidence or activate employment.
+
+Review-purpose RLS permits selected terms/binding histories, selected file and
+classification metadata, selected finding/contributors and its specific sponsor.
+It preserves original writes and restrictive deletes, granting no general
+enrollment or private-file byte authority. Migration rollback must preserve
+history: use forward correction/application rollback, not a destructive down
+migration or restoration of old permissions.
+
+This remains backend/SDK and assignment-setup source with local protocol-fixture
+evidence, not deployed or accepted through the normal browser/provider flow.
+Reviewer-specific protected bytes, review inbox/detail/history workspace,
+preparer/reviewer UI, explicit operational activation and every lifecycle/consumer
+cutoff remain open. See the [review design](../superpowers/specs/2026-10-31-independent-employment-review.md).
+
+### Evidence contributor provenance — source candidate
+
+Workforce migration `0059_workforce_employment_document_provenance` extends
+immutable, private contributor capture to enrollment `employment_evidence` as
+well as `identity_evidence`. Attributable document creation records the private
+`creation_captured` marker; authorized later state changes retain their subjects
+without replacing the creator. Processing workers are excluded from person
+preparer attribution. Existing records remain unproven: neither migration nor a
+later upload/scan reconstructs missing historical preparers.
+
+This changes no public request/response fields or permission grants. Identity
+person-review submission refuses selected files without captured creation with
+`409 person_review_provenance_unavailable`; current review effectiveness and
+protected release derive `evidence_unavailable` when that proof is missing.
+Historical review receipts remain intact. Independent employment submission and
+approval must consume complete frozen contributor evidence in their own workflow;
+capture alone does not approve employment, create an operational generation or
+change access. Migration 0059 is a source/test candidate, not evidence of an
+existing QA or production upgrade. See the [lifecycle design](../superpowers/specs/2026-10-29-reviewed-employment-periods.md).
 
 ## Withdrawal of prepared employment terms
 

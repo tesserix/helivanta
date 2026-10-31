@@ -75,7 +75,7 @@ func (h *handlers) getDocumentClassification(c *gin.Context) {
 		return
 	}
 	var result documentClassification
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
 		if err := classificationOwner(tx, p, hospital, staff, file, false); err != nil {
 			return err
 		}
@@ -111,7 +111,7 @@ func (h *handlers) putDocumentClassification(c *gin.Context) {
 		reference = id.String()
 	}
 	var result documentClassification
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, staffDocuments{}, p, hospital, true, func(tx *gorm.DB) error {
 		if err := classificationOwner(tx, p, hospital, staff, file, true); err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ func (h *handlers) documentClassificationHistory(c *gin.Context, params paginati
 		return nil, nil
 	}
 	rows := []documentClassificationRevision{}
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
 		if err := classificationOwner(tx, p, hospital, staff, file, false); err != nil {
 			return err
 		}

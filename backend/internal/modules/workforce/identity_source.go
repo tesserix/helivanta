@@ -18,6 +18,18 @@ import (
 )
 
 func (h *handlers) identityScopeTransaction(c *gin.Context, p authn.Principal, hospital uuid.UUID, permission authz.Permission, fn func(*gorm.DB, reviewedLeaveActor, authz.ScopeGrant) error) error {
+	return h.withIdentityScopeGrant(c, p, hospital, permission, func(commandCtx context.Context, grant authz.ScopeGrant) error {
+		return h.transaction(commandCtx, p, hospital, func(tx *gorm.DB) error {
+			actor, err := lockReviewedLeaveActor(tx, p, hospital)
+			if err != nil {
+				return err
+			}
+			return fn(tx, actor, grant)
+		})
+	})
+}
+
+func (h *handlers) withIdentityScopeGrant(c *gin.Context, p authn.Principal, hospital uuid.UUID, permission authz.Permission, fn func(context.Context, authz.ScopeGrant) error) error {
 	guard, ok := h.scopeAuthority.(authz.ScopedCommandGuard)
 	if !ok || h.scopeAuthority == nil || p.IdleDeadline.IsZero() {
 		return authz.ErrScopedAuthorizationUnavailable
@@ -35,13 +47,7 @@ func (h *handlers) identityScopeTransaction(c *gin.Context, p authn.Principal, h
 		return authz.ErrScopedCommandDenied
 	}
 	return guard.WithScopeGrant(ctx, request, grant, p.AuthTime, func(commandCtx context.Context) error {
-		return h.transaction(commandCtx, p, hospital, func(tx *gorm.DB) error {
-			actor, err := lockReviewedLeaveActor(tx, p, hospital)
-			if err != nil {
-				return err
-			}
-			return fn(tx, actor, grant)
-		})
+		return fn(commandCtx, grant)
 	})
 }
 

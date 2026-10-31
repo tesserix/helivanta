@@ -3,6 +3,7 @@ import { EmploymentEvidencePanel } from "./employment-evidence-panel";
 
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
 import { Button, Input } from "@tesserix/web";
 import {
   Field,
@@ -21,6 +22,7 @@ import {
   EmploymentPeriodWithdrawInputContract,
   withdrawEmploymentPeriod,
   employmentLifecycleReadPath,
+  withStaffIntakeScope,
   type EmploymentPeriodWithdrawInput,
   employmentPeriodsKey,
   employmentPeriodsPath,
@@ -90,11 +92,13 @@ export function StaffEmploymentPeriods({
   staffLabel,
   canManageDocuments = false,
   onClose,
+  onContextChanged,
 }: {
   scope: EmploymentPeriodScope;
   staffLabel: string;
   canManageDocuments?: boolean;
   onClose: () => void;
+  onContextChanged?: () => void;
 }) {
   const confirmLeave = useConfirmLeave();
   const [evidence, setEvidence] = useState<string | null>(null);
@@ -104,17 +108,25 @@ export function StaffEmploymentPeriods({
   }, [scope.staffId]);
   const source = useApiQuery<unknown>(
     [...employmentPeriodsKey(scope), "source"],
-    `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-source`,
+    withStaffIntakeScope(
+      `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-source`,
+      scope,
+    ),
     { gcTime: 0, staleTime: 0, request: employmentPeriodRequest(scope) },
   );
   const periods = useApiPagedQuery<unknown>(
     employmentPeriodsKey(scope),
-    employmentLifecycleReadPath(employmentPeriodsPath(scope)),
+    withStaffIntakeScope(employmentLifecycleReadPath(employmentPeriodsPath(scope)), scope),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
   const [editor, setEditor] = useState<{ item?: EmploymentPeriodDraft } | null>(null);
   const [history, setHistory] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [accessChanged, setAccessChanged] = useState(false);
+  const loseAccess = () => {
+    setAccessChanged(true);
+    onContextChanged?.();
+  };
   const [withdrawn, setWithdrawn] = useState(false);
   const [withdrawing, setWithdrawing] = useState<EmploymentPeriodDraft | null>(null);
   const basis = EmploymentPeriodSourceContract.safeParse(source.data);
@@ -128,6 +140,8 @@ export function StaffEmploymentPeriods({
     rows.data.every(
       (row) => row.hospital_id === scope.hospitalId && row.staff_id === scope.staffId,
     );
+  const cutoff = useStaffAccessCutoff([source.error, periods.error], loseAccess);
+  if (accessChanged || cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <Panel className="mt-5 space-y-5 p-5" aria-label="Staff employment terms">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -140,26 +154,40 @@ export function StaffEmploymentPeriods({
             review and do not grant access, renew a contract or end employment.
           </p>
         </div>
-        <Button
-          variant="ghost"
-          disabled={editor !== null || withdrawing !== null}
-          onClick={() => confirmLeave(onClose)}
-        >
-          Close employment terms
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={source.isFetching}
+            onClick={() => void source.refetch()}
+          >
+            Recheck Staff details
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={editor !== null || withdrawing !== null}
+            onClick={() => confirmLeave(onClose)}
+          >
+            Close employment terms
+          </Button>
+        </div>
       </div>
       {source.isPending ? (
         <p role="status">Loading Staff employment basis…</p>
-      ) : source.isError || !validSource ? (
+      ) : !validSource ? (
         <p role="alert">
-          Could not verify current Staff employment details. Close and reopen this panel.
+          Could not verify current Staff employment details. Recheck before preparing a command.
         </p>
       ) : (
         <>
+          {source.isError && (
+            <p role="alert">
+              Current Staff details could not be verified. Recheck before preparing a new command.
+            </p>
+          )}
           {!editor && (
             <Button
               variant="outline"
-              disabled={withdrawing !== null}
+              disabled={withdrawing !== null || source.isError || source.isFetching}
               onClick={() => {
                 confirmLeave(() => {
                   setSaved(false);
@@ -177,7 +205,9 @@ export function StaffEmploymentPeriods({
               key={editor.item?.id ?? "new"}
               scope={scope}
               source={basis.data}
+              basisAvailable={!source.isError && !source.isFetching}
               item={editor.item}
+              onAccessChanged={loseAccess}
               onClose={() => setEditor(null)}
               onSaved={() => {
                 setEditor(null);
@@ -197,6 +227,7 @@ export function StaffEmploymentPeriods({
           key={withdrawing.id}
           scope={scope}
           item={withdrawing}
+          onAccessChanged={loseAccess}
           onClose={() => setWithdrawing(null)}
           onSaved={() => {
             setWithdrawing(null);
@@ -291,6 +322,7 @@ export function StaffEmploymentPeriods({
                 <EmploymentEvidencePanel
                   key={`${row.id}:${row.version}`}
                   scope={{ ...scope, periodId: row.id, periodVersion: row.version }}
+                  onContextChanged={loseAccess}
                   staffVersion={row.staff_version}
                   canAttach={
                     row.status === "draft" &&
@@ -306,6 +338,7 @@ export function StaffEmploymentPeriods({
                   scope={scope}
                   id={row.id}
                   canManageDocuments={canManageDocuments}
+                  onAccessChanged={loseAccess}
                 />
               )}
             </li>
@@ -324,19 +357,26 @@ function EmploymentTermsHistory({
   scope,
   id,
   canManageDocuments,
+  onAccessChanged,
 }: {
   scope: EmploymentPeriodScope;
   id: string;
   canManageDocuments: boolean;
+  onAccessChanged: () => void;
 }) {
   const [evidence, setEvidence] = useState<number | null>(null);
   const confirmLeave = useConfirmLeave();
   const query = useApiPagedQuery<unknown>(
     [...employmentPeriodsKey(scope), id, "history"],
-    employmentLifecycleReadPath(`${employmentPeriodsPath(scope)}/${id}/history`),
+    withStaffIntakeScope(
+      employmentLifecycleReadPath(`${employmentPeriodsPath(scope)}/${id}/history`),
+      scope,
+    ),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
   const parsed = EmploymentPeriodDraftContract.array().safeParse(query.items);
+  const cutoff = useStaffAccessCutoff([query.error], onAccessChanged);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (query.isPending) return <p role="status">Loading term history…</p>;
   if (
     query.isError ||
@@ -368,6 +408,7 @@ function EmploymentTermsHistory({
             {evidence === row.version && (
               <EmploymentEvidencePanel
                 scope={{ ...scope, periodId: row.id, periodVersion: row.version }}
+                onContextChanged={onAccessChanged}
                 staffVersion={row.staff_version}
                 canAttach={false}
                 onClose={() => confirmLeave(() => setEvidence(null))}
@@ -383,15 +424,19 @@ function EmploymentTermsHistory({
 function EmploymentTermsEditor({
   scope,
   source,
+  basisAvailable,
   item,
   onClose,
   onSaved,
+  onAccessChanged,
 }: {
   scope: EmploymentPeriodScope;
   source: EmploymentPeriodSource;
+  basisAvailable: boolean;
   item?: EmploymentPeriodDraft;
   onClose: () => void;
   onSaved: () => void;
+  onAccessChanged: () => void;
 }) {
   const [id] = useState(() => item?.id ?? newEmploymentPeriodId());
   const [basis] = useState(() => source);
@@ -420,19 +465,21 @@ function EmploymentTermsEditor({
     basis.employment_epoch !== source.employment_epoch;
   const sponsors = useApiPagedQuery<Staff>(
     [...employmentPeriodsKey(scope), "sponsors"],
-    `/workforce/hospitals/${scope.hospitalId}/staff`,
+    withStaffIntakeScope(`/workforce/hospitals/${scope.hospitalId}/staff`, scope),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
+  const cutoff = useStaffAccessCutoff([save.error, sponsors.error], onAccessChanged);
   const sponsor = form.watch("sponsor_id");
   const fixed = form.watch("duration") === "fixed";
   const contract = ["contractor", "agency_worker"].includes(form.watch("engagement_kind"));
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <form
       aria-label="Employment terms draft"
       noValidate
       className="space-y-4 border-t pt-4"
       onSubmit={form.handleSubmit((value) => {
-        if (changed && !submitted) return;
+        if ((changed || !basisAvailable) && !submitted) return;
         const command = submitted ?? {
           command_id: newEmploymentPeriodId(),
           expected_version: item?.version ?? 0,
@@ -576,7 +623,10 @@ function EmploymentTermsEditor({
         >
           Close draft form
         </Button>
-        <Button type="submit" disabled={save.isPending || (changed && !submitted)}>
+        <Button
+          type="submit"
+          disabled={save.isPending || ((changed || !basisAvailable) && !submitted)}
+        >
           {save.isPending ? "Saving…" : submitted ? "Retry same draft" : "Save draft"}
         </Button>
       </div>
@@ -589,11 +639,13 @@ function EmploymentWithdrawalForm({
   item,
   onClose,
   onSaved,
+  onAccessChanged,
 }: {
   scope: EmploymentPeriodScope;
   item: EmploymentPeriodDraft;
   onClose: () => void;
   onSaved: () => void;
+  onAccessChanged: () => void;
 }) {
   const [submitted, setSubmitted] = useState<EmploymentPeriodWithdrawInput | null>(null);
   const form = useZodForm(EmploymentPeriodWithdrawInputContract.pick({ reason: true }), {
@@ -612,6 +664,8 @@ function EmploymentWithdrawalForm({
     "employment draft withdrawal",
     mutation.isPending,
   );
+  const cutoff = useStaffAccessCutoff([mutation.error], onAccessChanged);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   const conflict = mutation.error instanceof ApiError && mutation.error.status === 409;
   return (
     <Panel className="p-4">

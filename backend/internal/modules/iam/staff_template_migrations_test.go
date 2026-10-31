@@ -24,7 +24,17 @@ func TestAppendOnlyTemplateSQLPreservesPublishedDefinitions(t *testing.T) {
 	require.Equal(t, http.StatusOK, published.Code, published.Body.String())
 	var definitions []iam.TemplateDefinition
 	require.NoError(t, json.Unmarshal(published.Body.Bytes(), &definitions))
-	require.Len(t, definitions, 3)
+	require.Len(t, definitions, 3, "legacy consumers retain their closed v1 catalog")
+	intakeCatalog := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?catalog=hr-intake-v1", "admin", "")
+	require.Equal(t, http.StatusOK, intakeCatalog.Code, intakeCatalog.Body.String())
+	var intakeDefinitions []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(intakeCatalog.Body.Bytes(), &intakeDefinitions))
+	require.Len(t, intakeDefinitions, 4)
+	require.Equal(t, "workforce.hr_intake.v1", intakeDefinitions[3].Key)
+	for _, query := range []string{"catalog=unknown", "catalog=hr-intake-v1&catalog=legacy-v1"} {
+		invalid := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?"+query, "admin", "")
+		require.Equal(t, http.StatusBadRequest, invalid.Code)
+	}
 	read := func(key string) *string {
 		t.Helper()
 		var result struct{ Permissions *string }

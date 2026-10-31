@@ -1,6 +1,979 @@
 # Staff Management delivery tracker
 
+## Independent employment decisions candidate — 2026-11-01
+
+Access/RBAC A01–A12 remains **incomplete**. Whole Staff remains **10 partial,
+10 audit pending, 1 research, 0 fully accepted areas**. This checkpoint supersedes
+older statements below that independent employment decisions are unimplemented;
+older test results remain historical evidence for their named source only.
+
+Persisted source now includes Workforce **0061_workforce_employment_review_decisions**
+and IAM **0021_iam_employment_templates**. The exact reviewer template holds only
+`workforce.employment.review`; `employment-v1` has five definitions while frozen
+legacy/HR catalogs retain three/four. The Staff Access assignment area validates
+its separate catalog, rejects extra/broader/missing definitions, and disables
+retained commands when verification disappears. This is assignment setup, not the
+normal employment-review workspace or browser acceptance.
+
+Reviewer owner commands require exact tenant/subject and a single explicit
+`employment_review=v1` projection, current scoped assignment and independently
+reviewed active actor link. No legacy tenant-admin or identity-review permission
+fallback supplies authority. Preparer withdrawal instead requires both current
+HR-intake grants and the original proposer. Pending → approved/rejected/withdrawn
+and approved → revoked preserve immutable source, contributors, child sets and all
+command receipts. Self, declared subject, frozen contributors and historical login
+associations cannot review/revoke. Ending stale records remains possible. Exact
+replay reauthorizes; changed intent/stale version returns 409. Ending attestations
+are false on the new action; original human approval remains in history.
+
+Approved terms remain separate from operational employment. Approval leaves the
+target inactive with no login/access activation. A later preparation draft does
+not invalidate an approved historical terms record. GET distinguishes recorded
+status/current applicability and computes legal capabilities. Review-only RLS sees
+selected terms/binding histories, finding/evidence/classification/provenance and the
+specific contractor sponsor. It retains original write/delete boundaries and
+cannot edit source terms or obtain general enrollment/private-file authority.
+
+Observed evidence so far:
+
+- The signed Global API journey failed at reviewer GET with **400 instead of 200**
+  before implementation; it subsequently passed independent approval, self/earlier
+  author denial, exact decision/submission replay and draft-history preservation.
+- Ending-route regression failed with **404 instead of 403** before implementation;
+  withdrawal/rejection/revocation, stale/conflicting commands, mode validation,
+  unavailable-evidence revocation and historical approval retry now pass (40.951s).
+- A direct owner SQL approval incorrectly succeeded after evidence revocation.
+  The reproduced test now passes (27.054s): the database approval guard locks and
+  validates current Staff/draft/finding and selected file/binding/release/scan/
+  classification/provenance, in addition to application validation.
+- Review-only source visibility and forbidden source-edit probes pass. An active
+  contractor sponsor initially appeared unavailable; selected-sponsor-only RLS
+  corrects the regression (27.801s), while inactivation derives source_changed.
+  This remains a synthetic legacy sponsor fixture, not full contractor lifecycle QA.
+- SDK **33 employment-review tests** and full API **503 tests** pass. Separate
+  preparer/reviewer scope modes, receipt state/version/actor/intent/attestation
+  checks, cancellation and current-state/capability validation are covered.
+- Staff Access **33 page tests** pass, including the separately verified employment
+  role and rejection of incomplete/broader catalogs. Old HR fixtures now use their
+  canonical frozen catalog instead of all latest templates.
+- Template/inventory Node tests: **55 pass**. Permission-matrix declaration,
+  workspace type checks, Go vet/build and Go lint (**0 issues**) pass.
+- Full current-source Workforce race passes (**476.356s**), using
+  `go test -race -timeout=20m -json ./internal/modules/workforce -count=1`.
+  Corrected full Global API/arch/contractdocs race passes (**162.995s / 99.914s /
+  6.666s**); IAM race passes (**411.506s**). Signed independent-decision audit and
+  outbox failure probes prove head/history/evidence/outbox rollback and exact retry.
+- The first broad Workforce run exposed scanner-role permission denial from SQL
+  policy expansion and reached Go's default ten-minute timeout. The review-file
+  helper now returns false before review-table access outside reviewer mode,
+  without extra scanner grants. Its isolated race regression passes (**8.639s**).
+  The next broad run had no failed assertions but also reached the default timeout;
+  the isolated twenty-minute full run above completes successfully.
+- Full monorepo `lint type-check test build` passes **22/22 tasks**, 18 cached,
+  **7m4.148s**. Current totals: API **503**, shell **1,316**, UI **268** tests.
+  The first web run reproduced a calendar-dependent pharmacy test: its fixed
+  November 1 wait became today's wait. Pinning only that test's clock to November
+  3 preserves the intended prior-day case; isolated **8/8** and full web pass.
+- Canonical generator checks, contractdocs generation/check, source ledger check,
+  affected formatting and `git diff --check` pass. The private unapplied binary
+  is `helivanta-staff-employment-decisions-api`; its receipt/source manifest is
+  retained in the existing private QA directory. It is not a rollout approval.
+
+The source-review ledger now has **704 registered surfaces**, **9 classified**
+and **695 unclassified**, with **zero runtime cutoff acceptances**. New review
+commands remain hospital-operational actor consumers; they receive no employment
+exemption. The source hashes/remaining obligations were reviewed and regenerated.
+
+Still required: reviewer inbox/history/protected-byte owner and SDK/UI flows;
+normal Staff Admin → independent reviewer → recipient/provider/scanner browser QA;
+reviewed terms → operational employment generation; provisioning/contact verification,
+membership recovery, renewal/suspension/resumption/exits/contract expiry/rehire;
+legacy/governance review and every HTTP/background cutoff. No live fixture upgrade,
+production migration/rollout, commit, push, merge or deployment occurred here.
+New migrations are forward-only; application rollback must preserve review history.
+
+## Immutable employment submission source — 2026-11-01
+
+Persisted Workforce **0060_workforce_employment_review_submissions**, canonical
+`workforce-employment-reviews.json`, generated Go/Zod models and the typed SDK.
+Two Global API owner routes now prepare/read an immutable pending employment
+submission: exact current Staff version/epoch/hash, open terms revision, approved
+person-finding revision and one to twenty released employment-evidence bindings.
+Required policy reference, reason and human attestations have no invented defaults.
+Submission leaves employment status, login binding and operational access unchanged.
+Independent employment decisions and operational activation are not implemented.
+
+The new owner path forces both current scoped HR-intake permissions and a reviewed
+active actor link; it never takes the old administration fallback. Existing intake
+callers retain their earlier behavior. A Staff Admin without a scoped grant is
+denied; the same administrator works after independently reviewed scoped authority.
+The target can remain inactive/non-digital. Source/evidence changes derive explicit
+unavailability while exact command replay returns the original immutable receipt.
+
+Owner SQL freezes selected evidence-history/classification references and an exact
+contributor set from Staff preparation, terms history, bindings/documents and the
+person finding. Earlier terms authors remain recorded after a later preparer takes
+over and their role is withdrawn. The SQL completion guard rejects missing/extra
+contributors; child sets are transaction-bound and immutable. Scoped person-finding
+read purpose sees only the selected finding and cannot mutate it. All head/history/
+evidence/contributors, minimized success audit and identifier-only outbox effects
+commit together; both audit and outbox failure probes roll back every durable row.
+Exact original retries recover once without duplicate success audit or event.
+
+Observed red/green evidence and commands actually run:
+
+- Signed Global API regression first returned **404 instead of 200** (14.091s).
+  Initial owner attempts caught an unexported embedded GORM binding and a
+  classification query assuming a nonexistent Staff column; both were corrected
+  against the actual canonical tables. Basic creation/replay/read passed (15.648s).
+- Expanded mandatory-field/scope/immutability/atomicity tests passed (17.472s).
+  Reviewed Staff Admin, finding revocation and current-state tests passed (26.789s).
+  Distinct earlier-author/withdrawn-role history passed (30.488s).
+- An agency sponsor source becoming inactive incorrectly left the view `pending`
+  (red, 21.318s). Submission/read and SQL source/commit checks now derive/refuse
+  that source correctly; the complete person-review case passed (29.808s).
+  This uses an explicitly synthetic legacy sponsor fixture; it does not prove
+  reviewed suspension, resignation or contract-expiry workflows.
+- `go test -race -json ./internal/modules/workforce ./internal/globalapi
+./internal/archtest ./cmd/contractdocs -count=1`: Workforce **516.755s** and
+  Global API **75.593s** pass. The first arch run found missing bounded-single-GET
+  and event-field declarations. The corrected `go test -race -json
+./internal/archtest ./cmd/contractdocs -count=1` passes in **58.675s / 8.944s**.
+  No test rule was weakened: one twenty-evidence-bounded GET and five individually
+  classified opaque scope/record/version fields were explicitly documented.
+  Staff identifiers remain protected personal references, not public data.
+- `API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo run lint
+type-check test build`: **22/22 tasks pass**, 16 cached, 36.497s. API **488**
+  tests include **18 new receipt/cancellation cases**; script suite has 82 tests.
+  Existing shell/UI results are 1,312/268. The first run exposed the earlier
+  ledger's reserved local `module` variable; it now uses `ownerModule`/`moduleName`
+  while preserving the generated wire shape. Interrupted tasks were rerun.
+- `go vet`, `go build ./...`, affected golangci-lint (zero issues), gofmt,
+  contractdocs generation/check, employment-review generator/check, affected
+  Prettier and `git diff --check` pass. The consumer ledger's 15 tests pass;
+  it now tracks **700** registered surfaces, **six** source classifications and
+  **694** unclassified surfaces. No surface is accepted for complete cutoff.
+
+These tests use signed sessions, actual IAM/OpenFGA/Postgres/NATS and GCS/ClamAV
+protocol fixtures. They do not establish actual provider/scanner or normal-browser
+Staff Admin/reviewer acceptance. No existing local QA runtime/database, account,
+credential, membership, grant or production state was changed. No commit, push,
+merge or deployment occurred. Private candidate/validation receipts retain source
+hashes and the unapplied binary; older upgrade artifacts require revalidation and
+no earlier named approval is broadened to migration 0060.
+
+Next: separately declared employment-review authority/template/catalog, independent
+decisions and protected reviewer reads/bytes, preparation/inbox/history UI and
+normal role/provider QA. Reviewed operational generation, full provisioning/contact
+verification/recovery, renewal/suspension/exit/expiry/rehire, legacy/governance review
+and every HTTP/background consumer cutoff still remain. All A01–A12 and full
+Access/RBAC acceptance remain open; whole-Staff counts stay 10 partial, 10 audit
+pending, one research and zero fully accepted.
+
+## Employment evidence and complete creation provenance — 2026-10-31
+
+Persisted additive Workforce migration **0059_workforce_employment_document_provenance**
+in the owner registry. Enrollment employment evidence now retains attributable
+preparers/state-change contributors alongside identity evidence. A private
+`creation_captured` flag records attributable INSERT origin; existing rows stay
+false, and later writes/scanning cannot promote incomplete historical provenance.
+Workers remain excluded from preparer attribution. Person-review submission,
+current applicability and protected evidence authorization require that origin;
+unproven history returns a provenance conflict or `evidence_unavailable` while
+preserving the original receipt. A deferred SQL approval guard checks complete
+provenance in the owner transaction. No employment/access activation is added.
+
+Actual regressions and recovery evidence:
+
+- The scoped HR-intake Global API test initially found **zero contributors** for
+  a newly prepared employment document (red, 9.549s). With 0059, the test passed
+  (14.142s); expanded scope/immutability/atomic recovery checks passed (14.321s).
+- A before-0059 owner fixture creates real identity/employment upload intents,
+  applies the actual forward migration, then uploads/scans through the API and
+  worker protocol fixture. A later edit originally allowed the legacy identity
+  file into person review with **200 instead of 409** (red, 23.752s). Captured-
+  creation checks now reject that file with `person_review_provenance_unavailable`.
+  Both file categories retain incomplete historical origin; a known new identity
+  file has captured origin in the same inspection context, avoiding hidden-zero
+  assertions. Combined focused race tests pass (28.574s).
+- The current person-review test, including direct SQL approval without the
+  required private provenance context, passed in 19.265s. Removing only the SQL
+  approval trigger made that assertion fail: approval returned no error (11.277s).
+  The original source was restored byte-for-byte before final build/validation.
+- Current-source full Global API race passes in **66.267s**, arch tests in
+  **48.696s**, contractdocs tests in **8.4s**, and the complete current-source
+  Workforce race suite in **457.787s**. All four packages passed.
+- `go vet ./internal/modules/workforce ./internal/globalapi ./internal/archtest
+./cmd/contractdocs`, `go build ./...`, affected golangci-lint (zero issues),
+  affected gofmt, contractdocs generation/check and person-review generator check
+  pass. The regenerated consumer ledger and its 15 tests pass; all 698 registered
+  surfaces remain represented, with 694 still unclassified.
+
+Fault injection proves a failed contributor INSERT rolls back the document
+revocation, audit and outbox together. Retrying after removing the fault records
+one revocation and the new actor while retaining the original preparer; exact
+replay creates no extra audit/event/contributor. An otherwise authorized manager
+cannot rewrite/delete contributor history. Foreign tenant/mismatched hospital
+contexts and an identity-review-only purpose cannot disclose employment origins.
+These are real signed Global API/IAM/OpenFGA/Postgres tests using GCS/ClamAV
+**protocol fixtures**, not real-provider/scanner or normal-browser acceptance.
+
+The first broader run found prohibited direct schema-owner calls in both the new
+fault probe and the earlier person-review atomicity probe. Their fault DDL now
+uses explicit disposable fixture migrations; observations remain tenant-scoped.
+No architecture allowlist or isolation rule was relaxed. The first Workforce
+pass (499.564s) preceded the creation-marker correction and is retained only as
+that earlier checkpoint; current-source evidence above supersedes it.
+
+A new private API binary was built as `294ee4df2122…`, with a protected build
+receipt naming 0054–0059. It has not replaced the existing QA runtime. The older
+0054–0058 ready artifact now carries an explicit revalidation notice because it
+lacks the creation-provenance fix; an earlier named approval request cannot be
+silently broadened to the new artifact/0059. No existing database, account,
+credential, membership, grant or production state was changed. No commit, push,
+merge or deployment occurred.
+
+The next implementation is specified in
+[independent employment review](../superpowers/specs/2026-10-31-independent-employment-review.md)
+and its [delivery plan](../superpowers/plans/2026-10-31-independent-employment-review.md):
+exact terms/person-finding/evidence submission, separately declared reviewer
+scope, immutable decisions and normal preparer/reviewer UI. Those APIs and the
+operational-generation transition are **not implemented** by this checkpoint.
+All A01–A12 provisioning/recovery/renewal/lifecycle/consumer gates remain open.
+Counts stay 10 partial, 10 audit pending, one research and zero fully accepted.
+
+## Registered operational-consumer source ledger — 2026-10-31
+
+Added the [checked consumer ledger](staff-operational-access-inventory.md) for
+ADR-0049/A04/A06/A07–A11. The current contractdocs source actually uses
+`format_version`, `modules` and `unauthenticated_routes`; the checker consumes
+those current fields rather than a remembered inventory shape. It covers all
+644 registered module HTTP routes, 43 async subscriptions, one broadcast and ten
+unauthenticated allowlist entries (698 total). Four directly inspected MediCore
+encounter handlers are source-classified hospital operational; 694 remain
+unclassified. Their concrete `inHospital` helper locks a hospital access grant,
+but does not establish reviewed employment or effective cutoff. Each review
+pins the registration and relevant source hashes and retains the missing
+legacy/owner-guard/signed-session/UI obligations. No runtime acceptance follows.
+
+The new generator/checker defaults every registration to unclassified, refuses
+stale source/registration reviews, removed/duplicate reviews, duplicate HTTP
+routes across owners and unknown registry fields. Permission names, `public`,
+sessionless routes and worker registration confer no automatic exemption. CI now
+runs its tests and drift check. Its optional classification gate is explicitly
+insufficient for activation and currently refuses with 694 unclassified surfaces.
+Background/Temporal/periodic/external wiring remains outside the registered input;
+the companion note records concrete source candidates needing separate review.
+
+Validation actually run:
+
+- `mise exec node@24 -- node --test scripts/staff-operational-access-inventory.test.mjs`:
+  all 15 pass. Initial tests failed before implementation; later assertions
+  reproduced acceptance-marker, duplicate-owner-route and unknown-registry-field
+  omissions before their fixes. Source/registration drift preserves prior output.
+- Generator write, `--check`, both `node --check` commands and affected Prettier
+  checks pass. `--check --require-classified` correctly refuses, not an acceptance
+  pass. `go run ./cmd/contractdocs -check` passes from `backend/`.
+- `git diff --check` passes. Actionlint found an existing SC2016 finding at CI
+  line 106, outside the four added lines. Running actionlint on the HEAD
+  baseline reproduced the same finding; `actionlint -shellcheck=''
+.github/workflows/ci.yml` passes syntax validation. No finding was suppressed
+  in the workflow.
+
+This changes offline QA tooling, docs and CI only. No application behavior,
+migration, existing QA runtime, account, grant or production state changed. Full
+web/Go runtime suites were not repeated for this tooling-only delta; previous
+application evidence is retained in the checkpoints below. No commit, push,
+merge or rollout occurred. Counts remain 10 partial, 10 audit pending, one
+research and zero fully accepted. Full A01–A12 remains the objective; independent
+employment decisions/person-finding consumption and all lifecycle/consumer/UI
+acceptance remain open.
+
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+
+## Person-review audit/outbox atomicity proof — 2026-10-31
+
+Added fault injection to the signed Global API journey using actual Postgres
+triggers in the disposable test database. Submission and independent approval
+are each exercised with an audit INSERT failure and an outbox INSERT failure.
+The source application/SQL/binary did not change in this checkpoint.
+
+For failed submission, the owner returns 500/unknown-result and GET remains 404;
+there is no head, history, bound evidence, contributor snapshot, successful write
+audit or business event. For failed approval, the exact original pending head,
+history/evidence/contributors, successful write audits and event counts remain
+unchanged. After removing the injected failure, retrying the exact review ID,
+command and payload succeeds, and repeated retries leave one transition/audit/
+event per successful command. A known committed review is visible through the
+same inspection context before checking failed commands, preventing RLS-hidden
+zero counts from masquerading as rollback proof. Probe findings are explicitly
+revoked after verification; their history is retained.
+
+Fixture corrections are preserved in the failed logs:
+
+- The system pool intentionally lacks SELECT on private review tables. Inspection
+  now uses the owner-authorized tenant/Staff read context; no application/system
+  privilege was widened. Helpers receive the current child test explicitly.
+- The event contract uses `review_id`, and the decision audit action is
+  `workforce.person_review.decided`. Earlier field/status-name assumptions did
+  not activate the intended fault and correctly failed the required 500 assertion.
+  The final triggers use the actual handler/contract values.
+- Early probe findings remained approved and affected a later inbox expectation;
+  retiring probes via the legitimate revocation workflow isolates the checks
+  while preserving immutable evidence.
+
+Logs: `/tmp/staff-person-transaction-failures.log`,
+`/tmp/staff-person-transaction-failures-corrected.log`,
+`/tmp/staff-person-transaction-failures-canonical.log` (still a fixture failure),
+and passing `/tmp/staff-person-transaction-failures-verified.log` (14.120s).
+The subsequent **complete Global API** race run passed in 57.905s at
+`/tmp/staff-person-atomicity-globalapi.jsonl`; `go vet ./internal/globalapi/...`
+and affected golangci-lint passed with zero issues
+(`/tmp/staff-person-atomicity-lint.log`). No web code changed, so the preceding
+22-task web result remains the relevant frontend evidence.
+
+The existing local 0054–0058 schema/API upgrade approval remains pending.
+No live fixture, scope grant, account, credential or production mutation occurred.
+These tests close the direct audit/outbox INSERT rollback proof only. They do not
+prove broker outage delivery, owner lock waits, all historical/duplicate-person/
+expiry/dependency cases, large-fixture plans, normal UI/scanner acceptance or
+reviewed employment/operational consumer cutoff. The full A01–A12 goal stays open.
+
+## Manager preparation, evidence selection and receipt history — 2026-10-31
+
+The source workspace now completes manager preparation without raw file IDs or
+general document access: scoped Staff-ID/name lookup, a freshly verified owner
+identity basis, source-bound released PNG/JPEG selection, and mandatory policy,
+finding, observation, validity and identity/association attestations. Digital
+account input remains an explicit unverified declaration, not provisioning or
+linking. Source/access conflicts clear private context; uncertain submissions
+retain the same review ID, command, workspace, source and payload. Completion
+notices reset on access/scope changes. No policy or validity is fabricated.
+
+Added canonical selection input/options and registered
+`POST /v1/workforce/hospitals/:hospital/identity-staff/:id/person-review-evidence/search`.
+Migration `0058_workforce_person_evidence_selection` admits only current-source
+identity-image metadata through an explicit manager read context. Live identity,
+held IAM/source/actor authority and per-row audits remain mandatory. The policy
+preserves old WITH CHECK/delete restrictions and adds no upload, general document,
+classification, contributor or binary authority. Listing scan release does not
+prove identity or contributor history; submission still revalidates/finalizes it.
+
+Protected history now shows actor/time/reason/receipt reference separately from
+effectiveness, using the existing owner endpoint. SDK rows bind the original
+review/Staff/hospital/workspace and reject duplicate revisions, out-of-order
+versions, foreign rows and noncanonical private fields. A newer receipt blocks
+new actions/downloads until reopening, even after older pages or history closure.
+History never grants access or independently resolves an uncertain command.
+
+Actual validation (preserve failed attempts as evidence):
+
+- The selector first failed at the absent route (404), then its first integration
+  attempt returned 500. Explicit bigint-to-text binding for the transaction-local
+  source version was corrected and live identity refresh added; the selector
+  passed in 12.419s. Logs: `/tmp/staff-person-evidence-selection-red.log`,
+  `/tmp/staff-person-evidence-selection-green.log` and
+  `/tmp/staff-person-evidence-selection-corrected.log`.
+- Expanded signed Global API/real IAM/OpenFGA/Postgres and protocol-fixture storage/
+  scanner journey passed in 17.613s: strict source inputs, current-source exclusion,
+  no reviewer/general document access, unreleased/unrelated-category/other-Staff
+  exclusion, direct RLS tenant/version filtering, read audits, SQL UPDATE denial,
+  manager-link revocation and independently approved link recovery. Only
+  `/tmp/staff-person-evidence-selection-expanded-corrected.log` contains these
+  expanded assertions; the earlier similarly named run preceded the test edit.
+- Full owner race run passed Workforce 484.340s, Global API 69.195s,
+  architecture 54.397s and contractdocs 10.260s:
+  `/tmp/staff-person-evidence-selection-owner-suites.jsonl`. After adding explicit
+  destructive-operation denial (23514), the complete Global API race rerun passed
+  in 57.191s: `/tmp/staff-person-evidence-selection-delete-globalapi.jsonl`.
+- Shared framework race verification also passed all nine test-bearing packages,
+  including IAM 356.440s, authz 10.832s, platform 18.436s and tenantdb 26.562s:
+  `/tmp/staff-person-review-framework-suites.jsonl`. Contractdocs generation/check,
+  vet/build and affected golangci-lint passed with zero issues.
+- Manager UI first failed on absent preparation. Its fixture then used an exact
+  filename label that omitted the accessible file metadata; querying the actual
+  checkbox corrected that fixture. Twenty preparation/decision tests passed,
+  including mandatory inputs, uncertain same-review-ID retries, local-time instant
+  conversion, stale-basis privacy clearing and no manual-file fallback. Logs:
+  `/tmp/staff-person-manager-preparation-red.log`,
+  `/tmp/staff-person-manager-preparation-green.log`,
+  `/tmp/staff-person-manager-preparation-corrected.log` and
+  `/tmp/staff-person-manager-preparation-boundaries.log`.
+- History client/UI first failed because missing. A newer-receipt test then exposed
+  stale enabled actions; the largest observed version now survives pagination.
+  History refusal clears private detail. All 23 page tests passed. Logs:
+  `/tmp/staff-person-history-client-red.log`,
+  `/tmp/staff-person-history-ui-red.log`,
+  `/tmp/staff-person-history-newer-red.log` and
+  `/tmp/staff-person-history-newer-green.log`.
+- Broad checks caught a React compiler callback-placement issue, a parameterized
+  history test passing individual rows instead of arrays, and a history surface
+  bypassing the shared Panel primitive. All were corrected without disabling
+  rules. The corrected history table now exercises actual foreign/duplicate/
+  out-of-order arrays. Final full lint/typecheck/test/build passed all 22 tasks
+  in 4m46.636s: 1,312 shell / 470 API / 268 UI tests.
+  `/tmp/staff-person-manager-history-final-web.log`. Earlier failures remain at
+  `/tmp/staff-person-manager-preparation-full-web.log`,
+  `/tmp/staff-person-manager-history-full-web.log` and
+  `/tmp/staff-person-manager-history-full-web-corrected.log`.
+
+Read-only runtime discovery confirmed live API PID 5300 is
+`/tmp/helivanta-staff-hr-intake-api` on 8399. Its database is `helivanta`, reached
+through SSH to **local Colima `helivanta-tests`**, not established merely from a
+localhost address. Authenticated app role `hms_app` could read the migration
+ledger; only the named 0054–0058 registrations are pending. The isolated test
+Docker profile remains separate. No Kubernetes/cloud mutation was performed.
+
+A source-matched API binary (SHA-256 prefix `99de450d8eb1`) is built, and a protected
+consistent database snapshot plus password-excluded role capture was restored in
+a new network-isolated, ephemeral same-image container. All 321 table counts
+matched the exported source snapshot. Artifacts are under private
+`person-review-premigration-20261031T103756Z/` (directory 0700/files 0600).
+This verifies database recreation only, not whole-system failover; no live restore
+is authorized. The existing QA database/runtime remain unchanged.
+
+A specific approval request is pending for applying **0054–0058** to this existing
+local QA database and switching API 8399 to the tested binary. The supplied
+AGENTS.md requires explicit named database-migration approval. Silence is not
+approval; no account, membership, scoped grant, credential or production change
+is included. Normal positive manager/checker/scanner browser acceptance follows
+only after the fixture upgrade and current role discovery. Expired proposals are
+not reused or extended.
+
+Still open: staff-specific review collection/filtering as needed by normal UI,
+large-fixture query plans, real storage/scanner/provider acceptance and remaining
+provenance/expiry/dependency/audit/outbox/lock-wait gates. Exact approved finding
+consumption into independently reviewed employment and all A01–A12 provisioning,
+renewal, suspension/resumption, exits, expiry, rehire and consumer cutoffs remain
+the full goal. No complete Access/RBAC, merge, release or production rollout claim.
+
+## Person-review decision workspace candidate — 2026-10-31
+
+Added the public navigation entry `/workforce/person-reviews`; actual discovery,
+private reads and actions still require owner-held scoped authority. The new
+workspace uses canonical hospital capabilities and summary inboxes, preserving
+continuation through empty filtered pages, recorded-status selection and original
+tenant/subject/hospital/Staff query keys. Private queries have no retained cache
+lifetime or automatic retries. Detail shows the original policy/finding and separate
+current effectiveness; approve/reject require the appropriate human attestations,
+withdrawal is limited to the submitting manager, and approved findings can be
+revoked after identity-source changes. Evidence download uses the protected
+purpose-bound SDK, verifies bytes and aborts before publication after unmount/
+workspace change. Blob URLs are released after download handoff or on unmount.
+
+Submitted commands freeze UUID, payload, version and original workspace for
+uncertain retries. Form/navigation guards preserve unsaved reasons and block
+scope/filter/inbox changes while editing or resolving a command. A definitive
+400 permits correction; 401/403/404/409 clears the private review context. The
+shared Staff cutoff hook now accepts an owner-specific classifier while retaining
+its original default for existing enrollment/evidence/classification consumers.
+The UI confirms a recorded receipt separately from present effectiveness.
+
+TDD and current evidence:
+
+- The first page test failed because the route/component was absent. The initial
+  green attempt then found a test fixture missing the real shell's navigation
+  provider; adding that provider preserved the guard. Logs:
+  `/tmp/staff-person-review-ui-red.log`,
+  `/tmp/staff-person-review-ui-green.log` and
+  `/tmp/staff-person-review-ui-green-provider.log`.
+- Unsaved-edit tests reproduced an enabled inbox/access refresh that could discard
+  the reason; dirty form state now holds parent controls and Close uses the
+  existing confirmation. Red/green logs:
+  `/tmp/staff-person-review-ui-dirty-red.log` and
+  `/tmp/staff-person-review-ui-dirty-green.log`.
+- Conflict/privacy and invalid-input tests found retained 409 private context and
+  a 400 command locked as uncertain. All 32 focused tests across this page and
+  the existing employment/evidence/classification consumers passed after the fix:
+  `/tmp/staff-person-review-ui-refusal-red.log` and
+  `/tmp/staff-person-review-ui-refusal-green.log`.
+- All 16 page tests now pass: approve/reject, manager withdrawal, changed-source
+  revocation, protected evidence download, bytes arriving after tenant transition,
+  exact uncertain retry, self-review exclusion, empty-page continuation, unsaved
+  input and definitive refusals. The revocation fixture initially attempted a
+  native select operation on the real Radix control; the existing `chooseOption`
+  helper corrected that fixture, with no production relaxation. Logs:
+  `/tmp/staff-person-review-ui-actions.log` and
+  `/tmp/staff-person-review-ui-actions-corrected.log`.
+- Navigation first failed for the absent entry, then caught a duplicate page icon.
+  A distinct document-review icon preserves the icon rule; all 51 navigation
+  tests pass (`/tmp/staff-person-review-navigation-icons-green.log`). Shell
+  typecheck passes. Full lint/typecheck/test/build passed all 22 tasks in
+  4m54.313s, with 1,305 shell, 457 API and 268 UI tests. Command:
+  `API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo run lint type-check test build`.
+  Log: `/tmp/staff-person-review-ui-full-web.log`. No new Go source changed in
+  this UI checkpoint; the preceding full backend results remain separately recorded.
+
+The existing normal-login local Admin session opened the new navigation entry.
+The actual page rendered the explicit person-review access-verification failure,
+with no false empty queue or positive approval claim. Private full-page screenshot:
+`staff-person-review-ui-unavailable-20261031.png`. This is route/error rendering
+smoke evidence only; it does not establish the real scoped reviewer journey.
+The older synthetic intake proposal is visibly expired; it was not approved or
+extended. No new access grant, migration application or production action occurred.
+
+Still open: manager preparation and a purpose-bound eligible-evidence selector
+without general document-management access; immutable history/recovery UI; positive
+normal Admin/independent-reviewer/scanner acceptance; large-fixture query plans and
+remaining provenance/expiry/dependency/audit/outbox/lock-wait gates. Exact approved
+finding-to-reviewed-employment consumption and every A01–A12 lifecycle/consumer
+cutoff remain the full objective. No complete Access/RBAC, merge or release claim.
+
+## Person-review inbox and Staff selection candidate — 2026-10-31
+
+Added manager-only `POST /person-review-targets/search` and identity manager/
+reviewer `GET /person-review-inbox`, under the verified hospital. The canonical
+contract now generates search input, minimal Staff targets and review summaries.
+An explicit empty Staff ID browses the bounded list; a nonempty value performs
+case-insensitive exact lookup through the existing casefold index. Names accompany
+Staff IDs for human selection. No technical UUID entry is required by these reads.
+Inbox summaries expose recorded status/version/validity and current Staff name/
+code, excluding private findings, policy, account associations and evidence.
+Protected detail/current-state checks remain necessary before decisions.
+
+Registered source migrations `0056_workforce_person_review_browse` and
+`0057_workforce_person_review_inbox_index` preserve forced RLS, one permissive
+policy, original WITH CHECK expressions and deletion guards. New purpose context
+is set only after held IAM and supervision/active-actor authorization. It admits
+only the owner summary reads; per-row audits commit with the read. No profile,
+document, history or contributor permission, Staff edit or review transition is
+granted. The migrations have run in disposable tests, not the UI fixture or
+production. Their SQL/index metadata are persisted with the owner source.
+
+TDD and verification:
+
+- Both signed Global API tests first failed 404 rather than 200 at the absent
+  routes (`/tmp/staff-person-browse-red.log`), then passed in 15.240s.
+- The expanded full person journey passed in 17.808s after correcting a test
+  assumption: Staff deletion is rejected by the existing statement-level guard
+  with SQLSTATE 23514, rather than returning a successful zero-row delete.
+  The failed fixture expectation remains in
+  `/tmp/staff-person-browse-expanded.log`; passing evidence is
+  `/tmp/staff-person-browse-expanded-corrected.log`.
+- Direct forced-RLS checks prove Staff UPDATE and an otherwise valid review
+  withdrawal fail with SQLSTATE 42501 under browse context, even with a manage
+  mode flag. Inbox context sees no private documents/history/evidence/contributors;
+  foreign-tenant reads see neither Staff nor review heads. Revoked reviewer links
+  deny the inbox. Required Staff-ID fields reject missing/null/invalid/unknown
+  fields. Additional three-page Staff browse, two-page inbox and approved-status
+  transition assertions passed in the complete Global API race rerun (61.711s):
+  `/tmp/staff-person-browse-pagination-globalapi.jsonl`.
+- Client discovery/browse tests first failed on missing transport implementation;
+  all 32 focused person-review tests pass. The clients pin workspace/hospital,
+  keep Staff-ID search in JSON, validate canonical projections and requested
+  code/status/cursor consistency, and check cancellation.
+- The first full web run failed on a TypeScript tuple inference in the new test
+  assertion and cancelled the unfinished build. Correcting that test type yielded
+  all 22 successful lint/typecheck/test/build tasks in 26.632s, with 1,289 shell
+  and 457 API tests. Retain `/tmp/staff-person-browse-full-web.log` and
+  `/tmp/staff-person-browse-full-web-corrected.log`.
+- Contractdocs generation/check, `go vet ./...`, `go build ./...` and affected
+  golangci-lint pass (zero issues). The full owner race run has passed Global API
+  in 79.771s, architecture in 66.445s and contractdocs in 16.314s; Workforce is
+  subsequently passed in 540.466s at
+  `/tmp/staff-person-browse-owner-suites.jsonl`. All four test-bearing packages
+  passed for this backend checkpoint.
+
+Still required: professional manager/reviewer UI and normal local browser QA,
+actual scanner/storage acceptance, staff-specific review history/discovery as
+needed by that UI, large-fixture query plans, remaining provenance/expiry/
+dependency/audit/outbox/lock-wait proofs, exact finding-to-reviewed-employment
+consumption and every A01–A12 lifecycle/consumer cutoff. No full Access/RBAC,
+commit/merge/release, live migration or production rollout is claimed here.
+
+## Person-review hospital discovery candidate — 2026-10-31
+
+Added `GET /v1/workforce/person-review-scopes` and canonical generated
+`PersonReviewHospitalScope`, plus `listPersonReviewScopes` through Global API.
+The bounded filtered scan uses only the caller's existing reviewed active links;
+held identity assignments determine independent submit/review capabilities.
+It grants no HR/document authority and adds no migration or permissive SQL policy.
+Both original workspace assertions are mandatory. Limits default/cap at 20;
+continuation remains valid through empty filtered pages, with caller/tenant/route
+binding. Authorization is limited to four concurrent checks and five seconds
+capped by session idleness. Visible rows require locked unchanged actor links and
+a successful audit; authorization failures do not become empty success.
+
+TDD: the signed real IAM/Postgres/OpenFGA/Global API discovery test first failed
+404 rather than 200 (`/tmp/staff-person-scope-discovery-red.log`), then passed in
+13.456s. Expanded full person-review journey passed in 19.373s, proving distinct
+manager/reviewer capabilities, no legacy-manager discovery, required workspace
+headers, an empty first page for a linked-but-unassigned hospital followed by the
+assigned hospital, cross-actor/route cursor refusal and discovery cutoff during
+actor-link revocation. Log: `/tmp/staff-person-scope-discovery-expanded.log`.
+
+The client first failed six tests because discovery was absent; all 26 focused
+person-review/client tests now pass. It verifies canonical capabilities/cursor
+consistency, rejects unrequested response fields without echoing them, preserves
+empty-page continuation and refuses results after cancellation. Logs:
+`/tmp/staff-person-scope-client-red.log` and
+`/tmp/staff-person-scope-client-green.log`.
+
+Full web lint/typecheck/test/build passed all 22 tasks in 49.342s, including
+1,289 shell and 451 API tests (`/tmp/staff-person-scope-full-web.log`).
+Contractdocs generation/check, `go vet ./...`, `go build ./...` and affected
+Workforce/Global API/architecture golangci-lint passed (zero lint issues).
+The full Global API race suite passed in 96.270s, architecture in 88.908s
+and contractdocs in 20.932s. After adding valid second-tenant/same-reviewer
+isolation and attributable-discovery-audit assertions, the complete Global API
+race suite passed again in 59.837s
+(`/tmp/staff-person-scope-tenant-audit-globalapi.jsonl`). The broad Workforce race
+suite subsequently passed in 567.371s; all four test-bearing packages passed
+(`/tmp/staff-person-scope-owner-suites.jsonl`). This validates the discovery
+checkpoint before the new browse migrations below.
+
+Still open: hospital review inbox/target search and manager/reviewer UI, actual
+scanner/browser acceptance, remaining failure/race/provenance/query-plan gates,
+reviewed employment consumption and every A01–A12 lifecycle/consumer cutoff.
+No deployment, migration application, merge, release or complete Access/RBAC
+acceptance is claimed by this source checkpoint.
+
+## Person-review evidence release: recovered validation — 2026-10-31
+
+The owner now has purpose-bound private evidence bytes at
+`GET /v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/evidence/:file/content`.
+Identity manager/reviewer authority does not confer generic document access.
+Authorization pins the original assignment, actor link/employment epoch, review
+revision, identity source and immutable evidence metadata across storage I/O;
+replacement authority cannot rescue an old request. Returned generation, size and
+SHA-256 are verified before release. Denials and corrupt/unavailable storage do
+not record a successful-download audit. The API client additionally verifies
+workspace, review/file membership, content type, length, digest and cancellation.
+
+Real signed Global API/IAM/OpenFGA/Postgres tests with storage/scanner protocol
+fixtures cover assignment/link replacement, source changes, review approval and
+revocation during reads, evidence revocation, unavailable/corrupt bytes and fresh
+request recovery. A missing current actor link now returns 403; an unknown target
+remains 404. Controlled mutation runs fail when original-authority comparisons
+are removed (unexpected 200 instead of 403) or review-revision comparison is
+removed (unexpected 200 instead of 409). Source was restored after each run.
+Logs: `/tmp/staff-person-evidence-pin-checks-red.log` and
+`/tmp/staff-person-evidence-review-revision-red.log`.
+
+Recovered terminal results from the race/atomic-coverage run:
+
+- Workforce passed in 554.318s, architecture in 61.601s and contractdocs in
+  6.712s. The aggregate command did **not** pass: Global API's evidence-revocation
+  test used the wrong POST URL. Source declares PUT document revocation; correcting
+  the fixture preserved the existing production contract.
+  Log: `/tmp/staff-person-evidence-owner-suites.jsonl`.
+- The corrected **complete Global API package** passed in 61.761s with race and
+  atomic coverage: `/tmp/staff-person-evidence-corrected-globalapi.jsonl`.
+  `go tool cover -func=/tmp/staff-person-evidence-corrected-globalapi-coverage.out`
+  measures evidence authorization at 85.4%, download at 86.5% and its audit helper
+  at 100%. These are function statement metrics, not workflow completion.
+- Full web lint/typecheck/test/build passed all 22 tasks: 1,289 shell and 445 API
+  tests, plus the other package suites. Log:
+  `/tmp/staff-person-evidence-full-web.log`. Focused client tests passed 20 cases;
+  the test Blob reader was corrected for jsdom's missing `arrayBuffer` method.
+- Contractdocs generation/check, `go vet ./...`, `go build ./...` and affected
+  golangci-lint passed: `/tmp/staff-person-evidence-final-static.log`.
+
+The normal API `type-check` script now also checks the directory and person-review
+canonical generators, closing an omitted standard validation gate. This is a
+single package-script line; no application behavior or migration changes in that
+follow-up.
+
+Still open: bounded discovery/inbox and professional manager/reviewer UI, actual
+scanner/storage/browser acceptance, remaining historical-person/contributor,
+expiry/dependency/outbox/lock-wait proofs and query plans. Independently reviewed
+employment must then consume the exact finding/source generation, followed by
+all A01–A12 lifecycle and consumer cutoffs. Migrations 0054/0055 remain persisted
+source tested only in disposable databases. No UI-fixture application, production
+rollout, commit, merge, release or full Access/RBAC acceptance is claimed here.
+
+## Pre-employment person-review backend/client candidate — 2026-10-31
+
+The inactive-joiner prerequisite now has source implementation, rather than design
+alone: canonical Go/Zod models, immutable submission, private detail and cursor
+history, independent approve/reject, reasoned withdrawal/revocation, protected
+identity-document contributor/evidence snapshots and minimized atomic audit/outbox.
+Migration `0054_workforce_person_reviews` and concurrent-index migration
+`0055_workforce_person_provenance_index` are registered source artifacts for future
+application. They have run only in disposable tests, not the existing UI fixture
+or production. Existing active-employment identity-case/login-link guards remain.
+
+The signed Global API/IAM/OpenFGA/Postgres journey proves that an inactive worker
+requesting no login can receive an independent human person finding while staying
+inactive and receiving no fabricated login link or tenant-wide business permission.
+It also verifies receipt/decision replay and conflicting intent, cursor history,
+required account-field presence, missing workspace/action and unknown-object denial,
+bound identity-only file RLS, foreign-tenant denial, forbidden document editing,
+immutable history, provenance frozen across transactions, withdrawal, changed-source
+effectiveness and revocation after correction. This is owner/protocol evidence;
+the scanner/storage harness is protocol-based, not real-scanner or UI acceptance.
+
+The prospective provenance hook initially affected benefits/tax evidence. Full
+owner tests caught that regression; restricting it to enrollment `identity_evidence`
+restored the existing owner paths. Architecture checks separately required the
+single bounded detail-route declaration and per-field identifier-only event
+classification; their checks remain enabled. The original failed-run evidence is
+`/tmp/staff-person-review-owner-suites.jsonl`.
+
+Current-source verification:
+
+- `go test -race -json ./internal/modules/workforce/... ./internal/globalapi/... ./internal/archtest/... ./cmd/contractdocs/...`
+  passed all four test-bearing packages: 699 test/subtest pass events, no skipped
+  test cases; the contract data package has no tests. Workforce completed in
+  575.308s. Log: `/tmp/staff-person-review-final-owner-suites.jsonl`.
+- `go run ./cmd/contractdocs`, `go run ./cmd/contractdocs -check`, `go vet ./...`,
+  `go build ./...` and affected Workforce/Global API/architecture golangci-lint
+  passed. Log: `/tmp/staff-person-review-final-static.log`.
+- All 17 shared-emitter dependent generators passed `--check`; canonical array
+  minima now enforce required evidence and the pre-existing nonempty Staff
+  template permission list. All 38 template-history tests passed without skips.
+- Full web `API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo run lint type-check test build`
+  passed all 22 tasks in 34.156s (17 cached), including 1,289 shell and 439 API
+  tests. Log: `/tmp/staff-person-review-final-web.log`.
+
+The exported API client pins tenant/subject/hospital/Staff/command/version/source/
+evidence, retains the original request identity for uncertain retries, distinguishes
+an original approved receipt from present effectiveness and rejects an approved
+label missing independent findings. Client checks supplement owner authorization;
+they do not replace it or establish an operational employment grant.
+
+Still required before closing this prerequisite: hospital/target discovery and
+manager/reviewer UI, original-authority-pinned evidence byte release, actual scanner
+acceptance, the remaining historical/duplicate-person/contributor and dependency/
+outbox/lock-wait races, measured source-query plans, and normal browser acceptance.
+Then independently reviewed employment must consume the exact source-to-operational
+generation, followed by every A01–A12 lifecycle/consumer gate. The local intake
+assignment confirmation is still pending, with no activation or recipient acceptance
+claimed. Full Access/RBAC remains open; no rollout, commit, merge or release is
+claimed by this candidate checkpoint.
+
+## Local onboarding proposal and readiness regression — 2026-10-31
+
+Normal password login succeeded for the existing synthetic Admin, followed by
+the explicit server-confirmed Staff onboarding catalog and proposal UI. A local
+`workforce.hr_intake.v1` proposal for the existing synthetic pharmacist/reviewer
+at the designated QA hospital was recorded with validity 17:00–20:00 Melbourne
+on 31 October. Its asynchronous hospital verification completed and the proposal
+advanced from version 1 to version 2, awaiting independent review. A fresh normal
+login as the separate synthetic approver exposed the decision form. No approval
+was submitted: the specific new confidential-data access is awaiting user
+confirmation required by the browser safety rules. Private screenshots and
+`staff-hr-intake-ui-evidence-20261031.json` retain the precise resource and actors.
+This is proposal/verification/independent-review preparation evidence, not active
+intake authority, recipient/scanner acceptance or production evidence.
+
+Two current-source component regressions then reproduced a retained onboarding
+confirmation remaining enabled after the supported-template catalog changed or
+became unavailable. The UI now requires a successful settled catalog before
+onboarding commands are enabled. It retains the selected family, entered decision
+and request state while blocked, with Refresh outside the disabled controls.
+Legacy assignment families retain their existing behavior; owner authorization
+continues to decide every actual command. Red: 2 failures/27 passes at
+`/tmp/staff-intake-catalog-refresh-red.log`. Green: all 29 Staff access tests at
+`/tmp/staff-intake-catalog-refresh-green.log`.
+
+Full verification after the fix passed all 22 lint/typecheck/test/build tasks
+in 4m26.544s (18 cached), including 1,289 shell and 425 API tests. Command:
+`API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo run lint type-check test build`.
+Log: `/tmp/staff-intake-catalog-refresh-full-web.log`. No backend route, schema or
+permission changed in this regression fix.
+
+The next current-person prerequisite is documented in the
+[source-based design](../superpowers/specs/2026-10-31-pre-employment-person-review.md)
+and [implementation sequence](../superpowers/plans/2026-10-31-pre-employment-person-review.md).
+Existing identity-case draft and login-link guards require active employment;
+neither is weakened to bypass inactive onboarding. The new review remains design,
+with historical independence, human findings, evidence, no-login workers and
+source-to-operational epoch consumption explicitly required. Full A01–A12 remains
+open; no Staff area is marked complete and no rollout/merge is claimed here.
+
+## Local candidate browser continuation — 2026-10-31
+
+The existing candidate API and gateway are listening on 8399 and 8199, and the
+4399 UI serves the integration worktree. A fresh browser reload reproduced a
+startup failure in middleware: the new local UI launcher omitted
+`NEXT_PUBLIC_ZITADEL_ISSUER_URL`. Relaunching with the existing fixture issuer,
+client and Global API configuration restored the workspace without changing
+application code, identity-provider settings, memberships or grants. The private
+runtime receipt records the corrected launcher PID and configuration repair.
+
+The existing synthetic pharmacist/reviewer session then loaded six Staff records
+with read-only directory access and no enrollment/edit controls. Direct normal
+browser navigation to Staff access showed assignment administration unavailable;
+payroll setup showed an explicit payroll-access denial. These are current local
+restricted-account checks, not maker/checker/intake-user acceptance or production
+evidence.
+
+Direct read-only PostgreSQL inspection confirms application-fixture migrations
+`0009_billing`, `0009_medicore`, `0020_iam_hr_intake_templates` and
+`0053_workforce_hr_intake`, applied at 05:37:32–33 UTC. The private evidence bundle
+contains `staff-hr-intake-migration-receipts-20261031.json`; the inspected Staff,
+login-link, document and IAM assignment tables retain enabled and forced RLS.
+Earlier statements below that the
+migrations had run only in disposable tests describe the preceding checkpoints.
+No production rollout or migration is established by this local receipt.
+
+All 38 canonical template-history tests passed without skips. Both changed
+generators passed `--check`: `scripts/generate-staff-access.mjs` and
+`scripts/generate-workforce-directory.mjs`. Commands used `mise exec node@24`;
+the script-test log is `/tmp/staff-hr-intake-current-template-tests.log`.
+
+Current-source web verification passed all 22 tasks in 4m0.439s (18 cached).
+Command: `API_URL=http://127.0.0.1:8199 mise exec node@24 -- pnpm turbo run lint type-check test build`.
+The run reports 1,287 shell, 425 API, 267 UI, 72 configuration and nine emergency
+access tests passing. Log: `/tmp/staff-hr-intake-current-web-verification.log`.
+Existing jsdom navigation and unrelated list-key warnings are present; no task
+failed. Tracker formatting initially detected a blank-line issue in the acceptance
+ledger; Prettier corrected it. Full Access/RBAC A01–A12, including reviewed
+employment and every effective consumer cutoff, remains the completion objective.
+
+## Scoped HR workspace integration — 2026-10-31
+
+The combined owner run is terminal: Workforce 445.865 seconds (521 passing
+case/subcase events), Global API 40.451 seconds (38), journey 48.784 seconds (26)
+and architecture 41.570 seconds (124). IAM's only failure was its old hard-coded
+19-migration assertion. The canonical append is 0020; the test now retains every
+historical ID assertion and additionally requires the twentieth ID and SQL. Its
+focused rerun passes, followed by the complete IAM race suite in 316.926 seconds
+(300 passes; eight conditional provider skips). The active Staff fixture separately
+passes all eight real-provider tests in 27.573 seconds, no failures/skips. Earlier
+provider attempts used obsolete worktree credentials/default callback configuration
+and failed; the private fixture controller identified the matching seed path and
+4399 callback. No credential was printed or rotated to obtain this result.
+
+Logs: `/tmp/staff-hr-intake-combined-owner-suites.jsonl`,
+`/tmp/staff-hr-intake-iam-corrected-suite.jsonl` and
+`/tmp/staff-hr-intake-real-provider-staff-fixture.jsonl`. Preserve the original
+migration assertion failure; the passing IAM rerun supersedes it for current
+source acceptance without removing the test or any historical migration checks.
+Full static checks and affected lint also passed (zero issues). The first web
+run omitted required `API_URL` and failed build, cancelling unfinished tests;
+with `API_URL=http://127.0.0.1:8199`, all 30 web gates passed in 3m59.516s. These
+results precede the client/workspace additions below.
+
+The canonical projection client now composes `hr_intake=v1` at final request
+boundaries, preserving cursors and other projections; conflicting selectors are
+rejected. Seven client tests pass. Bounded scope discovery validates canonical
+capabilities and pagination and retains empty-page continuation. The Staff page
+keeps a discriminated legacy/intake hospital selection rather than manufacturing
+manager/reader grants. The new regression first showed no Staff directory; all
+five directory-page tests now pass. Scoped HR opens profile/terms/file actions
+without global permissions; identity/credential/account-link actions stay on
+their original authority. A new hire starts inactive with status editing disabled.
+Account-bound setup/supervisor reads preserve the intake selector.
+
+Terms command and read regressions reproduced omitted selectors; draft/withdraw
+commands and source/list/history/sponsor reads now compose the generated selector,
+retain lifecycle projection and separate legacy/intake cache keys. All three
+terms-client and four terms-panel tests pass. Staff-file command/byte requests
+pass nine client tests; metadata/record choices pass 14 UI tests. Evidence and
+classification child requests and cutoff/privacy negatives are being completed.
+A classification fixture initially reused a consumed response; fresh responses
+then reproduced the actual missing-selector failure, and the restored client
+passes the classification request tests. No normal browser/real scanner acceptance
+for this candidate, application fixture migration, merge or rollout is claimed.
+
+Full Access/RBAC A01–A12 remains the objective. Current-person/employment review,
+legacy/governance reconciliation and suspension/resumption, accepted exits,
+contract expiry/rehire and every operational consumer cutoff remain required.
+Counts remain 10 partial, 10 audit pending, 1 research and 0 fully accepted.
+
+## Scoped HR intake continuation — 2026-10-31
+
+Integration `4d0d5f7c` has green exact-head Go/web/E2E, scripts, secret and
+image/security CI. All 30 combined web gates passed. The unchanged Global API
+suite's earlier ledger-blocker observation failure passed a bounded rerun
+(32.249 seconds); retain the first failure as timing evidence.
+
+The current uncommitted candidate adds the explicit `workforce.hr_intake.v1`
+template with only enrollment/document permissions, preserving the frozen
+legacy discovery catalog and historical migration hashes. Migration SQL is
+persisted in source and registered as `0020_iam_hr_intake_templates` and
+`0053_workforce_hr_intake`; the canonical registry has 20 IAM / 173 module
+migrations. They have run in disposable tests only, not the existing application
+fixture or production.
+
+Twenty-four enrollment, employment preparation/evidence and Staff-file routes
+use explicit `hr_intake=v1` admission. Real IAM/Postgres/OpenFGA/Global API tests
+prove independently approved scoped intake without a hospital-manager grant,
+inactive new-hire preparation and rejection of employment activation. Protocol
+storage tests reproduced private-byte release after in-flight assignment or
+actor-link replacement; request-bound source checks now deny both old requests
+while allowing independently authorized fresh requests. Storage/scanner protocol
+fixtures are not real-scanner or normal-browser acceptance.
+
+Recovered terminal validation of this candidate: complete Global API race suite
+49.830 seconds; journey 52.745 seconds; authz 7.006 seconds; platform 12.360
+seconds, all passing with no skips/failures. `go vet ./...`, `go build ./...`,
+affected `golangci-lint` (zero issues), and contract generation/check completed
+successfully. Logs: `/tmp/staff-hr-intake-bounded-integration-suites.jsonl` and
+`/tmp/staff-hr-intake-final-static.log`. Canonical script tests previously passed
+38 cases. These results precede the next directory/discovery changes.
+
+Directory list/detail now use opt-in held intake authority. A real regression
+first returned zero rows instead of two; the fix passed the complete synthetic
+intake journey in 13.831 seconds. Hospital discovery first returned 404; the
+bounded filtered scope route and generated capability response passed in 13.748
+seconds. These checks cover no legacy-manager grant, unsupported selectors,
+unknown Staff, unchanged legacy discovery and actor-link cutoff. Additional
+workspace-negative and broader owner regressions are the next validation gates.
+
+The assignment SDK now derives its family type from the canonical template
+catalog and selects a separate intake list. Its regression first selected the
+legacy leave endpoint; all six assignment-client tests now pass. Full API package
+validation under Node 24.11.1 passes 414 tests, typecheck and lint; shell typecheck
+also passes. The matching IAM family route now passes a real signed-session journey in
+13.437 seconds: maker/checker read only the intake family, legacy leave/identity
+lists remain closed and ordinary intake users cannot administer assignments.
+Assignment UI integration is still pending, so this is not an enabled
+end-to-end workflow.
+
+The complete directory/discovery backend checkpoint is now terminal green:
+Workforce 463.939 seconds (521 passing test/subtest events), Global API 40.525
+seconds, journey 50.324 seconds and architecture 41.018 seconds. No suite reported
+a failure or skip. Log: `/tmp/staff-hr-intake-directory-discovery-suites.jsonl`.
+This source includes original-workspace negatives and precedes the next IAM
+family-list/read-only-master changes.
+
+An additional A04 source defect was reproduced: supplying another expected
+account to assignment reads returned 200 with private proposals. The owner now
+rejects mismatched, empty and repeated supplied account assertions with 409
+before proposal access; the SDK supplies both original tenant and subject. The
+real owner and six client tests pass. Command/no-write mutation proof and broader
+regressions are still being completed; this does not close old-client or full
+lifecycle acceptance.
+
+The retained-form command regression also reproduced unauthorized actor adoption:
+removing the account guard created a proposal under the replacement checker
+(200). The guard was restored; the command/no-write journey passes in 13.679
+seconds, and mismatch/empty/repeated read assertions remain covered. Raw red and
+green logs are `/tmp/staff-assignment-account-write-mutation-red.log` and
+`/tmp/staff-assignment-account-write-green.log`.
+
+Read-only HR setup choices/history now use the explicit intake projection and
+held enrollment authority. The initial GET returned 404. A first SQL approach
+was rejected by the harness's exactly-one-permissive-policy gate; the corrected
+migration preserves original write checks and adds restrictive deletion guards.
+The real owner journey now persists/reloads the selected department revision,
+denies master maintenance at the API, and directly proves SQLSTATE 42501 for a
+master update under intake context even with a master-context flag. The complete
+focused journey passes in 14.557 seconds; log:
+`/tmp/staff-hr-intake-master-write-policy-green.log`.
+
+Staff Access now offers the intake family only after the explicit server catalog
+matches canonical keys, definitions and permission bundles. The initial UI test
+could not find the onboarding option; catalog parsing caught a missing public
+contract export, which was corrected. All 27 assignment-page tests pass,
+including unsupported legacy/changed-permission catalogs and the existing
+independent-review/renewal/uncertain-command flows. This is assignment UI evidence,
+not the ordinary intake user's directory/forms/files browser acceptance.
+
+Complete current-source IAM/Workforce/Global API/journey/architecture race suites
+are running sequentially in `/tmp/staff-hr-intake-combined-owner-suites.jsonl`.
+Final static and full web gates follow separately. No merge, rollout, application
+fixture migration or production change occurred.
+
+Next: finish the intake user workspace and broader scope discovery negatives; finish canonical client/UI integration and normal independent
+Admin/approver/HR browser acceptance. Current-person and reviewed employment
+activation, legacy/governance reconciliation and all A01–A12 lifecycle/cross-owner
+cutoff requirements remain open. No feature merge, production migration,
+rollout, release or completion claim follows from these local checks. Counts
+remain 10 partial, 10 audit pending, 1 research and 0 fully accepted.
 
 ## Integration and complete owner-suite checkpoint — 2026-10-31
 
@@ -23,6 +996,16 @@ preserved. Main's leave privacy fix and unrelated billing/MediCore changes are
 retained. Canonical contract generation/check, full vet/build and clean conflict/
 diff checks pass on the combined source. Its bootstrap/Global API/architecture/
 journey races and web validation remain separate pending gates.
+
+Integration `4d0d5f7c` is now pushed to the draft. GitHub reports MERGEABLE and
+Go/web/E2E quality CI is running; scripts and secret scanning pass. Local combined
+Global API validation failed `TestScopedLeaveThroughGlobalAPI` at line 336: the
+one-second expected ledger-blocker observation was not seen; cleanup then reported
+context cancellation. The same complete package passed on `a8e149eb`. The test
+source is unchanged by integration. Preserve both logs and diagnose under bounded
+load after the currently live backend/web runs finish; do not weaken the blocker
+or expiry assertions or treat the prior pass as combined-source acceptance.
+The other combined suites remain running, not terminal on observation timeout.
 
 The combined canonical registry has **19 IAM / 171 module migrations**. Main
 contributes `0009_billing` and `0009_medicore`; their source SQL/registrations are
@@ -986,29 +1969,29 @@ and CI-validated, with production UI evidence and artifact-capture limits above.
 role templates, reviewed employment decisions, dated transfers and offboarding
 remain open; a directory status or draft term is not proof of operational cutoff.
 
-| Area                            | Status                                      | Verified work / evidence                                                                                                                                                                                        | Remaining acceptance                                                                                                                                                                                                |
-| ------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Access and RBAC                 | Partial; current priority                   | Scoped proposals, independent decisions, reviewed staff/login links, projection/membership generations, withdrawal, current-identity denial and fresh-login recovery; local synthetic maker/checker/reviewer QA | Identity provisioning and verification; membership recovery; renewal; hospital suspension/resumption; notice, resignation, termination, contract end and rehire; cross-owner cutoff and legacy-grant reconciliation |
-| Staff directory and supervision | Partial; profile/supervision slice released | Account/workspace-bound private editing, required fields, persisted revisions, cycle/stale guards and inactive labels; local and production Admin/restricted-reviewer QA in PR #1447                            | Full employee/consultant onboarding, editing by other authorized roles, dated transfers/postings, offboarding and safe removal                                                                                      |
-| HR setup                        | Partial                                     | Broad create/edit/history/retire/reactivate coverage across masters                                                                                                                                             | Complete dependency, referenced-record, duplicate/concurrency, isolation and deployed acceptance                                                                                                                    |
-| Identity and background checks  | Partial; draft preparation released         | All three unreviewed draft types, create/edit/current/history, immutable snapshots, required fields, replay and scope/actor/source-generation guards                                                            | Protected evidence binding, immutable submission, independent approve/reject/revoke, effective validity, source changes and historical self-review denial                                                           |
-| Photographs and ID cards        | Partial foundations                         | Photograph preparation metadata; protected file scanning/release/recovery foundations                                                                                                                           | Trusted PNG/JPEG validation, purpose-bound photo review, self-photo request, frozen branded card issue, independent authorization, preview/print, expiry, loss/reissue and offboarding                              |
-| Shifts                          | Partial; local workflow audited             | Synthetic overnight create/edit, validation, revision history, retire/reactivate and reload; unsaved navigation/cancel/history protection fixed                                                                 | Referenced retirement, multi-hospital/current-account scope, downstream roster effects and deployed acceptance                                                                                                      |
-| Roster setup                    | Partial; local area workflow audited        | Required fields/review, pinned area membership, retirement/history/reload, inactive-reference rejection and unsaved-input guards                                                                                | Groups/weekly templates, overlaps/effective versions, concurrency, role/isolation and downstream/deployed acceptance                                                                                                |
-| Roster policy                   | Audit pending                               | Existing implementation                                                                                                                                                                                         | Staff/template assignments, conflicts, effective versions and inactive/transferred staff                                                                                                                            |
-| Rosters                         | Audit pending                               | Existing implementation                                                                                                                                                                                         | Populate/allocate, overlaps, credentials/leave, freeze/correct/discard, overnight dates and downstream consequences                                                                                                 |
-| Leave setup                     | Audit pending                               | Existing implementation                                                                                                                                                                                         | Types/calendars/structures, units/rules, effective revisions and retirement                                                                                                                                         |
-| Leave balances                  | Audit pending                               | Existing implementation                                                                                                                                                                                         | Allocation/accrual/carry/expiry, monthly posting, correction/close, ledger and self-only reads                                                                                                                      |
-| Leave requests and review       | Partial                                     | Scoped queue/detail/decision flows, self-review denial, cancellation/revocation/replay and current-authority races; local independent UI QA                                                                     | Complete setup-to-balance-to-request-to-roster journey, all role/state boundaries and deployed positive acceptance                                                                                                  |
-| Leave reports                   | Audit pending                               | Existing implementation                                                                                                                                                                                         | Filters/bounds/totals/pagination, absence/staleness and protected exports                                                                                                                                           |
-| Duty exchanges                  | Audit pending                               | Existing implementation                                                                                                                                                                                         | Proposal/decision, holds/conflicts, cancellation/revocation and roster effects                                                                                                                                      |
-| Overtime                        | Audit pending                               | Existing implementation                                                                                                                                                                                         | Policy/units, eligibility, independent decisions, reversal/history and payroll handoff; approval is not payment                                                                                                     |
-| Attendance                      | Audit pending                               | Existing implementation                                                                                                                                                                                         | Punch/void/correction, independent decision, overnight dates, finalize/reopen, immutable timesheet and payroll handoff                                                                                              |
-| Credentials and reminders       | Audit pending                               | Existing register/review/reminder implementation                                                                                                                                                                | Evidence/expiry/renewal, private disclosure, roster consequences and real worker retry/delivery acceptance; credentials do not confer clinical privilege                                                            |
-| Payroll                         | Partial configuration                       | Salary-head create/edit/history, synthetic structure/assignment checks, missing-policy reporting and production restricted-access denial                                                                        | Reviewed jurisdictional policies; runs/calculation/approval/locking/posting, corrections/reconciliation, final settlement and professional branded Indian payslip PDFs with applicable tax/PF/ESI components        |
-| Benefits                        | Audit pending                               | Existing implementation                                                                                                                                                                                         | Dependent/plan eligibility, independent decisions, overlap/evidence/revoke/expiry and protected exports                                                                                                             |
-| Offer and exit documents        | Research/proposal                           | Generated-document research exists                                                                                                                                                                              | Reviewed templates, hospital logo/branding, versioned data capture, authorization/approval, protected Go PDF generation/download and correction/history                                                             |
-| Cross-cutting UI and QA         | Partial                                     | Full-width Staff workspace, responsive layout checks, explicit access denial and latest full Go/frontend validation                                                                                             | Consistent spacing and accessible forms for every changed workflow; all required fields and edits; no stale subject/tenant data; all remaining journeys through the UI                                              |
+| Area                            | Status                                                     | Verified work / evidence                                                                                                                                                                                                                                                                 | Remaining acceptance                                                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Access and RBAC                 | Partial; current priority                                  | Scoped proposals, independent decisions, reviewed staff/login links, projection/membership generations, withdrawal, current-identity denial and fresh-login recovery; local synthetic maker/checker/reviewer QA; local frozen employment submissions (0060), with no approval/activation | Identity provisioning and verification; membership recovery; renewal; hospital suspension/resumption; notice, resignation, termination, contract end and rehire; cross-owner cutoff and legacy-grant reconciliation |
+| Staff directory and supervision | Partial; profile/supervision slice released                | Account/workspace-bound private editing, required fields, persisted revisions, cycle/stale guards and inactive labels; local and production Admin/restricted-reviewer QA in PR #1447                                                                                                     | Full employee/consultant onboarding, editing by other authorized roles, dated transfers/postings, offboarding and safe removal                                                                                      |
+| HR setup                        | Partial                                                    | Broad create/edit/history/retire/reactivate coverage across masters                                                                                                                                                                                                                      | Complete dependency, referenced-record, duplicate/concurrency, isolation and deployed acceptance                                                                                                                    |
+| Identity and background checks  | Partial; released drafts and local person-review candidate | Released draft preparation plus local immutable person finding, protected evidence and manager/reviewer/history UI source; normal provider/browser acceptance remains open                                                                                                               | Background/photo policy review, real provider/scanner and normal role UI QA; employment consumption and all owner cutoff gates                                                                                      |
+| Photographs and ID cards        | Partial foundations                                        | Photograph preparation metadata; protected file scanning/release/recovery foundations                                                                                                                                                                                                    | Trusted PNG/JPEG validation, purpose-bound photo review, self-photo request, frozen branded card issue, independent authorization, preview/print, expiry, loss/reissue and offboarding                              |
+| Shifts                          | Partial; local workflow audited                            | Synthetic overnight create/edit, validation, revision history, retire/reactivate and reload; unsaved navigation/cancel/history protection fixed                                                                                                                                          | Referenced retirement, multi-hospital/current-account scope, downstream roster effects and deployed acceptance                                                                                                      |
+| Roster setup                    | Partial; local area workflow audited                       | Required fields/review, pinned area membership, retirement/history/reload, inactive-reference rejection and unsaved-input guards                                                                                                                                                         | Groups/weekly templates, overlaps/effective versions, concurrency, role/isolation and downstream/deployed acceptance                                                                                                |
+| Roster policy                   | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Staff/template assignments, conflicts, effective versions and inactive/transferred staff                                                                                                                            |
+| Rosters                         | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Populate/allocate, overlaps, credentials/leave, freeze/correct/discard, overnight dates and downstream consequences                                                                                                 |
+| Leave setup                     | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Types/calendars/structures, units/rules, effective revisions and retirement                                                                                                                                         |
+| Leave balances                  | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Allocation/accrual/carry/expiry, monthly posting, correction/close, ledger and self-only reads                                                                                                                      |
+| Leave requests and review       | Partial                                                    | Scoped queue/detail/decision flows, self-review denial, cancellation/revocation/replay and current-authority races; local independent UI QA                                                                                                                                              | Complete setup-to-balance-to-request-to-roster journey, all role/state boundaries and deployed positive acceptance                                                                                                  |
+| Leave reports                   | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Filters/bounds/totals/pagination, absence/staleness and protected exports                                                                                                                                           |
+| Duty exchanges                  | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Proposal/decision, holds/conflicts, cancellation/revocation and roster effects                                                                                                                                      |
+| Overtime                        | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Policy/units, eligibility, independent decisions, reversal/history and payroll handoff; approval is not payment                                                                                                     |
+| Attendance                      | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Punch/void/correction, independent decision, overnight dates, finalize/reopen, immutable timesheet and payroll handoff                                                                                              |
+| Credentials and reminders       | Audit pending                                              | Existing register/review/reminder implementation                                                                                                                                                                                                                                         | Evidence/expiry/renewal, private disclosure, roster consequences and real worker retry/delivery acceptance; credentials do not confer clinical privilege                                                            |
+| Payroll                         | Partial configuration                                      | Salary-head create/edit/history, synthetic structure/assignment checks, missing-policy reporting and production restricted-access denial                                                                                                                                                 | Reviewed jurisdictional policies; runs/calculation/approval/locking/posting, corrections/reconciliation, final settlement and professional branded Indian payslip PDFs with applicable tax/PF/ESI components        |
+| Benefits                        | Audit pending                                              | Existing implementation                                                                                                                                                                                                                                                                  | Dependent/plan eligibility, independent decisions, overlap/evidence/revoke/expiry and protected exports                                                                                                             |
+| Offer and exit documents        | Research/proposal                                          | Generated-document research exists                                                                                                                                                                                                                                                       | Reviewed templates, hospital logo/branding, versioned data capture, authorization/approval, protected Go PDF generation/download and correction/history                                                             |
+| Cross-cutting UI and QA         | Partial                                                    | Full-width Staff workspace, responsive layout checks, explicit access denial and latest full Go/frontend validation                                                                                                                                                                      | Consistent spacing and accessible forms for every changed workflow; all required fields and edits; no stale subject/tenant data; all remaining journeys through the UI                                              |
 
 ## Access and RBAC: ordered completion checklist
 

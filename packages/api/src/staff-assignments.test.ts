@@ -40,6 +40,7 @@ it("binds paged assignment reads to the expected tenant without caching private 
   expect(url).toContain("/api/v1/iam/assignment-proposals?");
   expect(new URL(url, "https://example.invalid").searchParams.get("cursor")).toBe("opaque+/=");
   expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenantId);
+  expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe("reviewer");
   expect(options.cache).toBe("no-store");
 });
 
@@ -94,4 +95,13 @@ it("keeps identity assignments separate from the existing leave list", async () 
   vi.stubGlobal("fetch", fetch);
   await listStaffAssignments({ tenantId, subject: "reviewer" }, { family: "identity" });
   expect(fetch.mock.calls[0]![0]).toContain("/api/v1/iam/identity-assignment-proposals?");
+});
+
+it("uses the explicit intake list without mixing existing leave or identity assignments", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(Response.json({ data: [], page: { has_more: false, next_cursor: null } }));
+  vi.stubGlobal("fetch", fetch);
+  await listStaffAssignments({ tenantId, subject: "reviewer" }, { family: "intake" });
+  expect(fetch.mock.calls[0]![0]).toContain("/api/v1/iam/intake-assignment-proposals?");
 });

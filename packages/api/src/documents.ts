@@ -1,4 +1,4 @@
-import type { EnrollmentRequestScope } from "./enrollment";
+import { withStaffIntakeScope, type EnrollmentRequestScope } from "./enrollment";
 import { readAttachmentFile } from "./attachment-file";
 import { apiFetch, apiFetchResponse } from "./client";
 import {
@@ -115,7 +115,7 @@ export async function submitDocumentUpload(
   const intent = receipt(
     scope,
     upload.id,
-    await apiFetch(path, {
+    await apiFetch(withStaffIntakeScope(path, scope), {
       method: "PUT",
       headers: documentHeaders(scope),
       body: JSON.stringify(input),
@@ -139,7 +139,12 @@ export async function submitDocumentUpload(
   return receipt(
     scope,
     upload.id,
-    await apiFetch(path + "/content", { method: "PUT", headers, body: upload.file, signal }),
+    await apiFetch(withStaffIntakeScope(path + "/content", scope), {
+      method: "PUT",
+      headers,
+      body: upload.file,
+      signal,
+    }),
   );
 }
 
@@ -155,7 +160,11 @@ export async function retryDocumentScan(
   return receipt(
     scope,
     id,
-    await apiFetch(path, { method: "PUT", headers: documentHeaders(scope), signal }),
+    await apiFetch(withStaffIntakeScope(path, scope), {
+      method: "PUT",
+      headers: documentHeaders(scope),
+      signal,
+    }),
   );
 }
 
@@ -169,7 +178,11 @@ export async function revokeStaffDocument(
   return receipt(
     scope,
     id,
-    await apiFetch(path, { method: "PUT", headers: documentHeaders(scope), signal }),
+    await apiFetch(withStaffIntakeScope(path, scope), {
+      method: "PUT",
+      headers: documentHeaders(scope),
+      signal,
+    }),
   );
 }
 
@@ -182,7 +195,7 @@ export async function downloadStaffDocument(
   if (document.status !== "available") throw new Error("Document is not available for download.");
   receipt(scope, document.id, document);
   const response = await apiFetchResponse(
-    `${documentPath(scope)}/documents/${document.id}/content`,
+    withStaffIntakeScope(`${documentPath(scope)}/documents/${document.id}/content`, scope),
     { headers: documentHeaders(scope), cache: "no-store", signal },
   );
   const blob = await response.blob();

@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { staffAccessTemplates, staffAccessTemplateCatalogs } from "@helivanta/api";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import AccessPage from "./page";
 
@@ -25,6 +26,10 @@ const row = {
   updated_at: timestamp,
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+const catalogDefinitions = (catalog: keyof typeof staffAccessTemplateCatalogs) =>
+  staffAccessTemplates.filter((template) =>
+    staffAccessTemplateCatalogs[catalog].some((key) => key === template.key),
+  );
 const permissions = ["iam.assignment.manage", "iam.assignment.review"];
 afterEach(() => vi.unstubAllGlobals());
 
@@ -500,3 +505,191 @@ it("retains the renewal proposal ID and exact payload after an uncertain respons
   expect(attempts[0]).toEqual(attempts[1]);
   expect(await screen.findByText(/Proposal recorded/)).toBeInTheDocument();
 });
+
+it("offers HR intake separately when the explicit server catalog confirms its permissions", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/iam/staff-access-templates?catalog=hr-intake-v1"))
+        return Response.json(catalogDefinitions("hr-intake-v1"));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff onboarding" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("HR intake administrator");
+  expect(templates).not.toHaveTextContent("Leave reviewer");
+  expect(templates).not.toHaveTextContent("Staff identity checks reviewer");
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([url]) => String(url).includes("/iam/intake-assignment-proposals?")),
+  ).toBe(true);
+});
+
+it.each(["legacy", "changed-permissions"])(
+  "does not offer unverified HR authority from a %s catalog",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const catalog =
+      kind === "legacy"
+        ? catalogDefinitions("legacy-v1")
+        : catalogDefinitions("hr-intake-v1").map((template) =>
+            template.family === "intake"
+              ? { ...template, permissions: ["workforce.payroll.approve"] }
+              : template,
+          );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/iam/staff-access-templates?catalog=hr-intake-v1"))
+          return Response.json(catalog);
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    expect(
+      await screen.findByText("Staff onboarding assignments are unavailable in this workspace."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Assignment area"));
+    expect(screen.queryByRole("option", { name: "Staff onboarding" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Leave review" })).toBeInTheDocument();
+  },
+);
+
+it.each(["unavailable", "changed"])(
+  "blocks retained onboarding decisions when the server catalog becomes %s",
+  async (state) => {
+    setup("reviewer", []);
+    const prior = fetch;
+    let catalogReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/iam/staff-access-templates?catalog=hr-intake-v1")) {
+          catalogReads++;
+          if (catalogReads === 1) return Response.json(catalogDefinitions("hr-intake-v1"));
+          return state === "unavailable"
+            ? Response.json({ error: "unavailable", message: "Unavailable" }, { status: 503 })
+            : Response.json(catalogDefinitions("legacy-v1"));
+        }
+        if (url.includes("/iam/intake-assignment-proposals?"))
+          return Response.json(
+            page([
+              {
+                ...row,
+                input: {
+                  ...row.input,
+                  template_key: "workforce.hr_intake.v1",
+                  reason: "Synthetic onboarding assignment",
+                },
+              },
+            ]),
+          );
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    await user.click(await screen.findByRole("option", { name: "Staff onboarding" }));
+    await user.click(await screen.findByRole("button", { name: "Approve" }));
+    await user.type(screen.getByLabelText("Decision reason"), "Retained independent review");
+    await user.click(screen.getByRole("button", { name: "Refresh assignments" }));
+    expect(
+      await screen.findByText("Staff onboarding assignments are unavailable in this workspace."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm approve" })).toBeDisabled();
+    expect(screen.getByLabelText("Decision reason")).toHaveValue("Retained independent review");
+    expect(screen.getByRole("button", { name: "Propose assignment" })).toBeDisabled();
+  },
+);
+
+it("offers employment review separately only after its exact server catalog is verified", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/iam/staff-access-templates?catalog=employment-v1"))
+        return Response.json(staffAccessTemplates);
+      if (url.includes("/iam/employment-assignment-proposals?")) return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Employment terms review" }));
+  expect(screen.getByText(/Employment reviewers independently examine/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Staff employment terms reviewer");
+  expect(templates).not.toHaveTextContent("HR intake administrator");
+  expect(templates).not.toHaveTextContent("Staff identity checks reviewer");
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([url]) => String(url).includes("/iam/employment-assignment-proposals?")),
+  ).toBe(true);
+});
+it.each(["missing", "broader", "extra"])(
+  "does not offer employment authority from a %s catalog",
+  async (state) => {
+    setup();
+    const prior = fetch;
+    const catalog =
+      state === "missing"
+        ? staffAccessTemplates.filter((template) => template.family !== "employment")
+        : state === "extra"
+          ? [...staffAccessTemplates, staffAccessTemplates[0]]
+          : staffAccessTemplates.map((template) =>
+              template.family === "employment"
+                ? {
+                    ...template,
+                    permissions: ["workforce.employment.review", "workforce.payroll.approve"],
+                  }
+                : template,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/iam/staff-access-templates?catalog=employment-v1"))
+          return Response.json(catalog);
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByText("Employment review assignments are unavailable in this workspace.");
+    await user.click(screen.getByLabelText("Assignment area"));
+    expect(
+      screen.queryByRole("option", { name: "Employment terms review" }),
+    ).not.toBeInTheDocument();
+  },
+);

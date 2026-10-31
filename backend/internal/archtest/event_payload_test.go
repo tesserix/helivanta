@@ -43,6 +43,11 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"workforce.EmploymentReviewChangedData.HospitalID":          "hospital scope for protected owner reauthorization; no patient or clinical data",
+	"workforce.EmploymentReviewChangedData.StaffID":             "hospital-scoped Staff reference for authorized owner lookup; staff personal-data protections still apply, no patient identity",
+	"workforce.EmploymentReviewChangedData.ReviewID":            "opaque employment submission reference; no appointment terms, policy, salary, finding or file location",
+	"workforce.EmploymentReviewChangedData.RevisionID":          "opaque immutable command receipt for deduplication; no staff or clinical contents",
+	"workforce.EmploymentReviewChangedData.Version":             "positive owner revision for replay/order handling; no employment, identity or clinical facts",
 	"pharmacy.UnusedPaymentRefundRecordedData.OutletID":         "opaque pharmacy operating-outlet reference; not a patient or person identifier",
 	"pharmacy.UnusedPaymentRefundRecordedData.PaymentRequestID": "opaque pharmacy payment request reference; no buyer, patient or prescription facts",
 	"pharmacy.UnusedPaymentRefundRecordedData.AmountMinor":      "whole externally refunded amount; no patient identity, free-text reference or line items",
@@ -173,6 +178,11 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"workforce.IdentityCaseChangedData.CaseID":          "opaque case reference; no policy, check reference or document location",
 	"workforce.IdentityCaseChangedData.Version":         "monotonic case revision for replay and ordering; no private review facts",
 	"workforce.IdentityCaseChangedData.Status":          "closed case lifecycle enum; no private decision reason or evidence",
+	"workforce.PersonReviewChangedData.HospitalID":      "opaque hospital scope for protected owner reauthorization; no facility attributes",
+	"workforce.PersonReviewChangedData.StaffID":         "opaque hospital-local Staff reference; no name, identity document or human finding",
+	"workforce.PersonReviewChangedData.ReviewID":        "opaque review aggregate reference; no status, policy, account association or evidence",
+	"workforce.PersonReviewChangedData.RevisionID":      "opaque immutable command receipt for deduplication; no review contents",
+	"workforce.PersonReviewChangedData.Version":         "monotonic owner revision for ordering; no personal or clinical facts",
 	"workforce.LoginLinkChangedData.HospitalID":         "opaque hospital scope; protected lookup required",
 	"workforce.LoginLinkChangedData.StaffID":            "opaque staff reference; no staff name or account subject",
 	"workforce.LoginLinkChangedData.LinkID":             "opaque reviewed binding reference; no account subject or review reason",

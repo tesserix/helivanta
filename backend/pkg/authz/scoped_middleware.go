@@ -3,12 +3,36 @@ package authz
 import (
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 )
+
+// RequireHospitalScopeProjection preserves legacy admission unless the caller selects the declared projection.
+func RequireHospitalScopeProjection(permission Permission, hospitalParam string, authorizer ScopedAuthorizer, queryKey, version string) gin.HandlerFunc {
+	legacy := Require(permission)
+	scoped := RequireHospitalScope(permission, hospitalParam, authorizer)
+	return func(c *gin.Context) {
+		query, err := url.ParseQuery(c.Request.URL.RawQuery)
+		if err != nil {
+			respond.Error(c, 400, "invalid_request", "Invalid query.")
+			return
+		}
+		values, present := query[queryKey]
+		if !present {
+			legacy(c)
+			return
+		}
+		if len(values) != 1 || values[0] != version {
+			respond.Error(c, 400, "invalid_request", "Unsupported or repeated access projection.")
+			return
+		}
+		scoped(c)
+	}
+}
 
 const hospitalScopeKey = "helivanta.hospital_scope_authorization"
 const hospitalScopeFailureKey = "helivanta.hospital_scope_unavailable"

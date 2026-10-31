@@ -18,6 +18,8 @@ export const ProposalInputContract = z
       "workforce.leave_reviewer.v1",
       "workforce.identity_manager.v1",
       "workforce.identity_reviewer.v1",
+      "workforce.hr_intake.v1",
+      "workforce.employment_reviewer.v1",
     ]),
     reason: z
       .string()
@@ -190,7 +192,7 @@ export const TemplateDefinitionContract = z
       .min(1)
       .max(30)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
-    permissions: z.array(z.string()).max(32),
+    permissions: z.array(z.string()).min(1).max(32),
   })
   .strict();
 export type TemplateDefinition = z.infer<typeof TemplateDefinitionContract>;

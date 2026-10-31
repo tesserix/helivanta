@@ -5,6 +5,7 @@ import {
   prepareDocumentUpload,
   submitDocumentUpload,
   retryDocumentScan,
+  revokeStaffDocument,
   downloadStaffDocument,
 } from "./documents";
 import {
@@ -235,4 +236,48 @@ describe("private document requests", () => {
     finishRead(new Uint8Array([1]).buffer);
     await expect(prepared).rejects.toMatchObject({ name: "AbortError" });
   });
+});
+
+it("keeps scoped intake on every document command and byte request", async () => {
+  const requests: Array<{ url: string; init: RequestInit }> = [];
+  const intake = { ...scope, hrIntake: true };
+  const signal = new AbortController().signal;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      requests.push({ url, init });
+      const path = new URL(url, "https://example.invalid").pathname;
+      if (path.endsWith("/content") && init.method !== "PUT")
+        return new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/png" } });
+      return Response.json({
+        ...receipt,
+        status: path.endsWith("/revocation")
+          ? "revoked"
+          : path.endsWith("/content") || path.includes("/retries/")
+            ? "scan_pending"
+            : "upload_pending",
+        scan_attempt: path.includes("/retries/") ? 2 : 1,
+      });
+    }),
+  );
+  await submitDocumentUpload(
+    intake,
+    {
+      id: fileID,
+      input,
+      file: new File([new Uint8Array([1])], input.filename, { type: input.content_type }),
+    },
+    signal,
+  );
+  await retryDocumentScan(intake, fileID, 2, signal);
+  await revokeStaffDocument(intake, fileID, signal);
+  await downloadStaffDocument(intake, { ...receipt, status: "available" }, signal);
+  expect(requests).toHaveLength(5);
+  for (const { url, init } of requests) {
+    expect(new URL(url, "https://example.invalid").searchParams.get("hr_intake")).toBe("v1");
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  }
+  expect(new URL(requests[1]!.url, "https://example.invalid").pathname).toMatch(/\/content$/);
+  expect(documentQueryKey(intake)).not.toEqual(documentQueryKey(scope));
 });

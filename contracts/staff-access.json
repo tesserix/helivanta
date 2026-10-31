@@ -578,6 +578,71 @@
         }
       ],
       "definitions_sha256": "b7fd4b7f961c667fd4e96ef6ef212e9942f56146f68cac3f6d8406f9a25749b6"
+    },
+    {
+      "id": "0020_iam_hr_intake_templates",
+      "file": "assignment_hr_intake_templates_generated.sql",
+      "sql_sha256": "5c274cdcff30becc3a8f1e26dc32c7abbb8257ebdfa48bab4864e43113c8d4e7",
+      "templates": [
+        {
+          "key": "workforce.hr_intake.v1",
+          "name": "HR intake administrator",
+          "description": "Prepare hospital Staff profiles, employment drafts and protected evidence; cannot approve employment or grant access.",
+          "family": "intake",
+          "permissions": [
+            "workforce.enrollment.manage",
+            "workforce.documents.manage"
+          ]
+        }
+      ],
+      "definitions_sha256": "79484136c74e11db79d8ee2fcf97a3d445adcab2c1d6283ee1f436319d4f86fb"
+    },
+    {
+      "id": "0021_iam_employment_templates",
+      "file": "assignment_employment_templates_generated.sql",
+      "sql_sha256": "cd2a45df4a99a7a0c33da6429548fb5695e5ad5b8ed5f04d34bcc5f14b554813",
+      "templates": [
+        {
+          "key": "workforce.employment_reviewer.v1",
+          "name": "Staff employment terms reviewer",
+          "description": "Independently review hospital employment terms and selected evidence; no access activation, clinical or payroll authority.",
+          "family": "employment",
+          "permissions": ["workforce.employment.review"]
+        }
+      ],
+      "definitions_sha256": "68691c669403def21b16ea9be76fe07470763200b56c541dc2f6eb9f893d4eb9"
+    }
+  ],
+  "template_catalogs": [
+    {
+      "key": "legacy-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1"
+      ],
+      "definitions_sha256": "b7fd4b7f961c667fd4e96ef6ef212e9942f56146f68cac3f6d8406f9a25749b6"
+    },
+    {
+      "key": "hr-intake-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1"
+      ],
+      "definitions_sha256": "5bcabca399447b2e6c5fdef9569f4a63213f6fc79a42152171dca06ed88785ad"
+    },
+    {
+      "key": "employment-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1"
+      ],
+      "definitions_sha256": "40232832c41687908a7d5ec5351d523f8d4b99d2051f8c8ff5be0b5d86f5e1a7"
     }
   ]
 }

@@ -45,7 +45,7 @@ func (h *handlers) revokeDocument(c *gin.Context) {
 		return
 	}
 	var saved document
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err = h.documentTransaction(c, staffDocuments{}, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
 		saved, err = authorizedDocument(tx, staffDocuments{}, p, hospital, staffID, fileID, true)
 		if err != nil {
@@ -106,7 +106,7 @@ func (h *handlers) requeueDocument(c *gin.Context, gate documentGate, p authn.Pr
 	}
 	var saved document
 	queued := false
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err = h.documentTransaction(c, staffDocuments{}, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
 		saved, err = authorizedDocument(tx, gate, p, hospital, staffID, fileID, true)
 		if err != nil {
@@ -172,11 +172,11 @@ func (h *handlers) sendDocument(c *gin.Context, gate documentGate, p authn.Princ
 		documentUploadError(c, errDocumentsUnavailable)
 		return
 	}
-	if !refreshDocumentPermissions(c, gate, false) {
+	if !h.refreshDocumentPermissions(c, gate, false) {
 		return
 	}
 	var saved document
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, gate, p, hospital, false, func(tx *gorm.DB) error {
 		var err error
 		saved, err = authorizedDocument(tx, gate, p, hospital, staffID, fileID, false)
 		if err != nil {
@@ -201,10 +201,10 @@ func (h *handlers) sendDocument(c *gin.Context, gate documentGate, p authn.Princ
 		documentUploadError(c, errDocumentsUnavailable)
 		return
 	}
-	if !refreshDocumentPermissions(c, gate, false) {
+	if !h.refreshDocumentPermissions(c, gate, false) {
 		return
 	}
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err = h.documentTransaction(c, gate, p, hospital, false, func(tx *gorm.DB) error {
 		current, err := authorizedDocument(tx, gate, p, hospital, staffID, fileID, false)
 		if err != nil {
 			return err

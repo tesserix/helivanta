@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchResponse } from "./client";
+import { withStaffIntakeScope, staffIntakeScopeKey } from "./enrollment";
 import { sha256Hex } from "./attachment-file";
 import {
   employmentPeriodsPath,
@@ -31,6 +32,7 @@ export const employmentEvidenceKey = (scope: EmploymentEvidenceScope) => [
   scope.staffId,
   scope.periodId,
   scope.periodVersion,
+  ...(scope.hrIntake === true ? [staffIntakeScopeKey(scope)] : []),
 ];
 export function employmentEvidenceMatches(
   scope: EmploymentEvidenceScope,
@@ -66,7 +68,7 @@ export async function attachEmploymentEvidence(
     scope,
     id,
     command.command_id,
-    await apiFetch(`${employmentEvidencePath(scope)}/${id}`, {
+    await apiFetch(withStaffIntakeScope(`${employmentEvidencePath(scope)}/${id}`, scope), {
       ...employmentPeriodRequest(scope),
       method: "PUT",
       body: JSON.stringify(command),
@@ -91,7 +93,7 @@ export async function withdrawEmploymentEvidence(
     scope,
     id,
     command.command_id,
-    await apiFetch(`${employmentEvidencePath(scope)}/${id}/withdraw`, {
+    await apiFetch(withStaffIntakeScope(`${employmentEvidencePath(scope)}/${id}/withdraw`, scope), {
       ...employmentPeriodRequest(scope),
       method: "POST",
       body: JSON.stringify(command),
@@ -110,10 +112,13 @@ export async function downloadEmploymentEvidence(
   if (!employmentEvidenceMatches(scope, file) || file.status !== "attached")
     throw new Error("Evidence is not available in this workspace.");
   signal.throwIfAborted();
-  const response = await apiFetchResponse(`${employmentEvidencePath(scope)}/${file.id}/content`, {
-    ...employmentPeriodRequest(scope),
-    signal,
-  });
+  const response = await apiFetchResponse(
+    withStaffIntakeScope(`${employmentEvidencePath(scope)}/${file.id}/content`, scope),
+    {
+      ...employmentPeriodRequest(scope),
+      signal,
+    },
+  );
   const data = await response.arrayBuffer();
   signal.throwIfAborted();
   if (data.byteLength !== file.size || (await sha256Hex(data)) !== file.sha256)

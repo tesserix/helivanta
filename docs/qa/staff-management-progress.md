@@ -31,8 +31,16 @@ architecture passes in its separate correct-package invocation. The first combin
 command named nonexistent `internal/arch` and therefore exited nonzero despite
 those package passes; `internal/archtest` is the correct architecture package.
 A later support-only invocation omitted the Docker environment and failed fixture
-startup; its configured rerun is tracked separately. No failing test was skipped
+startup; the configured rerun passed authz (75.5%, 6.887 s), tenantdb (81.8%,
+18.548 s) and architecture (44.803 s). No failing test was skipped
 or changed to hide either invocation error.
+
+The Forge upstream fix from PR #1494 is also included on this draft branch.
+Frozen pnpm installation, the production high-severity audit and all 54 script
+tests pass. The audit retains lower-severity findings and the existing decoder
+exception; no additional ignore was introduced. The internal guard is committed
+at `cb9392a8`; the dependency replacement is `f1c47701`. Exact-head CI, browser
+and deployed acceptance remain separate pending gates.
 
 All eight real localhost Zitadel integration tests pass with race detection,
 zero failures/skips (30.383 s). Credentials were loaded only into the child

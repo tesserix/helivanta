@@ -1,5 +1,22 @@
 # Staff Management delivery tracker
 
+## File cutoff fix pushed and local browser checked — 2026-10-31
+
+`5e1aede0` is pushed to draft PR #1489 with the shared file permission refresh,
+real source/gateway regressions, and the retained SQL lock-observer correction.
+Exact-head CI is running. The API is built from that source and healthy on the
+existing localhost fixture; no production rollout or new migration occurred.
+
+Normal restricted-reviewer directory access remains read-only. A normal Admin
+sign-in opened existing contractor evidence and completed one UI download: the
+native Save dialog was completed for the original attempt, and the 179-byte PNG
+matched its canonical SHA-256. The updated
+[local UI record](2026-10-31-staff-membership-recovery-local-ui.md) distinguishes
+startup/event observation timeouts from terminal failures and records private
+runtime/artifact evidence. No bypass, extra grant or repeat download was used.
+Full A01–A12, scoped HR/person/employment integration, remaining family/race and
+all lifecycle/cross-module/deployed gates remain open.
+
 ## Current file permissions after storage — 2026-10-31
 
 A real IAM/PostgreSQL/OpenFGA/signed-session journey reproduced a private Staff

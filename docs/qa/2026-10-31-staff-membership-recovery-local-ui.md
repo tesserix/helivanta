@@ -101,3 +101,32 @@ independent employment decisions, legacy-cohort classification and all effective
 renewal/suspension/resumption/resignation/termination/contract-expiry/rehire and
 cross-module cutoff journeys. No A01–A12 item or broad Staff area is newly marked
 complete. No production rollout, migration, issue closure or release tag occurred.
+
+## Updated file-permission API: 5e1aede0
+
+The same registered UI/Global API origins now use the backend built from
+`5e1aede03e99557b0aa269f0f30dc5ec16029d59`. The preceding API process and hash are
+retained in the private runtime manifest. No new schema migration, role or
+permission assignment was needed for this file-authorization continuation.
+
+The first readiness observation timed out, but the same retained process became
+healthy (liveness/readiness 200). The apparent identity errors were request
+cancellations during switching/navigation; the same normal Admin sign-in reached
+the dashboard. No identity or authentication guard was bypassed or weakened.
+
+The existing restricted reviewer still displayed a read-only hospital directory.
+After normal sign-out/Admin sign-in, the existing synthetic contractor's protected
+file panel loaded its ready employment-evidence PNG. One Download click reached
+the server's successful-read audit. The browser event observation timed out while
+the native macOS Save dialog remained open. Completing that existing dialog saved
+the same download, without a second request: Chrome reported Done, and the saved
+179-byte PNG signature and SHA-256 matched the canonical file metadata. The
+original source metadata/audit remained authoritative; earlier downloaded copies
+were not treated as proof of this attempt.
+
+Private normalized evidence: `staff-file-permissions-browser-evidence-20261031.json`
+and `staff-file-permissions-admin-ui-20261031.png`. This proves the normal Admin
+file path and preserved reviewer restriction at this source. Mid-I/O role loss,
+either employment permission lost independently and graph failure are exercised
+by signed-session Global API integration tests, not claimed as concurrent browser
+role-removal QA. All remaining lifecycle/HR/owner/deployed gates stay open.

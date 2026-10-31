@@ -242,12 +242,12 @@ export function GuardedLink({
     <Link
       {...anchor}
       href={href}
-      onNavigate={(event: { preventDefault: () => void }) => {
+      onNavigate={(event) => {
         if (!context) return;
         event.preventDefault();
         context.confirm(() => router.push(href));
       }}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+      onClick={(event) => {
         guard(event, href);
         if (!event.defaultPrevented) onClick?.(event);
       }}

@@ -122,6 +122,154 @@ access check requires refreshing before another attempt.
 
 This does not add actor or membership-incarnation preconditions, a versioned removal command, global identity deletion, employment suspension/offboarding or an admin removal UI. Role removal remains distinct from hospital employment and global login state. A future removal UI must reconcile uncertain outcomes and re-enrollment rather than treating this optional tenant guard as a complete offboarding workflow.
 
+### Legacy removal migration candidate — not deployed
+
+The follow-up branch explicitly refuses the unsafe subject/role DELETE with
+`409 membership_command_required`, directing clients to the incarnation-bound
+command below. It makes no target mutation or outbox publication and retains
+existing authentication, permission and optional workspace checks. This is a
+breaking change from the production 202 contract described above. The
+[coordinated migration record](../../superpowers/specs/2026-10-30-legacy-membership-contract-migration.md)
+identifies consumers, replacement behavior, review and unresolved external
+sunset requirements. No production rollout or sunset date is approved.
+
+### Ended-membership recovery admission candidate — not deployed
+
+Migration `0019_iam_membership_recovery_admission` guards the existing IAM
+continuity row: a zero-to-positive member count requires explicit recovery
+command and removal-basis transaction context. Existing command triggers still
+validate attributable current administration, retained same-subject removal,
+ordinary membership and immutable receipts. The guard serializes on the existing
+row; it does not rely on an earlier application lookup.
+
+Legacy `POST /v1/iam/members` now returns `409 membership_recovery_required` with
+`Cache-Control: no-store` when that tenant/subject has ended membership. Refused
+writes leave membership, epochs, audits and outbox unchanged. Existing current-row
+retries still return the same ID and publish repair intent. Explicit recovery
+uses `PUT /v1/iam/membership-commands/:id` with the retained removal receipt.
+This is a tightened legacy contract requiring coordinated consumer/security
+review and exact production approval. First legacy enrollment, privileged role
+expansion and pre-continuity history remain unresolved. See the
+[admission design](../../superpowers/specs/2026-10-31-membership-recovery-admission.md).
+
+### First enrollment candidate — not deployed
+
+`PUT /v1/iam/membership-enrollments/:id` is an additive ordinary-membership
+command. It requires a canonical UUIDv7 command ID, only `subject` and mandatory
+`reason` in its body, `iam.member.manage`, current source tenant administration,
+fresh acting credentials and exactly one matching expected-tenant and
+expected-subject header. The subject must have no previous continuity here and
+must currently be a matching active human with provider-verified email. Any
+caller-supplied role/actor is invalid. A 202 returns the immutable canonical
+`MembershipEnrollment` receipt; it is not proof of projection or hospital access.
+
+Exact retries return the original receipt after current actor checks, including
+after later removal or IdP disablement. Changed actor/body conflicts. A new
+command cannot enroll an existing or ended subject; removal/recovery remains the
+successor journey. Both preflight and write transactions check current authority,
+with provider I/O outside database locks. Source insertion, trigger-generated
+receipt, audit and membership outbox event commit atomically.
+
+`GET /v1/iam/membership-enrollments` provides ordered, bounded history;
+`GET /v1/iam/membership-enrollments/:id` reauthorizes a receipt. Both use the same
+current actor/workspace checks, audited reads and no-store responses. Another
+tenant's receipt is invisible. Invalid input is 400, stale credentials 401,
+missing authority 403, invisible receipt 404, stale workspace/account or
+conflicting/ineligible enrollment 409, unavailable identity/authority 503 and
+persistence failure 500. Clients freeze uncertain commands and retry exactly.
+
+Canonical models are in `contracts/staff-access.json`; persisted append-only
+migration `0018_iam_membership_enrollments` adds forced-RLS, indexed, immutable
+receipts linked to retained continuity. The local Staff form now uses this route
+and protected history. The production generic POST and its privileged/verification/
+recovery bypasses remain a coordinated migration gate. No provider account is
+created by this command. See the
+[first-enrollment design](../../superpowers/specs/2026-10-30-first-membership-enrollment.md)
+and [provisioning audit](../../qa/staff-identity-provisioning-audit.md).
+
+### Membership identity eligibility candidate — not deployed
+
+Uncommitted recovery now uses one IAM identity-client GET proving the exact
+subject is an active human with provider-verified email. Machine, inactive,
+deleted and unverified identities are ineligible; ambiguous/mismatched/malformed
+proof and provider failure return unavailable. The reader returns only a boolean.
+The HTTP client consumes one complete response within its 64 KiB bound.
+Committed exact retries return their original receipt after current actor checks
+without re-querying the provider or re-enrolling. Bootstrap wires the same client
+explicitly; an unwired reader fails closed. See the
+[identity eligibility design](../../superpowers/specs/2026-10-30-membership-identity-eligibility.md).
+The generic enrollment POST and full provisioning/contact-verification journey
+remain separate open migration gates.
+
+### Membership command candidate — local implementation, not deployed
+
+The [removal/recovery design](../../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)
+has a local command/UI implementation. Its legacy migration, projection ordering,
+full browser and release gates remain open; this is not accepted A02/A11 behavior.
+
+| Operation                             | Contract                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/iam/membership-candidates`   | Current role-incarnation IDs, subject/role assertions and current membership epoch; cursor-paginated         |
+| `PUT /v1/iam/membership-commands/:id` | UUIDv7 command ID; exact `MembershipCommandInput`; immutable `MembershipCommand` receipt on 202              |
+| `GET /v1/iam/membership-commands`     | Cursor-paginated `MembershipCommandHistory`, including current epoch and current-source recovery eligibility |
+
+IAM owns these records. All routes require `iam.member.manage`, the verified
+session tenant and current source administrative membership. Each new route
+requires exactly one `X-Helivanta-Expected-Tenant` and one
+`X-Helivanta-Expected-Subject`, matching the verified session. Missing, duplicate
+or stale assertions return `409 session_changed` before handler owner reads or
+writes; neither assertion selects scope or acting authority. Current actor credentials and
+administrative membership are checked again under transaction-held locks after
+waits, with a five-second budget capped by the acting session's idle deadline.
+History and candidate reads are audited and no-store. The Staff UI uses the
+existing same-origin Global API destination and keys private queries by tenant
+and account. No new role or permission is introduced.
+
+`MembershipCommandInput` contains `operation` (`remove`/`recover`), `basis_id`,
+`subject`, `role_key`, `expected_membership_epoch` and a mandatory bounded reason.
+For removal, the basis is the exact current membership row ID. For recovery, it
+is a retained removal-command ID; the role must be `staff_member`, and a fresh
+identity-owner lookup must report an active account before a new write. This
+does not establish contact verification, identity/background review or clinical
+eligibility. Recovery creates a new membership ID and restores no historical
+role, scoped assignment, login link, employment approval or card. Other roles
+and tenants remain intact. Tenant-administrator removal is refused and requires
+the separate governance/recovery process; this candidate does not implement it.
+
+Migration `0015_iam_membership_commands` preserves immutable tenant-scoped
+receipts, current-epoch references and indexed history. Typed concurrent-index
+migration `0016_iam_membership_candidate_index` adds the tenant/created-at/ID
+ordering index to the existing membership table without a blocking index build.
+Database triggers create
+receipts from actual membership transitions; immutable receipts, audit and
+outbox commit atomically. Final-role removal preserves the existing epoch and
+assignment-revocation semantics. One role's removal does not end membership
+while another role remains. Exact retries by the same currently authorized actor
+return their retained receipt; changed payload or command ownership returns 409.
+A historical recovery receipt remains readable if the target is later disabled
+or its provider is unavailable; returning that receipt performs no new grant.
+
+Invalid input is 400, stale/revoked acting session 401, missing current authority
+or governance removal 403, foreign/missing basis 404, stale epoch/reused command
+or ineligible recovery 409, unavailable authority/provider 503 and failed
+persistence 500. A 202 proves the transaction's receipt, not graph convergence
+or effective hospital access. The UI requires reason/consequence review and
+retains the exact frozen command after an uncertain response.
+
+The legacy raw DELETE and direct grant/revoke projection consumers are still
+present in the main-line baseline. The local follow-up now treats those events
+as post-commit reconciliation hints and uses an incarnation-bound graph principal
+for current-row permission/membership proof, discovery, switching, login and
+renewal. Boot reconciliation and onboarding use the same tuple definition.
+Migration `0017_iam_membership_projection_reader` grants only startup SELECT of
+IAM epoch metadata to the existing system role; ordinary reads retain tenant RLS.
+The delayed-grant and borrowed-old-incarnation assertions now pass in local real
+provider tests, as does preserving a replacement during delayed old revocation.
+The local raw DELETE refusal and ended-membership POST guard tighten the legacy
+contracts explicitly; coordinated external migration and release acceptance remain
+open. The production baseline retains the old behavior until that reviewed rollout. Canonical Go/Zod models are in
+`contracts/staff-access.json`; no copied frontend wire model is authoritative.
+
 ### Assignment proposals and independent decisions
 
 The Staff access page at `/workforce/access` uses the existing contracts below for
@@ -270,7 +418,9 @@ bindings require withdrawal and fresh review; no legacy grant is converted.
 The worktree adds `staff_member` to the IAM system-role catalogue, labelled
 "Staff member (membership only)". Existing `POST /v1/iam/members` and
 `DELETE /v1/iam/members/:subject/:role` retain their `iam.member.manage`
-requirement and asynchronous 202 behavior. The role grants tenant membership
+requirement. Production has asynchronous 202 behavior; the local migration
+candidates above explicitly refuse unsafe legacy removal and ended-membership
+restoration. The role grants tenant membership
 and no declared business permissions. It does not create a workforce link,
 hospital grant, scoped assignment or clinical privilege. Existing member events
 retain their payload shape; `role_key` can now carry this additional value.

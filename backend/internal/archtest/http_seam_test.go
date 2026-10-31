@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/bootstrap"
+	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
@@ -24,35 +25,6 @@ import (
 // matrix suite's tenantA/tenantB so the two test binaries never collide
 // on OpenFGA store contents if ever run against a shared store.
 const seamTenant = "33333333-3333-3333-3333-333333333333"
-
-// iamMembersSeamMigration mirrors iam_members' shape (tenant_id, subject,
-// role_key) without importing the iam module — platform.Reconcile reads
-// this table with a raw SQL query rather than a Go model (see
-// platform/reconcile.go), and platform cannot import iam (iam imports
-// platform). This is the same fixture internal/platform's own reconcile
-// tests use, redefined here because it is unexported there.
-var iamMembersSeamMigration = tenantdb.Migration{
-	ID: "0001_seam_iam_members",
-	SQL: `
-		CREATE TABLE iam_members (
-		  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-		  tenant_id uuid NOT NULL,
-		  subject text NOT NULL,
-		  role_key text NOT NULL,
-		  created_at timestamptz NOT NULL DEFAULT now()
-		);
-		ALTER TABLE iam_members ENABLE ROW LEVEL SECURITY;
-		ALTER TABLE iam_members FORCE ROW LEVEL SECURITY;
-		CREATE POLICY tenant_isolation ON iam_members
-		  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-		  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-		-- BYPASSRLS confers no table privileges, and the harness grants the
-		-- system role none, so every fixture that a cross-tenant reader will
-		-- touch must grant it explicitly — exactly as the real migrations do
-		-- (#894). A fixture that omits this fails with "permission denied",
-		-- which is the same error production would give.
-		GRANT SELECT ON iam_members TO helivanta_system;`,
-}
 
 // seamVerifier is a minimal authn.TokenVerifier: the raw bearer token IS
 // the subject, always resolved into seamTenant. It stands in only for
@@ -100,7 +72,7 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	// Platform migrations must run first: medicore's policy now depends
 	// on hms_tenant_visible (Task 5/6), which only bootstrap's migration
 	// defines.
-	migs := append(bootstrap.PlatformMigrations(), iamMembersSeamMigration)
+	migs := append(bootstrap.PlatformMigrations(), iam.New(nil).Migrations()...)
 	migs = append(migs, mod.Migrations()...)
 	require.NoError(t, db.Migrate(ctx, migs))
 

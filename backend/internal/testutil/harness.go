@@ -35,6 +35,27 @@ const (
 // StaticVerifier maps bearer tokens to tenant ids for tests.
 type StaticVerifier map[string]string
 
+type harnessVerifier map[string]authn.Principal
+
+func (v harnessVerifier) Verify(_ context.Context, raw string) (authn.Principal, error) {
+	if p, ok := v[raw]; ok {
+		return p, nil
+	}
+	return authn.Principal{}, context.DeadlineExceeded
+}
+
+func newHarnessVerifier(tokens map[string]string) harnessVerifier {
+	issuedAt := time.Now()
+	claims := make(harnessVerifier, len(tokens))
+	for token, tenant := range tokens {
+		claims[token] = authn.Principal{
+			Subject: "user-" + token, TenantID: tenant,
+			AuthTime: issuedAt, IdleDeadline: issuedAt.Add(time.Hour),
+		}
+	}
+	return claims
+}
+
 func (s StaticVerifier) Verify(ctx context.Context, raw string) (authn.Principal, error) {
 	if tenant, ok := s[raw]; ok {
 		// AuthTime is "now", as a real, freshly-issued token's would be.
@@ -189,15 +210,8 @@ type HarnessOptions struct {
 	// to exercise the credential-revocation gate in authn.Middleware
 	// (#781).
 	Revocation authn.RevocationChecker
-	// Verifier defaults to StaticVerifier(opts.Tokens), which always
-	// stamps AuthTime as time.Now() at Verify time. Set it explicitly
-	// when a test needs to control AuthTime itself — e.g. proving a
-	// tenant-switch re-mint carries the ORIGINAL auth_time through
-	// rather than resetting it: with the default verifier, "carried
-	// through" and "reset to the mint time" are indistinguishable,
-	// because the original auth_time is ALSO stamped moments before the
-	// switch request and so is ALSO close to "now" by the time an
-	// assertion runs.
+	// Verifier defaults to immutable token claims issued at harness creation.
+	// Supply a verifier explicitly to control authentication time or expiry.
 	Verifier      authn.TokenVerifier
 	SessionSigner *session.Signer
 	// SessionTTL must be set alongside SessionSigner — it is the cookie
@@ -210,7 +224,7 @@ type HarnessOptions struct {
 	// iam's POST /v1/auth/session/activity re-opens on every call.
 	// Defaults to TestSessionTTL (15m) when left zero — comfortably
 	// longer than any harness test's own runtime, mirroring
-	// StaticVerifier's hour-out IdleDeadline default — so a test that
+	// the default verifier's hour-out IdleDeadline — so a test that
 	// isn't about the activity endpoint's specific window length still
 	// gets a sensible, non-zero value rather than a Signer.Mint refusal
 	// (idle_deadline <= epoch) if it happens to exercise that route
@@ -247,7 +261,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	}
 	verifier := opts.Verifier
 	if verifier == nil {
-		verifier = StaticVerifier(opts.Tokens)
+		verifier = newHarnessVerifier(opts.Tokens)
 	}
 	idleTimeout := opts.IdleTimeout
 	if idleTimeout == 0 {

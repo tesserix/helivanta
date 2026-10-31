@@ -126,12 +126,13 @@ func NewOnboardingHandler(deps platform.Deps, caller WorkloadVerifier) gin.Handl
 			return
 		}
 		// DB is committed before external authorization writes. Replay repairs a failed handoff.
-		if err = deps.Reconcile(c.Request.Context(), in.TenantID); err == nil {
-			err = deps.Authz.GrantRole(c.Request.Context(), in.TenantID, in.InitialAdminUserID, authz.RoleTenantAdmin)
+		projection := &fgaSyncHandlers{db: deps.DB, authz: deps.Authz, reconcile: deps.Reconcile}
+		data, marshalErr := json.Marshal(iamcontract.MemberChangedData{Subject: in.InitialAdminUserID, RoleKey: string(authz.RoleTenantAdmin)})
+		if marshalErr != nil {
+			respond.Error(c, 503, "onboarding_pending", "hospital authorization pending")
+			return
 		}
-		if err == nil {
-			err = deps.Authz.GrantTenantRole(c.Request.Context(), in.TenantID, authz.RoleTenantAdmin)
-		}
+		err = projection.project(c.Request.Context(), events.Event{Type: "MemberGranted", Version: 1, TenantID: in.TenantID, Data: data})
 		if err != nil {
 			respond.Error(c, 503, "onboarding_pending", "hospital authorization pending")
 			return

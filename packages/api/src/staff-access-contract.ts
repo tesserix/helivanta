@@ -194,3 +194,156 @@ export const TemplateDefinitionContract = z
   })
   .strict();
 export type TemplateDefinition = z.infer<typeof TemplateDefinitionContract>;
+
+export const MembershipCommandInputContract = z
+  .object({
+    operation: z.enum(["remove", "recover"]),
+    basis_id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    role_key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expected_membership_epoch: z.number().int().min(1),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type MembershipCommandInput = z.infer<typeof MembershipCommandInputContract>;
+
+export const MembershipCommandContract = z
+  .object({
+    id: identifier,
+    operation: z.enum(["remove", "recover"]),
+    basis_id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    role_key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expected_membership_epoch: z.number().int().min(1),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    result_membership_id: identifier,
+    result_membership_epoch: z.number().int().min(1),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type MembershipCommand = z.infer<typeof MembershipCommandContract>;
+
+export const MembershipCandidateContract = z
+  .object({
+    id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    role_key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    membership_epoch: z.number().int().min(1),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type MembershipCandidate = z.infer<typeof MembershipCandidateContract>;
+
+export const MembershipCommandHistoryContract = z
+  .object({
+    id: identifier,
+    operation: z.enum(["remove", "recover"]),
+    basis_id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    role_key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    expected_membership_epoch: z.number().int().min(1),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    result_membership_id: identifier,
+    result_membership_epoch: z.number().int().min(1),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    current_membership_epoch: z.number().int().min(1),
+    recoverable: z.boolean(),
+  })
+  .strict();
+export type MembershipCommandHistory = z.infer<typeof MembershipCommandHistoryContract>;
+
+export const MembershipEnrollmentInputContract = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type MembershipEnrollmentInput = z.infer<typeof MembershipEnrollmentInputContract>;
+
+export const MembershipEnrollmentContract = z
+  .object({
+    id: identifier,
+    subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    membership_id: identifier,
+    role_key: z.enum(["staff_member"]),
+    membership_epoch: z.number().int().min(1).max(1),
+    actor_subject: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type MembershipEnrollment = z.infer<typeof MembershipEnrollmentContract>;

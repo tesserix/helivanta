@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
+import { documentQueryKey } from "./document-queries";
 import {
   prepareDocumentUpload,
   submitDocumentUpload,
@@ -25,6 +26,7 @@ const input: DocumentInput = {
   sha256: "a".repeat(64),
 };
 const scope = {
+  subject: "synthetic-document-account",
   tenantId: "33333333-3333-4333-8333-333333333333",
   hospitalId: "44444444-4444-4444-8444-444444444444",
   staffId: record,
@@ -89,6 +91,12 @@ describe("staff document contract", () => {
 });
 
 describe("private document requests", () => {
+  it("separates private document caches for two accounts in the same tenant", () => {
+    expect(documentQueryKey(scope)).not.toEqual(
+      documentQueryKey({ ...scope, subject: "synthetic-other-account" }),
+    );
+  });
+
   it("reuses the explicit intent after a network error and pins every request to its tenant", async () => {
     vi.stubGlobal("crypto", webcrypto);
     const data = new TextEncoder().encode("synthetic image bytes");
@@ -139,6 +147,10 @@ describe("private document requests", () => {
     for (const request of requests)
       expect(new Headers(request.init.headers).get("X-Helivanta-Expected-Tenant")).toBe(
         scope.tenantId,
+      );
+    for (const request of requests)
+      expect(new Headers(request.init.headers).get("X-Helivanta-Expected-Subject")).toBe(
+        scope.subject,
       );
     expect(new Headers(requests[1].init.headers).get("Content-Type")).toBe("image/png");
     expect(requests[1].init.body).toBe(file);

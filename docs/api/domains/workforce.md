@@ -44,6 +44,34 @@ preconditions survive the Global API. Drafts are unreviewed and convey neither
 employment authority nor identity-card eligibility. Evidence binding, independent
 check decisions and card issuance remain open; see the detailed Workforce API.
 
+## Current permissions across private file I/O
+
+The Staff access source candidate refreshes the authenticated IAM resolver before
+each shared upload/download owner phase, including after storage I/O. Staff files
+require document management; employment evidence requires both document and
+enrollment management from the same fresh permission result. Benefit reads/uploads
+retain benefits view/manage respectively; tax reads/uploads retain payroll
+view/configure. Current hospital, Staff, purpose, pending-state and exact release
+checks remain additional owner conditions. Permission loss returns 403; resolver
+failure returns 503 without released bytes, success audit or a new scan command.
+A completed quarantine write may remain uncommitted for existing retry/cleanup.
+
+The subsequent source candidate also revalidates the original credential and
+the IAM current-identity check installed at request entry before these phases.
+It pins subject, tenant, authentication time and idle deadline to that original
+credential. Expired/revoked credentials or inactive identities return 401;
+unavailable identity/revocation sources return 503. IAM retains its direct source
+watermark check so a cached negative revocation observation cannot preserve an
+old token, including after account reactivation. Storage remains outside owner
+transactions. See the [identity-refresh design](../../superpowers/specs/2026-10-31-private-file-identity-refresh.md)
+for the source defect, verification requirements and limits; this candidate is
+not yet deployed or fully validated.
+
+This is not a transaction-held IAM/Workforce employment cutoff. Scoped HR intake,
+current-person review and every lifecycle consumer remain separate acceptance
+gates. See the [source and test design](../../superpowers/specs/2026-10-31-staff-file-current-permissions.md).
+No new permission, route, schema or production activation is introduced.
+
 ## Event and projection boundary
 
 Workforce publishes metadata-oriented change events for staff enrollment, HR definitions, rosters, leave, exchanges, overtime, attendance, payroll configuration, documents, credentials and benefits. Read exact subjects and consumers from the [registry inventory](../reference/inventory.json) and payload types from `backend/internal/modules/workforce/contract/events.go`; avoid copying their many definitions into another service.

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -36,10 +38,46 @@ func (logModule) Consumers(platform.Deps) []events.Consumer   { return nil }
 func (logModule) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (logModule) Routes(r *platform.Router, _ platform.Deps) {
+	r.Group("/logprobe").GET("/refresh", authz.Public, func(c *gin.Context) {
+		if !authn.Refresh(c) {
+			return
+		}
+		p, ok := authn.PrincipalFrom(c)
+		if !ok {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"subject": p.Subject, "tenant_id": p.TenantID, "auth_time": p.AuthTime, "idle_deadline": p.IdleDeadline})
+	})
 	r.Group("/logprobe").GET("/ping", authz.Public, func(c *gin.Context) {
 		requestid.Logger(c).Info("handled")
 		c.Status(http.StatusOK)
 	})
+}
+
+func TestNewHarnessPreservesOriginalTokenClaims(t *testing.T) {
+	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"stable": testutil.TenantA},
+		Modules: []platform.Module{logModule{}},
+	})
+	first := testutil.Do(r, http.MethodGet, "/v1/logprobe/refresh", "stable", "")
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	var p struct {
+		Subject      string    `json:"subject"`
+		TenantID     string    `json:"tenant_id"`
+		AuthTime     time.Time `json:"auth_time"`
+		IdleDeadline time.Time `json:"idle_deadline"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &p))
+	require.Equal(t, "user-stable", p.Subject)
+	require.Equal(t, testutil.TenantA, p.TenantID)
+	require.False(t, p.AuthTime.IsZero())
+	require.True(t, p.IdleDeadline.After(p.AuthTime))
+	second := testutil.Do(r, http.MethodGet, "/v1/logprobe/refresh", "stable", "")
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	require.JSONEq(t, first.Body.String(), second.Body.String())
+	denied := testutil.Do(r, http.MethodGet, "/v1/logprobe/refresh", "unknown", "")
+	require.Equal(t, http.StatusUnauthorized, denied.Code)
 }
 
 // TestNewHarnessRequestScopedLoggerCarriesCorrelationFields proves

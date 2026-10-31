@@ -160,6 +160,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/membership-candidates",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/membership-commands/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-commands",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-enrollments/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/membership-enrollments/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-enrollments",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -227,12 +281,12 @@
         {
           "name": "iam-fga-sync",
           "subject": "helivanta.in.iam.member_granted.v1",
-          "after_commit": false
+          "after_commit": true
         },
         {
           "name": "iam-fga-sync-revoke",
           "subject": "helivanta.in.iam.member_revoked.v1",
-          "after_commit": false
+          "after_commit": true
         }
       ],
       "broadcasts": [
@@ -325,6 +379,55 @@
         {
           "id": "0014_iam_staff_templates",
           "sql_sha256": "4ef69328d0c9353325b90d5b66feeac5823d4529239b03992da69e6dd9dff1bc",
+          "creates_tables": []
+        },
+        {
+          "id": "0015_iam_membership_commands",
+          "sql_sha256": "05596ad13bb1ba5830d5da6a665620dfa34994357a3ec79249b9921bd197856a",
+          "creates_tables": [
+            "iam_membership_commands"
+          ]
+        },
+        {
+          "id": "0016_iam_membership_candidate_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "iam_members_candidate_history",
+              "table": "iam_members",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0017_iam_membership_projection_reader",
+          "sql_sha256": "3f394505085d4aa6fa98d35fa4c0dcddff03b09ac448acca4bbcf5c5f3e4c059",
+          "creates_tables": []
+        },
+        {
+          "id": "0018_iam_membership_enrollments",
+          "sql_sha256": "72b9e92d0a5810d722afd39f0f291051fc3254cbf60338d4162bbf37cb3483bb",
+          "creates_tables": [
+            "iam_membership_enrollments"
+          ]
+        },
+        {
+          "id": "0019_iam_membership_recovery_admission",
+          "sql_sha256": "e4859d0e2686cf59604189259dfb90ba0fd854f76b8dae2375978162fad2c242",
           "creates_tables": []
         }
       ]

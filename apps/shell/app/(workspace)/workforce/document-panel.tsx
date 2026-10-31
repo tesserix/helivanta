@@ -8,7 +8,6 @@ import { Button } from "@tesserix/web";
 import { FileCheck2, FileText, Loader2, ShieldCheck, X } from "lucide-react";
 import {
   ApiError,
-  useApiQuery,
   useApiMutation,
   usePermissions,
   useTenantTransition,
@@ -26,6 +25,8 @@ import {
   staffDocumentSchema,
   type DocumentInput,
   type DocumentScope,
+  type EnrollmentRequestScope,
+  isEnrollmentAccessChanged,
   type DocumentUpload,
   type StaffDocument,
   type Staff,
@@ -80,24 +81,23 @@ type Operation =
 export function StaffDocumentPanel({
   hospital,
   staff,
+  scope,
+  onContextChanged,
   onClose,
 }: {
   hospital: Hospital;
   staff: Staff;
+  scope: EnrollmentRequestScope;
+  onContextChanged: () => void;
   onClose: () => void;
 }) {
   const { can } = usePermissions();
   const switching = useTenantTransition();
-  const memberships = useApiQuery<{ data: { tenant_id: string; current: boolean }[] }>(
-    ["iam", "me", "tenants"],
-    "/iam/me/tenants",
-  );
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.scrollIntoView({ block: "start", behavior: "smooth" });
     heading.current?.focus();
   }, []);
-  const tenant = memberships.data?.data.find((item) => item.current)?.tenant_id;
   const allowed = hospital.access_level === "manager" && can("workforce.documents.manage");
   return (
     <Panel flush aria-labelledby="staff-documents-heading" className="mt-6 scroll-mt-24">
@@ -127,28 +127,28 @@ export function StaffDocumentPanel({
         <p role="alert" className="p-6">
           You do not have permission to manage documents in this hospital.
         </p>
-      ) : memberships.isPending ? (
-        <p role="status" className="p-6">
-          Confirming your active workspace…
+      ) : !scope.tenantId || !scope.subject ? (
+        <p role="alert" className="p-6">
+          Your document account and tenant could not be verified. Reopen the Staff workspace.
         </p>
-      ) : !tenant || memberships.isError ? (
-        <div className="p-6">
-          <p role="alert">Your active tenant could not be confirmed.</p>
-          <Button variant="outline" onClick={() => void memberships.refetch()}>
-            Try again
-          </Button>
-        </div>
       ) : (
         <DocumentWorkspace
-          key={`${tenant}:${hospital.id}:${staff.id}`}
-          scope={{ tenantId: tenant, hospitalId: hospital.id, staffId: staff.id }}
+          key={`${scope.tenantId}:${scope.subject}:${hospital.id}:${staff.id}`}
+          scope={{ ...scope, hospitalId: hospital.id, staffId: staff.id }}
+          onContextChanged={onContextChanged}
         />
       )}
     </Panel>
   );
 }
 
-function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
+function DocumentWorkspace({
+  scope,
+  onContextChanged,
+}: {
+  scope: DocumentScope;
+  onContextChanged: () => void;
+}) {
   const records = useDocumentRecords(scope, true);
   const [cursor, setCursor] = useState<string | null>(null);
   const documents = useStaffDocuments(scope, cursor, true);
@@ -290,6 +290,15 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
       },
     },
   );
+  const accessChanged = [records.error, documents.error, action.error].some(
+    isEnrollmentAccessChanged,
+  );
+  useEffect(() => {
+    if (accessChanged) {
+      controller.current?.abort();
+      onContextChanged();
+    }
+  }, [accessChanged, onContextChanged]);
   const locked = attempted || action.isPending;
   const error =
     action.isError && action.error.name !== "AbortError"
@@ -312,6 +321,12 @@ function DocumentWorkspace({ scope }: { scope: DocumentScope }) {
     }
     form.setValue("file", value, { shouldValidate: true });
   }
+  if (accessChanged)
+    return (
+      <p role="alert" className="p-6">
+        Your document account, workspace or access changed. Reopen the Staff workspace.
+      </p>
+    );
   return (
     <div className="p-6">
       <div className="mb-6 flex items-start gap-3 rounded-xl bg-muted/40 p-4 text-sm">

@@ -82,56 +82,26 @@ func Middleware(v TokenVerifier, rev RevocationChecker) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "missing credentials"})
 			return
 		}
-		p, err := v.Verify(c.Request.Context(), raw)
-		if err != nil {
-			slog.Warn("auth verification failed", "err", err, "path", c.Request.URL.Path)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
+		p, ok := verifyCredential(c, v, rev, raw)
+		if !ok {
 			return
 		}
-		// The database reads "system:" and "service:" actors as the event bus
-		// or a worker (tenantdb.ActorSetting), so no credential may claim one;
-		// nor may it name no one, since every audited write needs its actor.
-		if strings.TrimSpace(p.Subject) == "" || strings.HasPrefix(p.Subject, "system:") || strings.HasPrefix(p.Subject, "service:") {
-			slog.Warn("refused a credential naming a process or no one", "path", c.Request.URL.Path)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
-			return
-		}
-		watermark, err := rev.RevokedAfter(c.Request.Context(), p.Subject)
-		if err != nil {
-			slog.ErrorContext(c.Request.Context(), "revocation lookup failed",
-				"err", err, "subject", p.Subject)
-			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
-				"error": "authz_unavailable", "message": "authorization is temporarily unavailable"})
-			return
-		}
-		// Not-after, deliberately: a token whose auth_time equals the
-		// watermark to the second is refused. Second granularity means a
-		// sign-in racing a revocation is ambiguous, and the safe reading
-		// of an ambiguous credential is that it is revoked.
-		if !watermark.IsZero() && !p.AuthTime.After(watermark) {
-			slog.InfoContext(c.Request.Context(), "refused a revoked credential",
-				"subject", p.Subject, "auth_time", p.AuthTime, "revoked_at", watermark,
-				"path", c.Request.URL.Path)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "unauthenticated", "message": "credential revoked"})
-			return
-		}
-		// Idle timeout (#848, spec D2), enforced server-side because the
-		// deadline travels inside the signed token rather than a
-		// browser-owned timer — a killed tab, a suspended laptop or a
-		// stolen cookie all fail closed here. No IsZero exemption: a zero
-		// deadline is treated as already past, not as "no limit" (see
-		// Principal.IdleDeadline). Not-before, mirroring the watermark
-		// check's not-after: exactly-now is refused. Distinct error code
-		// (session_idle) so the frontend can tell "went idle" from "bad
-		// credentials" apart (spec D6).
-		if !time.Now().Before(p.IdleDeadline) {
-			slog.InfoContext(c.Request.Context(), "refused an idle session",
-				"subject", p.Subject, "idle_deadline", p.IdleDeadline, "path", c.Request.URL.Path)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "session_idle", "message": "your session ended after a period of inactivity"})
-			return
-		}
+		c.Set(entryRefreshKey, func() bool {
+			current, ok := PrincipalFrom(c)
+			if !ok || !samePrincipal(current, p) {
+				rejectChangedCredential(c)
+				return false
+			}
+			fresh, ok := verifyCredential(c, v, rev, raw)
+			if !ok {
+				return false
+			}
+			if !samePrincipal(fresh, p) {
+				rejectChangedCredential(c)
+				return false
+			}
+			return true
+		})
 		c.Set(principalKey, p)
 		c.Request = c.Request.WithContext(tenantdb.WithActor(c.Request.Context(), p.Subject))
 		c.Next()
@@ -162,4 +132,59 @@ func TenantPrincipal(c *gin.Context) (Principal, uuid.UUID, bool) {
 		return Principal{}, uuid.Nil, false
 	}
 	return p, tenantID, true
+}
+
+func verifyCredential(c *gin.Context, v TokenVerifier, rev RevocationChecker, raw string) (Principal, bool) {
+	p, err := v.Verify(c.Request.Context(), raw)
+	if err != nil {
+		slog.Warn("auth verification failed", "err", err, "path", c.Request.URL.Path)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
+		return Principal{}, false
+	}
+	// The database reads "system:" and "service:" actors as the event bus
+	// or a worker (tenantdb.ActorSetting), so no credential may claim one;
+	// nor may it name no one, since every audited write needs its actor.
+	if strings.TrimSpace(p.Subject) == "" || strings.HasPrefix(p.Subject, "system:") || strings.HasPrefix(p.Subject, "service:") {
+		slog.Warn("refused a credential naming a process or no one", "path", c.Request.URL.Path)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated", "message": "invalid credentials"})
+		return Principal{}, false
+	}
+	watermark, err := rev.RevokedAfter(c.Request.Context(), p.Subject)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "revocation lookup failed",
+			"err", err, "subject", p.Subject)
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+			"error": "authz_unavailable", "message": "authorization is temporarily unavailable"})
+		return Principal{}, false
+	}
+	// Not-after, deliberately: a token whose auth_time equals the
+	// watermark to the second is refused. Second granularity means a
+	// sign-in racing a revocation is ambiguous, and the safe reading
+	// of an ambiguous credential is that it is revoked.
+	if !watermark.IsZero() && !p.AuthTime.After(watermark) {
+		slog.InfoContext(c.Request.Context(), "refused a revoked credential",
+			"subject", p.Subject, "auth_time", p.AuthTime, "revoked_at", watermark,
+			"path", c.Request.URL.Path)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthenticated", "message": "credential revoked"})
+		return Principal{}, false
+	}
+	// Idle timeout (#848, spec D2), enforced server-side because the
+	// deadline travels inside the signed token rather than a
+	// browser-owned timer — a killed tab, a suspended laptop or a
+	// stolen cookie all fail closed here. No IsZero exemption: a zero
+	// deadline is treated as already past, not as "no limit" (see
+	// Principal.IdleDeadline). Not-before, mirroring the watermark
+	// check's not-after: exactly-now is refused. Distinct error code
+	// (session_idle) so the frontend can tell "went idle" from "bad
+	// credentials" apart (spec D6).
+	if !time.Now().Before(p.IdleDeadline) {
+		slog.InfoContext(c.Request.Context(), "refused an idle session",
+			"subject", p.Subject, "idle_deadline", p.IdleDeadline, "path", c.Request.URL.Path)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "session_idle", "message": "your session ended after a period of inactivity"})
+		return Principal{}, false
+	}
+
+	return p, true
 }

@@ -83,3 +83,66 @@ type TemplateDefinition struct {
 	Family      string   `json:"family"`
 	Permissions []string `json:"permissions"`
 }
+
+type MembershipCommandInput struct {
+	Operation               string    `json:"operation" binding:"required,oneof=remove recover"`
+	BasisID                 uuid.UUID `json:"basis_id" binding:"required"`
+	Subject                 string    `json:"subject" binding:"required,max=200"`
+	RoleKey                 string    `json:"role_key" binding:"required,max=100"`
+	ExpectedMembershipEpoch int64     `json:"expected_membership_epoch" binding:"required,min=1"`
+	Reason                  string    `json:"reason" binding:"required,max=500"`
+}
+
+type MembershipCommand struct {
+	ID                      uuid.UUID `json:"id" binding:"required"`
+	Operation               string    `json:"operation" binding:"required,oneof=remove recover"`
+	BasisID                 uuid.UUID `json:"basis_id" binding:"required"`
+	Subject                 string    `json:"subject" binding:"required,max=200"`
+	RoleKey                 string    `json:"role_key" binding:"required,max=100"`
+	ExpectedMembershipEpoch int64     `json:"expected_membership_epoch" binding:"required,min=1"`
+	Reason                  string    `json:"reason" binding:"required,max=500"`
+	ResultMembershipID      uuid.UUID `json:"result_membership_id" binding:"required"`
+	ResultMembershipEpoch   int64     `json:"result_membership_epoch" binding:"required,min=1"`
+	ActorSubject            string    `json:"actor_subject" binding:"required,max=200"`
+	CreatedAt               time.Time `json:"created_at"`
+}
+
+type MembershipCandidate struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	Subject         string    `json:"subject" binding:"required,max=200"`
+	RoleKey         string    `json:"role_key" binding:"required,max=100"`
+	MembershipEpoch int64     `json:"membership_epoch" binding:"required,min=1"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type MembershipCommandHistory struct {
+	ID                      uuid.UUID `json:"id" binding:"required"`
+	Operation               string    `json:"operation" binding:"required,oneof=remove recover"`
+	BasisID                 uuid.UUID `json:"basis_id" binding:"required"`
+	Subject                 string    `json:"subject" binding:"required,max=200"`
+	RoleKey                 string    `json:"role_key" binding:"required,max=100"`
+	ExpectedMembershipEpoch int64     `json:"expected_membership_epoch" binding:"required,min=1"`
+	Reason                  string    `json:"reason" binding:"required,max=500"`
+	ResultMembershipID      uuid.UUID `json:"result_membership_id" binding:"required"`
+	ResultMembershipEpoch   int64     `json:"result_membership_epoch" binding:"required,min=1"`
+	ActorSubject            string    `json:"actor_subject" binding:"required,max=200"`
+	CreatedAt               time.Time `json:"created_at"`
+	CurrentMembershipEpoch  int64     `json:"current_membership_epoch"`
+	Recoverable             bool      `json:"recoverable"`
+}
+
+type MembershipEnrollmentInput struct {
+	Subject string `json:"subject" binding:"required,max=200"`
+	Reason  string `json:"reason" binding:"required,max=500"`
+}
+
+type MembershipEnrollment struct {
+	ID              uuid.UUID `json:"id" binding:"required"`
+	Subject         string    `json:"subject" binding:"required,max=200"`
+	Reason          string    `json:"reason" binding:"required,max=500"`
+	MembershipID    uuid.UUID `json:"membership_id" binding:"required"`
+	RoleKey         string    `json:"role_key"`
+	MembershipEpoch int64     `json:"membership_epoch"`
+	ActorSubject    string    `json:"actor_subject"`
+	CreatedAt       time.Time `json:"created_at"`
+}

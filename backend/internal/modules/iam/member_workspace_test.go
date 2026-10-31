@@ -96,7 +96,7 @@ func TestMemberRemovalRejectsChangedOrAmbiguousWorkspaceWithoutRemovingMembershi
 	}
 }
 
-func TestMemberRemovalMatchingWorkspaceAndLegacyReplayRemainAccepted(t *testing.T) {
+func TestMemberRemovalMatchingWorkspaceAndLegacyReplayRequireCommand(t *testing.T) {
 	r, _, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"admin": testutil.TenantA},
 		Perms:   map[string][]authz.Permission{"admin": {iam.PermMemberManage}},
@@ -109,11 +109,11 @@ func TestMemberRemovalMatchingWorkspaceAndLegacyReplayRemainAccepted(t *testing.
 	req.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
 	res := httptest.NewRecorder()
 	r.ServeHTTP(res, req)
-	require.Equal(t, http.StatusAccepted, res.Code, res.Body.String())
-	require.JSONEq(t, `{"subject":"synthetic-removal-staff","role_key":"staff_member"}`, res.Body.String())
+	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
+	require.Contains(t, res.Body.String(), `"error":"membership_command_required"`)
 	list := testutil.Do(r, http.MethodGet, "/v1/iam/members", "admin", "")
-	require.JSONEq(t, `{"data":[],"page":{"has_more":false,"next_cursor":null}}`, list.Body.String())
+	require.Contains(t, list.Body.String(), "synthetic-removal-staff")
 	replay := testutil.Do(r, http.MethodDelete, "/v1/iam/members/synthetic-removal-staff/staff_member", "admin", "")
-	require.Equal(t, http.StatusAccepted, replay.Code, replay.Body.String())
+	require.Equal(t, http.StatusConflict, replay.Code, replay.Body.String())
 	require.JSONEq(t, res.Body.String(), replay.Body.String())
 }

@@ -172,6 +172,9 @@ func (h *handlers) sendDocument(c *gin.Context, gate documentGate, p authn.Princ
 		documentUploadError(c, errDocumentsUnavailable)
 		return
 	}
+	if !refreshDocumentPermissions(c, gate, false) {
+		return
+	}
 	var saved document
 	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
@@ -196,6 +199,9 @@ func (h *handlers) sendDocument(c *gin.Context, gate documentGate, p authn.Princ
 	if err != nil || content.Generation != *saved.ReleasedGeneration || content.Size != saved.Size || content.SHA256 != saved.SHA256 {
 		// Uncertain or changed bytes never inherit a committed scan verdict.
 		documentUploadError(c, errDocumentsUnavailable)
+		return
+	}
+	if !refreshDocumentPermissions(c, gate, false) {
 		return
 	}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {

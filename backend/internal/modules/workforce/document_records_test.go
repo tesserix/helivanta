@@ -74,7 +74,7 @@ func TestDocumentRequestsCannotCrossAnExpectedTenantBoundary(t *testing.T) {
 		request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantB)
 		response := httptest.NewRecorder()
 		s.router.ServeHTTP(response, request)
-		require.Equal(t, 404, response.Code, route.method+" "+route.path+": "+response.Body.String())
+		require.Equal(t, 409, response.Code, route.method+" "+route.path+": "+response.Body.String())
 	}
 	request := httptest.NewRequest("GET", records, nil)
 	request.Header.Set("Authorization", "Bearer manager")

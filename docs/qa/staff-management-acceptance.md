@@ -1,5 +1,118 @@
 # Staff Management workflow acceptance
 
+## Frozen template history — 2026-10-31
+
+The canonical catalog correction prevents ordinary generation from silently
+rewriting existing template authority or SQL. Existing public artifacts and
+migration 0014 are unchanged. See the
+[validation checkpoint](staff-management-progress.md#accessrbac-checkpoint--2026-10-31-frozen-template-migration-history)
+for actual CLI/PostgreSQL evidence and remaining gates. It adds no runtime role,
+migration or employment activation; full A01–A12 remains open.
+
+## Staff document account binding — 2026-10-31
+
+The source audit reproduced ignored expected-account assertions and unbound
+client document caches. The current correction covers the ten owner routes,
+Staff UI, SDK, classification retry state and credential-evidence selector.
+See the [progress/evidence checkpoint](staff-management-progress.md#accessrbac-checkpoint--2026-10-31-staff-document-account-binding)
+and [33-route intake inventory](staff-intake-access-inventory.md). This is an
+undeployed access correction; full A01–A12 acceptance remains open.
+
+## Access/RBAC checkpoint — 2026-10-31: ended-membership admission
+
+Candidate IAM migration `0019_iam_membership_recovery_admission` blocks legacy
+restoration after retained final removal. Explicit recovery and duplicate repair
+remain supported; raw/legacy projection fixtures now exercise public recovery
+without weakening stale-authority assertions. See the
+[current evidence and outstanding gates](staff-management-progress.md#accessrbac-checkpoint--2026-10-31-ended-membership-admission)
+for the reproduced RED, validation results and real-provider/UI limitations.
+This remains an undeployed A02/A11 correction. Full A01–A12 and all 21 Staff
+area acceptance gates remain open; no production migration or rollout occurred.
+
+
+## Access/RBAC checkpoint — 2026-10-31: operator recovery UI candidate
+
+Console [draft PR #669](https://github.com/tesserix/tesserix-home/pull/669)
+contains implementation `d9117af4a21526ebd9f642cb1eb96ee7723f18de` and QA-gate
+notes at `209c2aa`. It adds exact retained command/request inspection, timestamped
+source observations, required proposal evidence, independent review decisions and
+matching-account reconciliation through the existing same-origin BFF. Current
+reader/writer capabilities, server-held credentials, source owner reauthorization,
+no-store, CSRF, exact route/method scope, query refusal and strict UTF-8 stay enforced.
+Uncertain requests/decisions freeze their UUIDv7/body/key; session-scoped browser
+storage retains identifiers/action/digest without private reasons or credentials.
+Reload and retained-outcome recovery preserve the same successor. Confirmed
+operator denial refreshes current reads and hides revoked private evidence;
+authorization-source outages are reported separately as unavailable.
+
+Canonical Go-derived models are published and byte-verified at owner
+`f75bb0e5479446c3a36015516a2bf661aee357a2`; exact owner CI 41131295353 passed.
+Source/schema ownership is unchanged: schema PR #1616, chart 0.3.62 / `325012b`.
+No new migration, SQL/FGA change, production account/grant or rollout occurred.
+
+Local console acceptance: **5,572 tests in 295 files passed with no skips** using
+`--maxWorkers=2`; typecheck, lint, production build, immutable artifact/provenance,
+staged redacted secret scan and diff checks pass. One earlier parallel rerun hit
+10-second setup hooks in six existing database files; no tests/timeouts were
+changed and bounded complete reruns passed. Read the console's
+`docs/qa/staff-recovery-console.md` for exact commands and evidence boundaries.
+
+Real local sign-in used separate synthetic provider/client/operator and PostgreSQL
+fixtures with auth bypass disabled. It reached the console callback, which Chrome
+blocked with `ERR_BLOCKED_BY_CLIENT`; human handoff is requested. No warning was
+bypassed, callback code committed or human session manufactured. Separately,
+GitHub refused to start console CI 41131982143, secret scan 41131982554 and mobile
+check 41131982158 because failed account payments/spending limits require owner
+attention. No remote tests ran. Billing/capacity handoff is requested; no billing,
+visibility or runner changes were made. New-head checks must pass before merge.
+
+**Access/RBAC A01–A12 remains incomplete.** Normal console/HMS Admin → recipient →
+independent reviewer acceptance, source/route coverage, production registration
+(owner #12), profile correction/activity, legacy membership/link/grant handling,
+renewal, all employment/contract lifecycles and cross-module cutoff acceptance
+remain open. Staff Management counts stay 10 partial, 10 audit pending, 1 research,
+0 fully accepted. No merge, production deployment, issue closure or release tag.
+
+
+## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
+
+Follow-up source-integrated HTTP evidence is pushed at `17e3dc90323a3d2c6ac410488b3c1295d792fc4d`
+in owner PR #22. The tagged local PostgreSQL/Zitadel race test passes through real
+organization/project/grant proof, independent absent-account approval, one late
+original creation, matching orphan reconciliation, immutable retry, no successor
+dispatch or reopened original dispatch, and actual grant withdrawal/restoration.
+Tagged API vet/lint and redacted secret/diff checks pass. Console tokens remain
+asserted fixtures; real login and normal HMS UI acceptance are not proven.
+Implementation-head CI run 41125307163 is now **passed**; the follow-up head's CI
+has not yet been observed at this update. No merge or deployment occurred.
+
+Identity-owner draft [PR #22](https://github.com/tesserix/onboarding-service/pull/22)
+now contains pushed `293aa359a97ba7a3d853d102b12253914f913ab2`.
+Fresh console write authority guards creation reconciliation and immutable independent
+review decisions. Matching source accounts retain original creation facts and block
+replacement; removed accounts retain historical birth. Approval serializes exact
+birth/absence checks with receipt admission, preventing a stale absence decision
+after a receipt arrives. Replacement atomically prepares a fresh bound successor
+without dispatching an account or granting membership. Entire recovery route family
+bypasses cached response replay. Authority-withdrawal tests cover before commit,
+after commit without disclosure, and authorized recovery of retained history.
+
+Local evidence: full PostgreSQL Go race/coverage suite, vet/build, default and
+provider-fixture lint, four delivery Python tests, redacted Gitleaks and diff checks
+passed. Decision/reconciliation HTTP tests use callback source proofs; actual-provider
+adapter tests from the preceding candidate remain separate evidence. New CI run
+[41125307163](https://github.com/tesserix/onboarding-service/actions/runs/41125307163)
+is queued at this checkpoint; previous `a3eab89` run 41120222174 passed.
+No new migration/schema change, merge, production rollout, tag or issue closure.
+
+**Access/RBAC remains partial.** Next gates include full real-source owner HTTP,
+consumer UI and Admin → recipient → independent reviewer acceptance, followed by
+membership recovery/removal, renewal, all employment/contract lifecycles and
+cross-module cutoff acceptance. No whole-area completion percentage is claimed;
+Staff Management counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
+The earlier checkpoint sections below describe their own evidence dates.
+
+
 Current audit: 2026-10-28. Summary status and the ordered Access/RBAC checklist are maintained in [the delivery tracker](staff-management-progress.md), updated 2026-10-29. Scope is every Staff navigation entry and its complete
 business workflows, including account provisioning/verification/offboarding,
 staff identity/background verification, protected photographs and identity-card

@@ -14,6 +14,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -31,6 +32,7 @@ var errDocumentsUnavailable = errors.New("document storage not configured")
 
 // documentGate authorises one route family's files for a staff member and binds new files to a record that still takes them.
 type documentGate interface {
+	permissions(writing bool) (authz.Permission, authz.Permission)
 	authorize(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, writing bool) error
 	// bind returns the version a new file records, or fails when the record no longer takes files.
 	bind(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) (int64, error)
@@ -59,6 +61,30 @@ func (staffDocuments) owns(tx *gorm.DB, p authn.Principal, hospital, staffID uui
 }
 
 func (staffDocuments) downloadAction() string { return "workforce.document.downloaded" }
+
+func (staffDocuments) permissions(bool) (authz.Permission, authz.Permission) {
+	return PermDocumentManage, authz.Public
+}
+
+func refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+	if !authn.Refresh(c) {
+		return false
+	}
+	primary, additional := gate.permissions(writing)
+	if primary == authz.Public {
+		respond.Error(c, http.StatusServiceUnavailable, "authz_unavailable", "authorization is temporarily unavailable")
+		return false
+	}
+	if !authz.Refresh(c, primary) {
+		return false
+	}
+	permissions, ok := authz.PermissionsFrom(c)
+	if !ok || additional != authz.Public && !permissions.Has(additional) {
+		respond.Forbidden(c, "missing permission "+string(additional))
+		return false
+	}
+	return true
+}
 
 func validDocumentFile(filename *string, digest string, size int64) bool {
 	*filename = strings.TrimSpace(*filename)
@@ -100,13 +126,8 @@ func documentRecord(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID,
 }
 
 func documentStaff(c *gin.Context) (uuid.UUID, bool) {
-	if expected := c.GetHeader("X-Helivanta-Expected-Tenant"); expected != "" {
-		p, _, ok := authn.TenantPrincipal(c)
-		requested, err := uuid.Parse(expected)
-		if !ok || err != nil || requested == uuid.Nil || requested.String() != p.TenantID {
-			respond.NotFound(c, "staff document")
-			return uuid.Nil, false
-		}
+	if _, _, ok := staffPrincipal(c); !ok {
+		return uuid.Nil, false
 	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {

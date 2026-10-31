@@ -498,6 +498,8 @@ function Directory({
         )}
       {documentStaff && manager && can("workforce.documents.manage") && (
         <StaffDocumentPanel
+          scope={scope}
+          onContextChanged={onContextChanged}
           key={documentStaff.id}
           hospital={hospital}
           staff={documentStaff}
@@ -506,6 +508,7 @@ function Directory({
       )}
       {credentialStaff && manager && can("workforce.enrollment.manage") && (
         <StaffCredentialPanel
+          account={scope}
           key={credentialStaff.id}
           hospital={hospital}
           staff={credentialStaff}

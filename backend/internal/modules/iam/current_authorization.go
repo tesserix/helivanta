@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
-
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -15,8 +13,55 @@ import (
 )
 
 type currentGraph interface {
-	authz.Resolver
-	authz.MembershipChecker
+	ResolveMembership(context.Context, authz.Membership) (authz.PermissionSet, error)
+	IsMembershipReady(context.Context, authz.Membership) (bool, error)
+	ListRoleCandidates(context.Context, string) ([]authz.RoleBinding, error)
+}
+
+// ListRoles treats graph bindings as candidate tenants, never current authority.
+func (a *CurrentAuthorization) ListRoles(ctx context.Context, subject string) ([]authz.RoleBinding, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	candidates, err := a.graph.ListRoleCandidates(ctx, subject)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool)
+	var result []authz.RoleBinding
+	for _, candidate := range candidates {
+		if seen[candidate.TenantID] {
+			continue
+		}
+		seen[candidate.TenantID] = true
+		before, err := currentMemberships(ctx, a.db, candidate.TenantID, subject)
+		if err != nil {
+			return nil, err
+		}
+		proofs := make(map[authz.Membership]bool, len(before))
+		for _, member := range before {
+			ready, err := a.graph.IsMembershipReady(ctx, member)
+			if err != nil {
+				return nil, err
+			}
+			proofs[member] = ready
+		}
+		after, err := currentMemberships(ctx, a.db, candidate.TenantID, subject)
+		if err != nil {
+			return nil, err
+		}
+		for _, member := range after {
+			if proofs[member] {
+				result = append(result, authz.RoleBinding{TenantID: member.TenantID, Role: member.Role})
+			}
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].TenantID != result[j].TenantID {
+			return result[i].TenantID < result[j].TenantID
+		}
+		return result[i].Role < result[j].Role
+	})
+	return result, nil
 }
 
 // CurrentAuthorization bounds graph authority by current IAM memberships.
@@ -47,69 +92,61 @@ func NewCurrentAuthorization(db *tenantdb.DB, registry *platform.Registry, graph
 	return a, nil
 }
 
-// Resolve intersects graph permissions with the current IAM role catalogue grants.
+// Resolve returns graph proof for source incarnations that remain current afterward.
 func (a *CurrentAuthorization) Resolve(ctx context.Context, subject, tenant string) (authz.PermissionSet, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	graph, err := a.graph.Resolve(ctx, subject, tenant)
+	before, err := currentMemberships(ctx, a.db, tenant, subject)
 	if err != nil {
-		return nil, fmt.Errorf("resolve graph permissions: %w", err)
+		return nil, err
 	}
-	roles, err := a.currentRoles(ctx, subject, tenant)
+	proofs := make(map[authz.Membership]authz.PermissionSet, len(before))
+	for _, member := range before {
+		proof, err := a.graph.ResolveMembership(ctx, member)
+		if err != nil {
+			return nil, fmt.Errorf("resolve membership permissions: %w", err)
+		}
+		proofs[member] = proof
+	}
+	after, err := currentMemberships(ctx, a.db, tenant, subject)
 	if err != nil {
 		return nil, err
 	}
 	allowed := authz.NewPermissionSet()
-	for _, role := range roles {
-		for permission := range a.permissions[role] {
-			if graph.Has(permission) {
+	for _, member := range after {
+		for permission := range a.permissions[member.Role] {
+			if proofs[member].Has(permission) {
 				allowed[permission] = struct{}{}
 			}
 		}
 	}
-	return allowed, ctx.Err()
+	return allowed, nil
 }
 
-// IsMember requires both projected membership and a current known IAM role.
+// IsMember requires a graph-ready incarnation that still exists in current IAM.
 func (a *CurrentAuthorization) IsMember(ctx context.Context, subject, tenant string) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	member, err := a.graph.IsMember(ctx, subject, tenant)
-	if err != nil {
-		return false, fmt.Errorf("resolve graph membership: %w", err)
-	}
-	if !member {
-		return false, ctx.Err()
-	}
-	roles, err := a.currentRoles(ctx, subject, tenant)
+	before, err := currentMemberships(ctx, a.db, tenant, subject)
 	if err != nil {
 		return false, err
 	}
-	return len(roles) > 0, ctx.Err()
-}
-
-func (a *CurrentAuthorization) currentRoles(ctx context.Context, subject, tenant string) ([]authz.Role, error) {
-	tenantID, err := uuid.Parse(tenant)
-	if err != nil || tenantID == uuid.Nil || tenantID.String() != tenant || subject == "" {
-		return nil, errors.New("current membership scope invalid")
+	proofs := make(map[authz.Membership]bool, len(before))
+	for _, member := range before {
+		ready, err := a.graph.IsMembershipReady(ctx, member)
+		if err != nil {
+			return false, fmt.Errorf("check membership projection: %w", err)
+		}
+		proofs[member] = ready
 	}
-	var roles []authz.Role
-	bound := len(authz.SystemRoles())
-	err = a.db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
-		return tx.Table("iam_members").Where("tenant_id=? AND subject=?", tenant, subject).
-			Order("role_key").Limit(bound+1).Pluck("role_key", &roles).Error
-	})
+	after, err := currentMemberships(ctx, a.db, tenant, subject)
 	if err != nil {
-		return nil, fmt.Errorf("read current IAM memberships: %w", err)
+		return false, err
 	}
-	// Unknown or truncated source authority denies instead of trusting stale tuples.
-	if len(roles) > bound {
-		return nil, errors.New("current membership role bound exceeded")
-	}
-	for _, role := range roles {
-		if !authz.KnownRole(role) {
-			return nil, errors.New("current membership role unknown")
+	for _, member := range after {
+		if proofs[member] {
+			return true, nil
 		}
 	}
-	return roles, nil
+	return false, nil
 }

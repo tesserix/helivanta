@@ -29,6 +29,12 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | DELETE | `/v1/iam/members/:subject/:role` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/members` | `iam.member.manage` | true | false |
 | POST | `/v1/iam/members` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-candidates` | `iam.member.manage` | true | false |
+| PUT | `/v1/iam/membership-commands/:id` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-commands` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
+| PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
@@ -45,8 +51,8 @@ Subscriptions:
 
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
-- `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: false.
-- `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: false.
+- `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
+- `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: true.
 - Fanout broadcast ← `helivanta.in.iam.credential_revoked.v1`.
 
 Migration table declarations:
@@ -58,6 +64,9 @@ Migration table declarations:
 - `0009_iam_assignment_decisions`: `iam_assignment_decisions`.
 - `0010_iam_assignment_projection`: `iam_assignment_scope_epochs`, `iam_assignment_snapshots`.
 - `0011_iam_assignment_membership`: `iam_subject_membership_epochs`, `iam_membership_revocations`.
+- `0015_iam_membership_commands`: `iam_membership_commands`.
+- `0016_iam_membership_candidate_index`: concurrent index `iam_members_candidate_history` on `iam_members (tenant_id, created_at DESC, id DESC)`.
+- `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 
 ## reference
 

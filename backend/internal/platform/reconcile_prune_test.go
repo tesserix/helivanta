@@ -10,6 +10,8 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 // orphanRoleTuple is a membership tuple no iam_members row backs — the
@@ -21,8 +23,18 @@ func orphanRoleTuple(tenantID, subject string, role authz.Role) authz.Tuple {
 	}
 }
 
-func backedRoleTuple(tenantID, subject string, role authz.Role) authz.Tuple {
-	return orphanRoleTuple(tenantID, subject, role)
+func backedRoleTuple(t *testing.T, db *tenantdb.DB, tenantID, subject string, role authz.Role) authz.Tuple {
+	t.Helper()
+	var row struct {
+		ID    string
+		Epoch int64
+	}
+	require.NoError(t, db.WithTenant(context.Background(), tenantID, func(tx *gorm.DB) error {
+		return tx.Table("iam_members AS m").Select("m.id::text AS id,e.epoch").Joins("JOIN iam_subject_membership_epochs e ON e.tenant_id=m.tenant_id AND e.subject=m.subject").Where("m.subject=? AND m.role_key=?", subject, role).Take(&row).Error
+	}))
+	tuples, err := authz.MembershipTuples(authz.Membership{TenantID: tenantID, ID: row.ID, Subject: subject, Role: role, Epoch: row.Epoch})
+	require.NoError(t, err)
+	return tuples[1]
 }
 
 // TestReconcileDeletesTupleWithNoBackingRow is convergence test 1 with a
@@ -36,7 +48,7 @@ func TestReconcileDeletesTupleWithNoBackingRow(t *testing.T) {
 	require.NoError(t, reg.Register(grantingModule{"x"}))
 	orphan := orphanRoleTuple(tenantA, "ghost", authz.RoleDoctor)
 	w := &capturingWriter{existing: map[string][]authz.Tuple{
-		tenantA: {orphan, backedRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)},
+		tenantA: {orphan, backedRoleTuple(t, db, tenantA, "dr-jane", authz.RoleDoctor)},
 	}}
 
 	require.NoError(t, platform.Reconcile(context.Background(), reg, db, w))
@@ -103,8 +115,8 @@ func TestReconcileRefusesToPruneOnGlobalEmptyMembershipRead(t *testing.T) {
 	reg := platform.NewRegistry()
 	require.NoError(t, reg.Register(grantingModule{"x"}))
 	w := &capturingWriter{existing: map[string][]authz.Tuple{
-		tenantA: {backedRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)},
-		tenantB: {backedRoleTuple(tenantB, "dr-bob", authz.RoleDoctor)},
+		tenantA: {orphanRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)},
+		tenantB: {orphanRoleTuple(tenantB, "dr-bob", authz.RoleDoctor)},
 	}}
 
 	err := platform.Reconcile(context.Background(), reg, db, w)
@@ -132,7 +144,7 @@ func TestReconcileRefusesToPruneOnAllUnknownRoleKeys(t *testing.T) {
 
 	reg := platform.NewRegistry()
 	require.NoError(t, reg.Register(grantingModule{"x"}))
-	legit := backedRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)
+	legit := orphanRoleTuple(tenantA, "dr-jane", authz.RoleDoctor)
 	w := &capturingWriter{existing: map[string][]authz.Tuple{
 		tenantA: {legit},
 	}}
@@ -293,13 +305,13 @@ func TestReconcileConvergesAgainstRealOpenFGA(t *testing.T) {
 	}.Key())
 
 	// 2. the backed tuple survived.
-	require.Contains(t, after, backedRoleTuple(tenantA, "dr-jane", authz.RoleDoctor).Key())
+	require.Contains(t, after, backedRoleTuple(t, db, tenantA, "dr-jane", authz.RoleDoctor).Key())
 
 	// Cross-tenant isolation: B is byte-identical to what a tenant with
 	// exactly these backing rows should hold, and in particular still
 	// holds dr-bob's membership.
 	beforeB := tupleKeys(t, fga.Client, tenantB)
-	require.Contains(t, beforeB, backedRoleTuple(tenantB, "dr-bob", authz.RoleDoctor).Key())
+	require.Contains(t, beforeB, backedRoleTuple(t, db, tenantB, "dr-bob", authz.RoleDoctor).Key())
 
 	// 3. a second run with unchanged Postgres state is a no-op.
 	fga.deletes = 0

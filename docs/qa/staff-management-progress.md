@@ -2,6 +2,841 @@
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 
+## Integration and complete owner-suite checkpoint — 2026-10-31
+
+Credential-refresh source `a8e149eb` is pushed to draft PR #1489. Complete
+Workforce race/coverage passes: 521 passing test/subtest events, zero skips or
+failures, 83.7% statement coverage, 467.639 seconds. Complete IAM race/coverage
+passes: 300 passing events, 82.4%, 339.735 seconds; eight conditional provider
+skips are separately resolved by eight real-provider passes in 29.983 seconds.
+The complete final journey race suite passes in 57.342 seconds, including all
+19 file-boundary scenarios. Authn/harness races, full vet/build, affected lint,
+contract freshness, formatting/diff and staged redacted secret scanning pass.
+Normal local Admin download and fresh restricted-reviewer UI evidence are
+recorded below; the local API remains on `a8e149eb`.
+
+GitHub reports the PR conflicting with current main, so quality CI did not start
+for that source; its separate image workflow is live. Integration with main
+`4587b55b` is prepared in an isolated worktree, retaining the original live test
+checkout. The sole conflict was this tracker; both complete histories are
+preserved. Main's leave privacy fix and unrelated billing/MediCore changes are
+retained. Canonical contract generation/check, full vet/build and clean conflict/
+diff checks pass on the combined source. Its bootstrap/Global API/architecture/
+journey races and web validation remain separate pending gates.
+
+The combined canonical registry has **19 IAM / 171 module migrations**. Main
+contributes `0009_billing` and `0009_medicore`; their source SQL/registrations are
+retained. This integration adds no new Staff migration, and neither inherited
+migration has been run against the existing application fixture or production.
+Historical 169-migration checkpoints remain accurate for their earlier source.
+No merge to main, production rollout, release, issue closure or A01–A12 completion
+is claimed. Full scoped HR/person/employment and every lifecycle cutoff remain
+required.
+
+## Original credential and identity across private file I/O — 2026-10-31
+
+Real signed-session IAM/PostgreSQL/OpenFGA/Global API regressions reproduced
+private bytes returning 200 when the credential was revoked, the account became
+inactive, or the identity provider became unavailable during storage reads.
+Permission refresh alone did not prevent these disclosures. The candidate now
+revalidates the original credential and the IAM identity check installed at entry
+before each shared file-owner phase. It pins the original subject, tenant,
+authentication time and idle deadline, retains IAM's uncached source watermark
+check, and keeps all provider/storage calls outside owner transactions.
+
+The full journey race suite passes in 57.342 seconds, including 19 file-boundary
+scenarios: the earlier Staff/employment/benefit/tax permission cases and revoked,
+inactive and unavailable identity during both read and quarantine upload. Denial
+releases no bytes/filename, records no false successful read, and binds no upload
+generation or second scan command. Reactivation still rejects the old credential.
+Complete authn and harness race suites pass (3.006 / 8.631 seconds). The harness
+regression first returned 401 because its default fake token changed claims on
+every verification; immutable claims fix that fixture without weakening principal
+checks. A subsequent test-only correction explicitly serializes timestamps that
+Principal intentionally omits from JSON. The public StaticVerifier and explicit
+custom verifiers remain unchanged.
+
+Normal local Admin UI reopened the six-row synthetic directory, opened contractor
+evidence and completed one download through the original native Save dialog. The
+179-byte PNG matches the canonical SHA-256. Fresh normal restricted-reviewer
+sign-in retains six-row read-only directory access with no document/edit controls.
+Private screenshots and `staff-file-identity-refresh-browser-evidence-20261031.json`
+retain the evidence. API and Global API readiness return 200. This local runtime
+uses the candidate source, not a production rollout or independent employment
+approval. Larger owner/architecture suites and final validation are still running
+at this checkpoint; their terminal evidence must be recorded before release.
+
+The complete IAM race/coverage suite passes in 339.735 seconds. Its eight
+conditional provider skips are covered by a separate real localhost Zitadel run:
+all eight integration tests pass, zero skips/failures, in 29.983 seconds. The
+first provider invocation omitted the configured Docker socket and used an
+outdated seed PAT; the corrected run uses the existing local fixture credential
+and test VM without modifying tests, credentials or permissions. Private red and
+green logs are retained. Workforce and remaining package checks continue below
+as separate gates.
+
+Full vet/build, affected lint and contract freshness have passed; a context-key
+name that triggered a false-positive hardcoded-secret lint finding was renamed
+without suppression. The previous PR head `5e1aede0` now has passing Go/web/E2E,
+scripts, secret and image checks, but those results do not validate this new head.
+The identity-owner dependency remains draft with green checks at `f75bb0e`; the
+console dependency remains draft at `209c2aa`. Current GitHub annotations confirm
+its build jobs did not start because account payments/spending limits need owner
+attention. No billing, runner, visibility or production changes were made.
+
+See the [design](../superpowers/specs/2026-10-31-private-file-identity-refresh.md)
+and [implementation plan](../superpowers/plans/2026-10-31-private-file-identity-refresh.md).
+All A01–A12 requirements remain active: scoped HR intake/person/employment review,
+legacy cohort reconciliation, renewal, suspension/resumption, resignation,
+termination, contract expiry, rehire and every consumer cutoff still need full
+acceptance. Counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
+No new route, permission, SQL migration or FGA model was introduced.
+
+## File cutoff fix pushed and local browser checked — 2026-10-31
+
+`5e1aede0` is pushed to draft PR #1489 with the shared file permission refresh,
+real source/gateway regressions, and the retained SQL lock-observer correction.
+Exact-head CI is running. The API is built from that source and healthy on the
+existing localhost fixture; no production rollout or new migration occurred.
+
+Normal restricted-reviewer directory access remains read-only. A normal Admin
+sign-in opened existing contractor evidence and completed one UI download: the
+native Save dialog was completed for the original attempt, and the 179-byte PNG
+matched its canonical SHA-256. The updated
+[local UI record](2026-10-31-staff-membership-recovery-local-ui.md) distinguishes
+startup/event observation timeouts from terminal failures and records private
+runtime/artifact evidence. No bypass, extra grant or repeat download was used.
+Full A01–A12, scoped HR/person/employment integration, remaining family/race and
+all lifecycle/cross-module/deployed gates remain open.
+
+## Current file permissions after storage — 2026-10-31
+
+A real IAM/PostgreSQL/OpenFGA/signed-session journey reproduced a private Staff
+download returning 200 after IAM administrator-role removal during the storage
+read. Ordinary membership, the hospital-manager row and the stale graph grant
+remained, isolating the permission-source gap. The shared file pipeline now
+refreshes current permissions before owner phases and after storage I/O. Staff,
+employment, benefit and tax gates declare their existing read/write requirements;
+both employment permissions must remain current from one resolver result.
+
+Five real-service cases pass through the Global API: role loss during Staff
+read/upload; loss of either employment permission independently; and an actual
+HTTP-level graph outage during storage. They verify denial/no private bytes or
+filename, no-store responses, no false successful-read audit, and upload remaining
+unbound to a source generation with no second scan command. Focused gateway race
+run: 18.967 s. Full cross-module journey race suite passes (40.741 s); full Global
+API and architecture races pass (75.720 s / 34.974 s). Full vet/build, affected
+lint and contract freshness pass. The full Workforce race suite passes: 521
+passing test/subtest events, zero failures/skips, 83.7% statement coverage
+(461.510 s); cross-module journeys have 12 passes and no failures/skips. Benefit/tax mid-I/O IAM cases remain distinct gates;
+existing positive/owner-boundary tests must also pass.
+
+The earlier recovery PR Go failure was a lock observer matching obsolete joined
+SQL. It was reproduced locally and corrected without weakening blocker-PID or
+403/no-write assertions; the focused Global API journey passes (26.437 s).
+The observer-only fix is `e65f7810`. Test fixture corrections (file RLS context
+and deterministic graph unavailability instead of soft store deletion) retain
+all original denial assertions.
+
+See the [design](../superpowers/specs/2026-10-31-staff-file-current-permissions.md)
+and [plan](../superpowers/plans/2026-10-31-staff-file-current-permissions.md).
+This is current permission refresh across file I/O, not a transaction-held IAM
+or employment cutoff. Full scoped HR intake/owner/storage/UI integration,
+current-person basis, independent employment review, legacy cohort classification
+and every A01–A12 lifecycle/cross-module journey remain open. No new role, route,
+SQL migration, production rollout or complete Staff area is claimed.
+
+## Membership recovery UI and compound expiry — 2026-10-31
+
+The candidate source `e848beaf` is now running behind the existing local Global
+API and registered UI origin. Older local APIs/UI were captured before switching;
+a private database backup preceded canonical local migration startup. Migration
+receipts and exact registered SQL/index definitions remain saved for replay.
+
+Normal UI QA passed Admin first enrollment and retained receipt/reload;
+recipient login with administration/payroll denial; Admin removal; removed
+recipient fresh-login denial; explicit ordinary recovery with retained removal
+and recovery history; recovered recipient login with continued administration/
+payroll denial; and existing restricted reviewer sign-in with unchanged six-row
+read-only directory. Read-only source evidence confirms a new ordinary membership
+ID, generation 2 and no hospital grant, Staff link or scoped proposal. The IdP
+verified-email state was setup, not contact-verification acceptance. No employment
+or privileged access was approved.
+
+Two-grant earliest-expiry rollback now has direct real-service race evidence.
+The restored test passes (25.230 s); selecting the later expiry makes it fail
+with deadline rather than authority denial (27.510 s). Vet/lint pass. The
+[local UI record](2026-10-31-staff-membership-recovery-local-ui.md) separates exact
+source, private evidence, observation limits and all remaining full A01–A12 gates.
+No whole Staff area, production release or lifecycle cutoff is marked complete.
+
+## Compound command authority — local implementation, 2026-10-31
+
+Full Access/RBAC A01–A12 remains open. IAM now has an additive bounded compound
+command guard; the existing single-grant method delegates to it. One or two
+server-required permission/evidence pairs must share the current account,
+tenant, hospital, membership generation and acknowledged scope epoch. Duplicate
+requirements, conflicting receipts and mixed scopes fail before owner work.
+Active proposal rows lock in stable ID order before membership and scope; the
+credential watermark lock and all source locks stay held through owner commit.
+Every exact permission/snapshot is rechecked after waits and before commit, with
+the earliest grant expiry bounding the command. Caller input is cloned.
+
+The real-service capability assertion failed before implementation
+(`/tmp/staff-compound-red.log`). Two independently reviewed assignments pass,
+including missing permission, malformed/mixed evidence, revoked credential,
+unavailable dependency and shared owner rollback checks. PostgreSQL observed an
+actual withdrawal lock wait until the owner commit; retained evidence then denied.
+Removing the source-lock call made that assertion fail
+(`/tmp/staff-compound-missing-locks-red.log`); the implementation was restored.
+Existing leave/identity projection race tests pass (88.966 s); the extended
+compound lock-wait test passes (10.457 s). Architecture race tests pass
+(57.327 s), as do full Go vet/build, affected lint and contract/schema freshness.
+The full IAM race/coverage suite passes: 300 passing test/subtest events, no
+failures, 82.3% statement coverage (346.121 s). Its eight conditional provider
+skips were resolved by the separate real-provider run below. The final expanded
+compound test, including reversed input and the observed withdrawal wait, passes
+again after restoring locks (9.855 s). Authz and tenantdb race packages pass;
+architecture passes in its separate correct-package invocation. The first combined
+command named nonexistent `internal/arch` and therefore exited nonzero despite
+those package passes; `internal/archtest` is the correct architecture package.
+A later support-only invocation omitted the Docker environment and failed fixture
+startup; the configured rerun passed authz (75.5%, 6.887 s), tenantdb (81.8%,
+18.548 s) and architecture (44.803 s). No failing test was skipped
+or changed to hide either invocation error.
+
+The Forge upstream fix from PR #1494 is also included on this draft branch.
+Frozen pnpm installation, the production high-severity audit and all 54 script
+tests pass. The audit retains lower-severity findings and the existing decoder
+exception; no additional ignore was introduced. The internal guard is committed
+at `cb9392a8`; the dependency replacement is `f1c47701`. Exact-head CI, browser
+and deployed acceptance remain separate pending gates.
+
+All eight real localhost Zitadel integration tests pass with race detection,
+zero failures/skips (30.383 s). Credentials were loaded only into the child
+process. Mode-0600 evidence remains in the private QA bundle as
+`compound-guard-zitadel-provider-20261031.jsonl`.
+
+This is an internal prerequisite, not activated HR intake, employment review or
+cutoff. No new route, permission, template, SQL migration, FGA model or production
+role/rollout is introduced. Compound expiry/lock-wait/activation combinations,
+query-plan/latency acceptance and actual Workforce storage/owner/UI integration
+remain gates before consumer activation. Continue the
+[implementation plan](../superpowers/plans/2026-10-31-compound-staff-command-authority.md),
+then person identity, independent employment decisions and every effective
+suspension/resumption/exit/contract-expiry/rehire and cross-module cutoff. No
+A-item, Staff area, browser or deployed acceptance is newly marked complete.
+
+## Access/RBAC checkpoint — 2026-10-31: frozen template migration history
+
+The actual generator regression proved that editing an existing template permission
+could successfully rewrite historical migration 0014. An independent regression
+also proved that pinning SQL alone missed family changes. The canonical Staff
+contract now stores an ordered template-migration catalog with normalized public-
+definition and exact SQL digests. The generator validates the complete history,
+unique versioned keys, numeric migration phases and safe output paths before any
+model/artifact writes. Invalid or changed history fails closed without partial
+output. Existing generated Go/Zod/UI artifacts and migration 0014 remain byte-for-
+byte unchanged. No intake role or runtime migration is introduced.
+
+A scratch PostgreSQL test applies the generated-equivalent additive fixture,
+verifies all three original permission mappings, the new test-only mapping and
+unknown-key denial, then proves public template discovery stays unchanged and
+an undeclared application template cannot be proposed. The fixture is under
+`backend/internal/modules/iam/testdata`; it is not a registered production migration.
+The actual CLI tests cover unchanged normal/check runs, additive emission, rejected
+historical permission/family/snapshot changes, bad digests, unsafe/reused paths,
+reused IDs/phases/keys, missing history and no partial writes.
+
+Validation: 54 script tests passed with zero skips; full IAM race/coverage passed
+in 296.939 seconds at 82.0%, with 289 passing test/subtest events, zero failures
+and eight existing conditional real-provider skips. The separate real PostgreSQL
+append/discovery/proposal check passed. Full Go vet/build/lint, contractdocs
+freshness and canonical generation/check passed; public artifact diff is empty.
+All 21 frontend lint/format/typecheck tasks passed; final script formatting and
+lint were rechecked successfully after the last test-only addition. No runtime
+frontend files changed, so the prior full UI tests/build are not newly claimed.
+
+Commands run: `node --test scripts/staff-template-migrations.test.mjs` (RED then
+GREEN), `pnpm --filter @helivanta/scripts test`, normal/check Staff generation,
+`go -C backend test -race ./internal/modules/iam -run TestAppendOnlyTemplateSQLPreservesPublishedDefinitions -count=1`,
+`go -C backend test -json -race -cover ./internal/modules/iam -count=1`, full Go
+vet/build/lint, `go -C backend run ./cmd/contractdocs -check`, and
+`pnpm turbo lint format:check type-check`. Exact source review remains in
+[draft PR #1489](https://github.com/tesserix/helivanta/pull/1489).
+
+The [compound command design](../superpowers/specs/2026-10-31-compound-staff-command-authority.md)
+records the actual two-permission evidence consumer and source-lock ordering to
+implement next. It is a design, not implemented compound authority or HR workflow.
+The catalog does not establish old/new consumer compatibility or activate a new
+template. Scoped HR intake, current reviewed actor/person basis, immutable employment
+review, legacy-governance classification, every employment lifecycle/cross-module
+cutoff and normal Admin/recipient/reviewer browser acceptance remain required.
+Counts stay 10 partial, 10 audit pending, 1 research, 0 fully accepted. Full A01–A12
+remains active. No production schema, grant, account, rollout or release changed.
+
+## Access/RBAC checkpoint — 2026-10-31: Staff document account binding
+
+The source/phase audit now records all **33 HR intake primary-permission routes**
+(23 enrollment, 10 document), secondary evidence permissions, shared helper
+consumers, storage authorization phases and the historical template migration
+boundary in [the inventory](staff-intake-access-inventory.md). Scoped HR intake,
+compound command authority and immutable employment review remain to implement.
+
+A real PostgreSQL/NATS file regression returned private synthetic metadata with
+200 despite a different expected account. The common document parameter helper
+now reuses the shared Staff principal precondition. All ten document routes
+reject empty/invalid/repeated/joined/mismatching tenant/account assertions with
+no-store `409 session_changed`; actual foreign scope stays 404. This explicitly
+corrects the old mismatching-tenant 404 response. Real released-file checks cover
+100 invalid-header/route combinations, unchanged file/classification/audit/outbox,
+zero released-byte reads on denial, matching/headerless downloads and foreign scope.
+
+Separate client regressions were RED for missing subject headers and same-tenant
+account cache collisions. The Staff document UI and credential-evidence selector
+now inherit the original verified Staff account; SDK headers/cache keys and
+classification form keys bind that account. Tests cover aborted file preparation
+without PUT after account change, no uncertain classification command carried
+across accounts, and hidden private state plus parent context invalidation on
+session_changed. Network uncertainty retains exact retry within the original account.
+
+Focused backend race and 29 related UI tests pass. Full Workforce race/coverage
+passed in 449.125 seconds: 83.8% statement coverage, 521 passing test/subtest
+events, zero failures and zero skips. Full Go vet/build/lint and 21 frontend
+lint/format/typecheck tasks pass. API suite: 413 tests in 60 files passed.
+The five remaining frontend test tasks also pass. Complete shell tests pass:
+1,258 tests in 160 files. Production shell build and Expo web/iOS/Android exports
+pass. The first build correctly refused an absent API_URL; the successful rerun
+supplied the canonical local Global API origin `http://localhost:8081`, without
+changing the configuration guard. Existing Vite/jsdom navigation and Next
+middleware-deprecation warnings were reported; no test or guard was suppressed. An initial
+client typecheck identified the credential-evidence selector as another consumer;
+it now inherits the account too. No failing assertion was removed or skipped.
+
+Commands actually run (Go 1.27.3; Node 24.22.1 for final frontend checks):
+
+- RED/GREEN: `go -C backend test ./internal/modules/workforce -run TestStaffDocumentRequestsRejectChangedExpectedAccount -count=1` (200 before the guard; 409 after).
+- `go -C backend test -race ./internal/modules/workforce -run 'TestStaffDocumentRequestsRejectChangedExpectedAccount|TestDocumentRequestsCannotCrossAnExpectedTenantBoundary' -count=1` (passed).
+- `go -C backend test -json -race -cover -timeout=20m ./internal/modules/workforce -count=1` (passed, results above; disposable Colima PostgreSQL/NATS).
+- `go -C backend vet ./...`, `go -C backend build ./...`, and from backend `golangci-lint run ./...` (passed).
+- `go -C backend run ./cmd/contractdocs -check`, canonical staff-access check and Go formatting/diff checks (passed).
+- `pnpm turbo lint format:check type-check` (21 successful tasks).
+- `pnpm --filter @helivanta/api exec vitest run --maxWorkers=2` (413 passed).
+- `pnpm --filter @helivanta/shell exec vitest run --maxWorkers=2` (1,258 passed).
+- `pnpm turbo test --filter='!@helivanta/api' --filter='!@helivanta/shell' --concurrency=2` (remaining five test tasks passed).
+- `API_URL=http://localhost:8081 pnpm turbo build` (both build tasks passed).
+
+Membership guard source `a12216d1` is pushed to [draft PR #1489](https://github.com/tesserix/helivanta/pull/1489),
+with exact-head CI [41136443845](https://github.com/tesserix/helivanta/actions/runs/41136443845)
+still running at the latest check. This continuation adds no migration, SQL/FGA
+change, permission, endpoint, production account or rollout. Browser handoffs,
+console CI billing gate, production registration, legacy grant migration, all
+employment lifecycles and cross-module cutoff remain open. Counts stay 10 partial,
+10 audit pending, 1 research, 0 fully accepted; A01–A12 remains the full objective.
+
+## Access/RBAC checkpoint — 2026-10-31: ended-membership admission
+
+The current legacy POST regression reproduced implicit restoration after final
+membership removal: expected 409, actual 202. Candidate migration
+`0019_iam_membership_recovery_admission` now rejects zero-to-positive continuity
+without explicit command/removal-basis context, using the already serialized
+continuity row. The handler maps only the named integrity violation to no-store
+`409 membership_recovery_required`. SQL is persisted beside its embedded module
+migration and recorded in the generated contract inventory; no live migration
+has been run.
+
+Real PostgreSQL/NATS HTTP checks pass for ordinary/clinical/admin-role legacy
+restoration refusal, unchanged epoch/membership/audit/outbox, legitimate explicit
+recovery, duplicate repair retaining the recovered ID, direct runtime-role
+inserts with absent/partial contexts, forged non-admin context refusal, tenant
+isolation and an observed final-removal lock wait followed by refusal. These
+are synthetic API/database checks, not normal browser authentication evidence.
+
+Validation checkpoint: full build, full vet, full Go lint (0 issues), contract
+generation/check, contractdocs tests and focused IAM membership journey passed.
+The complete architecture suite and IAM loginclient/contract race suites also
+passed. Full IAM runs exposed historical raw/legacy POST reenrollment in two
+projection fixtures plus the obsolete migration count; both positive fixtures
+now use public removal/recovery commands while preserving stale-projection,
+pending-approval and generation assertions. Targeted leave/identity/projection
+race checks pass. The final full IAM race/coverage run passed in 300.193 seconds
+with 82.0% statement coverage, 288 passing test/subtest events, zero failures
+and eight pre-existing conditional skips. Eight real-Zitadel integration tests skip
+without their separate dev credential environment; this is unrun acceptance,
+not a passing real-provider journey. No new skips were introduced. One full
+architecture invocation omitted the required Docker socket environment and
+failed fixture startup; its corrected full rerun passed without test changes.
+
+Commands run from `backend/` with the established disposable Colima socket for
+container-backed suites:
+
+- RED: `go test ./internal/modules/iam -run TestLegacyMembershipGrantCannotReopenEndedMembership -count=1` (202 instead of 409).
+- Final: `go test -json -race -cover ./internal/modules/iam -count=1` (passed; conditional skips above).
+- `go test -race ./internal/modules/iam/loginclient ./internal/modules/iam/contract -count=1` (passed).
+- `go test ./internal/archtest -count=1` (passed).
+- `go test ./internal/journey -run TestIAMGrantMembership -count=1` (passed, in the combined focused architecture/journey invocation).
+- `go test ./cmd/contractdocs -count=1`, `go run ./cmd/contractdocs`, `go run ./cmd/contractdocs -check` (passed).
+- `go vet ./...`, `go build ./...`, `golangci-lint run ./...` (passed; scoped lint rerun after fixture changes also passed).
+- `gofmt -l internal/modules/iam`, `node ../scripts/generate-staff-access.mjs --check`, `git diff --check` and staged redacted Gitleaks scan (passed).
+
+Full A01–A12 remains open: first legacy enrollment/privilege expansion and
+external migration, provisioning/recovery browser acceptance, employment
+suspension/resumption, resignation/termination/contract expiry/rehire and
+cross-module cutoff. Counts remain 10 partial, 10 audit pending, 1 research,
+0 fully accepted. Console CI 41132417027 was rechecked: GitHub's annotation still
+says jobs did not start because payments/spending limits need owner attention.
+No merge, production migration, rollout, release tag or issue closure occurred.
+
+## Access/RBAC checkpoint — 2026-10-31: operator recovery UI candidate
+
+Console [draft PR #669](https://github.com/tesserix/tesserix-home/pull/669)
+contains implementation `d9117af4a21526ebd9f642cb1eb96ee7723f18de` and QA-gate
+notes at `209c2aa`. It adds exact retained command/request inspection, timestamped
+source observations, required proposal evidence, independent review decisions and
+matching-account reconciliation through the existing same-origin BFF. Current
+reader/writer capabilities, server-held credentials, source owner reauthorization,
+no-store, CSRF, exact route/method scope, query refusal and strict UTF-8 stay enforced.
+Uncertain requests/decisions freeze their UUIDv7/body/key; session-scoped browser
+storage retains identifiers/action/digest without private reasons or credentials.
+Reload and retained-outcome recovery preserve the same successor. Confirmed
+operator denial refreshes current reads and hides revoked private evidence;
+authorization-source outages are reported separately as unavailable.
+
+Canonical Go-derived models are published and byte-verified at owner
+`f75bb0e5479446c3a36015516a2bf661aee357a2`; exact owner CI 41131295353 passed.
+Source/schema ownership is unchanged: schema PR #1616, chart 0.3.62 / `325012b`.
+No new migration, SQL/FGA change, production account/grant or rollout occurred.
+
+Local console acceptance: **5,572 tests in 295 files passed with no skips** using
+`--maxWorkers=2`; typecheck, lint, production build, immutable artifact/provenance,
+staged redacted secret scan and diff checks pass. One earlier parallel rerun hit
+10-second setup hooks in six existing database files; no tests/timeouts were
+changed and bounded complete reruns passed. Read the console's
+`docs/qa/staff-recovery-console.md` for exact commands and evidence boundaries.
+
+Real local sign-in used separate synthetic provider/client/operator and PostgreSQL
+fixtures with auth bypass disabled. It reached the console callback, which Chrome
+blocked with `ERR_BLOCKED_BY_CLIENT`; human handoff is requested. No warning was
+bypassed, callback code committed or human session manufactured. Separately,
+GitHub refused to start console CI 41131982143, secret scan 41131982554 and mobile
+check 41131982158 because failed account payments/spending limits require owner
+attention. No remote tests ran. Billing/capacity handoff is requested; no billing,
+visibility or runner changes were made. New-head checks must pass before merge.
+
+**Access/RBAC A01–A12 remains incomplete.** Normal console/HMS Admin → recipient →
+independent reviewer acceptance, source/route coverage, production registration
+(owner #12), profile correction/activity, legacy membership/link/grant handling,
+renewal, all employment/contract lifecycles and cross-module cutoff acceptance
+remain open. Staff Management counts stay 10 partial, 10 audit pending, 1 research,
+0 fully accepted. No merge, production deployment, issue closure or release tag.
+
+## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
+
+Follow-up source-integrated HTTP evidence is pushed at `17e3dc90323a3d2c6ac410488b3c1295d792fc4d`
+in owner PR #22. The tagged local PostgreSQL/Zitadel race test passes through real
+organization/project/grant proof, independent absent-account approval, one late
+original creation, matching orphan reconciliation, immutable retry, no successor
+dispatch or reopened original dispatch, and actual grant withdrawal/restoration.
+Tagged API vet/lint and redacted secret/diff checks pass. Console tokens remain
+asserted fixtures; real login and normal HMS UI acceptance are not proven.
+Implementation-head CI run 41125307163 is now **passed**; the follow-up head's CI
+has not yet been observed at this update. No merge or deployment occurred.
+
+Identity-owner draft [PR #22](https://github.com/tesserix/onboarding-service/pull/22)
+now contains pushed `293aa359a97ba7a3d853d102b12253914f913ab2`.
+Fresh console write authority guards creation reconciliation and immutable independent
+review decisions. Matching source accounts retain original creation facts and block
+replacement; removed accounts retain historical birth. Approval serializes exact
+birth/absence checks with receipt admission, preventing a stale absence decision
+after a receipt arrives. Replacement atomically prepares a fresh bound successor
+without dispatching an account or granting membership. Entire recovery route family
+bypasses cached response replay. Authority-withdrawal tests cover before commit,
+after commit without disclosure, and authorized recovery of retained history.
+
+Local evidence: full PostgreSQL Go race/coverage suite, vet/build, default and
+provider-fixture lint, four delivery Python tests, redacted Gitleaks and diff checks
+passed. Decision/reconciliation HTTP tests use callback source proofs; actual-provider
+adapter tests from the preceding candidate remain separate evidence. New CI run
+[41125307163](https://github.com/tesserix/onboarding-service/actions/runs/41125307163)
+is queued at this checkpoint; previous `a3eab89` run 41120222174 passed.
+No new migration/schema change, merge, production rollout, tag or issue closure.
+
+**Access/RBAC remains partial.** Next gates include full real-source owner HTTP,
+consumer UI and Admin → recipient → independent reviewer acceptance, followed by
+membership recovery/removal, renewal, all employment/contract lifecycles and
+cross-module cutoff acceptance. No whole-area completion percentage is claimed;
+Staff Management counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
+The earlier checkpoint sections below describe their own evidence dates.
+
+Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
+
+### Exact-account proof and fresh reviewer source view — 2026-10-31
+
+Owner `a3eab89` implements exact frozen-account classification and a freshly
+authorized reviewer source-view POST. Absence requires two actual missing reads
+and stable empty authoritative history. Matching requires retained birth/contact
+and sealed command binding. Removal additionally requires terminal removal, actual
+missing reads and bounded ownership history proving one human birth and the latest
+causal nonce. Unknown, contradictory, stale or saturated proof fails closed.
+No universal contact availability, verified contact or operational access is claimed.
+
+The source view derives all input from the exact private dispatched command,
+validates returned scope/freshness, rechecks live authority and canonical registry,
+then commits mandatory disclosure audit. It exposes only disposition and observed/
+birth time. A replay regression hid changed facts; explicit cache exclusion now
+requires fresh reads and denies revoked authority. It creates no account, retained
+creation receipt, decision, closure or successor. Approval must obtain new proof.
+
+Actual isolated v4.15.3 race tests passed absent/matching/removed proof and the
+previous operator checks. Email delivery advanced source history during immediate
+matching proof; a later fresh proof passed with creation dispatched once. Final
+matching used two proof attempts within the fixture's three-attempt bound.
+An actual projection fault captured the synthetic target's parent/child rows
+privately, produced real GetUser 404 with retained creation history, and verified
+that recovery denied absence. Restore initially failed on a generated notification
+column; the correction recomputes it, verifies every captured row, and restores
+matching proof. Source event history stayed retained; all captured target projection rows are restored.
+
+Full owner PostgreSQL race/coverage passed: 56.0% overall, API 66.0%, store 66.7%,
+provider 87.8%; classifier 93.6%, removal ownership 95.8%, cross-package source-view
+service 85.7%. Vet/build, normal and fixture-tag lint (zero issues), four delivery
+tests, secret/diff checks and both actual-provider race fixtures passed. These
+figures are test coverage, not completion. Configuration/time-budget documentation
+was corrected to actual console environment names and the unchanged two-second
+creation budget. No schema/production change, migration, merge or release occurred.
+
+Database/HTTP source-view tests use callbacks; actual source-protocol/fault proof
+is separate. Real-source full owner HTTP and normal HMS Admin/recipient/independent-
+reviewer UI remain unproven. New-head CI is tracked separately. Next: matching-
+orphan receipt reconciliation and fresh independent decision service/API, explicit
+conflict handling, activity, prepared-command/profile correction, consumer UI,
+recipient setup/sign-in, canonical registration (#12), legacy grants and remaining
+A01–A12 lifecycle/cross-module cutoff acceptance. Counts stay 10 partial,
+10 audit pending, 1 research, 0 fully accepted. Full Access/RBAC stays active.
+
+### Exact request review checkpoint at 2c61d2a — 2026-10-31
+
+Owner `2c61d2a` adds current-human exact-request GET for reviewer evidence:
+maker, requested action, reason/evidence reference, optional proposed successor
+initiator and retained decision/successor command ID. Original source account,
+nonce, contact/profile and machine bindings are omitted. Two live operator/source
+checks surround mandatory audited inspection, followed by a fresh transactional
+read. Request, decision and lineage use one statement snapshot; a decision
+committed during reverification appears in the final view. No approval authority
+or membership eligibility is inferred from a request read.
+
+Tests pass for undecided/final rejection/complete replacement snapshots, incomplete
+approval denial, foreign or missing requests, malformed input, audit rollback,
+source outage, revoked authority/entitlement and canonical rotation. A new regression
+reproduced proposal/decision commits paired with `denied` audit outcomes; both
+stores now reject those outcomes and retain no business action. Full final
+actual-PostgreSQL race suite, vet/build/lint (zero issues), four delivery tests,
+redacted secret scan and diff checks passed. Coverage: API 65.6%, store 66.7%;
+request store read 90.0%, HTTP handler 94.1%, cross-package service 89.7%.
+These are coverage figures, not a Staff completion percentage.
+
+Pinned v4.15.3 primary-source research now records why empty user projection or
+search checkpoint cannot prove absence: rows/checkpoint are read separately, and
+projection progress is not payload conformance. Next source proof must classify
+the exact frozen account and reconcile matching orphans; replacement preparation
+must not claim universal contact availability or operational access. The source
+checkout was preserved, and findings were checked with `git show` at the pinned
+tag. Owner canonical-registration issue #12 was rechecked and remains OPEN.
+
+New HTTP/database tests use source callbacks. Real-source full HTTP and normal
+HMS Admin/recipient/independent-reviewer UI remain unproven. Parent 74abd3d CI
+41111788806 passed; new-head CI is tracked separately. No schema/production change,
+migration, merge, deployment, release or completion tag is claimed. Next: exact-
+object source conflict/orphan proof, independent decision service/API, activity,
+prepared-command/profile correction, consumer UI and remaining A01–A12 lifecycles/
+cross-module cutoff acceptance. Counts stay 10 partial, 10 audit pending,
+1 research, 0 fully accepted. Full Access/RBAC remains active.
+
+### Recovery read/proposal checkpoint at 74abd3d — 2026-10-31
+
+Owner `74abd3d` connects current human console proof to an audited exact-command
+recovery read and immutable proposal PUT by UUIDv7 request ID. Source organization/
+project and canonical active tenant/product/entitlement are checked under the real
+operator principal. Original initiator/machine/provider facts survive canonical
+machine rotation. Recovery proposals derive maker from verified identity and
+require reason/evidence; they create no decision, closure, replacement, user,
+membership or dispatch. Independent review remains required.
+
+A test reproduced generic cached success after maker revocation. Explicit route
+exclusion now forces fresh authorization on every retry, with no generic cached
+response. Tests cover rejected forged authority/credentials and malformed inputs,
+read-only operator denial for proposals, live proof withdrawal, source/registry
+changes during I/O, mandatory audit binding/rollback and committed proposal
+retention without disclosure after revocation, followed by exact retry recovery.
+
+Full actual-PostgreSQL owner race/coverage passed (55.4% overall; API 64.8%, store
+65.6%). Vet/build/lint (zero issues), four delivery checks, redacted secret scan
+and diff checks passed. Cross-package integration coverage confirms service
+execution: receipt 94.1%, scope 79.5%, proposal 80.6%, validation 100%. These are
+test coverage figures, not a completion percentage. Callback source proofs drive
+the new HTTP/database tests; previous real v4.15.3 adapter proof is separate.
+Full real-source HTTP and normal HMS Admin/recipient/independent-reviewer UI are
+unproven. New-head CI is tracked separately. No schema/production change, migration,
+merge, deployment, release or completion tag is claimed.
+
+Next: minimized recovery request detail/activity, source conflict/orphan checks,
+independent decision service/API, prepared-command/profile correction and consumer
+UI; recipient setup/sign-in, canonical registration (#12), legacy grants and all
+remaining A01–A12 lifecycle/cross-module cutoff acceptance. Counts remain 10 partial,
+10 audit pending, 1 research, 0 fully accepted. Full Access/RBAC stays active.
+
+### Recovery-operator authority checkpoint at 2e68596 — 2026-10-31
+
+Owner `2e68596` adds a bounded source verifier for active/verified human,
+configured platform organization, direct console-project grant, authoritative
+organization/project/grant state and current role definitions/keys. Token-time
+roles and grant projections alone cannot authorize recovery. Relevant source
+heads must remain unchanged across snapshot reads; stale, malformed, ambiguous,
+changing or saturated proof fails closed. No source roles/memberships are changed.
+
+HTTP authentication now retains verified console-token origin; registered
+machines remain products. A regression reproduced the lost origin before the
+fix. Recovery policy rejects legacy-origin admins, product machines and customer
+credentials; operators can only read, administrators can propose/decide subject
+to later live proof and target checks. These new actions/source proof are not yet
+wired to operator service endpoints.
+
+An explicitly selected actual isolated Zitadel v4.15.3 test passed current proof,
+grant deactivation denial/reactivation, removed-role-definition write denial with
+read preservation and disabled-human denial. Backend-created synthetic operator
+authority is a protocol fixture, not human-login or normal HMS Admin/recipient/
+independent-reviewer UI acceptance. TLS tests additionally cover foreign scope,
+stale contact/state, missing/malformed history, churn/saturation, redirects,
+ambient cookies and provider errors.
+
+Full actual-PostgreSQL owner race/coverage passed: 56.4% overall, API 63.8%,
+authz 95.2%, store 64.9%, provider 86.7%, operator verifier 94.0%. Vet/build/lint
+(zero issues), four delivery tests and redacted secret/diff checks passed.
+No schema changed. New-head CI is tracked separately from local evidence;
+no merge, production migration, rollout, release or completion tag is claimed.
+
+Next: audited service integration using the actual operator principal and fresh
+canonical registry/source scope; conflict/orphan proof; authenticated recovery
+endpoints/activity and prepared-command/profile correction; normal operator/HMS
+Admin/recipient/reviewer UI; recipient authenticator setup, canonical production
+registration (#12), legacy grants and all remaining A01–A12 lifecycle/cross-module
+cutoff acceptance. Counts remain 10 partial, 10 audit pending, 1 research,
+0 fully accepted. Full Access/RBAC remains the active objective.
+
+### Atomic reviewed recovery and historical self-review — 2026-10-31
+
+Owner `a99551f7ee120e4890e9d342dd626aedd2a279c9` is pushed in draft PR #22.
+Independent decision, prepared successor, permanent root/parent lineage and audit
+commit atomically; approval itself performs no provider dispatch. Exact retry
+retains reviewer/reason/successor ID and original server-selected provider ID/nonce.
+Final rejection, one competing replacement winner, audit rollback and bare-approval
+failure are verified. Generation-linked FKs and unique parent/request/successor
+prevent branching/cycles with indexed point reads. Historical root/intermediate
+creators and accounts remain excluded from later-generation review; actual tests
+reproduced that bypass before the fix and now reject it.
+
+Normal creation admits the reviewed successor and blocks closed/superseded parents.
+Receipts preserve late/historical creation facts and add only recovery state and
+successor command ID. Observation/creation deny authority before/during-source
+closure; no private operator reason/identity or child provider binding is exposed.
+Actual application-role decision/retry and lineage mutation denial pass. These
+are store/contract/race checks, not verified current operator authorization or
+normal operator/HMS Admin/recipient/independent-reviewer UI acceptance.
+
+Canonical schema `325012bc6fbaf199413dbce6ed58406be4ca66e5`, chart 0.3.62,
+SHA-256 `aa89167dad24dcfb3fd71e305cad29f573d1604ffc99ee75f9e8f459b4880756`,
+is published, hash-verified and pinned for owner CI. Actual local catalog checks
+confirm six new indexes valid/ready, seven lineage FKs valid and onboarding
+SELECT/INSERT with UPDATE/DELETE/TRUNCATE denied. Bootstrap ON_ERROR_STOP=0 means
+Job success is not migration proof; actual state validation remains a release gate.
+
+Fifteen added tests (11 transaction/lineage, four API scenarios) plus fourteen
+previous recovery tests pass. Full actual-PostgreSQL race/coverage: 55.1% overall,
+API 63.8%, store 64.9%, decision 83.6%, successor/root helpers 83.3%, shared scope
+100%. Vet/build/lint (zero issues), four delivery tests, redacted secrets and
+shell/diff checks pass. Schema local Helm lint/template and seven selected tests
+pass. Exact owner head passed CI 41102254872. Exact schema head passed Repository Tests
+41101963585, PR Validation 41101963451 and Helm 41101963412. These current-head
+passes do not prove operator/source authorization or full normal-role UI acceptance.
+
+Next: verified-current operator role/source proof, conflict/orphan handling,
+authenticated operator endpoints and minimized activity; prepared-command/profile
+correction; normal operator/HMS Admin/recipient/reviewer UI; recipient authenticator
+setup/sign-in; canonical production registration (#12); legacy staff/link/grant
+classification; remaining A01–A12 lifecycle and cross-module cutoff acceptance.
+No operator write endpoint is exposed and no merge, production migration, rollout,
+release, issue closure or completion tag occurred. Full Access/RBAC remains open;
+Staff Management area counts are unchanged.
+
+### Recovery requests and independent decision records — 2026-10-31
+
+Owner `713076bd9ef832730ca69088637c03261e9170fa` (runtime unchanged from
+`fd65aca6e37faa95dafeeb8e8fdf1e378b5711b5`) is pushed in draft PR #22.
+Its new store operation retains exact recovery proposal input and mandatory audit
+atomically. Current canonical machine/entitlement/source scope is rechecked;
+original command/initiator/provider-user facts survive machine-credential rotation.
+Changed requester/action/reason/evidence conflicts. Audit actor/type/product/tenant/
+command/action must match the request. Failed new/replay audit releases no private
+result and retains no new request. No operator endpoint is exposed yet.
+
+Canonical schema `8fa241651362392d8c90322e97947066688bb832`, chart 0.3.60,
+SHA-256 `b9bfb2a34e7e8ff0708ce4bccaf52121e8a64557c7ff21a160189332e4a0b14c`,
+is persisted in schema-owner PR #1616; owner CI pins it and the published immutable
+source hash was verified. New append-only request/decision ledgers bind an actual
+dispatch and exact source/actor facts. Maker, original initiator, original source
+account and replacement initiator cannot review. Rejected requests remain final;
+one replacement approval wins concurrently. Closing unresolved investigation
+permits later reviewed replacement and preserves the original dispatch/root.
+An approved row alone authorizes no dispatch, linking or operational membership.
+
+Fourteen new actual-PostgreSQL tests passed, including self/target review,
+forged/NULL bindings, mandatory evidence, final rejection, closure/replacement,
+twelve concurrent replacement approvals with one winner, actual application-role
+mutation denial, machine rotation, withdrawal/scope drift, immutable retry and
+audit rollback/binding. Actual application-role proposal and exact retry also
+passed. Full owner race/coverage passed: 54.5% overall, API 63.8%,
+store 62.7%, proposal operation 87.0%. Vet/build/lint (zero issues), four delivery
+checks, redacted secrets and shell/diff checks passed. Schema local Helm
+lint/template and seven selected repository tests passed. Latest owner CI 41095777733 is pending. Schema head passed PR validation
+41094188936, repository 41094188917 and Helm 41094188898. Earlier owner passes
+are historical, not substitutes for the new owner head.
+
+Still required: atomic reviewed decision execution/successor/root lineage,
+current verified operator authority and owner/consumer endpoints, conflict/orphan
+handling, full Admin/recipient/independent-reviewer UI, recipient authenticator
+setup/sign-in, canonical production registration (owner #12), legacy
+staff/link/grant classification and all remaining A01–A12 lifecycle/cutoff gates.
+No merge, migration, rollout or release occurred; area counts stay unchanged.
+
+### Actual recipient contact UI verification — 2026-10-31
+
+A fresh browser visit reproduced a missing fixture dependency: the isolated
+v4.15.3 provider redirected to Login V2, but that UI was absent. Added a separate
+loopback-only Login V2 v4.15.3 container, pinned to upstream image digest
+`sha256:906081d8c5b8760321fa811d670e680247f768e5c4bdd4edb73d3ea942800385`.
+Its dedicated IAM_LOGIN_CLIENT machine has a private, two-day credential; it is
+not a Staff or operational access grant. Original instance-feature configuration
+was saved privately before changing only this isolated fixture's Login V2 base
+URI. Added pinned Mailpit local capture on the fixture network; its UI is
+loopback-only and no external email delivery was configured.
+
+Normal browser actions used the existing role-free synthetic account: enter
+login name, request a fresh invitation, read the delivered email and submit its
+code. The provider changed to active/verified; the unchanged owner adapter then
+observed active plus email_verified=true and the exact retained creation time.
+Fresh provider queries returned zero memberships and zero user grants. No
+password, passkey or verified-contact override was set by this test.
+
+The next visible screen is Choose authentication method (Password/Passkeys).
+Full authenticator setup, subsequent sign-in, actual canonical registry proof,
+HMS Admin/Global API consumption and independent reviewer acceptance remain
+open. This proves actual recipient contact verification through upstream UI,
+not the complete A01 provisioning or Access/RBAC journey. The browser is retained
+for continuing recipient setup; private evidence/setup and recovery captures are
+0600 under the existing authorized QA fixture directory. All changes were local;
+production was untouched.
+
+### Access/RBAC private command history — 2026-10-31
+
+Owner commit `9fd472d49b148ff4b1c207da609602b1b1d8d533` is pushed in draft
+[PR #22](https://github.com/tesserix/onboarding-service/pull/22). Exact-command
+history now returns bounded action/outcome/UTC summaries with current product,
+tenant, source and original-initiator checks. Opaque hash-only cursors preserve
+15-minute expiry across service instances and exclude later appends until
+refresh. Mandatory disclosure-audit failure returns no page or new cursor.
+Human viewer authorization remains the Helivanta consumer's responsibility.
+
+Canonical SQL is persisted at `1acc9d687cd161bf77689424fdbb3a1716decd9c`,
+chart 0.3.59, SHA-256
+`8e2f89da8e6f4771a7d0af3ca075094f2ec622ab6f0ce38475f9b7660018b382`.
+Schema-owner PR #1616 passed Repository Tests 41085750101, PR Validation
+41085749902 and Helm/template/security 41085750047. Its ephemeral cursor cache
+is separate from the four immutable identity ledgers. Actual application-role
+tests verified continuation/cleanup, expired-only deletion, no UPDATE/TRUNCATE,
+a 1,000-row cleanup limit and skipped locked rows. Narrow UPDATE(token_hash)
+privilege permits PostgreSQL row locks; forced RLS rejects actual updates.
+
+Full local owner race/coverage passed (54.3% overall, API 63.8%, store 61.6%),
+plus vet/build/lint (zero issues), redacted secret scan, four delivery tests,
+shell/diff checks and a Linux/arm64 image build. A rolled-back 100,001-row audit
+fixture used the partial index in 0.046 ms; this is query-plan evidence, not an
+API SLO. Exact-head CI [41089960472](https://github.com/tesserix/onboarding-service/actions/runs/41089960472)
+passed all applicable gates, including the container build/smoke/scan job.
+
+Operator resolution/replacement/conflict/orphan handling, actual recipient
+contact delivery/setup, canonical production product registration (owner #12),
+Global API/Admin/recipient/independent-reviewer UI, legacy classification and
+all remaining A01–A12 lifecycle/cross-module acceptance stay open. No merge,
+production rollout or migration occurred. Counts remain 10 partial, 10 audit
+pending, 1 research and 0 fully accepted.
+
+### Access/RBAC creation and contact reservation — 2026-10-31
+
+Owner runtime `f7bc168` now exposes creation PUT with immutable input,
+server-selected account/nonce, permanent contact reservation, one audited
+dispatch and retained creation receipts. Exact/concurrent retries do not create
+again; lost responses remain uncertain until matching read-only reconciliation.
+Canonical SQL is persisted at schema-owner `2214e7a7` (chart 0.3.58), SHA-256
+`676f5c8676e48d9647b3d08e37a6e82ca84c91d22d8d4d343ee9bc9e03fafb63`.
+Its repository, Helm/template/security and PR gates passed. Roots retain command
+lineage and cannot be rewritten/deleted by the application; historical commands
+without roots fail closed rather than receive invented backfill.
+
+Full local owner race tests, vet/build/lint, secret scan, four delivery tests and
+the final Linux/arm64 build passed. An explicitly selected actual v4.15.3 provider
+test passed owner HTTP creation/replay/observation and verified zero source
+memberships/user grants with contact still unverified. It uses fixture registry
+proof, not normal Admin/recipient/reviewer UI acceptance. Private account evidence
+is retained as 0600 JSON; no password/verified flag was supplied to creation.
+Latest owner head `fc5d930` passed all applicable CI gates in
+[41076976851](https://github.com/tesserix/onboarding-service/actions/runs/41076976851),
+including its container. The earlier runtime run 41076590905 was superseded and
+cancelled after its Go/contracts/secret checks; it is not counted as passing.
+Subsequent owner/schema commits update documentation only.
+
+Operator recovery/history/root replacement, actual recipient setup/verification,
+canonical product registration, Helivanta/Global consumer UI and the remaining
+A01–A12 lifecycle/cross-module acceptance remain open. No merge, production
+rollout or new live migration occurred. Counts remain unchanged.
+
+### Access/RBAC provider failure acceptance — 2026-10-31
+
+The identity-owner candidate now includes `ec10aa6` in draft
+[PR #22](https://github.com/tesserix/onboarding-service/pull/22). Actual isolated
+v4.15.3 testing reproduced stale active proof after successful deactivation,
+stale binding metadata after replacement, and skipped deactivation hidden by a
+later unrelated profile revision. The corrected adapter compares latest
+authoritative state/contact/verification events and bounded mutation history;
+the same live skipped-deactivation fixture now denies proof. Explicit synthetic
+source reactivation restores successful observation. These are provider-only
+tests, not Admin/recipient/reviewer UI or membership/employment activation.
+
+Final full owner race/coverage passed (54.6% overall, provider 85.2%), as did
+vet/build/lint, secret scan and the final Linux/arm64 image build. Exact-head CI
+[41070733440](https://github.com/tesserix/onboarding-service/actions/runs/41070733440)
+is in progress; preceding owner CI 41066660408 and Helivanta documentation-head
+CI 41067001369 passed. Details and retained limitations are in the
+[identity audit](staff-identity-provisioning-audit.md). No merge, production
+rollout or new application migration occurred. The full A01–A12 objective and
+the counts below remain unchanged.
+
+### Access/RBAC continuation — 2026-10-31
+
+Identity-owner draft [PR #22](https://github.com/tesserix/onboarding-service/pull/22)
+now contains committed/pushed `e3dc7e5`: protected command receipts, fresh source
+observations, matching-dispatch reconciliation, atomic disclosure audit, replay
+cache exclusion and strict source JSON. The full owner race suite with actual
+isolated PostgreSQL, vet, build and lint passed again. Exact-head CI 41066660408
+was queued at this checkpoint. This candidate remains unmerged/undeployed.
+
+The [identity audit](staff-identity-provisioning-audit.md#owner-receiptobservation-checkpoint--2026-10-31)
+records the open provider projection-synchronization gate and corrected explicit
+product registration requirement. Creation submission/recovery, real recipient
+verification, consumer UI, legacy reconciliation and the remaining A01–A12
+lifecycle/cross-module acceptance are still required. Counts remain **10 partial,
+10 audit pending, 1 research, 0 fully accepted**; the full Access/RBAC objective
+remains open. The production checkpoint below is unchanged.
+
 ## Status and completion rules
 
 - **Partial**: implementation and some evidence exist, but required journeys or checks remain open.
@@ -198,6 +1033,261 @@ Every A-item must cover unauthorized actor, another tenant/hospital, self-review
 
 ### Active Access/RBAC completion work — 2026-10-30
 
+PR [#1480](https://github.com/tesserix/helivanta/pull/1480) merged as
+`7bbdc7c0c41150a01df0907d6b1f2929fdd7b486` after all five required checks passed
+on exact head `4731df96cdfd58ebc1dd34ac7b562b2231e92634`: Go, web, browser E2E,
+scripts and secret scan. Repository visibility was verified public before merge.
+This is a merged-source checkpoint, not a production deployment or A01–A12
+completion. The source admission and transaction-bound security-revocation
+boundaries below remain unchanged.
+
+The next local [incarnation graph implementation](../superpowers/specs/2026-10-30-membership-incarnation-graph.md)
+now binds graph permission/membership proof to each immutable row, actual subject,
+role, tenant and continuity epoch. It rereads source after provider checks and
+uses the same adapter for genuine login, discovery, switching and renewal.
+Membership events reconcile current source after the event claim commits;
+network work no longer holds that claim transaction open. Boot reconciliation
+uses the same tuple factory, keeps current incarnation tuples and retires old
+ones. Hospital onboarding now uses this path as well.
+
+The absent-membership delayed-grant and re-enrollment-borrowing regressions now
+pass locally with real PostgreSQL/OpenFGA, including delayed old revocation that
+preserves the replacement. A later local legacy-contract migration below addresses
+the remaining raw subject/role DELETE regression.
+Real provider/proxy tests reject incomplete, malformed, conflicting and failed
+proofs instead of accepting partial authority. Focused signed-session, source
+race, boot/prune, HTTP seam and approved permission-matrix checks pass. At `fee984e6`, the
+fixed-source affected race/coverage run passed authorization, reconciliation,
+architecture, bootstrap and API suites. IAM's only failing test is the retained
+unsafe raw-DELETE replay regression. Vet, affected linter (zero issues), API and
+Global API builds, and contractdocs generation/check passed. No new source is
+merged or deployed and no A-item is newly complete.
+
+The next local [legacy contract migration](../superpowers/specs/2026-10-30-legacy-membership-contract-migration.md)
+refuses the unsafe raw DELETE with `409 membership_command_required` instead of
+selecting whichever replacement row currently has the same subject/role. A new
+real-PostgreSQL test failed with actual 202 versus expected 409 before the change,
+then passed with the race detector. It verifies unchanged membership, no new
+outbox event or fabricated receipt, absent-target parity and restricted-actor
+denial. Existing positive test consumers now use exact-incarnation commands;
+the original replacement-survival assertion is retained across actual removal,
+recovery, raw DELETE replay and exact removal-command replay. The final affected
+race/coverage run passed IAM (81.8%), login client (90.7%), Global API (86.7%),
+journeys, architecture and bootstrap (94.1%). These are local results, not full
+A01–A12 or release acceptance.
+
+The first run passed Global API and membership journey suites, but IAM did not
+compile because of a missing test import. The next full run found a dynamically
+constructed concurrent legacy DELETE still in the projection test; it was
+migrated to frozen commands without removing the concurrent epoch/history
+assertions. The focused group then passed (92.748 seconds), followed by the final
+full run (IAM 319.211 seconds). Vet,
+affected lint (zero issues), API/Global API builds, contractdocs generation/check
+and the canonical staff-access generator check passed. No web code changed in
+this increment. Breaking-contract/security/consumer review, the unresolved
+external sunset decision, normal-role browser acceptance and production gates
+remain open. No production or application database was changed.
+
+Final local commands (from `backend/`; disposable test services only):
+
+```sh
+DOCKER_HOST=unix:///Users/samyakrout/.colima/helivanta-staff-withdrawal-20261030/docker.sock \
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=15m -p=2 -parallel=4 \
+  ./internal/modules/iam/... ./internal/globalapi/... ./internal/journey/... \
+  ./internal/archtest/... ./internal/bootstrap/...
+mise exec go@1.27.3 -- go vet -p=2 ./internal/modules/iam/... ./internal/globalapi/... ./internal/journey/...
+mise exec go@1.27.3 -- golangci-lint run ./internal/modules/iam/... ./internal/globalapi/... ./internal/journey/...
+mise exec go@1.27.3 -- go build -p=2 ./cmd/api ./cmd/global-api
+mise exec go@1.27.3 -- go run ./cmd/contractdocs
+mise exec go@1.27.3 -- go run ./cmd/contractdocs -check
+```
+
+From the worktree root, `mise exec node@24 go@1.27.3 -- node
+scripts/generate-staff-access.mjs --check`, changed-document Prettier and
+`git diff --check` passed. The staged Gitleaks scan found no leaks.
+The authorization latency SLO and new-workflow browser acceptance remain
+unproven. Existing SQL 0015–0017 remains persisted and unapplied to application
+or production databases; the legacy refusal adds no migration.
+
+The next local [identity eligibility follow-up](../superpowers/specs/2026-10-30-membership-identity-eligibility.md)
+replaces recovery's active-state-only read with one matching active-human and
+verified-email proof. The real PostgreSQL command regression first returned 202
+for an active unverified human where 409 was required, then passed after the gate.
+Provider HTTP tests cover matching, unverified, machine, missing/inactive,
+unknown/ambiguous/malformed evidence, outages, subject mismatch, renamed or
+conflicting fields and bounded complete responses. Restoring the old decoder
+made the second-document and oversized-valid-prefix assertions fail; restoring
+the fix made the full client suite pass. Focused recovery/bootstrap tests pass,
+including receipt replay without another provider read or duplicate outbox event.
+
+Read-only execution of the new reader against the existing local synthetic Admin
+and reviewer returned eligible for both, without displaying private identities
+or credentials. This is client/provider compatibility evidence, not a new user
+verification journey or browser acceptance. The final affected race/coverage run
+passed IAM (81.8%, 317.769 seconds), login client (91.3%), bootstrap (94.1%),
+architecture, API construction (10.6%), Global API (86.7%) and journeys. Vet,
+affected lint (zero issues), API/Global API builds, contractdocs generation/check,
+canonical staff-access check, formatting/diff and staged secret scan also passed.
+No schema, route, event or permission is added by this follow-up. No web code
+changed; normal-role browser and deployed acceptance remain pending.
+
+The identity follow-up's final test command (from `backend/`, using the same
+isolated Docker environment shown above) was:
+
+```sh
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=15m -p=2 -parallel=4 \
+  ./internal/modules/iam/... ./internal/bootstrap/... ./internal/archtest/... \
+  ./cmd/api/... ./internal/globalapi/... ./internal/journey/...
+```
+
+Its affected vet/lint scopes were `./internal/modules/iam/...`,
+`./internal/bootstrap/...` and `./cmd/api/...`; build, contractdocs and canonical
+check commands were unchanged. Local runtime discovery confirmed Zitadel
+`v4.15.3` through its running image and version command, without changing Docker
+context or credentials. Production provider version and provisioning capability
+remain unverified.
+
+The next local [first-enrollment candidate](../superpowers/specs/2026-10-30-first-membership-enrollment.md)
+adds an account/workspace-pinned, reasoned command for an existing verified human
+with no previous tenant membership. It fixes the source role to `staff_member`,
+retains trigger-generated immutable receipts and protected history, and refuses
+to reopen ended continuity. The Staff form now requires reason/acknowledgement,
+freezes uncertain ID/body and shows history; source persistence is distinguished
+from graph readiness and operational access. It does not create IdP users or
+migrate the legacy privileged POST.
+
+The initial HTTP regression failed 404 versus expected 202 before implementation.
+Focused race tests now pass for input/actor/workspace boundaries, exact/conflicting
+replays, source history after removal, tenant isolation, direct receipt fabrication,
+provider failure, transactional outbox rollback and concurrent exact commands.
+A real PostgreSQL lock-wait test observes the writer blocked on the Admin row,
+then withdraws that Admin before releasing the lock; the command returns 403 with
+no membership, receipt or event. Global API coverage proves projection to ordinary
+membership and no business permissions. Client/form/page tests pass (6 API tests,
+26 form/page tests). Initial test-fixture DDL was correctly denied to the app role;
+the outbox failure now uses the existing owner migration fixture instead.
+
+Append-only migration `0018_iam_membership_enrollments` is persisted; IAM now has
+18 migrations and the whole registry 176. Disposable fixture databases only have
+been migrated; application/production state remains unchanged. The full affected
+race/coverage run passed IAM (81.9%, 386.768 seconds), login client (91.3%),
+platform (87.8%), bootstrap (94.1%), API construction (10.6%), Global API (86.7%)
+and journeys. Its one failure was pagination architecture metadata for the
+single-receipt GET; a specific reasoned entry declares its command-primary-key
+lookup, while collection history stays ListRoute. The complete architecture suite
+then passed (40.441 seconds), with zero lint issues. New-head CI/browser acceptance
+is pending. The full web suite passed
+(seven tasks, including API 412, UI 267 and shell 1,255 tests), API/shell/E2E
+TypeScript checks, affected web lint, Go vet/lint (zero issues), API/Global API
+builds, contractdocs generation/check and the shell production build passed.
+The first build correctly rejected an unset production `API_URL`; rerun with the
+local Global API origin passed. Type-checking caught an alias collision with the
+Workforce-owned `StaffEnrollment` type; the unused IAM alias was removed rather
+than redefining Workforce's export. The updated browser
+E2E setup creates a random synthetic account only against localhost, stores its
+credentials in an ignored mode-0600 JSON outside test artifacts and then uses
+normal Admin and recipient UI. Its fixture-set verification flag is not evidence
+of a recipient completing contact verification. The [historical-continuity
+gate](staff-identity-provisioning-audit.md#historical-continuity-acceptance-gate)
+remains open: a missing continuity record cannot prove absence of pre-retention
+membership or historical owner authority. No A02/A11 acceptance follows from the
+fresh-case tests. All five PR CI jobs passed at `78513985`; that baseline does not
+include this uncommitted enrollment work.
+
+Final first-enrollment commands (from `backend/`, same disposable Docker socket):
+
+```sh
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=20m -p=2 -parallel=4 \
+  ./internal/modules/iam/... ./internal/platform/... ./internal/bootstrap/... \
+  ./internal/archtest/... ./cmd/api/... ./internal/globalapi/... ./internal/journey/...
+mise exec go@1.27.3 -- go test -race -cover -count=1 -timeout=10m -p=2 -parallel=4 ./internal/archtest/...
+```
+
+From the root: `pnpm exec turbo run test --concurrency=2`, affected API/shell/E2E
+`type-check` and `lint`, `API_URL=http://127.0.0.1:8199 pnpm exec turbo run build
+--filter=@helivanta/shell --concurrency=2` (Node 24/Go 1.27.3), canonical staff-access
+check, changed-file formatting and diff checks passed. Go vet/build scopes and
+contractdocs commands are as above; affected and architecture lint passed.
+No current-head browser/deployed acceptance or latency SLO claim follows.
+
+The enrollment candidate was committed and pushed as `549f2f93` in draft
+[PR #1489](https://github.com/tesserix/helivanta/pull/1489). Its CI run
+`41045911107` failed browser test discovery before executing any scenarios:
+`import.meta` in the new fixture is incompatible with Playwright's CommonJS
+loading. The exact local discovery command reproduced that syntax error. Using
+`resolve(__dirname, ...)`, as the suite's existing environment loader does,
+restored discovery of all three Staff access scenarios. E2E typecheck, lint and
+format checks passed. The complete browser workflow and remaining live CI jobs
+must still be checked; discovery alone is not enrollment acceptance. This
+correction changes fixture path resolution only, with no runtime API or SQL
+change. The command was `mise exec node@24 -- pnpm --filter e2e exec playwright
+test tests/staff-access.spec.ts --list`; package checks used the
+`@helivanta/e2e` filter with `type-check`, `lint` and `format:check`.
+
+The [A01 provisioning audit](staff-identity-provisioning-audit.md) records source
+and versioned primary provider evidence. The current login client exposes active-state and
+presentation-profile reads, without a provisioning/contact-verification workflow.
+The local seed script marks synthetic email verified during fixture creation;
+it is not acceptable evidence for real user verification. The existing generic
+membership POST neither verifies the provider identity nor enforces explicit
+recovery after final removal; it also accepts privileged system roles. Those
+paths still need the coordinated provisioning/recovery contract and current
+actor/source guards before A01/A02/A11 can be accepted.
+
+Migration `0017_iam_membership_projection_reader` grants only SELECT of IAM
+continuity metadata to the existing system role for startup reconciliation.
+Ordinary permission and role-discovery reads still use normal forced-RLS tenant
+transactions. This migration is persisted in the source registry and has run
+only in disposable fixtures. The IAM migration-count assertion now pins all 17
+IDs. The local application database and production have not been migrated.
+
+The follow-up branch has local membership-command implementation, canonical
+Go/Zod models, additive Global API routes, reasoned immutable receipts/history,
+fresh ordinary-membership recovery and Staff Admin controls. New SQL
+`0015_iam_membership_commands` has run only in disposable test databases, not
+the local application database or production. Concurrent-index migration
+`0016_iam_membership_candidate_index` has also passed disposable migration/replay
+tests; a real forced-RLS query plan uses the new ordering index with 100,000
+synthetic neighbouring subjects. Focused real-PostgreSQL race tests
+pass for exact-role removal, preserved other roles, final-removal epoch change,
+new ordinary membership, old-command replay, source/tenant/role/epoch denials,
+inactive/provider-outage recovery refusal and immutable transition evidence.
+Focused shell/API tests pass for required reason/acknowledgement, frozen uncertain
+retry and recovery from the current epoch. Broader tests and real UI acceptance
+are still in progress. At the `e58511e7` checkpoint all three replay/projection
+regressions were red; the graph follow-up above now fixes two. This work is not a
+release candidate and no A-item is newly complete.
+
+A third real PostgreSQL/OpenFGA regression originally reproduced re-enrollment borrowing
+an old graph tuple: the original membership is projected through the registered
+consumer, removed, and replaced by a distinct unprojected source row; current
+admission incorrectly reported membership. Exact-incarnation graph proof is now
+implemented locally and this assertion passes. Generation-bound owner eligibility
+remains required; neither this graph proof nor the command/UI work proves
+historical Staff-link/legacy-grant cutoffs after recovery.
+
+A same-tenant account-change regression additionally reproduced 202 instead of
+409 in the new command before account pinning. All three new routes now require
+the verified expected tenant/subject pair, and the normal client sends both.
+The current race regression rejects stale, absent or duplicated expected subject
+without mutating the membership. The earlier full Go run passed architecture,
+bootstrap, API and authz but failed the two known replay regressions and a stale
+14-migration count assertion. That assertion was updated for real schema
+additions, not removed; the current follow-up pins 17 migration IDs.
+
+The next [membership removal/recovery design](../superpowers/specs/2026-10-30-membership-removal-and-recovery.md)
+is source-verified and remains unaccepted. Two disposable local regressions
+originally failed: repeating a subject/role DELETE after re-enrollment removes the replacement
+membership, and a historical grant delivered through the real registered
+consumer recreates graph membership when IAM has no membership. The first used
+real PostgreSQL/NATS; the second additionally used real OpenFGA. No production or
+local application memberships were changed. Current-source admission separately
+denies stale graph authority; the later local incarnation proof fixes the delayed
+grant/re-enrollment graph gaps. Command migration and owner recovery/cutoff gates
+remain open. A reproduced defect is not acceptance evidence for a completed workflow.
+The full objective remains A01–A12.
+
 The user selected full Access/RBAC completion again, including every A01–A12
 journey above. The [completion plan](../superpowers/plans/2026-10-30-staff-rbac-completion.md)
 keeps that full objective and the owner/consumer dependencies explicit.
@@ -258,8 +1348,10 @@ IAM race/coverage (82.8%), architecture, bootstrap, API and authz suites passed,
 as did affected vet/lint, API/Global API builds and contractdocs generation/check.
 Its two membership queries used existing indexes in the 100,001-row forced-RLS
 fixture; the locked actor/target query reported 0.080 ms local execution. This is
-not a production SLO. The extended source commit's CI remains a release gate;
-full A01–A12 workflow and deployed acceptance remain open.
+not a production SLO. The extended source commit's required CI passed before
+PR #1480 merged; [post-merge CI](https://github.com/tesserix/helivanta/actions/runs/41014627993)
+also passed on `7bbdc7c`. Production rollout, full A01–A12 workflow and deployed
+acceptance remain open.
 
 ## Delivery evidence and next work
 

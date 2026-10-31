@@ -334,6 +334,34 @@ deployment claim.
 
 Synthetic verification: run `scripts/verify-hr-masters.mjs` with authenticated verification scope supplied privately via the same variables as `verify-staff-enrollment.mjs`. Its stable reserved IDs/codes are separate from manual browser fixtures. It restores its own synthetic baseline through versioned API operations on repeat runs and does not delete records.
 
+## Staff document workspace assertions
+
+All ten Staff enrollment/credential/qualification document routes use the shared
+Staff principal precondition: record choices, document list/registration,
+upload/download, retry/revocation and classification current/history/writes.
+Optional `X-Helivanta-Expected-Tenant` and `X-Helivanta-Expected-Subject` assertions
+pin the client workspace to the verified principal. A supplied empty, malformed,
+repeated, comma-joined or mismatching assertion returns `409 session_changed`
+with `Cache-Control: no-store`, before object/body/storage/transaction work.
+Headerless clients retain their behavior; matching assertions confer no authority.
+Current permission, hospital manager, exact Staff/file/purpose and scan/release
+checks remain mandatory, including final owner reauthorization after storage I/O.
+The updated Staff UI and credential-evidence selector inherit the original
+verified Staff account; every document request sends both assertions. Document
+and classification caches and form keys include the subject. A same-tenant
+account change aborts pending file preparation, and a session/scope denial hides
+private state and returns the parent Staff workspace to verification. Uncertain
+commands remain retryable only inside their original account context.
+Actual foreign tenant/hospital/object scope still returns 404; missing permission
+returns 403.
+
+This candidate explicitly changes the old expected-tenant mismatch response from
+404 to the shared 409 precondition response and closes ignored expected-account
+and ambiguous-header cases. The response is independent of target existence.
+It changes no route, permission, schema, event or file-release policy. It is not
+proof of employment cutoff or deployed acceptance. See the
+[design and compatibility note](../superpowers/specs/2026-10-31-staff-document-workspace-binding.md).
+
 ## Staff file classification
 
 Classification is optional versioned HR metadata beside an existing staff file.

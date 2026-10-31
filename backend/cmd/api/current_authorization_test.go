@@ -54,6 +54,42 @@ func TestProductionUsesCurrentIAMAuthorityForBothAdmissionGates(t *testing.T) {
 	})
 	require.Equal(t, 1, permissionGates)
 	require.Equal(t, 1, membershipGates)
+	var roleGates int
+	ast.Inspect(source, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		typ, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, ok := typ.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		isDeps := pkg.Name == "platform" && typ.Sel.Name == "Deps"
+		isLogin := pkg.Name == "iam" && typ.Sel.Name == "LoginDeps"
+		if !isDeps && !isLogin {
+			return true
+		}
+		for _, element := range literal.Elts {
+			field, ok := element.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			key, ok := field.Key.(*ast.Ident)
+			if !ok || key.Name != "Roles" {
+				continue
+			}
+			value, ok := field.Value.(*ast.Ident)
+			require.True(t, ok)
+			require.Equal(t, authority, value.Name, "login, switching and renewal must share current-incarnation role discovery")
+			roleGates++
+		}
+		return true
+	})
+	require.Equal(t, 2, roleGates)
 }
 
 func currentAuthorityCall(call *ast.CallExpr, pkg, name string) bool {

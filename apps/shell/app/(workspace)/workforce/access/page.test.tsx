@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
+import { NavigationGuardProvider } from "@helivanta/ui";
 import AccessPage from "./page";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
@@ -34,20 +35,34 @@ it("lets a membership administrator enroll staff without assignment permissions"
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/iam/members") && init?.method === "POST") {
+      if (url.includes("/iam/membership-enrollments/") && init?.method === "PUT") {
         commands.push({ url, init });
-        return Response.json({ id });
+        return Response.json({
+          id: url.split("/").at(-1),
+          ...JSON.parse(String(init?.body)),
+          membership_id: id,
+          role_key: "staff_member",
+          membership_epoch: 1,
+          actor_subject: new Headers(init?.headers).get("X-Helivanta-Expected-Subject"),
+          created_at: "2026-10-30T00:00:00Z",
+        });
       }
       return prior(url, init);
     }),
   );
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.type(await screen.findByLabelText("Existing account ID"), "synthetic-reviewer");
+  await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
+  await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
   await waitFor(() => expect(commands).toHaveLength(1));
   expect(JSON.parse(String(commands[0]?.init?.body))).toEqual({
     subject: "synthetic-reviewer",
-    role_key: "staff_member",
+    reason: "Verified first enrollment",
   });
   expect(await screen.findByText(/Membership recorded for synthetic-reviewer/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Propose assignment" })).not.toBeInTheDocument();
@@ -55,7 +70,11 @@ it("lets a membership administrator enroll staff without assignment permissions"
 
 it("does not offer membership enrollment to assignment reviewers", async () => {
   setup();
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await screen.findByText("Synthetic review");
   expect(screen.queryByLabelText("Existing account ID")).not.toBeInTheDocument();
 });
@@ -67,20 +86,34 @@ it("retains the exact tenant and subject when enrollment has an uncertain outcom
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/iam/members") && init?.method === "POST") {
+      if (url.includes("/iam/membership-enrollments/") && init?.method === "PUT") {
         commands.push({
           body: String(init.body),
           tenant: new Headers(init.headers).get("X-Helivanta-Expected-Tenant"),
         });
         if (commands.length === 1)
           return Response.json({ error: "unavailable", message: "Unavailable" }, { status: 502 });
-        return Response.json({ id });
+        return Response.json({
+          id: url.split("/").at(-1),
+          ...JSON.parse(String(init?.body)),
+          membership_id: id,
+          role_key: "staff_member",
+          membership_epoch: 1,
+          actor_subject: new Headers(init?.headers).get("X-Helivanta-Expected-Subject"),
+          created_at: "2026-10-30T00:00:00Z",
+        });
       }
       return prior(url, init);
     }),
   );
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.type(await screen.findByLabelText("Existing account ID"), "synthetic-reviewer");
+  await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
+  await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("may have been recorded");
   expect(screen.getByLabelText("Existing account ID")).toBeDisabled();
@@ -98,7 +131,7 @@ it("validates enrollment before submitting and stops after a workspace conflict"
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/iam/members") && init?.method === "POST") {
+      if (url.includes("/iam/membership-enrollments/") && init?.method === "PUT") {
         commands.push(init.body);
         return Response.json(
           { error: "session_changed", message: "Your workspace changed." },
@@ -108,11 +141,17 @@ it("validates enrollment before submitting and stops after a workspace conflict"
       return prior(url, init);
     }),
   );
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Enroll staff member" }));
   expect(screen.getByLabelText("Existing account ID")).toHaveAttribute("aria-invalid", "true");
   expect(commands).toHaveLength(0);
   await user.type(screen.getByLabelText("Existing account ID"), "synthetic-reviewer");
+  await user.type(screen.getByLabelText("Enrollment reason"), "Verified first enrollment");
+  await user.click(screen.getByLabelText("I understand this creates ordinary membership only."));
   await user.click(screen.getByRole("button", { name: "Enroll staff member" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("workspace changed");
   expect(screen.getByRole("button", { name: "Retry same enrollment" })).toBeDisabled();
@@ -145,7 +184,11 @@ function setup(subject = "reviewer", rows = [row], perms = permissions) {
 
 it.each(["proposer", "candidate"])("does not offer independent review to %s", async (subject) => {
   setup(subject);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText("Synthetic review")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
@@ -153,7 +196,11 @@ it.each(["proposer", "candidate"])("does not offer independent review to %s", as
 
 it("requires a reason and submits an independent decision with the displayed version", async () => {
   const writes = setup();
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Approve" }));
   await user.click(screen.getByRole("button", { name: "Confirm approve" }));
   expect(writes).toHaveLength(0);
@@ -169,7 +216,11 @@ it("requires a reason and submits an independent decision with the displayed ver
 
 it("does not call private assignment APIs without administrative permission", async () => {
   setup("member", [], []);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(
     await screen.findByText("Assignment administration is not available for this account."),
   ).toBeInTheDocument();
@@ -180,14 +231,22 @@ it("does not call private assignment APIs without administrative permission", as
 
 it("describes projection progress without presenting pending approval as active access", async () => {
   setup("reviewer", [{ ...row, status: "approved_pending_activation" }]);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText(/Approved; activation pending/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
 });
 
 it("offers withdrawal only to the proposer with manage permission", async () => {
   setup("proposer");
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByRole("button", { name: "Withdraw" })).toBeInTheDocument();
 });
 
@@ -208,7 +267,11 @@ it("retries an uncertain decision with the same immutable command", async () => 
       return Response.json({ ...row, status: "pending_decision_scope", version: 3 });
     }),
   );
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Approve" }));
   await user.type(screen.getByLabelText("Decision reason"), "Independent review");
   await user.click(screen.getByRole("button", { name: "Confirm approve" }));
@@ -222,14 +285,22 @@ it("retries an uncertain decision with the same immutable command", async () => 
 
 it("does not offer decisions on expired assignments", async () => {
   setup("reviewer", [{ ...row, input: { ...row.input, expires_at: "2000-01-01T00:00:00Z" } }]);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(await screen.findByText(/Expired/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
 });
 
 it("marks invalid proposal fields for assistive technology", async () => {
   setup();
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Propose assignment" }));
   await user.click(await screen.findByRole("button", { name: "Submit proposal" }));
   await waitFor(() =>
@@ -243,7 +314,11 @@ it("marks invalid proposal fields for assistive technology", async () => {
 
 it("offers canonical identity templates separately from leave assignments", async () => {
   setup();
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByLabelText("Assignment area"));
   await user.click(screen.getByRole("option", { name: "Staff identity checks" }));
   await user.click(screen.getByRole("button", { name: "Propose assignment" }));
@@ -263,7 +338,11 @@ it("identifies HR assignment records using the canonical template name", async (
   setup("reviewer", [
     { ...row, input: { ...row.input, template_key: "workforce.identity_manager.v1" } },
   ]);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   expect(
     await screen.findByRole("heading", { name: "Staff identity checks manager · candidate" }),
   ).toBeInTheDocument();
@@ -292,7 +371,11 @@ it("prepares renewal as a new independently reviewed proposal without changing t
       });
     }),
   );
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Renew access" }));
   const form = within(screen.getByRole("form", { name: "Renew assignment" }));
   expect(form.getByText(/new proposal.*independent review/i)).toBeInTheDocument();
@@ -332,7 +415,11 @@ it("allows an expired activated assignment to seed a fresh proposal", async () =
   setup("proposer", [
     { ...row, status: "active", input: { ...row.input, expires_at: "2000-01-01T00:00:00Z" } },
   ]);
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Renew access" }));
   expect(screen.getByRole("form", { name: "Renew assignment" })).toBeInTheDocument();
   expect(screen.getByLabelText("Reason")).toHaveValue("");
@@ -346,14 +433,22 @@ it.each([
   "approved_pending_activation",
 ])("does not offer renewal for %s assignments", async (status) => {
   setup("proposer", [{ ...row, status }]);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await screen.findByText("Synthetic review");
   expect(screen.queryByRole("button", { name: "Renew access" })).not.toBeInTheDocument();
 });
 
 it("does not offer renewal to review-only accounts", async () => {
   setup("reviewer", [{ ...row, status: "active" }], ["iam.assignment.review"]);
-  renderWithProviders(<AccessPage />);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await screen.findByText("Synthetic review");
   expect(screen.queryByRole("button", { name: "Renew access" })).not.toBeInTheDocument();
 });
@@ -378,7 +473,11 @@ it("retains the renewal proposal ID and exact payload after an uncertain respons
       });
     }),
   );
-  const { user } = renderWithProviders(<AccessPage />);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
   await user.click(await screen.findByRole("button", { name: "Renew access" }));
   const local = (days: number) => {
     const date = new Date(Date.now() + days * 86400000);

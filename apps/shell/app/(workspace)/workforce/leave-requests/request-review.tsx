@@ -107,18 +107,27 @@ export function LeaveRequestReview({
               </ul>
             )}
           </section>
-          <Decision
-            hospital={hospital}
-            path={path}
-            request={detail.data.request}
-            filer={filer}
-            approver={approver}
-          />
+          {!detail.isFetching &&
+            !history.isPending &&
+            !history.isError &&
+            !history.isRefreshing && (
+              <Decision
+                hospital={hospital}
+                path={path}
+                request={detail.data.request}
+                filer={filer}
+                approver={approver}
+              />
+            )}
         </div>
       )}
       <section aria-label="Request history" className="mt-6">
         <h5 className="mb-2 text-sm font-semibold">History</h5>
-        {history.isPending ? (
+        {detail.isError ? (
+          <p className="text-sm text-muted-foreground">
+            Load the request again before viewing its history.
+          </p>
+        ) : history.isPending ? (
           <p role="status">Loading history…</p>
         ) : history.isError ? (
           <Failure message="Could not load the request history." retry={history.retry} />

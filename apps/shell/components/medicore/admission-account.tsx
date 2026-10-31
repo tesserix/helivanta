@@ -46,6 +46,7 @@ export function AdmissionBalance({
     owed.length === 0 ? "Nothing owed yet" : `Owed ${money(owed)}`,
     from("pharmacy").length > 0 && `medicine ${money(from("pharmacy"))}`,
     from("bed").length > 0 && `bed days ${money(from("bed"))} before tax`,
+    from("gst").length > 0 && `GST on rooms ${money(from("gst"))}`,
     // A day without a rate has no amount: said so, never counted as zero.
     !configured
       ? "Bed charging is not set up"

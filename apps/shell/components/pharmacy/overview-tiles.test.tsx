@@ -67,7 +67,10 @@ function serve(opts: { overview?: unknown; overviewStatus?: number; granted?: st
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const tile = (name: string) => screen.getByRole("region", { name });
 
@@ -146,6 +149,9 @@ describe("OverviewTiles", () => {
 
   // A wait that began on an earlier day must say which day, not just a time.
   it("dates the oldest wait when it began before today", async () => {
+    // Two days after the wait began, in any timezone, whatever today is.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-03T03:15:00Z"));
     serve();
     renderWithProviders(<WaitingTile />);
     const note = await within(

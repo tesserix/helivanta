@@ -1662,6 +1662,11 @@
           "creates_tables": [
             "medicore_discharge_orders"
           ]
+        },
+        {
+          "id": "0009_medicore",
+          "sql_sha256": "6315f957136762692f6e98ae232c8f1774df65548c2a210ef7688a039127b08a",
+          "creates_tables": []
         }
       ]
     },
@@ -3554,6 +3559,33 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note/lines",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application",
           "permission": "billing.bill.issue",
@@ -3680,6 +3712,51 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note",
+          "permission": "billing.bill.issue",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/lines",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice",
+          "permission": "billing.bill.issue",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/bed-charging",
           "permission": "billing.account.read",
@@ -3752,6 +3829,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/collections/:date/export.csv",
+          "permission": "billing.collection.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/collections/:date",
+          "permission": "billing.collection.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift",
           "permission": "billing.cash.collect",
@@ -3776,6 +3871,24 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/gst-registration",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/gst-registration",
+          "permission": "billing.tax.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3840,6 +3953,14 @@
         },
         {
           "permission": "billing.shift.authorise",
+          "roles": []
+        },
+        {
+          "permission": "billing.collection.read",
+          "roles": []
+        },
+        {
+          "permission": "billing.tax.manage",
           "roles": []
         }
       ],
@@ -3949,6 +4070,24 @@
           "sql_sha256": "49e759e2b90483181372d677174e22bd5aaaea885418ec0d57edee3874ae426f",
           "creates_tables": [
             "billing_account_positions"
+          ]
+        },
+        {
+          "id": "0009_billing",
+          "sql_sha256": "5c0da2e22daa964293a1c1391e01eff4162f8174eec271b53e822fc7eb7aadf9",
+          "creates_tables": [
+            "billing_gst_registrations",
+            "billing_gst_lines",
+            "billing_tax_invoices",
+            "billing_tax_invoice_lines"
+          ]
+        },
+        {
+          "id": "0010_billing",
+          "sql_sha256": "4e7ea50b87392e667678c700959b5895371a20e8efad9b7f95b3ee66a3ceeb53",
+          "creates_tables": [
+            "billing_credit_notes",
+            "billing_credit_note_lines"
           ]
         }
       ]

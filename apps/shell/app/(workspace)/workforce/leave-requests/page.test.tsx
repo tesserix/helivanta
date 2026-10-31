@@ -64,6 +64,9 @@ function mock({
   requests = true,
   fail = false,
   reject = "",
+  detailFailure = false,
+  historyFailure = false,
+  historyNote = "",
 }: {
   permissions?: string[];
   status?: string;
@@ -71,6 +74,9 @@ function mock({
   requests?: boolean;
   fail?: boolean;
   reject?: string;
+  detailFailure?: boolean;
+  historyFailure?: boolean;
+  historyNote?: string;
 } = {}) {
   const writes: { method: string; url: string; body: unknown }[] = [];
   const reads: string[] = [];
@@ -99,7 +105,7 @@ function mock({
             id: "77777777-7777-4777-8777-777777777777",
             version: 1,
             status: "pending",
-            note: "",
+            note: historyNote,
             actor_subject: "synthetic-filer",
             created_at: stamp,
           },
@@ -142,11 +148,35 @@ function mock({
           ? [409, { error: "conflict", message: reject }]
           : [200, { request: request("approved"), days: [], roster_clashes: [] }];
       }
+      if (detailFailure && url.endsWith(`/leave-requests/${requestID}`)) {
+        [code, body] = [404, { error: "not_found", message: "Request unavailable" }];
+      }
+      if (historyFailure && url.endsWith("/history")) {
+        [code, body] = [503, { error: "unavailable", message: "History unavailable" }];
+      }
       return new Response(JSON.stringify(body), { status: code });
     }),
   );
   return { writes, reads };
 }
+
+it("hides private history and decisions when request access cannot be verified", async () => {
+  mock({ detailFailure: true, historyNote: "Private review history" });
+  const { user } = renderWithProviders(<LeaveRequests />);
+  await user.click(await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }));
+  expect(await screen.findByText("Could not load the leave request.")).toBeInTheDocument();
+  expect(screen.queryByText(/Private review history/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Approve leave" })).not.toBeInTheDocument();
+});
+
+it("withholds decisions while request history is unavailable", async () => {
+  mock({ historyFailure: true });
+  const { user } = renderWithProviders(<LeaveRequests />);
+  await user.click(await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }));
+  expect(await screen.findByText("Could not load the request history.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Approve leave" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reject leave" })).not.toBeInTheDocument();
+});
 
 it("shows an empty pending queue and lists every status on request", async () => {
   const { reads } = mock({ requests: false });

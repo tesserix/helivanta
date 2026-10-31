@@ -1,5 +1,64 @@
 # Staff Management delivery tracker
 
+## Original credential and identity across private file I/O — 2026-10-31
+
+Real signed-session IAM/PostgreSQL/OpenFGA/Global API regressions reproduced
+private bytes returning 200 when the credential was revoked, the account became
+inactive, or the identity provider became unavailable during storage reads.
+Permission refresh alone did not prevent these disclosures. The candidate now
+revalidates the original credential and the IAM identity check installed at entry
+before each shared file-owner phase. It pins the original subject, tenant,
+authentication time and idle deadline, retains IAM's uncached source watermark
+check, and keeps all provider/storage calls outside owner transactions.
+
+The full journey race suite passes in 57.342 seconds, including 19 file-boundary
+scenarios: the earlier Staff/employment/benefit/tax permission cases and revoked,
+inactive and unavailable identity during both read and quarantine upload. Denial
+releases no bytes/filename, records no false successful read, and binds no upload
+generation or second scan command. Reactivation still rejects the old credential.
+Complete authn and harness race suites pass (3.006 / 8.631 seconds). The harness
+regression first returned 401 because its default fake token changed claims on
+every verification; immutable claims fix that fixture without weakening principal
+checks. A subsequent test-only correction explicitly serializes timestamps that
+Principal intentionally omits from JSON. The public StaticVerifier and explicit
+custom verifiers remain unchanged.
+
+Normal local Admin UI reopened the six-row synthetic directory, opened contractor
+evidence and completed one download through the original native Save dialog. The
+179-byte PNG matches the canonical SHA-256. Fresh normal restricted-reviewer
+sign-in retains six-row read-only directory access with no document/edit controls.
+Private screenshots and `staff-file-identity-refresh-browser-evidence-20261031.json`
+retain the evidence. API and Global API readiness return 200. This local runtime
+uses the candidate source, not a production rollout or independent employment
+approval. Larger owner/architecture suites and final validation are still running
+at this checkpoint; their terminal evidence must be recorded before release.
+
+The complete IAM race/coverage suite passes in 339.735 seconds. Its eight
+conditional provider skips are covered by a separate real localhost Zitadel run:
+all eight integration tests pass, zero skips/failures, in 29.983 seconds. The
+first provider invocation omitted the configured Docker socket and used an
+outdated seed PAT; the corrected run uses the existing local fixture credential
+and test VM without modifying tests, credentials or permissions. Private red and
+green logs are retained. Workforce and remaining package checks continue below
+as separate gates.
+
+Full vet/build, affected lint and contract freshness have passed; a context-key
+name that triggered a false-positive hardcoded-secret lint finding was renamed
+without suppression. The previous PR head `5e1aede0` now has passing Go/web/E2E,
+scripts, secret and image checks, but those results do not validate this new head.
+The identity-owner dependency remains draft with green checks at `f75bb0e`; the
+console dependency remains draft at `209c2aa`. Current GitHub annotations confirm
+its build jobs did not start because account payments/spending limits need owner
+attention. No billing, runner, visibility or production changes were made.
+
+See the [design](../superpowers/specs/2026-10-31-private-file-identity-refresh.md)
+and [implementation plan](../superpowers/plans/2026-10-31-private-file-identity-refresh.md).
+All A01–A12 requirements remain active: scoped HR intake/person/employment review,
+legacy cohort reconciliation, renewal, suspension/resumption, resignation,
+termination, contract expiry, rehire and every consumer cutoff still need full
+acceptance. Counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
+No new route, permission, SQL migration or FGA model was introduced.
+
 ## File cutoff fix pushed and local browser checked — 2026-10-31
 
 `5e1aede0` is pushed to draft PR #1489 with the shared file permission refresh,

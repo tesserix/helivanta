@@ -2,8 +2,10 @@ package journey
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -23,6 +25,7 @@ import (
 	"github.com/tesserix/helivanta/internal/globalapi"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
+	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -37,9 +40,20 @@ import (
 	"gorm.io/gorm"
 )
 
+type staffFileIdentityState struct{ state atomic.Int32 }
+
+func (s *staffFileIdentityState) UserState(context.Context, string) (loginclient.UserState, error) {
+	state := s.state.Load()
+	if state < 0 {
+		return 0, errors.New("synthetic identity provider unavailable")
+	}
+	return loginclient.UserState(state), nil
+}
+
 func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
-	for _, mode := range []string{"download", "upload", "employment_documents", "employment_enrollment", "graph_outage"} {
+	for _, mode := range []string{"download", "upload", "employment_documents", "employment_enrollment", "graph_outage", "benefit_read_role", "benefit_read_permission", "benefit_upload_role", "benefit_upload_permission", "tax_read_role", "tax_read_permission", "tax_upload_role", "tax_upload_permission", "credential_revoked", "identity_disabled", "identity_unavailable", "credential_revoked_upload", "identity_disabled_upload", "identity_unavailable_upload"} {
 		t.Run(mode, func(t *testing.T) {
+			identityChange := strings.TrimSuffix(mode, "_upload")
 			ctx := t.Context()
 			cloud := testinfra.NewGCSProtocol(t)
 			files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
@@ -67,7 +81,7 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			require.NoError(t, platform.ReconcileTenant(ctx, registry, graph, testutil.TenantA))
 			setup, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 				Tokens:  map[string]string{"manager": testutil.TenantA},
-				Perms:   map[string][]authz.Permission{"manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage}},
+				Perms:   map[string][]authz.Permission{"manager": {workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermMasterManage, workforce.PermBenefitsManage, workforce.PermBenefitsView, workforce.PermPayrollConfigure, workforce.PermPayrollView}},
 				Modules: modules, Documents: files,
 			})
 			for _, role := range []authz.Role{authz.RoleTenantAdmin, authz.RoleStaffMember} {
@@ -98,8 +112,57 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			require.Equal(t, 200, do(setup, "PUT", staffPath, "manager", `{"employee_code":"SYN-PRIVATE-001","display_name":"Synthetic private-file worker","job_category":"nurse","employment_status":"active"}`).Code)
 			var content bytes.Buffer
 			require.NoError(t, png.Encode(&content, image.NewRGBA(image.Rect(0, 0, 2, 2))))
-			path := staffPath + "/documents/" + fileID
-			intent := fmt.Sprintf(`{"record_kind":"enrollment","record_id":%q,"category":"employment_evidence","filename":"synthetic-private.png","content_type":"image/png","size":%d,"sha256":"%x"}`, staffID, content.Len(), sha256.Sum256(content.Bytes()))
+
+			documentBase := staffPath + "/documents/"
+			auditAction := "workforce.document.downloaded"
+			fileReadFlag, fileReadValue := "app.workforce_enrollment", "authorized"
+			primary, other := workforce.PermDocumentManage, workforce.PermEnrollmentManage
+			input := map[string]any{"record_kind": "enrollment", "record_id": staffID, "category": "employment_evidence", "filename": "synthetic-private.png", "content_type": "image/png", "size": content.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(content.Bytes()))}
+			if strings.HasPrefix(mode, "benefit_") {
+				plan, proposal := uuid.NewString(), uuid.NewString()
+				result := do(setup, "PUT", base+"/hr/benefits/plans/"+plan, "manager", `{"expected_version":0,"code":"SYN-COVER","name":"Synthetic security-test cover","kind":"health","description":"Synthetic fixture only","covers_dependents":false,"covered_relationships":[],"effective_from":"2020-01-01","status":"active"}`)
+				require.Equal(t, 200, result.Code, result.Body.String())
+				proposalPath := staffPath + "/benefit-enrollments/" + uuid.NewString() + "/proposals/" + proposal
+				result = do(setup, "PUT", proposalPath, "manager", fmt.Sprintf(`{"expected_version":0,"plan_id":%q,"coverage_from":"2026-01-01","eligibility_basis":"Synthetic local permission-boundary fixture"}`, plan))
+				require.Equal(t, 200, result.Code, result.Body.String())
+				documentBase = proposalPath + "/evidence/"
+				delete(input, "category")
+				delete(input, "record_kind")
+				delete(input, "record_id")
+				auditAction = "workforce.benefits.evidence_downloaded"
+				fileReadFlag, fileReadValue = "app.workforce_benefits", "read"
+				primary, other = workforce.PermBenefitsView, workforce.PermBenefitsManage
+				if strings.Contains(mode, "upload") {
+					primary, other = other, primary
+				}
+			}
+			if strings.HasPrefix(mode, "tax_") {
+				declaration := base + "/hr/payroll/staff/" + staffID + "/tax-declarations/2026-27"
+				result := do(setup, "PUT", declaration, "manager", `{"expected_version":0,"reason":"Synthetic security-test declaration","claims":[{"code":"savings","amount_paise":100}]}`)
+				require.Equal(t, 200, result.Code, result.Body.String())
+				var resultBody struct {
+					Pending struct {
+						ID string `json:"id"`
+					} `json:"pending"`
+				}
+				require.NoError(t, json.Unmarshal(result.Body.Bytes(), &resultBody))
+				require.NotEmpty(t, resultBody.Pending.ID)
+				documentBase = declaration + "/evidence/"
+				delete(input, "category")
+				delete(input, "record_kind")
+				delete(input, "record_id")
+				input["revision_id"] = resultBody.Pending.ID
+				auditAction = "workforce.tax_declaration.evidence_downloaded"
+				fileReadFlag, fileReadValue = "app.workforce_payroll", "authorized"
+				primary, other = workforce.PermPayrollView, workforce.PermPayrollConfigure
+				if strings.Contains(mode, "upload") {
+					primary, other = other, primary
+				}
+			}
+			path := documentBase + fileID
+			rawIntent, err := json.Marshal(input)
+			require.NoError(t, err)
+			intent := string(rawIntent)
 			res := do(setup, "PUT", path, "manager", intent)
 			require.Equal(t, 201, res.Code, res.Body.String())
 			upload := httptest.NewRequest("PUT", path+"/content", bytes.NewReader(content.Bytes()))
@@ -121,7 +184,7 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "available", status)
 
-			downloadPath, downloadAction := path+"/content", "workforce.document.downloaded"
+			downloadPath, downloadAction := path+"/content", auditAction
 			if strings.HasPrefix(mode, "employment_") {
 				source := do(setup, "GET", staffPath+"/employment-source", "manager", "")
 				require.Equal(t, 200, source.Code, source.Body.String())
@@ -142,7 +205,10 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			signer, verifier := testutil.NewSessionSignerForTest(t)
 			secure := gin.New()
 			secure.Use(requestid.Middleware())
-			api := platform.NewRouter(secure.Group("/v1", authn.Middleware(authn.NewSessionVerifier(verifier), iam.NewRevocationChecker(db)), requestid.PrincipalMiddleware(), authz.Middleware(authority)), authority)
+			checker := iam.NewRevocationChecker(db)
+			identity := &staffFileIdentityState{}
+			identity.state.Store(int32(loginclient.UserStateActive))
+			api := platform.NewRouter(secure.Group("/v1", authn.Middleware(authn.NewSessionVerifier(verifier), checker), iam.NewIdentityGuard(db, bus, checker, identity), requestid.PrincipalMiddleware(), authz.Middleware(authority)), authority)
 			workforce.New().Routes(api, platform.Deps{DB: db, Bus: bus, Documents: files})
 			upstreamServer := httptest.NewServer(secure)
 			t.Cleanup(upstreamServer.Close)
@@ -164,11 +230,25 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			require.Equal(t, content.Bytes(), res.Body.Bytes())
 
 			withdraw := func() {
+				if identityChange == "credential_revoked" {
+					require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error {
+						return iam.NewRevocationChecker(db).RevokeTx(tx, "user-manager", time.Now().UTC(), "admin_revoke", "synthetic-governance-owner")
+					}))
+					return
+				}
+				if identityChange == "identity_disabled" {
+					identity.state.Store(int32(loginclient.UserStateInactive))
+					return
+				}
+				if identityChange == "identity_unavailable" {
+					identity.state.Store(-1)
+					return
+				}
 				if mode == "graph_outage" {
 					graphUnavailable.Store(true)
 					return
 				}
-				if strings.HasPrefix(mode, "employment_") {
+				if strings.HasPrefix(mode, "employment_") || strings.HasSuffix(mode, "_permission") {
 					raw, err := fgaclient.NewSdkClient(&fgaclient.ClientConfiguration{ApiUrl: graphURL})
 					require.NoError(t, err)
 					stores, err := raw.ListStores(ctx).Execute()
@@ -182,7 +262,7 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 					require.NotEmpty(t, storeID)
 					require.NoError(t, raw.SetStoreId(storeID))
 
-					permission := workforce.PermDocumentManage
+					permission := primary
 					if mode == "employment_enrollment" {
 						permission = workforce.PermEnrollmentManage
 					}
@@ -194,9 +274,20 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 					return tx.Exec(`DELETE FROM iam_members WHERE tenant_id=? AND subject='user-manager' AND role_key='tenant_admin'`, testutil.TenantA).Error
 				}))
 			}
-			if mode == "upload" {
+
+			readAsOwner := func(tx *gorm.DB) error {
+				return tx.Exec(`SELECT set_config('app.workforce_subject','user-manager',true),set_config('app.workforce_hospital',?,true),set_config(?,?,true)`, hospital, fileReadFlag, fileReadValue).Error
+			}
+			expectedStatus := http.StatusForbidden
+			if mode == "graph_outage" || identityChange == "identity_unavailable" {
+				expectedStatus = http.StatusServiceUnavailable
+			}
+			if identityChange == "credential_revoked" || identityChange == "identity_disabled" {
+				expectedStatus = http.StatusUnauthorized
+			}
+			if strings.Contains(mode, "upload") {
 				nextFile := uuid.NewString()
-				nextPath := staffPath + "/documents/" + nextFile
+				nextPath := documentBase + nextFile
 				res = call("PUT", nextPath, intent)
 				require.Equal(t, 201, res.Code, res.Body.String())
 				cloud.AfterQuarantineWrite(withdraw)
@@ -205,9 +296,10 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 				request.Header.Set("Content-Type", "image/png")
 				res = httptest.NewRecorder()
 				gateway.ServeHTTP(res, request)
-				require.Equal(t, http.StatusForbidden, res.Code, res.Body.String())
+				require.Equal(t, expectedStatus, res.Code, res.Body.String())
+				require.Contains(t, res.Header().Get("Cache-Control"), "no-store")
 				require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-					if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-manager',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true)`, hospital).Error; err != nil {
+					if err := readAsOwner(tx); err != nil {
 						return err
 					}
 					var state struct {
@@ -229,15 +321,17 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			} else {
 				cloud.AfterReleasedRead(withdraw)
 				res = call("GET", downloadPath, "")
-				expectedStatus := http.StatusForbidden
-				if mode == "graph_outage" {
-					expectedStatus = http.StatusServiceUnavailable
-				}
 				require.Equal(t, expectedStatus, res.Code, "ended or unavailable authority must not release bytes after storage I/O")
 				require.NotEqual(t, content.Bytes(), res.Body.Bytes())
 				require.Empty(t, res.Header().Get("Content-Disposition"))
 				require.NotContains(t, res.Body.String(), "synthetic-private.png")
 				require.Contains(t, res.Header().Get("Cache-Control"), "no-store")
+			}
+
+			if identityChange == "identity_disabled" {
+				identity.state.Store(int32(loginclient.UserStateActive))
+				again := call("GET", downloadPath, "")
+				require.Equal(t, http.StatusUnauthorized, again.Code, "reactivation must not revive the old credential")
 			}
 			currentGraph, err := graph.Resolve(ctx, "user-manager", testutil.TenantA)
 			if mode == "graph_outage" {
@@ -251,10 +345,16 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			} else if mode == "employment_documents" {
 				require.False(t, currentGraph.Has(workforce.PermDocumentManage))
 				require.True(t, currentGraph.Has(workforce.PermEnrollmentManage))
+			} else if strings.HasSuffix(mode, "_permission") {
+				require.False(t, currentGraph.Has(primary), "the required operation permission is withdrawn")
+				require.True(t, currentGraph.Has(other), "another family permission cannot substitute for it")
 			} else if mode != "graph_outage" {
-				require.True(t, currentGraph.Has(workforce.PermDocumentManage), "the graph intentionally retains old authority")
+				require.True(t, currentGraph.Has(primary), "the graph intentionally retains old authority")
 			}
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := readAsOwner(tx); err != nil {
+					return err
+				}
 				var count int64
 				if err := tx.Table("workforce_audit").Where("action=?", downloadAction).Count(&count).Error; err != nil {
 					return err

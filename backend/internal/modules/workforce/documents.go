@@ -67,6 +67,9 @@ func (staffDocuments) permissions(bool) (authz.Permission, authz.Permission) {
 }
 
 func refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+	if !authn.Refresh(c) {
+		return false
+	}
 	primary, additional := gate.permissions(writing)
 	if primary == authz.Public {
 		respond.Error(c, http.StatusServiceUnavailable, "authz_unavailable", "authorization is temporarily unavailable")

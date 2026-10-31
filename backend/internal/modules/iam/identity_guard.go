@@ -26,11 +26,11 @@ func NewIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 
 func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationChecker, provider UserStateChecker, now func() time.Time) gin.HandlerFunc {
 	revocations := &revocationHandlers{db: db, bus: bus, checker: checker}
-	return func(c *gin.Context) {
+	check := func(c *gin.Context) bool {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok || p.AuthTime.IsZero() {
 			respond.Unauthenticated(c, "missing authenticated identity")
-			return
+			return false
 		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 		defer cancel()
@@ -40,29 +40,28 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 		}
 		if db == nil || bus == nil || checker == nil {
 			unavailable(errors.New("identity guard dependency missing"))
-			return
+			return false
 		}
-		admit := func() {
+		admit := func() bool {
 			var revoked bool
 			if err := db.WithSystem(ctx, func(tx *gorm.DB) error {
 				return tx.Raw(`SELECT EXISTS(SELECT 1 FROM iam_credential_revocations WHERE subject=? AND revoked_at>=?)`, p.Subject, p.AuthTime).Scan(&revoked).Error
 			}); err != nil {
 				unavailable(err)
-				return
+				return false
 			}
 			if revoked {
 				respond.Unauthenticated(c, "credential revoked")
-				return
+				return false
 			}
-			c.Next()
+			return true
 		}
 		if c.Request.Method == http.MethodPost && c.FullPath() == "/v1/iam/me/sign-out" {
-			admit()
-			return
+			return admit()
 		}
 		if provider == nil {
 			unavailable(errors.New("identity provider missing"))
-			return
+			return false
 		}
 		observedAt := now().UTC()
 		state, err := provider.UserState(ctx, p.Subject)
@@ -71,15 +70,15 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 		}
 		if err != nil {
 			unavailable(err)
-			return
+			return false
 		}
 		switch state {
 		case loginclient.UserStateActive:
-			admit()
+			return admit()
 		case loginclient.UserStateInactive:
 			if err := revocations.revoke(ctx, p.Subject, observedAt, "identity_inactive", "system:identity-state"); err != nil {
 				unavailable(err)
-				return
+				return false
 			}
 			audit.Log(ctx, requestid.Logger(c), slog.LevelWarn, "auth.identity.inactive", "inactive identity credential revoked",
 				"actor_subject", "system:identity-state", "target_subject", p.Subject, "tenant_id", p.TenantID, "revoked_at", observedAt)
@@ -87,5 +86,13 @@ func newIdentityGuard(db *tenantdb.DB, bus *events.Bus, checker *RevocationCheck
 		default:
 			unavailable(errors.New("identity state unrecognized"))
 		}
+		return false
+	}
+	return func(c *gin.Context) {
+		if !check(c) {
+			return
+		}
+		authn.BindIdentityRefresh(c, func() bool { return check(c) })
+		c.Next()
 	}
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -196,6 +197,67 @@ describe("BillingUpi", () => {
       ),
     );
     expect(await screen.findByText(/Cancelling/)).toBeInTheDocument();
+  });
+
+  it("shows a new form after a closed QR, and never resumes a request long unanswered", async () => {
+    const stale = "0199e000-0000-7000-8000-0000000000f2";
+    const closed = "0199e000-0000-7000-8000-0000000000f3";
+    const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+    // The list still says waiting; the request itself has since expired.
+    const fetcher = server(
+      () => ({ status: "expired" }),
+      [
+        request({ id: closed, status: "awaiting_payment", created_at: minutesAgo(6) }),
+        request({ id: stale, status: "requested", qr_image_url: null, created_at: minutesAgo(20) }),
+      ],
+    );
+    const { user } = renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(150000)} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Show a new QR" }));
+    expect(await screen.findByRole("form", { name: "Take a UPI payment" })).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByRole("form", { name: "Take a UPI payment" })).toBeInTheDocument();
+    expect(calls(fetcher, new RegExp(`upi-requests/${stale}$`))).toHaveLength(0);
+  });
+
+  it("keeps the confirmation once the payment clears the balance", async () => {
+    const waitingId = "0199e000-0000-7000-8000-0000000000f4";
+    server(
+      () => ({ status: "paid", rrn: "RRN9", provider_payment_id: "pay_9", receipt_number: 3 }),
+      [request({ id: waitingId })],
+    );
+    function Desk() {
+      const [settledAccount, setSettled] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setSettled(true)}>
+            Settle
+          </button>
+          <CashPayments
+            hospital={hospital}
+            admissionId={admission}
+            account={settledAccount ? account(0) : account(150000, 100000)}
+          />
+        </>
+      );
+    }
+    const { user } = renderWithProviders(<Desk />);
+    expect(await screen.findByText(/UPI payment received: INR 1,000.00/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Settle" }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText(/UPI payment received: INR 1,000.00/)).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Take a UPI payment" })).not.toBeInTheDocument();
+  });
+
+  it("offers no UPI payment with nothing due, but still a UPI deposit", async () => {
+    server(() => ({}));
+    renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(0)} />,
+    );
+    expect(await screen.findByRole("form", { name: "Take a UPI deposit" })).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole("form", { name: "Take a UPI payment" })).not.toBeInTheDocument();
   });
 
   it("never offers to void a UPI receipt, and shows its reference", async () => {

@@ -21,9 +21,14 @@ import { PaymentState } from "../pharmacy/verified-upi";
 
 const money = (minor: number) => formatPharmacyMoney(minor, "INR");
 
-// Still waiting on payments' answer: the desk follows it.
-const waiting = (status: BillingUpiRequest["status"]) =>
-  status === "requested" || status === "awaiting_payment" || status === "cancelling";
+// The server's window: a request unanswered 15 minutes after it was asked
+// holds nothing and blocks nothing, so the desk does not pick it up again.
+const staleMs = 15 * 60_000;
+
+// Still waiting on payments' answer, as far as the list knows: the desk follows it.
+const waiting = (u: BillingUpiRequest, now: number) =>
+  (u.status === "requested" || u.status === "awaiting_payment" || u.status === "cancelling") &&
+  now - Date.parse(u.created_at) < staleMs;
 
 // Paid, or a failure before any QR existed, can never change. Expired and
 // cancelled can still turn paid (late), so they are followed while shown.
@@ -57,15 +62,21 @@ export function BillingUpi({
     requestsKey,
     `/billing/hospitals/${hospital.id}/admissions/${admissionId}/upi-requests`,
   );
+  const now = useNow(1000);
+  // Requests the cashier moved on from: the list may still say waiting.
+  const [dismissed, setDismissed] = useState<string[]>([]);
   // A QR this shift is still waiting on, after a reload, is picked up again.
   const resumable = requests.items.find(
-    (u) => u.shift_id === shift.id && u.purpose === purpose && waiting(u.status),
+    (u) =>
+      u.shift_id === shift.id &&
+      u.purpose === purpose &&
+      !dismissed.includes(u.id) &&
+      waiting(u, now),
   );
   const [id, setId] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   // Adjusted during render, not in an effect.
   if (id === null && resumable) setId(resumable.id);
-  const now = useNow(1000);
   const request = useApiQuery<BillingUpiRequest>(
     ["billing", "upi-request", hospital.id, id ?? ""],
     id ? billingUpiRequestPath(hospital.id, id) : "",
@@ -118,6 +129,7 @@ export function BillingUpi({
   // One id per form until it succeeds: a retried click repeats the same request.
   const [next, setNext] = useState(() => newBedId());
   const restart = () => {
+    if (id) setDismissed((d) => [...d, id]);
     setId(null);
     setDone(false);
     setNext(newBedId());
@@ -161,6 +173,8 @@ export function BillingUpi({
       </div>
     );
   }
+  // Nothing left to pay: no form, but a confirmation above stays shown.
+  if (max !== undefined && max <= 0) return null;
   return (
     <form
       noValidate

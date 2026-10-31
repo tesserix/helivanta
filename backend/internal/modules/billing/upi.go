@@ -275,7 +275,7 @@ func (h *handlers) upiRequests(c *gin.Context, params pagination.Params) ([]upiR
 // Paid wins over every other status, and its receipt is written by the
 // transition's trigger, once.
 func upiOutcomeConsumers() []events.Consumer {
-	outcome := func(name, subject string, apply func(tx *gorm.DB, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error) events.Consumer {
+	outcome := func(name, subject string, apply func(tx *gorm.DB, tenant string, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error) events.Consumer {
 		return events.Consumer{Name: name, Subject: subject, Handle: func(_ context.Context, tx *gorm.DB, evt events.Event) error {
 			var ref paymentscontract.IntentRef
 			if evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &ref) != nil {
@@ -288,11 +288,11 @@ func upiOutcomeConsumers() []events.Consumer {
 			if err != nil {
 				return errors.New("invalid payment outcome event")
 			}
-			return apply(tx, evt.Data, ref, id)
+			return apply(tx, evt.TenantID, evt.Data, ref, id)
 		}}
 	}
 	return []events.Consumer{
-		outcome("billing-upi-opened", paymentscontract.SubjectIntentOpened, func(tx *gorm.DB, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error {
+		outcome("billing-upi-opened", paymentscontract.SubjectIntentOpened, func(tx *gorm.DB, _ string, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error {
 			var d paymentscontract.IntentOpenedData
 			if err := json.Unmarshal(raw, &d); err != nil {
 				return err
@@ -301,7 +301,7 @@ func upiOutcomeConsumers() []events.Consumer {
 				status=CASE WHEN status='requested' THEN 'awaiting_payment' ELSE status END
 				WHERE id=? AND status IN ('requested','cancelling')`, ref.IntentID, d.QRImageURL, d.ExpiresAt, id).Error
 		}),
-		outcome("billing-upi-failed", paymentscontract.SubjectIntentFailed, func(tx *gorm.DB, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error {
+		outcome("billing-upi-failed", paymentscontract.SubjectIntentFailed, func(tx *gorm.DB, _ string, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error {
 			var d paymentscontract.IntentFailedData
 			if err := json.Unmarshal(raw, &d); err != nil {
 				return err
@@ -309,9 +309,22 @@ func upiOutcomeConsumers() []events.Consumer {
 			return tx.Exec(`UPDATE billing_upi_requests SET intent_id=?, status='failed', failure_reason=?
 				WHERE id=? AND status IN ('requested','cancelling')`, ref.IntentID, d.Reason, id).Error
 		}),
-		outcome("billing-upi-paid", paymentscontract.SubjectIntentPaid, func(tx *gorm.DB, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error {
+		outcome("billing-upi-paid", paymentscontract.SubjectIntentPaid, func(tx *gorm.DB, tenant string, raw json.RawMessage, ref paymentscontract.IntentRef, id uuid.UUID) error {
 			var d paymentscontract.IntentPaidData
 			if err := json.Unmarshal(raw, &d); err != nil {
+				return err
+			}
+			// The admission lock first, as every charge and cash receipt takes
+			// it before the counter: the receipt this writes takes both, and the
+			// opposite order deadlocks with a cashier at the same counter.
+			var admission []uuid.UUID
+			if err := tx.Raw(`SELECT admission_id FROM billing_upi_requests WHERE id=?`, id).Scan(&admission).Error; err != nil {
+				return err
+			}
+			if len(admission) == 0 {
+				return nil
+			}
+			if err := lockAdmission(tx, tenant, admission[0]); err != nil {
 				return err
 			}
 			// The money is real: a request already told expired, cancelled or
@@ -322,10 +335,10 @@ func upiOutcomeConsumers() []events.Consumer {
 				WHERE id=? AND status <> 'paid' AND amount_minor=? AND currency=?`,
 				ref.IntentID, d.ProviderPaymentID, d.RRN, d.PaidAt, d.Late, id, d.AmountMinor, d.Currency).Error
 		}),
-		outcome("billing-upi-expired", paymentscontract.SubjectIntentExpired, func(tx *gorm.DB, _ json.RawMessage, _ paymentscontract.IntentRef, id uuid.UUID) error {
+		outcome("billing-upi-expired", paymentscontract.SubjectIntentExpired, func(tx *gorm.DB, _ string, _ json.RawMessage, _ paymentscontract.IntentRef, id uuid.UUID) error {
 			return tx.Exec(`UPDATE billing_upi_requests SET status='expired' WHERE id=? AND status IN ('requested','awaiting_payment','cancelling')`, id).Error
 		}),
-		outcome("billing-upi-cancelled", paymentscontract.SubjectIntentCancelled, func(tx *gorm.DB, _ json.RawMessage, _ paymentscontract.IntentRef, id uuid.UUID) error {
+		outcome("billing-upi-cancelled", paymentscontract.SubjectIntentCancelled, func(tx *gorm.DB, _ string, _ json.RawMessage, _ paymentscontract.IntentRef, id uuid.UUID) error {
 			return tx.Exec(`UPDATE billing_upi_requests SET status='cancelled' WHERE id=? AND status IN ('requested','awaiting_payment','cancelling')`, id).Error
 		}),
 	}

@@ -347,3 +347,51 @@ func TestAWaitingUpiPaymentBoundsDepositApplications(t *testing.T) {
 	})
 	requireConstraint(t, err, "billing_upi_request_fixed", "a paid request never changes, even by a consumer")
 }
+
+// A paid event and a cash receipt on the same counter and admission take the
+// admission lock first, as every charge and receipt does, so neither is
+// aborted as a deadlock.
+func TestAPaidEventAndCashAtTheSameCounterDoNotDeadlock(t *testing.T) {
+	w := newBedWorld(t)
+	admission, patient := uuid.NewString(), uuid.NewString()
+	w.charge(admission, patient, 5000)
+	counter, _ := w.counterWithShift(t, "clerk", "IPD-1", 0)
+	id := v7()
+	status, _, body := w.askUpi("clerk", admission, id, "payment", 1000)
+	require.Equal(t, http.StatusCreated, status, body)
+
+	// The cash path's order: the admission lock, then the counter.
+	locked, release := make(chan struct{}), make(chan struct{})
+	cashDone := make(chan error, 1)
+	go func() {
+		cashDone <- w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?::text||':billing-bed-days:'||?::text, 0))`, testutil.TenantA, admission).Error; err != nil {
+				return err
+			}
+			close(locked)
+			<-release
+			var got []string
+			if err := tx.Raw(`SELECT id::text FROM billing_counters WHERE tenant_id=? AND id=? FOR UPDATE`, testutil.TenantA, counter).Scan(&got).Error; err != nil {
+				return err
+			}
+			if len(got) != 1 {
+				return fmt.Errorf("the counter was not locked: %v", got)
+			}
+			return nil
+		})
+	}()
+	<-locked
+	paidDone := make(chan error, 1)
+	go func() {
+		paidDone <- w.deliver("billing-upi-paid", paymentscontract.IntentPaidData{IntentRef: ref(id), AmountMinor: 1000, Currency: "INR",
+			ProviderPaymentID: "pay_x", RRN: "RRN1", PaidAt: time.Now()})
+	}()
+	time.Sleep(300 * time.Millisecond) // let the paid event reach its locks
+	close(release)
+	require.NoError(t, <-cashDone, "the cash side is not aborted")
+	require.NoError(t, <-paidDone, "nor the paid event")
+	require.Equal(t, "paid", w.upi(id).Status)
+}

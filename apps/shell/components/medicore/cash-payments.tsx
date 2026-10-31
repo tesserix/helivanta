@@ -73,7 +73,8 @@ export function CashPayments({
           receiptsKey={key}
         />
       )}
-      {open && inr && (payable > 0 || inr.upi_waiting_minor > 0) && (
+      {/* Mounted while the shift is open, so a payment that clears the balance keeps its confirmation. */}
+      {open && inr && (
         <BillingUpi
           hospital={hospital}
           admissionId={admissionId}

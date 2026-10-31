@@ -321,6 +321,10 @@ func (h *handlers) employmentEvidenceHistory(c *gin.Context, params pagination.P
 	return rows, nil
 }
 
+func (employmentEvidenceGate) permissions(bool) (authz.Permission, authz.Permission) {
+	return PermDocumentManage, PermEnrollmentManage
+}
+
 type employmentEvidenceGate struct {
 	scope employmentEvidenceScope
 	file  uuid.UUID

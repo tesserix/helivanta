@@ -1,5 +1,42 @@
 # Staff Management delivery tracker
 
+## Current file permissions after storage — 2026-10-31
+
+A real IAM/PostgreSQL/OpenFGA/signed-session journey reproduced a private Staff
+download returning 200 after IAM administrator-role removal during the storage
+read. Ordinary membership, the hospital-manager row and the stale graph grant
+remained, isolating the permission-source gap. The shared file pipeline now
+refreshes current permissions before owner phases and after storage I/O. Staff,
+employment, benefit and tax gates declare their existing read/write requirements;
+both employment permissions must remain current from one resolver result.
+
+Five real-service cases pass through the Global API: role loss during Staff
+read/upload; loss of either employment permission independently; and an actual
+HTTP-level graph outage during storage. They verify denial/no private bytes or
+filename, no-store responses, no false successful-read audit, and upload remaining
+unbound to a source generation with no second scan command. Focused gateway race
+run: 18.967 s. Full cross-module journey race suite passes (40.741 s); full Global
+API and architecture races pass (75.720 s / 34.974 s). Full vet/build, affected
+lint and contract freshness pass. The full Workforce race suite passes: 521
+passing test/subtest events, zero failures/skips, 83.7% statement coverage
+(461.510 s); cross-module journeys have 12 passes and no failures/skips. Benefit/tax mid-I/O IAM cases remain distinct gates;
+existing positive/owner-boundary tests must also pass.
+
+The earlier recovery PR Go failure was a lock observer matching obsolete joined
+SQL. It was reproduced locally and corrected without weakening blocker-PID or
+403/no-write assertions; the focused Global API journey passes (26.437 s).
+The observer-only fix is `e65f7810`. Test fixture corrections (file RLS context
+and deterministic graph unavailability instead of soft store deletion) retain
+all original denial assertions.
+
+See the [design](../superpowers/specs/2026-10-31-staff-file-current-permissions.md)
+and [plan](../superpowers/plans/2026-10-31-staff-file-current-permissions.md).
+This is current permission refresh across file I/O, not a transaction-held IAM
+or employment cutoff. Full scoped HR intake/owner/storage/UI integration,
+current-person basis, independent employment review, legacy cohort classification
+and every A01–A12 lifecycle/cross-module journey remain open. No new role, route,
+SQL migration, production rollout or complete Staff area is claimed.
+
 ## Membership recovery UI and compound expiry — 2026-10-31
 
 The candidate source `e848beaf` is now running behind the existing local Global

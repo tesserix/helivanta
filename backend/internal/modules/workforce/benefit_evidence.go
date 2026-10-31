@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -54,6 +55,13 @@ func (e benefitEvidence) owns(tx *gorm.DB, p authn.Principal, hospital, staffID 
 }
 
 func (benefitEvidence) downloadAction() string { return "workforce.benefits.evidence_downloaded" }
+
+func (benefitEvidence) permissions(writing bool) (authz.Permission, authz.Permission) {
+	if writing {
+		return PermBenefitsManage, authz.Public
+	}
+	return PermBenefitsView, authz.Public
+}
 
 func (e benefitEvidence) row(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID) *gorm.DB {
 	return tx.Table("workforce_benefit_enrollment_proposals").

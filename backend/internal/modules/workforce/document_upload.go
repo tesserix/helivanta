@@ -60,6 +60,9 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 
 // receiveDocument verifies bytes against the intent, quarantines them, then queues the scan.
 func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
+	if !refreshDocumentPermissions(c, gate, true) {
+		return
+	}
 	var saved document
 	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
@@ -91,6 +94,9 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 	}
 	if _, err := attachments.InspectContent(data, saved.ContentType); err != nil {
 		respond.Error(c, http.StatusBadRequest, "invalid_document", "Use a complete PNG or JPEG without embedded files or unsupported metadata. Export a fresh image and try again.")
+		return
+	}
+	if !refreshDocumentPermissions(c, gate, true) {
 		return
 	}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
@@ -130,6 +136,9 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		return
 	}
 	var committed bool
+	if !refreshDocumentPermissions(c, gate, true) {
+		return
+	}
 	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var err error
 		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)

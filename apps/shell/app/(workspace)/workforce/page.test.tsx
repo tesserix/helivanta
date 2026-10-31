@@ -296,7 +296,9 @@ it("clears a scoped HR directory when the owner denies the protected profile rea
   await user.click(
     await screen.findByRole("button", { name: "Edit Synthetic Private Intake Staff" }),
   );
-  expect(await screen.findByRole("alert")).toHaveTextContent("Your account or workspace changed");
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("Your account or workspace changed"),
+  );
   expect(screen.queryByText("Synthetic Private Intake Staff")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();

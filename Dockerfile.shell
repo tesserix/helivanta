@@ -52,7 +52,6 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/emergency-access/package.json ./packages/emergency-access/
 COPY e2e/package.json ./e2e/
 COPY scripts/package.json ./scripts/
-COPY patches ./patches
 
 # `--filter @helivanta/shell...` installs the shell and its workspace
 # dependency closure ONLY. Without it a plain install also pulls the root's

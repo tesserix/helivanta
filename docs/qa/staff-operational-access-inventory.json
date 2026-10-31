@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "d5ecf0c1255c9e029dd5b0890c5b72316fe168db514724aecd63d4422b56cd3f",
+  "registry_sha256": "799ed6fc08f444934baa83dfdfeafd5569a875239b470cec6a5ab4545c7a9117",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 704,
-    "unclassified": 695
+    "total": 708,
+    "unclassified": 699
   },
   "entries": [
     {
@@ -646,6 +646,54 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/credit-notes",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note/lines",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note/lines",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications",
       "kind": "http",
       "module": "billing",
@@ -1085,6 +1133,22 @@
         "source": "backend/internal/modules/billing/module.go",
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice",
+        "permission": "billing.bill.issue",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note",
         "permission": "billing.bill.issue",
         "authentication_required": true,
         "membership_required": true,

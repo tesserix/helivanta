@@ -8,10 +8,10 @@ database, migration, account change or runtime activation is performed by it.
 
 ## Current source findings
 
-The current registry contains 650 module HTTP routes, 43 async subscriptions,
-one broadcast and ten unauthenticated allowlist entries: 704 registered surfaces.
+The current registry contains 654 module HTTP routes, 43 async subscriptions,
+one broadcast and ten unauthenticated allowlist entries: 708 registered surfaces.
 Four MediCore encounter routes and five employment-review routes have explicit
-source-reviewed classifications; 695 remain unclassified. No surface has complete employment-cutoff acceptance.
+source-reviewed classifications; 699 remain unclassified. No surface has complete employment-cutoff acceptance.
 These counts do not measure engineering completion.
 
 The four encounter handlers (`open`, `list`, `get`, `transition`) all enter
@@ -49,7 +49,7 @@ node scripts/staff-operational-access-inventory.mjs --check
 node scripts/staff-operational-access-inventory.mjs --check --require-classified
 ```
 
-The last command currently refuses classification completion with **695
+The last command currently refuses classification completion with **699
 unclassified surfaces**. Ordinary CI checks ledger/source drift and tests the
 checker; it does not require an unfinished classification to pass. The strict
 classification check is a prerequisite, never sufficient evidence to activate

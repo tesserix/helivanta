@@ -1,0 +1,350 @@
+{
+  "status": "prepared_not_deployed",
+  "production_baseline": "c20a220267cc4e71cc169c47b3ef7220612da1ce",
+  "staff_source_commit": "f1d3cdee",
+  "integrated_main_commit": "563ae311",
+  "production_applied_migration_count": 166,
+  "candidate_registered_migration_count": 191,
+  "pending_migration_count": 25,
+  "pending_migrations": [
+    {
+      "owner": "iam",
+      "id": "0015_iam_membership_commands",
+      "sql_sha256": "05596ad13bb1ba5830d5da6a665620dfa34994357a3ec79249b9921bd197856a",
+      "creates_tables": ["iam_membership_commands"],
+      "registration_source": "backend/internal/modules/iam/module.go",
+      "canonical_sql": "backend/internal/modules/iam/membership_commands.sql",
+      "embedded_variable": "membershipCommandsSchema",
+      "embed_source": "backend/internal/modules/iam/membership_commands.go"
+    },
+    {
+      "owner": "iam",
+      "id": "0016_iam_membership_candidate_index",
+      "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creates_tables": [],
+      "concurrent_indexes": [
+        {
+          "name": "iam_members_candidate_history",
+          "table": "iam_members",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "descending": false
+            },
+            {
+              "name": "created_at",
+              "descending": true
+            },
+            {
+              "name": "id",
+              "descending": true
+            }
+          ]
+        }
+      ],
+      "registration_source": "backend/internal/modules/iam/module.go"
+    },
+    {
+      "owner": "iam",
+      "id": "0017_iam_membership_projection_reader",
+      "sql_sha256": "3f394505085d4aa6fa98d35fa4c0dcddff03b09ac448acca4bbcf5c5f3e4c059",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/iam/module.go",
+      "canonical_sql": "backend/internal/modules/iam/membership_projection_reader.sql",
+      "embedded_variable": "membershipProjectionReaderSchema",
+      "embed_source": "backend/internal/modules/iam/membership_source.go"
+    },
+    {
+      "owner": "iam",
+      "id": "0018_iam_membership_enrollments",
+      "sql_sha256": "72b9e92d0a5810d722afd39f0f291051fc3254cbf60338d4162bbf37cb3483bb",
+      "creates_tables": ["iam_membership_enrollments"],
+      "registration_source": "backend/internal/modules/iam/module.go",
+      "canonical_sql": "backend/internal/modules/iam/membership_enrollments.sql",
+      "embedded_variable": "membershipEnrollmentsSchema",
+      "embed_source": "backend/internal/modules/iam/membership_enrollments.go"
+    },
+    {
+      "owner": "iam",
+      "id": "0019_iam_membership_recovery_admission",
+      "sql_sha256": "e4859d0e2686cf59604189259dfb90ba0fd854f76b8dae2375978162fad2c242",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/iam/module.go",
+      "canonical_sql": "backend/internal/modules/iam/membership_recovery_admission.sql",
+      "embedded_variable": "membershipRecoveryAdmissionSchema",
+      "embed_source": "backend/internal/modules/iam/membership_recovery_admission.go"
+    },
+    {
+      "owner": "iam",
+      "id": "0020_iam_hr_intake_templates",
+      "sql_sha256": "5c274cdcff30becc3a8f1e26dc32c7abbb8257ebdfa48bab4864e43113c8d4e7",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/iam/module.go",
+      "canonical_sql": "backend/internal/modules/iam/assignment_hr_intake_templates_generated.sql",
+      "embedded_variable": "hrIntakeTemplatesSchema",
+      "embed_source": "backend/internal/modules/iam/assignment_proposals.go"
+    },
+    {
+      "owner": "iam",
+      "id": "0021_iam_employment_templates",
+      "sql_sha256": "cd2a45df4a99a7a0c33da6429548fb5695e5ad5b8ed5f04d34bcc5f14b554813",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/iam/module.go",
+      "canonical_sql": "backend/internal/modules/iam/assignment_employment_templates_generated.sql",
+      "embedded_variable": "employmentTemplatesSchema",
+      "embed_source": "backend/internal/modules/iam/assignment_proposals.go"
+    },
+    {
+      "owner": "medicore",
+      "id": "0009_medicore",
+      "sql_sha256": "6315f957136762692f6e98ae232c8f1774df65548c2a210ef7688a039127b08a",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/medicore/module.go",
+      "canonical_sql": "backend/internal/modules/medicore/nicu.sql",
+      "embedded_variable": "nicuSchema",
+      "embed_source": "backend/internal/modules/medicore/module.go"
+    },
+    {
+      "owner": "pharmacy",
+      "id": "0028_pharmacy",
+      "sql_sha256": "10222074c9038b23a9ebd8087f54afcaee58cf103a6220a013a6b092d053d599",
+      "creates_tables": ["pharmacy_unused_payment_refunds"],
+      "registration_source": "backend/internal/modules/pharmacy/module.go",
+      "canonical_sql": "backend/internal/modules/pharmacy/unused_payment_refunds.sql",
+      "embedded_variable": "unusedPaymentRefundsSchema",
+      "embed_source": "backend/internal/modules/pharmacy/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0004_billing",
+      "sql_sha256": "63d7af7e6540e1728ec0f59c313bfcb9990497ca057ba20a03c8e811f26ec611",
+      "creates_tables": ["billing_discharge_orders"],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/final_bills.sql",
+      "embedded_variable": "finalBillsSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0005_billing",
+      "sql_sha256": "f928d36d6a6cd2a20c1b1aab27af90fbd64e7f880022bf554469f36029c55e4c",
+      "creates_tables": [
+        "billing_counters",
+        "billing_cash_shifts",
+        "billing_cash_receipts"
+      ],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/cash.sql",
+      "embedded_variable": "cashSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0006_billing",
+      "sql_sha256": "6e1079e3fde89b7ff517d7a7361c80a6dee8c6768162e98347c39481fc9fdd58",
+      "creates_tables": ["billing_deposit_applications"],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/deposits.sql",
+      "embedded_variable": "depositsSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0007_billing",
+      "sql_sha256": "b3f319f7e7937c8c331b959d80793584235f6686f554376bfc174c869811e55f",
+      "creates_tables": ["billing_refund_policies", "billing_refund_approvals"],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/refunds.sql",
+      "embedded_variable": "refundsSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0008_billing",
+      "sql_sha256": "49e759e2b90483181372d677174e22bd5aaaea885418ec0d57edee3874ae426f",
+      "creates_tables": ["billing_account_positions"],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/positions.sql",
+      "embedded_variable": "positionsSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0009_billing",
+      "sql_sha256": "5c0da2e22daa964293a1c1391e01eff4162f8174eec271b53e822fc7eb7aadf9",
+      "creates_tables": [
+        "billing_gst_registrations",
+        "billing_gst_lines",
+        "billing_tax_invoices",
+        "billing_tax_invoice_lines"
+      ],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/gst.sql",
+      "embedded_variable": "gstSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "billing",
+      "id": "0010_billing",
+      "sql_sha256": "4e7ea50b87392e667678c700959b5895371a20e8efad9b7f95b3ee66a3ceeb53",
+      "creates_tables": ["billing_credit_notes", "billing_credit_note_lines"],
+      "registration_source": "backend/internal/modules/billing/module.go",
+      "canonical_sql": "backend/internal/modules/billing/credit_notes.sql",
+      "embedded_variable": "creditNotesSchema",
+      "embed_source": "backend/internal/modules/billing/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0053_workforce_hr_intake",
+      "sql_sha256": "524ecfd2c1b660f85efe56ad4ca5da57807825a9d45373ee7f22fab2e2f9b78d",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/hr_intake.sql",
+      "embedded_variable": "hrIntakeSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0054_workforce_person_reviews",
+      "sql_sha256": "559ef626c7157e1cb3ab8838f4d5cd93019efabfa4c71bb41687b355bd865b8b",
+      "creates_tables": [
+        "workforce_document_contributors",
+        "workforce_person_reviews",
+        "workforce_person_review_history",
+        "workforce_person_review_evidence",
+        "workforce_person_review_contributors"
+      ],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/person_reviews.sql",
+      "embedded_variable": "personReviewsSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0055_workforce_person_provenance_index",
+      "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creates_tables": [],
+      "concurrent_indexes": [
+        {
+          "name": "workforce_person_source_provenance",
+          "table": "workforce_audit",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "descending": false
+            },
+            {
+              "name": "hospital_id",
+              "descending": false
+            },
+            {
+              "name": "resource_id",
+              "descending": false
+            },
+            {
+              "name": "action",
+              "descending": false
+            },
+            {
+              "name": "actor_subject",
+              "descending": false
+            }
+          ]
+        }
+      ],
+      "registration_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0056_workforce_person_review_browse",
+      "sql_sha256": "ec08d175fea3d956a68a055791c810ab7fb9c54416682f966839f6be85e12bac",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/person_review_browse.sql",
+      "embedded_variable": "personReviewBrowseSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0057_workforce_person_review_inbox_index",
+      "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creates_tables": [],
+      "concurrent_indexes": [
+        {
+          "name": "workforce_person_review_inbox",
+          "table": "workforce_person_reviews",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "descending": false
+            },
+            {
+              "name": "hospital_id",
+              "descending": false
+            },
+            {
+              "name": "status",
+              "descending": false
+            },
+            {
+              "name": "created_at",
+              "descending": true
+            },
+            {
+              "name": "id",
+              "descending": true
+            }
+          ]
+        }
+      ],
+      "registration_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0058_workforce_person_evidence_selection",
+      "sql_sha256": "a1b677d6d5fc9fc45b67b7b61247a1b42b9c408ac2174484471649d42f27d6cc",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/person_review_selection.sql",
+      "embedded_variable": "personReviewSelectionSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0059_workforce_employment_document_provenance",
+      "sql_sha256": "8cb978a26a33a7ffaf4823eb068ef5439b97955d9dd6353fd41e987f1e919c8c",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/employment_document_provenance.sql",
+      "embedded_variable": "employmentDocumentProvenanceSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0060_workforce_employment_review_submissions",
+      "sql_sha256": "ae7f567cc5a0caca139a7105a4891b21fcdad54e9433c7d2900a2e2280a484c2",
+      "creates_tables": [
+        "workforce_employment_reviews",
+        "workforce_employment_review_history",
+        "workforce_employment_review_evidence",
+        "workforce_employment_review_contributors"
+      ],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/employment_reviews.sql",
+      "embedded_variable": "employmentReviewsSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "owner": "workforce",
+      "id": "0061_workforce_employment_review_decisions",
+      "sql_sha256": "f2ed5bab5ec7aae164e6d22511e783ad6a9ba39bd18109dbe176acb64d834056",
+      "creates_tables": [],
+      "registration_source": "backend/internal/modules/workforce/module.go",
+      "canonical_sql": "backend/internal/modules/workforce/employment_review_decisions.sql",
+      "embedded_variable": "employmentReviewDecisionsSchema",
+      "embed_source": "backend/internal/modules/workforce/module.go"
+    }
+  ],
+  "recovery": "Preserve expanded schema and immutable receipts/history. Prefer forward correction; any live rollback requires separate approval. No destructive down migrations.",
+  "approval": "Approve the final validated production image revision and this complete migration set before Kargo promotion."
+}

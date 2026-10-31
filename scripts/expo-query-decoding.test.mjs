@@ -5,8 +5,13 @@ import test from "node:test";
 
 const appRequire = createRequire(new URL("../apps/ambulanceconnect/package.json", import.meta.url));
 const routerRequire = createRequire(appRequire.resolve("expo-router/package.json"));
-const parserPath = routerRequire.resolve("query-string");
-const parser = routerRequire("query-string");
+const parserPath = routerRequire.resolve("./build/fork/getStateFromPath-forks.js");
+const { parseQueryParams } = routerRequire(parserPath);
+const { stringifySearchParams } = routerRequire("./build/utils/queryParams.js");
+const parser = {
+  parse: (query) => parseQueryParams(`/report?${query}`, { name: "report" }),
+  stringify: stringifySearchParams,
+};
 
 test("Expo's query parser preserves Unicode, arrays, plus signs and malformed escapes", () => {
   assert.deepEqual(
@@ -26,7 +31,8 @@ test("Expo's query parser preserves Unicode, arrays, plus signs and malformed es
 // GHSA-qr28-fpjm-wq7f's public vector runs in a bounded child process.
 test("Expo's actual query parser handles distinct malformed percent runs without blocking", () => {
   const program = `
-    const parser = require(${JSON.stringify(parserPath)});
+    const { parseQueryParams } = require(${JSON.stringify(parserPath)});
+    const parser = { parse: (query) => parseQueryParams('/report?' + query, { name: 'report' }) };
     let value = '';
     for (let i = 0; i < 32000; i++) {
       value += '%' + Math.floor(i / 256).toString(16).padStart(2, '0') + '%' + (i % 256).toString(16).padStart(2, '0') + 'x';

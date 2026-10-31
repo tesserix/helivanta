@@ -13,7 +13,7 @@
     "type-check": "node ../../scripts/generate-organization-identity.mjs --check && node ../../scripts/generate-country-profiles.mjs --check && node ../../scripts/generate-pharmacy-contract.mjs --check && node ../../scripts/generate-supply-contract.mjs --check && node ../../scripts/generate-workforce-enrollment.mjs --check && node ../../scripts/generate-workforce-roster-config.mjs --check && node ../../scripts/generate-workforce-documents.mjs --check && node ../../scripts/generate-workforce-leave.mjs --check && node ../../scripts/generate-workforce-duty.mjs --check && node ../../scripts/generate-workforce-overtime.mjs --check && node ../../scripts/generate-workforce-attendance.mjs --check && node ../../scripts/generate-workforce-payroll.mjs --check && node ../../scripts/generate-workforce-credentials.mjs --check && node ../../scripts/generate-workforce-benefits.mjs --check && node ../../scripts/generate-staff-access.mjs --check && node ../../scripts/generate-workforce-identity.mjs --check && node ../../scripts/generate-workforce-login-links.mjs --check && node ../../scripts/generate-trading-policy.mjs --check && node ../../scripts/generate-workforce-employment-periods.mjs --check && node ../../scripts/generate-workforce-directory.mjs --check && node ../../scripts/generate-workforce-person-reviews.mjs --check && node ../../scripts/generate-workforce-employment-reviews.mjs --check && tsc --noEmit"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.104.5",
+    "@tanstack/react-query": "^5.105.0",
     "sonner": "^2.0.8",
     "uuid": "14.0.3",
     "zod": "^4.6.7"
@@ -26,7 +26,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
-    "@types/node": "24.19.1",
+    "@types/node": "26.6.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@typescript/native": "npm:typescript@^7.0.2",

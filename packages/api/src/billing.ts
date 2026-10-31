@@ -361,7 +361,19 @@ export type TaxInvoice = {
   cgst_minor: number;
   sgst_minor: number;
   total_minor: number;
+  /** Reversed lines awaiting a credit note. */
+  creditable_lines: number;
   currency: string;
+};
+
+/**
+ * A credit note for an invoice's reversed room days (CGST Act s.34): its lines
+ * copy the invoice's, so what is credited is what was invoiced.
+ */
+export type CreditNote = Omit<TaxInvoice, "creditable_lines"> & {
+  invoice_id: string;
+  invoice_number: string;
+  invoice_date: string;
 };
 
 export type TaxInvoiceLine = {

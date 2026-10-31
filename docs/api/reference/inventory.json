@@ -3690,6 +3690,33 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note/lines",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes/:note",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/credit-notes",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application",
           "permission": "billing.bill.issue",
@@ -3810,6 +3837,15 @@
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/refunds/:receipt",
           "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/tax-invoices/:invoice/credit-notes/:note",
+          "permission": "billing.bill.issue",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
@@ -4175,6 +4211,14 @@
             "billing_gst_lines",
             "billing_tax_invoices",
             "billing_tax_invoice_lines"
+          ]
+        },
+        {
+          "id": "0010_billing",
+          "sql_sha256": "4e7ea50b87392e667678c700959b5895371a20e8efad9b7f95b3ee66a3ceeb53",
+          "creates_tables": [
+            "billing_credit_notes",
+            "billing_credit_note_lines"
           ]
         }
       ]

@@ -62,6 +62,9 @@ var positionsSchema string
 //go:embed gst.sql
 var gstSchema string
 
+//go:embed credit_notes.sql
+var creditNotesSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -90,7 +93,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -147,6 +150,12 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, inv, PermAccountRead, h.taxInvoices)
 	g.GET(inv+"/:invoice", PermAccountRead, h.taxInvoice)
 	platform.ListRoute(g, inv+"/:invoice/lines", PermAccountRead, h.taxInvoiceLines)
+	// Credit notes for an invoice's reversed room days (#193 slice 2).
+	g.PUT(inv+"/:invoice/credit-notes/:note", PermBillIssue, h.issueCreditNote)
+	cn := hp + "/admissions/:admission/credit-notes"
+	platform.ListRoute(g, cn, PermAccountRead, h.creditNotes)
+	g.GET(cn+"/:note", PermAccountRead, h.creditNote)
+	platform.ListRoute(g, cn+"/:note/lines", PermAccountRead, h.creditNoteLines)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

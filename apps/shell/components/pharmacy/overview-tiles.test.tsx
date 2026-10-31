@@ -149,8 +149,10 @@ describe("OverviewTiles", () => {
 
   // A wait that began on an earlier day must say which day, not just a time.
   it("dates the oldest wait when it began before today", async () => {
+    // Two days after the wait began, in any timezone, whatever today is.
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-11-03T12:00:00Z"));
+    vi.setSystemTime(new Date("2026-11-03T03:15:00Z"));
+
     serve();
     renderWithProviders(<WaitingTile />);
     const note = await within(

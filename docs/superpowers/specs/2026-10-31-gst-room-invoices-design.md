@@ -84,8 +84,9 @@ From 2022-07-18:
     most one invoice.
   - The first invoice is issued once a final bill exists. A later bed charge goes on a
     further invoice.
-- **Credit notes are not built yet,** so the reversal of an invoiced charge blocks
-  further invoices: `409 credit_note_required`, never a negative line.
+- **The reversal of an invoiced charge blocks further invoices** until its credit note is
+  issued (`409 credit_note_required`), never a negative line. Credit notes followed in
+  slice 2 (`2026-10-31-gst-credit-notes-design.md`).
 - **Numbering:**
   - One series per GSTIN per financial year (April to March, by the hospital's date):
     `IP/2627/1` up to `IP/2627/9999999` (15 characters).
@@ -127,7 +128,7 @@ From 2022-07-18:
 
 ## Not covered
 
-- Credit and debit notes.
+- Credit and debit notes (credit notes for reversed days: slice 2).
 - IRN or e-invoicing (IRP), QR codes, PDFs and printing.
 - IGST and B2B recipients.
 - GST on any other hospital service (none is charged yet).

@@ -302,7 +302,7 @@ func TestScopedLeaveThroughGlobalAPI(t *testing.T) {
 		return withdrawingPID != 0
 	}, 2*time.Second, 20*time.Millisecond)
 	waitingDecision := start(pending+"/decision", reviewer, decision)
-	require.Eventually(t, func() bool { return blockedBy(withdrawingPID, "FOR SHARE OF p,m,q") != 0 }, 2*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return blockedBy(withdrawingPID, "iam_assignment_proposals") != 0 }, 2*time.Second, 20*time.Millisecond)
 	unlock()
 	withdrawn := <-withdrawal
 	require.Equal(t, 200, withdrawn.Code, withdrawn.Body.String())

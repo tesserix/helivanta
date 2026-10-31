@@ -40,6 +40,17 @@ type ScopedCommandGuard interface {
 	WithScopeGrant(context.Context, ScopeRequest, ScopeGrant, time.Time, func(context.Context) error) error
 }
 
+// ScopeCheck binds one server-required permission to its current IAM evidence.
+type ScopeCheck struct {
+	Request ScopeRequest
+	Grant   ScopeGrant
+}
+
+// CompoundScopedCommandGuard holds all required grants through one owner commit.
+type CompoundScopedCommandGuard interface {
+	WithScopeGrants(context.Context, []ScopeCheck, time.Time, func(context.Context) error) error
+}
+
 type ScopedAssignmentChecker interface {
 	CheckScopedAssignment(context.Context, ScopedAssignment, string, Permission) (bool, error)
 }

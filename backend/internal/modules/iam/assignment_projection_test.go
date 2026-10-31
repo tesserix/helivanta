@@ -249,6 +249,11 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 
 	guard, supportsCommandGuard := authority.(authz.ScopedCommandGuard)
 	require.True(t, supportsCommandGuard, "the IAM provider must guard the real product transaction")
+	compound, supportsCompoundGuard := authority.(authz.CompoundScopedCommandGuard)
+	require.True(t, supportsCompoundGuard, "the IAM provider must hold compound authority in one product transaction")
+	checks := []authz.ScopeCheck{{Request: request, Grant: grant}}
+	require.NoError(t, compound.WithScopeGrants(tenantdb.WithActor(t.Context(), request.Subject), checks, time.Now().UTC(), func(context.Context) error { return nil }))
+
 	guardCtx := tenantdb.WithActor(t.Context(), request.Subject)
 	guardFailure := errors.New("synthetic failure after guarded product write")
 	writeGuardAudit := func(ctx context.Context) error {

@@ -1,7 +1,7 @@
 # Compound Staff command authority
 
-Status: next implementation design, not implemented or activated. Full A01–A12
-remains required. Consumers and storage phases are enumerated in the Staff intake
+Status: internal guard implementation in progress; no HR consumer or template
+is activated. Full A01–A12 remains required. Consumers and storage phases are enumerated in the Staff intake
 source inventory; ADR-0049 retains the legacy-cohort and employment cutoff gates.
 
 ## Required boundary

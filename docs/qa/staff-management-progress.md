@@ -1,5 +1,54 @@
 # Staff Management delivery tracker
 
+## Compound command authority — local implementation, 2026-10-31
+
+Full Access/RBAC A01–A12 remains open. IAM now has an additive bounded compound
+command guard; the existing single-grant method delegates to it. One or two
+server-required permission/evidence pairs must share the current account,
+tenant, hospital, membership generation and acknowledged scope epoch. Duplicate
+requirements, conflicting receipts and mixed scopes fail before owner work.
+Active proposal rows lock in stable ID order before membership and scope; the
+credential watermark lock and all source locks stay held through owner commit.
+Every exact permission/snapshot is rechecked after waits and before commit, with
+the earliest grant expiry bounding the command. Caller input is cloned.
+
+The real-service capability assertion failed before implementation
+(`/tmp/staff-compound-red.log`). Two independently reviewed assignments pass,
+including missing permission, malformed/mixed evidence, revoked credential,
+unavailable dependency and shared owner rollback checks. PostgreSQL observed an
+actual withdrawal lock wait until the owner commit; retained evidence then denied.
+Removing the source-lock call made that assertion fail
+(`/tmp/staff-compound-missing-locks-red.log`); the implementation was restored.
+Existing leave/identity projection race tests pass (88.966 s); the extended
+compound lock-wait test passes (10.457 s). Architecture race tests pass
+(57.327 s), as do full Go vet/build, affected lint and contract/schema freshness.
+The full IAM race/coverage suite passes: 300 passing test/subtest events, no
+failures, 82.3% statement coverage (346.121 s). Its eight conditional provider
+skips were resolved by the separate real-provider run below. The final expanded
+compound test, including reversed input and the observed withdrawal wait, passes
+again after restoring locks (9.855 s). Authz and tenantdb race packages pass;
+architecture passes in its separate correct-package invocation. The first combined
+command named nonexistent `internal/arch` and therefore exited nonzero despite
+those package passes; `internal/archtest` is the correct architecture package.
+A later support-only invocation omitted the Docker environment and failed fixture
+startup; its configured rerun is tracked separately. No failing test was skipped
+or changed to hide either invocation error.
+
+All eight real localhost Zitadel integration tests pass with race detection,
+zero failures/skips (30.383 s). Credentials were loaded only into the child
+process. Mode-0600 evidence remains in the private QA bundle as
+`compound-guard-zitadel-provider-20261031.jsonl`.
+
+This is an internal prerequisite, not activated HR intake, employment review or
+cutoff. No new route, permission, template, SQL migration, FGA model or production
+role/rollout is introduced. Compound expiry/lock-wait/activation combinations,
+query-plan/latency acceptance and actual Workforce storage/owner/UI integration
+remain gates before consumer activation. Continue the
+[implementation plan](../superpowers/plans/2026-10-31-compound-staff-command-authority.md),
+then person identity, independent employment decisions and every effective
+suspension/resumption/exit/contract-expiry/rehire and cross-module cutoff. No
+A-item, Staff area, browser or deployed acceptance is newly marked complete.
+
 ## Access/RBAC checkpoint — 2026-10-31: frozen template migration history
 
 The actual generator regression proved that editing an existing template permission
@@ -140,7 +189,6 @@ not a passing real-provider journey. No new skips were introduced. One full
 architecture invocation omitted the required Docker socket environment and
 failed fixture startup; its corrected full rerun passed without test changes.
 
-
 Commands run from `backend/` with the established disposable Colima socket for
 container-backed suites:
 
@@ -204,7 +252,6 @@ renewal, all employment/contract lifecycles and cross-module cutoff acceptance
 remain open. Staff Management counts stay 10 partial, 10 audit pending, 1 research,
 0 fully accepted. No merge, production deployment, issue closure or release tag.
 
-
 ## Access/RBAC checkpoint — 2026-10-31: reconciliation and independent decisions
 
 Follow-up source-integrated HTTP evidence is pushed at `17e3dc90323a3d2c6ac410488b3c1295d792fc4d`
@@ -242,7 +289,6 @@ membership recovery/removal, renewal, all employment/contract lifecycles and
 cross-module cutoff acceptance. No whole-area completion percentage is claimed;
 Staff Management counts remain 10 partial, 10 audit pending, 1 research, 0 accepted.
 The earlier checkpoint sections below describe their own evidence dates.
-
 
 Updated: 2026-10-31. Owner: Helivanta Staff Management delivery. This is the summary tracker for the full user-requested scope. The [workflow acceptance ledger](staff-management-acceptance.md) holds detailed scenarios and evidence; this document does not replace it.
 

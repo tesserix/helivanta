@@ -1,5 +1,30 @@
 # Staff Management delivery tracker
 
+## Current status — 2026-11-02
+
+Approved source `02b1e2b7` and all four recorded migrations are deployed. The user
+has now explicitly authorized production source activation, which is enabled through
+[GitOps PR #1619](https://github.com/tesserix/tesserix-k8s/pull/1619), preserving
+that image and adding no migration or production role grant. Both owner pods
+carry activation=true; all six application deployments are 2/2 ready and API Argo
+is Synced/Healthy. Ledger remains 201 and production generation count zero.
+See the [verified configuration release](../deployment/releases/2026-11-02-employment-activation-enablement.md).
+
+New acceptance: the full UI-created **digital** applicant journey now passes
+independent person/employment approvals, explicit activation, fresh independently
+reviewed login link and generation-bound role, recipient admission, retained-session
+account-disable cutoff and source-revocation cutoff while the assignment remains
+recorded active. Five deterministic signed activation/recipient lock races also pass;
+a negative shared-lock mutation fails cleanly and the full Global API race suite
+passes in 113.627s. Temporary roles were withdrawn and the synthetic login link
+revoked; all history remains. See the [complete evidence and limits](2026-11-02-employment-activation-enablement.md).
+
+Whole Staff remains **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+Legacy/governance migration and complete suspension/exit/contract-expiry/rehire
+consumer enforcement remain open. Source command availability grants no login,
+assignment, payroll or clinical authority. Earlier dated entries below are
+historical evidence; use this section and the linked release record for current state.
+
 ## Operational activation implementation — 2026-11-01, release candidate
 
 Production remains at approved `7e5b7800`. Operational activation is incomplete;

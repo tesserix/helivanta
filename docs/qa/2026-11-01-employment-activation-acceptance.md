@@ -1,7 +1,9 @@
 # Employment activation acceptance — 2026-11-01
 
-Status: local non-digital browser acceptance and signed digital API regression.
-Operational activation remains incomplete and disabled by default in production.
+Status: historical 2026-11-01 local baseline. Current digital browser acceptance,
+concurrency evidence and the explicit source-availability decision are recorded in
+[the 2026-11-02 acceptance](2026-11-02-employment-activation-enablement.md).
+Full operational activation remains incomplete; compiled chart/application default is off.
 Tracks #1035, #417 and ADR-0049; neither umbrella issue is closed.
 
 Workforce owns approved sources, immutable source consumption, identity counters
@@ -101,11 +103,12 @@ flag unset. A signed default-off smoke returns 503
 `employment_activation_unavailable`; owner reads still show active Staff v2/epoch2.
 Production remains untouched at `7e5b7800`.
 
-## Remaining release gates
+## Remaining operational acceptance gates
 
-Keep `WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED=false`. Complete deterministic lock
-races, digital-recipient/full UI-source acceptance, attributable legacy/governance
-cohorts, external-read completion and every suspension/exit/contract-expiry/rehire
-consumer cutoff before enabling it. A disabled schema/preparation deployment is
+The 2026-11-02 product-owner request supersedes the original blanket production
+flag-off instruction for the source commands. Deterministic lock races and full
+digital UI-source/recipient acceptance now pass; see the linked current record.
+Attributable legacy/governance cohorts, external-read completion and every
+suspension/exit/contract-expiry/rehire consumer cutoff remain open. A disabled schema/preparation deployment is
 not completed operational activation. Candidate migrations are persisted in the
 [release manifest](../deployment/releases/2026-11-01-employment-activation-candidate.json).

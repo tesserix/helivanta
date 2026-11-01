@@ -157,13 +157,15 @@ type taxInvoice struct {
 	RecipientAddress string    `json:"recipient_address"`
 	// From the lines: what was supplied, the taxable part, the exempt part,
 	// each tax and the total, in INR paise.
-	Lines        int   `json:"lines"`
-	ValueMinor   int64 `json:"value_minor"`
-	TaxableMinor int64 `json:"taxable_minor"`
-	ExemptMinor  int64 `json:"exempt_minor"`
-	CGSTMinor    int64 `json:"cgst_minor" gorm:"column:cgst_minor"`
-	SGSTMinor    int64 `json:"sgst_minor" gorm:"column:sgst_minor"`
-	TotalMinor   int64 `json:"total_minor"`
+	Lines      int   `json:"lines"`
+	ValueMinor int64 `json:"value_minor"`
+	// Discounts taken off the room charges before their value (#200).
+	DiscountMinor int64 `json:"discount_minor"`
+	TaxableMinor  int64 `json:"taxable_minor"`
+	ExemptMinor   int64 `json:"exempt_minor"`
+	CGSTMinor     int64 `json:"cgst_minor" gorm:"column:cgst_minor"`
+	SGSTMinor     int64 `json:"sgst_minor" gorm:"column:sgst_minor"`
+	TotalMinor    int64 `json:"total_minor"`
 	// Reversed lines awaiting a credit note.
 	CreditableLines int    `json:"creditable_lines"`
 	Currency        string `json:"currency" gorm:"-"`
@@ -173,7 +175,7 @@ func (t taxInvoice) PageKey() (time.Time, uuid.UUID) { return t.IssuedAt, t.ID }
 
 const taxInvoiceSelect = `SELECT i.id,i.hospital_id,i.admission_id,i.number,to_char(i.issue_date,'YYYY-MM-DD') AS issue_date,i.issued_at,i.issued_by,
  i.gstin,i.supplier_name,i.supplier_address,i.state_code,i.recipient_name,i.recipient_address,
- count(l.entry_id) AS lines,COALESCE(sum(l.value_minor),0) AS value_minor,
+ count(l.entry_id) AS lines,COALESCE(sum(l.value_minor),0) AS value_minor,COALESCE(sum(l.discount_minor),0) AS discount_minor,
  COALESCE(sum(l.value_minor) FILTER (WHERE l.taxable),0) AS taxable_minor,COALESCE(sum(l.value_minor) FILTER (WHERE NOT l.taxable),0) AS exempt_minor,
  COALESCE(sum(l.cgst_minor),0) AS cgst_minor,COALESCE(sum(l.sgst_minor),0) AS sgst_minor,
  COALESCE(sum(l.value_minor+l.cgst_minor+l.sgst_minor),0) AS total_minor,
@@ -323,6 +325,8 @@ type taxInvoiceLine struct {
 	SAC           string    `json:"sac" gorm:"column:sac"`
 	PolicyVersion string    `json:"policy_version"`
 	ValueMinor    int64     `json:"value_minor"`
+	// Taken off the room charge before its value (#200; CGST Rule 46(1)(i)).
+	DiscountMinor int64     `json:"discount_minor"`
 	Taxable       bool      `json:"taxable"`
 	CGSTBP        int       `json:"cgst_bp" gorm:"column:cgst_bp"`
 	SGSTBP        int       `json:"sgst_bp" gorm:"column:sgst_bp"`
@@ -342,7 +346,7 @@ func (h *handlers) taxInvoiceLines(c *gin.Context, params pagination.Params) ([]
 	}
 	var rows []taxInvoiceLine
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
-		q := tx.Table(`(SELECT entry_id AS id,to_char(census_date,'YYYY-MM-DD') AS census_date,census_date::timestamptz AS sort_at,bed_class,sac,policy_version,value_minor,taxable,cgst_bp,sgst_bp,cgst_minor,sgst_minor
+		q := tx.Table(`(SELECT entry_id AS id,to_char(census_date,'YYYY-MM-DD') AS census_date,census_date::timestamptz AS sort_at,bed_class,sac,policy_version,value_minor,discount_minor,taxable,cgst_bp,sgst_bp,cgst_minor,sgst_minor
  FROM billing_tax_invoice_lines WHERE tenant_id=? AND hospital_id=? AND admission_id=? AND invoice_id=?) AS lines`, p.TenantID, hospital, admission, id)
 		return tenantdb.ApplyOrderedKeyset(q, params, tenantdb.Keyset{Column: "sort_at", Direction: pagination.OldestFirst}).Find(&rows).Error
 	})

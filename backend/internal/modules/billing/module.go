@@ -34,6 +34,10 @@ const (
 	PermCollectionRead authz.Permission = "billing.collection.read"
 	// PermTaxManage records a hospital's GST registration.
 	PermTaxManage authz.Permission = "billing.tax.manage"
+	// PermDiscountManage sets and retires a hospital's discount reasons.
+	PermDiscountManage authz.Permission = "billing.discount.manage"
+	// PermDiscountApprove decides discounts beyond the desk's limit.
+	PermDiscountApprove authz.Permission = "billing.discount.approve"
 )
 
 //go:embed accounts.sql
@@ -69,6 +73,9 @@ var creditNotesSchema string
 //go:embed upi.sql
 var upiSchema string
 
+//go:embed discounts.sql
+var discountsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -93,11 +100,15 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermCollectionRead},
 		// A GSTIN binds the hospital legally: administrators only.
 		{Permission: PermTaxManage},
+		// Concession policy and its approvals stay with administrators; the
+		// desk asks under billing.bill.issue.
+		{Permission: PermDiscountManage},
+		{Permission: PermDiscountApprove},
 	}
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -166,6 +177,14 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, cn, PermAccountRead, h.creditNotes)
 	g.GET(cn+"/:note", PermAccountRead, h.creditNote)
 	platform.ListRoute(g, cn+"/:note/lines", PermAccountRead, h.creditNoteLines)
+	// Discounts on room charges (#200 slice 1).
+	g.PUT(hp+"/discount-reasons/:reason", PermDiscountManage, h.putDiscountReason)
+	g.POST(hp+"/discount-reasons/:reason/retire", PermDiscountManage, h.retireDiscountReason)
+	platform.ListRoute(g, hp+"/discount-reasons", PermAccountRead, h.discountReasons)
+	g.PUT(hp+"/admissions/:admission/discounts/:discount", PermBillIssue, h.putDiscount)
+	platform.ListRoute(g, hp+"/admissions/:admission/discounts", PermAccountRead, h.discounts)
+	platform.ListRoute(g, hp+"/pending-discounts", PermDiscountApprove, h.pendingDiscounts)
+	g.PUT(hp+"/discounts/:discount/decision", PermDiscountApprove, h.decideDiscount)
 	all := hp + "/admissions/:admission/bills"
 	platform.ListRoute(g, all, PermAccountRead, h.bills(""))
 	g.GET(all+"/:number", PermAccountRead, h.bill(""))

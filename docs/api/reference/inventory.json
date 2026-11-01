@@ -3759,6 +3759,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/discounts/:discount",
+          "permission": "billing.bill.issue",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/admissions/:admission/discounts",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/admissions/:admission/entries",
           "permission": "billing.account.read",
@@ -4038,6 +4056,42 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/billing/hospitals/:hospital/discount-reasons/:reason/retire",
+          "permission": "billing.discount.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/discount-reasons/:reason",
+          "permission": "billing.discount.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/discount-reasons",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/discounts/:discount/decision",
+          "permission": "billing.discount.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/billing/hospitals/:hospital/gst-registration",
           "permission": "billing.account.read",
@@ -4053,6 +4107,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/pending-discounts",
+          "permission": "billing.discount.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -4143,6 +4206,14 @@
         },
         {
           "permission": "billing.tax.manage",
+          "roles": []
+        },
+        {
+          "permission": "billing.discount.manage",
+          "roles": []
+        },
+        {
+          "permission": "billing.discount.approve",
           "roles": []
         }
       ],
@@ -4305,6 +4376,14 @@
           "sql_sha256": "76b7a02c72f46db02fa9f05f9e1e4e7e5521b0697cf3b9c908e583cd422f7f02",
           "creates_tables": [
             "billing_upi_requests"
+          ]
+        },
+        {
+          "id": "0012_billing",
+          "sql_sha256": "56e57f77fb94564c8e23ba9892d7d3177b686ff70fb964a0a39a4ac4bb635aa3",
+          "creates_tables": [
+            "billing_discount_reasons",
+            "billing_discounts"
           ]
         }
       ]

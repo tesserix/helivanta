@@ -247,6 +247,15 @@ func voidDay(tx *gorm.DB, tenant string, hospital, admission uuid.UUID, d liveDa
 	if !d.Priced {
 		return nil
 	}
+	// Its discounts (#200) are withdrawn first, so the full reversal fits the
+	// charge and the day nets to zero with the concession still on record.
+	if err := tx.Exec(`INSERT INTO billing_account_entries (tenant_id,hospital_id,id,admission_id,kind,source_module,source_reference,source_document,charge_reference,amount_minor,currency,occurred_at,discount_id)
+ SELECT x.tenant_id,x.hospital_id,billing_uuid_v7(),x.admission_id,'charge','discount',x.source_reference,?,x.source_reference,x.amount_minor,x.currency,?,x.discount_id
+ FROM billing_account_entries x WHERE x.tenant_id=? AND x.source_module='discount' AND x.kind='reversal' AND x.charge_reference=?
+ AND NOT EXISTS (SELECT 1 FROM billing_account_entries w WHERE w.tenant_id=x.tenant_id AND w.source_module='discount' AND w.kind='charge' AND w.source_reference=x.source_reference)`,
+		"Discount withdrawn "+d.CensusDate.Format(time.DateOnly), d.CensusAt, tenant, d.ID).Error; err != nil {
+		return err
+	}
 	if err := postEntry(tx, tenant, hospital, admission, "bed", "reversal", uuid.Must(uuid.NewV7()), d.ID, bedDocument(d.CensusDate), *d.AmountMinor, *d.Currency, d.CensusAt); err != nil {
 		return err
 	}

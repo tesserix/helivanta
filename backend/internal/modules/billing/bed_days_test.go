@@ -40,10 +40,10 @@ func newBedWorld(t *testing.T) *bedWorld {
 			"clerk2": testutil.TenantA, "adminB": testutil.TenantB},
 		Perms: map[string][]authz.Permission{
 			"admin": {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCounterManage, billing.PermShiftAuthorise,
-				billing.PermCashCollect, billing.PermCollectionRead, billing.PermTaxManage},
+				billing.PermCashCollect, billing.PermCollectionRead, billing.PermTaxManage, billing.PermDiscountManage, billing.PermDiscountApprove},
 			"nurse":    {billing.PermAccountRead},
 			"clerk":    {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect},
-			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise, billing.PermBillIssue},
+			"clerk2":   {billing.PermAccountRead, billing.PermCashCollect, billing.PermShiftAuthorise, billing.PermBillIssue, billing.PermDiscountApprove},
 			"outsider": {billing.PermAccountRead, billing.PermBillIssue, billing.PermCashCollect, billing.PermCollectionRead},
 			"adminB":   {billing.PermAccessManage, billing.PermAccountRead, billing.PermRateManage, billing.PermCollectionRead},
 		},

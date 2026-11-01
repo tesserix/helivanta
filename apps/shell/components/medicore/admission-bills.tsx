@@ -18,6 +18,11 @@ import { CashPayments } from "./cash-payments";
 import { TaxInvoices } from "./gst";
 
 const sourceLabel: Record<string, string> = { pharmacy: "Medicine", bed: "Bed day", gst: "GST" };
+// A discount line (#200) is a reversal by nature; its document says what it is.
+const lineLabel = (l: InterimBillLine) =>
+  l.source_module === "discount"
+    ? l.source_document
+    : `${sourceLabel[l.source_module] ?? l.source_module} · ${l.source_document}${l.kind === "reversal" ? " · reversed" : ""}`;
 
 const kindLabel = { interim: "Interim bill", final: "Final bill" } as const;
 
@@ -173,8 +178,7 @@ function BillDetail({ path, open }: { path: string; open: boolean }) {
           {lines.items.map((l) => (
             <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-1">
               <span>
-                {sourceLabel[l.source_module] ?? l.source_module} · {l.source_document}
-                {l.kind === "reversal" && " · reversed"}
+                {lineLabel(l)}
                 {l.new && (
                   <Badge variant="outline" className="ml-2">
                     New

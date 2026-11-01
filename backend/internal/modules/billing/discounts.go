@@ -54,6 +54,7 @@ func (r discountReason) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r
 type discount struct {
 	ID            uuid.UUID  `json:"id"`
 	AdmissionID   uuid.UUID  `json:"admission_id"`
+	PatientID     uuid.UUID  `json:"patient_id" gorm:"->"`
 	ReasonID      uuid.UUID  `json:"reason_id"`
 	ReasonCode    string     `json:"reason_code" gorm:"->"`
 	ReasonName    string     `json:"reason_name" gorm:"->"`
@@ -73,10 +74,11 @@ type discount struct {
 
 func (d discount) PageKey() (time.Time, uuid.UUID) { return d.RequestedAt, d.ID }
 
-const discountColumns = `SELECT d.id,d.admission_id,d.reason_id,r.code AS reason_code,r.name AS reason_name,d.amount_minor,d.currency,d.justification,d.status,
+const discountColumns = `SELECT d.id,d.admission_id,a.patient_id,d.reason_id,r.code AS reason_code,r.name AS reason_name,d.amount_minor,d.currency,d.justification,d.status,
  d.requested_by,d.requested_at,d.decided_by,d.decided_at,d.decision_note,d.applied_at,
  COALESCE((SELECT sum(CASE x.kind WHEN 'reversal' THEN x.amount_minor ELSE -x.amount_minor END) FROM billing_account_entries x WHERE x.tenant_id=d.tenant_id AND x.discount_id=d.id),0) AS net_minor
- FROM billing_discounts d JOIN billing_discount_reasons r ON r.tenant_id=d.tenant_id AND r.id=d.reason_id`
+ FROM billing_discounts d JOIN billing_discount_reasons r ON r.tenant_id=d.tenant_id AND r.id=d.reason_id
+ JOIN billing_admission_accounts a ON a.tenant_id=d.tenant_id AND a.admission_id=d.admission_id`
 
 func discountOf(tx *gorm.DB, tenant string, hospital, id uuid.UUID) ([]discount, error) {
 	var rows []discount

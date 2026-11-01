@@ -76,4 +76,4 @@ with the not-a-tax-invoice label, totals, unpriced-days warning, and lines with 
 Final bill (needs a discharge-initiated event from MediCore); scheduled interim bills;
 deposits and payments netted on the bill (#199); a print layout; patient name and address
 on the bill (MediCore owns them; the UI shows the name through the existing lookup); GST
-(#193); discounts (#200).
+(#193); discounts (#200; slice 1 discounts exempt room charges, which appear on the next bill).

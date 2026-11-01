@@ -33,6 +33,17 @@ const bill = (number: number, kind: "interim" | "final" = "interim") => ({
 });
 const lines = [
   {
+    id: "0199e000-0000-7000-8000-0000000000e3",
+    kind: "reversal",
+    source_module: "discount",
+    source_document: "Discount, bed day 2026-10-29",
+    amount_minor: 50000,
+    currency: "INR",
+    occurred_at: "2026-10-30T06:00:00Z",
+    recorded_at: "2026-10-30T06:00:00Z",
+    new: true,
+  },
+  {
     id: "0199e000-0000-7000-8000-0000000000e1",
     kind: "reversal",
     source_module: "pharmacy",
@@ -110,6 +121,10 @@ describe("AdmissionBills", () => {
     expect(shown).toHaveTextContent("2 bed days not priced, not included");
     expect(await screen.findByText(/TS\/2627\/C1 · reversed/)).toHaveTextContent("New");
     expect(screen.getByText(/TS\/2627\/7/)).not.toHaveTextContent("New");
+    // A discount line says what it is, and is not a reversed charge.
+    const discount = screen.getByText(/^Discount, bed day 2026-10-29/);
+    expect(discount).not.toHaveTextContent("reversed");
+    expect(discount.closest("li")).toHaveTextContent("−INR 500.00");
     expect(screen.queryByRole("button", { name: "Issue interim bill" })).not.toBeInTheDocument();
   });
 

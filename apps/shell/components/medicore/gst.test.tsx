@@ -25,6 +25,7 @@ const invoice = {
   recipient_address: "12 Park Street, Pune",
   lines: 2,
   value_minor: 1400000,
+  discount_minor: 100000,
   taxable_minor: 600000,
   exempt_minor: 800000,
   cgst_minor: 15000,
@@ -33,8 +34,9 @@ const invoice = {
   creditable_lines: 0,
   currency: "INR",
 };
+// A credit note's totals carry no discount: its lines copy the invoice's values.
 const note = {
-  ...invoice,
+  ...Object.fromEntries(Object.entries(invoice).filter(([k]) => k !== "discount_minor")),
   id: "0199e000-0000-7000-8000-0000000000c1",
   number: "CN/2627/1",
   invoice_id: invoice.id,
@@ -55,6 +57,7 @@ const lines = [
     sac: "9993",
     policy_version: "IN-ROOM-2022-07-18",
     value_minor: 600000,
+    discount_minor: 0,
     taxable: true,
     cgst_bp: 250,
     sgst_bp: 250,
@@ -68,6 +71,7 @@ const lines = [
     sac: "9993",
     policy_version: "IN-ROOM-2022-07-18",
     value_minor: 800000,
+    discount_minor: 100000,
     taxable: false,
     cgst_bp: 0,
     sgst_bp: 0,
@@ -204,9 +208,13 @@ describe("TaxInvoices", () => {
     expect(taxed).toHaveTextContent("2.5% INR 150.00");
     expect(exempt).toHaveTextContent("ICU · exempt");
     expect(exempt).not.toHaveTextContent("%");
+    // Rule 46(1)(i): the value after the discount, and the discount itself.
+    expect(exempt).toHaveTextContent("INR 8,000.00after INR 1,000.00 discount");
+    expect(taxed).not.toHaveTextContent("discount");
     const totals = screen.getByLabelText("Invoice totals");
     expect(totals).toHaveTextContent("Taxable valueINR 6,000.00");
     expect(totals).toHaveTextContent("Exempt valueINR 8,000.00");
+    expect(totals).toHaveTextContent("DiscountsINR 1,000.00");
     expect(totals).toHaveTextContent("Invoice totalINR 14,300.00");
     expect(screen.getByText(/GSTIN 27AAPFU0939F1ZV/)).toBeInTheDocument();
   });

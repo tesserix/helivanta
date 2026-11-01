@@ -84,13 +84,14 @@ function server(
             {
               currency: "INR",
               charged_minor: 302500,
-              reversed_minor: 1000,
-              outstanding_minor: 301500,
+              reversed_minor: 51000,
+              outstanding_minor: 251500,
             },
           ],
           sources: [
             { source_module: "bed", currency: "INR", outstanding_minor: 300000 },
             { source_module: "pharmacy", currency: "INR", outstanding_minor: 1500 },
+            { source_module: "discount", currency: "INR", outstanding_minor: -50000 },
           ],
           bed_days: opts.bedDays ?? { configured: true, priced: 2, not_priced: 1 },
           entry_count: 4,
@@ -253,7 +254,7 @@ describe("WardBoard", () => {
     server(["medicore.visit.read", "billing.account.read"]);
     renderWithProviders(<WardBoard />);
     expect(await screen.findByText(/^Owed/)).toHaveTextContent(
-      "Owed INR 3,015.00 · medicine INR 15.00 · bed days INR 3,000.00 before tax · 1 bed day not priced",
+      "Owed INR 2,515.00 · medicine INR 15.00 · bed days INR 3,000.00 before tax · less discounts INR 500.00 · 1 bed day not priced",
     );
   });
 

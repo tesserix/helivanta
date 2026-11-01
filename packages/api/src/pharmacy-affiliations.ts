@@ -121,6 +121,8 @@ export type AdmissionAccount = {
     refunded_minor: number;
     /** UPI payments waiting on an answer (#211): held against the balance, not paid. */
     upi_waiting_minor: number;
+    /** The most a discount may take now (#200): exempt, uninvoiced room charges, within the balance. INR only. */
+    discountable_minor: number;
   }[];
   /** What each source still owes, e.g. pharmacy or bed (#197). */
   sources: { source_module: string; currency: string; outstanding_minor: number }[];

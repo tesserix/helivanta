@@ -47,6 +47,9 @@ export function AdmissionBalance({
     from("pharmacy").length > 0 && `medicine ${money(from("pharmacy"))}`,
     from("bed").length > 0 && `bed days ${money(from("bed"))} before tax`,
     from("gst").length > 0 && `GST on rooms ${money(from("gst"))}`,
+    // Discounts (#200) stand against the charges, so they show as taken off.
+    from("discount").length > 0 &&
+      `less discounts ${money(from("discount").map((s) => ({ ...s, outstanding_minor: -s.outstanding_minor })))}`,
     // A day without a rate has no amount: said so, never counted as zero.
     !configured
       ? "Bed charging is not set up"

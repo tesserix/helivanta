@@ -409,7 +409,14 @@ function DocumentDetail({
                   {!l.taxable && <span className="text-muted-foreground"> · exempt</span>}
                 </td>
                 <td>{l.sac}</td>
-                <td className="text-right">{money(l.value_minor)}</td>
+                <td className="text-right">
+                  {money(l.value_minor)}
+                  {l.discount_minor > 0 && (
+                    <span className="block text-xs text-muted-foreground">
+                      after {money(l.discount_minor)} discount
+                    </span>
+                  )}
+                </td>
                 <td className="text-right">
                   {l.taxable ? `${l.cgst_bp / 100}% ${money(l.cgst_minor)}` : "—"}
                 </td>
@@ -430,6 +437,9 @@ function DocumentDetail({
       <dl className="grid grid-cols-2 gap-x-6 text-sm sm:grid-cols-3" aria-label={`${name} totals`}>
         <Total label="Taxable value" value={money(doc.taxable_minor)} />
         <Total label="Exempt value" value={money(doc.exempt_minor)} />
+        {"discount_minor" in doc && doc.discount_minor > 0 && (
+          <Total label="Discounts" value={money(doc.discount_minor)} />
+        )}
         <Total label="CGST" value={money(doc.cgst_minor)} />
         <Total label="SGST" value={money(doc.sgst_minor)} />
         <Total label={credit ? "Total credited" : "Invoice total"} value={money(doc.total_minor)} />

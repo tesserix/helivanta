@@ -300,7 +300,7 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{scopeAuthority: deps.ScopedAuthorizer, db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit, roles: deps.Roles}
+	h := &handlers{scopeAuthority: deps.ScopedAuthorizer, db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit, roles: deps.Roles, employmentEvidenceSlots: make(chan struct{}, maxEmploymentEvidenceDownloads)}
 	platform.FilteredListRoute(r.Group("/workforce"), "/leave-review-scopes", authz.Public, 20, h.leaveReviewScopeCandidates, h.authorizedLeaveReviewScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/hr-intake-scopes", authz.Public, 20, h.hrIntakeScopeCandidates, h.authorizedHRIntakeScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/person-review-scopes", authz.Public, 20, h.personReviewScopeCandidates, h.authorizedPersonReviewScopes)
@@ -313,6 +313,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT("/:hospital/staff/:id/employment-reviews/:review", authz.Public, h.putEmploymentReview)
 	g.GET("/:hospital/staff/:id/employment-reviews/:review", authz.Public, h.getEmploymentReview)
 	platform.ListRoute(g, "/:hospital/staff/:id/employment-reviews/:review/history", authz.Public, h.listEmploymentReviewHistory)
+	g.GET("/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content", authz.Public, h.downloadEmploymentReviewEvidence)
 	g.POST("/:hospital/staff/:id/employment-reviews/:review/decision", authz.Public, h.decideEmploymentReview)
 	g.POST("/:hospital/staff/:id/employment-reviews/:review/withdrawal", authz.Public, h.withdrawEmploymentReview)
 	g.POST("/:hospital/staff/:id/employment-reviews/:review/revocation", authz.Public, h.revokeEmploymentReview)

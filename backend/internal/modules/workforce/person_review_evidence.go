@@ -1,18 +1,12 @@
 package workforce
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"mime"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
-	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"gorm.io/gorm"
@@ -114,25 +108,9 @@ func (h *handlers) downloadPersonReviewEvidence(c *gin.Context) {
 		personReviewError(c, err)
 		return
 	}
-	if h.documents == nil {
-		documentUploadError(c, errDocumentsUnavailable)
-		return
-	}
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-	defer cancel()
-	if !p.IdleDeadline.IsZero() {
-		var deadline context.CancelFunc
-		ctx, deadline = context.WithDeadline(ctx, p.IdleDeadline)
-		defer deadline()
-	}
-	object := attachments.ObjectScope{TenantID: uuid.MustParse(p.TenantID), HospitalID: hospital, OwnerKind: "staff", OwnerID: staff, RecordID: staff, FileID: file, Version: 1, UploadedAt: snapshot.UploadedAt}
-	content, err := h.documents.ReadReleased(ctx, object, snapshot.Evidence.ReleasedGeneration)
+	proof := releasedReviewFile{Filename: snapshot.Evidence.Filename, ContentType: snapshot.Evidence.ContentType, Size: snapshot.Evidence.Size, SHA256: snapshot.Evidence.Sha256, Generation: snapshot.Evidence.ReleasedGeneration}
+	content, err := h.readReviewEvidence(c, p, hospital, staff, file, snapshot.UploadedAt, proof)
 	if err != nil {
-		documentUploadError(c, errDocumentsUnavailable)
-		return
-	}
-	digest := sha256.Sum256(content.Bytes)
-	if content.Generation != snapshot.Evidence.ReleasedGeneration || content.Size != snapshot.Evidence.Size || int64(len(content.Bytes)) != snapshot.Evidence.Size || content.SHA256 != snapshot.Evidence.Sha256 || hex.EncodeToString(digest[:]) != snapshot.Evidence.Sha256 {
 		documentUploadError(c, errDocumentsUnavailable)
 		return
 	}
@@ -140,9 +118,5 @@ func (h *handlers) downloadPersonReviewEvidence(c *gin.Context) {
 		personReviewError(c, err)
 		return
 	}
-	c.Header("Cache-Control", "private, no-store")
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": snapshot.Evidence.Filename}))
-	c.Header("Content-Security-Policy", "default-src 'none'; sandbox")
-	c.Data(http.StatusOK, snapshot.Evidence.ContentType, content.Bytes)
+	sendReviewEvidence(c, proof, content)
 }

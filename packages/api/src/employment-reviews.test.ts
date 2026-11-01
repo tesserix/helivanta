@@ -1,4 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { readAttachmentFile } from "./attachment-file";
 import {
   getEmploymentReview,
   submitEmploymentReview,
@@ -7,6 +9,7 @@ import {
   withdrawEmploymentReview,
   revokeEmploymentReview,
   listEmploymentReviewHistory,
+  downloadEmploymentReviewEvidence,
 } from "./employment-reviews";
 
 const scope = {
@@ -120,6 +123,129 @@ const capabilities = {
   can_revoke: false,
 };
 afterEach(() => vi.unstubAllGlobals());
+
+const specimenBytes = new Uint8Array([1, 2, 3]);
+const downloadable = {
+  review: {
+    ...row,
+    evidence: [
+      {
+        ...row.evidence[0],
+        binding: {
+          ...row.evidence[0].binding,
+          size: specimenBytes.byteLength,
+          sha256: createHash("sha256").update(specimenBytes).digest("hex"),
+        },
+      },
+    ],
+  },
+  current_state: "pending" as const,
+  ...capabilities,
+};
+
+it("downloads only selected employment-review bytes through the original scoped Global API workspace", async () => {
+  const fetcher = vi.fn(
+    async () =>
+      new Response(specimenBytes, {
+        headers: { "Content-Type": "image/png", "Content-Length": "3" },
+      }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const controller = new AbortController();
+  const blob = await downloadEmploymentReviewEvidence(
+    scope,
+    id,
+    downloadable,
+    file,
+    controller.signal,
+  );
+  expect(new Uint8Array(await readAttachmentFile(blob, controller.signal))).toEqual(specimenBytes);
+  const [path, request] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(path).toBe(
+    `/api/v1/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-reviews/${id}/evidence/${file}/content?hr_intake=v1`,
+  );
+  expect(request.cache).toBe("no-store");
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+});
+
+it.each([
+  { headers: new Headers({ "Content-Type": "image/jpeg" }), body: specimenBytes },
+  {
+    headers: new Headers({ "Content-Type": "image/png", "Content-Length": "4" }),
+    body: specimenBytes,
+  },
+  { headers: new Headers({ "Content-Type": "image/png" }), body: new Uint8Array([3, 2, 1]) },
+])("refuses inconsistent employment bytes or headers %#", async ({ headers, body }) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(body, { headers })),
+  );
+  await expect(
+    downloadEmploymentReviewEvidence(scope, id, downloadable, file, new AbortController().signal),
+  ).rejects.toThrow(/evidence/i);
+});
+
+it("cancels an oversized employment stream before buffering an unbounded body", async () => {
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array([1, 2, 3, 4]));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(body, { headers: { "Content-Type": "image/png" } })),
+  );
+  await expect(
+    downloadEmploymentReviewEvidence(scope, id, downloadable, file, new AbortController().signal),
+  ).rejects.toThrow(/evidence/i);
+  expect(cancelled).toBe(true);
+});
+
+it.each([
+  { ...downloadable, current_state: "source_changed" },
+  { ...downloadable, review: { ...downloadable.review, hospital_id: scope.staffId } },
+])("refuses unavailable or foreign employment view before requesting bytes %#", async (view) => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await expect(
+    downloadEmploymentReviewEvidence(scope, id, view, file, new AbortController().signal),
+  ).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("refuses an unselected employment file before requesting bytes", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await expect(
+    downloadEmploymentReviewEvidence(
+      scope,
+      id,
+      downloadable,
+      command,
+      new AbortController().signal,
+    ),
+  ).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("discards cancelled employment byte responses", async () => {
+  const controller = new AbortController();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      controller.abort();
+      return new Response(specimenBytes, { headers: { "Content-Type": "image/png" } });
+    }),
+  );
+  await expect(
+    downloadEmploymentReviewEvidence(scope, id, downloadable, file, controller.signal),
+  ).rejects.toThrow();
+});
 
 it("reads protected employment history with the original explicit workspace and cursor", async () => {
   const history = { data: [row], page: { has_more: false, next_cursor: null } };

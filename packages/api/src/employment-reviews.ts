@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchResponse } from "./client";
+import { verifiedReviewEvidenceBlob } from "./review-evidence-content";
 import { personReviewRequest as staffReviewRequest } from "./person-reviews";
 import type { EmploymentPeriodScope } from "./employment-periods";
 import {
@@ -240,6 +241,10 @@ export async function getEmploymentReview(
     signal,
   });
   signal?.throwIfAborted();
+  return verifiedEmploymentView(scope, id, response);
+}
+
+function verifiedEmploymentView(scope: EmploymentReviewScope, id: string, response: unknown) {
   const parsed = EmploymentReviewViewContract.safeParse(response);
   if (!parsed.success)
     throw new Error(
@@ -273,6 +278,33 @@ export async function getEmploymentReview(
       "Could not verify current employment review capabilities. Refresh before continuing.",
     );
   return view;
+}
+
+export async function downloadEmploymentReviewEvidence(
+  scope: EmploymentReviewScope,
+  id: string,
+  view: unknown,
+  fileId: string,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  const current = verifiedEmploymentView(scope, id, view);
+  const file = current.review.evidence.find(
+    ({ binding }) => binding.document_id === fileId,
+  )?.binding;
+  if (!file || !["pending", "approved"].includes(current.current_state))
+    throw new Error(
+      "Evidence is not available in this review workspace. Refresh before continuing.",
+    );
+  const [path, mode] = employmentReviewsPath(scope, id).split("?");
+  const response = await apiFetchResponse(
+    `${path}/evidence/${identifier.parse(fileId)}/content?${mode}`,
+    {
+      ...staffReviewRequest(scope),
+      signal,
+    },
+  );
+  return verifiedReviewEvidenceBlob(response, file, signal);
 }
 
 async function employmentReviewAction(

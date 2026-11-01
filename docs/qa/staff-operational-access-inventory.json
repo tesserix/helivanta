@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "e04160fdb678a8684b194e8870f07ba19748fa0bc278723a612af12d53a16203",
+  "registry_sha256": "e309d118ea6f2d86f6c4a3868bc18f216a4ee3d741a118638c9367b8c6d984ce",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 720,
+    "total": 721,
     "unclassified": 710
   },
   "entries": [
@@ -9250,7 +9250,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9297,6 +9297,95 @@
       }
     },
     {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content",
+        "registration_sha256": "2fea7a327cd7f2c5ec4a574f536c582180cdcf1285486cff0e8ea82aa6a57d9a",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
+        "rationale": "Selected private employment evidence requires current compound HR-intake or independent employment-review authority, exact original workspace and reviewed active actor link. The owner verifies effective pending/approved frozen review/person/Staff/evidence basis, audits admission, drops locks over a bounded storage read, checks exact generation/size/raw SHA-256, then reauthorizes the same grants/actor/source before auditing completion and returning private bytes. Four in-flight transfers per handler process bound buffers; no legacy or generic document fallback, presigned URL or operational activation. Operational employment admission/lifecycle cutoff and normal employment reviewer UI remain unfinished.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "symbol": "func (*Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_evidence.go",
+            "sha256": "8842e74f2230c5be8917d1913bbbd117151fbbcf6976ab15f87073560b2c1bb6",
+            "symbol": "func (h *handlers) downloadEmploymentReviewEvidence("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_reviews.go",
+            "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
+            "symbol": "func (h *handlers) employmentReviewPreparation("
+          },
+          {
+            "path": "backend/internal/modules/workforce/hr_intake.go",
+            "sha256": "579e336af862f7b3c6d0eb44f9ae27311cb4bf47f762b2a0bc4cc2ace88df726",
+            "symbol": "func (h *handlers) intakeAuthorityTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_reviews.sql",
+            "sha256": "ae7f567cc5a0caca139a7105a4891b21fcdad54e9433c7d2900a2e2280a484c2",
+            "symbol": "CREATE FUNCTION workforce_employment_review_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_decisions.sql",
+            "sha256": "f2ed5bab5ec7aae164e6d22511e783ad6a9ba39bd18109dbe176acb64d834056",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_employment_review_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_decisions.go",
+            "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
+            "symbol": "func (h *handlers) employmentReviewRead("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_decisions.go",
+            "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
+            "symbol": "func (h *handlers) employmentReviewReviewer("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_evidence.go",
+            "sha256": "8842e74f2230c5be8917d1913bbbd117151fbbcf6976ab15f87073560b2c1bb6",
+            "symbol": "func (h *handlers) authorizeEmploymentReviewEvidence("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_evidence.go",
+            "sha256": "8842e74f2230c5be8917d1913bbbd117151fbbcf6976ab15f87073560b2c1bb6",
+            "symbol": "func employmentReviewEvidenceAudit("
+          },
+          {
+            "path": "backend/internal/modules/workforce/review_evidence_content.go",
+            "sha256": "4b0b8a4a18fbdf76186352f2e031dfbfa79a4623e2f298f522bd3ded5b5cbbf5",
+            "symbol": "func (h *handlers) readReviewEvidence("
+          },
+          {
+            "path": "backend/internal/modules/workforce/review_evidence_content.go",
+            "sha256": "4b0b8a4a18fbdf76186352f2e031dfbfa79a4623e2f298f522bd3ded5b5cbbf5",
+            "symbol": "func sendReviewEvidence("
+          }
+        ],
+        "remaining": [
+          "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
+          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+        ]
+      }
+    },
+    {
       "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history",
       "kind": "http",
       "module": "workforce",
@@ -9319,7 +9408,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10331,7 +10420,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10385,7 +10474,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10439,7 +10528,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11325,7 +11414,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
             "symbol": "func (*Module) Routes("
           },
           {

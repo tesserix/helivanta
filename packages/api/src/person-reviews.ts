@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiFetch, apiFetchResponse } from "./client";
-import { sha256Hex } from "./attachment-file";
+import { verifiedReviewEvidenceBlob } from "./review-evidence-content";
 import type { IdentityCaseScope } from "./identity-checks";
 import {
   PersonReviewContract,
@@ -172,19 +172,7 @@ export async function downloadPersonReviewEvidence(
     `${personReviewsPath(scope)}/${identifier.parse(id)}/evidence/${identifier.parse(fileId)}/content`,
     { ...personReviewRequest(scope), signal },
   );
-  const mime = response.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
-  const length = response.headers.get("Content-Length");
-  if (
-    mime !== file.content_type ||
-    (length !== null && (!/^\d+$/.test(length) || Number(length) !== file.size))
-  )
-    throw new Error("The downloaded evidence could not be verified.");
-  const data = await response.arrayBuffer();
-  signal.throwIfAborted();
-  if (data.byteLength !== file.size || (await sha256Hex(data)) !== file.sha256)
-    throw new Error("The downloaded evidence could not be verified.");
-  signal.throwIfAborted();
-  return new Blob([data], { type: file.content_type });
+  return verifiedReviewEvidenceBlob(response, file, signal);
 }
 
 export async function decidePersonReview(

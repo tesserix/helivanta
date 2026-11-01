@@ -24,7 +24,7 @@ Validation commands and final results are recorded in the progress tracker. Init
 
 ## Remaining acceptance
 
-Both earlier terminal uploads recovered through the normal Staff Admin Retry scan action after the existing 45-minute grace period. Each first workflow remains Failed in history; each second workflow is Completed. Refresh status shows both files Ready. No manual verdict or fabricated available status was persisted. Digital recipient UI acceptance, activation races/governance and consumer/lifecycle cutoffs remain open. Production has not been mutated; the exact combined revision and all four migrations still need named rollout approval.
+Both earlier terminal uploads recovered through the normal Staff Admin Retry scan action after the existing 45-minute grace period. Each first workflow remains Failed in history; each second workflow is Completed. Refresh status shows both files Ready. No manual verdict or fabricated available status was persisted. Digital recipient UI acceptance, activation races/governance and consumer/lifecycle cutoffs remain open. The named production revision and all four migrations were subsequently approved and deployed; see the production release record below.
 
 ## Final validation checkpoint
 
@@ -33,3 +33,27 @@ The complete affected race suite passed: Workforce 547.734s and attachments 3.19
 ## Supported recovery acceptance
 
 The Staff Admin browser recovered files `c34e267e-3cf3-4e75-a1e2-77106acb1362` and `dfacd0cf-ebd1-44a0-bda3-c8eb74f9dd09` through Retry scan. The UI exposed that action only after the pending grace period, confirmed the requests, and displayed Ready after normal worker processing. Read-only Temporal descriptions confirm preserved failed attempt 1 and completed attempt 2 for each exact scoped workflow ID. Private evidence is `scanner-ui-recovery.json` and `scanner-both-ui-retries-ready.jpg`. This closes the scanner recovery test for these local files; it does not close the separate reviewer file-delivery or operational activation gates.
+
+## Production deployment and delivery correction
+
+Approved revision `02b1e2b7` and all four migrations are deployed; see the [release record](../deployment/releases/2026-11-01-staff-activation-scanner.md). Normal production Staff Admin UI upload, real scanner release, exact 179-byte browser download and subsequent audited revocation passed using an existing synthetic Staff record and existing owner hospital authority. Reviewer access remained restricted; activation stays off.
+
+The earlier local reviewer artifact also exists and matches the original bytes after download completion. The earlier missing-file check was premature, so saved-file delivery is no longer an open gate. The newly UI-created source finding and employment terms were subsequently independently approved through the UI and reopened successfully; broader operational activation gates remain open.
+
+## Fully UI-prepared source acceptance
+
+The preparer created applicant `SYN-FULL-UI-20261101`, fixed-term revision 1 and separate identity/employment files through normal UI workflows, waited for real scanner release, bound the employment file to the exact terms revision, and submitted both person and employment findings through the UI. No signed API business-source setup was used for this case.
+
+A separate reviewer signed in normally, downloaded the exact bound files and verified all 179 original bytes, examined the recorded terms, and approved both findings. Empty decision reasons were blocked. Reopening the reviews displayed Approved finding and Approved terms with their saved reasons. The directory still shows the applicant Inactive, so approvals alone did not activate employment or provision a login/access assignment.
+
+This accepts the local non-digital source preparation and independent approval journey. Fresh-source activation, digital recipient and consumer/lifecycle enforcement remain separate gates. Private artifacts are `full-ui-person-approved.jpg`, `full-ui-employment-approved.jpg`, `full-ui-approved-staff-still-inactive.jpg` and `full-ui-source-case.json`.
+
+## Fresh non-digital activation acceptance
+
+The same UI-created applicant subsequently passed explicit activation locally using a temporary hospital-scoped activator fixture, proposed by the fixture owner and independently approved by the separate IAM approver. Only this role setup used the previously authorized local API fixture; every Staff/terms/file/finding/submission/decision and activation action used normal UI.
+
+Eligibility displayed the approved appointment's exact UTC period. Empty activation reason and missing examination were blocked. The valid command returned Employment activation recorded. Reopening and refreshing eligibility displayed already recorded, with no second activation form. Staff directory changed from Inactive after approvals to Active after explicit activation.
+
+The temporary activator assignment was withdrawn through IAM, the local owner was restarted with activation off, and a fresh directory load still showed Active. Read-only database assertions confirmed Staff version 2, employment epoch 2, exactly one generation, zero login links, zero IAM employment bases and zero assignment bases for this non-digital case. No receipt/verdict/business state was manually inserted or rewritten. Production stayed default-off.
+
+Private proof includes `full-ui-activation-receipt.jpg`, `full-ui-activation-persists-with-feature-off.jpg`, `full-ui-persistence-verification.json` and the withdrawn role fixture receipt. Digital recipient activation, deterministic races/governance and consumer/lifecycle cutoffs remain open.

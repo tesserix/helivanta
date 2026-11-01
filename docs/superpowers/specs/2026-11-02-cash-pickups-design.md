@@ -20,7 +20,8 @@ indistinguishable from a shortage.
    that keeps both.
 2. **The close counts by note and coin.** The declared figure is the sum of
    the count; the typed-total close is replaced, not kept beside it.
-3. **Out of this slice:** handover between cashiers, a safe ledger, the GL
+3. **Out of this slice:** handover between cashiers (since added:
+   `2026-11-02-cash-handover-design.md`), a safe ledger, the GL
    export, `Shift*`/`CashPickupRecorded` events, counting the opening float
    by note.
 
@@ -78,7 +79,7 @@ indistinguishable from a shortage.
 
 ## Not covered
 
-Handover; a safe or vault ledger and bank deposit; counting the float by
+Handover (since added: `2026-11-02-cash-handover-design.md`); a safe or vault ledger and bank deposit; counting the float by
 note; card and other modes; GL export; events; counting pickups for a closed
 shift (its variance stands for it).
 

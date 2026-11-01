@@ -592,9 +592,15 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-rates` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-denominations` | `billing.account.read` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-handovers/:handover/acceptance` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-handovers/:handover/settlement` | `billing.shift.authorise` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-handovers/:handover/withdrawal` | `billing.cash.collect` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/cash-handovers/disputed` | `billing.shift.authorise` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/cash-handovers/incoming` | `billing.cash.collect` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction` | `billing.shift.authorise` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation` | `billing.shift.authorise` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/close` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/handovers/:handover` | `billing.cash.collect` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups/:pickup` | `billing.shift.authorise` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups` | `billing.shift.authorise` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts/mine` | `billing.cash.collect` | false | false |
@@ -652,6 +658,7 @@ Migration table declarations:
 - `0011_billing`: `billing_upi_requests`.
 - `0012_billing`: `billing_discount_reasons`, `billing_discounts`.
 - `0013_billing`: `billing_cash_pickups`.
+- `0014_billing`: `billing_cash_handovers`.
 
 ## supply
 

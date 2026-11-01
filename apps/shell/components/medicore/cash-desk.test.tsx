@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { useApiPagedQuery } from "@helivanta/api";
@@ -80,13 +80,16 @@ function server(opts: {
   shifts?: unknown[];
   open?: unknown[];
   pickups?: unknown[];
+  incoming?: unknown[];
+  disputed?: unknown[];
+  put?: unknown;
 }) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.includes("/iam/me/permissions"))
       return json(200, { subject: "user-clerk", data: opts.permissions });
     if (url.endsWith(`/billing/hospitals/${hospital.id}/access`))
       return json(200, { granted: true });
-    if (init.method === "PUT") return json(200, {});
+    if (init.method === "PUT") return json(200, opts.put ?? {});
     if (url.endsWith("/cash-shifts/mine"))
       return opts.mine
         ? json(200, opts.mine)
@@ -94,6 +97,8 @@ function server(opts: {
     if (url.includes("/cash-shifts?status=pending_authorisation")) return page(opts.shifts ?? []);
     if (url.includes("/cash-shifts?status=open")) return page(opts.open ?? []);
     if (url.includes("/pickups")) return page(opts.pickups ?? []);
+    if (url.includes("/cash-handovers/incoming")) return page(opts.incoming ?? []);
+    if (url.includes("/cash-handovers/disputed")) return page(opts.disputed ?? []);
     if (url.endsWith("/cash-denominations")) return json(200, denominations);
     if (url.includes("/cash-shifts")) return page([]);
     if (url.endsWith("/refund-policy"))
@@ -111,6 +116,26 @@ function server(opts: {
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
 }
+const handover = (over: Record<string, unknown> = {}) => ({
+  id: "0199e000-0000-7000-8000-0000000000f1",
+  hospital_id: hospital.id,
+  from_shift_id: other.id,
+  counter_id: counter.id,
+  counter_code: "IPD-1",
+  from_cashier: "user-clerk2",
+  to_cashier: "user-clerk",
+  currency: "INR",
+  status: "offered",
+  to_shift_id: null,
+  agreed_counts: null,
+  agreed_minor: null,
+  settled_by: null,
+  settlement_reason: null,
+  offered_at: "2026-10-30T09:00:00Z",
+  decided_at: null,
+  settled_at: null,
+  ...over,
+});
 const puts = (f: ReturnType<typeof server>) =>
   f.mock.calls.filter(([, init]) => init?.method === "PUT") as [string, RequestInit][];
 const cashier = ["billing.account.read", "billing.cash.collect"];
@@ -474,5 +499,103 @@ describe("CashPayments refunds", () => {
     );
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByLabelText("Refund in cash (INR)")).not.toBeInTheDocument();
+  });
+
+  it("hands the drawer to a named cashier with a blind count", async () => {
+    const fetcher = server({ permissions: cashier, mine: shift() });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    await user.click(await screen.findByRole("button", { name: "Hand over" }));
+    const form = await screen.findByRole("form", { name: "Hand over the drawer" });
+    await user.type(within(form).getByLabelText("INR 500.00 notes"), "2");
+    await user.click(within(form).getByRole("button", { name: "Offer handover" }));
+    expect(await screen.findByText("Enter the incoming cashier's user ID")).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.type(screen.getByLabelText("Incoming cashier's user ID"), " user-clerk2 ");
+    await user.click(within(form).getByRole("button", { name: "Offer handover" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/cash-shifts/${shift().id}/handovers/[0-9a-f-]{36}$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      to: "user-clerk2",
+      counts: { "note:50000": 2 },
+    });
+  });
+
+  it("shows a drawer being handed over and withdraws the offer", async () => {
+    const id = handover().id;
+    const fetcher = server({
+      permissions: cashier,
+      mine: shift({
+        status: "handing_over",
+        live_handover_id: id,
+        live_handover_to: "user-clerk2",
+        live_handover_status: "offered",
+      }),
+    });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(await screen.findByText(/waiting for their count/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close shift" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Withdraw handover" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(`/cash-handovers/${id}/withdrawal`);
+  });
+
+  it("does not withdraw a disputed handover", async () => {
+    server({
+      permissions: cashier,
+      mine: shift({
+        status: "handing_over",
+        live_handover_id: handover().id,
+        live_handover_to: "user-clerk2",
+        live_handover_status: "disputed",
+      }),
+    });
+    renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(await screen.findByText(/a supervisor will count the drawer/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Withdraw handover" })).not.toBeInTheDocument();
+  });
+
+  it("counts a drawer handed to the caller blind and says when the counts differ", async () => {
+    const fetcher = server({
+      permissions: cashier,
+      incoming: [handover()],
+      put: handover({ status: "disputed" }),
+    });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(await screen.findByText(/IPD-1 from user-clerk2/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Count the drawer of IPD-1" }));
+    const form = await screen.findByRole("form", { name: "Count the drawer of IPD-1" });
+    await user.type(within(form).getByLabelText("INR 100.00 notes"), "7");
+    await user.click(within(form).getByRole("button", { name: "Take over" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(`/cash-handovers/${handover().id}/acceptance`);
+    const body = JSON.parse(String(puts(fetcher)[0][1].body));
+    expect(body.counts).toEqual({ "note:10000": 7 });
+    expect(body.shift).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/);
+    expect(body.shift).not.toBe(handover().id);
+    expect(await screen.findByText(/differs from user-clerk2's/)).toBeInTheDocument();
+  });
+
+  it("lets a supervisor settle a disputed handover with a count and a reason", async () => {
+    const fetcher = server({
+      permissions: ["billing.account.read", "billing.shift.authorise"],
+      disputed: [handover({ status: "disputed" })],
+    });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    await user.click(await screen.findByRole("button", { name: "Settle the handover on IPD-1" }));
+    const form = await screen.findByRole("form", { name: "Settle the handover on IPD-1" });
+    await user.type(within(form).getByLabelText("INR 500.00 notes"), "1");
+    await user.click(within(form).getByRole("button", { name: "Settle handover" }));
+    expect(await screen.findByText("Give a reason")).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.type(screen.getByLabelText("Why"), "Recounted with both cashiers");
+    await user.click(within(form).getByRole("button", { name: "Settle handover" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(`/cash-handovers/${handover().id}/settlement`);
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      counts: { "note:50000": 1 },
+      reason: "Recounted with both cashiers",
+    });
   });
 });

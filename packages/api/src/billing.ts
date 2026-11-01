@@ -107,7 +107,8 @@ export type CashShift = {
   currency: string;
   opening_float_minor: number;
   opened_at: string;
-  status: "open" | "pending_authorisation" | "closed";
+  /** handing_over: offered to another cashier, taking nothing meanwhile. */
+  status: "open" | "handing_over" | "pending_authorisation" | "closed";
   /** Known only once the shift is closed: the close is blind. */
   expected_minor: number | null;
   declared_minor: number | null;
@@ -120,6 +121,38 @@ export type CashShift = {
   declared_counts: CashCount | null;
   /** Cash taken to the safe less corrections: the cashier handed it over. */
   picked_up_minor: number;
+  /** The handover the shift opened from, and whether a handover closed it. */
+  handover_id: string | null;
+  handed_over: boolean;
+  /** The handover in progress, if any. */
+  live_handover_id: string | null;
+  live_handover_to: string | null;
+  live_handover_status: "offered" | "disputed" | null;
+};
+
+/**
+ * A drawer passed between cashiers (#198 slice 5). Neither cashier's count is
+ * ever shown: each counts blind, and only the agreed count appears, once
+ * there is one.
+ */
+export type CashHandover = {
+  id: string;
+  hospital_id: string;
+  from_shift_id: string;
+  counter_id: string;
+  counter_code: string;
+  from_cashier: string;
+  to_cashier: string;
+  currency: string;
+  status: "offered" | "withdrawn" | "disputed" | "accepted" | "settled";
+  to_shift_id: string | null;
+  agreed_counts: CashCount | null;
+  agreed_minor: number | null;
+  settled_by: string | null;
+  settlement_reason: string | null;
+  offered_at: string;
+  decided_at: string | null;
+  settled_at: string | null;
 };
 
 /** A count by note and coin, keyed `note:<paise>` or `coin:<paise>` (#198). */
@@ -222,6 +255,15 @@ export function countFromForm(counts: Record<string, string>): CashCount {
       .filter(([, n]) => n > 0),
   );
 }
+
+/** Whom a drawer is handed to: their user ID, as shifts name their cashier. */
+export const handoverToSchema = z.object({
+  to: z
+    .string()
+    .trim()
+    .min(1, "Enter the incoming cashier's user ID")
+    .max(200, "At most 200 characters"),
+});
 
 export const pickupCorrectionSchema = z.object({
   amount_minor: cashAmount("Enter the amount put back").refine(

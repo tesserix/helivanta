@@ -8,6 +8,7 @@ import {
   cashReasonSchema,
   counterSchema,
   countFromForm,
+  handoverToSchema,
   newBedId,
   openShiftSchema,
   pickupCorrectionSchema,
@@ -19,6 +20,7 @@ import {
   type CashCount,
   type CashCounter,
   type CashDenomination,
+  type CashHandover,
   type CashPickup,
   type CashShift,
   type Hospital,
@@ -71,6 +73,7 @@ export function CashDesk({ hospital }: { hospital: Hospital }) {
       <div className="mt-3 space-y-4">
         {cashier && <MyShift hospital={hospital} />}
         {supervisor && <Variances hospital={hospital} />}
+        {supervisor && <DisputedHandovers hospital={hospital} />}
         {supervisor && <OpenShifts hospital={hospital} />}
         {counters && <Counters hospital={hospital} />}
         {counters && <RefundPolicySetup hospital={hospital} />}
@@ -81,7 +84,13 @@ export function CashDesk({ hospital }: { hospital: Hospital }) {
 
 function MyShift({ hospital }: { hospital: Hospital }) {
   const { shift, none } = useMyShift(hospital);
-  if (none) return <OpenShift hospital={hospital} />;
+  if (none)
+    return (
+      <>
+        <IncomingHandovers hospital={hospital} />
+        <OpenShift hospital={hospital} />
+      </>
+    );
   if (shift.isError)
     return (
       <RequestFailure message="Could not load your shift." retry={() => void shift.refetch()} />
@@ -97,6 +106,7 @@ function MyShift({ hospital }: { hospital: Hospital }) {
         {money(s.variance_minor!)} waits for a supervisor.
       </p>
     );
+  if (s.status === "handing_over") return <HandingOver hospital={hospital} shift={s} />;
   return (
     <div className="space-y-2">
       <p className="text-sm">
@@ -105,7 +115,190 @@ function MyShift({ hospital }: { hospital: Hospital }) {
         {s.picked_up_minor > 0 && <> Taken to the safe: {money(s.picked_up_minor)}.</>}
       </p>
       <CloseShift hospital={hospital} shift={s} />
+      <HandOver hospital={hospital} shift={s} />
     </div>
+  );
+}
+
+/**
+ * Hands the drawer to another cashier (#198 slice 5): the outgoing count is
+ * blind, and the shift takes nothing until the incoming cashier counts.
+ */
+function HandOver({ hospital, shift }: { hospital: Hospital; shift: CashShift }) {
+  const [open, setOpen] = useState(false);
+  const handoverId = useMemo(() => newBedId(), []);
+  const form = useZodForm(handoverToSchema, { to: "" });
+  const offer = useApiMutation(
+    ({ to, counts }: { to: string; counts: CashCount }) =>
+      apiFetch<CashHandover>(
+        `/billing/hospitals/${hospital.id}/cash-shifts/${shift.id}/handovers/${handoverId}`,
+        { method: "PUT", body: JSON.stringify({ to, counts }) },
+      ),
+    { successToast: "Handover offered", invalidate: [["billing", "my-shift", hospital.id]] },
+  );
+  if (!open)
+    return (
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Hand over
+      </Button>
+    );
+  return (
+    <div className="space-y-2">
+      <Field
+        id="handover-to"
+        label="Incoming cashier's user ID"
+        error={form.formState.errors.to?.message}
+      >
+        <input id="handover-to" className={`${inputClass} w-72`} {...form.register("to")} />
+      </Field>
+      <CountForm
+        hospital={hospital}
+        currency={shift.currency}
+        idPrefix="handover"
+        label="Hand over the drawer"
+        legend="Notes and coins handed over"
+        submit="Offer handover"
+        pending={offer.isPending}
+        onCount={(counts) => void form.handleSubmit(({ to }) => offer.mutate({ to, counts }))()}
+      />
+    </div>
+  );
+}
+
+function HandingOver({ hospital, shift }: { hospital: Hospital; shift: CashShift }) {
+  const withdraw = useApiMutation(
+    () =>
+      apiFetch<CashHandover>(
+        `/billing/hospitals/${hospital.id}/cash-handovers/${shift.live_handover_id}/withdrawal`,
+        { method: "PUT" },
+      ),
+    { successToast: "Handover withdrawn", invalidate: [["billing", "my-shift", hospital.id]] },
+  );
+  const disputed = shift.live_handover_status === "disputed";
+  return (
+    <div className="space-y-2">
+      <p className="text-sm" role="status">
+        <Badge variant="outline">Handing over</Badge> {shift.counter_code} to{" "}
+        {shift.live_handover_to}:{" "}
+        {disputed
+          ? "the counts differ, so a supervisor will count the drawer."
+          : "waiting for their count. The drawer takes nothing meanwhile."}
+      </p>
+      {!disputed && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={withdraw.isPending}
+          onClick={() => withdraw.mutate()}
+        >
+          Withdraw handover
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Drawers offered to the caller, each counted blind once. */
+function IncomingHandovers({ hospital }: { hospital: Hospital }) {
+  // Kept here: a disputed handover leaves the list, and its message must not.
+  const [disputed, setDisputed] = useState<CashHandover[]>([]);
+  const offers = useApiPagedQuery<CashHandover>(
+    ["billing", "handovers", hospital.id, "incoming"],
+    `/billing/hospitals/${hospital.id}/cash-handovers/incoming`,
+  );
+  if (offers.isError)
+    return (
+      <RequestFailure message="Could not load the drawers handed to you." retry={offers.retry} />
+    );
+  if (offers.items.length === 0 && disputed.length === 0) return null;
+  return (
+    <div>
+      <h4 className="text-sm font-medium">Drawers handed to you</h4>
+      {disputed.map((h) => (
+        <p key={h.id} className="text-sm" role="status">
+          Your count of {h.counter_code} differs from {h.from_cashier}&apos;s. A supervisor will
+          count the drawer, and your shift opens with their count.
+        </p>
+      ))}
+      <ul className="divide-y divide-border">
+        {offers.items.map((h) => (
+          <TakeOver
+            key={h.id}
+            hospital={hospital}
+            handover={h}
+            onDisputed={(d) => setDisputed((all) => [...all, d])}
+          />
+        ))}
+      </ul>
+      <LoadMore
+        label="Load more handovers"
+        hasMore={offers.hasMore}
+        isLoading={offers.isFetchingMore}
+        onClick={offers.loadMore}
+      />
+    </div>
+  );
+}
+
+function TakeOver({
+  hospital,
+  handover,
+  onDisputed,
+}: {
+  hospital: Hospital;
+  handover: CashHandover;
+  onDisputed: (h: CashHandover) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const shiftId = useMemo(() => newBedId(), []);
+  const accept = useApiMutation(
+    (counts: CashCount) =>
+      apiFetch<CashHandover>(
+        `/billing/hospitals/${hospital.id}/cash-handovers/${handover.id}/acceptance`,
+        { method: "PUT", body: JSON.stringify({ shift: shiftId, counts }) },
+      ),
+    // True either way: counts that differ are recorded and wait for a supervisor.
+    {
+      successToast: "Count recorded",
+      invalidate: [
+        ["billing", "my-shift", hospital.id],
+        ["billing", "handovers", hospital.id],
+      ],
+      onSuccess: (h) => {
+        if (h.status === "disputed") onDisputed(h);
+      },
+    },
+  );
+  return (
+    <li className="py-2 text-sm">
+      <p>
+        {handover.counter_code} from {handover.from_cashier}, offered{" "}
+        {formatDateTime(handover.offered_at)}
+      </p>
+      {open ? (
+        // Blind: the incoming cashier is never told the outgoing count.
+        <CountForm
+          hospital={hospital}
+          currency={handover.currency}
+          idPrefix={`take-${handover.id}`}
+          label={`Count the drawer of ${handover.counter_code}`}
+          legend="Notes and coins in the drawer"
+          submit="Take over"
+          pending={accept.isPending}
+          onCount={(counts) => accept.mutate(counts)}
+        />
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-1"
+          aria-label={`Count the drawer of ${handover.counter_code}`}
+          onClick={() => setOpen(true)}
+        >
+          Count the drawer
+        </Button>
+      )}
+    </li>
   );
 }
 
@@ -364,6 +557,98 @@ function Variance({ hospital, shift }: { hospital: Hospital; shift: CashShift })
           onClick={() => setOpen(true)}
         >
           Authorise
+        </Button>
+      )}
+    </li>
+  );
+}
+
+/** Handovers whose two counts differ, for a supervisor to count. */
+function DisputedHandovers({ hospital }: { hospital: Hospital }) {
+  const handovers = useApiPagedQuery<CashHandover>(
+    ["billing", "handovers", hospital.id, "disputed"],
+    `/billing/hospitals/${hospital.id}/cash-handovers/disputed`,
+  );
+  if (handovers.isError)
+    return <RequestFailure message="Could not load the handovers." retry={handovers.retry} />;
+  return (
+    <div>
+      <h4 className="text-sm font-medium">Handovers to settle</h4>
+      {handovers.items.length === 0 && !handovers.isPending ? (
+        <p className="text-sm text-muted-foreground">None waiting.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {handovers.items.map((h) => (
+            <Settle key={h.id} hospital={hospital} handover={h} />
+          ))}
+        </ul>
+      )}
+      <LoadMore
+        label="Load more handovers"
+        hasMore={handovers.hasMore}
+        isLoading={handovers.isFetchingMore}
+        onClick={handovers.loadMore}
+      />
+    </div>
+  );
+}
+
+function Settle({ hospital, handover }: { hospital: Hospital; handover: CashHandover }) {
+  const [open, setOpen] = useState(false);
+  const form = useZodForm(cashReasonSchema, { reason: "" });
+  const settle = useApiMutation(
+    (values: { counts: CashCount; reason: string }) =>
+      apiFetch<CashHandover>(
+        `/billing/hospitals/${hospital.id}/cash-handovers/${handover.id}/settlement`,
+        { method: "PUT", body: JSON.stringify(values) },
+      ),
+    {
+      successToast: "Handover settled",
+      invalidate: [
+        ["billing", "handovers", hospital.id],
+        ["billing", "shifts", hospital.id],
+      ],
+    },
+  );
+  const id = `settle-${handover.id}`;
+  return (
+    <li className="py-2 text-sm">
+      <p>
+        {handover.counter_code} · {handover.from_cashier} to {handover.to_cashier} · offered{" "}
+        {formatDateTime(handover.offered_at)}: the two counts differ.
+      </p>
+      {open ? (
+        <div className="mt-2 space-y-2">
+          <Field id={`${id}-reason`} label="Why" error={form.formState.errors.reason?.message}>
+            <input
+              id={`${id}-reason`}
+              className={`${inputClass} w-72`}
+              {...form.register("reason")}
+            />
+          </Field>
+          {/* Blind as well: the supervisor counts without either cashier's figure. */}
+          <CountForm
+            hospital={hospital}
+            currency={handover.currency}
+            idPrefix={id}
+            label={`Settle the handover on ${handover.counter_code}`}
+            legend="Notes and coins you counted"
+            submit="Settle handover"
+            pending={settle.isPending}
+            onCount={(counts) =>
+              void form.handleSubmit(({ reason }) => settle.mutate({ counts, reason }))()
+            }
+          />
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-1"
+          aria-label={`Settle the handover on ${handover.counter_code}`}
+          onClick={() => setOpen(true)}
+        >
+          Settle
         </Button>
       )}
     </li>

@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "c2a613ae76956153159d96c9b779c81038d39582137d28ce037de507610005d1",
+  "registry_sha256": "e5c21c03238d17cc0f2d2fcf7b52922c963a3c79e243366358867d722f1d8ab3",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 738,
-    "unclassified": 721
+    "total": 744,
+    "unclassified": 727
   },
   "entries": [
     {
@@ -1018,6 +1018,38 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/cash-handovers/disputed",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/cash-handovers/disputed",
+        "permission": "billing.shift.authorise",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/cash-handovers/incoming",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/cash-handovers/incoming",
+        "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing GET /v1/billing/hospitals/:hospital/cash-shifts",
       "kind": "http",
       "module": "billing",
@@ -1450,6 +1482,54 @@
       "review": null
     },
     {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-handovers/:handover/acceptance",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/acceptance",
+        "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-handovers/:handover/settlement",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/settlement",
+        "permission": "billing.shift.authorise",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-handovers/:handover/withdrawal",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/withdrawal",
+        "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction",
       "kind": "http",
       "module": "billing",
@@ -1489,6 +1569,22 @@
         "source": "backend/internal/modules/billing/module.go",
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/close",
+        "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-shifts/:shift/handovers/:handover",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/handovers/:handover",
         "permission": "billing.cash.collect",
         "authentication_required": true,
         "membership_required": true,

@@ -5,6 +5,11 @@ approval, operational activation or complete Staff Management. Related issues
 [#1035](https://github.com/tesserix/helivanta/issues/1035) and
 [#417](https://github.com/tesserix/helivanta/issues/417) remain open.
 
+Subsequently, the user-approved `b6ba32e5` validation-guidance revision was deployed
+and verified. The [production release evidence](../deployment/releases/2026-11-01-person-review-validation.md)
+separates actual production smoke/denial checks from the local positive journeys
+below; it does not promote them to production acceptance or activate employment.
+
 ## Environment and authority
 
 Normal Chrome UI at `http://helivanta.localhost:4399`, through the Global API,

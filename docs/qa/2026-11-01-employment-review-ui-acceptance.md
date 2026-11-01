@@ -100,3 +100,14 @@ files**, alongside shared UI lint/type-check. The shell production build was
 rerun successfully after that icon correction. This is UI acceptance for the
 local non-digital review journey; digital-recipient provisioning, production
 rollout and operational/lifecycle acceptance remain distinct open gates.
+
+## Merge and rollout boundary
+
+[PR #1507](https://github.com/tesserix/helivanta/pull/1507) passed all required CI
+and merged as `7e5b7800b88f60a2579f6bacfd2f8dc23ea571ca`; the merged tree exactly
+matches tested head `176d16f4`. Merged image build/scan/sign/publication passed.
+Production approval for this revision and all four new migrations is pending;
+`b6ba32e5` remains deployed. This supersedes the pre-merge CI requirement above,
+without changing the local-versus-production acceptance boundary. A subsequent
+source-only session audit has 17 classifications and 707 unclassified surfaces;
+zero full runtime cutoff acceptances remain established.

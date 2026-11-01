@@ -1,5 +1,24 @@
 # Staff Management delivery tracker
 
+## Reviewer workspace merged — 2026-11-01
+
+[PR #1507](https://github.com/tesserix/helivanta/pull/1507) passed every required
+Go, web, browser, script and secret-scan check and merged normally as
+`7e5b7800b88f60a2579f6bacfd2f8dc23ea571ca`. Its Git tree exactly matches tested
+head `176d16f4`. The merged image build, scans and signing jobs passed; API digest
+is `sha256:0efea2483f833b1324ac3031070eb5f4c24fbb514ef916f10d1e9507f5c61dab`
+and shell digest is
+`sha256:4acf246f94ecf7c6d6cc257f6371256f3019b9957350c38396730cde6b7addef`.
+
+The deploy-branch freight names that exact merge. Production remains on
+`b6ba32e5`, with no live grant or migration change. Named approval was requested
+for this new rollout and Workforce migrations 0062–0065: narrow employment inbox
+and finding-selection read contexts plus their two concurrent indexes. The
+expected ledger moves from 193 to 197. Read-only database readiness, completed
+backup/continuous-archiving status and exact migration/image manifests are saved
+in private QA evidence; no restore rehearsal is claimed. Operational-generation
+activation and lifecycle enforcement remain open.
+
 ## Operational session boundary audit — 2026-11-01
 
 Three shared IAM session surfaces are now source-reviewed as mixed authority:

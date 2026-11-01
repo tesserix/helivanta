@@ -1,22 +1,30 @@
 # Staff review release candidate — 2026-11-01
 
-Status: prepared, not deployed. Staff source `f1d3cdee` is reconciled with current
-main `6dbb5c6c`; the final revision/CI/image evidence is required before promotion.
+Status: **deployed and healthy**. PR [#1501](https://github.com/tesserix/helivanta/pull/1501)
+merged as `bd1f62d709c0b238699a71f02c0a15317cabd493`, with a tree identical to the
+validated `c73703a2` candidate. All PR CI jobs passed, including Go race/coverage
+and 78 browser tests. Both images passed build, scan, SBOM, signing and publication.
+The temporary PR-only admin bypass was removed immediately after merge and the
+original active GitHub ruleset verified restored. Repository visibility is public.
 
-Production discovery: `c20a220267cc4e71cc169c47b3ef7220612da1ce`, namespace
-`helivanta`, project `tesseracthub-480811`, context
+Production: namespace `helivanta`, project `tesseracthub-480811`, context
 `gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, active account
-`unidevidp@gmail.com`. Six application workloads have two ready replicas; API,
-Global API and shell are Synced/Healthy. Kargo promotion is manual. Scheduled
-database backups report completed. No production mutation has occurred.
+`unidevidp@gmail.com`. Kargo promotion
+`prod.01m6a85hwx453b0d0gn5pdv5rh.c3ab8b2` succeeded and verification is Successful.
+All six application workloads have two ready replicas on the exact merged image
+tag; API, Global API and shell are Synced/Healthy. Scheduled backups completed
+before rollout. Login returns 200 and unauthenticated person-review/HR-intake scope
+requests return 401. These smoke checks did not mutate real Staff/financial data.
 
 ## Persisted migrations
 
 The [machine-readable manifest](2026-11-01-staff-review-candidate.json) records
 every pending owner/ID, canonical SQL path, embed source/variable, exact SQL hash
-and structured concurrent-index declaration. Production has 166 IDs; this
-candidate registers 193, with no unknown applied IDs. The complete pending set
-is **27 migrations**, including inherited Billing, MediCore and Pharmacy changes.
+and structured concurrent-index declaration. Before rollout, production had 166 IDs and the candidate registered 193. After
+the successful migration hook, production has 193 IDs: exactly the **27 migrations**
+below were added, with no missing, unexpected or removed IDs. Their committed SQL
+hashes match this manifest. The set includes inherited Billing, MediCore and
+Pharmacy changes.
 
 | Owner     | Migration                                       | Canonical source                                                             |
 | --------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -54,10 +62,11 @@ append migrations and preserve these source bytes and durable command history.
 
 ## Validation and acceptance
 
-Earlier Staff source passed affected owner race and all 22 web gates. The combined
-main/dependency/Billing candidate is undergoing full local Go coverage and web
-lint/format/type/test/build, followed by PR CI and image build/scan/sign publication.
-Earlier results do not establish validation of the combined dependency tree.
+Local combined web gates passed all 30 tasks. Patientmaster, Billing, Payments,
+Global API, architecture and contractdocs isolated race/coverage checks passed;
+full PR Go coverage and all 78 browser E2E tests then passed on GitHub. Earlier
+failed local attempts remain in private validation evidence. The generic CI
+browser suite is not positive scoped Staff reviewer acceptance.
 
 The release contains scoped HR preparation, person-review protected evidence and
 workspace, employment submissions/independent decisions/endings, separate scoped
@@ -66,15 +75,16 @@ approval does not activate employment, login, clinical access, cards or payroll.
 Employment-review protected bytes/inbox/history/workspace, operational generations,
 all lifecycle/consumer cutoffs and full normal browser/provider acceptance remain
 open. No umbrella Staff or Access/RBAC issue is closed by this release.
+See the [Staff tracker](../../qa/staff-management-progress.md).
 
 ## Promotion and recovery
 
-Keep the repository public. The user authorized admin-bypass merge and production
-deployment. Finish combined-source validation, merge with that bypass, then wait
-for both images to be scanned, signed and published and for `deploy` to advance.
-Promote the exact merged revision with all 27 migrations through Kargo.
-Verify exact images/replicas, migration IDs/timestamps, Argo health, expected
-unauthenticated denial and normal synthetic Staff Admin/reviewer UI.
+The migration hook completed with exit code 0. Rollout checks passed for API,
+Global API and all three workers; shell also reached two ready replicas. Current
+image tags and Kargo/Argo health were checked independently of the CLI watch,
+which disconnected while server-side promotion continued normally. The unsupported
+CLI warehouse refresh endpoint was replaced by the existing warehouse refresh
+annotation; freight is `c3ab8b2e00de75e464166926ffedc6bb48042a70`.
 
 Preserve expanded schema, audit and review receipts. Prefer forward correction.
 A live rollback requires separate approval and owner state assessment; no

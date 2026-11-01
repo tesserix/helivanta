@@ -1,5 +1,39 @@
 # Staff Management delivery tracker
 
+## Employment-review workspace candidate — 2026-11-01
+
+The normal scoped hospital inbox and protected reviewer workspace are now wired,
+along with preparation from an exact employment draft/evidence screen. HR staff
+select an owner-verified approved person finding and selected released employment
+files without copying IDs or receiving general identity-review authority. Review
+capabilities remain owner-supplied; commands pin the original workspace and freeze
+uncertain retries. Private data clears on access cutoff. The
+[acceptance matrix](2026-11-01-employment-review-ui-acceptance.md) distinguishes
+completed local UI checks from remaining browser journeys.
+
+Local browser QA has saved a draft, uploaded/scanned a PNG, bound its exact
+revision, selected the approved person basis and recorded a pending submission.
+The preparer sees withdrawal without approval; a fresh protected download exactly
+matched the original 179-byte specimen. An empty-field browser check exposed raw
+schema messages for policy/reason; a failing-then-passing regression and live
+recheck verify clear guidance. Independent approval, immutable history, original-preparer withdrawal,
+independent rejection/revocation and live reviewer-assignment/private-data cutoff
+now pass. The target stays inactive at Staff version/epoch 1 with no login links.
+One upstream 503 and native Chrome Save-dialog/relay interruptions are retained
+separately from verified fresh reviewer downloads.
+
+Global API race passes (95.779s), API 541 tests across 70 files, API type-check/lint,
+Go build/vet/affected lint and all 15 workspace UI tests pass. Workforce/architecture/contractdocs race suites pass. The full shell suite
+passes 1,343 tests across 166 files and its production build passes. Four persisted migrations (two read contexts and
+two concurrent indexes) have been applied only to the backed-up local QA database.
+Production remains at approved `b6ba32e5`; evidence-download PR #1506 is merged
+but undeployed. No later revision is promoted under that earlier approval.
+
+Source classification is 14 of 724 surfaces, with 710 unclassified and zero full
+cutoff acceptances. Operational generation, legacy/governance review and lifecycle
+enforcement remain open. Whole Staff remains 10 partial, 10 awaiting audit,
+1 research and 0 fully accepted areas. No umbrella issue is closed.
+
 ## Protected employment-evidence checkpoint — 2026-11-01
 
 The selected-review byte API and typed SDK now release only a frozen employment

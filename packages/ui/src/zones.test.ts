@@ -306,3 +306,8 @@ it("shows person reviews without tenant-wide identity or document grants", () =>
   const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
   expect(pages.some((page) => page.href === "/workforce/person-reviews")).toBe(true);
 });
+
+it("shows employment reviews without tenant-wide HR or document grants", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/employment-reviews")).toBe(true);
+});

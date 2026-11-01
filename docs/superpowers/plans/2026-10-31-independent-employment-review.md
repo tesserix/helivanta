@@ -14,9 +14,9 @@ permission, schema or screen exists.
 - [x] Add the separately declared employment-review permission and additive,
       digest-pinned template migration/catalog. Preserve historical templates and
       deny tenant-admin/identity-reviewer fallback on the new owner commands.
-- [ ] Implement scoped discovery, preparation, exact evidence selection, protected
+- [x] Implement and locally verify scoped discovery, preparation, exact evidence selection, protected
       detail/history/download and independent decision/withdraw/revoke behavior.
-- [ ] Build the normal preparer/reviewer UI with required human attestations,
+- [x] Build and locally verify the normal preparer/reviewer UI with required human attestations,
       pinned workspace/source, frozen uncertain commands and stale/private-data
       cutoff. Approved terms must remain distinct from active access.
 - [ ] Prove historical contributor independence and creation completeness,
@@ -56,14 +56,14 @@ permission, schema or screen exists.
       permission/assignment, actor link/epoch, review revision, target source and
       exact released-file lineage across storage I/O. Review authority must not
       release the person finding's identity-file bytes or arbitrary Staff files.
-- [ ] Add protected cursor-paginated review history and hospital inbox/discovery;
+- [x] Add protected cursor-paginated review history and hospital inbox/discovery;
       scope every read to current reviewed authority and bounded owner projections.
       Retain filtered empty-page continuation and immutable command receipts.
-- [ ] Add a preparer-owned selector for current approved person findings and exact
+- [x] Add a preparer-owned selector for current approved person findings and exact
       terms/evidence revisions. Do not require users to copy opaque database IDs,
       infer an identity from a name, or grant general identity-review authority to
       HR intake merely to populate its form.
-- [ ] Build required source selection, terms/evidence examination, independent
+- [x] Build required source selection, terms/evidence examination, independent
       decision/ending controls and recorded/current-state history in the UI.
       Pin the original workspace and uncertain command; clear private data on
       cutoff and label approved terms separately from active employment/access.
@@ -71,3 +71,26 @@ permission, schema or screen exists.
       provider/scanner evidence, then the operational-generation and A01–A12
       lifecycle/consumer gates already listed above. These gates remain open even
       when the independent-decision source suites pass.
+
+## Local workspace checkpoint — 2026-11-01
+
+[Browser acceptance](../../qa/2026-11-01-employment-review-ui-acceptance.md) covers
+the separate HR preparer and independent reviewer, UI-created draft/scanned
+employment file/binding/submission, required human fields, exact protected
+bytes, independent approval, original withdrawal, rejection/revocation, retained
+history and private-data cutoff after temporary assignment withdrawal. The target
+stays inactive at Staff version/epoch 1 without login links. The setup fixture is
+explicitly local and separately approved; no production grant is manufactured.
+
+Owner race, API 541 tests/70 files, shell 1,343 tests/166 files, 15 workspace UI
+cases, build/type/lint and source/contract checks pass. A duplicate navigation
+icon caught by shared UI tests is corrected; the full shared UI rerun passes
+269 tests across 26 files. CI/coverage, release and migration approval remain
+separate gates. Four additive forward migrations persist two read contexts and
+two concurrent indexes. None activates operational employment admission.
+
+The non-digital local workspace journey is verified. Digital recipient
+provisioning and the complete A01–A12 operational activation/lifecycle/consumer
+journeys remain open. Source classification is 14/724, with 710 unclassified
+and zero full runtime cutoff acceptances. These unchecked gates are not completed
+by the locally verified workspace tasks above.

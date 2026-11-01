@@ -1,4 +1,5 @@
 "use client";
+import { EmploymentReviewPreparation } from "./employment-reviews/preparation";
 import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
@@ -22,6 +23,7 @@ import {
   withdrawEmploymentEvidence,
   type EmploymentEvidenceAttachInput,
   type EmploymentEvidenceBinding,
+  type EmploymentPeriodDraft,
   type EmploymentEvidenceScope,
   type EmploymentEvidenceWithdrawInput,
   type StaffDocument,
@@ -32,16 +34,23 @@ type Action = { kind: "attach" } | { kind: "withdraw"; file: EmploymentEvidenceB
 export function EmploymentEvidencePanel({
   scope,
   staffVersion,
+  terms,
   canAttach,
   onClose,
   onContextChanged,
 }: {
   scope: EmploymentEvidenceScope;
   staffVersion: number;
+  terms?: EmploymentPeriodDraft;
   canAttach: boolean;
   onClose: () => void;
   onContextChanged?: () => void;
 }) {
+  const [preparation, setPreparation] = useState<{
+    terms: EmploymentPeriodDraft;
+    evidence: EmploymentEvidenceBinding[];
+  } | null>(null);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [action, setAction] = useState<Action | null>(null);
   const [history, setHistory] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -59,6 +68,22 @@ export function EmploymentEvidencePanel({
   const valid = parsed.success && parsed.data.every((row) => employmentEvidenceMatches(scope, row));
   const cutoff = useStaffAccessCutoff([files.error], loseAccess);
   if (accessChanged || cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
+  if (preparation && scope.hrIntake === true)
+    return (
+      <Panel className="space-y-4">
+        <EmploymentReviewPreparation
+          scope={{ ...scope, hrIntake: true }}
+          terms={preparation.terms}
+          evidence={preparation.evidence}
+          onClose={() => setPreparation(null)}
+          onAccessLost={loseAccess}
+          onSubmitted={() => {
+            setPreparation(null);
+            setReviewSubmitted(true);
+          }}
+        />
+      </Panel>
+    );
   return (
     <Panel
       aria-label={`Employment evidence for terms revision ${scope.periodVersion}`}
@@ -112,6 +137,28 @@ export function EmploymentEvidencePanel({
         />
       )}
       {saved && <p role="status">Employment evidence saved.</p>}
+      {reviewSubmitted && (
+        <p role="status">
+          Employment terms submitted for independent review. This submission does not change
+          employment or access.
+        </p>
+      )}
+      {terms &&
+        terms.status === "draft" &&
+        scope.hrIntake === true &&
+        canAttach &&
+        valid &&
+        !files.isPending &&
+        !files.isError &&
+        !action && (
+          <Button
+            variant="outline"
+            onClick={() => setPreparation({ terms, evidence: parsed.data })}
+          >
+            Prepare employment review
+          </Button>
+        )}
+
       {files.isPending ? (
         <p role="status">Loading employment evidence…</p>
       ) : files.isError || !valid ? (

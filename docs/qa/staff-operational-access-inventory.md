@@ -8,9 +8,9 @@ database, migration, account change or runtime activation is performed by it.
 
 ## Current source findings
 
-The checked registry contains **721 registered surfaces** across module HTTP
+The checked registry contains **724 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.
-Four MediCore encounter routes and seven employment-review routes have explicit
+Four MediCore encounter routes and ten employment-review routes have explicit
 source-reviewed classifications; **710 remain unclassified**. No surface has
 complete employment-cutoff acceptance. Counts were checked on 2026-11-01 with the
 normal and strict classification commands below.
@@ -25,12 +25,13 @@ owner scope, rationale and remaining legacy/guard/signed-session/UI obligations.
 This finding is limited to those four handlers; it does not certify other
 MediCore routes or settle governance/recovery classifications.
 
-The seven employment-review routes require compound scoped HR-intake
+The employment-review routes require compound scoped HR-intake
 preparation/document authority or the separately reviewed employment-review
 permission, plus an independently reviewed active actor link with no legacy
 fallback. Decisions/endings preserve frozen records without operational activation. Actor reviewed-employment admission remains unfinished, alongside
-separately reviewed bootstrap/governance semantics and normal reviewer/UI/provider
-acceptance. Their source classifications confer no exemption or cutoff acceptance.
+separately reviewed bootstrap/governance semantics and production rollout acceptance.
+Normal local preparer/reviewer/scanner UI acceptance is recorded in the
+[workspace matrix](2026-11-01-employment-review-ui-acceptance.md). Their source classifications confer no exemption or cutoff acceptance.
 
 The selected-review history route reuses that current authority on every page,
 with audited immutable receipts and frozen terms/evidence metadata. It grants no
@@ -40,6 +41,15 @@ adds the eleventh: current exact authority and frozen basis on both sides of a
 bounded integrity-checked provider read, with audited release and no generic file
 or operational authority. The 710 existing unclassified
 surfaces still require review, and every runtime cutoff acceptance remains open.
+
+Hospital capability discovery, minimal recorded-state inbox and the preparer-only
+approved-person selector add three source classifications (fourteen total).
+Discovery/finding scans retain bounded filtered continuation; inbox/finding data
+requires current original authority, reviewed actor and sensitive-read audit.
+Finding options revalidate the exact approved receipt and released evidence,
+without identity-file release or general identity-review authority. Their narrow
+read contexts preserve write/delete restrictions. Local browser acceptance does
+not establish actor employment-generation admission or any runtime consumer cutoff.
 
 ## Inputs and checks
 

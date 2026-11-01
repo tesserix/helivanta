@@ -367,6 +367,157 @@
         "max": 500,
         "format": "text"
       }
+    ],
+    "EmploymentReviewHospitalScope": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "can_submit",
+        "type": "bool"
+      },
+      {
+        "name": "can_review",
+        "type": "bool"
+      }
+    ],
+    "EmploymentReviewSummary": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "code"
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "min": 1,
+        "max": 150,
+        "format": "text"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "withdrawn", "revoked"]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "EmploymentPersonFindingSearchInput": [
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      }
+    ],
+    "EmploymentPersonFindingOption": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "policy_reference",
+        "type": "string",
+        "min": 1,
+        "max": 300,
+        "format": "text"
+      },
+      {
+        "name": "finding_reference",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "valid_until",
+        "type": "time"
+      },
+      {
+        "name": "access_intent",
+        "type": "string",
+        "enum": ["digital", "non_digital"]
+      },
+      {
+        "name": "declared_subject",
+        "type": "string",
+        "min": 0,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   }
 }

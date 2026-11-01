@@ -25,3 +25,8 @@ Validation commands and final results are recorded in the progress tracker. Init
 ## Remaining acceptance
 
 The two earlier terminal workflow uploads remain protected in Processing; retry/recovery after the existing 45-minute pending grace period has not been exercised. No manual verdict or fabricated available status was persisted. Digital recipient UI acceptance, activation races/governance and consumer/lifecycle cutoffs remain open. Production has not been mutated; the exact combined revision and all four migrations still need named rollout approval.
+
+
+## Final validation checkpoint
+
+The complete affected race suite passed: Workforce 547.734s and attachments 3.191s. Backend build, scoped vet/lint (0 issues), contractdocs generation/check, 23 canonical generators, 75 script tests and 15 operational inventory tests passed. CI initially detected the changed module source pin; re-review confirmed that only the embed/migration registration changed, and the ten hashes and generated inventory were refreshed without changing classifications or outstanding proof obligations.

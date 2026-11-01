@@ -1727,7 +1727,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Equal(t, 409, request("GET", evidencePath, reviewer, nil, "application/json").Code)
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1900,7 +1900,72 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, true, call(t, "GET", reviewPath+"/activation-source?employment_activation=v1", manager, nil, 200)["can_activate"])
 				clear()
 			}
-			activation := call(t, "PUT", activationPath, manager, activationInput, 200)
+			var activation map[string]any
+			switch scenario {
+			case "concurrent_consumption", "concurrent_replay":
+				blocker, unlock := holdActivationSupervision(t, db, hospital)
+				first := startActivationRequest(t, request, "PUT", activationPath, manager, activationInput)
+				firstPID := awaitActivationBlock(t, db, blocker, "workforce_lock_supervision")
+				secondPath, secondInput, secondStatus := activationPath, maps.Clone(activationInput), 200
+				if scenario == "concurrent_consumption" {
+					secondPath = joinerPath + "/employment-activations/" + uuid.Must(uuid.NewV7()).String() + "?employment_activation=v1"
+					secondInput["command_id"] = uuid.Must(uuid.NewV7()).String()
+					secondStatus = 409
+				}
+				second := startActivationRequest(t, request, "PUT", secondPath, manager, secondInput)
+				awaitActivationBlock(t, db, firstPID, "pg_advisory_xact_lock(")
+				unlock()
+				activation = finishActivationRequest(t, first, 200)
+				other := finishActivationRequest(t, second, secondStatus)
+				if secondStatus == 200 {
+					require.Equal(t, activation, other, "concurrent exact retries return one immutable receipt")
+				}
+			case "recipient_race", "activation_first":
+				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+				require.NoError(t, err)
+				legacyStaff := base + "/staff/" + uuid.NewString()
+				call(t, "PUT", legacyStaff, maker, map[string]any{"employee_code": "SYN-LEGACY-" + scenario, "display_name": "Synthetic legacy recipient", "job_category": "other", "employment_status": "active"}, 200)
+				legacyLink := legacyStaff + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", legacyLink, maker, map[string]any{"subject": recipient, "reason": "Synthetic pre-activation recipient lock fixture"}, 200)
+				call(t, "POST", legacyLink+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic recipient binding"}, 200)
+				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
+				blocker, unlock := holdActivationSupervision(t, db, hospital)
+				readPath := base + "/identity-staff/" + joiner
+				if scenario == "recipient_race" {
+					reading := startActivationRequest(t, request, "GET", readPath, recipient, nil)
+					readerPID := awaitActivationBlock(t, db, blocker, "workforce_lock_supervision")
+					activating := startActivationRequest(t, request, "PUT", activationPath, manager, activationInput)
+					awaitActivationBlock(t, db, readerPID, "pg_advisory_xact_lock(")
+					unlock()
+					finishActivationRequest(t, reading, 200)
+					activation = finishActivationRequest(t, activating, 200)
+				} else {
+					activating := startActivationRequest(t, request, "PUT", activationPath, manager, activationInput)
+					activatorPID := awaitActivationBlock(t, db, blocker, "workforce_lock_supervision")
+					reading := startActivationRequest(t, request, "GET", readPath, recipient, nil)
+					awaitActivationBlock(t, db, activatorPID, "pg_advisory_xact_lock_shared(")
+					unlock()
+					activation = finishActivationRequest(t, activating, 200)
+					finishActivationRequest(t, reading, 403)
+				}
+				call(t, "GET", readPath, recipient, nil, 403)
+			case "reciprocal_denial":
+				grant(reviewer, "workforce.hr_intake.v1", workforce.PermEnrollmentManage)
+				grant(reviewer, "workforce.employment_activator.v1", workforce.PermEmploymentActivate)
+				blocker, unlock := holdActivationSupervision(t, db, hospital)
+				firstPath := base + "/staff/" + officers[reviewer].StaffID + "/employment-activations/" + uuid.Must(uuid.NewV7()).String() + "?employment_activation=v1"
+				secondPath := base + "/staff/" + officers[manager].StaffID + "/employment-activations/" + uuid.Must(uuid.NewV7()).String() + "?employment_activation=v1"
+				first := startActivationRequest(t, request, "PUT", firstPath, manager, activationInput)
+				firstPID := awaitActivationBlock(t, db, blocker, "workforce_lock_supervision")
+				second := startActivationRequest(t, request, "PUT", secondPath, reviewer, activationInput)
+				awaitActivationBlock(t, db, firstPID, "pg_advisory_xact_lock(")
+				unlock()
+				finishActivationRequest(t, first, 404)
+				finishActivationRequest(t, second, 404)
+				activation = call(t, "PUT", activationPath, manager, activationInput, 200)
+			default:
+				activation = call(t, "PUT", activationPath, manager, activationInput, 200)
+			}
 			require.Equal(t, activation, call(t, "PUT", activationPath, manager, activationInput, 200), "exact retries retain the original generation")
 			require.Equal(t, "consumed", call(t, "GET", reviewPath+"/activation-source?employment_activation=v1", manager, nil, 200)["current_state"], "reopening the approval must show the recorded activation")
 			changed := maps.Clone(activationInput)

@@ -1,11 +1,19 @@
 # Reviewed Staff operational activation
 
-Status: implemented local release candidate; activation is disabled by default.
-`WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED` must remain false in production until
-the acceptance gates below pass. Candidate migrations are IAM 0022/0023 and
-Workforce 0066; no production rollout is asserted.
-Tracks #1035, #417 and ADR-0049. The reviewed-terms workspace is deployed at
-`7e5b7800`; its approval deliberately creates no operational authority.
+Status: source activation is implemented in approved production revision
+`02b1e2b7`; migrations IAM 0022/0023 and Workforce 0066 are persisted/applied.
+`WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED` retains a compiled default of false.
+On 2026-11-02 the product owner explicitly requested production source activation
+availability and continued completion of the remaining Staff work. GitOps PR #1619
+enables that flag without changing the promoted image, existing grants or schemas.
+
+This availability decision supersedes the original blanket default-off release
+instruction for the two source commands. The commands retain their existing source,
+independent-review, actor and scope checks and grant no login link or business role.
+The full operational-enforcement, legacy/governance migration and consumer cutoff
+gates below remain required and unaccepted. See the
+[digital browser and concurrency evidence](../../qa/2026-11-02-employment-activation-enablement.md).
+Tracks #1035, #417 and ADR-0049; both umbrella stories remain open.
 
 ## Story reconciliation
 
@@ -114,7 +122,7 @@ settlement obligations cannot extend access past its effective cutoff.
 Before enabling operational enforcement, inventory and source-review every affected
 HTTP, async, broadcast, timer and external entry point; resolve the explicit legacy
 and governance cohorts through attributable independent review. The checked ledger
-currently has 727 registered surfaces, 17 classified and 710 unclassified, with
+currently has 734 registered surfaces, 17 classified and 717 unclassified, with
 zero full cutoff acceptances. It is not a runtime authorization proof. No activation
 control may advertise complete operational access while these gates remain unmet.
 

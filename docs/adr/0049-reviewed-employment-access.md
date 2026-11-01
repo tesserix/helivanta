@@ -51,3 +51,19 @@ rehire; treating an inactive directory flag as complete offboarding.
 Read with ADR-0044 and the Staff lifecycle research/delivery tracker. This decision
 is distinct from ORG-D6, which asks whether tenants may define new permissions.
 ORG-D2, ORG-D5 and ORG-D6 are not settled by this decision.
+
+## Source availability decision — 2026-11-02
+
+The product owner explicitly requested production source activation be switched on
+and remaining Staff work continue. This authorizes the reviewed-source eligibility
+and consumption commands on approved `02b1e2b7`, through GitOps PR #1619, after
+local digital-recipient and deterministic lock acceptance. The command records its
+employment generation and transactional IAM basis; fresh login linking and scoped
+assignment decisions remain independently approved. It grants no legacy role,
+clinical privilege, payroll or other product authority.
+
+This does not activate a blanket migration of existing operational grants or settle
+legacy/governance cohorts. The operational consumer, hospital-specific suspension,
+exit, contract-expiry and non-resurrection obligations above remain required.
+Detailed browser/source-cutoff evidence and remaining limits are recorded in
+[the 2026-11-02 acceptance](../qa/2026-11-02-employment-activation-enablement.md).

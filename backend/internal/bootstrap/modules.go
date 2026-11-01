@@ -50,7 +50,7 @@ import (
 // The same client reads profiles for GET /v1/iam/me/profile (#1428).
 func Modules(revocationChecker *iam.RevocationChecker, userState iam.IdentityProvider) []platform.Module {
 	return []platform.Module{
-		iam.New(revocationChecker).SetUserStateChecker(userState).SetUserProfileReader(userState),
+		iam.New(revocationChecker).SetUserStateChecker(userState).SetUserProfileReader(userState).SetMembershipIdentityReader(userState),
 		reference.New(),
 		emergency.New(),
 		drugmaster.New(),

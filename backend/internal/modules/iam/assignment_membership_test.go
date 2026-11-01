@@ -83,6 +83,10 @@ func TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity(t *testi
 		}
 		require.Equal(t, int64(1), state.Epoch)
 		require.Equal(t, int64(2), state.MemberCount)
+		var candidatesPlan string
+		require.NoError(t, tx.Raw(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT id,subject,role_key,created_at,(SELECT e.epoch FROM iam_subject_membership_epochs e WHERE e.tenant_id=iam_members.tenant_id AND e.subject=iam_members.subject AND e.member_count>0) AS membership_epoch FROM iam_members WHERE tenant_id=? ORDER BY created_at DESC,id DESC LIMIT 51`, testutil.TenantA).Scan(&candidatesPlan).Error)
+		require.Contains(t, candidatesPlan, "iam_members_candidate_history", "candidate paging must use its ordering index with 100,000 other synthetic subjects")
+		t.Logf("membership candidate plan with 100,000 synthetic neighbors: %s", candidatesPlan)
 		if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
 			return err
 		}

@@ -22,6 +22,7 @@ import {
   type CredentialReview,
   type CredentialReviewForm,
   type CredentialScope,
+  type EnrollmentRequestScope,
   type Hospital,
   type Staff,
   type StaffCredential,
@@ -58,10 +59,12 @@ function failureText(error: Error) {
 export function StaffCredentialPanel({
   hospital,
   staff,
+  account,
   onClose,
 }: {
   hospital: Hospital;
   staff: Staff;
+  account: EnrollmentRequestScope;
   onClose: () => void;
 }) {
   const { can, subject } = usePermissions();
@@ -202,7 +205,8 @@ export function StaffCredentialPanel({
               )}
               {view?.kind === "propose" && (
                 <ProposeForm
-                  key={view.credential.id}
+                  account={account}
+                  key={`${account.tenantId}:${account.subject}:${view.credential.id}`}
                   scope={scope}
                   hospital={hospital}
                   credential={view.credential}
@@ -280,12 +284,14 @@ function Problem({ error }: { error: Error | null }) {
 
 function ProposeForm({
   scope,
+  account,
   hospital,
   credential,
   documents,
   onClose,
 }: {
   scope: CredentialScope;
+  account: EnrollmentRequestScope;
   hospital: Hospital;
   credential: StaffCredential;
   documents: boolean;
@@ -355,6 +361,7 @@ function ProposeForm({
         </fieldset>
         {documents ? (
           <EvidencePicker
+            account={account}
             hospital={hospital}
             scope={scope}
             credential={credential.id}
@@ -386,6 +393,7 @@ function ProposeForm({
 }
 
 function EvidencePicker({
+  account,
   hospital,
   scope,
   credential,
@@ -394,22 +402,18 @@ function EvidencePicker({
   error,
 }: {
   hospital: Hospital;
+  account: EnrollmentRequestScope;
   scope: CredentialScope;
   credential: string;
   chosen: string[];
   toggle: (id: string, on: boolean) => void;
   error?: string;
 }) {
-  const memberships = useApiQuery<{ data: { tenant_id: string; current: boolean }[] }>(
-    ["iam", "me", "tenants"],
-    "/iam/me/tenants",
-  );
-  const tenant = memberships.data?.data.find((item) => item.current)?.tenant_id ?? "";
   const [cursor, setCursor] = useState<string | null>(null);
   const files = useStaffDocuments(
-    { tenantId: tenant, hospitalId: hospital.id, staffId: scope.staffId },
+    { ...account, hospitalId: hospital.id, staffId: scope.staffId },
     cursor,
-    tenant !== "",
+    !!account.tenantId && !!account.subject,
   );
   const options = citableEvidence(files.data?.data ?? [], credential);
   return (
@@ -418,12 +422,12 @@ function EvidencePicker({
       aria-describedby={error ? "credential-evidence-error" : undefined}
     >
       <legend className="text-sm font-medium">Evidence files</legend>
-      {memberships.isError || files.isError ? (
+      {files.isError ? (
         <Failure
           message="Could not load this credential's evidence."
-          retry={() => void (memberships.isError ? memberships.refetch() : files.refetch())}
+          retry={() => void files.refetch()}
         />
-      ) : !tenant || files.isPending ? (
+      ) : files.isPending ? (
         <p role="status" className="text-sm">
           Loading evidence…
         </p>

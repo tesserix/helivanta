@@ -2,6 +2,7 @@ package iam_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -14,15 +15,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // external test package importing its own module
+	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
@@ -41,6 +45,7 @@ func TestCurrentAuthorizationDeniesRemovedRoleDespiteStaleGraph(t *testing.T) {
 			require.NoError(t, graph.GrantTenantRole(ctx, tenant, role))
 			require.NoError(t, graph.GrantRole(ctx, tenant, "synthetic-current-admin", role))
 		}
+		projectCurrentMembershipFixture(t, db, graph, ctx, tenant, "synthetic-current-admin")
 	}
 	authority, err := iam.NewCurrentAuthorization(db, registry, graph)
 	require.NoError(t, err)
@@ -104,6 +109,7 @@ func TestCredentialRevocationScopeWithSignedSessionsAndRealGraph(t *testing.T) {
 		require.NoError(t, db.WithTenant(ctx, member.tenant, func(tx *gorm.DB) error {
 			return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,?,?)`, member.tenant, member.subject, member.role).Error
 		}))
+		projectCurrentMembershipFixture(t, db, graph, ctx, member.tenant, member.subject)
 	}
 	authority, err := iam.NewCurrentAuthorization(db, registry, graph)
 	require.NoError(t, err)
@@ -159,6 +165,9 @@ func TestCurrentAuthorizationRequiresBothSourcesAndKnownRoles(t *testing.T) {
 			if tc.projected {
 				require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, tc.name, authz.RoleTenantAdmin))
 			}
+			if tc.projected && tc.source != "" && authz.KnownRole(tc.source) {
+				projectCurrentMembershipFixture(t, db, graph, ctx, testutil.TenantA, tc.name)
+			}
 			permissions, resolveErr := authority.Resolve(ctx, tc.name, testutil.TenantA)
 			member, memberErr := authority.IsMember(ctx, tc.name, testutil.TenantA)
 			if tc.wantError {
@@ -175,6 +184,17 @@ func TestCurrentAuthorizationRequiresBothSourcesAndKnownRoles(t *testing.T) {
 }
 
 type unavailableCurrentGraph struct{}
+
+func (unavailableCurrentGraph) ListRoleCandidates(context.Context, string) ([]authz.RoleBinding, error) {
+	return nil, errors.New("synthetic graph outage")
+}
+
+func (unavailableCurrentGraph) ResolveMembership(context.Context, authz.Membership) (authz.PermissionSet, error) {
+	return authz.NewPermissionSet(iam.PermMemberManage), errors.New("synthetic graph outage")
+}
+func (unavailableCurrentGraph) IsMembershipReady(context.Context, authz.Membership) (bool, error) {
+	return true, errors.New("synthetic graph outage")
+}
 
 func (unavailableCurrentGraph) Resolve(context.Context, string, string) (authz.PermissionSet, error) {
 	return authz.NewPermissionSet(iam.PermMemberManage), errors.New("synthetic graph outage")
@@ -194,6 +214,9 @@ func TestCurrentAuthorizationFailsClosedOnMissingDependenciesAndOutage(t *testin
 	require.Error(t, err)
 	_, err = iam.NewCurrentAuthorization(db, registry, nil)
 	require.Error(t, err)
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-admin','tenant_admin'),(?,'user-admin','tenant_admin')`, testutil.TenantA, testutil.TenantA).Error
+	}))
 	authority, err := iam.NewCurrentAuthorization(db, registry, unavailableCurrentGraph{})
 	require.NoError(t, err)
 	permissions, err := authority.Resolve(ctx, "synthetic-admin", testutil.TenantA)
@@ -222,7 +245,7 @@ func TestCurrentAuthorizationRechecksIAMAfterDelayedGraphResponse(t *testing.T) 
 			var intercept atomic.Bool
 			suffix := "/list-objects"
 			if operation == "membership" {
-				suffix = "/check"
+				suffix = "/batch-check"
 			}
 			proxy.ModifyResponse = func(response *http.Response) error {
 				if strings.HasSuffix(response.Request.URL.Path, suffix) && intercept.CompareAndSwap(true, false) {
@@ -247,6 +270,7 @@ func TestCurrentAuthorizationRechecksIAMAfterDelayedGraphResponse(t *testing.T) 
 			require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 				return tx.Exec(`INSERT INTO iam_members(tenant_id,subject,role_key) VALUES(?,'synthetic-delayed-admin','tenant_admin')`, testutil.TenantA).Error
 			}))
+			projectCurrentMembershipFixture(t, db, graph, ctx, testutil.TenantA, "synthetic-delayed-admin")
 			authority, err := iam.NewCurrentAuthorization(db, registry, graph)
 			require.NoError(t, err)
 			type result struct {
@@ -322,14 +346,16 @@ func TestCurrentAuthorizationBoundsLookupInLargeTenant(t *testing.T) {
 	}))
 	authority, err := iam.NewCurrentAuthorization(db, registry, graph)
 	require.NoError(t, err)
+	projectCurrentMembershipFixture(t, db, graph, ctx, testutil.TenantA, "synthetic-scale-admin")
 	permissions, err := authority.Resolve(ctx, "synthetic-scale-admin", testutil.TenantA)
 	require.NoError(t, err)
 	require.True(t, permissions.Has(iam.PermMemberManage), "unrelated staff rows must not overflow or change this subject's bounded authority")
 	var plan string
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-		return tx.Raw(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT role_key FROM iam_members WHERE tenant_id=? AND subject=? ORDER BY role_key LIMIT ?`, testutil.TenantA, "synthetic-scale-admin", len(authz.SystemRoles())+1).Scan(&plan).Error
+		return tx.Raw(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT m.id,m.role_key,e.epoch,e.member_count FROM iam_members m LEFT JOIN iam_subject_membership_epochs e ON e.tenant_id=m.tenant_id AND e.subject=m.subject WHERE m.tenant_id=? AND m.subject=? ORDER BY m.role_key LIMIT ?`, testutil.TenantA, "synthetic-scale-admin", len(authz.SystemRoles())+1).Scan(&plan).Error
 	}))
 	require.True(t, strings.Contains(plan, `"Node Type": "Index Only Scan"`) || strings.Contains(plan, `"Node Type": "Index Scan"`) || strings.Contains(plan, `"Node Type": "Bitmap Index Scan"`), plan)
+	require.NotContains(t, plan, `"Node Type": "Seq Scan"`, "both membership and continuity lookups must stay indexed")
 	t.Logf("100,001-row current membership lookup: %s", plan)
 	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT subject,role_key FROM iam_members
@@ -339,4 +365,25 @@ func TestCurrentAuthorizationBoundsLookupInLargeTenant(t *testing.T) {
 	}))
 	require.True(t, strings.Contains(plan, `"Node Type": "Index Scan"`) || strings.Contains(plan, `"Node Type": "Bitmap Index Scan"`), plan)
 	t.Logf("100,001-row locked revocation membership lookup: %s", plan)
+}
+
+func projectCurrentMembershipFixture(t *testing.T, db *tenantdb.DB, graph *authz.Client, ctx context.Context, tenant, subject string) {
+	t.Helper()
+	var role string
+	require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+		return tx.Table("iam_members").Where("subject=?", subject).Order("role_key").Limit(1).Pluck("role_key", &role).Error
+	}))
+	data, err := json.Marshal(iamcontract.MemberChangedData{Subject: subject, RoleKey: role})
+	require.NoError(t, err)
+	evt := events.Event{ID: uuid.Must(uuid.NewV7()).String(), Type: "MemberGranted", Version: 1, TenantID: tenant, Data: data}
+	for _, consumer := range iam.New(nil).Consumers(platform.Deps{DB: db, Authz: graph}) {
+		if consumer.Subject != iamcontract.SubjectMemberGranted {
+			continue
+		}
+		require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error { return consumer.Handle(ctx, tx, evt) }))
+		require.NotNil(t, consumer.AfterCommit)
+		require.NoError(t, consumer.AfterCommit(ctx, evt))
+		return
+	}
+	t.Fatal("registered membership projection consumer missing")
 }

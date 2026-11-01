@@ -4,7 +4,30 @@ package iam
 import "github.com/tesserix/helivanta/pkg/authz"
 
 func staffAccessTemplates() []TemplateDefinition {
-	return []TemplateDefinition{{Key: "workforce.leave_reviewer.v1", Name: "Leave reviewer", Description: "Review hospital leave requests with current staff and account authority.", Family: "leave", Permissions: []string{"workforce.leave.approve"}}, {Key: "workforce.identity_manager.v1", Name: "Staff identity checks manager", Description: "Prepare identity, background and photo evidence at this hospital; cannot approve the result.", Family: "identity", Permissions: []string{"workforce.identity_checks.manage"}}, {Key: "workforce.identity_reviewer.v1", Name: "Staff identity checks reviewer", Description: "Independently review staff identity, background and photo evidence; no clinical or payroll authority.", Family: "identity", Permissions: []string{"workforce.identity_checks.review"}}}
+	return []TemplateDefinition{{Key: "workforce.leave_reviewer.v1", Name: "Leave reviewer", Description: "Review hospital leave requests with current staff and account authority.", Family: "leave", Permissions: []string{"workforce.leave.approve"}}, {Key: "workforce.identity_manager.v1", Name: "Staff identity checks manager", Description: "Prepare identity, background and photo evidence at this hospital; cannot approve the result.", Family: "identity", Permissions: []string{"workforce.identity_checks.manage"}}, {Key: "workforce.identity_reviewer.v1", Name: "Staff identity checks reviewer", Description: "Independently review staff identity, background and photo evidence; no clinical or payroll authority.", Family: "identity", Permissions: []string{"workforce.identity_checks.review"}}, {Key: "workforce.hr_intake.v1", Name: "HR intake administrator", Description: "Prepare hospital Staff profiles, employment drafts and protected evidence; cannot approve employment or grant access.", Family: "intake", Permissions: []string{"workforce.enrollment.manage", "workforce.documents.manage"}}, {Key: "workforce.employment_reviewer.v1", Name: "Staff employment terms reviewer", Description: "Independently review hospital employment terms and selected evidence; no access activation, clinical or payroll authority.", Family: "employment", Permissions: []string{"workforce.employment.review"}}}
+}
+func staffAccessTemplateCatalog(key string) ([]TemplateDefinition, bool) {
+	var keys []string
+	switch key {
+	case "", "legacy-v1":
+		keys = []string{"workforce.leave_reviewer.v1", "workforce.identity_manager.v1", "workforce.identity_reviewer.v1"}
+	case "hr-intake-v1":
+		keys = []string{"workforce.leave_reviewer.v1", "workforce.identity_manager.v1", "workforce.identity_reviewer.v1", "workforce.hr_intake.v1"}
+	case "employment-v1":
+		keys = []string{"workforce.leave_reviewer.v1", "workforce.identity_manager.v1", "workforce.identity_reviewer.v1", "workforce.hr_intake.v1", "workforce.employment_reviewer.v1"}
+	default:
+		return nil, false
+	}
+	result := make([]TemplateDefinition, 0, len(keys))
+	for _, key := range keys {
+		for _, template := range staffAccessTemplates() {
+			if template.Key == key {
+				result = append(result, template)
+				break
+			}
+		}
+	}
+	return result, true
 }
 func staffAccessTemplatePermissions(key string) []authz.Permission {
 	for _, template := range staffAccessTemplates() {

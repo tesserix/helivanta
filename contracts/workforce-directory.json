@@ -31,6 +31,30 @@
         "type": "string",
         "projection_version": true
       }
+    ],
+    "hrIntakeScope": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 150
+      },
+      {
+        "name": "can_prepare_staff",
+        "type": "bool"
+      },
+      {
+        "name": "can_manage_staff_documents",
+        "type": "bool"
+      }
     ]
+  },
+  "intake_projection": {
+    "query": "hr_intake",
+    "version": "v1"
   }
 }

@@ -153,7 +153,12 @@ function fixture({
 
 const panel = () =>
   renderWithProviders(
-    <StaffCredentialPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffCredentialPanel
+      account={{ tenantId: tenant, subject: "synthetic-hr" }}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
 
 it("shows reviewed validity in the hospital calendar", async () => {

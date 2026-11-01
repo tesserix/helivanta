@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -59,6 +60,13 @@ func (e taxEvidence) owns(tx *gorm.DB, p authn.Principal, hospital, staffID uuid
 }
 
 func (taxEvidence) downloadAction() string { return "workforce.tax_declaration.evidence_downloaded" }
+
+func (taxEvidence) permissions(writing bool) (authz.Permission, authz.Permission) {
+	if writing {
+		return PermPayrollConfigure, authz.Public
+	}
+	return PermPayrollView, authz.Public
+}
 
 func taxEvidenceParams(c *gin.Context) (authn.Principal, uuid.UUID, uuid.UUID, taxEvidence, bool) {
 	p, hospital, ok := scope(c)

@@ -152,6 +152,7 @@ describe("OverviewTiles", () => {
     // Two days after the wait began, in any timezone, whatever today is.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-03T03:15:00Z"));
+
     serve();
     renderWithProviders(<WaitingTile />);
     const note = await within(

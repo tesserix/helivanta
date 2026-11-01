@@ -338,7 +338,13 @@ func TestAssignmentDecisionsRequireIndependentScopedReview(t *testing.T) {
 			require.ErrorContains(t, err, "proposal history is immutable")
 		}
 	}
-	call("DELETE", "/v1/iam/members/user-reviewer/tenant_admin", "admin", "", 202)
+	// Fixture withdrawal tests current reviewer authority, not owner-governance recovery.
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.actor_subject','user-admin',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`DELETE FROM iam_members WHERE subject='user-reviewer' AND role_key='tenant_admin'`).Error
+	}))
 	call("GET", path, "reviewer", "", 403)
 	call("POST", path+"/decision", "reviewer", approve, 403)
 }

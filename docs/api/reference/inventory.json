@@ -79,7 +79,25 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/employment-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/identity-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/intake-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -160,6 +178,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/membership-candidates",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/membership-commands/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-commands",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-enrollments/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/iam/membership-enrollments/:id",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/membership-enrollments",
+          "permission": "iam.member.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -227,12 +299,12 @@
         {
           "name": "iam-fga-sync",
           "subject": "helivanta.in.iam.member_granted.v1",
-          "after_commit": false
+          "after_commit": true
         },
         {
           "name": "iam-fga-sync-revoke",
           "subject": "helivanta.in.iam.member_revoked.v1",
-          "after_commit": false
+          "after_commit": true
         }
       ],
       "broadcasts": [
@@ -325,6 +397,65 @@
         {
           "id": "0014_iam_staff_templates",
           "sql_sha256": "4ef69328d0c9353325b90d5b66feeac5823d4529239b03992da69e6dd9dff1bc",
+          "creates_tables": []
+        },
+        {
+          "id": "0015_iam_membership_commands",
+          "sql_sha256": "05596ad13bb1ba5830d5da6a665620dfa34994357a3ec79249b9921bd197856a",
+          "creates_tables": [
+            "iam_membership_commands"
+          ]
+        },
+        {
+          "id": "0016_iam_membership_candidate_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "iam_members_candidate_history",
+              "table": "iam_members",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0017_iam_membership_projection_reader",
+          "sql_sha256": "3f394505085d4aa6fa98d35fa4c0dcddff03b09ac448acca4bbcf5c5f3e4c059",
+          "creates_tables": []
+        },
+        {
+          "id": "0018_iam_membership_enrollments",
+          "sql_sha256": "72b9e92d0a5810d722afd39f0f291051fc3254cbf60338d4162bbf37cb3483bb",
+          "creates_tables": [
+            "iam_membership_enrollments"
+          ]
+        },
+        {
+          "id": "0019_iam_membership_recovery_admission",
+          "sql_sha256": "e4859d0e2686cf59604189259dfb90ba0fd854f76b8dae2375978162fad2c242",
+          "creates_tables": []
+        },
+        {
+          "id": "0020_iam_hr_intake_templates",
+          "sql_sha256": "5c274cdcff30becc3a8f1e26dc32c7abbb8257ebdfa48bab4864e43113c8d4e7",
+          "creates_tables": []
+        },
+        {
+          "id": "0021_iam_employment_templates",
+          "sql_sha256": "cd2a45df4a99a7a0c33da6429548fb5695e5ad5b8ed5f04d34bcc5f14b554813",
           "creates_tables": []
         }
       ]
@@ -7151,6 +7282,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id/person-review-evidence/search",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/identity-staff/:id",
           "permission": "public",
@@ -7174,6 +7314,24 @@
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/leave-review-requests",
           "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/person-review-inbox",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/person-review-targets/search",
+          "permission": "public",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
@@ -7351,6 +7509,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/document-records",
           "permission": "workforce.documents.manage",
@@ -7360,6 +7520,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification/history",
           "permission": "workforce.documents.manage",
@@ -7369,6 +7531,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
           "permission": "workforce.documents.manage",
@@ -7378,6 +7542,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/classification",
           "permission": "workforce.documents.manage",
@@ -7387,6 +7553,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content",
           "permission": "workforce.documents.manage",
@@ -7396,6 +7564,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/content",
           "permission": "workforce.documents.manage",
@@ -7405,6 +7575,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/retries/:attempt",
           "permission": "workforce.documents.manage",
@@ -7414,6 +7586,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/revocation",
           "permission": "workforce.documents.manage",
@@ -7423,6 +7597,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents/:file",
           "permission": "workforce.documents.manage",
@@ -7432,6 +7608,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/documents",
           "permission": "workforce.documents.manage",
@@ -7441,6 +7619,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/history",
           "permission": "workforce.enrollment.manage",
@@ -7450,6 +7630,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content",
           "permission": "workforce.enrollment.manage",
@@ -7459,6 +7641,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history",
           "permission": "workforce.enrollment.manage",
@@ -7468,6 +7652,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/withdraw",
           "permission": "workforce.enrollment.manage",
@@ -7477,6 +7663,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
           "permission": "workforce.enrollment.manage",
@@ -7486,6 +7674,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding",
           "permission": "workforce.enrollment.manage",
@@ -7495,6 +7685,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence",
           "permission": "workforce.enrollment.manage",
@@ -7504,6 +7696,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/withdraw",
           "permission": "workforce.enrollment.manage",
@@ -7513,6 +7707,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
           "permission": "workforce.enrollment.manage",
@@ -7522,6 +7718,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period",
           "permission": "workforce.enrollment.manage",
@@ -7531,6 +7729,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-periods",
           "permission": "workforce.enrollment.manage",
@@ -7540,6 +7740,53 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/revocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/withdrawal",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-source",
           "permission": "workforce.enrollment.manage",
@@ -7549,6 +7796,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/enrollment",
           "permission": "workforce.enrollment.manage",
@@ -7558,6 +7807,8 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
           "method": "PUT",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/enrollment",
           "permission": "workforce.enrollment.manage",
@@ -7715,6 +7966,69 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/decision",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/evidence/:file/content",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/revocation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/withdrawal",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history",
           "permission": "public",
@@ -7779,7 +8093,25 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hr-intake-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/leave-review-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/person-review-scopes",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -7788,6 +8120,10 @@
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.employment.review",
+          "roles": []
+        },
         {
           "permission": "workforce.identity_checks.manage",
           "roles": []
@@ -7926,6 +8262,8 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.employment_review_changed.v1",
+        "helivanta.in.workforce.person_review_changed.v1",
         "helivanta.in.workforce.identity_case_changed.v1",
         "helivanta.in.workforce.document_classification_changed.v1",
         "helivanta.in.workforce.assignment_scope_verified.v1",
@@ -8547,6 +8885,118 @@
         {
           "id": "0052_workforce_employment_withdrawal",
           "sql_sha256": "0bcb2078adc9a8fbac5996cc2a45cd5a97a408e5f5ccf0df4f654d6fc2b39e29",
+          "creates_tables": []
+        },
+        {
+          "id": "0053_workforce_hr_intake",
+          "sql_sha256": "524ecfd2c1b660f85efe56ad4ca5da57807825a9d45373ee7f22fab2e2f9b78d",
+          "creates_tables": []
+        },
+        {
+          "id": "0054_workforce_person_reviews",
+          "sql_sha256": "559ef626c7157e1cb3ab8838f4d5cd93019efabfa4c71bb41687b355bd865b8b",
+          "creates_tables": [
+            "workforce_document_contributors",
+            "workforce_person_reviews",
+            "workforce_person_review_history",
+            "workforce_person_review_evidence",
+            "workforce_person_review_contributors"
+          ]
+        },
+        {
+          "id": "0055_workforce_person_provenance_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_person_source_provenance",
+              "table": "workforce_audit",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "resource_id",
+                  "descending": false
+                },
+                {
+                  "name": "action",
+                  "descending": false
+                },
+                {
+                  "name": "actor_subject",
+                  "descending": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0056_workforce_person_review_browse",
+          "sql_sha256": "ec08d175fea3d956a68a055791c810ab7fb9c54416682f966839f6be85e12bac",
+          "creates_tables": []
+        },
+        {
+          "id": "0057_workforce_person_review_inbox_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_person_review_inbox",
+              "table": "workforce_person_reviews",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0058_workforce_person_evidence_selection",
+          "sql_sha256": "a1b677d6d5fc9fc45b67b7b61247a1b42b9c408ac2174484471649d42f27d6cc",
+          "creates_tables": []
+        },
+        {
+          "id": "0059_workforce_employment_document_provenance",
+          "sql_sha256": "8cb978a26a33a7ffaf4823eb068ef5439b97955d9dd6353fd41e987f1e919c8c",
+          "creates_tables": []
+        },
+        {
+          "id": "0060_workforce_employment_review_submissions",
+          "sql_sha256": "ae7f567cc5a0caca139a7105a4891b21fcdad54e9433c7d2900a2e2280a484c2",
+          "creates_tables": [
+            "workforce_employment_reviews",
+            "workforce_employment_review_history",
+            "workforce_employment_review_evidence",
+            "workforce_employment_review_contributors"
+          ]
+        },
+        {
+          "id": "0061_workforce_employment_review_decisions",
+          "sql_sha256": "f2ed5bab5ec7aae164e6d22511e783ad6a9ba39bd18109dbe176acb64d834056",
           "creates_tables": []
         }
       ]

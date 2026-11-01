@@ -417,3 +417,23 @@ type IdentityCaseChangedData struct {
 	Version    int64  `json:"version"`
 	Status     string `json:"status"`
 }
+
+const SubjectPersonReviewChanged = "helivanta.in.workforce.person_review_changed.v1"
+
+type PersonReviewChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	ReviewID   string `json:"review_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}
+
+const SubjectEmploymentReviewChanged = "helivanta.in.workforce.employment_review_changed.v1"
+
+type EmploymentReviewChangedData struct {
+	HospitalID string `json:"hospital_id"`
+	StaffID    string `json:"staff_id"`
+	ReviewID   string `json:"review_id"`
+	RevisionID string `json:"revision_id"`
+	Version    int64  `json:"version"`
+}

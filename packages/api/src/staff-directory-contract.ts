@@ -2,6 +2,11 @@
 import { z } from "zod";
 
 export const STAFF_DIRECTORY_CONTEXT = { query: "directory_context", version: "v1" } as const;
+export const STAFF_HR_INTAKE_CONTEXT = { query: "hr_intake", version: "v1" } as const;
+const identifier = z
+  .string()
+  .guid("Choose a valid record.")
+  .refine((value) => value !== "00000000-0000-0000-0000-000000000000", "Choose a valid record.");
 export const staffDirectoryWriteMetadataContract = z
   .object({
     expected_version: z.number().int().min(0).max(9007199254740991),
@@ -17,3 +22,17 @@ export const staffDirectoryReadMetadataContract = z
   })
   .strict();
 export type StaffDirectoryReadMetadata = z.infer<typeof staffDirectoryReadMetadataContract>;
+
+export const hrIntakeScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_prepare_staff: z.boolean(),
+    can_manage_staff_documents: z.boolean(),
+  })
+  .strict();
+export type HrIntakeScope = z.infer<typeof hrIntakeScopeContract>;

@@ -54,13 +54,15 @@ func employmentEvidenceParams(c *gin.Context) (employmentEvidenceScope, bool) {
 	if !ok {
 		return s, false
 	}
-	if !authz.Refresh(c, PermDocumentManage) {
-		return s, false
-	}
-	permissions, ok := authz.PermissionsFrom(c)
-	if !ok || !permissions.Has(PermEnrollmentManage) {
-		respond.Forbidden(c, "missing permission "+string(PermEnrollmentManage))
-		return s, false
+	if c.Query(hrIntakeQuery) != hrIntakeVersion {
+		if !authz.Refresh(c, PermDocumentManage) {
+			return s, false
+		}
+		permissions, ok := authz.PermissionsFrom(c)
+		if !ok || !permissions.Has(PermEnrollmentManage) {
+			respond.Forbidden(c, "missing permission "+string(PermEnrollmentManage))
+			return s, false
+		}
 	}
 	version, err := strconv.ParseInt(c.Param("version"), 10, 64)
 	if err != nil || version < 1 || version > 9007199254740990 {
@@ -96,7 +98,8 @@ func evidenceWhere(tx *gorm.DB, s employmentEvidenceScope, table string) *gorm.D
 	return tx.Table(table).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND period_id=? AND period_version=?", s.p.TenantID, s.hospital, s.staff, s.period, s.version)
 }
 func (h *handlers) employmentEvidenceTransaction(c *gin.Context, s employmentEvidenceScope, writing bool, fn func(*gorm.DB, EmploymentPeriodSource, EmploymentPeriodDraft) error) error {
-	return h.employmentPeriodTransaction(c, s.p, s.hospital, s.staff, func(tx *gorm.DB, source EmploymentPeriodSource) error {
+	required := []authz.Permission{PermEnrollmentManage, PermDocumentManage}
+	return h.employmentPeriodAuthority(c, s.p, s.hospital, s.staff, required, func(tx *gorm.DB, source EmploymentPeriodSource) error {
 		mode := "read"
 		if writing {
 			mode = "write"
@@ -138,7 +141,7 @@ func evidenceError(c *gin.Context, err error) {
 		respond.Error(c, 503, "employment_evidence_busy", "Evidence is temporarily busy. Retry the same command.")
 		return
 	}
-	respondError(c, err)
+	respondIntakeError(c, err)
 }
 func (h *handlers) attachEmploymentEvidence(c *gin.Context) {
 	s, ok := employmentEvidenceParams(c)
@@ -319,6 +322,10 @@ func (h *handlers) employmentEvidenceHistory(c *gin.Context, params pagination.P
 		rows[i].EmploymentEvidenceBinding = employmentEvidenceUTC(rows[i].EmploymentEvidenceBinding)
 	}
 	return rows, nil
+}
+
+func (employmentEvidenceGate) permissions(bool) (authz.Permission, authz.Permission) {
+	return PermDocumentManage, PermEnrollmentManage
 }
 
 type employmentEvidenceGate struct {

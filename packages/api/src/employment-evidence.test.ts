@@ -1,5 +1,9 @@
 import { apiFetch } from "./client";
-import { attachEmploymentEvidence, withdrawEmploymentEvidence } from "./employment-evidence";
+import {
+  attachEmploymentEvidence,
+  withdrawEmploymentEvidence,
+  employmentEvidenceKey,
+} from "./employment-evidence";
 vi.mock("./client", () => ({ apiFetch: vi.fn() }));
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -61,6 +65,17 @@ it("pins the workspace and exact terms revision and validates attach receipt", a
       },
     }),
   );
+  await attachEmploymentEvidence({ ...scope, hrIntake: true }, id, {
+    command_id: command,
+    document_id: file,
+    reason: receipt.reason,
+  });
+  expect(vi.mocked(apiFetch).mock.lastCall?.[0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-periods/${scope.periodId}/revisions/1/evidence/${id}?hr_intake=v1`,
+  );
+  expect(employmentEvidenceKey({ ...scope, hrIntake: true })).not.toEqual(
+    employmentEvidenceKey(scope),
+  );
   vi.mocked(apiFetch).mockResolvedValue({ ...receipt, period_version: 2 });
   await expect(
     attachEmploymentEvidence(scope, id, {
@@ -87,6 +102,14 @@ it("accepts only the terminal withdrawal receipt at the expected version", async
       reason: "Synthetic withdrawal",
     }),
   ).toMatchObject({ status: "withdrawn", version: 2 });
+  await withdrawEmploymentEvidence({ ...scope, hrIntake: true }, id, {
+    command_id: command,
+    expected_version: 1,
+    reason: "Synthetic withdrawal",
+  });
+  expect(vi.mocked(apiFetch).mock.lastCall?.[0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-periods/${scope.periodId}/revisions/1/evidence/${id}/withdraw?hr_intake=v1`,
+  );
   vi.mocked(apiFetch).mockResolvedValue(receipt);
   await expect(
     withdrawEmploymentEvidence(scope, id, {

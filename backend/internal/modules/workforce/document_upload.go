@@ -60,8 +60,11 @@ func (h *handlers) uploadDocument(c *gin.Context) {
 
 // receiveDocument verifies bytes against the intent, quarantines them, then queues the scan.
 func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, fileID uuid.UUID) {
+	if !h.refreshDocumentPermissions(c, gate, true) {
+		return
+	}
 	var saved document
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
 		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)
 		return err
@@ -93,7 +96,10 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		respond.Error(c, http.StatusBadRequest, "invalid_document", "Use a complete PNG or JPEG without embedded files or unsupported metadata. Export a fresh image and try again.")
 		return
 	}
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	if !h.refreshDocumentPermissions(c, gate, true) {
+		return
+	}
+	err = h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
 		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)
 		if err != nil || saved.Status != "upload_pending" {
@@ -130,7 +136,10 @@ func (h *handlers) receiveDocument(c *gin.Context, gate documentGate, p authn.Pr
 		return
 	}
 	var committed bool
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	if !h.refreshDocumentPermissions(c, gate, true) {
+		return
+	}
+	err = h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		var err error
 		saved, err = pendingDocument(tx, gate, p, hospital, staffID, fileID)
 		if err != nil {
@@ -192,7 +201,7 @@ func documentUploadError(c *gin.Context, err error) bool {
 		// Storage uncertainty never advances a file into a downloadable state.
 		respond.Error(c, http.StatusServiceUnavailable, "documents_unavailable", "Document storage is unavailable. Retry the same upload.")
 	} else {
-		respondError(c, err)
+		respondIntakeError(c, err)
 	}
 	return true
 }

@@ -2842,6 +2842,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.workforce.employment_review_changed.v1": {
+    "source": "backend/internal/modules/workforce/contract/events.go:433",
+    "go_type": "EmploymentReviewChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "type": "string"
+        },
+        "review_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        },
+        "staff_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "review_id",
+        "revision_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.workforce.enrollment_changed.v1": {
     "source": "backend/internal/modules/workforce/contract/events.go:20",
     "go_type": "StaffEnrollmentChangedData",
@@ -3104,6 +3136,38 @@
       },
       "required": [
         "hospital_id",
+        "revision_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.workforce.person_review_changed.v1": {
+    "source": "backend/internal/modules/workforce/contract/events.go:423",
+    "go_type": "PersonReviewChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "type": "string"
+        },
+        "review_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        },
+        "staff_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "review_id",
         "revision_id",
         "version"
       ],

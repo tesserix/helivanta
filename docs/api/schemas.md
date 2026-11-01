@@ -2,6 +2,17 @@
 
 [Contract index](README.md) · keep one authoritative definition per concern
 
+The current-person review candidate uses
+[`contracts/workforce-person-reviews.json`](../../contracts/workforce-person-reviews.json)
+and `node scripts/generate-workforce-person-reviews.mjs` (also supports `--check`).
+It generates owner `person_review_types.go` and API `person-review-contract.ts`;
+edit the canonical input, not those outputs. Input pointers distinguish omitted
+or null account-subject fields from an explicitly empty subject for a non-digital
+worker. Human findings/independence and legal transitions additionally require the
+owner guards documented in [Workforce](workforce.md). The shared emitter now
+honors canonical array minima; its existing Staff template permission list also
+retains its declared minimum of one. All 17 dependent generator checks passed.
+
 ## Source hierarchy today
 
 | Concern                                           | Authority                                                                                   | What it does not prove                                                          |
@@ -40,9 +51,30 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-login-links.json`        | Reviewed staff/account binding commands and history; `generate-workforce-login-links.mjs`                                                                                                                     |
 | `workforce-identity-checks.json`    | Workforce identity source/projection, employment generation, draft commands/receipts and scoped permission identifiers; `generate-workforce-identity.mjs` generates shared Go/Zod models                      |
 | `workforce-employment-periods.json` | Private appointment/contract draft source, commands and immutable revisions; `generate-workforce-employment-periods.mjs` generates Go/Zod models                                                              |
+| `workforce-employment-reviews.json` | Scoped immutable employment submissions, independent decisions/endings, current capabilities and source/evidence receipts; `generate-workforce-employment-reviews.mjs` generates Go/Zod models                |
 | `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
 
+Staff access definitions live in `staff-access.json.template_migrations`, an
+ordered canonical history. Each entry records its IAM migration ID, safe generated
+SQL filename, normalized public-definition digest, exact SQL digest and introduced
+versioned templates. The generator validates the complete history before writing
+outputs, preserves migration 0014 byte-for-byte and flattens definitions for the
+existing Go/Zod/UI artifacts. New keys require an additive catalog entry and a
+separately registered/reviewed forward migration; generation alone neither wires
+the migration nor activates a product workflow. Never edit old definitions or
+regenerate old SQL from the latest authority. See the
+[history design](../superpowers/specs/2026-10-31-staff-template-migration-history.md).
+
 Also inspect module-local catalogues such as `backend/internal/modules/emergency/contract/intake.json`; the top-level directory is not the complete schema universe. Existing generators often encode additional checks such as date ordering, normalization, safe integer bounds and scope constraints. Reusing field names while dropping those checks is a breaking validation change.
+
+Staff access `template_catalogs` pins each public discovery projection to explicit
+template keys and a normalized definition digest. `legacy-v1` remains the three
+definitions introduced by migration 0014; `hr-intake-v1` is an explicit additive
+four-definition projection. `employment-v1` separately pins the five definitions
+through IAM 0021, with an employment-review-only permission bundle. Appending a template does not expand an old closed
+catalog. The generator validates both histories before writes and emits Go/TS
+selectors from these canonical inputs; source declarations alone do not enable
+the required owner/SDK/UI workflow.
 
 Enrollment `request_context_projection` metadata also owns the opt-in query,
 version and response acknowledgment. Its generated optional body marker is
@@ -75,3 +107,7 @@ Use exact money, quantity precision, unit conversions, calendar dates, UTC insta
 For every resource, specify names/types, bounds, required versus missing/null/empty, enum evolution, units/currency, timestamp versus local date, ID scope/version, optimistic token, sensitive fields, response projection and source owner. For commands, add legal state transition, replay and conflicting-key behavior. For history, document correction/retention and stable ordering. For reports, define numerator/denominator, time window, exclusions, missing-data state and freshness.
 
 Validate synthetic examples against the selected standard schema with formats enabled. Reconcile examples with real handler tests; spec validity alone cannot establish semantic or authorization correctness. A future schema registry/CI gate must test both producer and actual consumer compatibility under #710. No production data or secrets belong in schemas or examples.
+
+Staff directory canonical input also owns the explicit HR intake projection and
+HR scope capability response. `node scripts/generate-workforce-directory.mjs`
+and its `--check` emit the shared Go/Zod contract; do not hand-copy capabilities.

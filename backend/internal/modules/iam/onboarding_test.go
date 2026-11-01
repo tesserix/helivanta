@@ -30,6 +30,14 @@ type provisioningFGA struct {
 	fail   bool
 }
 
+func (f *provisioningFGA) ProjectMembership(ctx context.Context, m authz.Membership) error {
+	return f.GrantRole(ctx, m.TenantID, m.Subject, m.Role)
+}
+func (*provisioningFGA) ReadMembershipBindings(context.Context, string, string) ([]authz.Tuple, error) {
+	return nil, nil
+}
+func (*provisioningFGA) RetireMembershipBinding(context.Context, authz.Tuple) error { return nil }
+
 func (f *provisioningFGA) GrantRole(context.Context, string, string, authz.Role) error {
 	f.grants++
 	if f.fail {

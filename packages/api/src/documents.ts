@@ -1,3 +1,4 @@
+import { withStaffIntakeScope, type EnrollmentRequestScope } from "./enrollment";
 import { readAttachmentFile } from "./attachment-file";
 import { apiFetch, apiFetchResponse } from "./client";
 import {
@@ -11,7 +12,7 @@ import {
 } from "./documents-fields";
 export * from "./documents-fields";
 
-export type DocumentScope = { tenantId: string; hospitalId: string; staffId: string };
+export type DocumentScope = EnrollmentRequestScope & { hospitalId: string; staffId: string };
 export type DocumentUpload = { id: string; input: DocumentInput; file: File };
 
 export function canRetryDocument(
@@ -34,7 +35,16 @@ export function documentPath(scope: DocumentScope): string {
 
 export function documentHeaders(scope: DocumentScope): Headers {
   documentPath(scope);
-  return new Headers({ "X-Helivanta-Expected-Tenant": scope.tenantId });
+  if (
+    !scope.subject?.trim() ||
+    scope.subject !== scope.subject.trim() ||
+    scope.subject.length > 200
+  )
+    throw new Error("The document account could not be verified.");
+  return new Headers({
+    "X-Helivanta-Expected-Tenant": scope.tenantId,
+    "X-Helivanta-Expected-Subject": scope.subject,
+  });
 }
 
 function receipt(scope: DocumentScope, id: string, value: unknown): StaffDocument {
@@ -105,7 +115,7 @@ export async function submitDocumentUpload(
   const intent = receipt(
     scope,
     upload.id,
-    await apiFetch(path, {
+    await apiFetch(withStaffIntakeScope(path, scope), {
       method: "PUT",
       headers: documentHeaders(scope),
       body: JSON.stringify(input),
@@ -129,7 +139,12 @@ export async function submitDocumentUpload(
   return receipt(
     scope,
     upload.id,
-    await apiFetch(path + "/content", { method: "PUT", headers, body: upload.file, signal }),
+    await apiFetch(withStaffIntakeScope(path + "/content", scope), {
+      method: "PUT",
+      headers,
+      body: upload.file,
+      signal,
+    }),
   );
 }
 
@@ -145,7 +160,11 @@ export async function retryDocumentScan(
   return receipt(
     scope,
     id,
-    await apiFetch(path, { method: "PUT", headers: documentHeaders(scope), signal }),
+    await apiFetch(withStaffIntakeScope(path, scope), {
+      method: "PUT",
+      headers: documentHeaders(scope),
+      signal,
+    }),
   );
 }
 
@@ -159,7 +178,11 @@ export async function revokeStaffDocument(
   return receipt(
     scope,
     id,
-    await apiFetch(path, { method: "PUT", headers: documentHeaders(scope), signal }),
+    await apiFetch(withStaffIntakeScope(path, scope), {
+      method: "PUT",
+      headers: documentHeaders(scope),
+      signal,
+    }),
   );
 }
 
@@ -172,7 +195,7 @@ export async function downloadStaffDocument(
   if (document.status !== "available") throw new Error("Document is not available for download.");
   receipt(scope, document.id, document);
   const response = await apiFetchResponse(
-    `${documentPath(scope)}/documents/${document.id}/content`,
+    withStaffIntakeScope(`${documentPath(scope)}/documents/${document.id}/content`, scope),
     { headers: documentHeaders(scope), cache: "no-store", signal },
   );
   const blob = await response.blob();

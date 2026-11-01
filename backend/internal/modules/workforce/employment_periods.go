@@ -16,6 +16,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -66,10 +67,11 @@ func employmentPeriodAudit(tx *gorm.DB, p authn.Principal, hospital, resource uu
 	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint))`, p.TenantID, hospital, p.Subject, action, resource, version).Error
 }
 func (h *handlers) employmentPeriodTransaction(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, fn func(*gorm.DB, EmploymentPeriodSource) error) error {
-	return h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	return h.employmentPeriodAuthority(c, p, hospital, staff, []authz.Permission{PermEnrollmentManage}, fn)
+}
+
+func (h *handlers) employmentPeriodAuthority(c *gin.Context, p authn.Principal, hospital, staff uuid.UUID, required []authz.Permission, fn func(*gorm.DB, EmploymentPeriodSource) error) error {
+	return h.intakeTransaction(c, p, hospital, required, func(tx *gorm.DB, _ bool) error {
 		// Match enrollment's hospital lock before Staff/sponsor row locks.
 		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, hospital).Error; err != nil {
 			return err
@@ -86,7 +88,7 @@ func respondEmploymentPeriodError(c *gin.Context, err error) {
 		respond.Error(c, 409, "employment_draft_conflict", "The employment draft or Staff source changed. Reload before saving.")
 		return
 	}
-	respondError(c, err)
+	respondIntakeError(c, err)
 }
 func (h *handlers) getEmploymentPeriodSource(c *gin.Context) {
 	p, hospital, staff, _, ok := employmentPeriodScope(c)

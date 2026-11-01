@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
+import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
 import { Button, Input } from "@tesserix/web";
 import { Panel, Field, FormSelectField, LoadMore, useLeaveGuard, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
+  withStaffIntakeScope,
   EmploymentEvidenceAttachInputContract,
   EmploymentEvidenceBindingContract,
   attachEmploymentEvidence,
@@ -32,22 +34,31 @@ export function EmploymentEvidencePanel({
   staffVersion,
   canAttach,
   onClose,
+  onContextChanged,
 }: {
   scope: EmploymentEvidenceScope;
   staffVersion: number;
   canAttach: boolean;
   onClose: () => void;
+  onContextChanged?: () => void;
 }) {
   const [action, setAction] = useState<Action | null>(null);
   const [history, setHistory] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [accessChanged, setAccessChanged] = useState(false);
+  const loseAccess = () => {
+    setAccessChanged(true);
+    onContextChanged?.();
+  };
   const files = useApiPagedQuery<EmploymentEvidenceBinding>(
     employmentEvidenceKey(scope),
-    employmentEvidencePath(scope),
+    withStaffIntakeScope(employmentEvidencePath(scope), scope),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
   const parsed = EmploymentEvidenceBindingContract.array().safeParse(files.items);
   const valid = parsed.success && parsed.data.every((row) => employmentEvidenceMatches(scope, row));
+  const cutoff = useStaffAccessCutoff([files.error], loseAccess);
+  if (accessChanged || cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <Panel
       aria-label={`Employment evidence for terms revision ${scope.periodVersion}`}
@@ -91,6 +102,7 @@ export function EmploymentEvidencePanel({
           scope={scope}
           staffVersion={staffVersion}
           action={action}
+          onAccessChanged={loseAccess}
           onClose={() => setAction(null)}
           onSaved={() => {
             setAction(null);
@@ -129,7 +141,7 @@ export function EmploymentEvidencePanel({
                 <div className="flex flex-wrap gap-2">
                   {file.status === "attached" && (
                     <>
-                      <EvidenceDownload scope={scope} file={file} />
+                      <EvidenceDownload scope={scope} file={file} onAccessChanged={loseAccess} />
                       <Button
                         variant="outline"
                         disabled={action !== null}
@@ -151,7 +163,9 @@ export function EmploymentEvidencePanel({
                   </Button>
                 </div>
               </div>
-              {history === file.id && <EvidenceHistory scope={scope} id={file.id} />}
+              {history === file.id && (
+                <EvidenceHistory scope={scope} id={file.id} onAccessChanged={loseAccess} />
+              )}
             </li>
           ))}
         </ul>
@@ -166,12 +180,14 @@ function EvidenceCommand({
   action,
   onClose,
   onSaved,
+  onAccessChanged,
 }: {
   scope: EmploymentEvidenceScope;
   staffVersion: number;
   action: Action;
   onClose: () => void;
   onSaved: () => void;
+  onAccessChanged: () => void;
 }) {
   const fieldId = useId();
   const [submitted, setSubmitted] = useState<{
@@ -180,7 +196,10 @@ function EvidenceCommand({
   } | null>(null);
   const documents = useApiPagedQuery<StaffDocument>(
     [...employmentEvidenceKey(scope), "eligible-documents"],
-    `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/documents`,
+    withStaffIntakeScope(
+      `/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/documents`,
+      scope,
+    ),
     {
       enabled: action.kind === "attach",
       gcTime: 0,
@@ -225,6 +244,8 @@ function EvidenceCommand({
     "employment evidence",
     save.isPending,
   );
+  const cutoff = useStaffAccessCutoff([save.error, documents.error], onAccessChanged);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <form
       aria-label={
@@ -339,13 +360,23 @@ function EvidenceCommand({
     </form>
   );
 }
-function EvidenceHistory({ scope, id }: { scope: EmploymentEvidenceScope; id: string }) {
+function EvidenceHistory({
+  scope,
+  id,
+  onAccessChanged,
+}: {
+  scope: EmploymentEvidenceScope;
+  id: string;
+  onAccessChanged: () => void;
+}) {
   const query = useApiPagedQuery<EmploymentEvidenceBinding>(
     [...employmentEvidenceKey(scope), id, "history"],
-    `${employmentEvidencePath(scope)}/${id}/history`,
+    withStaffIntakeScope(`${employmentEvidencePath(scope)}/${id}/history`, scope),
     { gcTime: 0, request: employmentPeriodRequest(scope) },
   );
   const parsed = EmploymentEvidenceBindingContract.array().safeParse(query.items);
+  const cutoff = useStaffAccessCutoff([query.error], onAccessChanged);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (query.isPending) return <p role="status">Loading evidence history…</p>;
   if (
     query.isError ||
@@ -370,9 +401,11 @@ function EvidenceHistory({ scope, id }: { scope: EmploymentEvidenceScope; id: st
 function EvidenceDownload({
   scope,
   file,
+  onAccessChanged,
 }: {
   scope: EmploymentEvidenceScope;
   file: EmploymentEvidenceBinding;
+  onAccessChanged: () => void;
 }) {
   const controller = useRef<AbortController | null>(null);
   const urls = useRef(new Set<string>());
@@ -403,6 +436,8 @@ function EvidenceDownload({
     },
     { suppressErrorToast: true },
   );
+  const cutoff = useStaffAccessCutoff([download.error], onAccessChanged);
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <div>
       <Button variant="outline" disabled={download.isPending} onClick={() => download.mutate()}>

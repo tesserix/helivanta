@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
+import { documentQueryKey } from "./document-queries";
 import {
   prepareDocumentUpload,
   submitDocumentUpload,
   retryDocumentScan,
+  revokeStaffDocument,
   downloadStaffDocument,
 } from "./documents";
 import {
@@ -25,6 +27,7 @@ const input: DocumentInput = {
   sha256: "a".repeat(64),
 };
 const scope = {
+  subject: "synthetic-document-account",
   tenantId: "33333333-3333-4333-8333-333333333333",
   hospitalId: "44444444-4444-4444-8444-444444444444",
   staffId: record,
@@ -89,6 +92,12 @@ describe("staff document contract", () => {
 });
 
 describe("private document requests", () => {
+  it("separates private document caches for two accounts in the same tenant", () => {
+    expect(documentQueryKey(scope)).not.toEqual(
+      documentQueryKey({ ...scope, subject: "synthetic-other-account" }),
+    );
+  });
+
   it("reuses the explicit intent after a network error and pins every request to its tenant", async () => {
     vi.stubGlobal("crypto", webcrypto);
     const data = new TextEncoder().encode("synthetic image bytes");
@@ -139,6 +148,10 @@ describe("private document requests", () => {
     for (const request of requests)
       expect(new Headers(request.init.headers).get("X-Helivanta-Expected-Tenant")).toBe(
         scope.tenantId,
+      );
+    for (const request of requests)
+      expect(new Headers(request.init.headers).get("X-Helivanta-Expected-Subject")).toBe(
+        scope.subject,
       );
     expect(new Headers(requests[1].init.headers).get("Content-Type")).toBe("image/png");
     expect(requests[1].init.body).toBe(file);
@@ -223,4 +236,48 @@ describe("private document requests", () => {
     finishRead(new Uint8Array([1]).buffer);
     await expect(prepared).rejects.toMatchObject({ name: "AbortError" });
   });
+});
+
+it("keeps scoped intake on every document command and byte request", async () => {
+  const requests: Array<{ url: string; init: RequestInit }> = [];
+  const intake = { ...scope, hrIntake: true };
+  const signal = new AbortController().signal;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      requests.push({ url, init });
+      const path = new URL(url, "https://example.invalid").pathname;
+      if (path.endsWith("/content") && init.method !== "PUT")
+        return new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/png" } });
+      return Response.json({
+        ...receipt,
+        status: path.endsWith("/revocation")
+          ? "revoked"
+          : path.endsWith("/content") || path.includes("/retries/")
+            ? "scan_pending"
+            : "upload_pending",
+        scan_attempt: path.includes("/retries/") ? 2 : 1,
+      });
+    }),
+  );
+  await submitDocumentUpload(
+    intake,
+    {
+      id: fileID,
+      input,
+      file: new File([new Uint8Array([1])], input.filename, { type: input.content_type }),
+    },
+    signal,
+  );
+  await retryDocumentScan(intake, fileID, 2, signal);
+  await revokeStaffDocument(intake, fileID, signal);
+  await downloadStaffDocument(intake, { ...receipt, status: "available" }, signal);
+  expect(requests).toHaveLength(5);
+  for (const { url, init } of requests) {
+    expect(new URL(url, "https://example.invalid").searchParams.get("hr_intake")).toBe("v1");
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+    expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  }
+  expect(new URL(requests[1]!.url, "https://example.invalid").pathname).toMatch(/\/content$/);
+  expect(documentQueryKey(intake)).not.toEqual(documentQueryKey(scope));
 });

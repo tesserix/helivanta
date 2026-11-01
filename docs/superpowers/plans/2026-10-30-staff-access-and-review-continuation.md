@@ -107,3 +107,14 @@ web/CI and actual local/deployed UI checks. Scope reductions may omit a journey
 only when clearly recorded; they cannot omit its safety controls or display
 fabricated completion. Country/state legal/payroll rules still require applicable
 primary sources and qualified-owner review before activation.
+
+## Current source inventory — 2026-10-31
+
+The [33-route source/transaction-phase inventory](../../qa/staff-intake-access-inventory.md)
+now enumerates all 23 enrollment and 10 document primary-permission routes,
+secondary employment-evidence permissions, storage authorization phases and
+shared leave/credential consumers. It also records why current template generation
+must gain forward-only evolution before adding an intake family. The workspace
+assertion correction discovered during this audit is tracked separately; scoped
+HR delegation, compound command authority, immutable employment decisions and
+all effective lifecycle/cross-module gates remain open.

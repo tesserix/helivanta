@@ -10,6 +10,7 @@ import {
 } from "./documents-fields";
 
 const scope = {
+  subject: "synthetic-document-account",
   tenantId: "11111111-1111-4111-8111-111111111111",
   hospitalId: "22222222-2222-4222-8222-222222222222",
   staffId: "33333333-3333-4333-8333-333333333333",
@@ -81,6 +82,7 @@ describe("staff file classification contract", () => {
       `/api/v1/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/documents/${file}/classification`,
     );
     expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+    expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
     expect(options.cache).toBe("no-store");
   });
   it("rejects stale or substituted resource responses", async () => {
@@ -147,4 +149,22 @@ describe("staff file classification contract", () => {
       ).rejects.toThrow();
     }
   });
+});
+
+it("keeps scoped HR classification reads and writes on the exact file", async () => {
+  const fetch = vi.fn(async () => Response.json(saved));
+  vi.stubGlobal("fetch", fetch);
+  const intake = { ...scope, hrIntake: true };
+  await readDocumentClassification(intake, file, controller.signal);
+  await saveDocumentClassification(
+    intake,
+    file,
+    { expected_version: 0, classification_revision_id: reference },
+    controller.signal,
+  );
+  for (const [url] of fetch.mock.calls as unknown as Array<[string]>) {
+    const parsed = new URL(url, "https://example.invalid");
+    expect(parsed.searchParams.get("hr_intake")).toBe("v1");
+    expect(parsed.pathname).toMatch(new RegExp(`/documents/${file}/classification$`));
+  }
 });

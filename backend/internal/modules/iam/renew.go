@@ -30,10 +30,16 @@ type UserProfileReader interface {
 	UserProfile(ctx context.Context, id string) (loginclient.UserProfile, error)
 }
 
-// IdentityProvider is the one Zitadel login client both reads are wired from.
+// MembershipIdentityReader verifies current human identity and contact eligibility.
+type MembershipIdentityReader interface {
+	MembershipEligible(ctx context.Context, subject string) (bool, error)
+}
+
+// IdentityProvider is the shared Zitadel client for identity reads.
 type IdentityProvider interface {
 	UserStateChecker
 	UserProfileReader
+	MembershipIdentityReader
 }
 
 // renewalFraction renews short sessions after a third of their lifetime.

@@ -255,6 +255,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermLeaveRequest:             {authz.RoleTenantAdmin},
 	workforce.PermIdentityChecksManage:     {authz.RoleTenantAdmin},
 	workforce.PermIdentityChecksReview:     {authz.RoleTenantAdmin},
+	workforce.PermEmploymentReview:         {authz.RoleTenantAdmin},
 	workforce.PermLeaveApprove:             {authz.RoleTenantAdmin},
 	workforce.PermDutyRequest:              {authz.RoleTenantAdmin},
 	workforce.PermDutyApprove:              {authz.RoleTenantAdmin},

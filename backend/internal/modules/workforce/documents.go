@@ -14,6 +14,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -31,6 +32,7 @@ var errDocumentsUnavailable = errors.New("document storage not configured")
 
 // documentGate authorises one route family's files for a staff member and binds new files to a record that still takes them.
 type documentGate interface {
+	permissions(writing bool) (authz.Permission, authz.Permission)
 	authorize(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, writing bool) error
 	// bind returns the version a new file records, or fails when the record no longer takes files.
 	bind(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID, kind string, record uuid.UUID) (int64, error)
@@ -60,6 +62,34 @@ func (staffDocuments) owns(tx *gorm.DB, p authn.Principal, hospital, staffID uui
 
 func (staffDocuments) downloadAction() string { return "workforce.document.downloaded" }
 
+func (staffDocuments) permissions(bool) (authz.Permission, authz.Permission) {
+	return PermDocumentManage, authz.Public
+}
+
+func (h *handlers) refreshDocumentPermissions(c *gin.Context, gate documentGate, writing bool) bool {
+	if c.Query(hrIntakeQuery) == hrIntakeVersion && intakeDocumentGate(gate) {
+		// Every following owner phase resolves and holds the scoped requirements.
+		return true
+	}
+	if !authn.Refresh(c) {
+		return false
+	}
+	primary, additional := gate.permissions(writing)
+	if primary == authz.Public {
+		respond.Error(c, http.StatusServiceUnavailable, "authz_unavailable", "authorization is temporarily unavailable")
+		return false
+	}
+	if !authz.Refresh(c, primary) {
+		return false
+	}
+	permissions, ok := authz.PermissionsFrom(c)
+	if !ok || additional != authz.Public && !permissions.Has(additional) {
+		respond.Forbidden(c, "missing permission "+string(additional))
+		return false
+	}
+	return true
+}
+
 func validDocumentFile(filename *string, digest string, size int64) bool {
 	*filename = strings.TrimSpace(*filename)
 	if *filename == "" || *filename == "." || *filename == ".." || strings.ContainsAny(*filename, "/\\") || !documentDigest.MatchString(digest) || size > attachments.MaxFileBytes {
@@ -79,8 +109,14 @@ func (in *documentInput) valid(staffID uuid.UUID) bool {
 }
 
 func documentOwner(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID) (staff, error) {
-	if err := enrollmentScope(tx, p, hospital); err != nil {
+	var intake bool
+	if err := tx.Raw(`SELECT workforce_hr_intake_context(?::uuid,?::uuid)`, p.TenantID, hospital).Scan(&intake).Error; err != nil {
 		return staff{}, err
+	}
+	if !intake {
+		if err := enrollmentScope(tx, p, hospital); err != nil {
+			return staff{}, err
+		}
 	}
 	var owner staff
 	err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(staffColumns+",version").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID).First(&owner).Error
@@ -100,13 +136,8 @@ func documentRecord(tx *gorm.DB, p authn.Principal, hospital, staffID uuid.UUID,
 }
 
 func documentStaff(c *gin.Context) (uuid.UUID, bool) {
-	if expected := c.GetHeader("X-Helivanta-Expected-Tenant"); expected != "" {
-		p, _, ok := authn.TenantPrincipal(c)
-		requested, err := uuid.Parse(expected)
-		if !ok || err != nil || requested == uuid.Nil || requested.String() != p.TenantID {
-			respond.NotFound(c, "staff document")
-			return uuid.Nil, false
-		}
+	if _, _, ok := staffPrincipal(c); !ok {
+		return uuid.Nil, false
 	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil || id == uuid.Nil {
@@ -145,7 +176,7 @@ func (h *handlers) putDocument(c *gin.Context) {
 func (h *handlers) registerDocument(c *gin.Context, gate documentGate, p authn.Principal, hospital, staffID, id uuid.UUID, in documentInput) {
 	var saved document
 	var created bool
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, gate, p, hospital, true, func(tx *gorm.DB) error {
 		if err := gate.authorize(tx, p, hospital, staffID, true); err != nil {
 			return err
 		}
@@ -204,7 +235,7 @@ func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]do
 		return nil, nil
 	}
 	var rows []document
-	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
+	err := h.documentTransaction(c, staffDocuments{}, p, hospital, false, func(tx *gorm.DB) error {
 		if _, err := documentOwner(tx, p, hospital, staffID); err != nil {
 			return err
 		}
@@ -215,6 +246,10 @@ func (h *handlers) listDocuments(c *gin.Context, params pagination.Params) ([]do
 		return nil, nil
 	}
 	if err != nil {
+		if c.Query(hrIntakeQuery) == hrIntakeVersion {
+			respondIntakeError(c, err)
+			return nil, nil
+		}
 		return nil, errors.New("staff document listing unavailable")
 	}
 	return rows, nil

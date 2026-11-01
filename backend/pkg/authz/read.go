@@ -35,7 +35,7 @@ func (t Tuple) Key() string {
 // the model later is invisible to ReadTuplesByTenant until it is listed
 // here, so a new object type can never be pruned by a reconciler that
 // does not yet know how to derive its desired state.
-var reconciledObjectTypes = []string{"role:", "perm:", tenantType + ":"}
+var reconciledObjectTypes = []string{"role:", "perm:", tenantType + ":", "membership:"}
 
 // isReconciledObject reports whether object is of a type the reconciler
 // owns. Read returns every tuple in the store — it filters by object

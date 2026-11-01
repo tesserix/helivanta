@@ -20,7 +20,9 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/assignment-proposals/:id` | `public` | false | false |
 | PUT | `/v1/iam/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
 | GET | `/v1/iam/assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/employment-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
 | POST | `/v1/iam/me/sign-out` | `no_tenant_membership` | false | false |
@@ -29,6 +31,12 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | DELETE | `/v1/iam/members/:subject/:role` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/members` | `iam.member.manage` | true | false |
 | POST | `/v1/iam/members` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-candidates` | `iam.member.manage` | true | false |
+| PUT | `/v1/iam/membership-commands/:id` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-commands` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
+| PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
+| GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
@@ -45,8 +53,8 @@ Subscriptions:
 
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
-- `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: false.
-- `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: false.
+- `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
+- `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: true.
 - Fanout broadcast ← `helivanta.in.iam.credential_revoked.v1`.
 
 Migration table declarations:
@@ -58,6 +66,9 @@ Migration table declarations:
 - `0009_iam_assignment_decisions`: `iam_assignment_decisions`.
 - `0010_iam_assignment_projection`: `iam_assignment_scope_epochs`, `iam_assignment_snapshots`.
 - `0011_iam_assignment_membership`: `iam_subject_membership_epochs`, `iam_membership_revocations`.
+- `0015_iam_membership_commands`: `iam_membership_commands`.
+- `0016_iam_membership_candidate_index`: concurrent index `iam_members_candidate_history` on `iam_members (tenant_id, created_at DESC, id DESC)`.
+- `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 
 ## reference
 
@@ -986,9 +997,12 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks/:check` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id/checks` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/identity-staff/:id/person-review-evidence/search` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/identity-staff/:id` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/insights` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/person-review-inbox` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/person-review-targets/search` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision` | `workforce.benefits.approve` | false | false |
@@ -1029,6 +1043,11 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/revocation` | `public` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/withdrawal` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-source` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/enrollment` | `workforce.enrollment.manage` | false | false |
@@ -1048,6 +1067,13 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/login-links/:link` | `workforce.login_links.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/login-links` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/decision` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/evidence/:file/content` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/history` | `public` | true | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/revocation` | `public` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/withdrawal` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false | false |
@@ -1055,10 +1081,14 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital` | `workforce.hospital.manage` | false | false |
 | GET | `/v1/workforce/hospitals` | `public` | true | false |
+| GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
 
 Published subjects:
 
+- `helivanta.in.workforce.employment_review_changed.v1`
+- `helivanta.in.workforce.person_review_changed.v1`
 - `helivanta.in.workforce.identity_case_changed.v1`
 - `helivanta.in.workforce.document_classification_changed.v1`
 - `helivanta.in.workforce.assignment_scope_verified.v1`
@@ -1147,6 +1177,10 @@ Migration table declarations:
 - `0049_workforce_identity_cases`: `workforce_identity_cases`, `workforce_identity_case_history`.
 - `0050_workforce_employment_period_drafts`: `workforce_employment_period_drafts`, `workforce_employment_period_history`.
 - `0051_workforce_employment_evidence`: `workforce_employment_evidence_bindings`, `workforce_employment_evidence_history`.
+- `0054_workforce_person_reviews`: `workforce_document_contributors`, `workforce_person_reviews`, `workforce_person_review_history`, `workforce_person_review_evidence`, `workforce_person_review_contributors`.
+- `0055_workforce_person_provenance_index`: concurrent index `workforce_person_source_provenance` on `workforce_audit (tenant_id, hospital_id, resource_id, action, actor_subject)`.
+- `0057_workforce_person_review_inbox_index`: concurrent index `workforce_person_review_inbox` on `workforce_person_reviews (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
+- `0060_workforce_employment_review_submissions`: `workforce_employment_reviews`, `workforce_employment_review_history`, `workforce_employment_review_evidence`, `workforce_employment_review_contributors`.
 
 ## workspace
 

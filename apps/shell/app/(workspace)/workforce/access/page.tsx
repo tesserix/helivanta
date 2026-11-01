@@ -13,9 +13,12 @@ import {
   type StaffAssignmentScope,
   type StaffAssignmentFamily,
   staffAccessTemplates,
+  staffAccessTemplateCatalogs,
+  TemplateDefinitionContract,
 } from "@helivanta/api";
 import { AssignmentProposalForm, AssignmentDecisionForm } from "./assignment-forms";
 import { StaffMembershipForm } from "./membership-form";
+import { MembershipManagement } from "./membership-management";
 
 type Identity = { tenant_id: string; subject: string; data: string[] };
 const labels: Record<StaffAssignment["status"], string> = {
@@ -56,7 +59,14 @@ export default function StaffAccessPage() {
       ) : (
         <div key={`${identity.data.tenant_id}:${identity.data.subject}`}>
           {identity.data.data.includes("iam.member.manage") && (
-            <StaffMembershipForm tenantId={identity.data.tenant_id} />
+            <>
+              <StaffMembershipForm
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+              <MembershipManagement
+                scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+              />
+            </>
           )}
           {identity.data.data.some(
             (p) => p === "iam.assignment.manage" || p === "iam.assignment.review",
@@ -67,9 +77,54 @@ export default function StaffAccessPage() {
   );
 }
 
+function useVerifiedStaffCatalog(
+  scope: StaffAssignmentScope,
+  catalogName: keyof typeof staffAccessTemplateCatalogs,
+) {
+  const catalog = useApiQuery<unknown>(
+    ["iam", "staff-access-templates", scope.tenantId, scope.subject, catalogName],
+    `/iam/staff-access-templates?catalog=${catalogName}`,
+    {
+      gcTime: 0,
+      request: {
+        cache: "no-store",
+        headers: {
+          "X-Helivanta-Expected-Tenant": scope.tenantId,
+          "X-Helivanta-Expected-Subject": scope.subject,
+        },
+      },
+    },
+  );
+  const definitions = TemplateDefinitionContract.array().safeParse(catalog.data);
+  const catalogKeys = staffAccessTemplateCatalogs[catalogName];
+  const supported =
+    !catalog.isError &&
+    !catalog.isFetching &&
+    definitions.success &&
+    definitions.data.length === catalogKeys.length &&
+    catalogKeys.every((key) => {
+      const expected = staffAccessTemplates.find((template) => template.key === key);
+      const actual = definitions.data.find((template) => template.key === key);
+      return (
+        !!expected &&
+        !!actual &&
+        actual.name === expected.name &&
+        actual.description === expected.description &&
+        actual.family === expected.family &&
+        actual.permissions.length === expected.permissions.length &&
+        expected.permissions.every((permission) => actual.permissions.includes(permission))
+      );
+    });
+  return { ...catalog, supported };
+}
+
 function Assignments({ identity }: { identity: Identity }) {
   const scope: StaffAssignmentScope = { tenantId: identity.tenant_id, subject: identity.subject };
   const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
+  const catalog = useVerifiedStaffCatalog(scope, "hr-intake-v1");
+  const employmentCatalog = useVerifiedStaffCatalog(scope, "employment-v1");
+  const intakeSupported = catalog.supported;
+  const employmentSupported = employmentCatalog.supported;
   const records = useStaffAssignments(scope, family);
   const [proposing, setProposing] = useState(false);
   const [renewal, setRenewal] = useState<StaffAssignment | undefined>();
@@ -81,12 +136,18 @@ function Assignments({ identity }: { identity: Identity }) {
   }, []);
   const manage = identity.data.includes("iam.assignment.manage");
   const review = identity.data.includes("iam.assignment.review");
+  const catalogBlocked =
+    (family === "intake" && !intakeSupported) || (family === "employment" && !employmentSupported);
   return (
     <Panel className="space-y-4">
       <p>
         {family === "leave"
           ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
-          : "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."}
+          : family === "identity"
+            ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
+            : family === "employment"
+              ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
+              : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
@@ -106,19 +167,44 @@ function Assignments({ identity }: { identity: Identity }) {
           options={[
             { value: "leave", label: "Leave review" },
             { value: "identity", label: "Staff identity checks" },
+            ...(intakeSupported || family === "intake"
+              ? [{ value: "intake", label: "Staff onboarding" }]
+              : []),
+            ...(employmentSupported || family === "employment"
+              ? [{ value: "employment", label: "Employment terms review" }]
+              : []),
           ]}
         />
       </Field>
+      <p aria-live="polite" className="text-sm text-muted-foreground">
+        {catalog.isPending
+          ? "Checking Staff onboarding assignments…"
+          : !intakeSupported
+            ? "Staff onboarding assignments are unavailable in this workspace."
+            : ""}
+      </p>
+      <p aria-live="polite" className="text-sm text-muted-foreground">
+        {employmentCatalog.isPending
+          ? "Checking employment review assignments…"
+          : !employmentSupported
+            ? "Employment review assignments are unavailable in this workspace."
+            : ""}
+      </p>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           disabled={records.isFetching}
-          onClick={() => void records.refetch()}
+          onClick={() => {
+            void records.refetch();
+            void catalog.refetch();
+            void employmentCatalog.refetch();
+          }}
         >
           Refresh assignments
         </Button>
         {manage && (
           <Button
+            disabled={catalogBlocked}
             onClick={() => {
               setNotice("");
               setRenewal(undefined);
@@ -129,58 +215,60 @@ function Assignments({ identity }: { identity: Identity }) {
           </Button>
         )}
       </div>
-      {notice && <p role="status">{notice}</p>}
-      {proposing && (
-        <AssignmentProposalForm
-          key={`${family}:${renewal?.id ?? "new"}`}
-          family={family}
-          renewal={renewal}
-          scope={scope}
-          onClose={() => setProposing(false)}
-          onSaved={() => {
-            setProposing(false);
-            setNotice(
-              "Proposal recorded. Hospital verification and independent review must complete before activation.",
-            );
-          }}
-        />
-      )}
-      {records.isPending ? (
-        <p role="status">Loading assignments…</p>
-      ) : records.isError ? (
-        <p role="alert">Could not load assignments. Refresh to try again.</p>
-      ) : (
-        <>
-          {!records.data?.pages.some((p) => p.data.length) && <p>No assignment proposals yet.</p>}
-          {records.data?.pages
-            .flatMap((p) => p.data)
-            .map((item) => (
-              <AssignmentRecord
-                key={item.id}
-                item={item}
-                scope={scope}
-                manage={manage}
-                review={review}
-                now={now}
-                onRenew={() => {
-                  setNotice("");
-                  setRenewal(item);
-                  setProposing(true);
-                }}
-                onSaved={() =>
-                  setNotice(
-                    "Decision recorded. Refresh to check hospital verification and activation; a submitted approval is not yet active access.",
-                  )
-                }
-              />
-            ))}
-          <LoadMore
-            hasMore={records.hasNextPage}
-            isLoading={records.isFetching}
-            onClick={() => void records.fetchNextPage({ cancelRefetch: false })}
+      <fieldset disabled={catalogBlocked} className="min-w-0 space-y-4">
+        {notice && <p role="status">{notice}</p>}
+        {proposing && (
+          <AssignmentProposalForm
+            key={`${family}:${renewal?.id ?? "new"}`}
+            family={family}
+            renewal={renewal}
+            scope={scope}
+            onClose={() => setProposing(false)}
+            onSaved={() => {
+              setProposing(false);
+              setNotice(
+                "Proposal recorded. Hospital verification and independent review must complete before activation.",
+              );
+            }}
           />
-        </>
-      )}
+        )}
+        {records.isPending ? (
+          <p role="status">Loading assignments…</p>
+        ) : records.isError ? (
+          <p role="alert">Could not load assignments. Refresh to try again.</p>
+        ) : (
+          <>
+            {!records.data?.pages.some((p) => p.data.length) && <p>No assignment proposals yet.</p>}
+            {records.data?.pages
+              .flatMap((p) => p.data)
+              .map((item) => (
+                <AssignmentRecord
+                  key={item.id}
+                  item={item}
+                  scope={scope}
+                  manage={manage}
+                  review={review}
+                  now={now}
+                  onRenew={() => {
+                    setNotice("");
+                    setRenewal(item);
+                    setProposing(true);
+                  }}
+                  onSaved={() =>
+                    setNotice(
+                      "Decision recorded. Refresh to check hospital verification and activation; a submitted approval is not yet active access.",
+                    )
+                  }
+                />
+              ))}
+            <LoadMore
+              hasMore={records.hasNextPage}
+              isLoading={records.isFetching}
+              onClick={() => void records.fetchNextPage({ cancelRefetch: false })}
+            />
+          </>
+        )}
+      </fieldset>
     </Panel>
   );
 }

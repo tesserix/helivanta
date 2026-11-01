@@ -415,7 +415,7 @@ func run() error {
 		DB:                          db,
 		Bus:                         bus,
 		Authz:                       fga,
-		Roles:                       fga,
+		Roles:                       currentAuthorization,
 		SessionSigner:               sessionSigner,
 		SessionTTL:                  sessionTTL,
 		SessionSecureCookie:         sessionSecureCookie,
@@ -524,7 +524,7 @@ func run() error {
 	// exactly the #848 failure that looks like success.
 	loginHandlers := iam.NewLoginHandlers(iam.LoginDeps{
 		Zitadel:      zitadelVerifier,
-		Roles:        fga,
+		Roles:        currentAuthorization,
 		Signer:       sessionSigner,
 		Sessions:     sessionVerifier,
 		TTL:          sessionTTL,

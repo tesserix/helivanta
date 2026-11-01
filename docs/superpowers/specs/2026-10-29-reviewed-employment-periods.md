@@ -126,3 +126,68 @@ back application code must retain accepted employment/exit/history records and
 must not reopen denied access. Enabling an authoritative employment cutoff is a
 reviewed activation with a tested governance/recovery path, not a destructive
 rollback or a reason to restore historical grants.
+
+## Registered-consumer review prerequisite — 2026-10-31
+
+The [consumer ledger](../../qa/staff-operational-access-inventory.md) derives all
+registered HTTP, async and broadcast surfaces from the existing contractdocs
+inventory. Sparse explicit source reviews pin registration and relevant code
+hashes; no permission-prefix or role-based automatic exemptions are allowed.
+Unclassified surfaces remain visible, and source drift invalidates an existing
+review before regeneration writes. This is offline source-review tooling using
+Node built-ins and checked-in artifacts, with no additional service, runtime
+cost or authority mutation. It supports ADR-0049's activation prerequisite; it
+does not implement an employment decision or prove cutoff. Background timers,
+Temporal activities and external continuations need separately verified wiring
+and authority review outside the registered inventory.
+
+## Employment-evidence contributor prerequisite — 2026-10-31
+
+The current document provenance trigger introduced by Workforce 0054 records
+only enrollment `identity_evidence`. Employment-evidence preparation therefore
+has no equivalent contributor record. Independent employment decisions must not
+interpret that missing provenance as permission for an evidence preparer to
+approve their own work.
+
+Extend the owner trigger in a new additive migration (0059), preserving the
+existing immutable contributor table, scoped primary key, forced RLS and worker
+boundary. Record attributable human writes only for enrollment evidence bound to
+the same Staff record and category `employment_evidence` or `identity_evidence`.
+Repeated writes by the same subject remain idempotent. The scanner's authorized
+worker transition does not manufacture a human contributor. A contributor write
+failure must roll back the document command with its audit/outbox effects.
+
+The assets are private evidence and trustworthy preparer provenance. The threat
+is an insider preparing evidence and later appearing independent, including with
+a changed login binding. The boundary is the existing authorized owner document
+transaction and its database-maintained, immutable provenance. This change adds
+no employment approval permission and does not widen person-review disclosure.
+Do not backfill old employment documents from a guessed uploader or current
+subject: missing historical provenance remains unresolved until an authorized
+new evidence preparation/review path proves it.
+
+Use the existing Global API/IAM/OpenFGA/Postgres upload, storage and scanner
+protocol test to observe missing provenance fail, then verify preparation,
+upload/release and repeated commands. Assert historical creator attribution,
+worker exclusion, owner-scope isolation, unchanged person-review purpose limits
+and transactional failure rollback. Normal browser/real-provider acceptance and
+frozen consumption into employment review remain separate open requirements.
+The migration is forward-only and data preserving; application rollback must
+retain contributor history. Applying it to an existing QA or production database
+requires exact named approval. Disposable automated-test migrations are already
+within the authorized local testing scope.
+
+The migration also adds private `creation_captured` provenance. Existing rows
+remain false; only an attributable document INSERT records true. A later UPDATE,
+retry or scan cannot upgrade incomplete historical provenance. Person-review
+submission requires a captured creator for every selected identity file. Current
+person-review effectiveness and protected-byte authorization also require that
+proof; unavailable provenance derives `evidence_unavailable` without erasing the
+historical receipt. A deferred database approval check preserves the invariant
+when required private provenance is unavailable to the owner transaction.
+
+A before-0059 fixture creates real identity and employment upload intents through
+Global API, applies the actual forward migration, and performs later upload/scan
+commands. It must retain incomplete provenance for those historical files while
+newly created evidence has a captured creator. This migration proof is distinct
+from ordinary fresh-database tests and does not fabricate a backfill.

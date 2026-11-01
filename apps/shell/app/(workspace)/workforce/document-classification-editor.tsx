@@ -2,9 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@tesserix/web";
+import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
 import { FormSelectField, useZodForm, Panel } from "@helivanta/ui";
 import {
   ApiError,
+  withStaffIntakeScope,
+  enrollmentRequestOptions,
+  staffIntakeScopeKey,
   usePermissions,
   useTenantTransition,
   onTenantTransition,
@@ -23,17 +27,34 @@ import {
   type HRMaster,
 } from "@helivanta/api";
 
-type Props = { scope: DocumentScope; file: StaffDocument; onClose: () => void };
+type Props = {
+  scope: DocumentScope;
+  file: StaffDocument;
+  onClose: () => void;
+  onContextChanged?: () => void;
+};
 
-export function DocumentClassificationEditor({ scope, file, onClose }: Props) {
+export function DocumentClassificationEditor({ scope, file, onClose, onContextChanged }: Props) {
   const { can } = usePermissions();
   const switching = useTenantTransition();
   const allowed =
-    can("workforce.documents.manage") &&
+    (scope.hrIntake === true || can("workforce.documents.manage")) &&
     file.hospital_id === scope.hospitalId &&
     file.staff_id === scope.staffId;
   const current = useDocumentClassification(scope, file.id, allowed && !switching);
   const [notice, setNotice] = useState("");
+  const [accessChanged, setAccessChanged] = useState(false);
+  const loseAccess = () => {
+    setAccessChanged(true);
+    onContextChanged?.();
+  };
+  const classificationUnavailable =
+    current.error instanceof ApiError && current.error.status === 404;
+  const cutoff = useStaffAccessCutoff(
+    [classificationUnavailable ? null : current.error],
+    loseAccess,
+  );
+  if (cutoff || accessChanged) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (switching) return <p role="status">Switching organisation…</p>;
   if (!allowed) return <p role="alert">You do not have access to document classifications.</p>;
   if (current.isPending) return <p role="status">Loading protected document classification…</p>;
@@ -61,9 +82,10 @@ export function DocumentClassificationEditor({ scope, file, onClose }: Props) {
       </p>
       {notice && <p role="status">{notice}</p>}
       <ClassificationForm
-        key={`${scope.tenantId}:${scope.hospitalId}:${scope.staffId}:${file.id}:${current.data.version}`}
+        key={`${scope.tenantId}:${scope.subject}:${scope.hospitalId}:${scope.staffId}:${staffIntakeScopeKey(scope)}:${file.id}:${current.data.version}`}
         scope={scope}
         file={file}
+        onContextChanged={loseAccess}
         value={current.data}
         refreshing={current.isFetching}
         onReload={() => void current.refetch()}
@@ -85,6 +107,7 @@ function ClassificationForm({
   onReload,
   onSaved,
   onClose,
+  onContextChanged,
 }: Props & {
   value: DocumentClassification;
   refreshing: boolean;
@@ -102,9 +125,19 @@ function ClassificationForm({
   const cursor = cursors[cursors.length - 1] ?? null;
   const history = useDocumentClassificationHistory(scope, file.id, cursor, historyVisible);
   const masters = useApiPagedQuery<HRMaster>(
-    ["workforce", "document-classification-choices", scope.tenantId, scope.hospitalId],
-    `/workforce/hospitals/${scope.hospitalId}/hr/masters?kind=document_category`,
-    { request: { headers: { "X-Helivanta-Expected-Tenant": scope.tenantId }, cache: "no-store" } },
+    [
+      "workforce",
+      "document-classification-choices",
+      scope.tenantId,
+      scope.subject,
+      scope.hospitalId,
+      staffIntakeScopeKey(scope),
+    ],
+    withStaffIntakeScope(
+      `/workforce/hospitals/${scope.hospitalId}/hr/masters?kind=document_category`,
+      scope,
+    ),
+    { gcTime: 0, request: enrollmentRequestOptions(scope) },
   );
   const save = useApiMutation(
     (input: DocumentClassificationInput) => {
@@ -130,6 +163,7 @@ function ClassificationForm({
   const definitive =
     save.error instanceof ApiError && save.error.status >= 400 && save.error.status < 500;
   const uncertain = save.isError && !definitive;
+  const cutoff = useStaffAccessCutoff([save.error, history.error, masters.error], onContextChanged);
   const stale = save.error instanceof ApiError && save.error.status === 409;
   const denied =
     save.error instanceof ApiError && (save.error.status === 403 || save.error.status === 404);
@@ -158,6 +192,7 @@ function ClassificationForm({
     masters.retry();
     onReload();
   };
+  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   return (
     <div className="space-y-4">
       <form

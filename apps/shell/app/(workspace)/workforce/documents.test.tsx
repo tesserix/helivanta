@@ -230,13 +230,25 @@ function fixture(
 
 it("loads document choices without fetching protected enrollment and respects unavailable storage", async () => {
   const { requests } = fixture({ disabled: true });
-  renderWithProviders(<StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />);
+  renderWithProviders(
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
+  );
   expect(await screen.findByRole("heading", { name: "Staff documents" })).toBeInTheDocument();
   expect(await screen.findByText(/File storage is not available/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Upload file" })).toBeDisabled();
   expect(requests.some((request) => request.url.endsWith("/enrollment"))).toBe(false);
-  for (const request of requests.filter((request) => request.url.includes("/document")))
+  for (const request of requests.filter((request) => request.url.includes("/document"))) {
     expect(new Headers(request.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);
+    expect(new Headers(request.init?.headers).get("X-Helivanta-Expected-Subject")).toBe(
+      "user-documents",
+    );
+  }
 });
 
 it("opens documents with document and staff permissions and closes them before adding staff", async () => {
@@ -274,7 +286,13 @@ it("opens documents with document and staff permissions and closes them before a
 it("retains the same intent when retrying an interrupted upload", async () => {
   const { requests } = fixture({ failContent: true });
   const { user } = renderWithProviders(
-    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
   await screen.findByRole("combobox", { name: "Evidence purpose" });
   await user.upload(
@@ -299,7 +317,13 @@ it("retains the same intent when retrying an interrupted upload", async () => {
 it("shows unsafe filename validation beside the file input before any upload request", async () => {
   const { requests } = fixture();
   const { user } = renderWithProviders(
-    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
   await screen.findByRole("combobox", { name: "Evidence purpose" });
   await user.upload(
@@ -316,7 +340,13 @@ it("requires confirmation before revoking a ready document and removes its downl
     files: [{ ...evidence, status: "available", failure_code: null }],
   });
   const { user } = renderWithProviders(
-    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
   expect(await screen.findByRole("button", { name: "Download" })).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Revoke access" }));
@@ -356,7 +386,13 @@ it("cancels file preparation when another staff workspace opens", async () => {
         >
           Next staff
         </button>
-        <StaffDocumentPanel hospital={hospital} staff={current} onClose={() => {}} />
+        <StaffDocumentPanel
+          scope={{ tenantId: tenant, subject: "user-documents" }}
+          onContextChanged={() => {}}
+          hospital={hospital}
+          staff={current}
+          onClose={() => {}}
+        />
       </>
     );
   }
@@ -380,7 +416,13 @@ it("cancels file preparation when another staff workspace opens", async () => {
 it("keeps the same manual scan attempt after a lost acknowledgement and clears the workspace on a tenant transition", async () => {
   const { requests } = fixture({ files: [evidence], failRetry: true });
   const { user } = renderWithProviders(
-    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
   await user.click(await screen.findByRole("button", { name: "Retry scan" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic retry unavailable");
@@ -401,7 +443,13 @@ it("keeps the same manual scan attempt after a lost acknowledgement and clears t
 it("opens one scoped classification and keeps an older API fail closed", async () => {
   const { requests } = fixture({ files: [evidence] });
   const { user } = renderWithProviders(
-    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
   await user.click(await screen.findByRole("button", { name: `Classify ${evidence.filename}` }));
   expect(await screen.findByText(/Document classification is not available/)).toBeInTheDocument();
@@ -417,7 +465,13 @@ it("opens one scoped classification and keeps an older API fail closed", async (
 it("classifies a saved file through Global API without changing its evidence purpose", async () => {
   const { requests } = fixture({ files: [evidence], classification: true });
   const { user } = renderWithProviders(
-    <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={() => {}}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
   );
   await user.click(await screen.findByRole("button", { name: `Classify ${evidence.filename}` }));
   const categoryControl = await screen.findByRole("combobox", { name: "Document classification" });
@@ -471,7 +525,13 @@ it("offers retry for an expired pending scan while keeping a recent pending scan
     };
     const { requests } = fixture({ files: [pending, recent], failRetry: true });
     const { user } = renderWithProviders(
-      <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+      <StaffDocumentPanel
+        scope={{ tenantId: tenant, subject: "user-documents" }}
+        onContextChanged={() => {}}
+        hospital={hospital}
+        staff={staff}
+        onClose={() => {}}
+      />,
     );
     await screen.findByText(recent.filename);
     expect(screen.getAllByRole("button", { name: "Retry scan" })).toHaveLength(1);
@@ -506,7 +566,13 @@ it("confirms the same uncertain attempt after refresh shows it already pending",
       commitRetryBeforeFailure: true,
     });
     const { user } = renderWithProviders(
-      <StaffDocumentPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+      <StaffDocumentPanel
+        scope={{ tenantId: tenant, subject: "user-documents" }}
+        onContextChanged={() => {}}
+        hospital={hospital}
+        staff={staff}
+        onClose={() => {}}
+      />,
     );
     await user.click(await screen.findByRole("button", { name: "Retry scan" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic retry unavailable");
@@ -523,4 +589,138 @@ it("confirms the same uncertain attempt after refresh shows it already pending",
   } finally {
     clock.mockRestore();
   }
+});
+
+it("clears an in-flight file preparation when the account changes within the same tenant", async () => {
+  const { requests } = fixture();
+  let finishRead!: (value: ArrayBuffer) => void;
+  const file = new File([new Uint8Array([1, 2, 3])], "account-bound.png", { type: "image/png" });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: () =>
+      new Promise<ArrayBuffer>((resolve) => {
+        finishRead = resolve;
+      }),
+  });
+  function AccountWorkspace() {
+    const [subject, setSubject] = useState("user-documents");
+    return (
+      <>
+        <button onClick={() => setSubject("synthetic-other-document-account")}>
+          Change document account
+        </button>
+        <StaffDocumentPanel
+          scope={{ tenantId: tenant, subject }}
+          onContextChanged={() => {}}
+          hospital={hospital}
+          staff={staff}
+          onClose={() => {}}
+        />
+      </>
+    );
+  }
+  const { user } = renderWithProviders(<AccountWorkspace />);
+  await screen.findByRole("combobox", { name: "Evidence purpose" });
+  await user.upload(screen.getByLabelText("Choose file"), file);
+  await user.click(screen.getByRole("button", { name: "Upload file" }));
+  await screen.findByRole("button", { name: "Uploading…" });
+  await user.click(screen.getByRole("button", { name: "Change document account" }));
+  finishRead(new Uint8Array([1, 2, 3]).buffer);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Upload file" })).toBeDisabled());
+  expect(screen.queryByText(/account-bound.png/)).not.toBeInTheDocument();
+  expect(requests.some((request) => request.init?.method === "PUT")).toBe(false);
+  expect(
+    requests.some(
+      (request) =>
+        request.url.endsWith("/document-records") &&
+        new Headers(request.init?.headers).get("X-Helivanta-Expected-Subject") ===
+          "synthetic-other-document-account",
+    ),
+  ).toBe(true);
+});
+
+it("clears protected file state when a command reports a changed workspace", async () => {
+  const { fetcher } = fixture({ files: [evidence] });
+  const original = fetcher.getMockImplementation()!;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/retries/"))
+        return Response.json(
+          { error: "session_changed", message: "Synthetic account changed" },
+          { status: 409 },
+        );
+      return original(url, init);
+    }),
+  );
+  const onContextChanged = vi.fn();
+  const { user } = renderWithProviders(
+    <StaffDocumentPanel
+      scope={{ tenantId: tenant, subject: "user-documents" }}
+      onContextChanged={onContextChanged}
+      hospital={hospital}
+      staff={staff}
+      onClose={() => {}}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Retry scan" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    /account, workspace or access changed/,
+  );
+  expect(screen.queryByText("synthetic-evidence.png")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Retry previous request" })).not.toBeInTheDocument();
+  await waitFor(() => expect(onContextChanged).toHaveBeenCalled());
+});
+
+it("reads scoped HR document records and files without a legacy hospital grant", async () => {
+  const requests: string[] = [];
+  const fetcher = vi.fn(async (url: string) => {
+    const path = new URL(url, "https://example.invalid");
+    if (path.pathname.endsWith("/iam/me/permissions"))
+      return Response.json({ tenant_id: tenant, subject: "synthetic-scoped-hr", data: [] });
+    if (path.pathname.includes("/workforce/hospitals/")) {
+      requests.push(url);
+      if (path.searchParams.get("hr_intake") !== "v1")
+        return Response.json(
+          { error: "forbidden", message: "Scoped intake required" },
+          { status: 403 },
+        );
+      if (path.pathname.endsWith("/document-records"))
+        return Response.json({
+          uploads_available: true,
+          records: [
+            {
+              record_kind: "enrollment",
+              record_id: staff.id,
+              label: "Staff enrollment",
+              categories: ["employment_evidence"],
+            },
+          ],
+        });
+      return Response.json({ data: [evidence], page: { has_more: false, next_cursor: null } });
+    }
+    return Response.json({ data: [] });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffDocumentPanel
+        hospital={{ id: hospital.id, name: hospital.name }}
+        staff={staff}
+        scope={{ tenantId: tenant, subject: "synthetic-scoped-hr", hrIntake: true }}
+        onContextChanged={vi.fn()}
+        onClose={vi.fn()}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("synthetic-evidence.png")).toBeInTheDocument();
+  expect(
+    requests.some((url) =>
+      new URL(url, "https://example.invalid").pathname.endsWith("/document-records"),
+    ),
+  ).toBe(true);
+  expect(
+    requests.some((url) => new URL(url, "https://example.invalid").pathname.endsWith("/documents")),
+  ).toBe(true);
+  for (const url of requests)
+    expect(new URL(url, "https://example.invalid").searchParams.get("hr_intake")).toBe("v1");
 });

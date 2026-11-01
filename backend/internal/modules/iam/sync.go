@@ -3,62 +3,117 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-type fgaSyncHandlers struct {
-	authz     platform.TupleWriter
-	reconcile func(ctx context.Context, tenantID string) error
+type membershipProjector interface {
+	ProjectMembership(context.Context, authz.Membership) error
+	ReadMembershipBindings(context.Context, string, string) ([]authz.Tuple, error)
+	RetireMembershipBinding(context.Context, authz.Tuple) error
 }
 
-// grant applies a member_granted event to OpenFGA. It reconciles the
-// tenant's full permission set first (self-healing any prior drift)
-// before wiring the role into its tenant and assigning the subject.
-func (h *fgaSyncHandlers) grant(ctx context.Context, _ *gorm.DB, evt events.Event) error {
+type fgaSyncHandlers struct {
+	db        *tenantdb.DB
+	authz     platform.TupleWriter
+	reconcile func(context.Context, string) error
+}
+
+func membershipSyncData(evt events.Event) (iamcontract.MemberChangedData, error) {
 	var data iamcontract.MemberChangedData
-	if err := json.Unmarshal(evt.Data, &data); err != nil {
-		return fmt.Errorf("iam sync payload: %w", err)
+	tenant, err := uuid.Parse(evt.TenantID)
+	if err != nil || tenant == uuid.Nil || tenant.String() != evt.TenantID || evt.Version != 1 || evt.DestinationTenantID != "" || json.Unmarshal(evt.Data, &data) != nil || !proposalSubject(data.Subject) || !knownRole(data.RoleKey) {
+		return data, errors.New("invalid IAM membership reconciliation hint")
 	}
-	if h.reconcile != nil {
+	return data, nil
+}
+
+func (*fgaSyncHandlers) handle(_ context.Context, _ *gorm.DB, evt events.Event) error {
+	_, err := membershipSyncData(evt)
+	return err
+}
+
+func (h *fgaSyncHandlers) project(ctx context.Context, evt events.Event) error {
+	data, err := membershipSyncData(evt)
+	if err != nil {
+		return err
+	}
+	writer, ok := h.authz.(membershipProjector)
+	if !ok || h.db == nil {
+		return authz.ErrMembershipUnavailable
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	observed, err := writer.ReadMembershipBindings(ctx, data.Subject, evt.TenantID)
+	if err != nil {
+		return err
+	}
+	current, err := currentMemberships(ctx, h.db, evt.TenantID, data.Subject)
+	if err != nil {
+		return err
+	}
+	if h.reconcile != nil && len(current) > 0 {
 		if err := h.reconcile(ctx, evt.TenantID); err != nil {
-			return fmt.Errorf("reconcile tenant: %w", err)
+			return fmt.Errorf("reconcile tenant permissions: %w", err)
 		}
 	}
-	role := authz.Role(data.RoleKey)
-	// Do not acknowledge a partial grant: membership requires both edges.
-	if err := h.authz.GrantTenantRole(ctx, evt.TenantID, role); err != nil {
-		return fmt.Errorf("grant tenant role: %w", err)
+	desired := make(map[string]struct{}, len(current))
+	for _, member := range current {
+		if err := writer.ProjectMembership(ctx, member); err != nil {
+			return err
+		}
+		object, err := member.Object()
+		if err != nil {
+			return err
+		}
+		desired[object] = struct{}{}
 	}
-	return h.authz.GrantRole(ctx, evt.TenantID, data.Subject, role)
+	// Legacy real-user edges are repair residue, never an incarnation proof.
+	if err := h.authz.RevokeRole(ctx, evt.TenantID, data.Subject, authz.Role(data.RoleKey)); err != nil {
+		return err
+	}
+	for _, binding := range observed {
+		if _, keep := desired[binding.Object]; !keep {
+			if err := writer.RetireMembershipBinding(ctx, binding); err != nil {
+				return err
+			}
+		}
+	}
+	latest, err := currentMemberships(ctx, h.db, evt.TenantID, data.Subject)
+	if err != nil {
+		return err
+	}
+	if len(latest) != len(current) {
+		return authz.ErrMembershipUnavailable
+	}
+	for _, member := range latest {
+		object, err := member.Object()
+		if err != nil {
+			return err
+		}
+		if _, ok := desired[object]; !ok {
+			return authz.ErrMembershipUnavailable
+		}
+	}
+	return nil
 }
 
-// revoke applies a member_revoked event to OpenFGA.
-func (h *fgaSyncHandlers) revoke(ctx context.Context, _ *gorm.DB, evt events.Event) error {
-	var data iamcontract.MemberChangedData
-	if err := json.Unmarshal(evt.Data, &data); err != nil {
-		return fmt.Errorf("iam sync payload: %w", err)
-	}
-	return h.authz.RevokeRole(ctx, evt.TenantID, data.Subject, authz.Role(data.RoleKey))
-}
-
-// Consumers keeps OpenFGA in step with the membership tables. Postgres
-// is the system of record, so a failed tuple write is retried by the bus
-// and the tuple helpers are idempotent — redelivery is harmless.
-//
-// Handle runs inside the bus's transaction; it must not open its own.
-func (m *Module) Consumers(deps platform.Deps) []events.Consumer {
-	sync := &fgaSyncHandlers{authz: deps.Authz, reconcile: deps.Reconcile}
+func (*Module) Consumers(deps platform.Deps) []events.Consumer {
+	sync := &fgaSyncHandlers{db: deps.DB, authz: deps.Authz, reconcile: deps.Reconcile}
 	return []events.Consumer{
 		proposalScopeConsumer(deps),
 		assignmentProjectionConsumer(deps),
-		{Name: "iam-fga-sync", Subject: iamcontract.SubjectMemberGranted, Handle: sync.grant},
-		{Name: "iam-fga-sync-revoke", Subject: iamcontract.SubjectMemberRevoked, Handle: sync.revoke},
+		{Name: "iam-fga-sync", Subject: iamcontract.SubjectMemberGranted, Handle: sync.handle, AfterCommit: sync.project},
+		{Name: "iam-fga-sync-revoke", Subject: iamcontract.SubjectMemberRevoked, Handle: sync.handle, AfterCommit: sync.project},
 	}
 }

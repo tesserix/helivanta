@@ -1,6 +1,6 @@
 import { NavigationGuardProvider } from "@helivanta/ui";
 import "@/test/select";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { EmploymentEvidencePanel } from "./employment-evidence-panel";
 const scope = {
@@ -125,4 +125,99 @@ it("keeps each evidence command field associated with its own label", async () =
   for (const button of buttons) await user.click(button);
   expect(screen.getAllByLabelText("Reason")).toHaveLength(2);
   expect(screen.getAllByLabelText("Scanned employment file")).toHaveLength(2);
+});
+
+it("keeps scoped HR on evidence reads and eligible document choices", async () => {
+  const reads: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      reads.push(url);
+      return Response.json({
+        data: new URL(url, "https://example.invalid").pathname.endsWith("/documents") ? [file] : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentEvidencePanel
+        scope={{ ...scope, hrIntake: true }}
+        staffVersion={1}
+        canAttach
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Attach scanned employment file" }));
+  await user.click(screen.getByLabelText("Scanned employment file"));
+  expect(await screen.findByRole("option", { name: "SYN-contract.png" })).toBeInTheDocument();
+  for (const url of reads)
+    expect(new URL(url, "https://example.invalid").searchParams.get("hr_intake")).toBe("v1");
+});
+
+it("clears evidence filenames and notifies the workspace after a denied byte release", async () => {
+  const binding = {
+    id: "019a0000-0000-7000-8000-000000000002",
+    revision_id: "019a0000-0000-7000-8000-000000000003",
+    hospital_id: scope.hospitalId,
+    staff_id: scope.staffId,
+    period_id: scope.periodId,
+    period_revision_id: scope.periodId,
+    period_version: scope.periodVersion,
+    version: 1,
+    status: "attached",
+    staff_version: 1,
+    employment_epoch: 1,
+    document_id: file.id,
+    document_record_version: 1,
+    source_generation: "1",
+    released_generation: "2",
+    scan_attempt: file.scan_attempt,
+    sha256: file.sha256,
+    filename: file.filename,
+    content_type: file.content_type,
+    size: file.size,
+    scanned_at: file.scanned_at,
+    proposed_by_subject: scope.subject,
+    actor_subject: scope.subject,
+    reason: "Synthetic private evidence reason",
+    created_at: file.created_at,
+    updated_at: file.updated_at,
+  };
+  const changed = vi.fn();
+  const denied: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (new URL(url, "https://example.invalid").pathname.endsWith("/content")) {
+        denied.push(url);
+        return Response.json(
+          { error: "forbidden", message: "Synthetic reviewed actor cutoff" },
+          { status: 403 },
+        );
+      }
+      return Response.json({ data: [binding], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentEvidencePanel
+        scope={{ ...scope, hrIntake: true }}
+        staffVersion={1}
+        canAttach={false}
+        onContextChanged={changed}
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("SYN-contract.png")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Download evidence" }));
+  await waitFor(() => expect(denied).toHaveLength(1));
+  expect(
+    await screen.findByText("Staff access changed. Reopen Staff to verify your current workspace."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("SYN-contract.png")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Download evidence" })).not.toBeInTheDocument();
+  expect(changed).toHaveBeenCalled();
 });

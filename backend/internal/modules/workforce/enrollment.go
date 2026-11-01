@@ -21,6 +21,7 @@ import (
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 )
 
@@ -308,10 +309,7 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		return
 	}
 	var result enrollment
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err = h.intakeTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage}, func(tx *gorm.DB, _ bool) error {
 		var row staff
 		if err := tx.Clauses(clause.Locking{Strength: "SHARE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error; err != nil {
 			return err
@@ -324,7 +322,7 @@ func (h *handlers) getEnrollment(c *gin.Context) {
 		return tx.Exec(`INSERT INTO workforce_audit (tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES (?, ?, ?, 'workforce.enrollment.read', ?, '{}'::jsonb)`, p.TenantID, hospital, p.Subject, id).Error
 	})
 	if err != nil {
-		respondError(c, err)
+		respondIntakeError(c, err)
 		return
 	}
 	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)
@@ -420,10 +418,7 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		return
 	}
 	var result enrollment
-	err = h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		if err := enrollmentScope(tx, p, hospital); err != nil {
-			return err
-		}
+	err = h.intakeTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage}, func(tx *gorm.DB, delegated bool) error {
 		if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid, ?::uuid)`, p.TenantID, hospital).Error; err != nil {
 			return err
 		}
@@ -434,6 +429,9 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select(staffColumns+", version").Where("tenant_id = ? AND hospital_id = ? AND id = ?", p.TenantID, hospital, id).First(&row).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
+		}
+		if delegated && ((err != nil && in.Staff.EmploymentStatus != "inactive") || (err == nil && in.Staff.EmploymentStatus != row.EmploymentStatus)) {
+			return errIntakeEmploymentReview
 		}
 		var existing enrollment
 		if err == nil {
@@ -530,7 +528,7 @@ func (h *handlers) putEnrollment(c *gin.Context) {
 		if respondMasterReferenceError(c, err) {
 			return
 		}
-		respondError(c, err)
+		respondIntakeError(c, err)
 		return
 	}
 	respondEnrollment(c, result, projection, qualificationProjection, contactProjection, requestContext)

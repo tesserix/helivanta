@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 	"unicode"
@@ -35,6 +36,12 @@ var assignmentProposalsSchema string
 
 //go:embed assignment_templates_generated.sql
 var assignmentTemplatesSchema string
+
+//go:embed assignment_hr_intake_templates_generated.sql
+var hrIntakeTemplatesSchema string
+
+//go:embed assignment_employment_templates_generated.sql
+var employmentTemplatesSchema string
 
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
@@ -78,6 +85,10 @@ func proposalScope(c *gin.Context) (authn.Principal, uuid.UUID, bool) {
 	}
 	if values := c.Request.Header.Values("X-Helivanta-Expected-Tenant"); len(values) > 1 || (len(values) == 1 && values[0] != p.TenantID) {
 		respond.Error(c, 409, "tenant_changed", "Your workspace changed. Reload before continuing.")
+		return p, uuid.Nil, false
+	}
+	if values := c.Request.Header.Values("X-Helivanta-Expected-Subject"); len(values) > 1 || (len(values) == 1 && values[0] != p.Subject) {
+		respond.Error(c, 409, "session_changed", "Your signed-in account changed. Reload before continuing.")
 		return p, uuid.Nil, false
 	}
 	permissions, _ := authz.PermissionsFrom(c)
@@ -300,11 +311,31 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)
 	platform.ListRoute(g, "/assignment-proposals", authz.Public, h.list)
 	platform.ListRoute(g, "/identity-assignment-proposals", authz.Public, h.listIdentity)
+	platform.ListRoute(g, "/intake-assignment-proposals", authz.Public, h.listIntake)
+	platform.ListRoute(g, "/employment-assignment-proposals", authz.Public, h.listEmployment)
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return
 		}
-		respond.OK(c, staffAccessTemplates())
+		query, err := url.ParseQuery(c.Request.URL.RawQuery)
+		if err != nil {
+			respond.Error(c, 400, "invalid_request", "Invalid query.")
+			return
+		}
+		key := ""
+		if values, present := query["catalog"]; present {
+			if len(values) != 1 || values[0] == "" {
+				respond.Error(c, 400, "invalid_request", "Choose one supported Staff access catalog.")
+				return
+			}
+			key = values[0]
+		}
+		templates, supported := staffAccessTemplateCatalog(key)
+		if !supported {
+			respond.Error(c, 400, "invalid_request", "This Staff access catalog is not supported.")
+			return
+		}
+		respond.OK(c, templates)
 	})
 	g.PUT("/assignment-proposals/:id", PermAssignmentManage, h.put)
 	g.GET("/assignment-proposals/:id", authz.Public, h.get)
@@ -317,6 +348,14 @@ func (h *assignmentProposalHandlers) list(c *gin.Context, params pagination.Para
 
 func (h *assignmentProposalHandlers) listIdentity(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
 	return h.listFamily(c, params, "identity")
+}
+
+func (h *assignmentProposalHandlers) listIntake(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "intake")
+}
+
+func (h *assignmentProposalHandlers) listEmployment(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "employment")
 }
 
 func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params pagination.Params, family string) ([]assignmentProposal, error) {

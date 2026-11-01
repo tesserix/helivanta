@@ -63,6 +63,11 @@ func ScopedHospitalListRoute[T Keyed](r *Router, path string, permission authz.P
 	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlers(path, h)...)
 }
 
+// ScopedHospitalProjectionListRoute preserves list envelopes and legacy admission for opt-in scope consumers.
+func ScopedHospitalProjectionListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam, queryKey, version string, h ListHandler[T]) {
+	r.handleHospitalScopeUsing("GET", path, permission, hospitalParam, true, authz.RequireHospitalScopeProjection(permission, hospitalParam, r.scopedAuthorizer, queryKey, version), listHandlers(path, h)...)
+}
+
 func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)

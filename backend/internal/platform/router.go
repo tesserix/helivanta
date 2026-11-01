@@ -80,7 +80,26 @@ func (r *Router) GETScopedHospital(path string, permission authz.Permission, hos
 	r.handleHospitalScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)
 }
 
+// GETScopedHospitalProjection preserves legacy admission until an explicit scoped projection is selected.
+func (r *Router) GETScopedHospitalProjection(path string, permission authz.Permission, hospitalParam, queryKey, version string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScopeUsing(http.MethodGet, path, permission, hospitalParam, false, authz.RequireHospitalScopeProjection(permission, hospitalParam, r.scopedAuthorizer, queryKey, version), handlers...)
+}
+
+// PUTScopedHospitalProjection declares an idempotent command with an explicit scoped projection.
+func (r *Router) PUTScopedHospitalProjection(path string, permission authz.Permission, hospitalParam, queryKey, version string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScopeUsing(http.MethodPut, path, permission, hospitalParam, false, authz.RequireHospitalScopeProjection(permission, hospitalParam, r.scopedAuthorizer, queryKey, version), handlers...)
+}
+
+// POSTScopedHospitalProjection declares a command with an explicit scoped projection.
+func (r *Router) POSTScopedHospitalProjection(path string, permission authz.Permission, hospitalParam, queryKey, version string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScopeUsing(http.MethodPost, path, permission, hospitalParam, false, authz.RequireHospitalScopeProjection(permission, hospitalParam, r.scopedAuthorizer, queryKey, version), handlers...)
+}
+
 func (r *Router) handleHospitalScope(method, path string, permission authz.Permission, hospitalParam string, paginated bool, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScopeUsing(method, path, permission, hospitalParam, paginated, authz.RequireHospitalScope(permission, hospitalParam, r.scopedAuthorizer), handlers...)
+}
+
+func (r *Router) handleHospitalScopeUsing(method, path string, permission authz.Permission, hospitalParam string, paginated bool, admission gin.HandlerFunc, handlers ...gin.HandlerFunc) {
 	fullPath := r.group.BasePath() + path
 	found := false
 	for _, segment := range strings.Split(fullPath, "/") {
@@ -93,7 +112,7 @@ func (r *Router) handleHospitalScope(method, path string, permission authz.Permi
 		panic("platform: scoped route requires a permission and declared hospital parameter")
 	}
 	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: "hospital", ScopeParameter: hospitalParam})
-	chain := []gin.HandlerFunc{authz.RequireMembership(r.membership), authz.RequireHospitalScope(permission, hospitalParam, r.scopedAuthorizer)}
+	chain := []gin.HandlerFunc{authz.RequireMembership(r.membership), admission}
 	r.group.Handle(method, path, append(chain, handlers...)...)
 }
 

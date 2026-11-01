@@ -17,6 +17,7 @@ import { Field, LoadMore, RequestFailure, formatDateTime, useZodForm } from "@he
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { BillingUpi } from "./billing-upi";
 import { useMyShift } from "./cash-desk";
+import { AdmissionDiscounts } from "./discounts";
 import { DepositRefunds } from "./refunds";
 
 const inputClass =
@@ -63,6 +64,13 @@ export function CashPayments({
           {inr.upi_waiting_minor > 0 &&
             ` · UPI waiting ${formatPharmacyMoney(inr.upi_waiting_minor, "INR")}`}
         </p>
+      )}
+      {inr && (
+        <AdmissionDiscounts
+          hospital={hospital}
+          admissionId={admissionId}
+          discountable={inr.discountable_minor}
+        />
       )}
       {open && inr && payable > 0 && (
         <TakeCash

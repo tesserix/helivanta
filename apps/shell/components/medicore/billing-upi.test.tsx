@@ -79,6 +79,7 @@ const account = (balance: number, waiting = 0): AdmissionAccount => ({
       applied_minor: 0,
       refunded_minor: 0,
       upi_waiting_minor: waiting,
+      discountable_minor: 0,
     },
   ],
   sources: [],

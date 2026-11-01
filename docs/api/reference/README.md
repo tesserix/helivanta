@@ -567,6 +567,8 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications/:application` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/deposit-applications` | `billing.account.read` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/admissions/:admission/discounts/:discount` | `billing.bill.issue` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/admissions/:admission/discounts` | `billing.account.read` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/entries` | `billing.account.read` | true | false |
 | POST | `/v1/billing/hospitals/:hospital/admissions/:admission/final-bills` | `billing.bill.issue` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/admissions/:admission/interim-bills/:number/lines` | `billing.account.read` | true | false |
@@ -598,8 +600,13 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift` | `billing.cash.collect` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/counters` | `billing.account.read` | true | false |
+| POST | `/v1/billing/hospitals/:hospital/discount-reasons/:reason/retire` | `billing.discount.manage` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/discount-reasons/:reason` | `billing.discount.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/discount-reasons` | `billing.account.read` | true | false |
+| PUT | `/v1/billing/hospitals/:hospital/discounts/:discount/decision` | `billing.discount.approve` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/gst-registration` | `billing.account.read` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/gst-registration` | `billing.tax.manage` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/pending-discounts` | `billing.discount.approve` | true | false |
 | PUT | `/v1/billing/hospitals/:hospital/receipts/:receipt/voids/:void` | `billing.cash.collect` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/refund-policies/:policy` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/refund-policy` | `billing.account.read` | false | false |
@@ -639,6 +646,7 @@ Migration table declarations:
 - `0009_billing`: `billing_gst_registrations`, `billing_gst_lines`, `billing_tax_invoices`, `billing_tax_invoice_lines`.
 - `0010_billing`: `billing_credit_notes`, `billing_credit_note_lines`.
 - `0011_billing`: `billing_upi_requests`.
+- `0012_billing`: `billing_discount_reasons`, `billing_discounts`.
 
 ## supply
 

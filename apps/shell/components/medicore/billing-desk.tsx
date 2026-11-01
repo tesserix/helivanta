@@ -8,6 +8,7 @@ import { BillingAccessSetup, useBillingAccess } from "./admission-account";
 import { AdmissionBills } from "./admission-bills";
 import { CashDesk } from "./cash-desk";
 import { DailyCollectionReport } from "./daily-collection";
+import { DiscountReasonsSetup, PendingDiscounts } from "./discounts";
 import { GstSetup } from "./gst";
 import { PatientName } from "./opd-encounters";
 
@@ -86,6 +87,8 @@ export function BillingDesk({ hospital }: { hospital: Hospital }) {
       <CashDesk hospital={hospital} />
       <DailyCollectionReport hospital={hospital} />
       <GstSetup hospital={hospital} />
+      <DiscountReasonsSetup hospital={hospital} />
+      <PendingDiscounts hospital={hospital} />
       <Panel>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h3 className="font-semibold">Admission accounts</h3>

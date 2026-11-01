@@ -217,7 +217,9 @@ func (h *handlers) creditNoteLines(c *gin.Context, params pagination.Params) ([]
 	}
 	var rows []taxInvoiceLine
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
-		q := tx.Table(`(SELECT entry_id AS id,to_char(census_date,'YYYY-MM-DD') AS census_date,census_date::timestamptz AS sort_at,bed_class,sac,policy_version,value_minor,taxable,cgst_bp,sgst_bp,cgst_minor,sgst_minor
+		q := tx.Table(`(SELECT entry_id AS id,to_char(census_date,'YYYY-MM-DD') AS census_date,census_date::timestamptz AS sort_at,bed_class,sac,policy_version,value_minor,
+ (SELECT il.discount_minor FROM billing_tax_invoice_lines il WHERE il.tenant_id=billing_credit_note_lines.tenant_id AND il.entry_id=billing_credit_note_lines.entry_id) AS discount_minor,
+ taxable,cgst_bp,sgst_bp,cgst_minor,sgst_minor
  FROM billing_credit_note_lines WHERE tenant_id=? AND hospital_id=? AND admission_id=? AND credit_note_id=?) AS lines`, p.TenantID, hospital, admission, id)
 		return tenantdb.ApplyOrderedKeyset(q, params, tenantdb.Keyset{Column: "sort_at", Direction: pagination.OldestFirst}).Find(&rows).Error
 	})

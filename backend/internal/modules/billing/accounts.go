@@ -131,6 +131,8 @@ type total struct {
 	// UPI payments waiting on an answer (#211): not paid, but held against
 	// the balance so a cash payment does not take the same rupees.
 	UpiWaitingMinor int64 `json:"upi_waiting_minor"`
+	// The most a discount may take now (#200); INR only.
+	DiscountableMinor int64 `json:"discountable_minor"`
 }
 
 type accountView struct {
@@ -216,6 +218,13 @@ func (h *handlers) account(c *gin.Context) {
 		for i := range row.Totals {
 			if err := tx.Raw(`SELECT billing_upi_waiting(?,?,?)`, p.TenantID, admission, row.Totals[i].Currency).Scan(&row.Totals[i].UpiWaitingMinor).Error; err != nil {
 				return err
+			}
+			// What a discount may take now (#200): exempt, uninvoiced room charges, within the balance.
+			if row.Totals[i].Currency == shiftCurrency {
+				if err := tx.Raw(`SELECT GREATEST(LEAST(billing_discountable(?,?),billing_payable(?,?,?)),0)`, p.TenantID, admission, p.TenantID, admission, shiftCurrency).
+					Scan(&row.Totals[i].DiscountableMinor).Error; err != nil {
+					return err
+				}
 			}
 			row.Totals[i].OutstandingMinor = row.Totals[i].ChargedMinor - row.Totals[i].ReversedMinor
 			row.Totals[i].BalanceMinor = row.Totals[i].OutstandingMinor - row.Totals[i].PaidMinor - row.Totals[i].AppliedMinor

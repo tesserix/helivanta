@@ -366,6 +366,8 @@ export type TaxInvoice = {
   recipient_address: string;
   lines: number;
   value_minor: number;
+  /** Discounts taken off the room charges before their value (#200). */
+  discount_minor: number;
   taxable_minor: number;
   exempt_minor: number;
   cgst_minor: number;
@@ -380,7 +382,7 @@ export type TaxInvoice = {
  * A credit note for an invoice's reversed room days (CGST Act s.34): its lines
  * copy the invoice's, so what is credited is what was invoiced.
  */
-export type CreditNote = Omit<TaxInvoice, "creditable_lines"> & {
+export type CreditNote = Omit<TaxInvoice, "creditable_lines" | "discount_minor"> & {
   invoice_id: string;
   invoice_number: string;
   invoice_date: string;
@@ -392,7 +394,9 @@ export type TaxInvoiceLine = {
   bed_class: BedClass;
   sac: string;
   policy_version: string;
+  /** After the line's discount (#200; CGST Rule 46(1)(i)). */
   value_minor: number;
+  discount_minor: number;
   taxable: boolean;
   cgst_bp: number;
   sgst_bp: number;
@@ -445,3 +449,98 @@ export type BillingUpiRequest = {
 
 export const billingUpiRequestPath = (hospitalId: string, id: string) =>
   `/billing/hospitals/${hospitalId}/upi-requests/${id}`;
+
+// Discounts on room charges (#200 slice 1): a hospital's reasons carry what
+// the desk may give alone and the most anyone may approve, per admission.
+
+export type DiscountReason = {
+  id: string;
+  hospital_id: string;
+  code: string;
+  name: string;
+  desk_percent_bp: number;
+  desk_max_minor: number;
+  approval_percent_bp: number;
+  approval_max_minor: number;
+  currency: string;
+  created_by: string;
+  created_at: string;
+  retired_by: string | null;
+  retired_at: string | null;
+};
+
+export type Discount = {
+  id: string;
+  admission_id: string;
+  patient_id: string;
+  reason_id: string;
+  reason_code: string;
+  reason_name: string;
+  amount_minor: number;
+  currency: string;
+  justification: string;
+  status: "pending" | "applied" | "rejected";
+  requested_by: string;
+  requested_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  applied_at: string | null;
+  /** What it takes off now, less withdrawals from days later voided. */
+  net_minor: number;
+};
+
+// Typed as text, so an empty field is missing rather than zero.
+const percent = (what: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `Enter the ${what} percentage`)
+    .regex(/^\d{1,3}(\.\d{1,2})?$/, "0 to 100, at most two decimals")
+    .transform(Number)
+    .refine((v) => v <= 100, "0 to 100");
+const rupees = (what: string) =>
+  z
+    .number({ message: `Enter the ${what} amount` })
+    .int(`Enter the ${what} amount`)
+    .min(0, `Enter the ${what} amount`)
+    .max(1_000_000_000, "Too large");
+
+export const discountReasonSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9_-]{1,32}$/, "Lower-case letters, digits, _ or -, up to 32"),
+    name: z.string().trim().min(1, "Enter a name").max(100, "At most 100 characters"),
+    desk_percent: percent("desk"),
+    desk_max_minor: rupees("desk"),
+    approval_percent: percent("approval"),
+    approval_max_minor: rupees("approval"),
+  })
+  .refine((v) => v.desk_percent <= v.approval_percent, {
+    path: ["desk_percent"],
+    message: "Not above the approval percentage",
+  })
+  .refine((v) => v.desk_max_minor <= v.approval_max_minor, {
+    path: ["desk_max_minor"],
+    message: "Not above the approval amount",
+  });
+
+export const discountSchema = z.object({
+  reason_id: z.string().min(1, "Choose a reason"),
+  amount_minor: z
+    .number({ message: "Enter the amount" })
+    .int("Enter the amount")
+    .min(1, "Enter the amount")
+    .max(1_000_000_000, "Too large"),
+  justification: z
+    .string()
+    .trim()
+    .min(1, "Say why the discount is given")
+    .max(500, "At most 500 characters"),
+});
+
+export const discountDecisionSchema = z.object({
+  note: z.string().trim().min(1, "Add a note").max(500, "At most 500 characters"),
+});

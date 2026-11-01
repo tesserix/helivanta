@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "93327dcd9c026f22eface72aa2276fd1e63ca0278b202181ffea9ad02785c415",
+  "registry_sha256": "cad3df7fb51357e5e562dc1531863e2d0f428682d1870fd3a366893e1b7ad7eb",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 727,
-    "unclassified": 710
+    "total": 734,
+    "unclassified": 717
   },
   "entries": [
     {
@@ -794,6 +794,22 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/discounts",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/discounts",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing GET /v1/billing/hospitals/:hospital/admissions/:admission/entries",
       "kind": "http",
       "module": "billing",
@@ -1066,6 +1082,22 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/discount-reasons",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/discount-reasons",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing GET /v1/billing/hospitals/:hospital/gst-registration",
       "kind": "http",
       "module": "billing",
@@ -1077,6 +1109,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/pending-discounts",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/pending-discounts",
+        "permission": "billing.discount.approve",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null
@@ -1146,6 +1194,22 @@
       "review": null
     },
     {
+      "id": "http billing POST /v1/billing/hospitals/:hospital/discount-reasons/:reason/retire",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "POST",
+        "path": "/v1/billing/hospitals/:hospital/discount-reasons/:reason/retire",
+        "permission": "billing.discount.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing POST /v1/billing/hospitals/:hospital/upi-requests/:request/cancel",
       "kind": "http",
       "module": "billing",
@@ -1202,6 +1266,22 @@
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/admissions/:admission/deposits/:receipt",
         "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/admissions/:admission/discounts/:discount",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/admissions/:admission/discounts/:discount",
+        "permission": "billing.bill.issue",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
@@ -1394,6 +1474,38 @@
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift",
         "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/discount-reasons/:reason",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/discount-reasons/:reason",
+        "permission": "billing.discount.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/discounts/:discount/decision",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/discounts/:discount/decision",
+        "permission": "billing.discount.approve",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

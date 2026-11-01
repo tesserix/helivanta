@@ -45,7 +45,7 @@ proviso was found. Finance or tax review is required before production use.
 2. **One credit note per invoice per issue**, numbered `CN/<fy>/<serial>` in its own
    series per GSTIN and financial year of issue. It carries every reversed line of that
    invoice not yet credited. Taxable and exempt lines appear together, as on the
-   invoice-cum-bill of supply. It covers reversals only; discounts are #200.
+   invoice-cum-bill of supply. It covers reversals only; discounts are #200 (slice 1 refuses invoiced charges).
 3. **After the deadline it is refused** with `409 credit_note_deadline_passed`. The
    admission stays blocked for new invoices, and finance resolves it outside the system.
 

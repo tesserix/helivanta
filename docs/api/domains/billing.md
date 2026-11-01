@@ -1,11 +1,13 @@
 # Hospital billing
 
 [Contract index](../README.md) · implemented: admission accounts (slice 1), bed-day charges (slice 2), interim
-bills (slice 3), final bills (slice 4), cash counters (#198 slice 1), deposits and their refunds (#199 slices 1–2).
+bills (slice 3), final bills (slice 4), cash counters (#198 slice 1), deposits and their refunds (#199 slices 1–2),
+UPI at the desk (#211), GST on rooms with invoices and credit notes (#193 slices 1–2), discounts on room charges
+(#200 slice 1).
 
 The `billing` module owns the hospital's ledger (#193). Other modules post to it through
-published events; none writes its tables. Hospital invoices, payer tariffs, GST and discounts are
-not built yet (#193, #197, #199, #200, #1045).
+published events; none writes its tables. Payer tariffs (#1045), GST on other hospital services
+and discounts beyond exempt room charges (#200) are not built yet.
 
 ## Admission accounts (#197 slice 1)
 
@@ -110,7 +112,7 @@ Design: [spec](../../superpowers/specs/2026-10-30-bed-day-charges-design.md).
 - **Issuing** needs `billing.bill.issue` (receptionist) and the hospital's billing grant;
   **reading** needs `billing.account.read` and the grant.
 - **Not covered:** scheduled interim bills; deposits and payments on the bill (#199); a print layout; GST
-  (#193); discounts (#200); an `InterimBillIssued` event, which nothing would consume yet.
+  (#193); discounts other than on exempt room charges (#200); an `InterimBillIssued` event, which nothing would consume yet.
 
 ## Final bills (#197 slice 4)
 
@@ -139,7 +141,7 @@ Design: [spec](../../superpowers/specs/2026-10-30-final-bills-design.md).
 - **Issuing** needs `billing.bill.issue` and the grant; **reading** `billing.account.read` and
   the grant. The interim routes keep answering interim bills only.
 - **Not covered:** deposits and payments on the bill (#199), discharge clearances (#1043),
-  procedure bundles (#196), discounts (#200), GST (#193), a `FinalBillReady` event, and the
+  procedure bundles (#196), discounts other than on exempt room charges (#200), GST (#193), a `FinalBillReady` event, and the
   final bill of a released patient from the ward board (the API serves it).
 
 ## Cash counters (#198 slice 1)
@@ -397,3 +399,73 @@ review of the policy is required before production use.
   - GST on other hospital services;
   - changing or backdating a registration;
   - returns and exports.
+
+## Discounts on room charges (#200 slice 1)
+
+Design: [spec](../../superpowers/specs/2026-11-01-billing-discounts-design.md). Finance review of
+the limits is required before production use.
+
+- **Reasons:**
+  - `PUT /billing/hospitals/:hospital/discount-reasons/:reason`
+    `{code,name,desk_percent_bp,desk_max_minor,approval_percent_bp,approval_max_minor}` needs
+    `billing.discount.manage` (tenant administrators only). A code is unique among the
+    hospital's active reasons (`409 code_in_use`). The desk's limits are never above the approval's
+    (`400`), and both are INR.
+  - A reason is fixed once set: the same again `200`, different `409`.
+    `POST …/discount-reasons/:reason/retire` retires it once, and a changed policy is a new reason.
+  - `GET …/discount-reasons` (paged, `billing.account.read`) lists them, retired ones included.
+- **Asking:**
+  - `PUT …/admissions/:admission/discounts/:discount` `{reason_id,amount_minor,justification}`
+    (`billing.bill.issue`) asks for a discount of 1–1000000000 paise, with a justification of
+    1–500 characters.
+  - The database decides it under the admission's lock. Within the reason's desk limit it is
+    `applied` at once; within its approval limit it is `pending`; beyond that it is
+    `409 discount_over_limit` and nothing is recorded.
+  - Limits are cumulative per reason and admission. The reason's net discount plus this one must
+    be within the amount, and within the percentage of the gross of the admission's standing
+    untaxed room charges.
+- **Approving:**
+  - `PUT …/discounts/:discount/decision` `{approve,note}` (`billing.discount.approve`, tenant
+    administrators) decides a pending discount once, never by its requester
+    (`409 own_request`, also a database constraint).
+  - Approval re-checks the reason, the room and the balance as they stand, then applies the
+    discount; a refusal leaves it pending.
+  - The same decision again replays; another is `409 already_decided`.
+  - `GET …/pending-discounts` is the approvers' queue (paged, newest first).
+- **Refusals:** `409 nothing_to_discount` when the amount is more than the room charges can take
+  (standing, untaxed, INR and on no tax invoice, less their discounts);
+  `409 discount_over_balance` when it is more than is payable (owed less payments, applied
+  deposits and waiting UPI), so a discount never leaves a credit; `409 reason_retired`; `404` for
+  an unknown reason or account, or without the grant.
+- **Applying:**
+  - The amount is split over those charges in proportion to what each still carries, floored,
+    with the leftover paise to the largest remainders, then the earlier day, then the day's id.
+  - Each share is an account entry: source `discount`, kind `reversal`, against the room day,
+    document `Discount, bed day YYYY-MM-DD`, carrying `discount_id`. The lines sum to the amount,
+    checked at commit.
+  - Balances, bills, positions, deposits and refunds include it as any reversal. The account adds
+    `discountable_minor` to the INR totals: the most a discount may take now.
+- **A voided day:** the census first withdraws the day's discount lines (source `discount`,
+  kind `charge`, document `Discount withdrawn YYYY-MM-DD`), then reverses the day in full, so the
+  day nets to zero with both on record. A discount's `net_minor` is what its lines take off after
+  withdrawals.
+- **Tax invoices:**
+  - Lines carry `discount_minor`, and `value_minor` is after it (CGST Rule 46(1)(i)). A fully
+    conceded day is a line of nil value; invoice totals add `discount_minor`. Credit note lines
+    show their invoice line's discount.
+  - Taxable room charges are refused until a tax ruling on whether a concession can take a room
+    out of the ₹5,000 proviso. Invoiced charges need a credit note, which is not built for
+    discounts.
+- **The shell:** the Billing page has a Discount reasons panel and, for approvers, the queue. Each
+  admission lists its discounts, with "Give a discount" for the desk and Approve or Reject on
+  pending ones; bills label discount lines and the account summary shows discounts.
+- **Not covered:**
+  - taxable room charges;
+  - pharmacy charges, since pharmacy discounts on its own invoice;
+  - payer classes, packages and rate-card floors (#196, #1045);
+  - credit notes for discounts;
+  - withdrawing a pending request (an approver rejects it);
+  - choosing which charge to discount;
+  - the leakage report;
+  - `Discount*` events;
+  - deposit-requirement waivers.

@@ -56,6 +56,6 @@ the handler. Discharge orders are written only by billing's two consumers, each 
 ## Not covered
 
 Deposits and payments netted on the final bill (#199); discharge clearances before the
-final bill (#1043); procedure bundles (#196); discounts (#200); GST (#193); a
+final bill (#1043); procedure bundles (#196); discounts (#200; slice 1 covers exempt room charges); GST (#193); a
 `FinalBillReady` event; a final bill for a released patient from the UI (the ward board
 shows occupied beds only; the API serves it).

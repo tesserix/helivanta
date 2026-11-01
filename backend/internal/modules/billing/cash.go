@@ -370,6 +370,9 @@ func (h *handlers) closeShift(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if declared > 100_000_000_000 {
+			return errBadCount
+		}
 		var expected struct{ V int64 }
 		if err := tx.Raw(`SELECT billing_shift_expected(?,?) AS v`, p.TenantID, shiftID).Scan(&expected).Error; err != nil {
 			return err

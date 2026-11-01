@@ -4447,7 +4447,7 @@
         },
         {
           "id": "0013_billing",
-          "sql_sha256": "af28e4221b176d3f25e85fa2082a59de4beec4e7a3ef18407a0eb03ea4cf50b8",
+          "sql_sha256": "bcc2afbd8cf8acdc7a13bb5a74fa52f22d3c24de130978f21ff6ade3cc35bdc8",
           "creates_tables": [
             "billing_cash_pickups"
           ]

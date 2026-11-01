@@ -7,7 +7,8 @@ SET LOCAL statement_timeout='60s';
 -- What a count may hold, per currency. INR: RBI legal tender (Indian Currency
 -- FAQ; ₹2000 withdrawn from circulation but still legal tender), checked
 -- 2026-11-02. Billing cannot read the workspace country policy, so the list
--- lives here, once, and the shell reads it from the API.
+-- lives here, once, and the shell reads it from the API. Counts already
+-- stored are checked against it, so it may grow but never lose a coin or note.
 CREATE FUNCTION billing_cash_denominations(row_currency text) RETURNS TABLE (key text, kind text, value_minor bigint)
  LANGUAGE sql IMMUTABLE AS $$
  SELECT k.kind||':'||k.value_minor, k.kind, k.value_minor
@@ -20,7 +21,10 @@ $$;
 -- A count's value, or null when it is not a JSON object of known keys to
 -- whole counts 0 to 1,000,000: a count the system cannot read is refused,
 -- never read as zero.
-CREATE FUNCTION billing_cash_count_total(row_currency text,counts jsonb) RETURNS bigint LANGUAGE plpgsql IMMUTABLE AS $$
+-- A pinned search path: CHECK constraints call it, and a dump restore runs
+-- them with an empty one.
+CREATE FUNCTION billing_cash_count_total(row_currency text,counts jsonb) RETURNS bigint LANGUAGE plpgsql IMMUTABLE
+ SET search_path = pg_catalog, public AS $$
 DECLARE e record; d bigint; n numeric; total bigint := 0;
 BEGIN
  IF counts IS NULL OR jsonb_typeof(counts)<>'object' THEN RETURN NULL; END IF;

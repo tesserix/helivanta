@@ -151,10 +151,16 @@ describe("CashDesk", () => {
     });
   });
 
-  it("closes an empty drawer as a count of nothing", async () => {
+  it("closes an empty drawer only when the cashier says it is empty", async () => {
     const fetcher = server({ permissions: cashier, mine: shift({ opening_float_minor: 0 }) });
     const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
     await user.click(await screen.findByRole("button", { name: "Close shift" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Count the notes and coins, or confirm the drawer is empty",
+    );
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.click(screen.getByLabelText("The drawer is empty"));
+    await user.click(screen.getByRole("button", { name: "Close shift" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ counts: {} });
   });

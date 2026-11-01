@@ -174,6 +174,8 @@ func TestTheCloseCountsByNote(t *testing.T) {
 		status, body := w.put("clerk", path, bad)
 		require.Equal(t, http.StatusBadRequest, status, bad+": "+body)
 	}
+	status, body := w.put("clerk", path, `{"counts":{"note:200000":1000000}}`)
+	require.Equal(t, http.StatusBadRequest, status, "beyond what a drawer can declare: "+body)
 	require.Equal(t, "open", w.mine(t, "clerk").Status)
 
 	res := do(w.r, "GET", w.root+"/cash-denominations", "nurse", "")
@@ -187,7 +189,7 @@ func TestTheCloseCountsByNote(t *testing.T) {
 	require.Equal(t, "note:200000", list[0].Key, "₹2000 is still legal tender")
 	require.Equal(t, "coin:50", list[15].Key)
 
-	status, body := w.put("clerk", path, `{"counts":{"note:500":1,"coin:200":2,"coin:50":2,"note:10000":0}}`)
+	status, body = w.put("clerk", path, `{"counts":{"note:500":1,"coin:200":2,"coin:50":2,"note:10000":0}}`)
 	require.Equal(t, http.StatusOK, status, body)
 	var s pickedShift
 	require.NoError(t, json.Unmarshal([]byte(body), &s))
@@ -211,6 +213,13 @@ func TestCountsAndPickupsHoldInTheDatabase(t *testing.T) {
 	}
 	require.Equal(t, int64(250150), *total(`{"note:200000":1,"note:50000":1,"coin:50":3}`))
 	require.Equal(t, int64(0), *total(`{}`))
+	require.NoError(t, w.as("user-admin", func(tx *gorm.DB) error {
+		var v struct{ V int64 }
+		if err := tx.Exec(`SET LOCAL search_path TO ''`).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT public.billing_cash_count_total('INR','{"note:500":2}'::jsonb) AS v`).Scan(&v).Error
+	}), "the CHECKs that call it hold when a restore empties the search path")
 	for _, bad := range []string{`{"note:300":1}`, `{"note:500":-1}`, `{"note:500":0.5}`, `{"note:500":"1"}`, `{"note:500":1000001}`, `[]`, `1`} {
 		require.Nil(t, total(bad), bad)
 	}
@@ -292,4 +301,24 @@ func TestPickupsAndVoidsRaceForTheDrawer(t *testing.T) {
 		require.True(t, picked != voided, "exactly one fits: %v", codes)
 		require.Contains(t, []int{codes[0], codes[1]}, http.StatusConflict, "%v", codes)
 	}
+}
+
+// A pickup and a refund at the counter each read the drawer the other left.
+func TestPickupsAndRefundsRaceForTheDrawer(t *testing.T) {
+	w := newBedWorld(t)
+	admission, shiftID := w.refundable(t, 500000, 200000)
+	var codes [2]int
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		codes[0], _ = w.pickup("admin", shiftID, v7(), `{"note:50000":6}`)
+	}()
+	go func() {
+		defer wg.Done()
+		codes[1], _ = w.refund(admission, 300000, "")
+	}()
+	wg.Wait()
+	require.True(t, (codes[0] == http.StatusCreated) != (codes[1] == http.StatusCreated), "5000 in the drawer fits 3000 or 3000, not both: %v", codes)
+	require.Contains(t, []int{codes[0], codes[1]}, http.StatusConflict, "%v", codes)
 }

@@ -60,7 +60,8 @@ indistinguishable from a shortage.
   see the safe drop too. Pickups take the counter lock, the same as refunds
   and voids, so they serialise with them, and the shift share lock, so they
   serialise with the close.
-- **Close** `PUT …/cash-shifts/:shift/close` `{counts}`: the database
+- **Close** `PUT …/cash-shifts/:shift/close` `{counts}` (the shell asks the
+  cashier to say the drawer is empty rather than send a blank form): the database
   computes `declared_minor` from the count and keeps the count on the shift.
   A shift closed before this slice keeps its typed figure and no count. A
   retry with the same count replays.
@@ -83,6 +84,9 @@ shift (its variance stands for it).
 
 ## Needs finance review before production
 
-Whether a supervisor may record a pickup without the cashier's
-acknowledgement in the system; whether the drawer bound should be softened
-for a physically counted excess.
+- A refused pickup leaves no record, so a supervisor could narrow down an
+  open shift's expected cash by trying amounts; audit refused pickups or
+  accept the risk.
+- Whether a supervisor may record a pickup without the cashier's
+  acknowledgement in the system.
+- Whether the drawer bound should be softened for a physically counted excess.

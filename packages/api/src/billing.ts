@@ -193,8 +193,16 @@ const countEntries = z.record(
     .refine((v) => v === "" || Number(v) <= 1_000_000, "At most 1,000,000"),
 );
 
-/** A count as typed: blanks are none. The close may count an empty drawer. */
-export const cashCountSchema = z.object({ counts: countEntries });
+/**
+ * A close as typed: blanks are none. An empty drawer is said, never inferred
+ * from an untouched form: a close is final and a zero count is a shortage.
+ */
+export const cashCountSchema = z
+  .object({ counts: countEntries, empty: z.boolean() })
+  .refine((v) => v.empty || Object.values(v.counts).some((n) => Number(n) > 0), {
+    message: "Count the notes and coins, or confirm the drawer is empty",
+    path: ["counts"],
+  });
 
 /** A pickup takes at least one note or coin. */
 export const pickupCountSchema = z.object({
@@ -202,6 +210,8 @@ export const pickupCountSchema = z.object({
     (c) => Object.values(c).some((v) => Number(v) > 0),
     "Count at least one note or coin",
   ),
+  // The same form as a close; a pickup is never of an empty drawer.
+  empty: z.literal(false),
 });
 
 /** The typed count as the API takes it: whole numbers, zeros dropped. */

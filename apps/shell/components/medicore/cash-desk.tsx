@@ -216,7 +216,10 @@ function CountForm({
     ["billing", "cash-denominations", hospital.id],
     `/billing/hospitals/${hospital.id}/cash-denominations`,
   );
-  const form = useZodForm(requireOne ? pickupCountSchema : cashCountSchema, { counts: {} });
+  const form = useZodForm(requireOne ? pickupCountSchema : cashCountSchema, {
+    counts: {},
+    empty: false,
+  });
   const typed = form.watch("counts");
   if (denominations.isError)
     return (
@@ -259,6 +262,12 @@ function CountForm({
           })}
         </div>
       </fieldset>
+      {!requireOne && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" {...form.register("empty")} />
+          The drawer is empty
+        </label>
+      )}
       {errors?.message && (
         <p role="alert" className="text-sm text-destructive">
           {errors.message}

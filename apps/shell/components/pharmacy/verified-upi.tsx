@@ -103,8 +103,12 @@ export function VerifiedUpi({
     usable || (id && (open(p?.status ?? "requested") || p?.status === "cancelling")),
   );
   useEffect(() => onHold?.(held), [held, onHold]);
-  // Adjusted during render, not in an effect: once final, stop polling.
-  if (!done && final(p)) setDone(true);
+  // Let the successful query settle before disabling its observer. Disabling
+  // during render can abort the completing fetch and restore its previous
+  // awaiting-payment snapshot, dropping the confirmed tender from the form.
+  useEffect(() => {
+    if (final(p)) setDone(true);
+  }, [p]);
   // A QR this panel opened is closed when the panel goes away (another
   // tender, a re-priced basket), so the payer cannot pay a bill the counter
   // no longer holds. The ref carries the latest request to the cleanup.

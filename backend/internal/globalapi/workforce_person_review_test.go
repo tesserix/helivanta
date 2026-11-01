@@ -923,6 +923,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		var employmentCatalog []map[string]any
 		require.NoError(t, json.Unmarshal(catalogResponse.Body.Bytes(), &employmentCatalog))
 		require.Len(t, employmentCatalog, 5)
+		employmentRoles := map[string]string{}
 		for _, target := range []string{manager, reviewer} {
 			roleID := uuid.Must(uuid.NewV7()).String()
 			rolePath := "/v1/iam/assignment-proposals/" + roleID
@@ -933,6 +934,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: target, HospitalID: hospital, Permission: authz.Permission("workforce.employment.review")})
 				return err == nil && grant.AssignmentID == roleID
 			}, 10*time.Second, 20*time.Millisecond)
+			employmentRoles[target] = rolePath
 		}
 		sponsorBody["employment_status"] = "active"
 		call(t, "PUT", base+"/staff/"+sponsorID, maker, sponsorBody, 200)
@@ -1009,6 +1011,38 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		employmentApproved := call(t, "POST", approvalPath+"/decision?employment_review=v1", reviewer, employmentDecision, 200)
 		require.Equal(t, "approved", employmentApproved["status"])
 		require.Equal(t, float64(2), employmentApproved["version"])
+		t.Run("employment history preserves original receipts under current scoped authority", func(t *testing.T) {
+			historyPath := approvalPath + "/history?employment_review=v1&limit=1"
+			history := call(t, "GET", historyPath, reviewer, nil, 200)
+			require.Equal(t, []any{employmentApproved}, history["data"])
+			page := history["page"].(map[string]any)
+			require.Equal(t, true, page["has_more"])
+			older := call(t, "GET", historyPath+"&cursor="+page["next_cursor"].(string), reviewer, nil, 200)
+			require.Equal(t, []any{approvalPending}, older["data"])
+			require.Equal(t, map[string]any{"has_more": false, "next_cursor": nil}, older["page"])
+			require.Equal(t, []any{employmentApproved, approvalPending}, call(t, "GET", approvalPath+"/history?hr_intake=v1", manager, nil, 200)["data"])
+			call(t, "GET", historyPath, maker, nil, 403)
+			call(t, "GET", approvalPath+"/history?employment_review=v1&hr_intake=v1", reviewer, nil, 400)
+			call(t, "GET", approvalPath+"/history?employment_review=v1&limit=201", reviewer, nil, 400)
+			call(t, "GET", approvalPath+"/history?employment_review=v1&limit=1&limit=2", reviewer, nil, 400)
+			call(t, "GET", approvalPath+"/history?employment_review=v1&unexpected=1", reviewer, nil, 400)
+			call(t, "GET", approvalPath+"?employment_review=v1&limit=1", reviewer, nil, 400)
+			foreignStaff := strings.Replace(approvalPath, "/staff/"+staff+"/", "/staff/"+uuid.NewString()+"/", 1)
+			call(t, "GET", foreignStaff+"/history?employment_review=v1", reviewer, nil, 404)
+			call(t, "GET", staffBase+"/employment-reviews/"+uuid.Must(uuid.NewV7()).String()+"/history?employment_review=v1", reviewer, nil, 404)
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_history_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION test_employment_history_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='workforce.employment_review.history.read' THEN RAISE EXCEPTION 'synthetic private history audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER test_employment_history_fault BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION test_employment_history_fault()`}}))
+			clear := func() {
+				t.Helper()
+				cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				require.NoError(t, db.Migrate(cleanup, []tenantdb.Migration{{ID: "test_employment_history_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP FUNCTION IF EXISTS test_employment_history_fault() CASCADE`}}))
+			}
+			t.Cleanup(clear)
+			failed := call(t, "GET", historyPath, reviewer, nil, 500)
+			require.NotContains(t, failed, "data", "no private history is released without its audit")
+			clear()
+			require.Equal(t, history, call(t, "GET", historyPath, reviewer, nil, 200))
+		})
 		require.Equal(t, employmentApproved, call(t, "POST", approvalPath+"/decision?employment_review=v1", reviewer, employmentDecision, 200), "independent decision retry preserves its immutable receipt")
 		require.Equal(t, approvalPending, call(t, "PUT", approvalPath+"?hr_intake=v1", manager, approvalInput, 200), "submission replay remains the original pending receipt after a decision")
 		changedDecision := maps.Clone(employmentDecision)
@@ -1091,6 +1125,14 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Equal(t, "source_changed", stale["current_state"])
 		require.Equal(t, submitted, stale["review"], "a later draft must not overwrite frozen terms or evidence")
 		require.Equal(t, positive, counts(submissionID), "read/retry/source changes do not mutate submitted facts or publish another success event")
+		require.Equal(t, []any{revoked, employmentApproved, approvalPending}, call(t, "GET", approvalPath+"/history?employment_review=v1", reviewer, nil, 200)["data"], "ended and stale evidence preserves the original attributable receipts")
+		role := call(t, "GET", employmentRoles[reviewer], maker, nil, 200)
+		call(t, "POST", employmentRoles[reviewer]+"/decision", maker, map[string]any{"expected_version": role["version"], "decision": "withdraw", "reason": "Synthetic employment history authority cutoff"}, 200)
+		call(t, "GET", approvalPath+"/history?employment_review=v1", reviewer, nil, 403)
+		require.Eventually(t, func() bool {
+			grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: reviewer, HospitalID: hospital, Permission: workforce.PermIdentityChecksReview})
+			return err == nil && grant.AssignmentID == strings.TrimPrefix(officers[reviewer].AssignmentPath, "/v1/iam/assignment-proposals/")
+		}, 10*time.Second, 20*time.Millisecond)
 	})
 	require.Equal(t, "approved", approved["status"])
 	require.Equal(t, float64(2), approved["version"])

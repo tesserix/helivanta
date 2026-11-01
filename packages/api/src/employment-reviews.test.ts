@@ -6,6 +6,7 @@ import {
   decideEmploymentReview,
   withdrawEmploymentReview,
   revokeEmploymentReview,
+  listEmploymentReviewHistory,
 } from "./employment-reviews";
 
 const scope = {
@@ -119,6 +120,20 @@ const capabilities = {
   can_revoke: false,
 };
 afterEach(() => vi.unstubAllGlobals());
+
+it("reads protected employment history with the original explicit workspace and cursor", async () => {
+  const history = { data: [row], page: { has_more: false, next_cursor: null } };
+  const fetcher = vi.fn(async () => Response.json(history));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await listEmploymentReviewHistory(scope, id, "opaque-position")).toEqual(history);
+  const [path, request] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(path).toBe(
+    `/api/v1/workforce/hospitals/${scope.hospitalId}/staff/${scope.staffId}/employment-reviews/${id}/history?hr_intake=v1&limit=50&cursor=opaque-position`,
+  );
+  expect(request.cache).toBe("no-store");
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+  expect(new Headers(request.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+});
 
 it("pins the original workspace and exact reviewed source to immutable submission", async () => {
   const fetcher = vi.fn(async () => Response.json(row));
@@ -236,6 +251,47 @@ const approved = {
   reviewer_terms_examined: true,
   independent_person_confirmed: true,
 };
+
+it("rejects history that changes the frozen employment source across receipts", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        data: [approved, { ...row, identity_hash: "c".repeat(64) }],
+        page: { has_more: false, next_cursor: null },
+      }),
+    ),
+  );
+  await expect(listEmploymentReviewHistory(reviewerScope, id)).rejects.toThrow(/history/i);
+});
+
+it.each([
+  { data: [row, row], page: { has_more: false, next_cursor: null } },
+  { data: [row, approved], page: { has_more: false, next_cursor: null } },
+  { data: [{ ...row, hospital_id: scope.staffId }], page: { has_more: false, next_cursor: null } },
+  { data: [{ ...row, staff_id: scope.hospitalId }], page: { has_more: false, next_cursor: null } },
+  { data: [{ ...row, id: period }], page: { has_more: false, next_cursor: null } },
+  { data: [row], page: { has_more: true, next_cursor: null } },
+  { data: [row], page: { has_more: false, next_cursor: "unexpected" } },
+])("refuses inconsistent or foreign employment history %#", async (response) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(response)),
+  );
+  await expect(listEmploymentReviewHistory(reviewerScope, id)).rejects.toThrow(/history/i);
+});
+
+it("discards employment history when its request is cancelled", async () => {
+  const controller = new AbortController();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      controller.abort();
+      return Response.json({ data: [row], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  await expect(listEmploymentReviewHistory(scope, id, null, controller.signal)).rejects.toThrow();
+});
 it("uses separate reviewer authority and verifies the immutable decision receipt", async () => {
   const fetcher = vi.fn(async () => Response.json(approved));
   vi.stubGlobal("fetch", fetcher);

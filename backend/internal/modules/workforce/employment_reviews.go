@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,8 @@ import (
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -29,6 +32,23 @@ type employmentReviewRecord struct {
 	EmploymentReview
 	InputHash string `json:"-"`
 }
+type employmentReviewHistory struct{ EmploymentReview }
+
+func (r employmentReviewHistory) PageKey() (time.Time, uuid.UUID) { return r.UpdatedAt, r.ID }
+
+func employmentReviewProjection(c *gin.Context, mode string) bool {
+	query := c.Request.URL.Query()
+	if strings.HasSuffix(c.FullPath(), "/employment-reviews/:review/history") {
+		for _, key := range []string{"limit", "cursor"} {
+			if len(query[key]) > 1 {
+				return false
+			}
+			query.Del(key)
+		}
+	}
+	return len(query) == 1 && len(query[mode]) == 1 && query.Get(mode) == "v1"
+}
+
 type employmentReviewBinding struct {
 	EmploymentEvidenceBinding
 	EngineVersion        string
@@ -98,8 +118,7 @@ func employmentReviewError(c *gin.Context, err error) {
 	}
 }
 func (h *handlers) employmentReviewPreparation(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
-	values := c.Request.URL.Query()[hrIntakeQuery]
-	if len(values) != 1 || values[0] != hrIntakeVersion || len(c.Request.URL.Query()) != 1 {
+	if !employmentReviewProjection(c, hrIntakeQuery) {
 		return errIntakeProjection
 	}
 	return h.intakeAuthorityTransaction(c, p, hospital, []authz.Permission{PermEnrollmentManage, PermDocumentManage}, true, func(tx *gorm.DB, scoped bool) error {
@@ -432,4 +451,32 @@ func (h *handlers) getEmploymentReview(c *gin.Context) {
 		return
 	}
 	respond.OK(c, result)
+}
+
+func (h *handlers) listEmploymentReviewHistory(c *gin.Context, params pagination.Params) ([]employmentReviewHistory, error) {
+	p, hospital, staff, id, ok := personReviewParams(c)
+	if !ok {
+		return nil, nil
+	}
+	rows := []employmentReviewHistory{}
+	err := h.employmentReviewRead(c, p, hospital, staff, id, func(tx *gorm.DB, _ IdentitySource, authority *intakeAuthority) error {
+		head, err := loadEmploymentReview(tx, p, hospital, staff, id, uuid.Nil)
+		if err != nil {
+			return err
+		}
+		query := tenantdb.ApplyOrderedKeyset(tx, params, tenantdb.Keyset{Column: "updated_at", Direction: pagination.NewestFirst})
+		if err := query.Table("workforce_employment_review_history").Select(employmentReviewColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id).Find(&rows).Error; err != nil {
+			return err
+		}
+		for i := range rows {
+			rows[i].Terms = head.Terms
+			rows[i].Evidence = head.Evidence
+		}
+		return employmentReviewAudit(tx, p, head.EmploymentReview, "workforce.employment_review.history.read", authority)
+	})
+	if err != nil {
+		employmentReviewError(c, err)
+		return nil, nil
+	}
+	return rows, nil
 }

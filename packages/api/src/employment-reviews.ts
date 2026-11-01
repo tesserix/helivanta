@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { apiFetch } from "./client";
 import { personReviewRequest as staffReviewRequest } from "./person-reviews";
 import type { EmploymentPeriodScope } from "./employment-periods";
@@ -48,6 +49,70 @@ export const employmentReviewsKey = (scope: EmploymentReviewScope) => [
 export function employmentReviewsPath(scope: EmploymentReviewScope, id: string) {
   const query = reviewerMode(scope) ? "employment_review=v1" : "hr_intake=v1";
   return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/staff/${identifier.parse(scope.staffId)}/employment-reviews/${identifier.parse(id)}?${query}`;
+}
+
+const employmentReviewHistoryPage = z
+  .object({
+    data: z.array(EmploymentReviewContract).max(200),
+    page: z
+      .object({
+        has_more: z.boolean(),
+        next_cursor: z.string().min(1).max(2048).nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export async function listEmploymentReviewHistory(
+  scope: EmploymentReviewScope,
+  id: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const [path, mode] = employmentReviewsPath(scope, id).split("?");
+  const query = new URLSearchParams(mode);
+  query.set("limit", "50");
+  if (cursor !== null) query.set("cursor", z.string().min(1).max(2048).parse(cursor));
+  const response = await apiFetch<unknown>(`${path}/history?${query}`, {
+    ...staffReviewRequest(scope),
+    signal,
+  });
+  signal?.throwIfAborted();
+  const parsed = employmentReviewHistoryPage.safeParse(response);
+  const message =
+    "The employment-review history could not be verified. Refresh before relying on it.";
+  if (!parsed.success || parsed.data.page.has_more !== Boolean(parsed.data.page.next_cursor))
+    throw new Error(message);
+  const rows = parsed.data.data;
+  if (
+    new Set(rows.map((row) => row.revision_id)).size !== rows.length ||
+    rows.some((row, index) => {
+      const previous = rows[index - 1];
+      return previous !== undefined && row.version >= previous.version;
+    })
+  )
+    throw new Error(message);
+  try {
+    for (const row of rows) owned(scope, id, row);
+  } catch {
+    throw new Error(message);
+  }
+  const sources = rows.map((row) =>
+    JSON.stringify({
+      ...row,
+      revision_id: "",
+      version: 0,
+      status: "",
+      actor_subject: "",
+      decision_reason: "",
+      reviewer_terms_examined: false,
+      independent_person_confirmed: false,
+      updated_at: "",
+    }),
+  );
+  if (new Set(sources).size > 1) throw new Error(message);
+  return parsed.data;
 }
 function owned(scope: EmploymentReviewScope, id: string, value: unknown): EmploymentReview {
   const parsed = EmploymentReviewContract.safeParse(value);

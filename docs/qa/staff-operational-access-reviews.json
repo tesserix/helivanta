@@ -166,17 +166,17 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "6f6c09b896715d93e9f09ae364d35c9d2b51263a349745fa7f1ad668e00afa5f",
+          "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
           "symbol": "func (*Module) Routes("
         },
         {
           "path": "backend/internal/modules/workforce/employment_reviews.go",
-          "sha256": "4faa114ab0857116d9c5433f3304654d29aac2ef554536db7d39630aab06fc1a",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
           "symbol": "func (h *handlers) putEmploymentReview("
         },
         {
           "path": "backend/internal/modules/workforce/employment_reviews.go",
-          "sha256": "4faa114ab0857116d9c5433f3304654d29aac2ef554536db7d39630aab06fc1a",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
           "symbol": "func (h *handlers) employmentReviewPreparation("
         },
         {
@@ -210,17 +210,17 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "6f6c09b896715d93e9f09ae364d35c9d2b51263a349745fa7f1ad668e00afa5f",
+          "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
           "symbol": "func (*Module) Routes("
         },
         {
           "path": "backend/internal/modules/workforce/employment_reviews.go",
-          "sha256": "4faa114ab0857116d9c5433f3304654d29aac2ef554536db7d39630aab06fc1a",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
           "symbol": "func (h *handlers) getEmploymentReview("
         },
         {
           "path": "backend/internal/modules/workforce/employment_reviews.go",
-          "sha256": "4faa114ab0857116d9c5433f3304654d29aac2ef554536db7d39630aab06fc1a",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
           "symbol": "func (h *handlers) employmentReviewPreparation("
         },
         {
@@ -240,12 +240,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) employmentReviewRead("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) employmentReviewReviewer("
         }
       ],
@@ -264,17 +264,17 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "6f6c09b896715d93e9f09ae364d35c9d2b51263a349745fa7f1ad668e00afa5f",
+          "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
           "symbol": "func (*Module) Routes("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) decideEmploymentReview("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) employmentReviewReviewer("
         },
         {
@@ -303,17 +303,17 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "6f6c09b896715d93e9f09ae364d35c9d2b51263a349745fa7f1ad668e00afa5f",
+          "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
           "symbol": "func (*Module) Routes("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) endEmploymentReview("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) employmentReviewReviewer("
         },
         {
@@ -342,17 +342,17 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "6f6c09b896715d93e9f09ae364d35c9d2b51263a349745fa7f1ad668e00afa5f",
+          "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
           "symbol": "func (*Module) Routes("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) endEmploymentReview("
         },
         {
           "path": "backend/internal/modules/workforce/employment_review_decisions.go",
-          "sha256": "dc4e9c807c8e1da1261818ac72e932f137d4a7f24fc9290c03fc15da2fb4747d",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
           "symbol": "func (h *handlers) employmentReviewReviewer("
         },
         {
@@ -364,6 +364,65 @@
           "path": "backend/internal/modules/workforce/employment_review_decisions.sql",
           "sha256": "f2ed5bab5ec7aae164e6d22511e783ad6a9ba39bd18109dbe176acb64d834056",
           "symbol": "CREATE OR REPLACE FUNCTION workforce_employment_review_write("
+        }
+      ],
+      "remaining": [
+        "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
+        "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+        "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+      ]
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history",
+      "registration_sha256": "1103629ced355de309b2ad228bf57ca19f16bdf6fdaece3920ad821989e4dc63",
+      "authority_kind": "hospital_operational",
+      "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
+      "rationale": "Protected selected-review history uses the current compound HR-intake authority or independent scoped employment reviewer and active reviewed actor link, with exact original workspace assertions and no legacy fallback. The owner scopes immutable receipts by tenant/hospital/Staff/review, hydrates the frozen terms/evidence once, and commits attributable read audit before returning a bounded cursor page. History conveys no present employment effectiveness or byte-release authority. Operational actor admission and lifecycle cutoff remain unimplemented.",
+      "authority_sources": [
+        {
+          "path": "backend/internal/modules/workforce/module.go",
+          "sha256": "822d4bc27bdcd2b54f0e2ba0dceea83de3a656fd7b3426cc02f6d781a2d9949e",
+          "symbol": "func (*Module) Routes("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_reviews.go",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
+          "symbol": "func (h *handlers) listEmploymentReviewHistory("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_reviews.go",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
+          "symbol": "func (h *handlers) employmentReviewPreparation("
+        },
+        {
+          "path": "backend/internal/modules/workforce/hr_intake.go",
+          "sha256": "579e336af862f7b3c6d0eb44f9ae27311cb4bf47f762b2a0bc4cc2ace88df726",
+          "symbol": "func (h *handlers) intakeAuthorityTransaction("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_reviews.sql",
+          "sha256": "ae7f567cc5a0caca139a7105a4891b21fcdad54e9433c7d2900a2e2280a484c2",
+          "symbol": "CREATE FUNCTION workforce_employment_review_context("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_review_decisions.sql",
+          "sha256": "f2ed5bab5ec7aae164e6d22511e783ad6a9ba39bd18109dbe176acb64d834056",
+          "symbol": "CREATE OR REPLACE FUNCTION workforce_employment_review_context("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_review_decisions.go",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
+          "symbol": "func (h *handlers) employmentReviewRead("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_review_decisions.go",
+          "sha256": "1313e69ac0802129eca3ae5303b79bc993f5e7b17a30cc71e1f6be09aaea3fa4",
+          "symbol": "func (h *handlers) employmentReviewReviewer("
+        },
+        {
+          "path": "backend/internal/modules/workforce/employment_reviews.go",
+          "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
+          "symbol": "func employmentReviewProjection("
         }
       ],
       "remaining": [

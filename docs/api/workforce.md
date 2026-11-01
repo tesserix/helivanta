@@ -2,6 +2,40 @@
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
+## Protected employment-review history candidate
+
+The local candidate adds
+`GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history`.
+Use exactly one explicit `hr_intake=v1` or `employment_review=v1` projection,
+plus optional `limit`/`cursor`; duplicate modes, unknown query fields and duplicate
+paging values are refused. Other employment commands retain their strict query
+shape. The platform list envelope defaults to 50 receipts and caps at 200;
+current legal transitions bound one review to at most three immutable receipts.
+The existing scoped history primary key bounds lookup before ordering, without
+a new migration or infrastructure cost.
+
+Each page reauthorizes the current original workspace, hospital-scoped assignment
+and reviewed active actor link using the same no-legacy-fallback authority as
+protected detail. HR preparation requires both enrollment and document grants;
+reviewer mode requires the separate employment-review permission. Return 403 for
+missing authority, 404 for an invisible selected review/Staff, 409 for changed
+workspace and 503 when current authority is unavailable. Owner SQL always scopes
+verified tenant, hospital, Staff and review and retains existing forced RLS.
+The owner loads the frozen terms/evidence once, attaches them to historical
+receipts and commits sensitive-read audit before returning the cursor page.
+Ended reviews and unavailable current evidence retain their recorded history.
+Receipt status is historical, without current capabilities, evidence bytes or
+employment/access activation.
+
+`listEmploymentReviewHistory` uses the canonical generated `EmploymentReview`
+contract through Global API, no-store and original tenant/subject assertions.
+It rejects foreign scopes/review IDs, duplicate or out-of-order revisions,
+inconsistent pagination and changed frozen sources within a page, and discards
+cancelled responses. Consumers must keep history separate from present
+effectiveness and obtain current detail before a new command. The endpoint/SDK
+candidate does not implement the normal employment-review workspace, inbox,
+source/evidence selection or protected bytes and is not deployed by this note.
+
 ## Pre-employment current-person review candidate
 
 The current source adds a private human person-finding review for inactive

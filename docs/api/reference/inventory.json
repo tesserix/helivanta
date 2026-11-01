@@ -7749,6 +7749,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/revocation",
           "permission": "public",

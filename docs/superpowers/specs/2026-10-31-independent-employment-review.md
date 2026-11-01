@@ -203,3 +203,41 @@ policy/calendar-test regressions caught by broad verification. No existing fixtu
 upgrade, production migration/rollout or release occurred. Review workspace,
 protected bytes/inbox/history/selection and normal browser/provider acceptance,
 operational generation and every A01–A12 gate remain required.
+
+## Selected-review history slice — 2026-11-01
+
+Add the protected `/:review/history` collection using the existing explicit
+preparation/reviewer modes and current no-fallback owner authority. Workforce
+remains the sole owner; the typed Global API client is the consumer. Preserve
+tenant/hospital/Staff/review SQL predicates, current IAM assignment and reviewed
+active actor-link locking, exact original workspace assertions, forced RLS and
+the existing sensitive-read audit. The assets and insider/foreign-tenant/stale-
+authority threats above apply without broadening private-document authority.
+
+Reuse the unmeasured 50-peak-owner-requests/sec and 99.9%/500ms p99 planning
+budgets above. This endpoint is read-only business behavior but writes one audit
+per successful page, so it uses the primary owner transaction rather than a stale
+read replica or cache. Current legal transitions bound one review to three
+receipts; the existing `(tenant_id,hospital_id,id,version)` history primary key
+bounds row lookup before sorting. Hydrate frozen terms and at most twenty selected
+evidence bindings once per page rather than once per historical receipt. The
+existing 500,000/1.5-million Staff assumptions do not justify another datastore,
+worker or always-on service. No measured demand, latency or capacity claim is made.
+
+Current IAM, identity and owner authority are critical: failure denies with the
+existing unavailable response; audit persistence failure returns no private page.
+No storage/provider call occurs inside this read. Default/max list limits remain
+50/200, with the normal cursor envelope and strict single mode. Pagination fields
+are accepted only on this registered history route; command/detail query shapes
+remain strict. Ended records and unavailable evidence retain their historical
+receipts without returning current capabilities or evidence bytes.
+
+The SDK validates canonical owned receipts, continuation consistency, order and
+uniqueness, frozen-source consistency within a page and cancellation. A consumer
+must preserve the original workspace across pages, label the result historical
+and obtain current detail before acting. This is a bounded history prerequisite,
+not the employment-review inbox, preparation selector, protected byte release or
+normal reviewer UI. The existing data-preserving schema needs no migration or
+runtime activation; application rollback removes only the route/client surface
+and retains all employment decisions/history. Enabling operational employment
+enforcement remains subject to ADR-0049's separate unfinished activation gates.

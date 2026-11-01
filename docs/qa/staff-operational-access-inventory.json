@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "e86f83bebd49f9b83b79ac76875b416a796e2e624ce77ea1defc89b7283d8124",
+  "registry_sha256": "cad3df7fb51357e5e562dc1531863e2d0f428682d1870fd3a366893e1b7ad7eb",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 734,
@@ -7788,7 +7788,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -7873,7 +7873,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9605,7 +9605,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9689,7 +9689,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9799,7 +9799,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9913,7 +9913,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10950,7 +10950,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11029,7 +11029,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11108,7 +11108,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12035,7 +12035,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "1f2ca6b7ef8f29e3f7b1242c10c7c7ec2165121347b398d85ca2293d42348faf",
+            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
             "symbol": "func (*Module) Routes("
           },
           {

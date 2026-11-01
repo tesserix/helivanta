@@ -2,7 +2,7 @@
   "status": "release preparation; not deployed",
   "production_baseline": "7e5b7800b88f60a2579f6bacfd2f8dc23ea571ca",
   "baseline_ledger_count": 197,
-  "expected_ledger_count": 200,
+  "expected_ledger_count": 201,
   "activation_enabled": false,
   "required_environment": {
     "WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED": "false"
@@ -33,9 +33,15 @@
         "workforce_employment_review_cohorts",
         "workforce_employment_generations"
       ]
+    },
+    {
+      "module": "workforce",
+      "id": "0067_workforce_document_scanner_freshness",
+      "sql_sha256": "a26120691d2d7e47482161784719b879ef52163022482af73e29553581115799",
+      "creates_tables": []
     }
   ],
-  "approval_scope": "Exact merged revision and these three forward-only migrations; no production operational grants or enablement",
+  "approval_scope": "Exact merged revision and these four forward-only migrations; no production operational grants or enablement",
   "rollback": "Retain additive schema and immutable receipts; a live rollback or schema removal requires separately named approval and owner assessment",
   "acceptance": "Operational activation remains incomplete until browser digital recipient, lock races, legacy/governance and all consumer/lifecycle cutoffs pass"
 }

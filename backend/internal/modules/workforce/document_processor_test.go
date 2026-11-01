@@ -144,6 +144,61 @@ func TestDocumentProcessorReleasesOnlyScopedVerifiedBytesOnce(t *testing.T) {
 	}))
 }
 
+func TestDocumentProcessorUsesPublishedScannerFreshnessWindow(t *testing.T) {
+	for _, age := range []time.Duration{30 * time.Hour, 47 * time.Hour} {
+		t.Run(age.String(), func(t *testing.T) {
+			s := newDocumentScenario(t)
+			version := "ClamAV 1.5.4/28171/" + time.Now().UTC().Add(-age).Format(time.ANSIC) + "\x00"
+			scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: OK\x00", version), time.Second, attachments.MaxFileBytes)
+			require.NoError(t, err)
+			if age < attachments.ReadyDefinitionAge {
+				require.NoError(t, scanner.Ready(t.Context()))
+			} else {
+				require.Error(t, scanner.Ready(t.Context()))
+			}
+			processor, err := workforce.NewDocumentProcessor(t.Context(), s.worker, s.files, scanner)
+			require.NoError(t, err)
+			status, err := processor.Process(t.Context(), s.input)
+			require.NoError(t, err)
+			require.Equal(t, "available", status)
+			require.Equal(t, 1, s.cloud.CopyCount())
+			download := testutil.Do(s.router, http.MethodGet, s.path+"/content", "manager", "")
+			require.Equal(t, http.StatusOK, download.Code, download.Body.String())
+			require.Equal(t, s.content, download.Body.Bytes())
+		})
+	}
+}
+
+func TestDocumentProcessorRefusesStaleOrFutureScannerDefinitions(t *testing.T) {
+	for _, age := range []time.Duration{49 * time.Hour, -6 * time.Minute} {
+		t.Run(age.String(), func(t *testing.T) {
+			s := newDocumentScenario(t)
+			version := "ClamAV 1.5.4/28171/" + time.Now().UTC().Add(-age).Format(time.ANSIC) + "\x00"
+			scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: OK\x00", version), time.Second, attachments.MaxFileBytes)
+			require.NoError(t, err)
+			processor, err := workforce.NewDocumentProcessor(t.Context(), s.worker, s.files, scanner)
+			require.NoError(t, err)
+			status, err := processor.Process(t.Context(), s.input)
+			require.Error(t, err)
+			require.Equal(t, "scan_error", status)
+			require.Zero(t, s.cloud.CopyCount())
+			download := testutil.Do(s.router, http.MethodGet, s.path+"/content", "manager", "")
+			require.NotEqual(t, http.StatusOK, download.Code)
+			require.NotEqual(t, s.content, download.Body.Bytes())
+			err = s.worker.WithTenant(tenantdb.WithActor(t.Context(), "service:workforce-document-worker"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_document_staff',?,true),set_config('app.workforce_document_file',?,true)`, s.input.HospitalID, s.input.StaffID, s.input.FileID).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`UPDATE workforce_documents SET status='scan_pending',updated_at=clock_timestamp() WHERE id=?`, s.input.FileID).Error; err != nil {
+					return err
+				}
+				return tx.Exec(`UPDATE workforce_documents SET status='available',released_generation=98765,engine_version='1.5.4',definition_version=28171,definitions_updated_at=clock_timestamp()-?::interval,scanned_at=clock_timestamp(),failure_code=NULL WHERE id=?`, fmt.Sprintf("%f seconds", age.Seconds()), s.input.FileID).Error
+			})
+			require.ErrorContains(t, err, "invalid scanner provenance")
+		})
+	}
+}
+
 func TestDocumentProcessorPersistsScannerErrorAndRecoversWithoutDuplicateEvents(t *testing.T) {
 	s := newDocumentScenario(t)
 	scanner, err := attachments.NewClamAV(testinfra.ClamAVProtocol(t, "stream: ERROR\x00"), time.Second, attachments.MaxFileBytes)

@@ -9,7 +9,10 @@ joiners and workers requesting no login. This does not activate employment,
 create an operational account link, enroll a tenant member, issue an ID card or
 grant business permissions. Existing active-employment identity-case and login
 guards remain unchanged. Normal UI acceptance and employment consumption are
-still required; this candidate is not deployed or a completed employment journey.
+still required. These foundations were deployed in PR #1501; the
+[local browser checkpoint](../qa/2026-11-01-person-review-ui-acceptance.md) now
+records positive approval and ending cases. Neither deployment nor that checkpoint
+establishes a completed employment journey.
 
 Workforce owns the source identity hash/epoch, immutable review receipts,
 prospective identity-document contributors and released-evidence pins. Canonical
@@ -106,8 +109,10 @@ receipt disables new actions and evidence release until the finding is reopened;
 that restriction survives paging back and closing history. Current detail is
 labelled as the finding when opened; mutations still require fresh owner authority
 and exact version. History does not resolve an uncertain command or grant access.
-Staff-specific collection/filtering, positive normal-browser/scanner acceptance
-and remaining failure/concurrency/performance gates remain open.
+Positive normal-browser/scanner approval and withdrawal/rejection/revocation are
+recorded in the local checkpoint above. Staff-specific collection/filtering,
+remaining browser failure/concurrency/performance gates and employment-review UI
+acceptance remain open.
 The evidence route authorizes only its review's frozen file, never general document downloads.
 It pins the original assignment, actor/link/employment epoch, review revision,
 identity source/epoch and full file/scan/classification lineage. IAM assignment or

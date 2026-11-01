@@ -589,6 +589,32 @@ it("allows revocation after the identity source changes without releasing stale 
   });
 });
 
+it("explains missing finding fields without exposing schema terminology", async () => {
+  const { writes } = fixture({ manager: true });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PersonReviews />
+    </NavigationGuardProvider>,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Prepare review for Synthetic Joiner" }),
+  );
+  const preparation = await screen.findByRole("region", { name: "Prepare person review" });
+  await user.click(
+    within(preparation).getByRole("button", { name: "Submit for independent review" }),
+  );
+  expect(await within(preparation).findByText("Enter a hospital policy reference.")).toBeVisible();
+  expect(
+    within(preparation).getByText("Enter an observation and finding reference."),
+  ).toBeVisible();
+  expect(within(preparation).getByText("Enter the observation date in UTC.")).toBeVisible();
+  expect(
+    within(preparation).getByText("Enter a valid finding expiry date and time."),
+  ).toBeVisible();
+  expect(within(preparation).queryByText(/Too small|Invalid ISO/)).not.toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+});
+
 it("prepares an inactive applicant with mandatory source-bound evidence and human attestations", async () => {
   const { writes, reads } = fixture({ manager: true });
   const { user } = renderWithProviders(

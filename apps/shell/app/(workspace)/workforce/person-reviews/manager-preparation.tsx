@@ -375,7 +375,7 @@ function PreparationForm({
             <Field
               id="person-policy-reference"
               label="Hospital policy reference"
-              error={form.formState.errors.policy_reference?.message}
+              error={form.formState.errors.policy_reference && "Enter a hospital policy reference."}
             >
               <Input
                 id="person-policy-reference"
@@ -387,7 +387,10 @@ function PreparationForm({
             <Field
               id="person-finding-reference"
               label="Observation and finding reference"
-              error={form.formState.errors.finding_reference?.message}
+              error={
+                form.formState.errors.finding_reference &&
+                "Enter an observation and finding reference."
+              }
             >
               <Input
                 id="person-finding-reference"
@@ -399,7 +402,11 @@ function PreparationForm({
             <Field
               id="person-observed-on"
               label="Observation date (UTC)"
-              error={form.formState.errors.observed_on?.message}
+              error={
+                form.formState.errors.observed_on?.type
+                  ? "Enter the observation date in UTC."
+                  : form.formState.errors.observed_on?.message
+              }
             >
               <Input
                 id="person-observed-on"
@@ -411,7 +418,11 @@ function PreparationForm({
             <Field
               id="person-valid-until"
               label="Finding valid until (local time)"
-              error={form.formState.errors.valid_until?.message}
+              error={
+                form.formState.errors.valid_until?.type
+                  ? "Enter a valid finding expiry date and time."
+                  : form.formState.errors.valid_until?.message
+              }
             >
               <Input
                 id="person-valid-until"

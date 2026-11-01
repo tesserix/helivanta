@@ -1,5 +1,32 @@
 # Staff Management delivery tracker
 
+## Person-review browser checkpoint — 2026-11-01
+
+The [acceptance matrix](2026-11-01-person-review-ui-acceptance.md) records actual
+local Staff Admin → scoped preparer → independent reviewer UI checks with real
+released scanner evidence. Positive approval, original-preparer withdrawal,
+independent rejection/revocation, protected download byte verification and
+immutable history passed. A historical contributor's approval was correctly
+denied; the original finding stayed pending and private detail cleared. A fresh
+applicant avoided that contributor conflict without altering any provenance.
+Approval left the target inactive at Staff version/epoch 1 with no login links.
+
+Browser testing exposed raw schema validation messages for required preparation
+fields. A failing-then-passing regression now verifies clear field guidance.
+All **24 person-review tests**, the full shell suite (**1,328 tests / 164 files**),
+shell type-check/lint, affected formatting and diff checks pass. The acceptance
+matrix distinguishes local callback/download relay failures from verified
+application results and records remaining browser scenarios. Private credentials,
+raw receipts and screenshots remain outside Git. No production change occurred.
+
+Person-review acceptance does not complete employment-review UI acceptance.
+Employment inbox/history/protected bytes/selection, reviewed terms → operational
+generation, legacy/governance migration and lifecycle cutoff remain open. The
+operational source check passes for **719 surfaces / 9 classified / 710
+unclassified**; strict classification completion correctly refuses activation.
+Zero runtime cutoff acceptances are claimed. Whole Staff remains **10 partial,
+10 awaiting audit, 1 research, 0 fully accepted areas**. #1035 and #417 remain open.
+
 ## Staff review foundations deployed — 2026-11-01
 
 PR [#1501](https://github.com/tesserix/helivanta/pull/1501) merged as

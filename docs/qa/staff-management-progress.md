@@ -3116,3 +3116,19 @@ full multi-hospital/current-actor isolation, downstream assignment/population an
 production QA remain open. No API, role, schema, dependency or migration changes
 are introduced by this layout correction. Final package/web/CI evidence belongs
 in the associated PR before merge; no additional domain completion is claimed.
+
+
+### 2026-11-01 operational activation merge and scanner follow-up
+
+- Activation PR #1510 merged as `0e2ca62f4d1c9bab57346be5d7e2e2d8d20b4673` after Go, web, e2e, scripts, secret scan and image checks passed. Activation remains default-off; merging is not production acceptance.
+- A fresh Staff Admin UI document upload exposed a mismatch: scanner policy accepts definitions up to 48 hours old, but Workforce's SQL trigger still enforced 24 hours. The real worker rolled back release with SQLSTATE 23514; protected files remained unavailable.
+- The regression reproduced the exact error against real PostgreSQL. Forward migration `0067_workforce_document_scanner_freshness` preserves the complete latest recovery trigger and changes only the age bound to the documented 48-hour policy (#1242). Historical migrations remain unchanged. The first focused rerun passed.
+- Candidate production scope is now four migrations, ledger 197 → 201. Production rollout requires approval for the exact combined revision and named migrations. No production mutation or activation enablement performed.
+- Full affected tests and local browser recovery remain in progress. Overall acceptance remains 10 partial, 10 awaiting audit, 1 research; no full operational activation acceptance claimed.
+
+- Scanner local browser acceptance: fresh upload reached Ready using real ClamAV; normal UI downloads saved by Chrome match all 179 original bytes. Existing local DB upgraded through owner startup to ledger 201. Owner/worker readiness 200, activation false. See [scanner acceptance](2026-11-01-workforce-scanner-freshness.md).
+- Scanner validation passed: focused `go test -race -count=1 -run '^TestDocumentProcessor(UsesPublishedScannerFreshnessWindow|RefusesStaleOrFutureScannerDefinitions)$' -timeout=5m ./internal/modules/workforce`, `go build ./...`, scoped `go vet`, scoped `golangci-lint run` (0 issues), contractdocs generation/check, all 23 canonical generators and all 75 script tests under Node 24. The earlier complete suite used superseded test setup and was interrupted; final full Workforce/attachments race rerun is pending. Initial dependency/setup and SQL test-fixture failures are retained in private evidence, not counted as passes.
+
+- Final scanner package verification passed: `go test -race -count=1 -timeout=20m ./internal/modules/workforce ./pkg/attachments` — Workforce 547.734s; attachments 3.191s. The corrected source/test revision completed without failures. The migration and generated registry match the persisted manifest.
+- PR #1511 initially failed the web inventory gate because the registered migration changed the pinned `workforce/module.go` hash. A byte-for-byte comparison confirms only the SQL embed and migration registration changed. Ten source pins were refreshed; all 15 inventory tests and normal parity passed. Counts remain 727 surfaces, 17 classified, 710 unclassified, zero complete cutoff acceptances.
+- Additional normal-UI source QA created inactive applicant SYN-FULL-UI-20261101, saved fixed-term terms, uploaded separate identity/employment files through the real scanner, bound employment evidence to revision 1 and submitted the person finding. Separate reviewer sign-in and scoped detail opening passed. The reviewer download returned without an application error, but no saved copy was verified; this new finding remains pending and this additional source path is not fully accepted. Browser policy blocked download-history inspection; no workaround was attempted.

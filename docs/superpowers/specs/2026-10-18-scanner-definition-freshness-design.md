@@ -16,3 +16,10 @@ Scans and worker start-up both refused ClamAV definitions older than 24 hours. O
 ## Not covered
 
 - Definition age is not exported as a metric. The workers have no ingress (`ingress: []`), and opening a scrape path into a PHI worker needs its own review. The readiness-based alert provides the warning instead.
+
+
+## Workforce database enforcement
+
+The Workforce document trigger was still enforcing the historical 24-hour bound after the scanner adopted this policy. Forward migration `0067_workforce_document_scanner_freshness` aligns the trigger with the same 48-hour maximum. It preserves the latest recovery, identity, scope, immutable provenance, transition and five-minute future-date checks; historical migration SQL is unchanged. This migration is forward-only: retain its ledger entry and use a separately reviewed forward correction if policy changes.
+
+Regression coverage uses the real narrow worker database role and PostgreSQL: 30-hour and 47-hour definitions release the exact uploaded bytes, while 49-hour and six-minute-future definitions refuse promotion and download. The database separately rejects invalid provenance even through the scoped worker role.

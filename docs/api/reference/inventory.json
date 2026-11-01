@@ -9177,6 +9177,11 @@
             "workforce_employment_review_cohorts",
             "workforce_employment_generations"
           ]
+        },
+        {
+          "id": "0067_workforce_document_scanner_freshness",
+          "sql_sha256": "a26120691d2d7e47482161784719b879ef52163022482af73e29553581115799",
+          "creates_tables": []
         }
       ]
     },

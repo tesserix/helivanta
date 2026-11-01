@@ -4,16 +4,22 @@ import { Badge, Button } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
+  cashCountSchema,
   cashReasonSchema,
-  closeShiftSchema,
   counterSchema,
+  countFromForm,
   newBedId,
   openShiftSchema,
+  pickupCorrectionSchema,
+  pickupCountSchema,
   useApiMutation,
   useApiPagedQuery,
   useApiQuery,
   usePermissions,
+  type CashCount,
   type CashCounter,
+  type CashDenomination,
+  type CashPickup,
   type CashShift,
   type Hospital,
 } from "@helivanta/api";
@@ -65,6 +71,7 @@ export function CashDesk({ hospital }: { hospital: Hospital }) {
       <div className="mt-3 space-y-4">
         {cashier && <MyShift hospital={hospital} />}
         {supervisor && <Variances hospital={hospital} />}
+        {supervisor && <OpenShifts hospital={hospital} />}
         {counters && <Counters hospital={hospital} />}
         {counters && <RefundPolicySetup hospital={hospital} />}
       </div>
@@ -95,6 +102,7 @@ function MyShift({ hospital }: { hospital: Hospital }) {
       <p className="text-sm">
         <Badge variant="outline">Shift open</Badge> on {s.counter_code} since{" "}
         {formatDateTime(s.opened_at)}, float {money(s.opening_float_minor)}.
+        {s.picked_up_minor > 0 && <> Taken to the safe: {money(s.picked_up_minor)}.</>}
       </p>
       <CloseShift hospital={hospital} shift={s} />
     </div>
@@ -154,12 +162,11 @@ function OpenShift({ hospital }: { hospital: Hospital }) {
 }
 
 function CloseShift({ hospital, shift }: { hospital: Hospital; shift: CashShift }) {
-  const form = useZodForm(closeShiftSchema, { declared_minor: Number.NaN });
   const close = useApiMutation(
-    ({ declared_minor }: { declared_minor: number }) =>
+    (counts: CashCount) =>
       apiFetch<CashShift>(`/billing/hospitals/${hospital.id}/cash-shifts/${shift.id}/close`, {
         method: "PUT",
-        body: JSON.stringify({ declared_minor }),
+        body: JSON.stringify({ counts }),
       }),
     // True either way: a count that differs is recorded but waits for a
     // supervisor, which the panel then says.
@@ -167,25 +174,104 @@ function CloseShift({ hospital, shift }: { hospital: Hospital; shift: CashShift 
   );
   // Blind: the cashier counts the drawer without being told what to expect.
   return (
+    <CountForm
+      hospital={hospital}
+      currency={shift.currency}
+      idPrefix="close"
+      label="Close the shift"
+      legend="Notes and coins in the drawer"
+      submit="Close shift"
+      pending={close.isPending}
+      onCount={(counts) => close.mutate(counts)}
+    />
+  );
+}
+
+/**
+ * A count of notes and coins with its running total (#198). The list comes
+ * from the API; a pickup must count something, a close may count an empty drawer.
+ */
+function CountForm({
+  hospital,
+  currency,
+  idPrefix,
+  label,
+  legend,
+  submit,
+  pending,
+  requireOne = false,
+  onCount,
+}: {
+  hospital: Hospital;
+  currency: string;
+  idPrefix: string;
+  label: string;
+  legend: string;
+  submit: string;
+  pending: boolean;
+  requireOne?: boolean;
+  onCount: (counts: CashCount) => void;
+}) {
+  const denominations = useApiQuery<CashDenomination[]>(
+    ["billing", "cash-denominations", hospital.id],
+    `/billing/hospitals/${hospital.id}/cash-denominations`,
+  );
+  const form = useZodForm(requireOne ? pickupCountSchema : cashCountSchema, { counts: {} });
+  const typed = form.watch("counts");
+  if (denominations.isError)
+    return (
+      <RequestFailure
+        message="Could not load the notes and coins."
+        retry={() => void denominations.refetch()}
+      />
+    );
+  if (denominations.isPending) return null;
+  const counts = countFromForm(typed ?? {});
+  const total = denominations.data.reduce(
+    (sum, d) => sum + d.value_minor * (counts[d.key] ?? 0),
+    0,
+  );
+  const errors = form.formState.errors.counts as
+    (Record<string, { message?: string }> & { message?: string }) | undefined;
+  return (
     <form
       noValidate
-      aria-label="Close the shift"
-      className="flex flex-wrap items-end gap-3"
-      onSubmit={form.handleSubmit((v) => close.mutate(v))}
+      aria-label={label}
+      className="space-y-2"
+      onSubmit={form.handleSubmit((v) => onCount(countFromForm(v.counts)))}
     >
-      <CurrencyAmountField
-        id="shift-count"
-        label="Cash counted in the drawer"
-        currency={shift.currency}
-        initialMinor={0}
-        error={form.formState.errors.declared_minor?.message}
-        onChange={(minor) =>
-          form.setValue("declared_minor", minor, { shouldValidate: form.formState.isSubmitted })
-        }
-      />
-      <Button type="submit" size="sm" variant="outline" disabled={close.isPending}>
-        Close shift
-      </Button>
+      <fieldset>
+        <legend className="text-sm font-medium">{legend}</legend>
+        <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {denominations.data.map((d) => {
+            const id = `${idPrefix}-${d.key.replace(":", "-")}`;
+            const name = `${formatPharmacyMoney(d.value_minor, currency)} ${d.kind === "note" ? "notes" : "coins"}`;
+            return (
+              <Field key={d.key} id={id} label={name} error={errors?.[d.key]?.message}>
+                <input
+                  id={id}
+                  inputMode="numeric"
+                  className={inputClass}
+                  {...form.register(`counts.${d.key}`)}
+                />
+              </Field>
+            );
+          })}
+        </div>
+      </fieldset>
+      {errors?.message && (
+        <p role="alert" className="text-sm text-destructive">
+          {errors.message}
+        </p>
+      )}
+      <div className="flex items-center gap-3">
+        <p className="text-sm" role="status">
+          Counted: {formatPharmacyMoney(total, currency)}
+        </p>
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          {submit}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -269,6 +355,201 @@ function Variance({ hospital, shift }: { hospital: Hospital; shift: CashShift })
           onClick={() => setOpen(true)}
         >
           Authorise
+        </Button>
+      )}
+    </li>
+  );
+}
+
+/** Open shifts other than the caller's own: cash is picked up by someone else. */
+function OpenShifts({ hospital }: { hospital: Hospital }) {
+  const mine = useMyShift(hospital);
+  const shifts = useApiPagedQuery<CashShift>(
+    ["billing", "shifts", hospital.id, "open"],
+    `/billing/hospitals/${hospital.id}/cash-shifts?status=open`,
+  );
+  if (shifts.isError)
+    return <RequestFailure message="Could not load the open shifts." retry={shifts.retry} />;
+  const others = shifts.items.filter((s) => s.id !== mine.shift.data?.id);
+  return (
+    <div>
+      <h4 className="text-sm font-medium">Cash pickups</h4>
+      {others.length === 0 && !shifts.isPending ? (
+        <p className="text-sm text-muted-foreground">No other shift is open.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {others.map((s) => (
+            <PickupShift key={s.id} hospital={hospital} shift={s} />
+          ))}
+        </ul>
+      )}
+      <LoadMore
+        label="Load more shifts"
+        hasMore={shifts.hasMore}
+        isLoading={shifts.isFetchingMore}
+        onClick={shifts.loadMore}
+      />
+    </div>
+  );
+}
+
+function PickupShift({ hospital, shift }: { hospital: Hospital; shift: CashShift }) {
+  const [open, setOpen] = useState(false);
+  // A new id for each pickup: a retry repeats the same one.
+  const [pickupId, setPickupId] = useState(() => newBedId());
+  const key = ["billing", "pickups", hospital.id, shift.id];
+  const pickups = useApiPagedQuery<CashPickup>(
+    key,
+    `/billing/hospitals/${hospital.id}/cash-shifts/${shift.id}/pickups`,
+  );
+  const record = useApiMutation(
+    (counts: CashCount) =>
+      apiFetch<CashPickup>(
+        `/billing/hospitals/${hospital.id}/cash-shifts/${shift.id}/pickups/${pickupId}`,
+        { method: "PUT", body: JSON.stringify({ counts }) },
+      ),
+    {
+      successToast: "Pickup recorded",
+      invalidate: [key, ["billing", "shifts", hospital.id]],
+      onSuccess: () => {
+        setOpen(false);
+        setPickupId(newBedId());
+      },
+    },
+  );
+  const money = (minor: number) => formatPharmacyMoney(minor, shift.currency);
+  const items = pickups.items;
+  return (
+    <li className="py-2 text-sm">
+      <p>
+        {shift.counter_code} · {shift.cashier} · open since {formatDateTime(shift.opened_at)}
+        {shift.picked_up_minor > 0 && <> · taken to the safe {money(shift.picked_up_minor)}</>}
+      </p>
+      {pickups.isError ? (
+        <RequestFailure message="Could not load the pickups." retry={pickups.retry} />
+      ) : (
+        <ul className="mt-1">
+          {items
+            .filter((p) => p.kind === "pickup")
+            .map((p) => (
+              <Pickup
+                key={p.id}
+                hospital={hospital}
+                shift={shift}
+                pickup={p}
+                corrections={items.filter((c) => c.corrects_id === p.id)}
+              />
+            ))}
+        </ul>
+      )}
+      {open ? (
+        <div className="mt-2">
+          <CountForm
+            hospital={hospital}
+            currency={shift.currency}
+            idPrefix={`pickup-${shift.id}`}
+            label={`Record a pickup from ${shift.counter_code}`}
+            legend="Notes and coins taken"
+            submit="Record pickup"
+            requireOne
+            pending={record.isPending}
+            onCount={(counts) => record.mutate(counts)}
+          />
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-1"
+          aria-label={`Record a pickup from ${shift.counter_code}`}
+          onClick={() => setOpen(true)}
+        >
+          Record pickup
+        </Button>
+      )}
+    </li>
+  );
+}
+
+function Pickup({
+  hospital,
+  shift,
+  pickup,
+  corrections,
+}: {
+  hospital: Hospital;
+  shift: CashShift;
+  pickup: CashPickup;
+  corrections: CashPickup[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [correctionId, setCorrectionId] = useState(() => newBedId());
+  const form = useZodForm(pickupCorrectionSchema, { amount_minor: Number.NaN, reason: "" });
+  const correct = useApiMutation(
+    (values: { amount_minor: number; reason: string }) =>
+      apiFetch<CashPickup>(
+        `/billing/hospitals/${hospital.id}/cash-pickups/${pickup.id}/corrections/${correctionId}`,
+        { method: "PUT", body: JSON.stringify(values) },
+      ),
+    {
+      successToast: "Correction recorded",
+      invalidate: [
+        ["billing", "pickups", hospital.id, shift.id],
+        ["billing", "shifts", hospital.id],
+      ],
+      onSuccess: () => {
+        setOpen(false);
+        setCorrectionId(newBedId());
+        form.reset({ amount_minor: Number.NaN, reason: "" });
+      },
+    },
+  );
+  const money = (minor: number) => formatPharmacyMoney(minor, shift.currency);
+  const id = `correction-${pickup.id}`;
+  return (
+    <li>
+      {money(pickup.amount_minor)} by {pickup.recorded_by}, {formatDateTime(pickup.recorded_at)}
+      {corrections.map((c) => (
+        <span key={c.id} className="block pl-4 text-muted-foreground">
+          Corrected by {money(c.amount_minor)} ({c.reason}), {c.recorded_by}
+        </span>
+      ))}
+      {open ? (
+        <form
+          noValidate
+          aria-label={`Correct the pickup of ${money(pickup.amount_minor)}`}
+          className="mt-1 flex flex-wrap items-end gap-2"
+          onSubmit={form.handleSubmit((v) => correct.mutate(v))}
+        >
+          <CurrencyAmountField
+            id={`${id}-amount`}
+            label="Overstated by"
+            currency={shift.currency}
+            initialMinor={0}
+            error={form.formState.errors.amount_minor?.message}
+            onChange={(minor) =>
+              form.setValue("amount_minor", minor, { shouldValidate: form.formState.isSubmitted })
+            }
+          />
+          <Field id={`${id}-reason`} label="Why" error={form.formState.errors.reason?.message}>
+            <input
+              id={`${id}-reason`}
+              className={`${inputClass} w-64`}
+              {...form.register("reason")}
+            />
+          </Field>
+          <Button type="submit" size="sm" disabled={correct.isPending}>
+            Correct
+          </Button>
+        </form>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Correct the pickup of ${money(pickup.amount_minor)}`}
+          onClick={() => setOpen(true)}
+        >
+          Correct
         </Button>
       )}
     </li>

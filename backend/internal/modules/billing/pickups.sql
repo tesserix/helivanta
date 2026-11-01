@@ -1,6 +1,6 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
--- Cash pickups and counting by note (#198 slice 3): cash taken from an open
+-- Cash pickups and counting by note (#198 slice 4): cash taken from an open
 -- drawer to the safe by someone other than its cashier, and a close that
 -- counts notes and coins rather than typing a total.
 

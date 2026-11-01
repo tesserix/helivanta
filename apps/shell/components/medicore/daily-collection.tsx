@@ -132,6 +132,7 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
                 <th className="text-right">Deposits</th>
                 <th className="text-right">Refunds</th>
                 <th className="text-right">Voided</th>
+                <th className="text-right">To the safe</th>
                 <th className="text-right">Expected</th>
                 <th className="text-right">Declared</th>
                 <th className="text-right">Variance</th>
@@ -154,6 +155,7 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
         <Total label="Deposits" value={money(totals.deposits_minor)} />
         <Total label="Refunds" value={money(totals.refunds_minor)} />
         <Total label="Net cash" value={money(totals.net_minor)} />
+        <Total label="Taken to the safe" value={money(totals.picked_up_minor)} />
         <Total label="Shortages" value={money(totals.shortage_minor)} />
         <Total label="Excesses" value={money(totals.excess_minor)} />
         <Total label="Counted shifts" value={String(totals.counted_shifts)} />
@@ -208,6 +210,7 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
             ? "None"
             : `${shift.voided_count} · ${cell(shift.voided_minor)}${shift.voided_refunds_minor ? ` (refunds ${cell(shift.voided_refunds_minor)})` : ""}`}
       </td>
+      <td className="text-right">{cell(shift.picked_up_minor)}</td>
       <td className="text-right">{cell(shift.expected_minor)}</td>
       <td className="text-right">{cell(shift.declared_minor)}</td>
       <td className="text-right">

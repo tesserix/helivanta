@@ -87,12 +87,15 @@ func TestAPickupLowersTheExpectedCash(t *testing.T) {
 	require.Contains(t, list.Body.String(), first)
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", w.root+"/cash-shifts/"+shiftID+"/pickups", "clerk", "").Code)
 
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(2000))
+	status, body = w.pickup("admin", shiftID, v7(), `{"note:2000":1}`)
+	require.Equal(t, http.StatusCreated, status, "the whole drawer may go: "+body)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(0))
 	require.Equal(t, http.StatusOK, status, body)
 	var closed pickedShift
 	require.NoError(t, json.Unmarshal([]byte(body), &closed))
-	require.Equal(t, "closed", closed.Status, "the safe drop is no shortage")
-	require.Equal(t, int64(2000), *closed.ExpectedMinor)
+	require.Equal(t, "closed", closed.Status, "the safe drops are no shortage")
+	require.Equal(t, int64(0), *closed.ExpectedMinor)
+	require.Equal(t, int64(4000), closed.PickedUpMinor)
 	status, body = w.pickup("admin", shiftID, v7(), `{"note:100":1}`)
 	require.Equal(t, http.StatusConflict, status, body)
 	require.Contains(t, body, "shift_closed")
@@ -146,13 +149,16 @@ func TestACorrectionPutsBackWhatWasOverstated(t *testing.T) {
 	status, body = w.put("admin", "/cash-pickups/"+picked+"/corrections/"+v7(), `{"amount_minor":1501,"reason":"Again"}`)
 	require.Equal(t, http.StatusConflict, status, body)
 	require.Contains(t, body, "over_pickup")
+	status, body = w.put("admin", "/cash-pickups/"+picked+"/corrections/"+v7(), `{"amount_minor":1500,"reason":"Nothing went to the safe"}`)
+	require.Equal(t, http.StatusCreated, status, "up to all it still counts: "+body)
+	require.Equal(t, int64(0), w.mine(t, "clerk").PickedUpMinor)
 	status, _ = w.put("admin", "/cash-pickups/"+fix+"/corrections/"+v7(), `{"amount_minor":1,"reason":"Of a correction"}`)
 	require.Equal(t, http.StatusNotFound, status, "only a pickup is corrected")
 	status, _ = w.put("admin", "/cash-pickups/"+v7()+"/corrections/"+v7(), `{"amount_minor":1,"reason":"Unknown"}`)
 	require.Equal(t, http.StatusNotFound, status)
 
-	// 0 + 3000 - 2000 + 500.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(1500))
+	// 0 + 3000 - 2000 + 500 + 1500.
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(3000))
 	require.Equal(t, http.StatusOK, status, body)
 	require.Contains(t, body, `"status":"closed"`)
 	status, _ = w.put("admin", "/cash-pickups/"+picked+"/corrections/"+v7(), `{"amount_minor":1,"reason":"Late"}`)
@@ -220,7 +226,20 @@ func TestCountsAndPickupsHoldInTheDatabase(t *testing.T) {
 	}
 	requireConstraint(t, insert(600, `{"note:500":1}`), "billing_cash_pickup_form", "the amount is the count's value")
 	requireConstraint(t, insert(2000, `{"note:2000":1}`), "billing_cash_pickup_drawer", "never more than the drawer")
-	require.NoError(t, insert(500, `{"note:500":1}`))
+	picked := v7()
+	require.NoError(t, w.as("user-admin", func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO billing_cash_pickups (tenant_id,hospital_id,id,shift_id,counter_id,kind,amount_minor,currency,counts,recorded_by)
+ VALUES (?,?,?,?,?,'pickup',600,'INR','{"note:500":1,"note:100":1}','user-admin')`, testutil.TenantA, w.hospital, picked, shiftID, counter).Error
+	}))
+	correct := func(id, of string, amount int64) error {
+		return w.as("user-admin", func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO billing_cash_pickups (tenant_id,hospital_id,id,shift_id,counter_id,kind,amount_minor,currency,corrects_id,reason,recorded_by)
+ VALUES (?,?,?,?,?,'correction',?,'INR',?,'Miscounted','user-admin')`, testutil.TenantA, w.hospital, id, shiftID, counter, amount, of).Error
+		})
+	}
+	fix := v7()
+	require.NoError(t, correct(fix, picked, 100))
+	requireConstraint(t, correct(v7(), fix, 1), "billing_cash_pickup_over", "only a pickup is corrected")
 	require.Error(t, w.as("user-admin", func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE billing_cash_pickups SET amount_minor=100 WHERE shift_id=?`, shiftID).Error
 	}), "a pickup is never edited")
@@ -233,9 +252,17 @@ func TestCountsAndPickupsHoldInTheDatabase(t *testing.T) {
 	requireConstraint(t, w.as("user-clerk", func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE billing_cash_shifts SET status='pending_authorisation',expected_minor=500,declared_minor=600,declared_counts='{"note:500":1}',closed_at=now() WHERE id=?`, shiftID).Error
 	}), "billing_cash_shift_count", "and its declared figure is the count's value")
+	// 1000 float - 600 + 100: counted 1000, over by 500.
 	require.NoError(t, w.as("user-clerk", func(tx *gorm.DB) error {
-		return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=500,declared_minor=500,declared_counts='{"note:500":1}',closed_at=now() WHERE id=?`, shiftID).Error
-	}), "the expected cash nets the pickup")
+		return tx.Exec(`UPDATE billing_cash_shifts SET status='pending_authorisation',expected_minor=500,declared_minor=1000,declared_counts='{"note:1000":1}',closed_at=now() WHERE id=?`, shiftID).Error
+	}), "the expected cash nets the pickup less its correction")
+	authorise := func(counts string) error {
+		return w.as("user-admin", func(tx *gorm.DB) error {
+			return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',declared_counts=?::jsonb,authorised_by='user-admin',authorisation_reason='Found',authorised_at=now() WHERE id=?`, counts, shiftID).Error
+		})
+	}
+	requireConstraint(t, authorise(`{"note:500":2}`), "billing_cash_shift_own_variance", "authorising keeps the cashier's count")
+	require.NoError(t, authorise(`{"note:1000":1}`))
 }
 
 // A pickup and a void at the counter each read the drawer the other left:

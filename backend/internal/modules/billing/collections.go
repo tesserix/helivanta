@@ -62,7 +62,7 @@ type collectionShift struct {
 	// apart from the cash columns. A late payment can add to a closed shift.
 	UpiPaymentsMinor *int64 `json:"upi_payments_minor"`
 	UpiDepositsMinor *int64 `json:"upi_deposits_minor"`
-	// Cash taken to the safe less corrections (#198 slice 3): a movement out
+	// Cash taken to the safe less corrections (#198 slice 4): a movement out
 	// of the drawer, not revenue, so it is apart from net.
 	PickedUpMinor *int64 `json:"picked_up_minor"`
 }

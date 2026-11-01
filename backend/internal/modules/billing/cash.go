@@ -75,7 +75,7 @@ type shift struct {
 	AuthorisationReason *string    `json:"authorisation_reason"`
 	AuthorisedAt        *time.Time `json:"authorised_at"`
 	// The close's count by note and coin; null for a shift closed before
-	// counting by note (#198 slice 3).
+	// counting by note (#198 slice 4).
 	DeclaredCounts json.RawMessage `json:"declared_counts" gorm:"->"`
 	// Cash taken to the safe, less corrections: the cashier handed it over,
 	// so it tells nothing of the expected cash.
@@ -156,8 +156,8 @@ func cashFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "own_variance", errOwnVariance.Error())
 	case errors.Is(err, errBadCount):
 		respond.BadRequest(c, err)
-	case errors.Is(err, errOwnPickup), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_own":
-		respond.Error(c, http.StatusConflict, "own_pickup", errOwnPickup.Error())
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_own":
+		respond.Error(c, http.StatusConflict, "own_pickup", "cash is picked up by someone other than the shift's cashier")
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_shift":
 		respond.Error(c, http.StatusConflict, "shift_closed", errShiftClosed.Error())
 	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_drawer":

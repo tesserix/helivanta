@@ -1,7 +1,7 @@
-# Cash pickups and counting by note (#198 slice 3)
+# Cash pickups and counting by note (#198 slice 4)
 
-Resolves: #198 (slice 3 of cashier management). Builds on cash counters
-(slice 1), daily collection (slice 2), refunds (#199) and UPI (#211).
+Resolves: #198 (slice 4 of cashier management). Builds on cash counters
+(slice 1), daily collection (slice 2), UPI (slice 3, #211) and refunds (#199).
 
 ## Why
 
@@ -28,7 +28,7 @@ indistinguishable from a shortage.
 
 - **Notes and coins.** One database function, `billing_cash_denominations(currency)`,
   lists what a count may contain; for INR the RBI legal-tender set (checked
-  2026-11-02 against RBI's *Indian Currency* FAQ and its December 2025 ₹2000
+  2026-11-02 against RBI's _Indian Currency_ FAQ and its December 2025 ₹2000
   release): notes of ₹2000, 500, 200, 100, 50, 20, 10, 5, 2 and 1; coins of
   ₹20, 10, 5, 2, 1 and 50 paise. ₹2000 notes are withdrawn from circulation
   but remain legal tender, so a drawer may hold one. A count is a JSON object
@@ -36,7 +36,7 @@ indistinguishable from a shortage.
   `billing_cash_count_total(currency, counts)` is its value, or null for any
   key or count outside the list. The shell reads the list from
   `GET …/cash-denominations`, so it lives in one place.
-  - *Builder's call:* the issue says the country profile. The country policy
+  - _Builder's call:_ the issue says the country profile. The country policy
     lives in the workspace module and billing may not read another module's
     tables, so the list is one currency-keyed database function, served to
     the shell; a second currency is a new branch in it, not code elsewhere.

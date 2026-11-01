@@ -35,6 +35,8 @@ const shift = (over: Record<string, unknown> = {}) => ({
   authorised_by: null,
   authorisation_reason: null,
   authorised_at: null,
+  declared_counts: null,
+  picked_up_minor: 0,
   ...over,
 });
 const pending = shift({
@@ -47,7 +49,38 @@ const pending = shift({
 
 afterEach(() => vi.unstubAllGlobals());
 
-function server(opts: { permissions: string[]; mine?: unknown; shifts?: unknown[] }) {
+const denominations = [
+  { key: "note:50000", kind: "note", value_minor: 50000 },
+  { key: "note:10000", kind: "note", value_minor: 10000 },
+  { key: "coin:50", kind: "coin", value_minor: 50 },
+];
+const other = shift({
+  id: "0199e000-0000-7000-8000-0000000000d2",
+  cashier: "user-clerk2",
+  counter_code: "OPD-1",
+});
+const pickup = {
+  id: "0199e000-0000-7000-8000-0000000000e1",
+  hospital_id: hospital.id,
+  shift_id: other.id,
+  counter_id: counter.id,
+  kind: "pickup",
+  amount_minor: 100000,
+  currency: "INR",
+  counts: { "note:50000": 2 },
+  corrects_id: null,
+  reason: null,
+  recorded_by: "user-admin",
+  recorded_at: "2026-10-30T05:00:00Z",
+};
+
+function server(opts: {
+  permissions: string[];
+  mine?: unknown;
+  shifts?: unknown[];
+  open?: unknown[];
+  pickups?: unknown[];
+}) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.includes("/iam/me/permissions"))
       return json(200, { subject: "user-clerk", data: opts.permissions });
@@ -59,6 +92,9 @@ function server(opts: { permissions: string[]; mine?: unknown; shifts?: unknown[
         ? json(200, opts.mine)
         : json(404, { error: "no_open_shift", message: "none" });
     if (url.includes("/cash-shifts?status=pending_authorisation")) return page(opts.shifts ?? []);
+    if (url.includes("/cash-shifts?status=open")) return page(opts.open ?? []);
+    if (url.includes("/pickups")) return page(opts.pickups ?? []);
+    if (url.endsWith("/cash-denominations")) return json(200, denominations);
     if (url.includes("/cash-shifts")) return page([]);
     if (url.endsWith("/refund-policy"))
       return json(200, {
@@ -94,17 +130,99 @@ describe("CashDesk", () => {
     expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ opening_float_minor: 200000 });
   });
 
-  it("closes the shift blind: the count is asked, nothing expected is shown", async () => {
+  it("closes the shift blind, counting notes and coins", async () => {
     const fetcher = server({ permissions: cashier, mine: shift() });
     const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
     expect(await screen.findByText(/Shift open/)).toBeInTheDocument();
     expect(screen.queryByText(/expected/i)).not.toBeInTheDocument();
-    await user.clear(screen.getByLabelText("Cash counted in the drawer (INR)"));
-    await user.type(screen.getByLabelText("Cash counted in the drawer (INR)"), "4900");
+    await user.type(await screen.findByLabelText("INR 500.00 notes"), "1.5");
+    await user.click(screen.getByRole("button", { name: "Close shift" }));
+    expect(await screen.findByText("Whole numbers only")).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.clear(screen.getByLabelText("INR 500.00 notes"));
+    await user.type(screen.getByLabelText("INR 500.00 notes"), "2");
+    await user.type(screen.getByLabelText("INR 0.50 coins"), "3");
+    expect(screen.getByText("Counted: INR 1,001.50")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close shift" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(`/cash-shifts/${shift().id}/close`);
-    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ declared_minor: 490000 });
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      counts: { "note:50000": 2, "coin:50": 3 },
+    });
+  });
+
+  it("closes an empty drawer as a count of nothing", async () => {
+    const fetcher = server({ permissions: cashier, mine: shift({ opening_float_minor: 0 }) });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    await user.click(await screen.findByRole("button", { name: "Close shift" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ counts: {} });
+  });
+
+  it("lets a supervisor record a counted pickup from someone else's open shift", async () => {
+    const fetcher = server({
+      permissions: ["billing.account.read", "billing.shift.authorise"],
+      open: [other],
+    });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    await user.click(await screen.findByRole("button", { name: "Record a pickup from OPD-1" }));
+    await user.click(await screen.findByRole("button", { name: "Record pickup" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Count at least one note or coin");
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.type(screen.getByLabelText("INR 100.00 notes"), "4");
+    await user.click(screen.getByRole("button", { name: "Record pickup" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/cash-shifts/${other.id}/pickups/[0-9a-f-]{36}$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ counts: { "note:10000": 4 } });
+  });
+
+  it("offers no pickup from the supervisor's own shift", async () => {
+    server({
+      permissions: [...cashier, "billing.shift.authorise"],
+      mine: shift(),
+      open: [shift()],
+    });
+    renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(await screen.findByText("No other shift is open.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Record a pickup/ })).not.toBeInTheDocument();
+  });
+
+  it("corrects an overstated pickup with an amount and a reason", async () => {
+    const fetcher = server({
+      permissions: ["billing.account.read", "billing.shift.authorise"],
+      open: [other],
+      pickups: [
+        pickup,
+        {
+          ...pickup,
+          id: "0199e000-0000-7000-8000-0000000000e2",
+          kind: "correction",
+          amount_minor: 5000,
+          counts: null,
+          corrects_id: pickup.id,
+          reason: "Miscounted",
+        },
+      ],
+    });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(await screen.findByText(/Corrected by INR 50.00 \(Miscounted\)/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Correct the pickup of INR 1,000.00" }));
+    await user.click(screen.getByRole("button", { name: "Correct" }));
+    expect(await screen.findByText("Give a reason")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Overstated by (INR)"));
+    await user.type(screen.getByLabelText("Overstated by (INR)"), "100");
+    await user.type(screen.getByLabelText("Why"), "Counted a note twice");
+    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/cash-pickups/${pickup.id}/corrections/[0-9a-f-]{36}$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      amount_minor: 10000,
+      reason: "Counted a note twice",
+    });
   });
 
   it("shows a closed shift's variance waiting, and lets a supervisor authorise it", async () => {

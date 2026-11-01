@@ -116,6 +116,32 @@ export type CashShift = {
   authorised_by: string | null;
   authorisation_reason: string | null;
   authorised_at: string | null;
+  /** The close's count by note and coin; null before counting by note. */
+  declared_counts: CashCount | null;
+  /** Cash taken to the safe less corrections: the cashier handed it over. */
+  picked_up_minor: number;
+};
+
+/** A count by note and coin, keyed `note:<paise>` or `coin:<paise>` (#198). */
+export type CashCount = Record<string, number>;
+
+/** A note or coin a count may hold; the API owns the list. */
+export type CashDenomination = { key: string; kind: "note" | "coin"; value_minor: number };
+
+/** Cash taken from an open drawer to the safe, or a correction of one. */
+export type CashPickup = {
+  id: string;
+  hospital_id: string;
+  shift_id: string;
+  counter_id: string;
+  kind: "pickup" | "correction";
+  amount_minor: number;
+  currency: string;
+  counts: CashCount | null;
+  corrects_id: string | null;
+  reason: string | null;
+  recorded_by: string;
+  recorded_at: string;
 };
 
 export type CashReceipt = {
@@ -158,8 +184,41 @@ export const openShiftSchema = z.object({
   opening_float_minor: cashAmount("Enter the cash in the drawer"),
 });
 
-export const closeShiftSchema = z.object({
-  declared_minor: cashAmount("Enter the cash you counted"),
+const countEntries = z.record(
+  z.string(),
+  z
+    .string()
+    .trim()
+    .regex(/^\d*$/, "Whole numbers only")
+    .refine((v) => v === "" || Number(v) <= 1_000_000, "At most 1,000,000"),
+);
+
+/** A count as typed: blanks are none. The close may count an empty drawer. */
+export const cashCountSchema = z.object({ counts: countEntries });
+
+/** A pickup takes at least one note or coin. */
+export const pickupCountSchema = z.object({
+  counts: countEntries.refine(
+    (c) => Object.values(c).some((v) => Number(v) > 0),
+    "Count at least one note or coin",
+  ),
+});
+
+/** The typed count as the API takes it: whole numbers, zeros dropped. */
+export function countFromForm(counts: Record<string, string>): CashCount {
+  return Object.fromEntries(
+    Object.entries(counts)
+      .map(([key, v]) => [key, Number(v || 0)] as const)
+      .filter(([, n]) => n > 0),
+  );
+}
+
+export const pickupCorrectionSchema = z.object({
+  amount_minor: cashAmount("Enter the amount put back").refine(
+    (v) => v >= 1,
+    "Enter the amount put back",
+  ),
+  reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
 });
 
 export const cashReceiptSchema = z.object({
@@ -259,6 +318,8 @@ export type CollectionShift = {
   /** UPI taken in the shift: at the bank, apart from the cash columns. */
   upi_payments_minor: number | null;
   upi_deposits_minor: number | null;
+  /** Cash taken to the safe less corrections: a movement, not revenue. */
+  picked_up_minor: number | null;
 };
 
 /** A hospital-local day's cash (#198 slice 2); totals cover counted shifts only. */
@@ -285,6 +346,7 @@ export type DailyCollection = {
     voided_refunds_minor: number;
     upi_payments_minor: number;
     upi_deposits_minor: number;
+    picked_up_minor: number;
   };
 };
 

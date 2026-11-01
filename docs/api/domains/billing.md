@@ -170,16 +170,16 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/counters`                                                          | A page of counters.                                  |
 | `PUT …/counters/:counter/shifts/:shift` `{opening_float_minor}`           | Open the caller's shift: `201`; a retry `200`.       |
 | `GET …/cash-shifts/mine`                                                  | The caller's shift not yet closed, or `404`.         |
-| `PUT …/cash-shifts/:shift/close` `{declared_minor}`                       | Blind close; the answer shows expected and variance. |
+| `PUT …/cash-shifts/:shift/close` `{counts}`                               | Blind close; the answer shows expected and variance. |
 | `PUT …/cash-shifts/:shift/authorisation` `{reason}`                       | Authorise a variance; `billing.shift.authorise`.     |
 | `GET …/cash-shifts`                                                       | A page of shifts, for the supervisor.                |
 | `PUT …/admissions/:admission/receipts/:receipt` `{amount_minor,currency}` | Take cash: `201`; a retry `200`.                     |
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** card and other modes; handover; denominations; pickups; GL export;
-  events; receipts on bills. Refunds, deposits, the daily collection report and UPI came
-  later, below.
+- **Not covered:** card and other modes; handover; GL export; events; receipts on bills.
+  Refunds, deposits, the daily collection report, UPI, and pickups and counting by note came
+  later, below; the close now takes a count by note and coin, not `declared_minor`.
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
   it keeps the counter until the grant is restored and the shift closed.
 
@@ -284,9 +284,12 @@ Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
   per-cashier variance trends; date ranges; events.
 - **UPI** (#211, below) is reported beside the cash, never in it: `upi_payments_minor` and
   `upi_deposits_minor` per shift and in the totals, and `upi_payments`, `upi_deposits` as the
-  CSV's last two columns. The cash columns, net and drawer figures count cash only. A UPI
+  CSV's next two columns. The cash columns, net and drawer figures count cash only. A UPI
   payment that lands after its QR closed is added to the shift that asked, so a past day's
   UPI line can change; its cash figures never do.
+- **Pickups** (#198 slice 4, below): `picked_up_minor` per counted shift and in the totals,
+  and `picked_up` as the CSV's last column. A pickup is a movement, not revenue: net is
+  unchanged, and the expected cash already nets it.
 
 ## UPI at the desk (#198 slice 3, #211)
 
@@ -325,8 +328,41 @@ confirms the money with Razorpay; billing records the receipt.
 
 - Receipts carry `mode`, `rrn` and `late`.
 - **Not covered:** card, netbanking, wallets; refunds over UPI, including a late payment's
-  credit (finance refunds in the Razorpay dashboard); handover, denominations, pickups; UPI
+  credit (finance refunds in the Razorpay dashboard); handover; UPI
   outside the billing desk; releasing a patient on an unconfirmed payment.
+
+## Cash pickups and counting by note (#198 slice 4)
+
+Design: [spec](../../superpowers/specs/2026-11-02-cash-pickups-design.md).
+
+- **Notes and coins:** `GET …/cash-denominations` (`billing.account.read`) lists what a count
+  may hold, from one database function per currency. INR: RBI legal tender, notes of ₹2000
+  (withdrawn from circulation, still legal tender), 500, 200, 100, 50, 20, 10, 5, 2 and 1, and
+  coins of ₹20, 10, 5, 2, 1 and 50 paise. A count is an object keyed `note:<paise>` or
+  `coin:<paise>` to whole counts 0–1,000,000; any other key or count is `400`, never zero.
+- **The close counts:** `PUT …/cash-shifts/:shift/close` `{counts}`; the database values the
+  count as `declared_minor` and keeps it as `declared_counts`. The same count again replays
+  (zero entries are dropped); another count, even of the same total, is `409 shift_closed`.
+  Shifts closed before this slice keep their typed figure and no count.
+- **Pickups:** someone holding `billing.shift.authorise`, never the shift's cashier
+  (`409 own_pickup`, a database rule too), records cash counted out of an open drawer
+  (`409 shift_closed` otherwise), never more than the drawer should hold (`409 drawer_short`,
+  without the figure). Fixed once written; a correction puts back what a pickup overstated, up
+  to what it still counts (`409 over_pickup`), with a reason, while the shift is open.
+- **Expected cash** nets pickups less corrections, so refunds and voids are bounded by what
+  stayed in the drawer. A pickup takes the counter lock with receipts, refunds and voids, and
+  the shift's share lock against the close.
+- Each shift shows `picked_up_minor`, also to its cashier, who handed the cash over.
+
+| Route                                                                        | Behaviour                                                                      |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `GET …/cash-denominations`                                                   | The notes and coins of a count, in order.                                      |
+| `PUT …/cash-shifts/:shift/pickups/:pickup` `{counts}`                        | Record a pickup: `201`; a retry `200`; another body `409`.                     |
+| `GET …/cash-shifts/:shift/pickups`                                           | The shift's pickups and corrections, oldest first. `billing.shift.authorise`.  |
+| `PUT …/cash-pickups/:pickup/corrections/:correction` `{amount_minor,reason}` | Correct an overstated pickup: `201`; a retry `200`. `billing.shift.authorise`. |
+
+- **Not covered:** handover between cashiers; a safe ledger and bank deposit; counting the
+  float by note; pickups or corrections after the close (the variance stands); events.
 
 ## GST on rooms and the tax invoice (#193 slice 1)
 

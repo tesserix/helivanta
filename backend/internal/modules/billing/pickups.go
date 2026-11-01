@@ -16,13 +16,12 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-// Cash pickups and counting by note (#198 slice 3): cash taken from an open
+// Cash pickups and counting by note (#198 slice 4): cash taken from an open
 // drawer to the safe by someone other than its cashier, corrections of an
 // overstated pickup, and counts of notes and coins.
 
 var (
 	errBadCount   = errors.New("a count is an object of notes and coins from the denomination list to whole counts of 0 to 1000000")
-	errOwnPickup  = errors.New("cash is picked up by someone other than the shift's cashier")
 	errOverPickup = errors.New("a correction puts back no more than its pickup still counts")
 	errNoPickup   = errors.New("pickup not found")
 )
@@ -118,7 +117,8 @@ func loadPickup(tx *gorm.DB, tenant string, hospital, id uuid.UUID) (pickup, err
 }
 
 // recordPickup records cash counted out of an open drawer by the caller. The
-// database refuses the shift's own cashier and more than the drawer holds.
+// database alone refuses the shift's own cashier and more than the drawer
+// holds, so neither has a second answer here.
 func (h *handlers) recordPickup(c *gin.Context) {
 	shiftID, ok1 := v7(c, "shift")
 	pickupID, ok2 := v7(c, "pickup")
@@ -133,9 +133,6 @@ func (h *handlers) recordPickup(c *gin.Context) {
 		s, err := loadShift(tx, p.TenantID, hospital, shiftID, false)
 		if err != nil {
 			return pickup{}, err
-		}
-		if s.Cashier == p.Subject {
-			return pickup{}, errOwnPickup
 		}
 		amount, err := in.Counts.total(tx, s.Currency)
 		if err != nil {

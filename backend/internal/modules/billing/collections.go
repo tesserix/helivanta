@@ -178,16 +178,18 @@ func (d *dailyCollection) summarise() {
 		s := &d.Shifts[i]
 		t := &d.Totals
 		switch s.Status {
-		case "open":
-			// Blind until counted: nothing that adds up to the expected cash.
+		case "closed":
+		case "pending_authorisation":
+			t.PendingShifts++
+			d.Final = false
+		default:
+			// Blind until counted, being handed over included: nothing that
+			// adds up to the expected cash.
 			s.OpeningFloatMinor, s.PaymentsMinor, s.DepositsMinor, s.RefundsMinor, s.VoidedCount, s.VoidedMinor, s.VoidedRefundsMinor = nil, nil, nil, nil, nil, nil, nil
 			s.UpiPaymentsMinor, s.UpiDepositsMinor, s.PickedUpMinor = nil, nil, nil
 			t.OpenShifts++
 			d.Final = false
 			continue
-		case "pending_authorisation":
-			t.PendingShifts++
-			d.Final = false
 		}
 		t.CountedShifts++
 		t.PaymentsMinor += *s.PaymentsMinor

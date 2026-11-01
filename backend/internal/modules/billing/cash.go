@@ -80,14 +80,23 @@ type shift struct {
 	// Cash taken to the safe, less corrections: the cashier handed it over,
 	// so it tells nothing of the expected cash.
 	PickedUpMinor int64 `json:"picked_up_minor" gorm:"->"`
+	// The handover the shift opened from, whether a handover closed it, and
+	// the one in progress, if any (#198 slice 5).
+	HandoverID         *uuid.UUID `json:"handover_id" gorm:"->"`
+	HandedOver         bool       `json:"handed_over" gorm:"->"`
+	LiveHandoverID     *uuid.UUID `json:"live_handover_id" gorm:"->"`
+	LiveHandoverTo     *string    `json:"live_handover_to" gorm:"->"`
+	LiveHandoverStatus *string    `json:"live_handover_status" gorm:"->"`
 }
 
 func (s shift) PageKey() (time.Time, uuid.UUID) { return s.OpenedAt, s.ID }
 
 const shiftSelect = `SELECT s.id,s.hospital_id,s.counter_id,c.code AS counter_code,s.cashier,s.currency,s.opening_float_minor,s.opened_at,s.status,
  s.expected_minor,s.declared_minor,s.variance_minor,s.closed_at,s.authorised_by,s.authorisation_reason,s.authorised_at,
- s.declared_counts,billing_shift_picked_up(s.tenant_id,s.id) AS picked_up_minor
- FROM billing_cash_shifts s JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id`
+ s.declared_counts,billing_shift_picked_up(s.tenant_id,s.id) AS picked_up_minor,
+ s.handover_id,s.handed_over,lh.id AS live_handover_id,lh.to_cashier AS live_handover_to,lh.status AS live_handover_status
+ FROM billing_cash_shifts s JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id
+ LEFT JOIN billing_cash_handovers lh ON lh.tenant_id=s.tenant_id AND lh.from_shift_id=s.id AND lh.status IN ('offered','disputed')`
 
 type receipt struct {
 	ID          uuid.UUID `json:"id"`
@@ -445,8 +454,8 @@ func (h *handlers) authoriseShift(c *gin.Context) {
 // hidden behind a page of closed shifts.
 func (h *handlers) shifts(c *gin.Context, params pagination.Params) ([]shift, error) {
 	status := c.Query("status")
-	if status != "" && status != "open" && status != "pending_authorisation" && status != "closed" {
-		respond.BadRequest(c, errors.New("status is open, pending_authorisation or closed"))
+	if status != "" && status != "open" && status != "handing_over" && status != "pending_authorisation" && status != "closed" {
+		respond.BadRequest(c, errors.New("status is open, handing_over, pending_authorisation or closed"))
 		return nil, nil
 	}
 	var rows []shift

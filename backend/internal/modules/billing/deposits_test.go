@@ -30,6 +30,8 @@ type inrTotals struct {
 	DepositHeldMinor int64 `json:"deposit_held_minor"`
 	AppliedMinor     int64 `json:"applied_minor"`
 	BalanceMinor     int64 `json:"balance_minor"`
+	// The most a discount may take now (#200).
+	DiscountableMinor int64 `json:"discountable_minor"`
 }
 
 func (w *bedWorld) inr(admission string) inrTotals {

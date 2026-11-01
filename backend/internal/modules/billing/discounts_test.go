@@ -104,6 +104,7 @@ func TestADiscountWithinTheDeskLimitIsSplitExactlyAndBeyondItWaitsForSomeoneElse
 	w := newBedWorld(t)
 	admission := w.threeDays(t)
 	require.Equal(t, int64(400001), w.inr(admission).BalanceMinor)
+	require.Equal(t, int64(400001), w.inr(admission).DiscountableMinor)
 	// Desk: 25% and ₹1,000; approval: 50% and ₹2,000.
 	staff := w.reason(t, "staff", 2500, 100000, 5000, 200000)
 
@@ -117,6 +118,7 @@ func TestADiscountWithinTheDeskLimitIsSplitExactlyAndBeyondItWaitsForSomeoneElse
 	require.Equal(t, []int64{25000, 37500, 37500}, w.discountLines(t, admission, "reversal"))
 	require.Equal(t, int64(-100000), w.source(admission, "discount"))
 	require.Equal(t, int64(300001), w.inr(admission).BalanceMinor)
+	require.Equal(t, int64(300001), w.inr(admission).DiscountableMinor)
 
 	status, _, _ = w.discount("clerk", admission, id, staff, 100000)
 	require.Equal(t, http.StatusOK, status, "the same request again replays")
@@ -343,15 +345,125 @@ func TestDiscountRulesHoldInTheDatabase(t *testing.T) {
 	require.Error(t, exec("user-admin", `UPDATE billing_discounts SET status='rejected',decided_by='user-admin',decision_note='no' WHERE id=?`, pending), "decided once")
 	require.Error(t, exec("user-clerk", line, testutil.TenantA, w.hospital, admission, day, pending), "nor after it was applied")
 	require.Error(t, exec("user-admin", `UPDATE billing_discount_reasons SET name='Other' WHERE id=?`, staff), "a reason is fixed")
+	require.Error(t, exec("user-admin", `UPDATE billing_discount_reasons SET retired_by='user-clerk' WHERE id=?`, staff), "retired as oneself")
+	require.NoError(t, exec("user-admin", `UPDATE billing_discount_reasons SET retired_by='user-admin' WHERE id=?`, staff))
+	require.Error(t, exec("user-admin", `UPDATE billing_discount_reasons SET retired_by='user-admin' WHERE id=?`, staff), "retired once")
 	require.Error(t, exec("user-admin", `DELETE FROM billing_discounts WHERE id=?`, pending))
 	require.Error(t, exec("system:billing-bed-census", `INSERT INTO billing_account_entries (tenant_id,hospital_id,id,admission_id,kind,source_module,source_reference,source_document,charge_reference,amount_minor,currency,occurred_at,discount_id)
  SELECT tenant_id,hospital_id,billing_uuid_v7(),admission_id,'charge','discount',source_reference,'Withdrawn',source_reference,amount_minor,currency,now(),discount_id
  FROM billing_account_entries WHERE admission_id=? AND source_module='discount' LIMIT 1`, admission), "a standing day's discount is not withdrawn")
 	require.Error(t, exec("user-clerk", `INSERT INTO billing_account_entries (tenant_id,hospital_id,id,admission_id,kind,source_module,source_reference,source_document,charge_reference,amount_minor,currency,occurred_at)
  VALUES (?,?,billing_uuid_v7(),?,'reversal','bed',gen_random_uuid(),'Bed day',?,1,'INR',now())`, testutil.TenantA, w.hospital, admission, day), "the desk writes discount lines only")
+	// A room charge's reversals count its standing discount: 150000 less the
+	// applied 1000 paise leaves 149000 to reverse, not the whole day.
+	var charge struct {
+		Ref    string
+		Amount int64
+	}
+	require.NoError(t, as("user-clerk", func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT x.charge_reference AS ref,e.amount_minor AS amount FROM billing_account_entries x JOIN billing_account_entries e
+ ON e.tenant_id=x.tenant_id AND e.source_module='bed' AND e.kind='charge' AND e.source_reference=x.charge_reference
+ WHERE x.admission_id=? AND x.source_module='discount' ORDER BY x.amount_minor DESC LIMIT 1`, admission).Scan(&charge).Error
+	}))
+	reverse := func(amount int64) error {
+		return exec("system:billing-bed-census", `INSERT INTO billing_account_entries (tenant_id,hospital_id,id,admission_id,kind,source_module,source_reference,source_document,charge_reference,amount_minor,currency,occurred_at)
+ VALUES (?,?,billing_uuid_v7(),?,'reversal','bed',gen_random_uuid(),'Bed day',?,?,'INR',now())`, testutil.TenantA, w.hospital, admission, charge.Ref, amount)
+	}
+	var off int64
+	require.NoError(t, as("user-clerk", func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT billing_discount_on(?,?)`, testutil.TenantA, charge.Ref).Scan(&off).Error
+	}))
+	require.Positive(t, off)
+	require.Error(t, reverse(charge.Amount-off+1), "never past what the discount leaves")
+	require.NoError(t, reverse(charge.Amount-off))
 	var version int
 	require.NoError(t, as("user-admin", func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT get_byte(uuid_send(billing_uuid_v7()),6)>>4`).Scan(&version).Error
 	}))
 	require.Equal(t, 7, version)
+}
+
+// Each limit binds on its own: the amount where the percentage would allow
+// more, and the percentage where the amount would.
+func TestEachLimitBindsOnItsOwn(t *testing.T) {
+	w := newBedWorld(t)
+	admission := w.threeDays(t) // a base of 400001
+	cases := []struct {
+		code            string
+		deskBp          int
+		deskMax         int64
+		approvalBp      int
+		approvalMax     int64
+		amount          int64
+		status, code409 string
+	}{
+		{"desk-amount", 10000, 500, 10000, 1000000000, 501, "pending", ""},
+		{"desk-amount-in", 10000, 500, 10000, 1000000000, 500, "applied", ""},
+		{"desk-percent", 1, 1000000000, 10000, 1000000000, 41, "pending", ""}, // 0.01% of 400001 is 40.0001
+		{"desk-percent-in", 1, 1000000000, 10000, 1000000000, 40, "applied", ""},
+		{"approval-amount", 0, 0, 10000, 1000, 1001, "", "discount_over_limit"},
+		{"approval-percent", 0, 0, 1, 1000000000, 41, "", "discount_over_limit"},
+		{"approval-percent-in", 0, 0, 1, 1000000000, 40, "pending", ""},
+	}
+	for _, c := range cases {
+		reason := w.reason(t, c.code, c.deskBp, c.deskMax, c.approvalBp, c.approvalMax)
+		status, d, body := w.discount("clerk", admission, v7(), reason, c.amount)
+		if c.code409 != "" {
+			require.Equal(t, http.StatusConflict, status, c.code+": "+body)
+			require.Equal(t, c.code409, errorCode(body), c.code)
+			continue
+		}
+		require.Equal(t, http.StatusCreated, status, c.code+": "+body)
+		require.Equal(t, c.status, d.Status, c.code)
+	}
+}
+
+// The database's own lock: a discount still being written is counted by the
+// next one against the reason's limit, however it is written.
+func TestADiscountBeingWrittenHoldsTheLimit(t *testing.T) {
+	w := newBedWorld(t)
+	admission := w.threeDays(t)
+	staff := w.reason(t, "staff", 10000, 100000, 10000, 1000000000)
+	insert := func(tx *gorm.DB, subject, id string) error {
+		if err := tx.Exec(`SELECT set_config('app.billing_subject',?,true)`, subject).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO billing_discounts (tenant_id,hospital_id,admission_id,id,reason_id,amount_minor,currency,justification,status,requested_by,requested_at)
+ VALUES (?,?,?,?,?,60000,'INR','Staff','pending',?,now())`, testutil.TenantA, w.hospital, admission, id, staff, subject).Error
+	}
+	written, release, done := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		done <- w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := insert(tx, "user-clerk", v7()); err != nil {
+				return err
+			}
+			close(written)
+			<-release
+			return nil
+		})
+	}()
+	<-written
+	second := v7()
+	answer := make(chan error, 1)
+	go func() {
+		answer <- w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk2"), testutil.TenantA, func(tx *gorm.DB) error {
+			return insert(tx, "user-clerk2", second)
+		})
+	}()
+	select {
+	case err := <-answer:
+		t.Fatalf("the second discount did not wait for the first: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	close(release)
+	require.NoError(t, <-done)
+	require.NoError(t, <-answer)
+	var status string
+	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(w.ctx, "user-clerk"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.billing_subject','user-clerk',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT status FROM billing_discounts WHERE id=?`, second).Scan(&status).Error
+	}))
+	require.Equal(t, "pending", status, "120000 is beyond the desk's 100000")
 }

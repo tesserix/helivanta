@@ -321,8 +321,6 @@ func (h *handlers) decideDiscount(c *gin.Context) {
 			return nil
 		case d.Status != "pending":
 			return errDecided
-		case d.RequestedBy == p.Subject:
-			return errOwnDiscount
 		}
 		if err := exactlyOne(tx.Exec(`UPDATE billing_discounts SET status=?,decided_by=?,decision_note=? WHERE tenant_id=? AND id=? AND status='pending'`,
 			status, p.Subject, note, p.TenantID, id)); err != nil {

@@ -42,12 +42,13 @@ separate current authorization. See the [local acceptance evidence](../qa/2026-1
 The approved `7e5b7800` rollout includes Workforce migrations 0062–0065: narrow
 read contexts and two concurrent indexes. Write/delete restrictions remain.
 Positive reviewer/scanner journeys are accepted locally; production smoke covered
-current sign-in and denied access only. Operational activation, legacy/governance
-migration and lifecycle cutoff remain open.
+current sign-in and denied access only. Reviewed-source activation is now enabled on approved `02b1e2b7` through
+[GitOps PR #1619](https://github.com/tesserix/tesserix-k8s/pull/1619). Full operational
+enforcement, legacy/governance migration and lifecycle cutoff remain open.
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
-## Operational activation — disabled release candidate
+## Reviewed-source activation — production enabled
 
 `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source?employment_activation=v1`
 requires exact original tenant/subject headers, current scoped activation **and**
@@ -62,7 +63,7 @@ closed six-template `employment-activation-v1` catalog. Its assignment list uses
 `GET /v1/iam/employment-activation-assignment-proposals` with existing independently
 reviewed assignment commands. Earlier catalogs and bundles stay unchanged.
 
-Candidate Workforce migration 0066 captures owner-maintained identity counters on
+Persisted and deployed Workforce migration 0066 captures owner-maintained identity counters on
 both person findings and employment reviews, and records immutable generation
 receipts and login-link bindings. Historical approvals without provenance return
 `identity_unavailable`; changed/restored identity returns `identity_changed`.
@@ -86,14 +87,20 @@ unmigrated and require explicit legacy/governance review.
 Both activation endpoints are gated by
 `WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED`, default false, with authenticated 503
 `employment_activation_unavailable`. Disabling the gate never disables enforcement
-for existing generations. Keep production disabled until browser acceptance,
-legacy/governance migration and all owner/lifecycle cutoffs pass. No production
-rollout or completed operational acceptance is asserted. See the
+for existing generations. The product owner explicitly requested production source
+activation on 2026-11-02. The production override is now true on approved
+`02b1e2b7`; both owner pods and Argo readiness were verified. The switch creates no
+login link or role grant. Normal local digital source/recipient UI acceptance and
+deterministic signed lock races pass. Legacy/governance migration and every
+operational owner/lifecycle cutoff remain required and incomplete. The source
+availability decision does not activate a blanket migration or certify downstream
+operational consumers. See the [configuration release](../deployment/releases/2026-11-02-employment-activation-enablement.md),
+[current acceptance](../qa/2026-11-02-employment-activation-enablement.md) and
 [implementation plan](../superpowers/plans/2026-11-01-staff-operational-activation.md).
 
-## Protected selected employment-evidence candidate
+## Protected selected employment evidence
 
-The local candidate adds
+The owner exposes
 `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content`.
 Exactly one explicit `hr_intake=v1` or `employment_review=v1` projection and the
 original tenant/subject assertions are required. Paging and unknown query fields
@@ -1635,11 +1642,16 @@ enrollment or private-file byte authority. Migration rollback must preserve
 history: use forward correction/application rollback, not a destructive down
 migration or restoration of old permissions.
 
-This remains backend/SDK and assignment-setup source with local protocol-fixture
-evidence, not deployed or accepted through the normal browser/provider flow.
-Reviewer-specific protected bytes, review inbox/detail/history workspace,
-preparer/reviewer UI, explicit operational activation and every lifecycle/consumer
-cutoff remain open. See the [review design](../superpowers/specs/2026-10-31-independent-employment-review.md).
+The reviewed-source workspace and protected selected bytes are deployed on
+approved `02b1e2b7`. Fully UI-created local digital/non-digital sources, separate
+normal preparer/reviewer sign-ins, real local scanner release, exact selected
+bytes, independent approvals and explicit activation have accepted browser evidence.
+The digital journey separately verifies fresh login/role decisions and current
+account/source cutoffs. Production source activation is enabled without creating
+business grants or manufacturing a positive activation transaction. Every remaining
+operational lifecycle/consumer cutoff and legacy/governance review remains open.
+See [current acceptance](../qa/2026-11-02-employment-activation-enablement.md) and the
+[review design](../superpowers/specs/2026-10-31-independent-employment-review.md).
 
 ### Evidence contributor provenance — source candidate
 

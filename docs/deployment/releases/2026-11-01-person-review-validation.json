@@ -1,0 +1,107 @@
+{
+  "status": "deployed_and_verified",
+  "application_revision": "b6ba32e513f6ffe55284d388a289723920da556c",
+  "application_pr": 1503,
+  "prior_revision": "bd1f62d709c0b238699a71f02c0a15317cabd493",
+  "approved_action": "Production GitOps rollout of b6ba32e5; no new migrations or grants",
+  "verified_at": "2026-11-01T02:20:20.490245+00:00",
+  "promotion": "prod.01m6ae13wb8qmegze8ctmb42m3.dbe4e27",
+  "freight": "dbe4e2779a99623371d4a9847948c3a1e17862dc",
+  "promotion_phase": "Succeeded",
+  "stage_health": "Healthy",
+  "images": {
+    "helivanta-api": "sha256:027101c9056e2d2bd3200cc84160eae42737091ea9f0d6bdc8cf234b7b11ad08",
+    "helivanta-shell": "sha256:8584f268ad51bcb905586e83d3b9073d75b2458d0e9579e103576aeef5189975"
+  },
+  "image_build_run": 41263453193,
+  "pr_ci_run": 41261834361,
+  "workloads": [
+    {
+      "name": "helivanta-api",
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "desired": 2
+    },
+    {
+      "name": "helivanta-document-worker",
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "desired": 2
+    },
+    {
+      "name": "helivanta-emergency-worker",
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "desired": 2
+    },
+    {
+      "name": "helivanta-global-api",
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "desired": 2
+    },
+    {
+      "name": "helivanta-shell",
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "desired": 2
+    },
+    {
+      "name": "helivanta-supply-evidence-worker",
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "desired": 2
+    }
+  ],
+  "ready_pods": 12,
+  "argo_applications": [
+    {
+      "name": "helivanta-api",
+      "health": "Healthy",
+      "sync": "Synced",
+      "image_tag": "b6ba32e513f6ffe55284d388a289723920da556c"
+    },
+    {
+      "name": "helivanta-global-api",
+      "health": "Healthy",
+      "sync": "Synced",
+      "image_tag": "b6ba32e513f6ffe55284d388a289723920da556c"
+    },
+    {
+      "name": "helivanta-shell",
+      "health": "Healthy",
+      "sync": "Synced",
+      "image_tag": "b6ba32e513f6ffe55284d388a289723920da556c"
+    }
+  ],
+  "migrations": {
+    "recorded": 193,
+    "added": 0,
+    "removed": 0,
+    "ids_unchanged": true
+  },
+  "production_browser_checks": {
+    "owner_sign_in": true,
+    "reviewer_sign_in": true,
+    "owner_person_scope": "No authorized hospital",
+    "reviewer_person_scope": "No authorized hospital",
+    "reviewer_payroll": "Access denied",
+    "reviewer_staff": "No hospital access yet",
+    "scope": "Normal browser smoke and denial checks; positive person review was accepted locally, not granted in production"
+  },
+  "separate_candidate_pr": 1504,
+  "staff_acceptance": {
+    "partial_areas": 10,
+    "awaiting_audit_areas": 10,
+    "research_areas": 1,
+    "fully_accepted_areas": 0,
+    "operational_activation": false,
+    "lifecycle_enforcement_complete": false
+  }
+}

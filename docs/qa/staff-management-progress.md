@@ -66,6 +66,15 @@ unclassified**; strict classification completion correctly refuses activation.
 Zero runtime cutoff acceptances are claimed. Whole Staff remains **10 partial,
 10 awaiting audit, 1 research, 0 fully accepted areas**. #1035 and #417 remain open.
 
+The user-approved validation-guidance rollout is now **deployed and verified** at
+`b6ba32e5`; see the [release evidence](../deployment/releases/2026-11-01-person-review-validation.md).
+All six workloads are 2/2 on the exact published digests, Argo/Kargo are healthy,
+and all 193 migration IDs are unchanged. Normal production owner/reviewer sign-in,
+scoped person-review discovery and reviewer Staff/payroll denials passed. No
+production grant or operational activation was introduced; positive review
+acceptance above remains a local result. The separate employment-history
+candidate in #1504 is excluded from this rollout.
+
 ## Staff review foundations deployed — 2026-11-01
 
 PR [#1501](https://github.com/tesserix/helivanta/pull/1501) merged as

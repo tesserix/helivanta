@@ -1,21 +1,39 @@
 # Staff Management delivery tracker
 
-## Deployment preparation with current main — 2026-11-01
+## Staff review foundations deployed — 2026-11-01
 
-The user requested deployment of the tested Staff candidate before continuing.
-Source is committed as `f1d3cdee` and reconciled with current main `6dbb5c6c`.
-The single merge conflict was the same calendar-test correction; main's equivalent
-deterministic clock was retained. Combined full Go coverage and web gates are
-running. Earlier results below apply to their own source, not the new tree.
+PR [#1501](https://github.com/tesserix/helivanta/pull/1501) merged as
+`bd1f62d709c0b238699a71f02c0a15317cabd493`; its tree exactly matches the locally
+validated `c73703a2` candidate. The user authorized admin-bypass merge and rollout.
+A temporary PR-only repository-admin bypass was removed immediately after merge;
+the original active main ruleset was restored and verified with no bypass actors.
+The repository remains public.
 
-Read-only discovery confirms production `c20a2202`, healthy application replicas/
-Argo and completed scheduled backups. Its ledger has 166 IDs; this registry has
-193 and no unknown applied IDs. The [release manifest](../deployment/releases/2026-11-01-staff-review-candidate.md)
-persists **all 27 pending migrations**, including inherited non-Staff financial
-and clinical owners. The user authorized admin-bypass merge and production deployment. Final
-combined validation and published/scanned/signed images are still required before
-manual Kargo promotion. No production mutation occurred.
-The current ledger has 719 surfaces, nine source classifications, 710 unclassified
+All five PR CI jobs passed, including full Go race/coverage and **78 browser E2E
+tests**. Local combined web validation passed all 30 lint/format/type/test/build
+tasks. Local owner race reruns passed patientmaster (79.8%), Billing (77.6%),
+Payments (77.7%) and Global API (86.7%), plus architecture/contractdocs. Earlier
+parallel-load consent/event-wait failures and Docker startup failures remain
+recorded as unsuccessful attempts; they are not counted as successful tests.
+
+Both merged-revision images passed build, scan, SBOM, signing and publication.
+Kargo promotion `prod.01m6a85hwx453b0d0gn5pdv5rh.c3ab8b2` succeeded. API, Global API,
+shell and all three workers now run that exact revision with two ready replicas
+each; Argo reports Synced/Healthy and Kargo verification is Successful. The
+production ledger increased from **166 to 193**: exactly the **27 migrations** in
+the [persisted manifest](../deployment/releases/2026-11-01-staff-review-candidate.md),
+with no missing, unexpected or removed IDs. Canonical committed SQL hashes match.
+Production login returns 200; the correct person-review/HR-intake scope APIs return
+401 without authentication. No real Staff or financial records were mutated for
+these smoke checks. The local UI now runs the validated release checkout; its
+older integration checkout had an obsolete discovery URL and must not supply
+acceptance evidence for this release.
+
+These checks do **not** establish complete Staff browser acceptance. Positive
+scoped preparer/reviewer review/evidence journeys, the employment-review workspace,
+operational activation and lifecycle cutoff still need completion. Whole Staff
+remains **10 partial, 10 audit pending, 1 research, 0 fully accepted areas**. The
+operational ledger has 719 surfaces, nine source classifications, 710 unclassified
 and zero full cutoff acceptances. Full Access/RBAC remains incomplete.
 
 ## Independent employment decisions candidate — 2026-11-01

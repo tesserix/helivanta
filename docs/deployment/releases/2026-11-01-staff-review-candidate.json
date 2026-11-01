@@ -1,5 +1,5 @@
 {
-  "status": "prepared_not_deployed",
+  "status": "deployed_healthy",
   "production_baseline": "c20a220267cc4e71cc169c47b3ef7220612da1ce",
   "staff_source_commit": "f1d3cdee",
   "integrated_main_commit": "6dbb5c6ce42f014ef6fcc0bbc980fc6ca89d224f",
@@ -366,5 +366,28 @@
     }
   ],
   "recovery": "Preserve expanded schema and immutable receipts/history. Prefer forward correction; any live rollback requires separate approval. No destructive down migrations.",
-  "approval": "User authorized admin-bypass merge and deployment; validate the combined tree and promote only the exact published, scanned and signed merged revision with this complete migration set."
+  "approval": "User authorized admin-bypass merge and deployment; validate the combined tree and promote only the exact published, scanned and signed merged revision with this complete migration set.",
+  "deployment": {
+    "revision": "bd1f62d709c0b238699a71f02c0a15317cabd493",
+    "validated_tree_revision": "c73703a23ce8bec2e1aa1d7d5564f4bbdb9580bc",
+    "pull_request": 1501,
+    "image_workflow_run": 41256486173,
+    "pr_ci_run": 41254528743,
+    "pr_ci": "success",
+    "browser_e2e_tests_passed": 78,
+    "promotion": "prod.01m6a85hwx453b0d0gn5pdv5rh.c3ab8b2",
+    "freight": "c3ab8b2e00de75e464166926ffedc6bb48042a70",
+    "promotion_status": "Succeeded",
+    "verification_status": "Successful",
+    "production_applied_count": 193,
+    "migrations_added": 27,
+    "unexpected_migration_ids": [],
+    "removed_migration_ids": [],
+    "application_workloads_ready": 6,
+    "ready_replicas_per_application_workload": 2,
+    "argocd": "Synced/Healthy",
+    "github_original_ruleset_restored": true,
+    "repository_visibility": "PUBLIC",
+    "positive_scoped_staff_browser_acceptance": false
+  }
 }

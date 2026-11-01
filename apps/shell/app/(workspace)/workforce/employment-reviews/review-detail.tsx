@@ -25,6 +25,7 @@ import {
 import { useStaffAccessCutoff } from "../staff-access-cutoff";
 import { employmentReviewContextChanged } from "./employment-review-context";
 import { RecordedEmploymentReviewHistory } from "./review-history";
+import { EmploymentActivation } from "./activation";
 
 type Props = {
   scope: EmploymentReviewScope;
@@ -56,6 +57,10 @@ const formSchema = EmploymentReviewDecisionInputContract.pick({
 });
 
 export function EmploymentReviewDetail(props: Props) {
+  const { onBusy } = props;
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [activationBusy, setActivationBusy] = useState(false);
+  useEffect(() => onBusy(reviewBusy || activationBusy), [reviewBusy, activationBusy, onBusy]);
   const details = useEmploymentReviewDetail(props.scope, props.item.id);
   const cutoff = useStaffAccessCutoff(
     [details.error],
@@ -75,11 +80,25 @@ export function EmploymentReviewDetail(props: Props) {
       </div>
     );
   return (
-    <ReviewTerms
-      key={`${details.data.review.id}:${details.data.review.version}`}
-      {...props}
-      view={details.data}
-    />
+    <>
+      <ReviewTerms
+        key={`${props.scope.tenantId}:${props.scope.subject}:${props.scope.hospitalId}:${props.scope.staffId}:${details.data.review.id}:${details.data.review.version}`}
+        {...props}
+        onBusy={setReviewBusy}
+        view={details.data}
+      />
+      {props.scope.hrIntake === true &&
+        props.capabilities.can_submit &&
+        details.data.review.status === "approved" && (
+          <EmploymentActivation
+            key={`${props.scope.tenantId}:${props.scope.subject}:${props.scope.hospitalId}:${props.scope.staffId}:${details.data.review.revision_id}`}
+            scope={props.scope}
+            review={details.data.review}
+            onBusy={setActivationBusy}
+            onAccessLost={props.onAccessLost}
+          />
+        )}
+    </>
   );
 }
 

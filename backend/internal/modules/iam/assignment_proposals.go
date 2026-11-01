@@ -43,6 +43,9 @@ var hrIntakeTemplatesSchema string
 //go:embed assignment_employment_templates_generated.sql
 var employmentTemplatesSchema string
 
+//go:embed assignment_employment_activation_templates_generated.sql
+var employmentActivationTemplatesSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`
@@ -154,6 +157,9 @@ func (h *assignmentProposalHandlers) put(c *gin.Context) {
 			return err
 		}
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0)),set_config('app.actor_subject',?,true)`, p.TenantID+id.String(), p.Subject).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))`, "iam.employment:"+p.TenantID+":"+in.HospitalID.String()).Error; err != nil {
 			return err
 		}
 		membershipEpoch, err := proposalMembershipEpoch(tx, p.TenantID, in.Subject)
@@ -313,6 +319,7 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/identity-assignment-proposals", authz.Public, h.listIdentity)
 	platform.ListRoute(g, "/intake-assignment-proposals", authz.Public, h.listIntake)
 	platform.ListRoute(g, "/employment-assignment-proposals", authz.Public, h.listEmployment)
+	platform.ListRoute(g, "/employment-activation-assignment-proposals", authz.Public, h.listEmploymentActivation)
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return
@@ -356,6 +363,10 @@ func (h *assignmentProposalHandlers) listIntake(c *gin.Context, params paginatio
 
 func (h *assignmentProposalHandlers) listEmployment(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
 	return h.listFamily(c, params, "employment")
+}
+
+func (h *assignmentProposalHandlers) listEmploymentActivation(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "activation")
 }
 
 func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params pagination.Params, family string) ([]assignmentProposal, error) {

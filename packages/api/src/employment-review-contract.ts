@@ -282,3 +282,120 @@ export const EmploymentPersonFindingOptionContract = z
   })
   .strict();
 export type EmploymentPersonFindingOption = z.infer<typeof EmploymentPersonFindingOptionContract>;
+
+export const EmploymentActivationInputContract = z
+  .object({
+    command_id: identifier,
+    review_id: identifier,
+    review_revision_id: identifier,
+    review_version: z.number().int().min(1).max(9007199254740990),
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    activation_examined: z
+      .boolean()
+      .refine((value) => value === true, "Confirm that you examined this activation."),
+  })
+  .strict();
+export type EmploymentActivationInput = z.infer<typeof EmploymentActivationInputContract>;
+
+export const EmploymentActivationSourceContract = z
+  .object({
+    hospital_id: identifier,
+    staff_id: identifier,
+    review_id: identifier,
+    review_revision_id: identifier,
+    review_version: z.number().int().min(1).max(9007199254740990),
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    current_state: z.enum([
+      "eligible",
+      "not_approved",
+      "source_changed",
+      "person_unavailable",
+      "evidence_unavailable",
+      "not_started",
+      "expired",
+      "already_active",
+      "associated_actor",
+      "consumed",
+      "identity_changed",
+      "identity_unavailable",
+    ]),
+    can_activate: z.boolean(),
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }).nullable(),
+  })
+  .strict();
+export type EmploymentActivationSource = z.infer<typeof EmploymentActivationSourceContract>;
+
+export const EmploymentGenerationContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    hospital_id: identifier,
+    staff_id: identifier,
+    version: z.number().int().min(1).max(9007199254740990),
+    review_id: identifier,
+    review_revision_id: identifier,
+    review_version: z.number().int().min(1).max(9007199254740990),
+    review_staff_version: z.number().int().min(1).max(9007199254740990),
+    review_employment_epoch: z.number().int().min(1).max(9007199254740990),
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    identity_hash: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }).nullable(),
+    access_intent: z.enum(["digital", "non_digital"]),
+    declared_subject: z
+      .string()
+      .trim()
+      .min(0)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    activated_by_subject: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    activated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type EmploymentGeneration = z.infer<typeof EmploymentGenerationContract>;
+
+export const EmploymentGenerationViewContract = z
+  .object({
+    generation: EmploymentGenerationContract,
+    current_state: z.enum([
+      "effective",
+      "not_started",
+      "expired",
+      "staff_inactive",
+      "source_changed",
+      "review_unavailable",
+      "person_unavailable",
+      "evidence_unavailable",
+      "identity_changed",
+      "identity_unavailable",
+    ]),
+    grants_access: z.boolean(),
+  })
+  .strict();
+export type EmploymentGenerationView = z.infer<typeof EmploymentGenerationViewContract>;

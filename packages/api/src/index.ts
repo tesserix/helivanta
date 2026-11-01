@@ -123,6 +123,7 @@ export * from "./person-review-queries";
 export * from "./person-review-selection";
 export * from "./employment-review-contract";
 export * from "./employment-reviews";
+export * from "./employment-activations";
 
 export * from "./employment-review-scopes";
 export * from "./employment-review-browse";

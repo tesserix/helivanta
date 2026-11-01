@@ -37,11 +37,12 @@ type Config struct {
 	AllergyRecordingEnabled bool
 	// PharmacyEvidenceEnabled stays off until the pharmacy evidence worker is
 	// rolled out (#1406): a page uploaded with no worker could never be scanned.
-	PharmacyEvidenceEnabled   bool
-	EmergencyWorkflowsEnabled bool
-	ClamAVAddress             string
-	OpenBaoAddr               string
-	OpenBaoTransitMount       string
+	PharmacyEvidenceEnabled     bool
+	EmergencyWorkflowsEnabled   bool
+	EmploymentActivationEnabled bool
+	ClamAVAddress               string
+	OpenBaoAddr                 string
+	OpenBaoTransitMount         string
 	// RazorpayAPIURL is the payments provider's API base (#1386 C-4a).
 	RazorpayAPIURL string
 	// PaymentsWebhookBaseURL is the public origin of the Global API that
@@ -262,6 +263,7 @@ func Load() Config {
 		AllergyRecordingEnabled:            os.Getenv("MEDICORE_ALLERGY_RECORDING_ENABLED") == "true",
 		PharmacyEvidenceEnabled:            os.Getenv("PHARMACY_EVIDENCE_ENABLED") == "true",
 		EmergencyWorkflowsEnabled:          os.Getenv("EMERGENCY_WORKFLOWS_ENABLED") == "true" || os.Getenv("EMERGENCY_DISPATCH_ENABLED") == "true",
+		EmploymentActivationEnabled:        os.Getenv("WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED") == "true",
 		ClamAVAddress:                      os.Getenv("CLAMAV_ADDRESS"),
 		OpenBaoAddr:                        os.Getenv("OPENBAO_ADDR"),
 		OpenBaoTransitMount:                os.Getenv("OPENBAO_TRANSIT_MOUNT"),

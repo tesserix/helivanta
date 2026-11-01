@@ -68,6 +68,10 @@ func membershipCommandError(c *gin.Context, err error) {
 		}
 	}
 	var pg *pgconn.PgError
+	if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "iam_employment_legacy_role" {
+		respond.Error(c, 409, "employment_scope_required", "Use independently reviewed scoped assignments for this employment generation.")
+		return
+	}
 	switch {
 	case errors.Is(err, authz.ErrScopedCredentialRevoked):
 		respond.Error(c, 401, "session_revoked", "Sign in again before managing memberships.")

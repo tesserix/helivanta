@@ -1,5 +1,62 @@
 # Staff Management delivery tracker
 
+## Operational activation implementation — 2026-11-01, release candidate
+
+Production remains at approved `7e5b7800`. Operational activation is incomplete;
+whole Staff remains 10 partial, 10 awaiting audit, 1 research and 0 fully accepted
+areas. No new production migration or rollout is claimed.
+
+Implemented locally:
+
+- Separate independently reviewed activation template and assignment UI. Exact
+  source eligibility and activation PUT require current activation plus enrollment
+  grants, original workspace and an active independently reviewed Staff/login actor.
+- Exact approved source consumption records immutable old/new epoch lineage.
+  Staff transition, generation receipt, IAM employment basis/history, audit and
+  enrollment outbox commit together. Exact retry preserves the receipt; changed
+  intent or second consumption conflicts. Audit/outbox fault injection rolls back.
+- Private identity counters on person findings and employment reviews prevent
+  changed/restored identity from laundering historical approval. Historical findings
+  retain unknown provenance. Contact edits preserve counters and profile rows.
+- Fresh digital login links and scoped assignment proposals bind the generation.
+  Stale/unbound authority denies once a current basis exists; non-digital workers
+  cannot obtain a fallback login. Legacy role elevation on bound employment returns
+  `409 employment_scope_required`. Activation grants no membership, login or role.
+- Activation UI requires a reason and explicit examination; freezes uncertain
+  commands for exact retry; displays effective dates in UTC and a verified receipt.
+- `WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED` defaults to false. Both new activation
+  endpoints return authenticated `503 employment_activation_unavailable` while
+  disabled. Existing generation authorization enforcement is never disabled by it.
+
+Candidate migrations are `0022_iam_employment_activation_templates`,
+`0023_iam_employment_bases` and `0066_workforce_employment_generations`. They are
+forward-only and retained with their owners; do not remove immutable evidence on
+rollback. All three have now been applied to the local-only browser QA database.
+
+Recorded checks: 548 API tests across 71 files; 1,351 shell tests across 167
+files; 12 focused activation/review UI tests after lint corrections; API/shell
+typechecks; contractdocs generation/check; backend build/vet; API/shell lint and
+scoped Go lint (zero issues); shell production build. Full IAM race passed in
+365.913s and signed Global API race in 123.458s. Tenantdb race rerun inside the
+test VM passed in 16.443s; full Workforce VM race passed in 434.152s.
+The first broad backend attempt hit a host port collision with an unrelated local
+app before tenantdb assertions; it is not passing evidence. Raw logs remain in the
+private reviewer-acceptance directory outside Git.
+
+Local non-digital browser acceptance now passes independent person and terms
+approval, explicit workspace-role switching, required reason/examination, activation
+receipt, reopen/consumed refusal and immediate private-data cutoff on activation
+assignment withdrawal. Owner reads confirm active Staff v2/epoch2. Submission
+setup used a separate synthetic API fixture over prior UI-created applicant,
+terms and released evidence; this is not a claim that every record was UI-created.
+See the [activation QA matrix](2026-11-01-employment-activation-acceptance.md).
+
+Remaining acceptance: digital recipient and fully UI-created source activation,
+deterministic lock-order races, explicit legacy/governance cohorts, external-read
+and every affected consumer cutoff, suspension/exit/contract-expiry/rehire journeys.
+The release flag must remain off in production until these gates pass. See the
+[delivery plan](../superpowers/plans/2026-11-01-staff-operational-activation.md).
+
 ## Reviewer workspace deployed — 2026-11-01
 
 The approved `7e5b7800` rollout and all four Workforce migrations completed through

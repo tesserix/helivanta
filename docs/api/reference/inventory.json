@@ -79,6 +79,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/employment-activation-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/employment-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
@@ -457,6 +466,20 @@
           "id": "0021_iam_employment_templates",
           "sql_sha256": "cd2a45df4a99a7a0c33da6429548fb5695e5ad5b8ed5f04d34bcc5f14b554813",
           "creates_tables": []
+        },
+        {
+          "id": "0022_iam_employment_activation_templates",
+          "sql_sha256": "2c545bc4327457698ec9eb5537a0c7a2ebd1a428298a851050dd41df7ce0245b",
+          "creates_tables": []
+        },
+        {
+          "id": "0023_iam_employment_bases",
+          "sql_sha256": "f353f764ad62cc2d644d77cda7d0c0f793cf0769b73fccdab73f923f584a58d2",
+          "creates_tables": [
+            "iam_employment_bases",
+            "iam_employment_basis_history",
+            "iam_assignment_employment_bases"
+          ]
         }
       ]
     },
@@ -7637,6 +7660,15 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-activations/:activation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
@@ -7764,6 +7796,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -8165,6 +8206,10 @@
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.employment.activate",
+          "roles": []
+        },
         {
           "permission": "workforce.employment.review",
           "roles": []
@@ -9122,6 +9167,15 @@
                 }
               ]
             }
+          ]
+        },
+        {
+          "id": "0066_workforce_employment_generations",
+          "sql_sha256": "7599999dce4d5a34cdf515a03e0a6a5b2e1148c0ac53fff210c130a5d43e4e88",
+          "creates_tables": [
+            "workforce_identity_epochs",
+            "workforce_employment_review_cohorts",
+            "workforce_employment_generations"
           ]
         }
       ]

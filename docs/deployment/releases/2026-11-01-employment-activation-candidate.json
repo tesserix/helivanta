@@ -1,0 +1,41 @@
+{
+  "status": "release preparation; not deployed",
+  "production_baseline": "7e5b7800b88f60a2579f6bacfd2f8dc23ea571ca",
+  "baseline_ledger_count": 197,
+  "expected_ledger_count": 200,
+  "activation_enabled": false,
+  "required_environment": {
+    "WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED": "false"
+  },
+  "new_migrations": [
+    {
+      "module": "iam",
+      "id": "0022_iam_employment_activation_templates",
+      "sql_sha256": "2c545bc4327457698ec9eb5537a0c7a2ebd1a428298a851050dd41df7ce0245b",
+      "creates_tables": []
+    },
+    {
+      "module": "iam",
+      "id": "0023_iam_employment_bases",
+      "sql_sha256": "f353f764ad62cc2d644d77cda7d0c0f793cf0769b73fccdab73f923f584a58d2",
+      "creates_tables": [
+        "iam_employment_bases",
+        "iam_employment_basis_history",
+        "iam_assignment_employment_bases"
+      ]
+    },
+    {
+      "module": "workforce",
+      "id": "0066_workforce_employment_generations",
+      "sql_sha256": "7599999dce4d5a34cdf515a03e0a6a5b2e1148c0ac53fff210c130a5d43e4e88",
+      "creates_tables": [
+        "workforce_identity_epochs",
+        "workforce_employment_review_cohorts",
+        "workforce_employment_generations"
+      ]
+    }
+  ],
+  "approval_scope": "Exact merged revision and these three forward-only migrations; no production operational grants or enablement",
+  "rollback": "Retain additive schema and immutable receipts; a live rollback or schema removal requires separately named approval and owner assessment",
+  "acceptance": "Operational activation remains incomplete until browser digital recipient, lock races, legacy/governance and all consumer/lifecycle cutoffs pass"
+}

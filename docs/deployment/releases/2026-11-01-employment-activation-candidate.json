@@ -1,5 +1,5 @@
 {
-  "status": "release preparation; not deployed",
+  "status": "deployed and verified; employment activation remains off",
   "production_baseline": "7e5b7800b88f60a2579f6bacfd2f8dc23ea571ca",
   "baseline_ledger_count": 197,
   "expected_ledger_count": 201,
@@ -41,7 +41,25 @@
       "creates_tables": []
     }
   ],
-  "approval_scope": "Exact merged revision and these four forward-only migrations; no production operational grants or enablement",
+  "approval_scope": "User approved this exact deployed revision and all four listed forward-only migrations; no production operational grants or activation enablement",
   "rollback": "Retain additive schema and immutable receipts; a live rollback or schema removal requires separately named approval and owner assessment",
-  "acceptance": "Operational activation remains incomplete until browser digital recipient, lock races, legacy/governance and all consumer/lifecycle cutoffs pass"
+  "acceptance": "Operational activation remains incomplete until browser digital recipient, lock races, legacy/governance and all consumer/lifecycle cutoffs pass",
+  "deployed_revision": "02b1e2b7e5a0fb9fa1fdbc65e449ca322cfda56a",
+  "verified_ledger_count": 201,
+  "kargo_freight": "f250c430aa344725859fa7270a03681e81aec3e4",
+  "kargo_promotion": "prod.01m6bhqda9v5pd5xb3amqeh2hw.f250c43",
+  "published_digests": {
+    "api": "sha256:aea6335fcdb758f6fc9bacae0df7934504fd6b195642ad5a8ef8d4dbe0f2fdf2",
+    "shell": "sha256:e6fbbde3661c44c0d4c13c5267bf254de7157bfc484803e7ef1fa77f3d496c14"
+  },
+  "verification": {
+    "application_workloads_ready": 6,
+    "application_pods_ready": 12,
+    "application_restarts": 0,
+    "new_tables_with_forced_rls": 6,
+    "production_probe": "Normal owner UI upload \u2192 real scanner Ready \u2192 exact-byte download \u2192 revoked with audit retained",
+    "reviewer": "Fresh login; no unassigned review hospitals; directory and payroll denial verified",
+    "new_role_grants": false,
+    "employment_generations": 0
+  }
 }

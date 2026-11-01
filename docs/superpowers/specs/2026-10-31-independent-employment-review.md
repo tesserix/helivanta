@@ -241,3 +241,34 @@ normal reviewer UI. The existing data-preserving schema needs no migration or
 runtime activation; application rollback removes only the route/client surface
 and retains all employment decisions/history. Enabling operational employment
 enforcement remains subject to ADR-0049's separate unfinished activation gates.
+
+## Selected employment evidence byte-release slice — 2026-11-01
+
+Add only the selected review's `/:review/evidence/:file/content` read, with the
+same explicit preparation/reviewer projection and no generic document or legacy
+grant fallback. The current review must be pending/approved and effective under
+the existing owner state checks. Require the exact frozen binding, classification,
+file generation, scan lineage and current person/Staff basis. Unselected or foreign
+files remain invisible. This conveys no general private-document authority.
+
+Resolve and audit current authority before storage access; release the owner locks
+while reading storage. Use the existing authenticated Global API path, a five-second
+storage budget bounded by the login idle deadline, and the original object scope.
+Validate released generation, declared/actual length and both returned/actual
+SHA-256 against the authorized file. Reacquire current owner authority afterward;
+compare all scoped grants, reviewed actor link/employment epoch and frozen review/
+source/file basis against the original snapshot. A replacement assignment or link
+cannot authorize the in-flight request. Commit the sensitive download audit before
+returning private/no-store, nosniff, sandboxed attachment bytes. Provider ambiguity,
+authority loss, review ending, stale source or audit failure returns no bytes.
+
+The existing 10 MiB file maximum and 512 MiB API pod limit justify at most four
+in-flight employment-evidence buffers per process, held through response completion.
+Refuse additional admitted transfers with the existing retryable busy response,
+without an unbounded queue. This bounds payload buffers to 40 MiB per process,
+excluding provider/HTTP/GC overhead, which remains a measurement gate. Reuse the
+existing GCS released-content reader and byte-integrity primitive with person-review
+downloads rather than a new service or provider. No migration, new permission,
+storage subscription or infrastructure resource is added. The 50 peak owner
+requests/sec planning figure is not a measured worst-case byte-transfer capacity;
+load/cancellation/large-file behavior and normal reviewer UI acceptance remain open.

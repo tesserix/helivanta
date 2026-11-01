@@ -32,6 +32,14 @@ permission, schema or screen exists.
 
 ## Next normal-workspace implementation gates
 
+- [x] Validate the selected employment-evidence byte-release API/SDK slice locally:
+      current exact scoped authority and frozen basis before/after storage,
+      released generation/length/raw hash, actor/assignment replacement and review
+      ending cutoff, audit failure without bytes, bounded transfer admission,
+      bounded client streams and cancellation. Reuse the person-review integrity
+      primitive, with regression and real-browser checks for that existing
+      consumer. No schema, new grant or migration is part of this slice.
+
 - [x] Validate the selected-review history API/SDK slice locally: current scoped HR-intake or
       employment-review authority on every page, immutable original terms and
       selected evidence metadata, original workspace assertions, bounded cursor
@@ -43,8 +51,8 @@ permission, schema or screen exists.
       key bounds each legal review to at most three receipts. The normal
       reviewer UI, discovery, selection and protected bytes remain separate gates.
 
-- [ ] Add the signed missing-route regression for selected employment-evidence
-      bytes. Use the frozen binding ID under its review, recheck current original
+- [x] Add the signed missing-route regression for selected employment-evidence
+      bytes. Use the selected document ID under its frozen review binding, recheck current original
       permission/assignment, actor link/epoch, review revision, target source and
       exact released-file lineage across storage I/O. Review authority must not
       release the person finding's identity-file bytes or arbitrary Staff files.

@@ -2,6 +2,46 @@
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
+## Protected selected employment-evidence candidate
+
+The local candidate adds
+`GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content`.
+Exactly one explicit `hr_intake=v1` or `employment_review=v1` projection and the
+original tenant/subject assertions are required. Paging and unknown query fields
+are refused. Both phases resolve current compound HR-intake or separate scoped
+employment-review authority and a reviewed active actor link, without generic
+document permission or legacy fallback. Only a selected file in a currently
+effective pending/approved frozen review is eligible. The existing current
+person, Staff, terms, classification, binding and complete-provenance checks apply.
+
+The owner commits authorization audit and releases database locks before the
+five-second, login-idle-bounded GCS read. Released generation, metadata/actual
+length and metadata/actual SHA-256 must match the authorized file. A second
+transaction rechecks the original grants, actor link/employment epoch and frozen
+source/review/file basis and commits attributable release audit before returning
+any bytes. Assignment/link replacement, review ending, unavailable person/source
+or changed file cannot authorize an in-flight request. The existing `downloaded`
+audit denotes authorization to release bytes, not proof of client delivery.
+
+Return 400 for invalid projection/query, 403 for lost authority, 404 for an
+invisible/unselected file, 409 for unavailable or changed review/evidence, 503 for
+provider/authority uncertainty or full transfer admission, and 500 for an
+unclassified persistence failure such as failed release audit. These failures
+return no file bytes. Owner responses are private/no-store attachments with
+nosniff and sandbox headers; Global API normalizes cache policy to `no-store`.
+No storage URL or redirect is returned. Four transfers per owner-handler process
+bound in-flight payload buffers to 40 MiB under the existing 10 MiB file maximum;
+provider/HTTP/GC overhead and load remain measurement gates, not a capacity claim.
+
+The typed `downloadEmploymentReviewEvidence` consumer validates the canonical
+owned current view and selected file before dispatch and preserves the original
+workspace and cancellation signal. A shared person/employment byte validator
+checks MIME and declared length, streams into one bounded authorized-size buffer,
+cancels overflow, verifies raw length/hash, and discards cancelled responses before
+creating a Blob. No new schema, permission or migration is added. This API/SDK
+slice does not implement employment-review discovery/inbox, preparation selection,
+normal reviewer UI acceptance or operational activation and is not deployed here.
+
 ## Protected employment-review history candidate
 
 The local candidate adds

@@ -90,6 +90,37 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		gateway.ServeHTTP(w, r)
 		return w
 	}
+	pausedDownload := func(t *testing.T, contentPath string, mutate func()) *httptest.ResponseRecorder {
+		t.Helper()
+		paused, resume := make(chan struct{}), make(chan struct{})
+		release := sync.OnceFunc(func() { close(resume) })
+		defer release()
+		cloud.AfterReleasedRead(func() { close(paused); <-resume })
+		defer cloud.AfterReleasedRead(nil)
+		response := make(chan *httptest.ResponseRecorder, 1)
+		go func() { response <- request("GET", contentPath, reviewer, nil, "application/json") }()
+		select {
+		case <-paused:
+		case result := <-response:
+			t.Fatalf("download ended before the storage pause: status %d", result.Code)
+		case <-time.After(5 * time.Second):
+			t.Fatal("download did not reach the storage boundary")
+		}
+		mutate()
+		select {
+		case result := <-response:
+			t.Fatalf("download ended before the authority mutation completed: status %d", result.Code)
+		default:
+		}
+		release()
+		select {
+		case result := <-response:
+			return result
+		case <-time.After(5 * time.Second):
+			t.Fatal("download did not finish after releasing storage")
+			return nil
+		}
+	}
 	call := func(t *testing.T, method, path, subject string, input any, status int) map[string]any {
 		t.Helper()
 		var body []byte
@@ -1043,6 +1074,118 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			clear()
 			require.Equal(t, history, call(t, "GET", historyPath, reviewer, nil, 200))
 		})
+		evidenceDownloads := func(t *testing.T, id string) int64 {
+			t.Helper()
+			var n int64
+			require.NoError(t, withSubmission(id, func(tx *gorm.DB) error {
+				return tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_review.evidence.downloaded'", testutil.TenantA, hospital, id).Count(&n).Error
+			}))
+			return n
+		}
+		t.Run("selected employment evidence uses protected current authority and verified bytes", func(t *testing.T) {
+			contentPath := approvalPath + "/evidence/" + employmentFile + "/content"
+			for subject, mode := range map[string]string{reviewer: "employment_review", manager: "hr_intake"} {
+				response := request("GET", contentPath+"?"+mode+"=v1", subject, nil, "application/json")
+				require.Equal(t, 200, response.Code, response.Body.String())
+				require.Equal(t, imageBytes.Bytes(), response.Body.Bytes())
+				require.Contains(t, response.Header().Get("Cache-Control"), "no-store")
+				require.NotContains(t, response.Header().Get("Cache-Control"), "public")
+				require.Equal(t, "nosniff", response.Header().Get("X-Content-Type-Options"))
+				require.Contains(t, response.Header().Get("Content-Disposition"), "synthetic-appointment.png")
+			}
+			call(t, "GET", contentPath+"?employment_review=v1", maker, nil, 403)
+			call(t, "GET", contentPath+"?employment_review=v1&hr_intake=v1", reviewer, nil, 400)
+			call(t, "GET", contentPath+"?employment_review=v1&limit=1", reviewer, nil, 400)
+			call(t, "GET", approvalPath+"/evidence/"+file+"/content?employment_review=v1", reviewer, nil, 404)
+			cloud.DenyReads(true)
+			defer cloud.DenyReads(false)
+			call(t, "GET", contentPath+"?employment_review=v1", reviewer, nil, 503)
+			cloud.DenyReads(false)
+			corrupted := bytes.Clone(imageBytes.Bytes())
+			corrupted[len(corrupted)-1] ^= 1
+			cloud.CorruptReleased(corrupted)
+			defer cloud.CorruptReleased(imageBytes.Bytes())
+			call(t, "GET", contentPath+"?employment_review=v1", reviewer, nil, 503)
+			cloud.CorruptReleased(imageBytes.Bytes())
+		})
+		t.Run("employment transfers have bounded admission without retaining owner locks over storage", func(t *testing.T) {
+			paused, resume := make(chan struct{}, 1), make(chan struct{})
+			release := sync.OnceFunc(func() { close(resume) })
+			defer release()
+			defer cloud.AfterReleasedRead(nil)
+			responses := make(chan *httptest.ResponseRecorder, 4)
+			contentPath := approvalPath + "/evidence/" + employmentFile + "/content?employment_review=v1"
+			for range 4 {
+				cloud.AfterReleasedRead(func() { paused <- struct{}{}; <-resume })
+				go func() { responses <- request("GET", contentPath, reviewer, nil, "application/json") }()
+				select {
+				case <-paused:
+				case response := <-responses:
+					t.Fatalf("transfer ended before the storage barrier: %d", response.Code)
+				case <-time.After(5 * time.Second):
+					t.Fatal("transfer did not release the owner transaction before storage")
+				}
+			}
+			call(t, "GET", contentPath, reviewer, nil, 503)
+			release()
+			for range 4 {
+				select {
+				case response := <-responses:
+					require.Equal(t, 200, response.Code, response.Body.String())
+					require.Equal(t, imageBytes.Bytes(), response.Body.Bytes())
+				case <-time.After(5 * time.Second):
+					t.Fatal("admitted transfer did not finish after storage resumed")
+				}
+			}
+			response := request("GET", contentPath, reviewer, nil, "application/json")
+			require.Equal(t, 200, response.Code, "completed transfers release admission capacity")
+		})
+		t.Run("employment completion audit failure withholds bytes and its receipt", func(t *testing.T) {
+			before := evidenceDownloads(t, approvalID)
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_byte_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION test_employment_byte_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='workforce.employment_review.evidence.downloaded' THEN RAISE EXCEPTION 'synthetic download audit failure'; END IF; RETURN NEW; END $$;CREATE TRIGGER test_employment_byte_fault BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION test_employment_byte_fault()`}}))
+			clear := func() {
+				t.Helper()
+				cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				require.NoError(t, db.Migrate(cleanup, []tenantdb.Migration{{ID: "test_employment_byte_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP FUNCTION IF EXISTS test_employment_byte_fault() CASCADE`}}))
+			}
+			t.Cleanup(clear)
+			call(t, "GET", approvalPath+"/evidence/"+employmentFile+"/content?employment_review=v1", reviewer, nil, 500)
+			require.Equal(t, before, evidenceDownloads(t, approvalID))
+			clear()
+		})
+		t.Run("replacement actor link cannot authorize an in-flight employment disclosure", func(t *testing.T) {
+			before := evidenceDownloads(t, approvalID)
+			contentPath := approvalPath + "/evidence/" + employmentFile + "/content?employment_review=v1"
+			response := pausedDownload(t, contentPath, func() {
+				ref := officers[reviewer]
+				call(t, "POST", ref.LinkPath+"/decision", maker, map[string]any{"expected_version": ref.LinkVersion, "decision": "revoke", "reason": "Synthetic employment disclosure actor cutoff"}, 200)
+				link := base + "/staff/" + ref.StaffID + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", link, maker, map[string]any{"subject": reviewer, "reason": "Synthetic independent actor identity recovery"}, 200)
+				linked := call(t, "POST", link+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic actor recovery"}, 200)
+				ref.LinkPath, ref.LinkVersion = link, linked["version"].(float64)
+				officers[reviewer] = ref
+			})
+			require.Equal(t, 403, response.Code, response.Body.String())
+			require.NotEqual(t, imageBytes.Bytes(), response.Body.Bytes())
+			require.Equal(t, before, evidenceDownloads(t, approvalID))
+			fresh := request("GET", contentPath, reviewer, nil, "application/json")
+			require.Equal(t, 200, fresh.Code, fresh.Body.String())
+			require.Equal(t, imageBytes.Bytes(), fresh.Body.Bytes())
+		})
+		t.Run("ending a review during storage prevents employment byte release", func(t *testing.T) {
+			id := uuid.Must(uuid.NewV7()).String()
+			racePath := staffBase + "/employment-reviews/" + id
+			intent := maps.Clone(command)
+			intent["command_id"] = uuid.Must(uuid.NewV7()).String()
+			call(t, "PUT", racePath+"?hr_intake=v1", manager, intent, 200)
+			response := pausedDownload(t, racePath+"/evidence/"+employmentFile+"/content?employment_review=v1", func() {
+				call(t, "POST", racePath+"/withdrawal?hr_intake=v1", manager, map[string]any{"expected_version": 1, "command_id": uuid.Must(uuid.NewV7()).String(), "reason": "Synthetic review ended during storage"}, 200)
+			})
+			require.Equal(t, 409, response.Code, response.Body.String())
+			require.NotEqual(t, imageBytes.Bytes(), response.Body.Bytes())
+			require.Zero(t, evidenceDownloads(t, id))
+		})
 		require.Equal(t, employmentApproved, call(t, "POST", approvalPath+"/decision?employment_review=v1", reviewer, employmentDecision, 200), "independent decision retry preserves its immutable receipt")
 		require.Equal(t, approvalPending, call(t, "PUT", approvalPath+"?hr_intake=v1", manager, approvalInput, 200), "submission replay remains the original pending receipt after a decision")
 		changedDecision := maps.Clone(employmentDecision)
@@ -1158,37 +1301,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		}))
 		return count
 	}
-	pausedDownload := func(t *testing.T, contentPath string, mutate func()) *httptest.ResponseRecorder {
-		t.Helper()
-		paused, resume := make(chan struct{}), make(chan struct{})
-		release := sync.OnceFunc(func() { close(resume) })
-		defer release()
-		cloud.AfterReleasedRead(func() { close(paused); <-resume })
-		defer cloud.AfterReleasedRead(nil)
-		response := make(chan *httptest.ResponseRecorder, 1)
-		go func() { response <- request("GET", contentPath, reviewer, nil, "application/json") }()
-		select {
-		case <-paused:
-		case result := <-response:
-			t.Fatalf("download ended before the storage pause: status %d", result.Code)
-		case <-time.After(5 * time.Second):
-			t.Fatal("download did not reach the storage boundary")
-		}
-		mutate()
-		select {
-		case result := <-response:
-			t.Fatalf("download ended before the authority mutation completed: status %d", result.Code)
-		default:
-		}
-		release()
-		select {
-		case result := <-response:
-			return result
-		case <-time.After(5 * time.Second):
-			t.Fatal("download did not finish after releasing storage")
-			return nil
-		}
-	}
+
 	require.Equal(t, int64(1), downloadAudits(t, pending["id"]), "the initial private disclosure is attributable")
 
 	t.Run("replacement assignment cannot authorize an in-flight disclosure", func(t *testing.T) {

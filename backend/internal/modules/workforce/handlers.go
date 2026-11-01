@@ -28,12 +28,13 @@ import (
 )
 
 type handlers struct {
-	scopeAuthority authz.ScopedAuthorizer
-	roles          platform.RoleLister
-	db             *tenantdb.DB
-	bus            *events.Bus
-	documents      *attachments.GCS
-	transit        *transit.Client
+	scopeAuthority          authz.ScopedAuthorizer
+	roles                   platform.RoleLister
+	db                      *tenantdb.DB
+	bus                     *events.Bus
+	documents               *attachments.GCS
+	transit                 *transit.Client
+	employmentEvidenceSlots chan struct{}
 }
 
 type hospital struct {

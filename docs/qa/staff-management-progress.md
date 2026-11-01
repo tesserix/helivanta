@@ -1,5 +1,44 @@
 # Staff Management delivery tracker
 
+## Protected employment-evidence checkpoint — 2026-11-01
+
+The selected-review byte API and typed SDK now release only a frozen employment
+file under current scoped HR-intake or independent employment-review authority.
+The owner audits before storage access, releases database locks during the bounded
+provider read, and rechecks the original actor, grants, review and source before
+an audited release. Released generation, length and raw SHA-256 must match.
+Four concurrent transfers per handler process bound payloads to 40 MiB, excluding
+runtime/provider overhead; each file remains capped at 10 MiB. The shared browser
+client reads into one authorized-size buffer and cancels overflow or cancellation.
+No permission, schema, migration or production authority changes are included.
+
+The initial signed regression observed the missing route's 404. Global API race
+(**85.215s**) and workforce race (**563.241s**) pass, covering selected-file release,
+legacy-only/wrong-mode denial, corrupt bytes/provider failure, replaced actor link,
+review withdrawal during storage, failed release audit and transfer admission.
+The architecture run initially flagged the single-file route as unclassified for
+pagination; an explicit bounded-single-file entry resolves it, and the complete
+architecture race rerun passes (**54.893s**). Contractdocs race also passes.
+API validation passes **522 tests / 67 files**, type-check and lint. The full
+shell suite passes **1,328 tests / 164 files**, its type-check and production
+build pass. The build uses explicit local build-only API/auth configuration. Go build/vet,
+affected Go lint, canonical model checks and all **15 inventory tests** pass.
+
+A normal local person-review UI download exercised the shared streamed client:
+the fresh downloaded PNG exactly matched the original bytes and checksum. This
+checks the existing person UI, not employment-review UI acceptance. The new
+employment route was exercised through the signed owner/storage protocol harness;
+the normal employment-review inbox, selectors and decision workspace remain open.
+Source classification is **11 of 721 registered surfaces**, with **710 unclassified
+and zero full cutoff acceptances**. Operational activation and lifecycle
+cutoff remain open. Whole Staff remains **10 partial, 10 awaiting audit, 1 research,
+0 fully accepted areas**. No umbrella issue is closed by this prerequisite.
+
+Production remains on the approved `b6ba32e5` release. Its rollout/evidence PR
+[#1505](https://github.com/tesserix/helivanta/pull/1505) passed required checks and
+merged. The history prerequisite PR [#1504](https://github.com/tesserix/helivanta/pull/1504)
+is merged but undeployed; the new bytes prerequisite is a separate candidate.
+
 ## Protected employment-history candidate — 2026-11-01
 
 The next bounded reviewer-workspace prerequisite adds a selected-review history
@@ -23,7 +62,7 @@ serially without weakening that timeout.
 The SDK regression first failed for the missing method and then caught inconsistent
 frozen sources across otherwise valid receipts. Canonical owned scope, order,
 uniqueness, continuation, within-page source consistency and cancellation checks
-now pass in the full API package suite (**513 tests / 35 files**), alongside its
+now pass in the full API package suite (**513 tests / 67 files**), alongside its
 type-check/lint. Workforce race tests, Go build/vet and affected Go lint pass.
 Generated contract documentation, the canonical employment model generator and
 the operational inventory are checked. No schema, SQL migration, permission or

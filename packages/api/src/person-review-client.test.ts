@@ -276,13 +276,17 @@ it("refuses stale review state and unbound files before fetching", async () => {
 
 it("does not publish bytes after workspace cancellation during the response", async () => {
   const controller = new AbortController();
-  const response = new Response(identityBytes, { headers: { "Content-Type": "image/png" } });
-  const read = response.arrayBuffer.bind(response);
-  vi.spyOn(response, "arrayBuffer").mockImplementation(async () => {
-    const bytes = await read();
-    controller.abort();
-    return bytes;
-  });
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(stream) {
+        stream.enqueue(identityBytes);
+        stream.close();
+        controller.abort();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const response = new Response(body, { headers: { "Content-Type": "image/png" } });
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => response),

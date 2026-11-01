@@ -1044,6 +1044,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/revocation` | `public` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/withdrawal` | `public` | false | false |

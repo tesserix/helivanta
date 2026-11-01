@@ -8,9 +8,9 @@ database, migration, account change or runtime activation is performed by it.
 
 ## Current source findings
 
-The checked registry contains **720 registered surfaces** across module HTTP
+The checked registry contains **721 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.
-Four MediCore encounter routes and six employment-review routes have explicit
+Four MediCore encounter routes and seven employment-review routes have explicit
 source-reviewed classifications; **710 remain unclassified**. No surface has
 complete employment-cutoff acceptance. Counts were checked on 2026-11-01 with the
 normal and strict classification commands below.
@@ -25,7 +25,7 @@ owner scope, rationale and remaining legacy/guard/signed-session/UI obligations.
 This finding is limited to those four handlers; it does not certify other
 MediCore routes or settle governance/recovery classifications.
 
-The six employment-review routes require compound scoped HR-intake
+The seven employment-review routes require compound scoped HR-intake
 preparation/document authority or the separately reviewed employment-review
 permission, plus an independently reviewed active actor link with no legacy
 fallback. Decisions/endings preserve frozen records without operational activation. Actor reviewed-employment admission remains unfinished, alongside
@@ -35,7 +35,10 @@ acceptance. Their source classifications confer no exemption or cutoff acceptanc
 The selected-review history route reuses that current authority on every page,
 with audited immutable receipts and frozen terms/evidence metadata. It grants no
 current capability, private byte release or employment activation. Its source
-classification is the tenth reviewed surface; the 710 existing unclassified
+classification was the tenth reviewed surface. Selected review-evidence release
+adds the eleventh: current exact authority and frozen basis on both sides of a
+bounded integrity-checked provider read, with audited release and no generic file
+or operational authority. The 710 existing unclassified
 surfaces still require review, and every runtime cutoff acceptance remains open.
 
 ## Inputs and checks

@@ -7750,6 +7750,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history",
           "permission": "public",
           "authentication_required": true,

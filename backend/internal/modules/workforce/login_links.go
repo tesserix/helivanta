@@ -120,6 +120,10 @@ func (h *handlers) publishLoginLink(tx *gorm.DB, p authn.Principal, hospital uui
 
 func respondLoginLinkError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
+	if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "workforce_login_generation" {
+		respond.Error(c, 409, "employment_generation_changed", "Review the current digital employment generation before creating or approving a new login link.")
+		return
+	}
 	if errors.Is(err, errLoginLinkConflict) || (errors.As(err, &pg) && pg.Code == "23505") {
 		respond.Error(c, 409, "link_conflict", "The account link changed. Refresh its history before continuing.")
 		return

@@ -301,6 +301,23 @@ Global API platform destination.
 | `POST /v1/iam/assignment-proposals/:id/decision` | `{expected_version,decision,reason}`; decision is `approve`, `reject` or `withdraw`; returns the current proposal directly                                                    |
 | `GET /v1/iam/assignment-proposals/:id/decisions` | Audited, paginated immutable command ledger with actor, reason, expected/result versions and timestamp                                                                        |
 
+The unpublished activation-assignment preparation adds
+`GET /v1/iam/employment-activation-assignment-proposals`, using the same current
+IAM administrator authority, private-read audit and bounded pagination, filtered
+to the `activation` template family. `catalog=employment-activation-v1` returns
+exactly six published template definitions. The added
+`workforce.employment_activator.v1` contains only `workforce.employment.activate`;
+IAM migration 0022 is additive. Existing three/four/five-template catalogs and
+permission bundles remain unchanged. The Staff Access UI requires exact catalog
+parity before showing the activation area. This prepares an independently
+reviewed assignment; it does not itself grant employment or operational access.
+IAM migration 0023 records current employment bases, immutable generation history
+and proposal bindings through a transaction-bound IAM owner port. Once a basis
+exists, stale/unbound assignments deny and expiry clamps to the employment basis.
+Legacy role elevation on a bound subject returns 409 `employment_scope_required`.
+Workforce activation remains disabled by default pending the acceptance gates in
+[the activation plan](../../superpowers/plans/2026-11-01-staff-operational-activation.md).
+
 All reads are `no-store`; collections use keyset pagination, default 50/max 200.
 Bodies are limited to 8 KiB, subjects to 200 characters without whitespace, NUL
 or `*#:`, and reasons to 500 characters. Validity normalizes to UTC microseconds;

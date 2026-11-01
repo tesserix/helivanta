@@ -26,6 +26,28 @@ const proposal = {
 };
 afterEach(() => vi.unstubAllGlobals());
 
+it("keeps activation assignments in their own bounded list", async () => {
+  const activation = {
+    ...proposal,
+    input: { ...input, template_key: "workforce.employment_activator.v1" },
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json({ data: [activation], page: { has_more: false, next_cursor: null } }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const result = await listStaffAssignments(
+    { tenantId, subject: "reviewer" },
+    { family: "activation" },
+  );
+  expect(result.data).toEqual([activation]);
+  expect(fetch.mock.calls[0]![0]).toContain(
+    "/api/v1/iam/employment-activation-assignment-proposals?",
+  );
+  expect(fetch.mock.calls[0]![1].cache).toBe("no-store");
+});
+
 it("binds paged assignment reads to the expected tenant without caching private data", async () => {
   const fetch = vi
     .fn()

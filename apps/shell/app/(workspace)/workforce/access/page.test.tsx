@@ -630,7 +630,7 @@ it("offers employment review separately only after its exact server catalog is v
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/iam/staff-access-templates?catalog=employment-v1"))
-        return Response.json(staffAccessTemplates);
+        return Response.json(catalogDefinitions("employment-v1"));
       if (url.includes("/iam/employment-assignment-proposals?")) return Response.json(page([]));
       return prior(url, init);
     }),
@@ -655,6 +655,79 @@ it("offers employment review separately only after its exact server catalog is v
       .mock.calls.some(([url]) => String(url).includes("/iam/employment-assignment-proposals?")),
   ).toBe(true);
 });
+it("offers separately reviewed activation assignments only from their exact catalog", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/iam/staff-access-templates?catalog=employment-activation-v1"))
+        return Response.json(catalogDefinitions("employment-activation-v1"));
+      if (url.includes("/iam/employment-activation-assignment-proposals?"))
+        return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Employment activation" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Staff employment activator");
+  expect(templates).not.toHaveTextContent("Staff employment terms reviewer");
+  expect(templates).not.toHaveTextContent("HR intake administrator");
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([url]) =>
+        String(url).includes("/iam/employment-activation-assignment-proposals?"),
+      ),
+  ).toBe(true);
+});
+
+it.each(["missing", "broader", "extra"])(
+  "does not offer activation authority from a %s catalog",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("employment-activation-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter((template) => template.family !== "activation")
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((template) =>
+              template.family === "activation"
+                ? {
+                    ...template,
+                    permissions: ["workforce.employment.activate", "workforce.payroll.approve"],
+                  }
+                : template,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/iam/staff-access-templates?catalog=employment-activation-v1"))
+          return Response.json(altered);
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByText("Employment activation assignments are unavailable in this workspace.");
+    await user.click(await screen.findByLabelText("Assignment area"));
+    expect(screen.queryByRole("option", { name: "Employment activation" })).not.toBeInTheDocument();
+  },
+);
+
 it.each(["missing", "broader", "extra"])(
   "does not offer employment authority from a %s catalog",
   async (state) => {
@@ -662,10 +735,10 @@ it.each(["missing", "broader", "extra"])(
     const prior = fetch;
     const catalog =
       state === "missing"
-        ? staffAccessTemplates.filter((template) => template.family !== "employment")
+        ? catalogDefinitions("employment-v1").filter((template) => template.family !== "employment")
         : state === "extra"
-          ? [...staffAccessTemplates, staffAccessTemplates[0]]
-          : staffAccessTemplates.map((template) =>
+          ? [...catalogDefinitions("employment-v1"), staffAccessTemplates[0]]
+          : catalogDefinitions("employment-v1").map((template) =>
               template.family === "employment"
                 ? {
                     ...template,

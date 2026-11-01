@@ -611,6 +611,21 @@
         }
       ],
       "definitions_sha256": "68691c669403def21b16ea9be76fe07470763200b56c541dc2f6eb9f893d4eb9"
+    },
+    {
+      "id": "0022_iam_employment_activation_templates",
+      "file": "assignment_employment_activation_templates_generated.sql",
+      "sql_sha256": "2c545bc4327457698ec9eb5537a0c7a2ebd1a428298a851050dd41df7ce0245b",
+      "templates": [
+        {
+          "key": "workforce.employment_activator.v1",
+          "name": "Staff employment activator",
+          "description": "Activate independently approved employment at this hospital; requires separate current enrollment authority and grants no login, clinical or payroll access.",
+          "family": "activation",
+          "permissions": ["workforce.employment.activate"]
+        }
+      ],
+      "definitions_sha256": "3201f0f52874adfe5c010baaaa5ba350fedffe3cc15f2012b5994126e6a38128"
     }
   ],
   "template_catalogs": [
@@ -643,6 +658,18 @@
         "workforce.employment_reviewer.v1"
       ],
       "definitions_sha256": "40232832c41687908a7d5ec5351d523f8d4b99d2051f8c8ff5be0b5d86f5e1a7"
+    },
+    {
+      "key": "employment-activation-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1",
+        "workforce.employment_activator.v1"
+      ],
+      "definitions_sha256": "6d07317c07cb9b6c461f16f03dbec88898d3d63a4cdbcd944198d84722965505"
     }
   ]
 }

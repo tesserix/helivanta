@@ -65,10 +65,11 @@ type Deps struct {
 	// AllergyRecordingEnabled gates recording allergy entries (#1373).
 	AllergyRecordingEnabled bool
 	// PharmacyEvidenceEnabled admits prescription page uploads (#1386 B-2a, #1406).
-	PharmacyEvidenceEnabled   bool
-	EmergencyWorkflowsEnabled bool
-	Authz                     TupleWriter
-	Roles                     RoleLister
+	PharmacyEvidenceEnabled     bool
+	EmergencyWorkflowsEnabled   bool
+	EmploymentActivationEnabled bool
+	Authz                       TupleWriter
+	Roles                       RoleLister
 	// SessionSigner re-mints the Helivanta session for the one operation that
 	// must change a caller's identity rather than read it: switching
 	// hospitals (#838, spec D3). Post-cutover this is the ONLY way a

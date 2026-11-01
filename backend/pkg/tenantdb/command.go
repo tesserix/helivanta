@@ -24,6 +24,12 @@ type guardedCommand struct {
 	active atomic.Bool
 }
 
+// GuardedCommandActive reports an active command on this owner database.
+func (d *DB) GuardedCommandActive(ctx context.Context) bool {
+	command, ok := ctx.Value(guardedCommandKey{}).(*guardedCommand)
+	return ok && command.db == d && command.active.Load()
+}
+
 // WithGuardedTenantCommand keeps authorization locks and synchronous product work
 // in one transaction. The action context must not escape the callback.
 func (d *DB) WithGuardedTenantCommand(ctx context.Context, tenant string, until time.Time, verify func(*gorm.DB) error, action func(context.Context) error) error {

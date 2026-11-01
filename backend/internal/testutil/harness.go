@@ -186,6 +186,7 @@ func (neverRevoked) RevokedAfter(context.Context, string) (time.Time, error) {
 // SessionSigner/SessionTTL explicitly, typically from
 // NewSessionSignerForTest.
 type HarnessOptions struct {
+	EmploymentActivationEnabled bool
 	ProxyClinicalCaptureEnabled bool
 	PrivacyDeadlinesEnabled     bool
 	Workflows                   client.Client
@@ -321,6 +322,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	}
 	deps := platform.Deps{
 		ScopedAuthorizer:            scopedAuthorizer,
+		EmploymentActivationEnabled: opts.EmploymentActivationEnabled,
 		ProxyClinicalCaptureEnabled: opts.ProxyClinicalCaptureEnabled,
 		PrivacyDeadlinesEnabled:     opts.PrivacyDeadlinesEnabled,
 		Workflows:                   opts.Workflows,

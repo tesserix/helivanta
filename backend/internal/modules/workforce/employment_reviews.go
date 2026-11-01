@@ -30,7 +30,8 @@ var errEmploymentReviewProvenance = errors.New("complete employment contributor 
 
 type employmentReviewRecord struct {
 	EmploymentReview
-	InputHash string `json:"-"`
+	IdentityEpoch *int64 `json:"-"`
+	InputHash     string `json:"-"`
 }
 type employmentReviewHistory struct{ EmploymentReview }
 
@@ -214,7 +215,7 @@ func loadEmploymentReview(tx *gorm.DB, p authn.Principal, hospital, staff, id, c
 	if command != uuid.Nil {
 		table = "workforce_employment_review_history"
 	}
-	query := tx.Table(table).Select(employmentReviewColumns).Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id)
+	query := tx.Table(table).Select(employmentReviewColumns+",(to_jsonb("+table+")->>'identity_epoch')::bigint AS identity_epoch").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, hospital, staff, id)
 	if command != uuid.Nil {
 		query = query.Where("revision_id=?", command)
 	} else {

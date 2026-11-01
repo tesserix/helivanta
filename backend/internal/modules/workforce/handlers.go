@@ -28,13 +28,14 @@ import (
 )
 
 type handlers struct {
-	scopeAuthority          authz.ScopedAuthorizer
-	roles                   platform.RoleLister
-	db                      *tenantdb.DB
-	bus                     *events.Bus
-	documents               *attachments.GCS
-	transit                 *transit.Client
-	employmentEvidenceSlots chan struct{}
+	employmentActivationEnabled bool
+	scopeAuthority              authz.ScopedAuthorizer
+	roles                       platform.RoleLister
+	db                          *tenantdb.DB
+	bus                         *events.Bus
+	documents                   *attachments.GCS
+	transit                     *transit.Client
+	employmentEvidenceSlots     chan struct{}
 }
 
 type hospital struct {
@@ -155,6 +156,11 @@ func (h *handlers) transaction(ctx context.Context, p authn.Principal, hospital 
 	return h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
 		if err := tx.Exec(`SELECT set_config('app.workforce_subject', ?, true), set_config('app.workforce_hospital', ?, true)`, p.Subject, hospital.String()).Error; err != nil {
 			return err
+		}
+		if h.db.GuardedCommandActive(ctx) {
+			if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, hospital).Error; err != nil {
+				return err
+			}
 		}
 		return fn(tx)
 	})

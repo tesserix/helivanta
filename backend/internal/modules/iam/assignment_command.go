@@ -18,6 +18,10 @@ func (h *assignmentAuthority) WithScopeGrant(ctx context.Context, r authz.ScopeR
 }
 
 func (h *assignmentAuthority) WithScopeGrants(ctx context.Context, checks []authz.ScopeCheck, authTime time.Time, action func(context.Context) error) error {
+	return h.withScopeGrants(ctx, checks, authTime, false, action)
+}
+
+func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []authz.ScopeCheck, authTime time.Time, exclusive bool, action func(context.Context) error) error {
 	if h.db == nil || h.graph == nil || action == nil || authTime.IsZero() || !validScopeChecks(checks) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
@@ -36,6 +40,13 @@ func (h *assignmentAuthority) WithScopeGrants(ctx context.Context, checks []auth
 	}()
 	until, _ := ctx.Deadline()
 	err := h.db.WithGuardedTenantCommand(ctx, r.TenantID, until, func(tx *gorm.DB) error {
+		basisLock := "SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))"
+		if exclusive {
+			basisLock = "SELECT pg_advisory_xact_lock(hashtextextended(?,0))"
+		}
+		if err := tx.Exec(basisLock, "iam.employment:"+r.TenantID+":"+r.HospitalID).Error; err != nil {
+			return err
+		}
 		// The subject lock also covers the absence of a revocation watermark row.
 		if err := tx.Exec(`SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))`, "iam.credential:"+r.Subject).Error; err != nil {
 			return err
@@ -141,7 +152,7 @@ func currentScopeChecks(tx *gorm.DB, checks []authz.ScopeCheck) (time.Time, erro
 	for _, check := range checks {
 		var current []struct{ ExpiresAt time.Time }
 		grant := check.Grant
-		if err := authorityCandidates(tx, check.Request).Select("s.expires_at").Where("s.id=? AND s.version=? AND s.membership_epoch=? AND q.epoch=?", grant.AssignmentID, grant.Version, grant.MembershipEpoch, grant.ScopeEpoch).Find(&current).Error; err != nil {
+		if err := authorityCandidates(tx, check.Request).Select("LEAST(s.expires_at,COALESCE((SELECT b.valid_until FROM iam_employment_bases b WHERE b.tenant_id=s.tenant_id AND b.hospital_id=s.hospital_id AND b.subject=s.subject),s.expires_at)) AS expires_at").Where("s.id=? AND s.version=? AND s.membership_epoch=? AND q.epoch=?", grant.AssignmentID, grant.Version, grant.MembershipEpoch, grant.ScopeEpoch).Find(&current).Error; err != nil {
 			return time.Time{}, err
 		}
 		if len(current) != 1 {

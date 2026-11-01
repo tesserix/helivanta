@@ -123,8 +123,10 @@ function Assignments({ identity }: { identity: Identity }) {
   const [family, setFamily] = useState<StaffAssignmentFamily>("leave");
   const catalog = useVerifiedStaffCatalog(scope, "hr-intake-v1");
   const employmentCatalog = useVerifiedStaffCatalog(scope, "employment-v1");
+  const activationCatalog = useVerifiedStaffCatalog(scope, "employment-activation-v1");
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
+  const activationSupported = activationCatalog.supported;
   const records = useStaffAssignments(scope, family);
   const [proposing, setProposing] = useState(false);
   const [renewal, setRenewal] = useState<StaffAssignment | undefined>();
@@ -137,7 +139,9 @@ function Assignments({ identity }: { identity: Identity }) {
   const manage = identity.data.includes("iam.assignment.manage");
   const review = identity.data.includes("iam.assignment.review");
   const catalogBlocked =
-    (family === "intake" && !intakeSupported) || (family === "employment" && !employmentSupported);
+    (family === "intake" && !intakeSupported) ||
+    (family === "employment" && !employmentSupported) ||
+    (family === "activation" && !activationSupported);
   return (
     <Panel className="space-y-4">
       <p>
@@ -147,7 +151,9 @@ function Assignments({ identity }: { identity: Identity }) {
             ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
             : family === "employment"
               ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
-              : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
+              : family === "activation"
+                ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
+                : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
@@ -173,6 +179,9 @@ function Assignments({ identity }: { identity: Identity }) {
             ...(employmentSupported || family === "employment"
               ? [{ value: "employment", label: "Employment terms review" }]
               : []),
+            ...(activationSupported || family === "activation"
+              ? [{ value: "activation", label: "Employment activation" }]
+              : []),
           ]}
         />
       </Field>
@@ -191,6 +200,13 @@ function Assignments({ identity }: { identity: Identity }) {
             : ""}
       </p>
       <div className="flex flex-wrap gap-2">
+        <p aria-live="polite" className="w-full text-sm text-muted-foreground">
+          {activationCatalog.isPending
+            ? "Checking employment activation assignments…"
+            : !activationSupported
+              ? "Employment activation assignments are unavailable in this workspace."
+              : ""}
+        </p>
         <Button
           variant="outline"
           disabled={records.isFetching}
@@ -198,6 +214,7 @@ function Assignments({ identity }: { identity: Identity }) {
             void records.refetch();
             void catalog.refetch();
             void employmentCatalog.refetch();
+            void activationCatalog.refetch();
           }}
         >
           Refresh assignments

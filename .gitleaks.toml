@@ -38,4 +38,6 @@ regexes = [
   # which digit the fixture happens to use, not by construction.
   '''^1{8}-1{4}-1{4}-1{4}-1{12}$''',
   '''^ref_9876543210_x$''',
+  # Public versioned permission-catalog identifier, not a credential.
+  '''^employment-activation-v1$''',
 ]

@@ -349,6 +349,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source":                            "one minimized eligibility receipt for one exact approved employment review, with no collection or evidence payload",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content":                       "one frozen review-selected file capped at 10 MiB, with generation and authority rechecked before release",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review":                                              "one private immutable pending submission and current state; its exact evidence child set is constrained to one through twenty at commit and cannot be extended later",
 	"GET /workforce/hospitals/:hospital/staff/:id/person-reviews/:review":                                                  "one private person-review receipt and current effectiveness; its frozen evidence is bounded to ten files and history is cursor-paginated",

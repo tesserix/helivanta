@@ -33,7 +33,7 @@ func authorityCandidates(tx *gorm.DB, r authz.ScopeRequest) *gorm.DB {
 		Joins("JOIN iam_assignment_proposals p ON p.tenant_id=s.tenant_id AND p.id=s.id AND p.version=s.version+1 AND p.status='active' AND p.membership_epoch=s.membership_epoch").
 		Joins("JOIN iam_subject_membership_epochs m ON m.tenant_id=s.tenant_id AND m.subject=s.subject AND m.epoch=s.membership_epoch AND m.member_count>0").
 		Joins("JOIN iam_assignment_scope_epochs q ON q.tenant_id=s.tenant_id AND q.hospital_id=s.hospital_id AND q.subject=s.subject AND q.epoch=q.acknowledged_epoch").
-		Where("s.tenant_id=? AND s.hospital_id=? AND s.subject=? AND s.valid_from<=clock_timestamp() AND s.expires_at>clock_timestamp() AND s.permissions @> jsonb_build_array(?::text)", r.TenantID, r.HospitalID, r.Subject, string(r.Permission))
+		Where("s.tenant_id=? AND s.hospital_id=? AND s.subject=? AND s.valid_from<=clock_timestamp() AND s.expires_at>clock_timestamp() AND s.permissions @> jsonb_build_array(?::text)", r.TenantID, r.HospitalID, r.Subject, string(r.Permission)).Where(`NOT EXISTS(SELECT 1 FROM iam_employment_bases b WHERE b.tenant_id=s.tenant_id AND b.hospital_id=s.hospital_id AND b.subject=s.subject AND (b.valid_until<=clock_timestamp() OR NOT EXISTS(SELECT 1 FROM iam_assignment_employment_bases e WHERE e.tenant_id=s.tenant_id AND e.proposal_id=s.id AND e.generation_id=b.generation_id)))`)
 }
 
 func (h *assignmentAuthority) AuthorizeScope(ctx context.Context, r authz.ScopeRequest) (authz.ScopeGrant, error) {

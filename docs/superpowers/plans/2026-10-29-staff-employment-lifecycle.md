@@ -53,7 +53,7 @@ effective authority/closure, not merely adding a dropdown option.
 - [x] Add source-pinned classifications for the four directly inspected MediCore
       encounter handlers; record missing reviewed-employment cutoff as remaining
       work rather than runtime acceptance.
-- [ ] Complete the other 695 registered source classifications and trace the
+- [ ] Complete the remaining 710 registered source classifications and trace the
       separately wired background/Temporal/external execution paths.
 - [ ] Implement reviewed employment and every consumer cutoff with normal
       Admin/reviewer/recipient UI and signed-session boundary proof. The ledger
@@ -73,14 +73,16 @@ effective authority/closure, not merely adding a dropdown option.
 - [x] Finish current-source full owner/arch/lint validation after that fix.
       Workforce/Global API/arch/contractdocs race, vet/build/lint and generated
       checks pass; real-provider/browser acceptance remains separately open.
-- [ ] Consume exact frozen terms/evidence/person-review contributors in the
+- [x] Locally verify consumption of exact frozen terms/evidence/person-review contributors in the
       separate independently reviewed employment submission/decision workflow.
       Contributor capture alone neither approves employment nor closes A01–A12.
 
 The immutable submission/decision candidate is specified in
 [independent employment review](../specs/2026-10-31-independent-employment-review.md)
 and [its delivery plan](2026-10-31-independent-employment-review.md). Source now includes Workforce 0060/0061 and IAM 0021 with signed API/SQL/SDK
-checks and separate reviewer-assignment UI. This does not establish normal review
-workspace/browser acceptance, operational activation or complete A01–A12. The
-current ledger has 704 registered surfaces, nine source classifications and zero
-complete employment-cutoff acceptances.
+checks and separate reviewer-assignment UI. Local non-digital preparer/reviewer/scanner workspace acceptance is now recorded
+in the [workspace matrix](../../qa/2026-11-01-employment-review-ui-acceptance.md).
+Digital recipient provisioning, production rollout, operational activation and
+complete A01–A12 acceptance remain open. The current ledger has 724 registered
+surfaces, 14 source classifications, 710 unclassified surfaces and zero complete
+employment-cutoff acceptances.

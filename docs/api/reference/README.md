@@ -859,8 +859,10 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 | Method | Path | Permission | Cursor pagination | Page total |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `workforce.attendance.configure` | false | false |
@@ -1043,6 +1045,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history` | `public` | true | false |
@@ -1183,6 +1186,8 @@ Migration table declarations:
 - `0055_workforce_person_provenance_index`: concurrent index `workforce_person_source_provenance` on `workforce_audit (tenant_id, hospital_id, resource_id, action, actor_subject)`.
 - `0057_workforce_person_review_inbox_index`: concurrent index `workforce_person_review_inbox` on `workforce_person_reviews (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
 - `0060_workforce_employment_review_submissions`: `workforce_employment_reviews`, `workforce_employment_review_history`, `workforce_employment_review_evidence`, `workforce_employment_review_contributors`.
+- `0063_workforce_employment_review_inbox_index`: concurrent index `workforce_employment_review_inbox` on `workforce_employment_reviews (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
+- `0065_workforce_employment_finding_selection_index`: concurrent index `workforce_employment_person_selection` on `workforce_person_reviews (tenant_id, hospital_id, staff_id, status, created_at DESC, id DESC)`.
 
 ## workspace
 

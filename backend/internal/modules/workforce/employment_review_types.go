@@ -92,3 +92,42 @@ type EmploymentReviewActionInput struct {
 	ExpectedVersion *int64    `json:"expected_version"`
 	Reason          string    `json:"reason"`
 }
+
+type EmploymentReviewHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+	CanSubmit  bool      `json:"can_submit"`
+	CanReview  bool      `json:"can_review"`
+}
+
+type EmploymentReviewSummary struct {
+	ID           uuid.UUID `json:"id"`
+	HospitalID   uuid.UUID `json:"hospital_id"`
+	StaffID      uuid.UUID `json:"staff_id"`
+	EmployeeCode string    `json:"employee_code"`
+	DisplayName  string    `json:"display_name"`
+	Status       string    `json:"status"`
+	Version      int64     `json:"version"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type EmploymentPersonFindingSearchInput struct {
+	StaffVersion    *int64 `json:"staff_version"`
+	EmploymentEpoch *int64 `json:"employment_epoch"`
+}
+
+type EmploymentPersonFindingOption struct {
+	ID               uuid.UUID `json:"id"`
+	RevisionID       uuid.UUID `json:"revision_id"`
+	HospitalID       uuid.UUID `json:"hospital_id"`
+	StaffID          uuid.UUID `json:"staff_id"`
+	Version          int64     `json:"version"`
+	EmploymentEpoch  int64     `json:"employment_epoch"`
+	IdentityHash     string    `json:"identity_hash"`
+	PolicyReference  string    `json:"policy_reference"`
+	FindingReference string    `json:"finding_reference"`
+	ValidUntil       time.Time `json:"valid_until"`
+	AccessIntent     string    `json:"access_intent"`
+	DeclaredSubject  string    `json:"declared_subject"`
+	CreatedAt        time.Time `json:"created_at"`
+}

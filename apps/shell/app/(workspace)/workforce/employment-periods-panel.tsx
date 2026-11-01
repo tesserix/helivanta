@@ -323,6 +323,7 @@ export function StaffEmploymentPeriods({
                   key={`${row.id}:${row.version}`}
                   scope={{ ...scope, periodId: row.id, periodVersion: row.version }}
                   onContextChanged={loseAccess}
+                  terms={row}
                   staffVersion={row.staff_version}
                   canAttach={
                     row.status === "draft" &&

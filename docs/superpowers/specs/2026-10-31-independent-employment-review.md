@@ -1,10 +1,11 @@
 # Independent employment terms review
 
-Status: immutable submission/read and independent-decision backend/SDK candidate
-implemented locally, with separate scoped reviewer assignment setup. Review
-workspace/protected bytes, operational activation and full acceptance remain open.
-No deployment or normal-browser/provider acceptance is claimed. Continues
-A01–A12, #1035/#417 and [ADR-0049](../../adr/0049-reviewed-employment-access.md).
+Status: owner/SDK and the normal non-digital preparer/reviewer workspace are
+implemented and locally verified. The [workspace acceptance matrix](../../qa/2026-11-01-employment-review-ui-acceptance.md)
+records real local scanner/provider/browser evidence and its limits. Production
+workspace rollout, digital-recipient provisioning, operational activation and
+full lifecycle acceptance remain open. Continues A01–A12, #1035/#417 and
+[ADR-0049](../../adr/0049-reviewed-employment-access.md).
 The [employment lifecycle design](2026-10-29-reviewed-employment-periods.md),
 [current-person review design](2026-10-31-pre-employment-person-review.md) and
 [consumer inventory](../../qa/staff-operational-access-inventory.md) remain
@@ -23,7 +24,7 @@ ends reviewed terms; no operational activation consumes them yet. Identity revie
 Migration 0059's contributor/creation-capture candidate supplies the missing
 employment-evidence provenance and refuses incomplete historical identity-file
 provenance. It does not freeze employment submissions or create review authority.
-The existing local QA API/database have not received that upgrade. Existing
+The local QA API/database now include that forward migration. Existing
 approved person findings are inputs, never proof of approved employment or login.
 
 Workforce owns the records, selected evidence, contributors, review receipts and
@@ -272,3 +273,33 @@ downloads rather than a new service or provider. No migration, new permission,
 storage subscription or infrastructure resource is added. The 50 peak owner
 requests/sec planning figure is not a measured worst-case byte-transfer capacity;
 load/cancellation/large-file behavior and normal reviewer UI acceptance remain open.
+
+## Normal workspace discovery and inbox
+
+The workforce owner exposes hospital discovery under the verified caller's active,
+reviewed Staff/login link. `GET /workforce/employment-review-scopes` scans at most
+20 candidates, retaining opaque continuation through empty filtered pages. Its
+`can_submit` requires both current scoped enrollment/document management grants;
+`can_review` requires the separately reviewed employment-review grant. Every
+returned capability is guarded and audited. These flags never grant a command.
+The discovery path uses the existing five-second/idle-deadline budget and four
+parallel hospital checks. Platform sizing assumptions remain 1,000/3,000 peak RPS
+at months 12/36 across 50/150 tenants, not measured staff-discovery demand; this
+bounded synchronous projection adds no service, worker or cache. IAM/database
+uncertainty fails closed. No route latency/capacity claim is made without load QA.
+
+`GET /workforce/hospitals/:hospital/employment-review-inbox` accepts exactly one
+`hr_intake=v1` or `employment_review=v1`, an optional recorded status and canonical
+cursor/limit. It returns only the review ID, target Staff reference/name/code,
+recorded status/version and creation time. Each page rechecks original workspace,
+current scoped grants and reviewed active actor, then commits sensitive-read audit
+before disclosure. It conveys recorded state, not current approval eligibility.
+A dedicated read-only RLS context contains the hospital's review heads and their
+target Staff rows; write/check/delete authority is preserved. History and private
+bytes continue through selected-review routes and current reauthorization.
+
+The preparer selector for approved person findings is separately scoped to one
+selected Staff source. It must not expose identity evidence or grant identity
+review authority. Selection is a reference to an exact immutable reviewed basis;
+submission revalidates full current source/evidence/provenance. Normal UI/browser
+acceptance remains open until selectors and decisions are wired and exercised.

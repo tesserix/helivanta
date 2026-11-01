@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "e309d118ea6f2d86f6c4a3868bc18f216a4ee3d741a118638c9367b8c6d984ce",
+  "registry_sha256": "855c164b94fb7f460ad4320292d1ff3679087a62a44cfe94577f7ea631b6787b",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 721,
+    "total": 724,
     "unclassified": 710
   },
   "entries": [
@@ -7554,6 +7554,50 @@
       "review": null
     },
     {
+      "id": "http workforce GET /v1/workforce/employment-review-scopes",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/employment-review-scopes",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/employment-review-scopes",
+        "registration_sha256": "46cdb47d412ae4d5f87d08e9466a229c7cfe26b5f59747cf1501bb0a51b74e17",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
+        "rationale": "Guarded hospital capability discovery under the verified subject’s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
+            "symbol": "func (*Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/workforce/hr_intake.go",
+            "sha256": "579e336af862f7b3c6d0eb44f9ae27311cb4bf47f762b2a0bc4cc2ace88df726",
+            "symbol": "func (h *handlers) intakeAuthorityTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_scopes.go",
+            "sha256": "385b6c7aa3ecbd8d171021cb8723b9618071ad49f6bbdb8439301c16dfc31163",
+            "symbol": "func (h *handlers) authorizedEmploymentReviewScopes("
+          }
+        ],
+        "remaining": [
+          "Complete production and digital-recipient browser acceptance with released scanner evidence, immutable decisions/history and private-data cutoff; source review alone is not runtime acceptance.",
+          "Consume reviewed employment in explicit operational-generation admission, with separately reviewed legacy/governance/recovery cohorts before enforcement activation.",
+          "Prove every HTTP/background lifecycle cutoff for suspension, accepted exit, contractor expiry and rehire across hospitals, stale graphs and dependency failures."
+        ]
+      }
+    },
+    {
       "id": "http workforce GET /v1/workforce/hospitals",
       "kind": "http",
       "module": "workforce",
@@ -7568,6 +7612,55 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/employment-review-inbox",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/employment-review-inbox",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/employment-review-inbox",
+        "registration_sha256": "ed0c9f9ac5d852780c0c04913813537595c3c723ba92e1192248d25651154cc5",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
+        "rationale": "Every bounded recorded-state inbox page verifies original tenant/subject, current compound HR intake or independent employment-review authority and a reviewed active actor. A dedicated hospital read context admits only review heads and target Staff references, preserving explicit write checks and prior delete authority. Sensitive-read audit commits before minimal summaries are returned; recorded state is not current activation authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
+            "symbol": "func (*Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/workforce/hr_intake.go",
+            "sha256": "579e336af862f7b3c6d0eb44f9ae27311cb4bf47f762b2a0bc4cc2ace88df726",
+            "symbol": "func (h *handlers) intakeAuthorityTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_browse.go",
+            "sha256": "8bde45ac8e79db601b9ff73c4a2bf365486679ace90a084d62f02e8826a4ccc9",
+            "symbol": "func (h *handlers) listEmploymentReviewInbox("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_review_browse.sql",
+            "sha256": "79afae7ba295040dffd0eaf53fbac99ffe57eebad28c2ad42e8e701d3667716d",
+            "symbol": "CREATE FUNCTION workforce_employment_browse_context("
+          }
+        ],
+        "remaining": [
+          "Complete production and digital-recipient browser acceptance with released scanner evidence, immutable decisions/history and private-data cutoff; source review alone is not runtime acceptance.",
+          "Consume reviewed employment in explicit operational-generation admission, with separately reviewed legacy/governance/recovery cohorts before enforcement activation.",
+          "Prove every HTTP/background lifecycle cutoff for suspension, accepted exit, contractor expiry and rehire across hospitals, stale graphs and dependency failures."
+        ]
+      }
     },
     {
       "id": "http workforce GET /v1/workforce/hospitals/:hospital/hr/attendance",
@@ -9228,6 +9321,65 @@
       "review": null
     },
     {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": {
+        "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings",
+        "registration_sha256": "f57280645ede9d20f4ba39e5b79eee2334e96dbb02fa7957a2fbaff188ea70a4",
+        "authority_kind": "hospital_operational",
+        "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
+        "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding’s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/workforce/module.go",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
+            "symbol": "func (*Module) Routes("
+          },
+          {
+            "path": "backend/internal/modules/workforce/hr_intake.go",
+            "sha256": "579e336af862f7b3c6d0eb44f9ae27311cb4bf47f762b2a0bc4cc2ace88df726",
+            "symbol": "func (h *handlers) intakeAuthorityTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_finding_selection.go",
+            "sha256": "3766bf89e410d7165213dbf77bb292e557654f30ecae691c342baf57ee0b6b0d",
+            "symbol": "func (h *handlers) employmentFindingCandidates("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_finding_selection.go",
+            "sha256": "3766bf89e410d7165213dbf77bb292e557654f30ecae691c342baf57ee0b6b0d",
+            "symbol": "func (h *handlers) authorizedEmploymentFindings("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_finding_selection.sql",
+            "sha256": "42e157e3fbe7908fa41beb9cfd7fa54503338ce31a5c65e33fcf15d974ef9a42",
+            "symbol": "CREATE FUNCTION workforce_employment_finding_selection_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/employment_reviews.go",
+            "sha256": "523028b3aa405b8ff57125529df2e3239d7aa6aa97d3f9e21398fe51c27dd45b",
+            "symbol": "func employmentReviewPerson("
+          }
+        ],
+        "remaining": [
+          "Complete production and digital-recipient browser acceptance with released scanner evidence, immutable decisions/history and private-data cutoff; source review alone is not runtime acceptance.",
+          "Consume reviewed employment in explicit operational-generation admission, with separately reviewed legacy/governance/recovery cohorts before enforcement activation.",
+          "Prove every HTTP/background lifecycle cutoff for suspension, accepted exit, contractor expiry and rehire across hospitals, stale graphs and dependency failures."
+        ]
+      }
+    },
+    {
       "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review",
       "kind": "http",
       "module": "workforce",
@@ -9250,7 +9402,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9291,8 +9443,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },
@@ -9315,11 +9467,11 @@
         "registration_sha256": "2fea7a327cd7f2c5ec4a574f536c582180cdcf1285486cff0e8ea82aa6a57d9a",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "Selected private employment evidence requires current compound HR-intake or independent employment-review authority, exact original workspace and reviewed active actor link. The owner verifies effective pending/approved frozen review/person/Staff/evidence basis, audits admission, drops locks over a bounded storage read, checks exact generation/size/raw SHA-256, then reauthorizes the same grants/actor/source before auditing completion and returning private bytes. Four in-flight transfers per handler process bound buffers; no legacy or generic document fallback, presigned URL or operational activation. Operational employment admission/lifecycle cutoff and normal employment reviewer UI remain unfinished.",
+        "rationale": "Selected private employment evidence requires current compound HR-intake or independent employment-review authority, exact original workspace and reviewed active actor link. The owner verifies effective pending/approved frozen review/person/Staff/evidence basis, audits admission, drops locks over a bounded storage read, checks exact generation/size/raw SHA-256, then reauthorizes the same grants/actor/source before auditing completion and returning private bytes. Four in-flight transfers per handler process bound buffers; no legacy or generic document fallback, presigned URL or operational activation. Operational employment admission/lifecycle cutoff and production employment-reviewer acceptance remains unfinished.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9380,8 +9532,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },
@@ -9408,7 +9560,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9454,8 +9606,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },
@@ -10420,7 +10572,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10446,8 +10598,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },
@@ -10474,7 +10626,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10500,8 +10652,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },
@@ -10528,7 +10680,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10554,8 +10706,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },
@@ -11414,7 +11566,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "59908b7f1c2071743879f265fe5d1edf20aacfb3e73982c66786373331b582e9",
+            "sha256": "2627de3346d637c1bff3939d8424b37a789ce40a39a5163bc2765e85486790bb",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11445,8 +11597,8 @@
         ],
         "remaining": [
           "Introduce authoritative reviewed employment/incarnation admission for operational actors, with separately reviewed bootstrap/governance/recovery cohort semantics before enforcement activation.",
-          "Complete normal reviewer workspace/history/protected evidence, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
-          "Complete actual Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
+          "Complete production reviewer-workspace acceptance, reviewed operational generation consumption and every suspension/exit/expiry/rehire cutoff without legacy or cleanup bypasses.",
+          "Complete production Staff Admin/reviewer UI/provider/scanner acceptance and signed-session race/outage/two-hospital enforcement across all affected consumers."
         ]
       }
     },

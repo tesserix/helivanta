@@ -1,5 +1,48 @@
 # Workforce API: directory and protected enrollment
 
+## Scoped employment-review workspace candidate
+
+The normal HR preparation and independent-review workspace uses these additive
+owner routes, all through the Global API with exact original tenant/subject
+assertion headers and current reviewed active Staff/login actor checks:
+
+- `GET /v1/workforce/employment-review-scopes`: at most 20 reviewed actor-link
+  candidates per page. `can_submit` requires both scoped HR intake grants;
+  `can_review` requires the independent employment-review grant. Each capability
+  is separately guarded and audited; neither grants a subsequent command.
+- `GET /v1/workforce/hospitals/:hospital/employment-review-inbox`: exactly one
+  `hr_intake=v1` or `employment_review=v1`, optional recorded `status` from
+  pending/approved/rejected/withdrawn/revoked, and canonical cursor/limit. Minimal
+  summaries contain review/hospital/Staff IDs, Staff code/name, recorded
+  status/version and creation time, without private terms, files or reasons.
+- `GET /v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings`:
+  preparer-only `hr_intake=v1`, exact positive safe-integer `staff_version` and
+  `employment_epoch`, and optional cursor/limit capped at 20. Both guarded phases
+  pin current source and actor authority; returned approved finding options have
+  their exact receipt, source hash/epoch, policy/finding reference, validity and
+  account intent revalidated against released evidence. No identity files or
+  author profiles are returned, and identity-review authority is not granted.
+
+The filtered scope/finding scans preserve empty-page continuation; clients must
+follow the returned cursor. Inbox pages reauthorize current original authority
+and commit sensitive-read audit before returning data. The inbox and finding
+selector refuse unknown or duplicated query fields/modes with 400; scope
+discovery retains the shared pagination parser. Missing/changed workspace assertions
+with 409, denied authority with 403, invisible Staff with 404, uncertain authority
+with 503 and failed persistence/audit with 500. Finding selection with a changed
+Staff version/epoch returns 409. A recorded inbox status is distinct from current
+review effectiveness and operational activation.
+
+The UI starts preparation from a saved exact terms revision and attached released
+employment evidence, selects a current approved person finding and requires policy,
+reason, selected evidence, examination and association attestations. Independent
+decisions consume current owner capabilities, preserve exact uncertain retries,
+and clear private data after access cutoff. History and byte release retain
+separate current authorization. See the [local acceptance evidence](../qa/2026-11-01-employment-review-ui-acceptance.md).
+Four persisted forward migrations add only read contexts and concurrent indexes;
+write/delete restrictions remain. This candidate is undeployed and does not
+complete operational activation, legacy/governance migration or lifecycle cutoff.
+
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
 
 ## Protected selected employment-evidence candidate

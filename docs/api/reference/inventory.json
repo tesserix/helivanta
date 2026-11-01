@@ -6040,6 +6040,15 @@
       "source": "backend/internal/modules/workforce/module.go",
       "routes": [
         {
+          "method": "GET",
+          "path": "/v1/workforce/employment-review-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "DELETE",
           "path": "/v1/workforce/hospitals/:hospital/access/:subject",
           "permission": "workforce.hospital.manage",
@@ -6055,6 +6064,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/employment-review-inbox",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -7740,6 +7758,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision",
           "permission": "public",
@@ -9016,6 +9043,86 @@
           "id": "0061_workforce_employment_review_decisions",
           "sql_sha256": "f2ed5bab5ec7aae164e6d22511e783ad6a9ba39bd18109dbe176acb64d834056",
           "creates_tables": []
+        },
+        {
+          "id": "0062_workforce_employment_review_browse",
+          "sql_sha256": "79afae7ba295040dffd0eaf53fbac99ffe57eebad28c2ad42e8e701d3667716d",
+          "creates_tables": []
+        },
+        {
+          "id": "0063_workforce_employment_review_inbox_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_employment_review_inbox",
+              "table": "workforce_employment_reviews",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "0064_workforce_employment_finding_selection",
+          "sql_sha256": "42e157e3fbe7908fa41beb9cfd7fa54503338ce31a5c65e33fcf15d974ef9a42",
+          "creates_tables": []
+        },
+        {
+          "id": "0065_workforce_employment_finding_selection_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_employment_person_selection",
+              "table": "workforce_person_reviews",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "staff_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
+          ]
         }
       ]
     },

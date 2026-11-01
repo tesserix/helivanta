@@ -192,3 +192,93 @@ export const EmploymentReviewActionInputContract = z
   })
   .strict();
 export type EmploymentReviewActionInput = z.infer<typeof EmploymentReviewActionInputContract>;
+
+export const EmploymentReviewHospitalScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_submit: z.boolean(),
+    can_review: z.boolean(),
+  })
+  .strict();
+export type EmploymentReviewHospitalScope = z.infer<typeof EmploymentReviewHospitalScopeContract>;
+
+export const EmploymentReviewSummaryContract = z
+  .object({
+    id: identifier,
+    hospital_id: identifier,
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    status: z.enum(["pending", "approved", "rejected", "withdrawn", "revoked"]),
+    version: z.number().int().min(1).max(9007199254740990),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type EmploymentReviewSummary = z.infer<typeof EmploymentReviewSummaryContract>;
+
+export const EmploymentPersonFindingSearchInputContract = z
+  .object({
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+  })
+  .strict();
+export type EmploymentPersonFindingSearchInput = z.infer<
+  typeof EmploymentPersonFindingSearchInputContract
+>;
+
+export const EmploymentPersonFindingOptionContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    hospital_id: identifier,
+    staff_id: identifier,
+    version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    identity_hash: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    policy_reference: z
+      .string()
+      .trim()
+      .min(1)
+      .max(300)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    finding_reference: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    valid_until: z.string().datetime({ offset: true }),
+    access_intent: z.enum(["digital", "non_digital"]),
+    declared_subject: z
+      .string()
+      .trim()
+      .min(0)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type EmploymentPersonFindingOption = z.infer<typeof EmploymentPersonFindingOptionContract>;

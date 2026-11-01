@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"maps"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -967,6 +968,128 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			}, 10*time.Second, 20*time.Millisecond)
 			employmentRoles[target] = rolePath
 		}
+		t.Run("employment workspaces discover only current reviewed hospital capabilities", func(t *testing.T) {
+			for _, expected := range []struct {
+				subject        string
+				submit, review bool
+			}{{reviewer, false, true}, {manager, true, true}, {maker, true, false}} {
+				var found []any
+				path := "/v1/workforce/employment-review-scopes?limit=1"
+				for pages := 0; path != ""; pages++ {
+					require.Less(t, pages, 10)
+					page := call(t, "GET", path, expected.subject, nil, 200)
+					found = append(found, page["data"].([]any)...)
+					path = ""
+					info := page["page"].(map[string]any)
+					if info["has_more"] == true {
+						path = "/v1/workforce/employment-review-scopes?limit=1&cursor=" + url.QueryEscape(info["next_cursor"].(string))
+					}
+				}
+				require.Len(t, found, 1)
+				row := found[0].(map[string]any)
+				require.Equal(t, hospital, row["hospital_id"])
+				require.Equal(t, expected.submit, row["can_submit"])
+				require.Equal(t, expected.review, row["can_review"])
+			}
+		})
+
+		t.Run("employment inbox is bounded private and scoped to the original workspace", func(t *testing.T) {
+			page := call(t, "GET", base+"/employment-review-inbox?employment_review=v1&limit=1", reviewer, nil, 200)
+			rows := page["data"].([]any)
+			require.Len(t, rows, 1)
+			row := rows[0].(map[string]any)
+			require.Equal(t, hospital, row["hospital_id"])
+			require.Equal(t, staff, row["staff_id"])
+			require.Equal(t, "pending", row["status"])
+			require.Len(t, row, 8, "summary excludes terms, evidence, identity hashes and human reasons")
+			call(t, "GET", base+"/employment-review-inbox?employment_review=v1", maker, nil, 403)
+			call(t, "GET", base+"/employment-review-inbox?hr_intake=v1", manager, nil, 200)
+			call(t, "GET", base+"/employment-review-inbox?hr_intake=v1&employment_review=v1", reviewer, nil, 400)
+			call(t, "GET", base+"/employment-review-inbox?employment_review=v1&status=active", reviewer, nil, 400)
+		})
+
+		t.Run("HR preparation selects current approved person findings without identity review access", func(t *testing.T) {
+			selectionPath := staffBase + "/employment-person-findings?hr_intake=v1&limit=20&staff_version=" + fmt.Sprint(currentSource["staff_version"]) + "&employment_epoch=" + fmt.Sprint(currentSource["employment_epoch"])
+			page := call(t, "GET", selectionPath, manager, nil, 200)
+			var ids []any
+			for _, item := range page["data"].([]any) {
+				row := item.(map[string]any)
+				ids = append(ids, row["id"])
+				require.Equal(t, hospital, row["hospital_id"])
+				require.Equal(t, staff, row["staff_id"])
+				require.NotContains(t, row, "evidence")
+				require.NotContains(t, row, "actor_subject")
+			}
+			require.Contains(t, ids, approved["id"])
+			call(t, "GET", selectionPath, reviewer, nil, 403)
+			stale := strings.Replace(selectionPath, "staff_version="+fmt.Sprint(currentSource["staff_version"]), "staff_version=999", 1)
+			call(t, "GET", stale, manager, nil, 409)
+		})
+
+		t.Run("employment discovery refuses missing workspace and audit failure without private data", func(t *testing.T) {
+			paths := []string{"/v1/workforce/employment-review-scopes", base + "/employment-review-inbox?employment_review=v1", staffBase + "/employment-person-findings?hr_intake=v1&staff_version=" + fmt.Sprint(currentSource["staff_version"]) + "&employment_epoch=" + fmt.Sprint(currentSource["employment_epoch"])}
+			for index, path := range paths {
+				subject := reviewer
+				if index == 2 {
+					subject = manager
+				}
+				for _, missing := range []string{"X-Helivanta-Expected-Tenant", "X-Helivanta-Expected-Subject"} {
+					r := httptest.NewRequest("GET", path, nil)
+					r.Header.Set("Authorization", "Bearer "+tokens[subject])
+					r.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+					r.Header.Set("X-Helivanta-Expected-Subject", subject)
+					r.Header.Del(missing)
+					w := httptest.NewRecorder()
+					gateway.ServeHTTP(w, r)
+					require.Equal(t, 409, w.Code, w.Body.String())
+				}
+			}
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_employment_discovery_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION test_employment_discovery_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action IN ('workforce.employment_review.inbox.read','workforce.employment_review.person_selection.read','workforce.employment_review_scope.read') THEN RAISE EXCEPTION 'synthetic discovery audit failure';END IF;RETURN NEW;END $$;CREATE TRIGGER test_employment_discovery_fault BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION test_employment_discovery_fault()`}}))
+			clear := func() {
+				t.Helper()
+				cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				require.NoError(t, db.Migrate(cleanup, []tenantdb.Migration{{ID: "test_employment_discovery_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP FUNCTION IF EXISTS test_employment_discovery_fault() CASCADE`}}))
+			}
+			t.Cleanup(clear)
+			for index, path := range paths {
+				subject := reviewer
+				if index == 2 {
+					subject = manager
+				}
+				response := request("GET", path, subject, nil, "application/json")
+				require.Equal(t, 500, response.Code, response.Body.String())
+				require.NotContains(t, response.Body.String(), "identity_hash")
+				require.NotContains(t, response.Body.String(), "employee_code")
+			}
+			clear()
+		})
+		t.Run("employment inbox read context cannot cross tenant or mutate frozen reviews", func(t *testing.T) {
+			for _, tenant := range []string{testutil.TenantA, testutil.TenantB} {
+				require.NoError(t, db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
+					if err := tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_subject',?,true),set_config('app.workforce_employment_browse','inbox',true),set_config('app.workforce_employment_browse_actor',?,true),set_config('app.workforce_employment_browse_link',?,true)`, hospital, reviewer, officers[reviewer].StaffID, strings.Split(officers[reviewer].LinkPath, "/")[len(strings.Split(officers[reviewer].LinkPath, "/"))-1]).Error; err != nil {
+						return err
+					}
+					var count int64
+					if err := tx.Table("workforce_employment_reviews").Where("tenant_id=? AND hospital_id=?", testutil.TenantA, hospital).Count(&count).Error; err != nil {
+						return err
+					}
+					if tenant == testutil.TenantB {
+						require.Zero(t, count)
+					} else {
+						require.Positive(t, count)
+					}
+					return nil
+				}))
+			}
+			require.Error(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config('app.workforce_hospital',?,true),set_config('app.workforce_subject',?,true),set_config('app.workforce_employment_browse','inbox',true),set_config('app.workforce_employment_browse_actor',?,true),set_config('app.workforce_employment_browse_link','synthetic-link',true)`, hospital, reviewer, officers[reviewer].StaffID).Error; err != nil {
+					return err
+				}
+				return tx.Exec(`UPDATE workforce_employment_reviews SET reason='synthetic forbidden browse rewrite' WHERE id=?`, submissionID).Error
+			}))
+		})
+
 		sponsorBody["employment_status"] = "active"
 		call(t, "PUT", base+"/staff/"+sponsorID, maker, sponsorBody, 200)
 		contractReviewerPath := strings.Replace(contractReviewPath, "?hr_intake=v1", "?employment_review=v1", 1)
@@ -1272,6 +1395,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		role := call(t, "GET", employmentRoles[reviewer], maker, nil, 200)
 		call(t, "POST", employmentRoles[reviewer]+"/decision", maker, map[string]any{"expected_version": role["version"], "decision": "withdraw", "reason": "Synthetic employment history authority cutoff"}, 200)
 		call(t, "GET", approvalPath+"/history?employment_review=v1", reviewer, nil, 403)
+		call(t, "GET", base+"/employment-review-inbox?employment_review=v1", reviewer, nil, 403)
+
 		require.Eventually(t, func() bool {
 			grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: reviewer, HospitalID: hospital, Permission: workforce.PermIdentityChecksReview})
 			return err == nil && grant.AssignmentID == strings.TrimPrefix(officers[reviewer].AssignmentPath, "/v1/iam/assignment-proposals/")

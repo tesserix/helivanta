@@ -1,6 +1,11 @@
 # Reviewed employment periods and contractor relationships
 
-Status: reviewed lifecycle design. Private draft preparation has an owner implementation and local validation; independent decisions and lifecycle activation remain open. See the [draft API](../../api/workforce.md#employment-term-draft-preparation) and the delivery tracker for separate CI/release gates.
+Status: reviewed lifecycle design. Private draft preparation, independent terms
+decisions and the normal non-digital preparer/reviewer workspace have owner
+implementation and local validation. Operational-generation consumption,
+digital-recipient provisioning, lifecycle cutoff and production workspace
+rollout remain open. See [workspace acceptance](../../qa/2026-11-01-employment-review-ui-acceptance.md)
+and the delivery tracker for separate CI/release gates.
 
 Parent prerequisite: PR #1454. Accepted access
 migration policy: ADR-0049. Scope: #1035, #417, Staff lifecycle A07–A10; distinguish
@@ -143,9 +148,9 @@ and authority review outside the registered inventory.
 
 ## Employment-evidence contributor prerequisite — 2026-10-31
 
-The current document provenance trigger introduced by Workforce 0054 records
-only enrollment `identity_evidence`. Employment-evidence preparation therefore
-has no equivalent contributor record. Independent employment decisions must not
+The before-0059 baseline document provenance trigger introduced by Workforce
+0054 recorded only enrollment `identity_evidence`. Employment-evidence preparation
+therefore had no equivalent contributor record. Independent employment decisions must not
 interpret that missing provenance as permission for an evidence preparer to
 approve their own work.
 

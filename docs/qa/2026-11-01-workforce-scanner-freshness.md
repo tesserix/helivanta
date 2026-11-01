@@ -24,9 +24,12 @@ Validation commands and final results are recorded in the progress tracker. Init
 
 ## Remaining acceptance
 
-The two earlier terminal workflow uploads remain protected in Processing; retry/recovery after the existing 45-minute pending grace period has not been exercised. No manual verdict or fabricated available status was persisted. Digital recipient UI acceptance, activation races/governance and consumer/lifecycle cutoffs remain open. Production has not been mutated; the exact combined revision and all four migrations still need named rollout approval.
-
+Both earlier terminal uploads recovered through the normal Staff Admin Retry scan action after the existing 45-minute grace period. Each first workflow remains Failed in history; each second workflow is Completed. Refresh status shows both files Ready. No manual verdict or fabricated available status was persisted. Digital recipient UI acceptance, activation races/governance and consumer/lifecycle cutoffs remain open. Production has not been mutated; the exact combined revision and all four migrations still need named rollout approval.
 
 ## Final validation checkpoint
 
 The complete affected race suite passed: Workforce 547.734s and attachments 3.191s. Backend build, scoped vet/lint (0 issues), contractdocs generation/check, 23 canonical generators, 75 script tests and 15 operational inventory tests passed. CI initially detected the changed module source pin; re-review confirmed that only the embed/migration registration changed, and the ten hashes and generated inventory were refreshed without changing classifications or outstanding proof obligations.
+
+## Supported recovery acceptance
+
+The Staff Admin browser recovered files `c34e267e-3cf3-4e75-a1e2-77106acb1362` and `dfacd0cf-ebd1-44a0-bda3-c8eb74f9dd09` through Retry scan. The UI exposed that action only after the pending grace period, confirmed the requests, and displayed Ready after normal worker processing. Read-only Temporal descriptions confirm preserved failed attempt 1 and completed attempt 2 for each exact scoped workflow ID. Private evidence is `scanner-ui-recovery.json` and `scanner-both-ui-retries-ready.jpg`. This closes the scanner recovery test for these local files; it does not close the separate reviewer file-delivery or operational activation gates.

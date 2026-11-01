@@ -367,12 +367,16 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
 		membership).WithScopedAuthorizer(scopedAuthorizer)
+	// Consumers and the dispatcher live as long as the test, not as long as
+	// ctx: ctx's 90s bound would stop them silently mid-test, and every
+	// later wait on an event would time out instead of failing here (#1517).
+	workers := t.Context()
 	for _, m := range opts.Modules {
 		m.Routes(api, deps)
-		require.NoError(t, bus.StartConsumers(ctx, db, m.Consumers(deps)))
-		require.NoError(t, bus.StartBroadcasts(ctx, m.Broadcasts(deps)))
+		require.NoError(t, bus.StartConsumers(workers, db, m.Consumers(deps)))
+		require.NoError(t, bus.StartBroadcasts(workers, m.Broadcasts(deps)))
 	}
-	go bus.RunDispatcher(ctx, db)
+	go bus.RunDispatcher(workers, db)
 	return r, db, bus, ctx
 }
 

@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"regexp"
@@ -73,12 +74,19 @@ type shift struct {
 	AuthorisedBy        *string    `json:"authorised_by"`
 	AuthorisationReason *string    `json:"authorisation_reason"`
 	AuthorisedAt        *time.Time `json:"authorised_at"`
+	// The close's count by note and coin; null for a shift closed before
+	// counting by note (#198 slice 3).
+	DeclaredCounts json.RawMessage `json:"declared_counts" gorm:"->"`
+	// Cash taken to the safe, less corrections: the cashier handed it over,
+	// so it tells nothing of the expected cash.
+	PickedUpMinor int64 `json:"picked_up_minor" gorm:"->"`
 }
 
 func (s shift) PageKey() (time.Time, uuid.UUID) { return s.OpenedAt, s.ID }
 
 const shiftSelect = `SELECT s.id,s.hospital_id,s.counter_id,c.code AS counter_code,s.cashier,s.currency,s.opening_float_minor,s.opened_at,s.status,
- s.expected_minor,s.declared_minor,s.variance_minor,s.closed_at,s.authorised_by,s.authorisation_reason,s.authorised_at
+ s.expected_minor,s.declared_minor,s.variance_minor,s.closed_at,s.authorised_by,s.authorisation_reason,s.authorised_at,
+ s.declared_counts,billing_shift_picked_up(s.tenant_id,s.id) AS picked_up_minor
  FROM billing_cash_shifts s JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id`
 
 type receipt struct {
@@ -146,6 +154,16 @@ func cashFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "upi_receipt", errUpiVoid.Error())
 	case errors.Is(err, errOwnVariance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_own_variance":
 		respond.Error(c, http.StatusConflict, "own_variance", errOwnVariance.Error())
+	case errors.Is(err, errBadCount):
+		respond.BadRequest(c, err)
+	case errors.Is(err, errOwnPickup), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_own":
+		respond.Error(c, http.StatusConflict, "own_pickup", errOwnPickup.Error())
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_shift":
+		respond.Error(c, http.StatusConflict, "shift_closed", errShiftClosed.Error())
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_drawer":
+		respond.Error(c, http.StatusConflict, "drawer_short", "the drawer does not hold that much; hand the excess back and record what was taken")
+	case errors.Is(err, errOverPickup), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_pickup_over":
+		respond.Error(c, http.StatusConflict, "over_pickup", errOverPickup.Error())
 	case errors.Is(err, errNotPending):
 		respond.Error(c, http.StatusConflict, "not_pending", err.Error())
 	case errors.Is(err, errNoCounter):
@@ -318,15 +336,16 @@ func (h *handlers) myShift(c *gin.Context) {
 	respond.OK(c, out)
 }
 
-// closeShift records the cashier's blind count. The expected cash is
-// computed here and checked by the database; the answer reveals both.
+// closeShift records the cashier's blind count, by note and coin. The
+// database values the count and computes the expected cash; the answer
+// reveals both.
 func (h *handlers) closeShift(c *gin.Context) {
 	shiftID, ok := v7(c, "shift")
 	var in struct {
-		DeclaredMinor *int64 `json:"declared_minor"`
+		Counts cashCount `json:"counts"`
 	}
-	if err := c.ShouldBindJSON(&in); !ok || err != nil || in.DeclaredMinor == nil || *in.DeclaredMinor < 0 || *in.DeclaredMinor > 100_000_000_000 {
-		respond.BadRequest(c, errors.New("the counted cash, 0 or more minor units, is required"))
+	if err := c.ShouldBindJSON(&in); !ok || err != nil || !in.Counts.valid() {
+		respond.BadRequest(c, errBadCount)
 		return
 	}
 	var out shift
@@ -341,22 +360,26 @@ func (h *handlers) closeShift(c *gin.Context) {
 		}
 		if s.Status != "open" {
 			// A retried close is answered from the record; a different count is not.
-			if s.DeclaredMinor != nil && *s.DeclaredMinor == *in.DeclaredMinor {
+			if in.Counts.same(s.DeclaredCounts) {
 				out = s
 				return nil
 			}
 			return errShiftClosed
+		}
+		declared, err := in.Counts.total(tx, s.Currency)
+		if err != nil {
+			return err
 		}
 		var expected struct{ V int64 }
 		if err := tx.Raw(`SELECT billing_shift_expected(?,?) AS v`, p.TenantID, shiftID).Scan(&expected).Error; err != nil {
 			return err
 		}
 		status := "closed"
-		if expected.V != *in.DeclaredMinor {
+		if expected.V != declared {
 			status = "pending_authorisation"
 		}
-		if err := tx.Exec(`UPDATE billing_cash_shifts SET status=?,expected_minor=?,declared_minor=?,closed_at=clock_timestamp() WHERE tenant_id=? AND id=? AND status='open'`,
-			status, expected.V, *in.DeclaredMinor, p.TenantID, shiftID).Error; err != nil {
+		if err := tx.Exec(`UPDATE billing_cash_shifts SET status=?,expected_minor=?,declared_minor=?,declared_counts=?::jsonb,closed_at=clock_timestamp() WHERE tenant_id=? AND id=? AND status='open'`,
+			status, expected.V, declared, in.Counts.json(), p.TenantID, shiftID).Error; err != nil {
 			return err
 		}
 		out, err = loadShift(tx, p.TenantID, hospital, shiftID, false)

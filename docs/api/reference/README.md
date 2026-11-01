@@ -591,8 +591,12 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | PUT | `/v1/billing/hospitals/:hospital/bed-charging` | `billing.rate.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/bed-rates/:class/:effective_from` | `billing.rate.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/bed-rates` | `billing.account.read` | true | false |
+| GET | `/v1/billing/hospitals/:hospital/cash-denominations` | `billing.account.read` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction` | `billing.shift.authorise` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation` | `billing.shift.authorise` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/close` | `billing.cash.collect` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups/:pickup` | `billing.shift.authorise` | false | false |
+| GET | `/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups` | `billing.shift.authorise` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts/mine` | `billing.cash.collect` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts` | `billing.shift.authorise` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/collections/:date/export.csv` | `billing.collection.read` | false | false |
@@ -647,6 +651,7 @@ Migration table declarations:
 - `0010_billing`: `billing_credit_notes`, `billing_credit_note_lines`.
 - `0011_billing`: `billing_upi_requests`.
 - `0012_billing`: `billing_discount_reasons`, `billing_discounts`.
+- `0013_billing`: `billing_cash_pickups`.
 
 ## supply
 

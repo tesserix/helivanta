@@ -131,7 +131,7 @@ func TestADepositIsHeldThenAppliedAgainstTheFinalBill(t *testing.T) {
 	require.Equal(t, http.StatusConflict, status)
 	require.Contains(t, body, "account_closed")
 	// Deposits count in the drawer: float 0 + deposit 2000 + payment 3000.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":5000}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(5000))
 	require.Equal(t, http.StatusOK, status, body)
 	require.Contains(t, body, `"status":"closed"`)
 }

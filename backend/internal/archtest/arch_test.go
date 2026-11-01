@@ -417,6 +417,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /billing/hospitals/:hospital/admissions/:admission/interim-bills/:number": "one interim bill's header and totals; its lines are a paginated list",
 	"GET /billing/hospitals/:hospital/refund-policy":                               "the hospital's current refund approval threshold; one",
 	"GET /billing/hospitals/:hospital/cash-shifts/mine":                            "the caller's own shift not yet closed; at most one",
+	"GET /billing/hospitals/:hospital/cash-denominations":                          "the fixed notes and coins of the currency; 16 for INR",
 	"GET /billing/hospitals/:hospital/bed-charging":                                "one hospital's bed-charging timezone; its rates are a paginated list",
 	"GET /billing/hospitals/:hospital/collections/:date":                           "one hospital-local day's shifts, at most 500 (413 above), with their totals",
 	"GET /billing/hospitals/:hospital/collections/:date/export.csv":                "the same day as a CSV, at most 500 shifts (413 above)",

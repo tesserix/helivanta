@@ -76,6 +76,9 @@ var upiSchema string
 //go:embed discounts.sql
 var discountsSchema string
 
+//go:embed pickups.sql
+var pickupsSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -108,7 +111,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}, {ID: "0013_billing", SQL: pickupsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -137,6 +140,10 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUT(hp+"/counters/:counter", PermCounterManage, h.putCounter)
 	platform.ListRoute(g, hp+"/counters", PermAccountRead, h.counters)
 	g.PUT(hp+"/counters/:counter/shifts/:shift", PermCashCollect, h.openShift)
+	g.GET(hp+"/cash-denominations", PermAccountRead, h.denominations)
+	g.PUT(hp+"/cash-shifts/:shift/pickups/:pickup", PermShiftAuthorise, h.recordPickup)
+	platform.ListRoute(g, hp+"/cash-shifts/:shift/pickups", PermShiftAuthorise, h.pickups)
+	g.PUT(hp+"/cash-pickups/:pickup/corrections/:correction", PermShiftAuthorise, h.correctPickup)
 	g.GET(hp+"/cash-shifts/mine", PermCashCollect, h.myShift)
 	g.PUT(hp+"/cash-shifts/:shift/close", PermCashCollect, h.closeShift)
 	g.PUT(hp+"/cash-shifts/:shift/authorisation", PermShiftAuthorise, h.authoriseShift)

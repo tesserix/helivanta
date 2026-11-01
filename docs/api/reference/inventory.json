@@ -3998,6 +3998,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/cash-denominations",
+          "permission": "billing.account.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation",
           "permission": "billing.shift.authorise",
@@ -4013,6 +4031,24 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups/:pickup",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
           "counted": false
         },
         {
@@ -4407,6 +4443,13 @@
           "creates_tables": [
             "billing_discount_reasons",
             "billing_discounts"
+          ]
+        },
+        {
+          "id": "0013_billing",
+          "sql_sha256": "65b77dddc938ba67a23ed4b28c2c10691342404db01fc98574cc9b961daf016b",
+          "creates_tables": [
+            "billing_cash_pickups"
           ]
         }
       ]

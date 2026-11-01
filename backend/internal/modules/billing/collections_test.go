@@ -32,6 +32,7 @@ type collectionBody struct {
 		Variance      *int64  `json:"variance_minor"`
 		AuthorisedBy  *string `json:"authorised_by"`
 		Authorisation *string `json:"authorisation_reason"`
+		PickedUp      *int64  `json:"picked_up_minor"`
 	} `json:"shifts"`
 	Totals struct {
 		Payments       int64 `json:"payments_minor"`
@@ -46,6 +47,7 @@ type collectionBody struct {
 		VoidedReceipts int64 `json:"voided_receipts"`
 		Voided         int64 `json:"voided_minor"`
 		VoidedRefunds  int64 `json:"voided_refunds_minor"`
+		PickedUp       int64 `json:"picked_up_minor"`
 	} `json:"totals"`
 }
 
@@ -86,8 +88,10 @@ func TestTheDailyCollectionTotalsEachShiftByPurpose(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(body), &voided))
 	status, body = w.put("clerk", "/receipts/"+voided.ID+"/voids/"+v7(), `{"reason":"Keyed twice"}`)
 	require.Equal(t, http.StatusOK, status, body)
-	// Expected 5000 - 1000 + 200 = 4200; counted ₹1 short.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":419900}`)
+	// ₹1,000 to the safe. Expected 5000 - 1000 + 200 - 1000 = 3200; counted ₹1 short.
+	status, body = w.pickup("admin", shiftID, v7(), `{"note:50000":2}`)
+	require.Equal(t, http.StatusCreated, status, body)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(319900))
 	require.Equal(t, http.StatusOK, status, body)
 
 	// clerk2's shift is still open, with cash in it.
@@ -95,6 +99,8 @@ func TestTheDailyCollectionTotalsEachShiftByPurpose(t *testing.T) {
 	other := uuid.NewString()
 	w.charge(other, uuid.NewString(), 900)
 	status, body = w.pay("clerk2", other, 500)
+	require.Equal(t, http.StatusCreated, status, body)
+	status, body = w.pickup("admin", openID, v7(), `{"note:500":1}`)
 	require.Equal(t, http.StatusCreated, status, body)
 
 	if time.Now().In(ist).Format(time.DateOnly) != today {
@@ -115,21 +121,23 @@ func TestTheDailyCollectionTotalsEachShiftByPurpose(t *testing.T) {
 	require.EqualValues(t, 2, *counted.VoidedCount)
 	require.EqualValues(t, 5000, *counted.Voided, "voided takings only")
 	require.EqualValues(t, 50000, *counted.VoidedRefunds, "a voided refund is money that never left, apart")
-	require.EqualValues(t, 420000, *counted.Expected)
-	require.EqualValues(t, 419900, *counted.Declared)
+	require.EqualValues(t, 320000, *counted.Expected)
+	require.EqualValues(t, 319900, *counted.Declared)
+	require.EqualValues(t, 100000, *counted.PickedUp)
 	require.EqualValues(t, -100, *counted.Variance)
 
 	require.Equal(t, openID, open.ID)
 	require.Equal(t, "open", open.Status)
 	for name, v := range map[string]*int64{"float": open.Float, "payments": open.Payments, "deposits": open.Deposits, "refunds": open.Refunds,
-		"voided": open.Voided, "voided_count": open.VoidedCount, "voided_refunds": open.VoidedRefunds, "expected": open.Expected, "declared": open.Declared, "variance": open.Variance} {
+		"voided": open.Voided, "voided_count": open.VoidedCount, "voided_refunds": open.VoidedRefunds, "expected": open.Expected, "declared": open.Declared, "variance": open.Variance, "picked_up": open.PickedUp} {
 		require.Nil(t, v, "an open shift is blind: %s", name)
 	}
 	tot := day.Totals
 	require.EqualValues(t, 20000, tot.Payments, "only counted shifts are totalled")
 	require.EqualValues(t, 500000, tot.Deposits)
 	require.EqualValues(t, 100000, tot.Refunds)
-	require.EqualValues(t, 420000, tot.Net, "a refund is paid out of the day's cash")
+	require.EqualValues(t, 420000, tot.Net, "a refund is paid out of the day's cash; a pickup is no revenue")
+	require.EqualValues(t, 100000, tot.PickedUp, "counted shifts only")
 	require.EqualValues(t, 100, tot.Shortage)
 	require.EqualValues(t, 0, tot.Excess)
 	require.Equal(t, 1, tot.Counted)
@@ -173,9 +181,11 @@ func TestTheDailyCollectionTotalsEachShiftByPurpose(t *testing.T) {
 	require.Equal(t, "-1.00", cell(1, "variance"))
 	require.Equal(t, "1.00", cell(1, "shortage"))
 	require.Equal(t, "0.00", cell(1, "excess"))
+	require.Equal(t, "1000.00", cell(1, "picked_up"))
+	require.Equal(t, "1000.00", cell(3, "picked_up"))
 	require.Equal(t, `'=HYPERLINK("x")`, cell(1, "authorisation_reason"), "text cells cannot run as formulas")
 	require.Equal(t, "open", cell(2, "status"))
-	for _, name := range []string{"opening_float", "payments", "deposits", "refunds", "net", "voided_receipts", "voided_amount", "voided_refunds", "expected", "declared", "variance", "shortage", "excess"} {
+	for _, name := range []string{"opening_float", "payments", "deposits", "refunds", "net", "voided_receipts", "voided_amount", "voided_refunds", "expected", "declared", "variance", "shortage", "excess", "picked_up"} {
 		require.Empty(t, cell(2, name), "an open shift is blind in the CSV too: %s", name)
 	}
 	require.Equal(t, "TOTAL", cell(3, "counter_code"))
@@ -231,7 +241,7 @@ func TestTheCollectionDayIsTheHospitalsLocalDay(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, do(w.r, "PUT", w.root+"/bed-charging", "admin", `{"timezone":"`+zone+`"}`).Code)
 	_, shiftID := w.counterWithShift(t, "clerk", "IPD-Z", 700)
-	status, body := w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":700}`)
+	status, body := w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(700))
 	require.Equal(t, http.StatusOK, status, body)
 
 	local := now.In(loc).Format(time.DateOnly)

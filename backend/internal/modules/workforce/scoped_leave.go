@@ -44,9 +44,10 @@ func prepareLeaveReview(tx *gorm.DB, c *gin.Context, p authn.Principal, hospital
 }
 
 type reviewedLeaveActor struct {
-	ID      uuid.UUID
-	StaffID uuid.UUID
-	Version int64
+	ID           uuid.UUID
+	StaffID      uuid.UUID
+	Version      int64
+	GenerationID uuid.UUID
 }
 
 func lockReviewedLeaveActor(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) (reviewedLeaveActor, error) {
@@ -55,7 +56,7 @@ func lockReviewedLeaveActor(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) 
 		return current, err
 	}
 	query := func() *gorm.DB {
-		return tx.Table("workforce_login_links").Select("id,staff_id,version").Where("tenant_id=? AND hospital_id=? AND subject=? AND status='active'", p.TenantID, hospital, p.Subject)
+		return tx.Table("workforce_login_links").Select("id,staff_id,version,COALESCE(to_jsonb(workforce_login_links)->>'employment_generation_id','00000000-0000-0000-0000-000000000000')::uuid AS generation_id").Where("tenant_id=? AND hospital_id=? AND subject=? AND status='active'", p.TenantID, hospital, p.Subject)
 	}
 	if err := query().Take(&first).Error; err != nil {
 		return current, err
@@ -78,6 +79,9 @@ func lockReviewedLeaveActor(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) 
 	}
 	if current != first {
 		return current, gorm.ErrRecordNotFound
+	}
+	if err := validateGenerationActor(tx, p, hospital, current); err != nil {
+		return current, err
 	}
 	return current, nil
 }

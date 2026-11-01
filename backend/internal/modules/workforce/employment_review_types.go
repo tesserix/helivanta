@@ -131,3 +131,57 @@ type EmploymentPersonFindingOption struct {
 	DeclaredSubject  string    `json:"declared_subject"`
 	CreatedAt        time.Time `json:"created_at"`
 }
+
+type EmploymentActivationInput struct {
+	CommandID          uuid.UUID `json:"command_id"`
+	ReviewID           uuid.UUID `json:"review_id"`
+	ReviewRevisionID   uuid.UUID `json:"review_revision_id"`
+	ReviewVersion      *int64    `json:"review_version"`
+	StaffVersion       *int64    `json:"staff_version"`
+	EmploymentEpoch    *int64    `json:"employment_epoch"`
+	Reason             string    `json:"reason"`
+	ActivationExamined bool      `json:"activation_examined"`
+}
+
+type EmploymentActivationSource struct {
+	HospitalID       uuid.UUID  `json:"hospital_id"`
+	StaffID          uuid.UUID  `json:"staff_id"`
+	ReviewID         uuid.UUID  `json:"review_id"`
+	ReviewRevisionID uuid.UUID  `json:"review_revision_id"`
+	ReviewVersion    int64      `json:"review_version"`
+	StaffVersion     int64      `json:"staff_version"`
+	EmploymentEpoch  int64      `json:"employment_epoch"`
+	CurrentState     string     `json:"current_state"`
+	CanActivate      bool       `json:"can_activate"`
+	StartsAt         time.Time  `json:"starts_at"`
+	EndsAt           *time.Time `json:"ends_at"`
+}
+
+type EmploymentGeneration struct {
+	ID                    uuid.UUID  `json:"id"`
+	RevisionID            uuid.UUID  `json:"revision_id"`
+	HospitalID            uuid.UUID  `json:"hospital_id"`
+	StaffID               uuid.UUID  `json:"staff_id"`
+	Version               int64      `json:"version"`
+	ReviewID              uuid.UUID  `json:"review_id"`
+	ReviewRevisionID      uuid.UUID  `json:"review_revision_id"`
+	ReviewVersion         int64      `json:"review_version"`
+	ReviewStaffVersion    int64      `json:"review_staff_version"`
+	ReviewEmploymentEpoch int64      `json:"review_employment_epoch"`
+	StaffVersion          int64      `json:"staff_version"`
+	EmploymentEpoch       int64      `json:"employment_epoch"`
+	IdentityHash          string     `json:"identity_hash"`
+	StartsAt              time.Time  `json:"starts_at"`
+	EndsAt                *time.Time `json:"ends_at"`
+	AccessIntent          string     `json:"access_intent"`
+	DeclaredSubject       string     `json:"declared_subject"`
+	ActivatedBySubject    string     `json:"activated_by_subject"`
+	Reason                string     `json:"reason"`
+	ActivatedAt           time.Time  `json:"activated_at"`
+}
+
+type EmploymentGenerationView struct {
+	Generation   EmploymentGeneration `json:"generation"`
+	CurrentState string               `json:"current_state"`
+	GrantsAccess bool                 `json:"grants_access"`
+}

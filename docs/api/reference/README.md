@@ -20,6 +20,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/assignment-proposals/:id` | `public` | false | false |
 | PUT | `/v1/iam/assignment-proposals/:id` | `iam.assignment.manage` | false | false |
 | GET | `/v1/iam/assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/employment-activation-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
@@ -69,6 +70,7 @@ Migration table declarations:
 - `0015_iam_membership_commands`: `iam_membership_commands`.
 - `0016_iam_membership_candidate_index`: concurrent index `iam_members_candidate_history` on `iam_members (tenant_id, created_at DESC, id DESC)`.
 - `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
+- `0023_iam_employment_bases`: `iam_employment_bases`, `iam_employment_basis_history`, `iam_assignment_employment_bases`.
 
 ## reference
 
@@ -1034,6 +1036,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file/revocation` | `workforce.documents.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/documents/:file` | `workforce.documents.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/documents` | `workforce.documents.manage` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-activations/:activation` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/history` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/content` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period/revisions/:version/evidence/:binding/history` | `workforce.enrollment.manage` | true | false |
@@ -1046,6 +1049,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods/:period` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-periods` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-person-findings` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source` | `public` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/decision` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/history` | `public` | true | false |
@@ -1188,6 +1192,7 @@ Migration table declarations:
 - `0060_workforce_employment_review_submissions`: `workforce_employment_reviews`, `workforce_employment_review_history`, `workforce_employment_review_evidence`, `workforce_employment_review_contributors`.
 - `0063_workforce_employment_review_inbox_index`: concurrent index `workforce_employment_review_inbox` on `workforce_employment_reviews (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
 - `0065_workforce_employment_finding_selection_index`: concurrent index `workforce_employment_person_selection` on `workforce_person_reviews (tenant_id, hospital_id, staff_id, status, created_at DESC, id DESC)`.
+- `0066_workforce_employment_generations`: `workforce_identity_epochs`, `workforce_employment_review_cohorts`, `workforce_employment_generations`.
 
 ## workspace
 

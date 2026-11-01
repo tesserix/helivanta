@@ -8,14 +8,17 @@ database, migration, account change or runtime activation is performed by it.
 
 ## Current source findings
 
-The checked registry contains **724 registered surfaces** across module HTTP
+The checked registry contains **727 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.
 Four MediCore encounter routes, ten employment-review routes and three shared
-IAM session routes have explicit source-reviewed classifications; **707 remain
+IAM session routes have explicit source-reviewed classifications; **710 remain
 unclassified**. No surface has
 complete employment-cutoff acceptance. Counts were checked on 2026-11-01 with the
 normal and strict classification commands below.
-These counts do not measure engineering completion.
+These counts do not measure engineering completion. The three additive unpublished
+activation-assignment/source/command routes remain unclassified. Existing module/review
+loader classifications were rechecked after their additive registration/private
+identity-counter and generation-actor admission changes; no cutoff acceptance was added.
 
 The four encounter handlers (`open`, `list`, `get`, `transition`) all enter
 `encounterHandlers.inHospital`. That helper locks `medicore_hospital_access` for
@@ -29,7 +32,8 @@ MediCore routes or settle governance/recovery classifications.
 The employment-review routes require compound scoped HR-intake
 preparation/document authority or the separately reviewed employment-review
 permission, plus an independently reviewed active actor link with no legacy
-fallback. Decisions/endings preserve frozen records without operational activation. Actor reviewed-employment admission remains unfinished, alongside
+fallback. Decisions/endings preserve frozen records without operational activation. Generation-bound actors now revalidate current approved employment sources;
+unbound legacy actors remain unmigrated, alongside
 separately reviewed bootstrap/governance semantics and production rollout acceptance.
 Normal local preparer/reviewer/scanner UI acceptance is recorded in the
 [workspace matrix](2026-11-01-employment-review-ui-acceptance.md). Their source classifications confer no exemption or cutoff acceptance.

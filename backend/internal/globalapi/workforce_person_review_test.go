@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/png"
 	"maps"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -68,7 +69,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	}
 	signer, verifier := testutil.NewSessionSignerForTest(t)
 	owner, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Writer: graph, Roles: graph, Membership: graph, Resolver: graph,
+		EmploymentActivationEnabled: true,
+		Writer:                      graph, Roles: graph, Membership: graph, Resolver: graph,
 		Verifier: authn.NewSessionVerifier(verifier), Modules: modules, Documents: documents,
 		ScopedAuthorizer: func(db *tenantdb.DB) authz.ScopedAuthorizer { return iam.NewScopedAuthorizer(db, graph) },
 	})
@@ -313,8 +315,13 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		call(t, "PUT", staffBase+"/documents/"+id, maker, map[string]any{"record_kind": "enrollment", "record_id": staff, "category": category, "filename": "synthetic-legacy-evidence.png", "content_type": "image/png", "size": imageBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(imageBytes.Bytes()))}, 201)
 	}
 	var provenanceMigration []tenantdb.Migration
+	var generationMigration tenantdb.Migration
 	upgrade := false
 	for _, migration := range workforce.New().Migrations() {
+		if migration.ID == "0066_workforce_employment_generations" {
+			generationMigration = migration
+			continue
+		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
 		if upgrade {
 			provenanceMigration = append(provenanceMigration, migration)
@@ -682,6 +689,15 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	call(t, "POST", path+"/decision", manager, decision, 403)
 	approved := call(t, "POST", path+"/decision", reviewer, decision, 200)
 	t.Run("employment submission freezes reviewed person terms and evidence without activating access", func(t *testing.T) {
+		t.Run("employment activation requires its separate current scoped authority", func(t *testing.T) {
+			require.Empty(t, call(t, "GET", "/v1/iam/employment-activation-assignment-proposals", maker, nil, http.StatusOK)["data"])
+			path := staffBase + "/employment-reviews/" + uuid.Must(uuid.NewV7()).String() + "/activation-source?employment_activation=v1"
+			for _, actor := range []string{maker, manager, reviewer} {
+				denied := call(t, "GET", path, actor, nil, http.StatusForbidden)
+				require.NotContains(t, denied, "terms")
+				require.NotContains(t, denied, "identity_hash")
+			}
+		})
 		proposalID := uuid.Must(uuid.NewV7()).String()
 		proposal := "/v1/iam/assignment-proposals/" + proposalID
 		call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": manager, "template_key": "workforce.hr_intake.v1", "reason": "Synthetic scoped employment preparation", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
@@ -1165,6 +1181,44 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		employmentApproved := call(t, "POST", approvalPath+"/decision?employment_review=v1", reviewer, employmentDecision, 200)
 		require.Equal(t, "approved", employmentApproved["status"])
 		require.Equal(t, float64(2), employmentApproved["version"])
+		t.Run("activation source refuses unknown legacy identity basis and revoked activation authority", func(t *testing.T) {
+			require.Equal(t, "0066_workforce_employment_generations", generationMigration.ID)
+			require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{generationMigration}))
+			activationID := uuid.Must(uuid.NewV7()).String()
+			activationProposal := "/v1/iam/assignment-proposals/" + activationID
+			call(t, "PUT", activationProposal, maker, map[string]any{"hospital_id": hospital, "subject": manager, "template_key": "workforce.employment_activator.v1", "reason": "Synthetic separate activation authority", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
+			require.Eventually(t, func() bool { return call(t, "GET", activationProposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+			call(t, "POST", activationProposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic activator assignment"}, 200)
+			require.Eventually(t, func() bool {
+				grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: manager, HospitalID: hospital, Permission: workforce.PermEmploymentActivate})
+				return err == nil && grant.AssignmentID == activationID
+			}, 10*time.Second, 20*time.Millisecond)
+			activationSourcePath := approvalPath + "/activation-source?employment_activation=v1"
+			activationSource := call(t, "GET", activationSourcePath, manager, nil, 200)
+			require.Equal(t, "identity_unavailable", activationSource["current_state"], "migration must not invent the identity basis of a historical approval")
+			require.Equal(t, false, activationSource["can_activate"])
+			require.Equal(t, employmentApproved["revision_id"], activationSource["review_revision_id"])
+			require.NotContains(t, activationSource, "terms")
+			require.NotContains(t, activationSource, "evidence")
+			require.NoError(t, db.WithTenant(tenantdb.WithActor(ctx, maker), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true)`, maker, hospital).Error; err != nil {
+					return err
+				}
+				var reads int64
+				if err := tx.Table("workforce_audit").Where("tenant_id=? AND hospital_id=? AND resource_id=? AND action='workforce.employment_activation.source.read' AND changes->>'activation_assignment_id'=? AND changes->>'enrollment_assignment_id'=?", testutil.TenantA, hospital, employmentApproved["id"], activationID, proposalID).Count(&reads).Error; err != nil {
+					return err
+				}
+				require.Equal(t, int64(1), reads, "activation-source disclosure must retain both current grants")
+				return nil
+			}))
+			currentAssignment := call(t, "GET", activationProposal, maker, nil, 200)
+			call(t, "POST", activationProposal+"/decision", maker, map[string]any{"expected_version": currentAssignment["version"], "decision": "withdraw", "reason": "Synthetic activation test authority ended"}, 200)
+			call(t, "GET", activationSourcePath, manager, nil, 403)
+			require.Eventually(t, func() bool {
+				grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: manager, HospitalID: hospital, Permission: workforce.PermEnrollmentManage})
+				return err == nil && grant.AssignmentID == proposalID
+			}, 10*time.Second, 20*time.Millisecond)
+		})
 		t.Run("employment history preserves original receipts under current scoped authority", func(t *testing.T) {
 			historyPath := approvalPath + "/history?employment_review=v1&limit=1"
 			history := call(t, "GET", historyPath, reviewer, nil, 200)
@@ -1673,4 +1727,229 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Equal(t, 409, request("GET", evidencePath, reviewer, nil, "application/json").Code)
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement"} {
+		t.Run("activation_"+scenario, func(t *testing.T) {
+			grant := func(subject, template string, permission authz.Permission) {
+				t.Helper()
+				proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": subject, "template_key": template, "reason": "Synthetic operational activation fixture", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
+				require.Eventually(t, func() bool { return call(t, "GET", proposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+				call(t, "POST", proposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic activation fixture approval"}, 200)
+				require.Eventually(t, func() bool {
+					standing, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: permission})
+					return err == nil && standing.AssignmentID != ""
+				}, 10*time.Second, 20*time.Millisecond)
+			}
+			if scenario == "identity_restore" {
+				grant(manager, "workforce.employment_activator.v1", workforce.PermEmploymentActivate)
+				grant(reviewer, "workforce.employment_reviewer.v1", workforce.PermEmploymentReview)
+			}
+			require.Eventually(t, func() bool {
+				standing, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: reviewer, HospitalID: hospital, Permission: workforce.PermIdentityChecksReview})
+				return err == nil && standing.AssignmentID != ""
+			}, 10*time.Second, 20*time.Millisecond)
+			recipient := "synthetic-activation-recipient-" + scenario
+			call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 202)
+			require.Eventually(t, func() bool { bindings, err := graph.ListRoles(ctx, recipient); return err == nil && len(bindings) > 0 }, 10*time.Second, 20*time.Millisecond)
+			joiner := uuid.Must(uuid.NewV7()).String()
+			if scenario == "uuid_staff" {
+				joiner = uuid.NewString()
+			}
+			joinerPath := base + "/staff/" + joiner
+			call(t, "PUT", joinerPath, maker, map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "inactive"}, 200)
+			basis := call(t, "GET", base+"/identity-staff/"+joiner, manager, nil, 200)
+			files := map[string]string{}
+			for _, category := range []string{"identity_evidence", "employment_evidence"} {
+				id := uuid.Must(uuid.NewV7()).String()
+				filePath := joinerPath + "/documents/" + id + "?hr_intake=v1"
+				call(t, "PUT", filePath, manager, map[string]any{"record_kind": "enrollment", "record_id": joiner, "category": category, "filename": "synthetic-activation-evidence.png", "content_type": "image/png", "size": imageBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(imageBytes.Bytes()))}, 201)
+				require.Equal(t, 202, request("PUT", joinerPath+"/documents/"+id+"/content?hr_intake=v1", manager, imageBytes.Bytes(), "image/png").Code)
+				status, err := processor.Process(ctx, workforcecontract.DocumentScanInput{TenantID: testutil.TenantA, HospitalID: hospital, StaffID: joiner, FileID: id, ScanAttempt: 1})
+				require.NoError(t, err)
+				require.Equal(t, "available", status)
+				files[category] = id
+			}
+			findingPath := joinerPath + "/person-reviews/" + uuid.Must(uuid.NewV7()).String()
+			call(t, "PUT", findingPath, manager, map[string]any{
+				"command_id": uuid.Must(uuid.NewV7()).String(), "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"], "identity_hash": basis["identity_hash"],
+				"policy_reference": "SYN-ACTIVATION-IDENTITY", "finding_reference": "Synthetic independently examined digital recipient",
+				"observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
+				"access_intent": "digital", "declared_subject": recipient, "identity_examined": true, "known_associations_disclosed": true, "document_ids": []string{files["identity_evidence"]},
+			}, 200)
+			finding := call(t, "POST", findingPath+"/decision", reviewer, map[string]any{"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 1, "decision": "approve", "reason": "Independent synthetic digital person finding", "identity_examined": true, "independent_person_confirmed": true}, 200)
+			if scenario == "pre_submission_restore" {
+				for _, name := range []string{"Synthetic transient identity", ""} {
+					enrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+					call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{"expected_version": enrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "inactive"}, "profile": map[string]any{"given_name": name}}, 200)
+				}
+				updated := call(t, "GET", base+"/identity-staff/"+joiner, manager, nil, 200)
+				require.Equal(t, basis["identity_hash"], updated["identity_hash"])
+				basis = updated
+				freshFile := uuid.Must(uuid.NewV7()).String()
+				freshPath := joinerPath + "/documents/" + freshFile + "?hr_intake=v1"
+				call(t, "PUT", freshPath, manager, map[string]any{"record_kind": "enrollment", "record_id": joiner, "category": "employment_evidence", "filename": "synthetic-current-terms-evidence.png", "content_type": "image/png", "size": imageBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(imageBytes.Bytes()))}, 201)
+				require.Equal(t, 202, request("PUT", joinerPath+"/documents/"+freshFile+"/content?hr_intake=v1", manager, imageBytes.Bytes(), "image/png").Code)
+				freshStatus, freshErr := processor.Process(ctx, workforcecontract.DocumentScanInput{TenantID: testutil.TenantA, HospitalID: hospital, StaffID: joiner, FileID: freshFile, ScanAttempt: 1})
+				require.NoError(t, freshErr)
+				require.Equal(t, "available", freshStatus)
+				files["employment_evidence"] = freshFile
+			}
+			periodID := uuid.Must(uuid.NewV7()).String()
+			periodPath := joinerPath + "/employment-periods/" + periodID
+			startsAt, endsAt := time.Now().Add(-time.Hour).UTC(), time.Now().Add(time.Hour).UTC()
+			if scenario == "future" {
+				startsAt, endsAt = time.Now().Add(time.Hour).UTC(), time.Now().Add(2*time.Hour).UTC()
+			}
+			terms := call(t, "PUT", periodPath+"?hr_intake=v1", manager, map[string]any{
+				"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 0, "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"],
+				"engagement_kind": "employee", "duration": "fixed", "starts_at": startsAt.Format(time.RFC3339), "ends_at": endsAt.Format(time.RFC3339),
+				"contracting_party": "", "sponsor_id": "", "reason": "Synthetic reviewed fixed appointment", "evidence_reference": "SYN-ACTIVATION-TERMS",
+			}, 200)
+			bindingID := uuid.Must(uuid.NewV7()).String()
+			binding := call(t, "PUT", periodPath+"/revisions/1/evidence/"+bindingID+"?hr_intake=v1", manager, map[string]any{"command_id": uuid.Must(uuid.NewV7()).String(), "document_id": files["employment_evidence"], "reason": "Synthetic selected activation terms evidence"}, 200)
+			reviewID := uuid.Must(uuid.NewV7()).String()
+			reviewPath := joinerPath + "/employment-reviews/" + reviewID
+			call(t, "PUT", reviewPath+"?hr_intake=v1", manager, map[string]any{
+				"command_id": uuid.Must(uuid.NewV7()).String(), "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"], "identity_hash": basis["identity_hash"],
+				"period_id": periodID, "period_revision_id": terms["revision_id"], "period_version": terms["version"], "person_review_id": finding["id"], "person_review_revision_id": finding["revision_id"], "person_review_version": finding["version"],
+				"evidence": []map[string]any{{"id": bindingID, "revision_id": binding["revision_id"], "version": binding["version"]}}, "policy_reference": "SYN-ACTIVATION-POLICY", "reason": "Synthetic reviewed operational source", "terms_examined": true, "known_associations_disclosed": true,
+			}, 200)
+			review := call(t, "POST", reviewPath+"/decision?employment_review=v1", reviewer, map[string]any{"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 1, "decision": "approve", "reason": "Independent synthetic appointment review", "terms_examined": true, "independent_person_confirmed": true}, 200)
+			readiness := call(t, "GET", reviewPath+"/activation-source?employment_activation=v1", manager, nil, 200)
+			if scenario == "pre_submission_restore" {
+				require.Equal(t, "identity_changed", readiness["current_state"], "a new terms review must not revive an identity finding from before changed/restored identity")
+				require.Equal(t, false, readiness["can_activate"])
+				return
+			}
+			if scenario == "future" {
+				require.Equal(t, "not_started", readiness["current_state"])
+				require.Equal(t, false, readiness["can_activate"])
+				return
+			}
+			require.Equal(t, "eligible", readiness["current_state"])
+			require.Equal(t, true, readiness["can_activate"])
+			if scenario == "identity_restore" {
+				identityEpoch := func() int64 {
+					t.Helper()
+					var epoch int64
+					err := db.WithTenant(tenantdb.WithActor(ctx, manager), testutil.TenantA, func(tx *gorm.DB) error {
+						if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_generation','read',true),set_config('app.workforce_generation_staff',?,true)`, manager, hospital, joiner).Error; err != nil {
+							return err
+						}
+						return tx.Table("workforce_identity_epochs").Select("epoch").Where("tenant_id=? AND hospital_id=? AND staff_id=?", testutil.TenantA, hospital, joiner).Take(&epoch).Error
+					})
+					require.NoError(t, err)
+					return epoch
+				}
+				originalEpoch := identityEpoch()
+				for _, phone := range []string{"+919000000001", "+919000000002"} {
+					enrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+					call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{
+						"expected_version": enrollment["version"],
+						"staff":            map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "inactive"},
+						"profile":          map[string]any{"work_phone": phone},
+					}, 200)
+					require.Equal(t, originalEpoch, identityEpoch(), "contact edits must retain the identity counter")
+				}
+				for _, name := range []string{"Synthetic altered identity", ""} {
+					enrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+					call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{
+						"expected_version": enrollment["version"],
+						"staff":            map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "inactive"},
+						"profile":          map[string]any{"given_name": name},
+					}, 200)
+				}
+				require.Equal(t, originalEpoch+2, identityEpoch(), "restoring identity cannot reset its counter")
+				restored := call(t, "GET", base+"/identity-staff/"+joiner, manager, nil, 200)
+				require.Equal(t, basis["identity_hash"], restored["identity_hash"], "restored values reproduce the old fingerprint")
+				stale := call(t, "GET", reviewPath+"/activation-source?employment_activation=v1", manager, nil, 200)
+				require.Equal(t, "identity_changed", stale["current_state"], "restoring identity values must not revive an old approval")
+				require.Equal(t, false, stale["can_activate"])
+				return
+			}
+			activationID := uuid.Must(uuid.NewV7()).String()
+			activationPath := joinerPath + "/employment-activations/" + activationID + "?employment_activation=v1"
+			activationInput := map[string]any{
+				"command_id": uuid.Must(uuid.NewV7()).String(), "review_id": reviewID, "review_revision_id": review["revision_id"], "review_version": review["version"],
+				"staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"], "reason": "Synthetic authorized employment activation", "activation_examined": true,
+			}
+			for _, deniedActor := range []string{maker, checker, reviewer} {
+				call(t, "PUT", activationPath, deniedActor, activationInput, 403)
+			}
+			missingPath := base + "/staff/" + uuid.Must(uuid.NewV7()).String() + "/employment-activations/" + uuid.Must(uuid.NewV7()).String() + "?employment_activation=v1"
+			call(t, "PUT", missingPath, manager, activationInput, 404)
+			if strings.HasPrefix(scenario, "rollback_") {
+				table, condition := "workforce_audit", fmt.Sprintf("NEW.action='workforce.employment.activated' AND NEW.resource_id='%s'::uuid", activationID)
+				if scenario == "rollback_outbox" {
+					table = "outbox_events"
+					condition = fmt.Sprintf("NEW.subject LIKE '%%workforce.enrollment_changed.v1' AND NEW.payload->'data'->>'staff_id'='%s'", joiner)
+				}
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_activation_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: fmt.Sprintf(`CREATE FUNCTION test_activation_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF %s THEN RAISE EXCEPTION 'synthetic activation persistence failure';END IF;RETURN NEW;END $$;CREATE TRIGGER test_activation_fault BEFORE INSERT ON %s FOR EACH ROW EXECUTE FUNCTION test_activation_fault()`, condition, table)}}))
+				clear := func() {
+					t.Helper()
+					cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					require.NoError(t, db.Migrate(cleanup, []tenantdb.Migration{{ID: "test_activation_fault_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP FUNCTION IF EXISTS test_activation_fault() CASCADE`}}))
+				}
+				t.Cleanup(clear)
+				call(t, "PUT", activationPath, manager, activationInput, 500)
+				require.Equal(t, "inactive", call(t, "GET", joinerPath, maker, nil, 200)["employment_status"])
+				afterFailure := call(t, "GET", base+"/identity-staff/"+joiner, manager, nil, 200)
+				require.Equal(t, basis["staff_version"], afterFailure["staff_version"])
+				require.Equal(t, basis["employment_epoch"], afterFailure["employment_epoch"])
+				require.Equal(t, true, call(t, "GET", reviewPath+"/activation-source?employment_activation=v1", manager, nil, 200)["can_activate"])
+				clear()
+			}
+			activation := call(t, "PUT", activationPath, manager, activationInput, 200)
+			require.Equal(t, activation, call(t, "PUT", activationPath, manager, activationInput, 200), "exact retries retain the original generation")
+			require.Equal(t, "consumed", call(t, "GET", reviewPath+"/activation-source?employment_activation=v1", manager, nil, 200)["current_state"], "reopening the approval must show the recorded activation")
+			changed := maps.Clone(activationInput)
+			changed["reason"] = "Synthetic changed intent must conflict"
+			call(t, "PUT", activationPath, manager, changed, 409)
+			second := maps.Clone(activationInput)
+			second["command_id"] = uuid.Must(uuid.NewV7()).String()
+			call(t, "PUT", joinerPath+"/employment-activations/"+uuid.Must(uuid.NewV7()).String()+"?employment_activation=v1", manager, second, 409)
+			generation := activation["generation"].(map[string]any)
+			require.Equal(t, activationID, generation["id"])
+			require.Equal(t, float64(2), generation["staff_version"])
+			require.Equal(t, float64(2), generation["employment_epoch"])
+			require.Equal(t, basis["staff_version"], generation["review_staff_version"])
+			require.Equal(t, basis["employment_epoch"], generation["review_employment_epoch"])
+			require.Equal(t, review["revision_id"], generation["review_revision_id"])
+			require.Equal(t, "effective", activation["current_state"])
+			require.Equal(t, false, activation["grants_access"])
+			require.Equal(t, "active", call(t, "GET", joinerPath, maker, nil, 200)["employment_status"])
+			require.Empty(t, call(t, "GET", joinerPath+"/login-links", maker, nil, 200)["data"])
+			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
+			require.NoError(t, err)
+			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
+			if scenario == "actor_enforcement" {
+				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+				require.NoError(t, err)
+				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
+				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 404)
+				loginPath := joinerPath + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", loginPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh generation login proposal"}, 200)
+				call(t, "POST", loginPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic generation login review"}, 200)
+				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
+				call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "doctor"}, 409)
+				unchangedPermissions, unchangedErr := graph.Resolve(ctx, recipient, testutil.TenantA)
+				require.NoError(t, unchangedErr)
+				require.Empty(t, unchangedPermissions, "a legacy role cannot bypass the reviewed generation")
+				edit := func(name, phone string) {
+					enrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+					call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{"expected_version": enrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": name, "work_phone": phone}}, 200)
+				}
+				edit("", "+919000000004")
+				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
+				edit("Synthetic altered identity", "+919000000004")
+				edit("", "+919000000004")
+				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 403)
+				grant(recipient, "workforce.hr_intake.v1", workforce.PermEnrollmentManage)
+				call(t, "PUT", base+"/access/"+recipient, maker, map[string]any{"level": "manager"}, 200)
+				call(t, "GET", joinerPath+"/enrollment", recipient, nil, 403)
+				call(t, "GET", base+"/identity-staff/"+joiner, manager, nil, 200)
+			}
+		})
+	}
 }

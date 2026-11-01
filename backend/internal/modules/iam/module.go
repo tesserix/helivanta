@@ -289,7 +289,7 @@ ALTER TABLE login_attempt
 		ALTER TABLE iam_credential_revocations VALIDATE CONSTRAINT iam_credential_revocations_reason_check;`,
 	}, {ID: "0014_iam_staff_templates", SQL: assignmentTemplatesSchema}, {ID: "0015_iam_membership_commands", SQL: membershipCommandsSchema}, {
 		ID: "0016_iam_membership_candidate_index", ConcurrentIndexes: []tenantdb.ConcurrentIndex{{Name: "iam_members_candidate_history", Table: "iam_members", Columns: []tenantdb.IndexColumn{{Name: "tenant_id"}, {Name: "created_at", Descending: true}, {Name: "id", Descending: true}}}},
-	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}, {ID: "0020_iam_hr_intake_templates", SQL: hrIntakeTemplatesSchema}, {ID: "0021_iam_employment_templates", SQL: employmentTemplatesSchema}}
+	}, {ID: "0017_iam_membership_projection_reader", SQL: membershipProjectionReaderSchema}, {ID: "0018_iam_membership_enrollments", SQL: membershipEnrollmentsSchema}, {ID: "0019_iam_membership_recovery_admission", SQL: membershipRecoveryAdmissionSchema}, {ID: "0020_iam_hr_intake_templates", SQL: hrIntakeTemplatesSchema}, {ID: "0021_iam_employment_templates", SQL: employmentTemplatesSchema}, {ID: "0022_iam_employment_activation_templates", SQL: employmentActivationTemplatesSchema}, {ID: "0023_iam_employment_bases", SQL: employmentBasisSchema}}
 }
 
 type role struct {
@@ -394,6 +394,11 @@ func (h *memberHandlers) grant(c *gin.Context) {
 	})
 	if err != nil {
 		var pg *pgconn.PgError
+		if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "iam_employment_legacy_role" {
+			c.Header("Cache-Control", "no-store")
+			respond.Error(c, http.StatusConflict, "employment_scope_required", "Use independently reviewed scoped assignments for this employment generation.")
+			return
+		}
 		if errors.As(err, &pg) && pg.Code == "23514" && pg.ConstraintName == "iam_membership_recovery_required" {
 			c.Header("Cache-Control", "no-store")
 			respond.Error(c, http.StatusConflict, "membership_recovery_required", "Use an explicit membership recovery command with the retained removal receipt.")

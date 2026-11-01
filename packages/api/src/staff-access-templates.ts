@@ -39,6 +39,14 @@ export const staffAccessTemplates = [
     family: "employment",
     permissions: ["workforce.employment.review"],
   },
+  {
+    key: "workforce.employment_activator.v1",
+    name: "Staff employment activator",
+    description:
+      "Activate independently approved employment at this hospital; requires separate current enrollment authority and grants no login, clinical or payroll access.",
+    family: "activation",
+    permissions: ["workforce.employment.activate"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -58,5 +66,13 @@ export const staffAccessTemplateCatalogs = {
     "workforce.identity_reviewer.v1",
     "workforce.hr_intake.v1",
     "workforce.employment_reviewer.v1",
+  ],
+  "employment-activation-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
   ],
 } as const;

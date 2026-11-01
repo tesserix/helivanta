@@ -347,11 +347,28 @@ func enrollmentRow(value any, tenant string, hospital, id uuid.UUID) (map[string
 }
 
 func replaceEnrollmentRows(tx *gorm.DB, tenant string, hospital, id uuid.UUID, in enrollmentInput) error {
+	profile, err := enrollmentRow(in.Profile, tenant, hospital, id)
+	if err != nil {
+		return err
+	}
+	columns := make([]string, 0, len(profile)-3)
+	for column := range profile {
+		if column != "tenant_id" && column != "hospital_id" && column != "staff_id" {
+			columns = append(columns, column)
+		}
+	}
+	sort.Strings(columns)
+	if err := tx.Table("workforce_enrollment_profile").Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "hospital_id"}, {Name: "staff_id"}},
+		DoUpdates: clause.AssignmentColumns(columns),
+	}).Create(profile).Error; err != nil {
+		return err
+	}
 	groups := []struct {
 		table string
 		value any
 	}{
-		{"profile", []enrollmentProfile{in.Profile}}, {"addresses", in.Addresses}, {"emergency_contacts", in.EmergencyContacts},
+		{"addresses", in.Addresses}, {"emergency_contacts", in.EmergencyContacts},
 		{"credentials", in.Credentials}, {"qualifications", in.Qualifications}, {"experiences", in.Experiences},
 	}
 	for _, group := range groups {

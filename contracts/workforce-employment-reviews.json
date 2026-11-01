@@ -518,6 +518,256 @@
         "name": "created_at",
         "type": "time"
       }
+    ],
+    "EmploymentActivationInput": [
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "activation_examined",
+        "type": "bool",
+        "required_true": "Confirm that you examined this activation."
+      }
+    ],
+    "EmploymentActivationSource": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "current_state",
+        "type": "string",
+        "enum": [
+          "eligible",
+          "not_approved",
+          "source_changed",
+          "person_unavailable",
+          "evidence_unavailable",
+          "not_started",
+          "expired",
+          "already_active",
+          "associated_actor",
+          "consumed",
+          "identity_changed",
+          "identity_unavailable"
+        ]
+      },
+      {
+        "name": "can_activate",
+        "type": "bool"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time",
+        "pointer": true,
+        "nullable": true
+      }
+    ],
+    "EmploymentGeneration": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "review_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "review_staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "review_employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "staff_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "employment_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "identity_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "access_intent",
+        "type": "string",
+        "enum": ["digital", "non_digital"]
+      },
+      {
+        "name": "declared_subject",
+        "type": "string",
+        "min": 0,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "activated_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "activated_at",
+        "type": "time"
+      }
+    ],
+    "EmploymentGenerationView": [
+      {
+        "name": "generation",
+        "type": "EmploymentGeneration"
+      },
+      {
+        "name": "current_state",
+        "type": "string",
+        "enum": [
+          "effective",
+          "not_started",
+          "expired",
+          "staff_inactive",
+          "source_changed",
+          "review_unavailable",
+          "person_unavailable",
+          "evidence_unavailable",
+          "identity_changed",
+          "identity_unavailable"
+        ]
+      },
+      {
+        "name": "grants_access",
+        "type": "bool"
+      }
     ]
   }
 }

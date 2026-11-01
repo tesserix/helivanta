@@ -66,6 +66,9 @@ export function emitModels(models, kindSchema) {
         if (base === "string")
           schema += '.refine(value=>!value.includes("\\0"),"Remove invalid characters.")';
       }
+      if (f.required_true)
+        schema += `.refine(value=>value===true,${JSON.stringify(f.required_true)})`;
+      if (f.nullable) schema += ".nullable()";
       if (f.optional) schema += ".optional()";
       ts += `${f.name}:${schema},\n`;
     }

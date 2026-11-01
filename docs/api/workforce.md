@@ -1,6 +1,6 @@
 # Workforce API: directory and protected enrollment
 
-## Scoped employment-review workspace candidate
+## Scoped employment-review workspace
 
 The normal HR preparation and independent-review workspace uses these additive
 owner routes, all through the Global API with exact original tenant/subject
@@ -39,11 +39,57 @@ reason, selected evidence, examination and association attestations. Independent
 decisions consume current owner capabilities, preserve exact uncertain retries,
 and clear private data after access cutoff. History and byte release retain
 separate current authorization. See the [local acceptance evidence](../qa/2026-11-01-employment-review-ui-acceptance.md).
-Four persisted forward migrations add only read contexts and concurrent indexes;
-write/delete restrictions remain. This candidate is undeployed and does not
-complete operational activation, legacy/governance migration or lifecycle cutoff.
+The approved `7e5b7800` rollout includes Workforce migrations 0062–0065: narrow
+read contexts and two concurrent indexes. Write/delete restrictions remain.
+Positive reviewer/scanner journeys are accepted locally; production smoke covered
+current sign-in and denied access only. Operational activation, legacy/governance
+migration and lifecycle cutoff remain open.
 
 Implementation: `backend/internal/modules/workforce`. Design: [ADR 0009](../adr/0009-workforce-foundation.md). This is the hospital-local staff directory foundation, not a complete HR, payroll, practitioner credentialing or rostering system.
+
+## Operational activation — disabled release candidate
+
+`GET /v1/workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source?employment_activation=v1`
+requires exact original tenant/subject headers, current scoped activation **and**
+enrollment grants, and an active independently reviewed Staff/login actor. Legacy
+administration cannot substitute. Both grant receipts are retained in the
+sensitive-read audit. The minimized source returns exact review/source revisions,
+term dates and eligibility state without private evidence or terms metadata.
+
+A separate `workforce.employment_activator.v1` template contains only
+`workforce.employment.activate`, introduced through IAM migration 0022 and the
+closed six-template `employment-activation-v1` catalog. Its assignment list uses
+`GET /v1/iam/employment-activation-assignment-proposals` with existing independently
+reviewed assignment commands. Earlier catalogs and bundles stay unchanged.
+
+Candidate Workforce migration 0066 captures owner-maintained identity counters on
+both person findings and employment reviews, and records immutable generation
+receipts and login-link bindings. Historical approvals without provenance return
+`identity_unavailable`; changed/restored identity returns `identity_changed`.
+Contact-only edits retain the counter. Counters are not verification evidence.
+
+`PUT /v1/workforce/hospitals/:hospital/staff/:id/employment-activations/:activation?employment_activation=v1`
+consumes the exact approved review revision/version and current Staff
+version/epoch. Required input includes a UUIDv7 command, reason and positive
+`activation_examined` confirmation. It atomically records source/new-generation
+lineage, the Staff transition, IAM basis, audits and outbox. An exact retry returns
+the original receipt; changed intent or a second consumption returns 409.
+Unapproved, future, expired, changed or associated sources cannot activate.
+
+IAM migration 0023 owns employment bases/history and proposal-generation bindings.
+New digital links and scoped assignments must bind the current generation; stale
+bindings deny. Bound employment cannot gain legacy roles (`409
+employment_scope_required`). Activation creates no membership, login link, role,
+card or clinical privilege. Historical actors without a generation remain
+unmigrated and require explicit legacy/governance review.
+
+Both activation endpoints are gated by
+`WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED`, default false, with authenticated 503
+`employment_activation_unavailable`. Disabling the gate never disables enforcement
+for existing generations. Keep production disabled until browser acceptance,
+legacy/governance migration and all owner/lifecycle cutoffs pass. No production
+rollout or completed operational acceptance is asserted. See the
+[implementation plan](../superpowers/plans/2026-11-01-staff-operational-activation.md).
 
 ## Protected selected employment-evidence candidate
 

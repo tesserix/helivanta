@@ -75,6 +75,11 @@ func (h *handlers) intakeTransaction(c *gin.Context, p authn.Principal, hospital
 }
 
 func (h *handlers) intakeAuthorityTransaction(c *gin.Context, p authn.Principal, hospital uuid.UUID, required []authz.Permission, scopedOnly bool, fn func(*gorm.DB, bool) error) error {
+	guard, _ := h.scopeAuthority.(authz.CompoundScopedCommandGuard)
+	return h.intakeAuthorityWithGuard(c, p, hospital, required, scopedOnly, guard, fn)
+}
+
+func (h *handlers) intakeAuthorityWithGuard(c *gin.Context, p authn.Principal, hospital uuid.UUID, required []authz.Permission, scopedOnly bool, guard authz.CompoundScopedCommandGuard, fn func(*gorm.DB, bool) error) error {
 	if c.Query(hrIntakeQuery) == hrIntakeVersion || c.Query("employment_review") == "v1" {
 		tenants := c.Request.Header.Values("X-Helivanta-Expected-Tenant")
 		subjects := c.Request.Header.Values("X-Helivanta-Expected-Subject")
@@ -132,8 +137,7 @@ func (h *handlers) intakeAuthorityTransaction(c *gin.Context, p authn.Principal,
 			return fn(tx, false)
 		})
 	}
-	guard, supported := h.scopeAuthority.(authz.CompoundScopedCommandGuard)
-	if !supported || p.IdleDeadline.IsZero() || len(required) < 1 || len(required) > 2 {
+	if guard == nil || p.IdleDeadline.IsZero() || len(required) < 1 || len(required) > 2 {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	ctx, cancel := context.WithDeadline(c.Request.Context(), p.IdleDeadline)

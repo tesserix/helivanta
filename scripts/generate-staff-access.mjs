@@ -54,6 +54,11 @@ for (const migration of migrations) {
         "Employment reviewers require only the declared employment review permission",
       );
     if (
+      template?.family === "activation" &&
+      JSON.stringify(template.permissions) !== JSON.stringify(["workforce.employment.activate"])
+    )
+      throw new Error("Employment activators require only the declared activation permission");
+    if (
       !template ||
       Object.keys(template).length !== templateFields.length ||
       !templateFields.every((field) => Object.hasOwn(template, field)) ||
@@ -61,7 +66,7 @@ for (const migration of migrations) {
       template.key.length > templateLimits.key ||
       !/^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key) ||
       keys.has(template.key) ||
-      !["leave", "identity", "intake", "employment"].includes(template.family) ||
+      !["leave", "identity", "intake", "employment", "activation"].includes(template.family) ||
       typeof template.name !== "string" ||
       !template.name ||
       template.name.length > templateLimits.name ||

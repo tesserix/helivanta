@@ -36,9 +36,12 @@ func TestGuardedCommandRollsBackProductWritesWhenTheCommandFails(t *testing.T) {
 func TestGuardedCommandRejectsOtherTenantAndEscapedContext(t *testing.T) {
 	db := openMigrated(t)
 	tenant, other := uuid.NewString(), uuid.NewString()
+	require.False(t, db.GuardedCommandActive(t.Context()))
 	var escaped context.Context
 	err := db.WithGuardedTenantCommand(t.Context(), tenant, time.Now().Add(time.Minute), func(*gorm.DB) error { return nil }, func(ctx context.Context) error {
 		escaped = ctx
+		require.True(t, db.GuardedCommandActive(ctx))
+		require.False(t, (&tenantdb.DB{}).GuardedCommandActive(ctx))
 		err := db.WithTenantCommand(ctx, other, func(tx *gorm.DB) error {
 			return tx.Create(&widget{TenantID: uuid.MustParse(other), Name: "wrong-scope"}).Error
 		})
@@ -48,6 +51,7 @@ func TestGuardedCommandRejectsOtherTenantAndEscapedContext(t *testing.T) {
 		})
 	})
 	require.NoError(t, err)
+	require.False(t, db.GuardedCommandActive(escaped))
 	err = db.WithTenantCommand(escaped, tenant, func(tx *gorm.DB) error {
 		return tx.Create(&widget{TenantID: uuid.MustParse(tenant), Name: "escaped-command"}).Error
 	})

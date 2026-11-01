@@ -1,5 +1,31 @@
 # Staff Management delivery tracker
 
+## Operational session boundary audit — 2026-11-01
+
+Three shared IAM session surfaces are now source-reviewed as mixed authority:
+renewal, activity and self sign-out. Their sessions carry no hospital employment
+generation, and self sign-out has global effects. Hospital suspension, exit and
+contract expiry therefore require owner-side employment cutoff while preserving
+other-hospital and governance access. No session bypass or runtime activation was
+added. The [consumer ledger](staff-operational-access-inventory.md) now records
+17 source classifications out of 724 surfaces, 707 unclassified and zero full
+cutoff acceptances. Whole Staff remains 10 partial, 10 awaiting audit, 1 research
+and 0 fully accepted areas.
+
+## Local scanner recovery — 2026-11-01
+
+Fresh runtime diagnosis found the local scanner unhealthy: `clamd` was a zombie,
+its 2 GiB cgroup recorded one OOM kill and TCP PING returned no response. The
+existing synthetic fixture was restarted with a 4 GiB memory limit, preserving
+its pinned official image and signature volume. Its private runtime JSON now
+persists that limit. Fresh protocol controls pass: PONG, clean stream OK and
+EICAR test-signature detection. This validates scanner recovery, not a new complete
+browser upload journey or production capacity. Production was unchanged. Raw
+failure/recovery receipts remain in the private reviewer-acceptance evidence store.
+
+A fresh read-only Global API check also confirms that the withdrawn employment
+reviewer sees an empty hospital-discovery page and receives 403 for the inbox.
+
 ## Employment-review workspace candidate — 2026-11-01
 
 The normal scoped hospital inbox and protected reviewer workspace are now wired,

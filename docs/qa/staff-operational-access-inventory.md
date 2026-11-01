@@ -10,8 +10,9 @@ database, migration, account change or runtime activation is performed by it.
 
 The checked registry contains **724 registered surfaces** across module HTTP
 routes, async subscriptions, broadcasts and unauthenticated allowlist entries.
-Four MediCore encounter routes and ten employment-review routes have explicit
-source-reviewed classifications; **710 remain unclassified**. No surface has
+Four MediCore encounter routes, ten employment-review routes and three shared
+IAM session routes have explicit source-reviewed classifications; **707 remain
+unclassified**. No surface has
 complete employment-cutoff acceptance. Counts were checked on 2026-11-01 with the
 normal and strict classification commands below.
 These counts do not measure engineering completion.
@@ -39,7 +40,7 @@ current capability, private byte release or employment activation. Its source
 classification was the tenth reviewed surface. Selected review-evidence release
 adds the eleventh: current exact authority and frozen basis on both sides of a
 bounded integrity-checked provider read, with audited release and no generic file
-or operational authority. The 710 existing unclassified
+or operational authority. The remaining unclassified
 surfaces still require review, and every runtime cutoff acceptance remains open.
 
 Hospital capability discovery, minimal recorded-state inbox and the preparer-only
@@ -50,6 +51,43 @@ Finding options revalidate the exact approved receipt and released evidence,
 without identity-file release or general identity-review authority. Their narrow
 read contexts preserve write/delete restrictions. Local browser acceptance does
 not establish actor employment-generation admission or any runtime consumer cutoff.
+
+## Shared session boundary audit — 2026-11-01
+
+Renewal, activity and self sign-out are explicitly **mixed** surfaces. They serve
+shared identity sessions used for both governance and hospital operations. No
+route gains a lifecycle exemption from this classification.
+
+- Renewal checks the current upstream active identity and tenant role binding,
+  accepts only the session cookie and preserves authentication time/idle deadline.
+  It has no selected hospital or reviewed employment generation.
+- Activity moves the idle deadline while preserving subject, tenant and original
+  authentication time. It does not require tenant membership or examine employment.
+- Self sign-out remains callable after membership removal and revokes the caller's
+  subject globally. Its transaction couples the watermark and invalidation intent;
+  local cache invalidation follows commit. Cross-replica cache/broadcast failure
+  acceptance remains distinct from hospital employment cutoff.
+
+Consequently, hospital suspension/exit/contract expiry must be checked by the
+operational owner using current hospital employment, even when renewal/activity
+succeeds. Offboarding must preserve independently valid other-hospital employment
+and governance access. Calling global sign-out, disabling the global identity or
+relying on session expiry cannot implement ADR-0049. The separate administrator
+credential-revocation endpoint still needs its own authority-chain review; these
+three classifications do not certify it or any other IAM route.
+
+Source evidence pins exact registrations and handler/authentication files. The
+existing IAM/authentication regression suites are verification of session behavior,
+not completed lifecycle acceptance. Counts are now **17 classified / 707
+unclassified / 724 total**, with **zero full employment-cutoff acceptances**.
+
+The source-review change was checked with the complete IAM and authentication
+race suites (`go -C backend test -race -p=1 -timeout=20m
+./internal/modules/iam ./pkg/authn`): IAM passed in 349.931s and authentication
+in 2.324s. All 15 inventory-tool tests, normal ledger/source checking, affected
+Prettier checks and `git diff --check` pass. Strict classification checking
+intentionally refuses the 707 remaining surfaces. No application code or schema
+changed in this audit.
 
 ## Inputs and checks
 
@@ -70,7 +108,7 @@ node scripts/staff-operational-access-inventory.mjs --check
 node scripts/staff-operational-access-inventory.mjs --check --require-classified
 ```
 
-The last command currently refuses classification completion with **710
+The last command currently refuses classification completion with **707
 unclassified surfaces**. Ordinary CI checks ledger/source drift and tests the
 checker; it does not require an unfinished classification to pass. The strict
 classification check is a prerequisite, never sufficient evidence to activate

@@ -53,7 +53,7 @@ effective authority/closure, not merely adding a dropdown option.
 - [x] Add source-pinned classifications for the four directly inspected MediCore
       encounter handlers; record missing reviewed-employment cutoff as remaining
       work rather than runtime acceptance.
-- [ ] Complete the remaining 710 registered source classifications and trace the
+- [ ] Complete the remaining 707 registered source classifications and trace the
       separately wired background/Temporal/external execution paths.
 - [ ] Implement reviewed employment and every consumer cutoff with normal
       Admin/reviewer/recipient UI and signed-session boundary proof. The ledger
@@ -84,5 +84,38 @@ checks and separate reviewer-assignment UI. Local non-digital preparer/reviewer/
 in the [workspace matrix](../../qa/2026-11-01-employment-review-ui-acceptance.md).
 Digital recipient provisioning, production rollout, operational activation and
 complete A01–A12 acceptance remain open. The current ledger has 724 registered
-surfaces, 14 source classifications, 710 unclassified surfaces and zero complete
+surfaces, 17 source classifications, 707 unclassified surfaces and zero complete
 employment-cutoff acceptances.
+
+## Next operational-generation boundary — 2026-11-01
+
+The next implementation must consume an independently approved frozen employment
+review without treating directory activation or session renewal as admission.
+Source verification establishes these constraints before new public contracts:
+
+- `tenantdb.WithGuardedTenantCommand` and `WithTenantCommand` already join IAM
+  authorization and synchronous Workforce work in one tenant transaction. Reuse
+  that boundary; do not introduce nested root guards or cross-owner SQL.
+- `workforce_staff_employment_epoch` increments the source epoch on inactive/active
+  changes. An approved old-epoch review needs an explicit immutable consumption
+  relation to the new operational generation. Re-evaluating its source after
+  changing status cannot silently establish that relation.
+- Current identity/background/photograph case drafts do not establish completed
+  independent verification, card issuance or background clearance. Person-review
+  approval alone must not be labelled all verification complete.
+- Shared renewal/activity sessions contain no hospital employment generation.
+  Operational owners must check current exact employment at their transaction
+  boundary and after bounded external reads. Global sign-out or identity disable
+  cannot substitute for hospital suspension, exit or contractor expiry.
+- Future terms must not end an existing valid period early. At the effective
+  cutoff, owner-time checks must deny even with stale graphs, failed cleanup or
+  old sessions. Resume/rehire must require fresh authority and cannot revive old
+  assignments, links, queued decisions or cards.
+
+Before exposing activation, prove review/source consumption, replay and
+concurrent activation, current-actor revocation, effective-time boundaries,
+expired-contract renewal, suspended/ended generation denial, dependency failure,
+and independent other-hospital/governance access. Classify the remaining legacy
+and consumer authority sources and preserve an explicit attributable review queue.
+No operational-generation endpoint or runtime enforcement is implemented by this
+plan update; the activation gate continues to refuse completion.

@@ -4,7 +4,7 @@
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 724,
-    "unclassified": 710
+    "unclassified": 707
   },
   "entries": [
     {
@@ -2679,7 +2679,35 @@
         "paginated": false,
         "counted": false
       },
-      "review": null
+      "review": {
+        "id": "http iam POST /v1/auth/renew",
+        "registration_sha256": "2ecc32405c08d9ad3e1137a1068ce51e39722af7837263cdadd229432000391c",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified caller session and its current tenant membership; no hospital employment or operational object is selected.",
+        "rationale": "Cookie-only renewal checks current upstream active identity and tenant role binding, preserves subject, authentication time and idle deadline, and fails closed on unreadable identity or roles. The same session can serve governance and hospital operations, so this is mixed authority. Renewal does not establish reviewed hospital employment and cannot replace owner-side effective-cutoff checks.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "3d300ed912aa229a1e2bc0a4ab0c4e773466bb65736281bfe6272d467cd56dc0",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/pkg/authn/authn.go",
+            "sha256": "c9c31cbabf8b6d1707399aa8af61e333335dfc217582758bb291d9991b96f9de",
+            "symbol": "func verifyCredential("
+          },
+          {
+            "path": "backend/internal/modules/iam/renew.go",
+            "sha256": "1d49d082145482a814fea427aceb99af9c2c0e97ec8131f2072e23d72087ae44",
+            "symbol": "func (h *renewalHandlers) renew("
+          }
+        ],
+        "remaining": [
+          "Prove that a still-valid shared session cannot authorize operations for suspended, exited or expired hospital employment while independently valid other-hospital and governance access remain available.",
+          "Complete current signed-session, dependency-failure and effective-cutoff race acceptance at every operational data owner; this source classification grants no bypass.",
+          "Review governance/recovery and legacy migration cohorts independently; global credential revocation must not implement hospital employment termination."
+        ]
+      }
     },
     {
       "id": "http iam POST /v1/auth/session/activity",
@@ -2695,7 +2723,35 @@
         "paginated": false,
         "counted": false
       },
-      "review": null
+      "review": {
+        "id": "http iam POST /v1/auth/session/activity",
+        "registration_sha256": "32a6b108e5f8d60109a85dac6bd2ad376bcabf21c4870fcdbc6f97d2b022f87b",
+        "authority_kind": "mixed",
+        "resource_scope": "Authenticated caller’s own subject and existing tenant claim; no target subject or hospital is accepted.",
+        "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "3d300ed912aa229a1e2bc0a4ab0c4e773466bb65736281bfe6272d467cd56dc0",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/pkg/authn/authn.go",
+            "sha256": "c9c31cbabf8b6d1707399aa8af61e333335dfc217582758bb291d9991b96f9de",
+            "symbol": "func verifyCredential("
+          },
+          {
+            "path": "backend/internal/modules/iam/activity.go",
+            "sha256": "7a9fc7b46b712c227f151523093d630086723eda1e45e7c476f3830e91ab688e",
+            "symbol": "func (h *activityHandlers) activity("
+          }
+        ],
+        "remaining": [
+          "Prove that a still-valid shared session cannot authorize operations for suspended, exited or expired hospital employment while independently valid other-hospital and governance access remain available.",
+          "Complete current signed-session, dependency-failure and effective-cutoff race acceptance at every operational data owner; this source classification grants no bypass.",
+          "Review governance/recovery and legacy migration cohorts independently; global credential revocation must not implement hospital employment termination."
+        ]
+      }
     },
     {
       "id": "http iam POST /v1/iam/assignment-proposals/:id/decision",
@@ -2727,7 +2783,35 @@
         "paginated": false,
         "counted": false
       },
-      "review": null
+      "review": {
+        "id": "http iam POST /v1/iam/me/sign-out",
+        "registration_sha256": "591fcb4cdb5035f951e633928f1261d54eaee7abef6fb09ef9ff36b6d1c218d0",
+        "authority_kind": "mixed",
+        "resource_scope": "Authenticated caller’s global credential subject, across every device and tenant; no target subject is accepted.",
+        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/iam/module.go",
+            "sha256": "3d300ed912aa229a1e2bc0a4ab0c4e773466bb65736281bfe6272d467cd56dc0",
+            "symbol": "func (m *Module) Routes("
+          },
+          {
+            "path": "backend/pkg/authn/authn.go",
+            "sha256": "c9c31cbabf8b6d1707399aa8af61e333335dfc217582758bb291d9991b96f9de",
+            "symbol": "func verifyCredential("
+          },
+          {
+            "path": "backend/internal/modules/iam/signout.go",
+            "sha256": "f5fe0448a1ecfab1d9aebd32573817de42980219a77be38886892ade64e13236",
+            "symbol": "func (h *revocationHandlers) signOut("
+          }
+        ],
+        "remaining": [
+          "Prove that a still-valid shared session cannot authorize operations for suspended, exited or expired hospital employment while independently valid other-hospital and governance access remain available.",
+          "Complete current signed-session, dependency-failure and effective-cutoff race acceptance at every operational data owner; this source classification grants no bypass.",
+          "Review governance/recovery and legacy migration cohorts independently; global credential revocation must not implement hospital employment termination."
+        ]
+      }
     },
     {
       "id": "http iam POST /v1/iam/me/tenant",

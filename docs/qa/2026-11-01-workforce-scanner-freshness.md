@@ -47,3 +47,13 @@ The preparer created applicant `SYN-FULL-UI-20261101`, fixed-term revision 1 and
 A separate reviewer signed in normally, downloaded the exact bound files and verified all 179 original bytes, examined the recorded terms, and approved both findings. Empty decision reasons were blocked. Reopening the reviews displayed Approved finding and Approved terms with their saved reasons. The directory still shows the applicant Inactive, so approvals alone did not activate employment or provision a login/access assignment.
 
 This accepts the local non-digital source preparation and independent approval journey. Fresh-source activation, digital recipient and consumer/lifecycle enforcement remain separate gates. Private artifacts are `full-ui-person-approved.jpg`, `full-ui-employment-approved.jpg`, `full-ui-approved-staff-still-inactive.jpg` and `full-ui-source-case.json`.
+
+## Fresh non-digital activation acceptance
+
+The same UI-created applicant subsequently passed explicit activation locally using a temporary hospital-scoped activator fixture, proposed by the fixture owner and independently approved by the separate IAM approver. Only this role setup used the previously authorized local API fixture; every Staff/terms/file/finding/submission/decision and activation action used normal UI.
+
+Eligibility displayed the approved appointment's exact UTC period. Empty activation reason and missing examination were blocked. The valid command returned Employment activation recorded. Reopening and refreshing eligibility displayed already recorded, with no second activation form. Staff directory changed from Inactive after approvals to Active after explicit activation.
+
+The temporary activator assignment was withdrawn through IAM, the local owner was restarted with activation off, and a fresh directory load still showed Active. Read-only database assertions confirmed Staff version 2, employment epoch 2, exactly one generation, zero login links, zero IAM employment bases and zero assignment bases for this non-digital case. No receipt/verdict/business state was manually inserted or rewritten. Production stayed default-off.
+
+Private proof includes `full-ui-activation-receipt.jpg`, `full-ui-activation-persists-with-feature-off.jpg`, `full-ui-persistence-verification.json` and the withdrawn role fixture receipt. Digital recipient activation, deterministic races/governance and consumer/lifecycle cutoffs remain open.

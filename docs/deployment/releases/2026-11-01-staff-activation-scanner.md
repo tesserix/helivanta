@@ -36,6 +36,10 @@ One initial server dry-run rejected a name prefix before creation; the corrected
 
 Private receipts and screenshots are retained under the existing `reviewer-ui-acceptance-20261101/rollout-02b1e2b7` evidence directory. Local scanner regression, both supported UI retries and the independent-source workflow remain tracked in [scanner acceptance](../../qa/2026-11-01-workforce-scanner-freshness.md) and the [Staff tracker](../../qa/staff-management-progress.md).
 
+## Additional local acceptance
+
+The same fully UI-created non-digital case subsequently passed separate explicit activation under a temporary independently approved hospital-scoped activator fixture. Mandatory reason/examination, recorded receipt, already-consumed source, Staff Active persistence after restart, and zero login/IAM/assignment bases were verified. The fixture assignment was withdrawn and local activation restored off. These checks do not enable production activation.
+
 ## Remaining gates
 
 Employment activation remains default-off. Digital recipient acceptance, deterministic activation races, legacy/governance review and all consumer/lifecycle cutoffs remain open. Whole Staff remains 10 partial, 10 awaiting audit, 1 research and 0 fully accepted areas. No umbrella issue is closed or tagged as fully complete.

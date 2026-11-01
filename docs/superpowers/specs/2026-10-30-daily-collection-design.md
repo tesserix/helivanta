@@ -79,4 +79,5 @@ billing's own records, and a CSV of the same figures for the ledger.
 
 Finance sign-off of a day and reopening; GL posting; card and other modes
 (UPI was added beside the cash columns by `2026-11-01-billing-upi-design.md`); per-cashier and per-authoriser variance trends;
-date ranges; events; handover, denominations and pickups (#198 later slices).
+date ranges; events; handover (#198 later slices); denominations and pickups since added
+(`2026-11-02-cash-pickups-design.md`).

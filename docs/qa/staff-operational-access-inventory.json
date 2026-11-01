@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "cad3df7fb51357e5e562dc1531863e2d0f428682d1870fd3a366893e1b7ad7eb",
+  "registry_sha256": "c2a613ae76956153159d96c9b779c81038d39582137d28ce037de507610005d1",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 734,
-    "unclassified": 717
+    "total": 738,
+    "unclassified": 721
   },
   "entries": [
     {
@@ -1002,6 +1002,22 @@
       "review": null
     },
     {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/cash-denominations",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/cash-denominations",
+        "permission": "billing.account.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing GET /v1/billing/hospitals/:hospital/cash-shifts",
       "kind": "http",
       "module": "billing",
@@ -1009,6 +1025,22 @@
         "source": "backend/internal/modules/billing/module.go",
         "method": "GET",
         "path": "/v1/billing/hospitals/:hospital/cash-shifts",
+        "permission": "billing.shift.authorise",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing GET /v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "GET",
+        "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups",
         "permission": "billing.shift.authorise",
         "authentication_required": true,
         "membership_required": true,
@@ -1418,6 +1450,22 @@
       "review": null
     },
     {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction",
+        "permission": "billing.shift.authorise",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-shifts/:shift/authorisation",
       "kind": "http",
       "module": "billing",
@@ -1442,6 +1490,22 @@
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/close",
         "permission": "billing.cash.collect",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups/:pickup",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/pickups/:pickup",
+        "permission": "billing.shift.authorise",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

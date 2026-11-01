@@ -135,7 +135,7 @@ func TestAUpiPaymentBecomesAReceiptOutsideTheDrawer(t *testing.T) {
 	u = w.upi(id)
 	require.Equal(t, "awaiting_payment", u.Status)
 	require.Equal(t, "https://rzp.io/i/qr_1", *u.QRImageURL)
-	status, _ = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":2000}`)
+	status, _ = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(2000))
 	require.Equal(t, http.StatusConflict, status, "a shift does not close while its QR waits")
 
 	// Paid: one receipt, numbered next on the counter, redelivery or not.
@@ -164,19 +164,19 @@ func TestAUpiPaymentBecomesAReceiptOutsideTheDrawer(t *testing.T) {
 	require.Contains(t, body, "upi_receipt", "the money is at the bank, whatever the drawer holds")
 
 	// The drawer holds the cash, not the UPI.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":2000}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(2000))
 	require.Equal(t, http.StatusOK, status, body)
 	require.Contains(t, body, `"status":"closed"`)
 	require.Contains(t, body, `"expected_minor":2000`)
 
 	day := do(w.r, "GET", w.root+"/collections/"+time.Now().In(ist).Format(time.DateOnly), "admin", "").Body.String()
 	require.Contains(t, day, `"payments_minor":2000,"deposits_minor":0,"refunds_minor":0,"net_minor":2000`, "cash totals stay cash")
-	require.Contains(t, day, `"upi_payments_minor":3000,"upi_deposits_minor":0}`, "UPI beside it")
+	require.Contains(t, day, `"upi_payments_minor":3000,"upi_deposits_minor":0,"picked_up_minor":0}`, "UPI beside it")
 	res := do(w.r, "GET", w.root+"/collections/"+time.Now().In(ist).Format(time.DateOnly)+"/export.csv", "admin", "")
 	require.Equal(t, http.StatusOK, res.Code)
-	require.Contains(t, res.Body.String(), "authorisation_reason,upi_payments,upi_deposits\r\n")
-	require.Regexp(t, `\n[^\n]*,IPD-1,[^\n]*,,,30\.00,0\.00\r\n`, res.Body.String(), "the shift carries its UPI")
-	require.Regexp(t, `\n[^\n]*,TOTAL,[^\n]*,,,30\.00,0\.00\r\n`, res.Body.String(), "and so does the TOTAL")
+	require.Contains(t, res.Body.String(), "authorisation_reason,upi_payments,upi_deposits,picked_up\r\n")
+	require.Regexp(t, `\n[^\n]*,IPD-1,[^\n]*,,,30\.00,0\.00,0\.00\r\n`, res.Body.String(), "the shift carries its UPI")
+	require.Regexp(t, `\n[^\n]*,TOTAL,[^\n]*,,,30\.00,0\.00,0\.00\r\n`, res.Body.String(), "and so does the TOTAL")
 }
 
 // A cancel waits for payments' answer; money that lands after the QR closed
@@ -198,14 +198,14 @@ func TestLateUpiMoneyIsRecordedInTheShiftThatAsked(t *testing.T) {
 	require.Len(t, w.outboxFor(t, "helivanta.in.billing.payment_cancelled.v1", id), 1)
 	require.Equal(t, http.StatusOK, do(w.r, "POST", w.root+"/upi-requests/"+id+"/cancel", "clerk", "").Code, "a retried cancel replays")
 	require.Len(t, w.outboxFor(t, "helivanta.in.billing.payment_cancelled.v1", id), 1, "and asks once")
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":500}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(500))
 	require.Equal(t, http.StatusConflict, status)
 	require.Contains(t, body, "upi_waiting", "cancelling still waits for the answer")
 
 	require.NoError(t, w.deliver("billing-upi-cancelled", paymentscontract.IntentCancelledData{IntentRef: ref(id)}))
 	require.Equal(t, "cancelled", w.upi(id).Status)
 	require.Equal(t, http.StatusOK, do(w.r, "POST", w.root+"/upi-requests/"+id+"/cancel", "clerk", "").Code, "cancelling what was cancelled replays")
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":500}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(500))
 	require.Equal(t, http.StatusOK, status, body)
 
 	// Another requester's outcome, and the wrong amount, pay nothing.

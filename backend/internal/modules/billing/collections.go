@@ -62,6 +62,9 @@ type collectionShift struct {
 	// apart from the cash columns. A late payment can add to a closed shift.
 	UpiPaymentsMinor *int64 `json:"upi_payments_minor"`
 	UpiDepositsMinor *int64 `json:"upi_deposits_minor"`
+	// Cash taken to the safe less corrections (#198 slice 4): a movement out
+	// of the drawer, not revenue, so it is apart from net.
+	PickedUpMinor *int64 `json:"picked_up_minor"`
 }
 
 // collectionTotals cover counted shifts (closed or waiting for
@@ -83,6 +86,7 @@ type collectionTotals struct {
 	VoidedRefundsMinor int64 `json:"voided_refunds_minor"`
 	UpiPaymentsMinor   int64 `json:"upi_payments_minor"`
 	UpiDepositsMinor   int64 `json:"upi_deposits_minor"`
+	PickedUpMinor      int64 `json:"picked_up_minor"`
 }
 
 type dailyCollection struct {
@@ -142,7 +146,8 @@ func (h *handlers) collection(c *gin.Context) (dailyCollection, error) {
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='upi' AND r.purpose='deposit'),0) AS upi_deposits_minor,
  count(r.id) FILTER (WHERE r.voided_at IS NOT NULL) AS voided_count,
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose<>'refund'),0) AS voided_minor,
- COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose='refund'),0) AS voided_refunds_minor
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose='refund'),0) AS voided_refunds_minor,
+ billing_shift_picked_up(s.tenant_id,s.id) AS picked_up_minor
  FROM billing_cash_shifts s
  JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id
  LEFT JOIN billing_cash_receipts r ON r.tenant_id=s.tenant_id AND r.shift_id=s.id
@@ -176,7 +181,7 @@ func (d *dailyCollection) summarise() {
 		case "open":
 			// Blind until counted: nothing that adds up to the expected cash.
 			s.OpeningFloatMinor, s.PaymentsMinor, s.DepositsMinor, s.RefundsMinor, s.VoidedCount, s.VoidedMinor, s.VoidedRefundsMinor = nil, nil, nil, nil, nil, nil, nil
-			s.UpiPaymentsMinor, s.UpiDepositsMinor = nil, nil
+			s.UpiPaymentsMinor, s.UpiDepositsMinor, s.PickedUpMinor = nil, nil, nil
 			t.OpenShifts++
 			d.Final = false
 			continue
@@ -193,6 +198,7 @@ func (d *dailyCollection) summarise() {
 		t.VoidedRefundsMinor += *s.VoidedRefundsMinor
 		t.UpiPaymentsMinor += *s.UpiPaymentsMinor
 		t.UpiDepositsMinor += *s.UpiDepositsMinor
+		t.PickedUpMinor += *s.PickedUpMinor
 		if v := *s.VarianceMinor; v < 0 {
 			t.ShortageMinor -= v
 		} else {
@@ -241,7 +247,7 @@ func (h *handlers) exportDailyCollection(c *gin.Context) {
 
 var collectionHeader = []string{"date", "timezone", "final", "counter_code", "counter_name", "cashier", "status", "opened_at", "closed_at",
 	"opening_float", "payments", "deposits", "refunds", "net", "voided_receipts", "voided_amount", "voided_refunds", "expected", "declared", "variance",
-	"shortage", "excess", "authorised_by", "authorisation_reason", "upi_payments", "upi_deposits"}
+	"shortage", "excess", "authorised_by", "authorisation_reason", "upi_payments", "upi_deposits", "picked_up"}
 
 func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 	w := csvsafe.NewWriter(collectionCSVLimit)
@@ -263,7 +269,7 @@ func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 			s.OpenedAt.UTC().Format(time.RFC3339), closed, rupees(s.OpeningFloatMinor), rupees(s.PaymentsMinor), rupees(s.DepositsMinor),
 			rupees(s.RefundsMinor), rupees(net), integer(s.VoidedCount), rupees(s.VoidedMinor), rupees(s.VoidedRefundsMinor), rupees(s.ExpectedMinor), rupees(s.DeclaredMinor),
 			rupees(s.VarianceMinor), rupees(shortage), rupees(excess), csvsafe.Text(deref(s.AuthorisedBy)), csvsafe.Text(deref(s.AuthorisationReason)),
-			rupees(s.UpiPaymentsMinor), rupees(s.UpiDepositsMinor))
+			rupees(s.UpiPaymentsMinor), rupees(s.UpiDepositsMinor), rupees(s.PickedUpMinor))
 		if err := w.Write(row); err != nil {
 			return nil, err
 		}
@@ -272,7 +278,7 @@ func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 	t := d.Totals
 	total := append(append([]string{}, day...), "TOTAL", "", "", "", "", "", "", rupees(&t.PaymentsMinor), rupees(&t.DepositsMinor),
 		rupees(&t.RefundsMinor), rupees(&t.NetMinor), integer(&t.VoidedReceipts), rupees(&t.VoidedMinor), rupees(&t.VoidedRefundsMinor), "", "", "", rupees(&t.ShortageMinor), rupees(&t.ExcessMinor), "", "",
-		rupees(&t.UpiPaymentsMinor), rupees(&t.UpiDepositsMinor))
+		rupees(&t.UpiPaymentsMinor), rupees(&t.UpiDepositsMinor), rupees(&t.PickedUpMinor))
 	if err := w.Write(total); err != nil {
 		return nil, err
 	}

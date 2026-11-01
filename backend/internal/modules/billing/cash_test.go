@@ -38,6 +38,27 @@ func (w *bedWorld) pay(token, admission string, amount int64) (int, string) {
 	return w.put(token, "/admissions/"+admission+"/receipts/"+v7(), fmt.Sprintf(`{"amount_minor":%d,"currency":"INR"}`, amount))
 }
 
+// closeBody is a close counting minor (a multiple of 50 paise) in the
+// fewest notes and coins.
+func closeBody(minor int64) string {
+	counts := map[string]int64{}
+	for _, d := range []struct {
+		key   string
+		value int64
+	}{{"note:200000", 200000}, {"note:50000", 50000}, {"note:20000", 20000}, {"note:10000", 10000}, {"note:5000", 5000}, {"note:2000", 2000},
+		{"note:1000", 1000}, {"note:500", 500}, {"note:200", 200}, {"note:100", 100}, {"coin:50", 50}} {
+		if n := minor / d.value; n > 0 {
+			counts[d.key] = n
+			minor -= n * d.value
+		}
+	}
+	if minor != 0 {
+		panic("closeBody counts multiples of 50 paise")
+	}
+	b, _ := json.Marshal(map[string]any{"counts": counts})
+	return string(b)
+}
+
 type shiftBody struct {
 	Status        string  `json:"status"`
 	ExpectedMinor *int64  `json:"expected_minor"`
@@ -117,16 +138,16 @@ func TestCashIsTakenInAShiftAndTheShiftClosesBlind(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", w.root+"/cash-shifts", "clerk", "").Code)
 
 	// A short count waits for someone else's authorisation.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":4900}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(4900))
 	require.Equal(t, http.StatusOK, status, body)
 	var closed shiftBody
 	require.NoError(t, json.Unmarshal([]byte(body), &closed))
 	require.Equal(t, "pending_authorisation", closed.Status)
 	require.EqualValues(t, 5000, *closed.ExpectedMinor, "float 2000 + 3000 standing")
 	require.EqualValues(t, -100, *closed.VarianceMinor)
-	status, _ = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":4900}`)
+	status, _ = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(4900))
 	require.Equal(t, http.StatusOK, status, "a retried close replays")
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":5000}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(5000))
 	require.Contains(t, body, "shift_closed", "a recount is not a second close: %d", status)
 	status, body = w.pay("clerk", admission, 100)
 	require.Contains(t, body, "no_open_shift", "%d", status)
@@ -153,7 +174,7 @@ func TestCashIsTakenInAShiftAndTheShiftClosesBlind(t *testing.T) {
 	require.Equal(t, http.StatusCreated, status, body)
 	status, body = w.pay("clerk", admission, 500)
 	require.Contains(t, body, `"number":3`, "numbering carries on across shifts: %d", status)
-	status, body = w.put("clerk", "/cash-shifts/"+next+"/close", `{"declared_minor":500}`)
+	status, body = w.put("clerk", "/cash-shifts/"+next+"/close", closeBody(500))
 	require.Equal(t, http.StatusOK, status, body)
 	require.Contains(t, body, `"status":"closed"`)
 	require.Contains(t, body, `"authorised_by":null`)
@@ -172,7 +193,7 @@ func TestACashierCannotAuthoriseTheirOwnVariance(t *testing.T) {
 	_, shiftID := w.counterWithShift(t, "clerk2", "IPD-2", 0)
 	status, body := w.pay("clerk2", admission, 1000)
 	require.Equal(t, http.StatusCreated, status, body)
-	status, _ = w.put("clerk2", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":900}`)
+	status, _ = w.put("clerk2", "/cash-shifts/"+shiftID+"/close", closeBody(900))
 	require.Equal(t, http.StatusOK, status)
 	status, body = w.put("clerk2", "/cash-shifts/"+shiftID+"/authorisation", `{"reason":"Mine"}`)
 	require.Equal(t, http.StatusConflict, status)
@@ -241,10 +262,10 @@ func TestCashTablesHoldTheirRules(t *testing.T) {
 		return tx.Exec(`UPDATE billing_cash_shifts SET opening_float_minor=0 WHERE id=?`, shiftID).Error
 	}), "a float never changes")
 	require.Error(t, as("user-clerk", func(tx *gorm.DB) error {
-		return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=1000,declared_minor=1000,closed_at=now() WHERE id=?`, shiftID).Error
+		return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=1000,declared_minor=1000,declared_counts='{"note:1000":1}',closed_at=now() WHERE id=?`, shiftID).Error
 	}), "a close is measured against the cash actually taken")
 	require.Error(t, as("user-clerk2", func(tx *gorm.DB) error {
-		return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=6000,declared_minor=6000,closed_at=now() WHERE id=?`, shiftID).Error
+		return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=6000,declared_minor=6000,declared_counts='{"note:5000":1,"note:1000":1}',closed_at=now() WHERE id=?`, shiftID).Error
 	}), "only its cashier closes a shift")
 	require.Error(t, as("user-clerk", func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE billing_counters SET name='Other' WHERE id=?`, counter).Error
@@ -253,7 +274,7 @@ func TestCashTablesHoldTheirRules(t *testing.T) {
 		return tx.Exec(`DELETE FROM billing_cash_receipts WHERE admission_id=?`, admission).Error
 	}))
 	// Closed short, the cashier can neither authorise it nor void a receipt.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":1}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(50))
 	require.Equal(t, http.StatusOK, status, body)
 	require.Error(t, as("user-clerk", func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',authorised_by='user-clerk',authorisation_reason='Mine',authorised_at=now() WHERE id=?`, shiftID).Error
@@ -341,7 +362,7 @@ func TestACloseCountsAReceiptStillBeingWrittenAndRefusesALateVoid(t *testing.T) 
 	<-written
 	closed := make(chan string, 1)
 	go func() {
-		_, body := w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":2000}`)
+		_, body := w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(2000))
 		closed <- body
 	}()
 	select {
@@ -384,7 +405,7 @@ func TestAVoidWaitingOnACloseIsRefused(t *testing.T) {
 			}
 			close(locked)
 			<-release
-			return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=700,declared_minor=700,closed_at=clock_timestamp() WHERE id=?`, shiftID).Error
+			return tx.Exec(`UPDATE billing_cash_shifts SET status='closed',expected_minor=700,declared_minor=700,declared_counts='{"note:500":1,"note:200":1}',closed_at=clock_timestamp() WHERE id=?`, shiftID).Error
 		})
 	}()
 	<-locked

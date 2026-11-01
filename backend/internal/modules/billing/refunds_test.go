@@ -64,7 +64,7 @@ func TestARefundPaysBackWhatIsHeldAndNetsTheDrawer(t *testing.T) {
 	require.Contains(t, res.Body.String(), `"refunded_minor":100000`)
 
 	// The drawer holds 5000 less 1000 refunded: the close is counted against 4000.
-	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", `{"declared_minor":400000}`)
+	status, body = w.put("clerk", "/cash-shifts/"+shiftID+"/close", closeBody(400000))
 	require.Equal(t, http.StatusOK, status, body)
 	require.Contains(t, body, `"expected_minor":400000`)
 	require.Contains(t, body, `"status":"closed"`)

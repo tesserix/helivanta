@@ -22,7 +22,7 @@ export function useApiQuery<T>(
   key: unknown[],
   path: string,
   opts: {
-    poll?: boolean;
+    poll?: boolean | ((data: T | undefined) => boolean);
     placeholderData?: PlaceholderValue<T>;
     enabled?: boolean;
     gcTime?: number;
@@ -31,10 +31,16 @@ export function useApiQuery<T>(
     request?: ApiQueryRequest;
   } = {},
 ): UseQueryResult<T, Error> {
+  const poll = opts.poll;
   return useQuery({
     queryKey: key,
     queryFn: ({ signal }) => apiFetch<T>(path, { ...opts.request, signal }),
-    refetchInterval: opts.poll ? POLL_INTERVAL_MS : undefined,
+    refetchInterval:
+      typeof poll === "function"
+        ? (query) => (poll(query.state.data) ? POLL_INTERVAL_MS : false)
+        : poll
+          ? POLL_INTERVAL_MS
+          : undefined,
     // placeholderData, not initialData: it is shown while the request is
     // in flight but never written to the query cache, so a locally cached
     // value can never be mistaken for a server response or served to a

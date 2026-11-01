@@ -1,5 +1,22 @@
 # Staff Management delivery tracker
 
+## Reviewer workspace deployed — 2026-11-01
+
+The approved `7e5b7800` rollout and all four Workforce migrations completed through
+Kargo/Argo. The production ledger is exactly 197 entries, with only 0062–0065
+added and both concurrent indexes valid/ready. Six workloads are 2/2; all 12
+application pods use exact published digests with zero restarts. Argo and Kargo
+are healthy. [Release evidence](../deployment/releases/2026-11-01-employment-review-workspace.md)
+records the persisted migration manifest and verified target.
+
+Fresh owner/reviewer production sign-ins pass. Both correctly have no employment
+review hospitals without scoped authority, while the reviewer retains explicit
+Staff/payroll denial. Positive independent decisions/provider/scanner workflows
+remain locally accepted; no production grant or business record was created for
+this smoke test. Operational generation, explicit legacy/governance review and
+lifecycle enforcement remain open. Whole Staff remains 10 partial, 10 awaiting
+audit, 1 research and 0 fully accepted areas.
+
 ## Reviewer workspace merged — 2026-11-01
 
 [PR #1507](https://github.com/tesserix/helivanta/pull/1507) passed every required

@@ -111,3 +111,13 @@ Production approval for this revision and all four new migrations is pending;
 without changing the local-versus-production acceptance boundary. A subsequent
 source-only session audit has 17 classifications and 707 unclassified surfaces;
 zero full runtime cutoff acceptances remain established.
+
+## Approved production rollout completed
+
+The user approved `7e5b7800` and migrations 0062–0065. The
+[rollout evidence](../deployment/releases/2026-11-01-employment-review-workspace.md)
+now supersedes the pending-approval status above: all four are applied, the exact
+197-entry ledger and valid concurrent indexes are verified, and six workloads
+are 2/2 at exact digests. Fresh owner/reviewer production sign-in and absent-scope
+checks pass, alongside reviewer Staff/payroll denial. Production positive review,
+operational activation and lifecycle enforcement remain separate unfinished gates.

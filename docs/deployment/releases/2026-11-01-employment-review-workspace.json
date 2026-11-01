@@ -1,0 +1,160 @@
+{
+  "format_version": 1,
+  "status": "deployed_and_verified",
+  "revision": "7e5b7800b88f60a2579f6bacfd2f8dc23ea571ca",
+  "tested_pr_head": "176d16f4e2e29c0a1b073e634d72edf52fe388db",
+  "source_tree": "94a3548f6e60b8be4ff71b0905c0a4832b4cb9f4",
+  "tested_and_merged_tree_equal": true,
+  "pull_request": "https://github.com/tesserix/helivanta/pull/1507",
+  "image_workflow": "https://github.com/tesserix/helivanta/actions/runs/41274127978",
+  "namespace": "helivanta",
+  "promotion": "prod.01m6apybqctyqtr0mvj1k573n4.aadb359",
+  "freight": "aadb359528ff758ad1b43a2825024668ee2261f7",
+  "promotion_phase": "Succeeded",
+  "verified_at": "2026-11-01T04:54:11.329814+00:00",
+  "published_digests": {
+    "api": "sha256:0efea2483f833b1324ac3031070eb5f4c24fbb514ef916f10d1e9507f5c61dab",
+    "shell": "sha256:4acf246f94ecf7c6d6cc257f6371256f3019b9957350c38396730cde6b7addef"
+  },
+  "workload_count": 6,
+  "ready_application_pods": 12,
+  "application_pod_restarts": 0,
+  "applications": [
+    {
+      "name": "helivanta-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-global-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-shell",
+      "sync": "Synced",
+      "health": "Healthy"
+    }
+  ],
+  "migration_ledger": {
+    "before_count": 193,
+    "after_count": 197,
+    "added": [
+      "0062_workforce_employment_review_browse",
+      "0063_workforce_employment_review_inbox_index",
+      "0064_workforce_employment_finding_selection",
+      "0065_workforce_employment_finding_selection_index"
+    ],
+    "removed": [],
+    "job_succeeded": true,
+    "concurrent_indexes_valid_and_ready": true
+  },
+  "migrations": [
+    {
+      "module": "workforce",
+      "id": "0062_workforce_employment_review_browse",
+      "sql_sha256": "79afae7ba295040dffd0eaf53fbac99ffe57eebad28c2ad42e8e701d3667716d",
+      "creates_tables": [],
+      "canonical_source": "backend/internal/modules/workforce/employment_review_browse.sql"
+    },
+    {
+      "module": "workforce",
+      "id": "0063_workforce_employment_review_inbox_index",
+      "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creates_tables": [],
+      "concurrent_indexes": [
+        {
+          "name": "workforce_employment_review_inbox",
+          "table": "workforce_employment_reviews",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "descending": false
+            },
+            {
+              "name": "hospital_id",
+              "descending": false
+            },
+            {
+              "name": "status",
+              "descending": false
+            },
+            {
+              "name": "created_at",
+              "descending": true
+            },
+            {
+              "name": "id",
+              "descending": true
+            }
+          ]
+        }
+      ],
+      "canonical_source": "backend/internal/modules/workforce/module.go"
+    },
+    {
+      "module": "workforce",
+      "id": "0064_workforce_employment_finding_selection",
+      "sql_sha256": "42e157e3fbe7908fa41beb9cfd7fa54503338ce31a5c65e33fcf15d974ef9a42",
+      "creates_tables": [],
+      "canonical_source": "backend/internal/modules/workforce/employment_finding_selection.sql"
+    },
+    {
+      "module": "workforce",
+      "id": "0065_workforce_employment_finding_selection_index",
+      "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creates_tables": [],
+      "concurrent_indexes": [
+        {
+          "name": "workforce_employment_person_selection",
+          "table": "workforce_person_reviews",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "descending": false
+            },
+            {
+              "name": "hospital_id",
+              "descending": false
+            },
+            {
+              "name": "staff_id",
+              "descending": false
+            },
+            {
+              "name": "status",
+              "descending": false
+            },
+            {
+              "name": "created_at",
+              "descending": true
+            },
+            {
+              "name": "id",
+              "descending": true
+            }
+          ]
+        }
+      ],
+      "canonical_source": "backend/internal/modules/workforce/module.go"
+    }
+  ],
+  "browser": {
+    "normal_owner_sign_in": "passed",
+    "normal_reviewer_sign_in": "passed",
+    "owner_employment_review_scopes": "empty without scoped assignment",
+    "reviewer_employment_review_scopes": "empty without scoped assignment",
+    "reviewer_staff_directory": "No hospital access yet",
+    "reviewer_payroll": "explicit access denied",
+    "production_grants_created": false,
+    "production_business_commands_created": false,
+    "positive_employment_review_acceptance": "local only",
+    "automation_interruption": "One fresh reviewer sign-in wait encountered a browser relay timeout; subsequent DOM verified successful sign-in without retrying credentials or changing protections."
+  },
+  "production_authority_activation": false,
+  "remaining": [
+    "Positive production review workflow acceptance with specifically authorized independent actors and released scanner evidence.",
+    "Reviewed operational generation consumption, explicit legacy/governance review and every lifecycle consumer cutoff.",
+    "Digital-recipient provisioning and complete Staff lifecycle end-to-end acceptance."
+  ]
+}

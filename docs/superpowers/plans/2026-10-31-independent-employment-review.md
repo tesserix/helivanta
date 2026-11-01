@@ -32,6 +32,17 @@ permission, schema or screen exists.
 
 ## Next normal-workspace implementation gates
 
+- [x] Validate the selected-review history API/SDK slice locally: current scoped HR-intake or
+      employment-review authority on every page, immutable original terms and
+      selected evidence metadata, original workspace assertions, bounded cursor
+      transport, sensitive-read audit and no byte-release or activation authority.
+      The initial signed Global API test observed 404 for the missing history
+      route. SDK response checks must reject foreign/duplicate/out-of-order or
+      source-inconsistent receipts and discard cancelled requests. This slice
+      adds no grant, schema or migration; the existing scoped history primary
+      key bounds each legal review to at most three receipts. The normal
+      reviewer UI, discovery, selection and protected bytes remain separate gates.
+
 - [ ] Add the signed missing-route regression for selected employment-evidence
       bytes. Use the frozen binding ID under its review, recheck current original
       permission/assignment, actor link/epoch, review revision, target source and

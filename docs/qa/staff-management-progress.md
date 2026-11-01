@@ -1,5 +1,44 @@
 # Staff Management delivery tracker
 
+## Protected employment-history candidate — 2026-11-01
+
+The next bounded reviewer-workspace prerequisite adds a selected-review history
+endpoint and canonical typed SDK. Every page uses current scoped HR-intake or
+independent employment-review authority, a reviewed active actor link and exact
+original tenant/subject assertions; SQL and forced RLS retain hospital/Staff/
+review scope. Immutable receipts retain their frozen terms/evidence metadata and
+require sensitive-read audit before release. They convey historical status,
+without current capabilities, private bytes or employment activation.
+
+The signed Global API regression first observed the missing route's 404. The final
+serial owner race run passes, including bounded pagination, strict mode/query
+shape, foreign Staff/review denial, denied legacy-only authority, audit failure
+without data release, retained revoked/stale receipts and immediate refusal after
+the scoped employment-review assignment is withdrawn. A fixture ordering failure
+was corrected by waiting for the unaffected identity permission's new scope
+projection before continuing the existing person-review cases. An overlapping
+race attempt also hit the bounded authorization timeout; final owner checks ran
+serially without weakening that timeout.
+
+The SDK regression first failed for the missing method and then caught inconsistent
+frozen sources across otherwise valid receipts. Canonical owned scope, order,
+uniqueness, continuation, within-page source consistency and cancellation checks
+now pass in the full API package suite (**513 tests / 35 files**), alongside its
+type-check/lint. Workforce race tests, Go build/vet and affected Go lint pass.
+Generated contract documentation, the canonical employment model generator and
+the operational inventory are checked. No schema, SQL migration, permission or
+production authority changed. Source classification is now **10 of 720 registered
+surfaces**, with **710 unclassified and zero full cutoff acceptances**.
+
+This is an undeployed API/SDK candidate, without employment-review UI acceptance.
+The [implementation plan](../superpowers/plans/2026-10-31-independent-employment-review.md)
+still requires the normal employment-review inbox, target/evidence selection,
+protected bytes and Staff Admin/preparer/reviewer browser journey. Read-only
+production readiness metadata is retained privately; existing production grants
+were not inferred to be reviewed employment or governance authority. Operational
+generation, legacy/governance review and lifecycle cutoff remain open. Whole Staff
+remains **10 partial, 10 awaiting audit, 1 research, 0 fully accepted areas**.
+
 ## Person-review browser checkpoint — 2026-11-01
 
 The [acceptance matrix](2026-11-01-person-review-ui-acceptance.md) records actual

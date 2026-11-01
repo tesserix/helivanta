@@ -312,6 +312,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.SearchRoute(g, "/:hospital/identity-staff/:id/person-review-evidence/search", authz.Public, h.searchPersonReviewEvidence)
 	g.PUT("/:hospital/staff/:id/employment-reviews/:review", authz.Public, h.putEmploymentReview)
 	g.GET("/:hospital/staff/:id/employment-reviews/:review", authz.Public, h.getEmploymentReview)
+	platform.ListRoute(g, "/:hospital/staff/:id/employment-reviews/:review/history", authz.Public, h.listEmploymentReviewHistory)
 	g.POST("/:hospital/staff/:id/employment-reviews/:review/decision", authz.Public, h.decideEmploymentReview)
 	g.POST("/:hospital/staff/:id/employment-reviews/:review/withdrawal", authz.Public, h.withdrawEmploymentReview)
 	g.POST("/:hospital/staff/:id/employment-reviews/:review/revocation", authz.Public, h.revokeEmploymentReview)

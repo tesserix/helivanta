@@ -15,8 +15,7 @@ import (
 )
 
 func (h *handlers) employmentReviewReviewer(c *gin.Context, p authn.Principal, hospital, staff, id uuid.UUID, fn func(*gorm.DB, IdentitySource, *intakeAuthority) error) error {
-	query := c.Request.URL.Query()
-	if len(query) != 1 || len(query["employment_review"]) != 1 || query.Get("employment_review") != "v1" {
+	if !employmentReviewProjection(c, "employment_review") {
 		return errIntakeProjection
 	}
 	return h.intakeAuthorityTransaction(c, p, hospital, []authz.Permission{PermEmploymentReview}, true, func(tx *gorm.DB, scoped bool) error {

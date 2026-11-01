@@ -337,6 +337,14 @@ func TestScopedLeaveThroughGlobalAPI(t *testing.T) {
 	expiredResponse := <-expiringDecision
 	unlockLedger()
 	require.Equal(t, 403, expiredResponse.Code, expiredResponse.Body.String())
+	// Cancellation does not prove PostgreSQL's wall clock reached the cutoff.
+	require.Eventually(t, func() bool {
+		var expired bool
+		err := db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT clock_timestamp()>=?::timestamptz`, expires).Scan(&expired).Error
+		})
+		return err == nil && expired
+	}, time.Second, 10*time.Millisecond)
 	call("GET", base+"/leave-review-requests", reviewer, nil, 403)
 	require.Empty(t, call("GET", "/v1/workforce/leave-review-scopes", reviewer, nil, 200)["data"])
 	stillPending = call("GET", pending, admin, nil, 200)

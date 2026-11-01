@@ -39,6 +39,10 @@ typechecks; contractdocs generation/check; backend build/vet; API/shell lint and
 scoped Go lint (zero issues); shell production build. Full IAM race passed in
 365.913s and signed Global API race in 123.458s. Tenantdb race rerun inside the
 test VM passed in 16.443s; full Workforce VM race passed in 434.152s.
+Final architecture/authorization suites pass. The final complete Global API VM
+race rerun passes in 90.083s after adding a PostgreSQL clock witness to the
+existing leave-expiry test; no 403 or rollback assertion was weakened.
+PR #1510 is draft while CI runs.
 The first broad backend attempt hit a host port collision with an unrelated local
 app before tenantdb assertions; it is not passing evidence. Raw logs remain in the
 private reviewer-acceptance directory outside Git.

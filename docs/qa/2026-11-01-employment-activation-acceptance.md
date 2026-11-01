@@ -77,6 +77,30 @@ The guard now lives with shared authorization interfaces; the exact permission
 and bounded eligibility receipt are recorded without changing the gates.
 No skipped assertions count as acceptance.
 
+## Final wiring and clock checks
+
+The shared guard now lives in `pkg/authz`, preserving data-only module contract
+packages. Architecture race passes 103.556s, contractdocs race 8.596s and full
+shared authorization race 22.641s. The additive-template preservation regression
+passes 5.563s after regenerating its test-only SQL from the canonical catalog.
+Backend build/vet/scoped lint pass again, with zero lint issues.
+
+The first post-refactor signed run, executed alongside other suites, failed
+assignment-activation readiness waits. The complete serial VM run passed the
+activation scenarios but caught an existing leave test expecting immediate denial
+from a fresh read after command cancellation. The VM logs show wall-clock
+adjustments; cancellation is not proof that PostgreSQL reached expiry. A focused
+clock-observation rerun passed in 24.701s. The test now explicitly observes
+`clock_timestamp() >= expires_at` before its fresh-read assertions; expected 403
+responses and unchanged pending request/ledger assertions are preserved. The
+complete serial VM package rerun passes in 90.083s; failed attempts are retained
+separately.
+
+The exact committed owner was rebuilt and restarted locally with the activation
+flag unset. A signed default-off smoke returns 503
+`employment_activation_unavailable`; owner reads still show active Staff v2/epoch2.
+Production remains untouched at `7e5b7800`.
+
 ## Remaining release gates
 
 Keep `WORKFORCE_EMPLOYMENT_ACTIVATION_ENABLED=false`. Complete deterministic lock

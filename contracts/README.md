@@ -9,3 +9,9 @@ Existing top-level JSON files are custom input dialects for the corresponding `s
 [Generated event payload schemas](../docs/api/reference/event-payloads.json) map all registered published subjects to their current Go payload schemas. [Runtime inventory](../docs/api/reference/inventory.json) records every module/route/permission/event/migration declaration. Regenerate/check from `backend/` with `go run ./cmd/contractdocs` / `go run ./cmd/contractdocs -check`.
 
 Bed/admission, commercial CRM and MediConnect drafts live in the domain specifications. They are not approved schema sources for clients. Use [review gates](../docs/api/review-plan.md) before promotion to a supported API. No current artifact establishes FHIR/ABDM conformance or regulatory certification.
+
+`organization-structure.json` owns organization hospital request receipts and
+versioned collection heads, department commands/snapshots, and the organization/
+Workforce identifier-only reference and revision events. Generate/check with
+`node scripts/generate-organization-structure.mjs` and `--check`; no operational
+Staff authority follows from these metadata models.

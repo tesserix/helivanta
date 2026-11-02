@@ -8551,6 +8551,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.organization_hospital_observed.v1",
         "helivanta.in.workforce.employment_review_changed.v1",
         "helivanta.in.workforce.person_review_changed.v1",
         "helivanta.in.workforce.identity_case_changed.v1",
@@ -8599,6 +8600,11 @@
         {
           "name": "workforce-assignment-scope",
           "subject": "helivanta.in.iam.assignment_scope_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "workforce-organization-reference",
+          "subject": "helivanta.in.organization.hospital_reference_requested.v1",
           "after_commit": false
         },
         {
@@ -9381,6 +9387,13 @@
           "id": "0067_workforce_document_scanner_freshness",
           "sql_sha256": "a26120691d2d7e47482161784719b879ef52163022482af73e29553581115799",
           "creates_tables": []
+        },
+        {
+          "id": "0069_workforce_organization_observations",
+          "sql_sha256": "96d9941ae249eaa0bf85c16c3c8dd911b947d1bbd1fbca3b7610be81654fc006",
+          "creates_tables": [
+            "workforce_organization_observations"
+          ]
         }
       ]
     },
@@ -9534,6 +9547,122 @@
         {
           "id": "0003_workspace_india_only",
           "sql_sha256": "0dbe15f31f4d0c8025ffef8e251f5c09acd5dedde3296b178af22c2514dbedc2",
+          "creates_tables": []
+        }
+      ]
+    },
+    {
+      "name": "organization",
+      "source": "backend/internal/modules/organization/module.go",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+          "permission": "organization.structure.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+          "permission": "organization.structure.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions",
+          "permission": "organization.structure.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/organization/hospitals/:hospital/departments",
+          "permission": "organization.structure.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/organization/hospitals/:hospital/registrations/:request",
+          "permission": "organization.structure.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/organization/hospitals/:hospital/registrations/:request",
+          "permission": "organization.structure.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/organization/hospitals",
+          "permission": "organization.structure.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "organization.structure.read",
+          "roles": []
+        },
+        {
+          "permission": "organization.structure.manage",
+          "roles": []
+        }
+      ],
+      "publishes": [
+        "helivanta.in.organization.hospital_reference_requested.v1",
+        "helivanta.in.organization.department_revision_changed.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [
+        {
+          "name": "organization-hospital-observation",
+          "subject": "helivanta.in.workforce.organization_hospital_observed.v1",
+          "after_commit": false
+        }
+      ],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_organization",
+          "sql_sha256": "98dd660d1388bb4f0b2239177d39e6f2c0f2bed746feaac3bc66615ea360d0e2",
+          "creates_tables": [
+            "organization_hospital_requests",
+            "organization_hospital_registrations"
+          ]
+        },
+        {
+          "id": "0002_organization_departments",
+          "sql_sha256": "8ac79e4383bb5921b5697189c9a2d6ee902932c1d7133b186a48f760272f43d6",
+          "creates_tables": [
+            "organization_departments",
+            "organization_department_revisions"
+          ]
+        },
+        {
+          "id": "0003_organization_department_revision_integrity",
+          "sql_sha256": "5f921509757b6bbc152ab533dc2ab1940c36eb50d53574d5c89766fa956adb98",
           "creates_tables": []
         }
       ]

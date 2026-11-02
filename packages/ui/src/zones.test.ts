@@ -25,7 +25,11 @@ describe("visibleZones", () => {
     expect(pharmacy?.label).toBe("PharmaConnect");
     // #576: the overview is the landing page for anyone with an outlet role.
     expect(pharmacy?.href).toBe("/pharmacy");
-    expect(pharmacy?.pages.map((page) => page.href)).toEqual(["/pharmacy", "/pharmacy/catalogue"]);
+    expect(pharmacy?.pages.map((page) => page.href)).toEqual([
+      "/pharmacy",
+      "/pharmacy/catalogue",
+      "/pharmacy/staff",
+    ]);
   });
 
   it("lists benefits only for a benefits reader, never for directory access", () => {
@@ -267,6 +271,7 @@ describe("zone icons and sections", () => {
       ["Inventory", "Expiry & safety", "/pharmacy/safety"],
       ["Inventory", "Product catalogue", "/pharmacy/catalogue"],
       ["Purchasing", "Supplier bills", "/pharmacy/accounts"],
+      ["Staff", "Staff source", "/pharmacy/staff"],
       ["Setup", "Outlets & access", "/pharmacy/setup"],
     ]);
   });

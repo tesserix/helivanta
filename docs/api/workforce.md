@@ -1,5 +1,18 @@
 # Workforce API: directory and protected enrollment
 
+## Shared Staff source consumer
+
+The web route `/pharmacy/staff` consumes the existing Global API Workforce
+hospital directory and hospital-local Staff list, using exact original
+`X-Helivanta-Expected-Tenant` and `X-Helivanta-Expected-Subject` assertions.
+Pharmacy membership is not hospital Staff authority. The shared SDK bounds and
+validates the existing responses, normalizes UUID scope comparisons and rejects
+foreign or duplicate records and inconsistent continuation. No new backend API,
+permission, migration or event is added. The source UI is read-only; creation and
+editing stay in the canonical Staff workspace. See the
+[local Pharma acceptance and remaining scope](../qa/2026-11-02-pharma-shared-staff-local.md).
+This is not an outlet posting or a dispensing/credential authorization contract.
+
 ## Scoped employment-review workspace
 
 The normal HR preparation and independent-review workspace uses these additive

@@ -1,5 +1,13 @@
 # Events and cross-product integration contracts
 
+Unreleased organization work adds a same-tenant hospital-reference request,
+retained Workforce existence observation and identifier-only department revision
+notification. Their payloads derive from
+`contracts/organization-structure.json`. No Staff details, private reason or
+authority travel in these events. See the [organization contract](organization.md)
+for correlation, duplicate handling, failure behavior and incomplete UI/runtime
+acceptance. The new owner does not query Workforce tables directly.
+
 The staff-access worktree adds a same-tenant IAM/workforce exchange:
 `helivanta.in.iam.assignment_scope_requested.v1` →
 `helivanta.in.workforce.assignment_scope_verified.v1`. Both declarations and

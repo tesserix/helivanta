@@ -437,3 +437,6 @@ type EmploymentReviewChangedData struct {
 	RevisionID string `json:"revision_id"`
 	Version    int64  `json:"version"`
 }
+
+// SubjectOrganizationHospitalObserved carries a retained existence observation, never human authority.
+const SubjectOrganizationHospitalObserved = "helivanta.in.workforce.organization_hospital_observed.v1"

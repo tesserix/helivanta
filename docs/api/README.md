@@ -39,6 +39,10 @@ The [privacy casework API](privacy.md) owns authenticated tenant-local rights/gr
 
 ## Domain specifications
 
+The unreleased [organization structure foundation](organization.md) implements
+hospital references and bounded department/sub-unit metadata with retained
+revisions. Canonical Staff postings and product access grants remain open.
+
 | Domain                                                 | Specification                                                                                                          |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Patients and clinical work                             | [Patient identity and MediCore](domains/patients-and-clinical.md)                                                      |

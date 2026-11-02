@@ -43,6 +43,15 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"organization.DepartmentRevisionChangedData.HospitalID":     "internal hospital reference for structural metadata; no person or clinical data",
+	"organization.DepartmentRevisionChangedData.NodeID":         "opaque department node reference; no Staff assignment or access authority",
+	"organization.DepartmentRevisionChangedData.RevisionID":     "opaque immutable metadata revision receipt; no actor or private reason",
+	"organization.DepartmentRevisionChangedData.Version":        "monotonic structural metadata version for stale-state detection; no personal data",
+	"organization.HospitalReferenceRequestedData.RequestID":     "opaque command receipt for duplicate delivery; no person or clinical data",
+	"organization.HospitalReferenceRequestedData.HospitalID":    "internal hospital reference for same-tenant owner existence lookup; no person data",
+	"workforce.OrganizationHospitalObservedData.RequestID":      "opaque registration receipt correlating a retained owner observation; no person data",
+	"workforce.OrganizationHospitalObservedData.HospitalID":     "internal hospital reference observed by its owning module; no person data",
+	"workforce.OrganizationHospitalObservedData.Exists":         "retained existence of a hospital reference; no Staff eligibility or clinical facts",
 	"workforce.EmploymentReviewChangedData.HospitalID":          "hospital scope for protected owner reauthorization; no patient or clinical data",
 	"workforce.EmploymentReviewChangedData.StaffID":             "hospital-scoped Staff reference for authorized owner lookup; staff personal-data protections still apply, no patient identity",
 	"workforce.EmploymentReviewChangedData.ReviewID":            "opaque employment submission reference; no appointment terms, policy, salary, finding or file location",

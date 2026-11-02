@@ -1,0 +1,230 @@
+{
+  "models": {
+    "OrganizationRegistrationInput": [
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500,
+        "binding": "required,min=1,max=500"
+      }
+    ],
+    "OrganizationRegistrationOutput": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending",
+          "verified",
+          "rejected"
+        ]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "DepartmentCommand": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 120
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "department",
+          "sub_unit"
+        ]
+      },
+      {
+        "name": "parent_id",
+        "type": "uuid",
+        "optional": true,
+        "nullable": true
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "active",
+          "retired"
+        ]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "DepartmentOutput": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "format": "code",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "format": "name",
+        "min": 1,
+        "max": 120
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "department",
+          "sub_unit"
+        ]
+      },
+      {
+        "name": "parent_id",
+        "type": "uuid",
+        "optional": true,
+        "nullable": true
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "active",
+          "retired"
+        ]
+      },
+      {
+        "name": "effective_at",
+        "type": "time"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "OrganizationHospitalHead": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending",
+          "verified",
+          "rejected"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  },
+  "organization_events": {
+    "HospitalReferenceRequestedData": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      }
+    ],
+    "DepartmentRevisionChangedData": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "node_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      }
+    ]
+  },
+  "workforce_events": {
+    "OrganizationHospitalObservedData": [
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "exists",
+        "type": "bool"
+      }
+    ]
+  }
+}

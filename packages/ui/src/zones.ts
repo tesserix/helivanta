@@ -248,6 +248,13 @@ export const ZONES: Zone[] = [
         permission: "pharmacy.accounts.read",
       },
       {
+        section: "Staff",
+        label: "Staff source",
+        href: "/pharmacy/staff",
+        icon: Contact,
+        permission: "pharmacy.catalogue.read",
+      },
+      {
         section: "Setup",
         label: "Outlets & access",
         href: "/pharmacy/setup",
@@ -459,6 +466,12 @@ export const ZONES: Zone[] = [
     hue: "violet",
     group: "admin",
     pages: [
+      {
+        label: "Organization structure",
+        href: "/settings/organization",
+        icon: Building2,
+        permission: "organization.structure.read",
+      },
       {
         label: "Country policies",
         href: "/settings/country-policies",

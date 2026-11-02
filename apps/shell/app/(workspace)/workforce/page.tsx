@@ -15,12 +15,18 @@ import {
   type PermissionsResponse,
   useApiQuery,
   useApiMutation,
-  JOB_LABELS,
   type Hospital,
   type Staff,
   type Page,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm, useConfirmLeave } from "@helivanta/ui";
+import {
+  Field,
+  PageHeading,
+  SelectControl,
+  StaffDirectory,
+  useZodForm,
+  useConfirmLeave,
+} from "@helivanta/ui";
 import { EnrollmentEditor } from "./enrollment-editor";
 import { StaffDirectoryEditor } from "./directory-editor";
 import { StaffDocumentPanel } from "./document-panel";
@@ -287,7 +293,6 @@ function Directory({
   const can = (permission: string) => permissions.includes(permission);
   const opener = useRef<HTMLButtonElement>(null);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
   const [documentStaff, setDocumentStaff] = useState<Staff | null>(null);
   const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
@@ -314,11 +319,6 @@ function Directory({
   useEffect(() => {
     if (isEnrollmentAccessChanged(query.error)) onContextChanged();
   }, [query.error, onContextChanged]);
-  const rows = (query.data?.data ?? []).filter((row) =>
-    `${row.display_name} ${row.employee_code} ${JOB_LABELS[row.job_category]}`
-      .toLowerCase()
-      .includes(filter.toLowerCase()),
-  );
   const manager = choice.kind === "legacy" && choice.hospital.access_level === "manager";
   const canPrepare =
     choice.kind === "intake"
@@ -331,15 +331,27 @@ function Directory({
   const writable = manager || canPrepare;
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
-          <div>
-            <h3 className="font-semibold">{hospital.name}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {writable ? "Manage staff records" : "Read-only access"} · Hospital-specific directory
-            </p>
-          </div>
-          {writable && (
+      <StaffDirectory
+        title={hospital.name}
+        description={`${writable ? "Manage staff records" : "Read-only access"} · Hospital-specific directory`}
+        emptyDescription={
+          writable
+            ? "Add your first staff member to get started."
+            : "No staff records have been added to this hospital."
+        }
+        scopeDescription="Showing data from this hospital only"
+        rows={query.data?.data ?? []}
+        isPending={query.isPending}
+        isError={query.isError}
+        onRetry={() => query.refetch()}
+        onFirstPage={cursor ? () => setCursor(null) : undefined}
+        onNextPage={
+          query.data?.page.has_more && query.data.page.next_cursor
+            ? () => setCursor(query.data.page.next_cursor)
+            : undefined
+        }
+        headerActions={
+          writable && (
             <Button
               onClick={(event) => {
                 const button = event.currentTarget;
@@ -356,238 +368,138 @@ function Directory({
             >
               Add staff
             </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-          <label className="w-full max-w-sm">
-            <span className="sr-only">Filter this page</span>
-            <input
-              className={inputClass}
-              placeholder="Filter this page by name, code or category"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </label>
-          <span className="text-xs text-muted-foreground">
-            {rows.length} {rows.length === 1 ? "record" : "records"} on this page
-          </span>
-        </div>
-        {query.isPending ? (
-          <p className="p-8" role="status">
-            Loading staff…
-          </p>
-        ) : query.isError ? (
-          <div role="alert" className="p-8">
-            Could not load staff.{" "}
-            <Button variant="outline" onClick={() => void query.refetch()}>
-              Try again
-            </Button>
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="px-6 py-16 text-center">
-            <h4 className="font-semibold">
-              {filter ? "No matching records on this page" : "Your staff directory starts here"}
-            </h4>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {filter
-                ? "Try a different name or employee code."
-                : writable
-                  ? "Add your first staff member to get started."
-                  : "No staff records have been added to this hospital."}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <caption className="sr-only">Staff at {hospital.name}</caption>
-              <thead className="bg-muted/40 text-xs text-muted-foreground">
-                <tr>
-                  {["Staff member", "Employee code", "Job category", "Status", "Actions"].map(
-                    (label) => (
-                      <th key={label} scope="col" className="px-5 py-3 font-medium">
-                        {label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/25">
-                    <td className="px-5 py-4 font-medium">{row.display_name}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-muted-foreground">
-                      {row.employee_code}
-                    </td>
-                    <td className="px-5 py-4 text-muted-foreground">
-                      {JOB_LABELS[row.job_category]}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={
-                          row.employment_status === "active"
-                            ? "rounded-full bg-(--hms-accent-dim) px-2.5 py-1 text-xs font-medium text-(--hms-accent)"
-                            : "rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
-                        }
-                      >
-                        {row.employment_status === "active" ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      {choice.kind === "legacy" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Identity details for ${row.display_name}`}
-                          onClick={(event) => {
-                            const button = event.currentTarget;
-                            confirmLeave(() => {
-                              opener.current = button;
-                              setEditing(null);
-                              setDocumentStaff(null);
-                              setCredentialStaff(null);
-                              setLinkStaff(null);
-                              setIdentityStaff(row);
-                              setEmploymentStaff(null);
-                            });
-                          }}
-                        >
-                          Identity details
-                        </Button>
-                      )}
-                      {canPrepare && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Employment terms for ${row.display_name}`}
-                          onClick={(event) => {
-                            const button = event.currentTarget;
-                            confirmLeave(() => {
-                              opener.current = button;
-                              setEditing(null);
-                              setDocumentStaff(null);
-                              setCredentialStaff(null);
-                              setLinkStaff(null);
-                              setIdentityStaff(null);
-                              setEmploymentStaff(row);
-                            });
-                          }}
-                        >
-                          Employment terms
-                        </Button>
-                      )}
-                      {writable && (
-                        <>
-                          {writable && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(event) => {
-                                const button = event.currentTarget;
-                                confirmLeave(() => {
-                                  opener.current = button;
-                                  setDocumentStaff(null);
-                                  setCredentialStaff(null);
-                                  setLinkStaff(null);
-                                  setIdentityStaff(null);
-                                  setEmploymentStaff(null);
-                                  setEditing(row);
-                                });
-                              }}
-                              aria-label={`Edit ${row.display_name}`}
-                            >
-                              Edit
-                            </Button>
-                          )}
-                          {canDocuments && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Documents for ${row.display_name}`}
-                              onClick={() =>
-                                confirmLeave(() => {
-                                  setEditing(null);
-                                  setCredentialStaff(null);
-                                  setLinkStaff(null);
-                                  setIdentityStaff(null);
-                                  setEmploymentStaff(null);
-                                  setDocumentStaff(row);
-                                })
-                              }
-                            >
-                              Documents
-                            </Button>
-                          )}
-                          {manager &&
-                            (can("workforce.login_links.manage") ||
-                              can("workforce.login_links.review")) && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                aria-label={`Account link for ${row.display_name}`}
-                                onClick={() =>
-                                  confirmLeave(() => {
-                                    setEditing(null);
-                                    setDocumentStaff(null);
-                                    setCredentialStaff(null);
-                                    setIdentityStaff(null);
-                                    setEmploymentStaff(null);
-                                    setLinkStaff(row);
-                                  })
-                                }
-                              >
-                                Account link
-                              </Button>
-                            )}
-                          {manager && can("workforce.enrollment.manage") && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Credentials for ${row.display_name}`}
-                              onClick={() =>
-                                confirmLeave(() => {
-                                  setEditing(null);
-                                  setDocumentStaff(null);
-                                  setIdentityStaff(null);
-                                  setEmploymentStaff(null);
-                                  setCredentialStaff(row);
-                                  setLinkStaff(null);
-                                })
-                              }
-                            >
-                              Credentials
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="flex justify-between border-t px-5 py-3">
-          <span className="text-xs text-muted-foreground">
-            Showing data from this hospital only
-          </span>
-          <div className="flex gap-2">
-            {cursor && (
-              <Button size="sm" variant="outline" onClick={() => setCursor(null)}>
-                First page
-              </Button>
-            )}
-            {query.data?.page.has_more && (
+          )
+        }
+        rowActions={(row) => (
+          <>
+            {choice.kind === "legacy" && (
               <Button
+                variant="ghost"
                 size="sm"
-                variant="outline"
-                onClick={() => setCursor(query.data?.page.next_cursor ?? null)}
+                aria-label={`Identity details for ${row.display_name}`}
+                onClick={(event) => {
+                  const button = event.currentTarget;
+                  confirmLeave(() => {
+                    opener.current = button;
+                    setEditing(null);
+                    setDocumentStaff(null);
+                    setCredentialStaff(null);
+                    setLinkStaff(null);
+                    setIdentityStaff(row);
+                    setEmploymentStaff(null);
+                  });
+                }}
               >
-                Next page
+                Identity details
               </Button>
             )}
-          </div>
-        </div>
-      </section>
+            {canPrepare && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Employment terms for ${row.display_name}`}
+                onClick={(event) => {
+                  const button = event.currentTarget;
+                  confirmLeave(() => {
+                    opener.current = button;
+                    setEditing(null);
+                    setDocumentStaff(null);
+                    setCredentialStaff(null);
+                    setLinkStaff(null);
+                    setIdentityStaff(null);
+                    setEmploymentStaff(row);
+                  });
+                }}
+              >
+                Employment terms
+              </Button>
+            )}
+            {writable && (
+              <>
+                {writable && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(event) => {
+                      const button = event.currentTarget;
+                      confirmLeave(() => {
+                        opener.current = button;
+                        setDocumentStaff(null);
+                        setCredentialStaff(null);
+                        setLinkStaff(null);
+                        setIdentityStaff(null);
+                        setEmploymentStaff(null);
+                        setEditing(row);
+                      });
+                    }}
+                    aria-label={`Edit ${row.display_name}`}
+                  >
+                    Edit
+                  </Button>
+                )}
+                {canDocuments && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Documents for ${row.display_name}`}
+                    onClick={() =>
+                      confirmLeave(() => {
+                        setEditing(null);
+                        setCredentialStaff(null);
+                        setLinkStaff(null);
+                        setIdentityStaff(null);
+                        setEmploymentStaff(null);
+                        setDocumentStaff(row);
+                      })
+                    }
+                  >
+                    Documents
+                  </Button>
+                )}
+                {manager &&
+                  (can("workforce.login_links.manage") || can("workforce.login_links.review")) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Account link for ${row.display_name}`}
+                      onClick={() =>
+                        confirmLeave(() => {
+                          setEditing(null);
+                          setDocumentStaff(null);
+                          setCredentialStaff(null);
+                          setIdentityStaff(null);
+                          setEmploymentStaff(null);
+                          setLinkStaff(row);
+                        })
+                      }
+                    >
+                      Account link
+                    </Button>
+                  )}
+                {manager && can("workforce.enrollment.manage") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Credentials for ${row.display_name}`}
+                    onClick={() =>
+                      confirmLeave(() => {
+                        setEditing(null);
+                        setDocumentStaff(null);
+                        setIdentityStaff(null);
+                        setEmploymentStaff(null);
+                        setCredentialStaff(row);
+                        setLinkStaff(null);
+                      })
+                    }
+                  >
+                    Credentials
+                  </Button>
+                )}
+              </>
+            )}
+          </>
+        )}
+      />
       {employmentStaff && canPrepare && (
         <StaffEmploymentPeriods
           canManageDocuments={canDocuments}

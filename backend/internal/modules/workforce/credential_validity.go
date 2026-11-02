@@ -480,6 +480,15 @@ func (h *handlers) transitionCredentialReview(c *gin.Context, expected *int64, t
 		if to != "withdrawn" && r.ProposedBySubject == p.Subject {
 			return errCredentialSelf
 		}
+		if to != "withdrawn" {
+			var associated bool
+			if err := tx.Raw("SELECT workforce_credential_subject_conflict(?, ?, ?, ?)", p.TenantID, hospital, staff, p.Subject).Scan(&associated).Error; err != nil {
+				return err
+			}
+			if associated {
+				return errCredentialSelf
+			}
+		}
 		set := "status=?,decided_by_subject=?,decided_at=clock_timestamp(),decision_note=?"
 		if to == "approved" {
 			set += ",approved_version=base_version+1"
@@ -627,8 +636,8 @@ func respondCredentialError(c *gin.Context, err error) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "Give the licence number, valid dates with the end on or after the start, a reason, and 1 to 5 different evidence files.")
 	case errors.Is(err, errCredentialNoteRequired), isPG && pg.ConstraintName == "workforce_credential_review_rejection_note":
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "Give a reason when rejecting a review.")
-	case errors.Is(err, errCredentialSelf), isPG && pg.ConstraintName == "workforce_credential_review_separation":
-		respond.ConflictWithDetail(c, "Someone other than the person who proposed the review must approve or reject it.", gin.H{"reason": "self_review"})
+	case errors.Is(err, errCredentialSelf), isPG && (pg.ConstraintName == "workforce_credential_review_separation" || pg.ConstraintName == "credential_review_subject_independent"):
+		respond.ConflictWithDetail(c, "Approval or rejection requires an independent reviewer unrelated to the Staff subject and the proposal.", gin.H{"reason": "self_review"})
 	case errors.Is(err, errCredentialNotProposer), isPG && pg.ConstraintName == "workforce_credential_review_withdrawn_by_proposer":
 		respond.ConflictWithDetail(c, "Only the person who proposed the review can withdraw it.", gin.H{"reason": "not_proposer"})
 	case errors.Is(err, errCredentialVersion):

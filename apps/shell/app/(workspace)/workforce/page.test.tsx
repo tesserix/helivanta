@@ -8,6 +8,62 @@ import Workforce from "./page";
 const hospital = "11111111-1111-4111-8111-111111111111";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
+it("opens non-operating posting preparation only with its permission and hospital scope", async () => {
+  const staff = "33333333-3333-4333-8333-333333333333";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("permissions"))
+        return Response.json({
+          tenant_id: hospital,
+          subject: "synthetic-manager",
+          data: ["workforce.posting.prepare"],
+        });
+      if (url.endsWith("/workforce/hospitals"))
+        return Response.json(
+          page([{ id: hospital, name: "Synthetic Posting Hospital", access_level: "manager" }]),
+        );
+      if (url.endsWith("/posting-draft-source"))
+        return Response.json({
+          hospital_id: hospital,
+          staff_id: staff,
+          staff_version: 1,
+          employment_epoch: 1,
+        });
+      if (url.endsWith(`/hospitals/${hospital}/staff`))
+        return Response.json(
+          page([
+            {
+              id: staff,
+              hospital_id: hospital,
+              employee_code: "SYN-POSTING",
+              display_name: "Synthetic Posting Applicant",
+              job_category: "pharmacist",
+              employment_status: "inactive",
+              created_at: "2026-11-02T00:00:00Z",
+              updated_at: "2026-11-02T00:00:00Z",
+              version: 1,
+            },
+          ]),
+        );
+      return Response.json(page([]));
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Posting preparation for Synthetic Posting Applicant",
+    }),
+  );
+  expect(await screen.findByRole("button", { name: "Prepare posting draft" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Staff posting preparation")).toHaveTextContent(
+    "does not activate employment",
+  );
+});
 it("lets a hospital manager without static permissions save basic staff", async () => {
   let saved: Record<string, unknown> | null = null;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {

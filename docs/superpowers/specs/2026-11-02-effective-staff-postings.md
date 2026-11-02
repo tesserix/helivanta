@@ -62,6 +62,13 @@ their result is revalidated against current identity/epochs before admission.
 
 ## Canonical posting record
 
+Preparation starts with a versioned draft; its exact
+[candidate contract](../../api/workforce-postings.md) is separate from an
+effective posting. A draft may precede employment activation and records current
+Staff concurrency pins plus the proposed structural reference and interval. It
+confers no authority. Submission/approval must later bind the reviewed generation
+and remaining required conditions below; no draft is an approved posting.
+
 Workforce will retain one posting identity plus immutable command/revision
 history. It references, without copying:
 

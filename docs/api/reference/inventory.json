@@ -8342,6 +8342,60 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-draft-source",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/history",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history",
           "permission": "public",
           "authentication_required": true,
@@ -8432,6 +8486,10 @@
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.posting.prepare",
+          "roles": []
+        },
         {
           "permission": "workforce.employment.activate",
           "roles": []
@@ -8578,6 +8636,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.posting_draft_changed.v1",
         "helivanta.in.workforce.department_link_requested.v1",
         "helivanta.in.workforce.organization_hospital_observed.v1",
         "helivanta.in.workforce.employment_review_changed.v1",
@@ -9467,6 +9526,14 @@
                 }
               ]
             }
+          ]
+        },
+        {
+          "id": "0073_workforce_posting_drafts",
+          "sql_sha256": "c2c380f6eaacf458ef36f0e5451c87a92b1a923ca50a0e51f632918812200b13",
+          "creates_tables": [
+            "workforce_posting_drafts",
+            "workforce_posting_draft_revisions"
           ]
         }
       ]

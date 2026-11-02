@@ -15,3 +15,8 @@ versioned collection heads, department commands/snapshots, and the organization/
 Workforce identifier-only reference and revision events. Generate/check with
 `node scripts/generate-organization-structure.mjs` and `--check`; no operational
 Staff authority follows from these metadata models.
+
+`workforce-postings.json` owns the local posting-preparation draft and identifier-only
+change event. Generate/check with `node scripts/generate-workforce-postings.mjs`
+and `--check`. Drafts never grant operating authority; see the
+[candidate contract](../docs/api/workforce-postings.md).

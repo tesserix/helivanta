@@ -34,6 +34,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
@@ -56,7 +57,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New(), organization.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -349,6 +350,9 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/hr/masters/:id/department-links/:request":                                          "one retained HR-to-structure mapping receipt by exact tenant/hospital/master/request; history is a separate paginated collection",
+	"GET /organization/hospitals/:hospital/departments/:node/revisions/:revision":                                          "one retained structural revision by tenant/hospital/node/revision; history uses a separate bounded list (ADR-0051)",
+	"GET /organization/hospitals/:hospital/registrations/:request":                                                         "one immutable registration request selected by tenant, hospital and UUID; no collection (ADR-0051)",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source":                            "one minimized eligibility receipt for one exact approved employment review, with no collection or evidence payload",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/evidence/:file/content":                       "one frozen review-selected file capped at 10 MiB, with generation and authority rechecked before release",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review":                                              "one private immutable pending submission and current state; its exact evidence child set is constrained to one through twenty at commit and cannot be extended later",

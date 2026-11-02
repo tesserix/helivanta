@@ -59,6 +59,7 @@ linters:
             - "github.com/tesserix/helivanta/internal/modules/practitioner/contract"
             - "github.com/tesserix/helivanta/internal/modules/privacy/contract"
             - "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+            - "github.com/tesserix/helivanta/internal/modules/organization/contract"
             - "github.com/tesserix/helivanta/internal/modules/workspace/contract"
             # loginclient is NOT another module's internals — it lives
             # under internal/modules/iam/ and is iam's own Zitadel

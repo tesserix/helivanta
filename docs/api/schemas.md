@@ -54,6 +54,14 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-employment-reviews.json` | Scoped immutable employment submissions, independent decisions/endings, current capabilities and source/evidence receipts; `generate-workforce-employment-reviews.mjs` generates Go/Zod models                |
 | `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
 
+`organization-structure.json` owns the unreleased hospital-registration HTTP
+models and organization/Workforce reference events. Run
+`node scripts/generate-organization-structure.mjs` and its `--check` mode for the
+Go and Zod outputs. The non-null `exists` boolean must be explicitly present on
+the wire; the consumer rejects omission, null and non-boolean values. Canonical models also cover versioned hospital heads, department commands and
+retained snapshots, and the identifier-only department revision event. Workforce
+postings remain a separate unimplemented owner contract.
+
 Staff access definitions live in `staff-access.json.template_migrations`, an
 ordered canonical history. Each entry records its IAM migration ID, safe generated
 SQL filename, normalized public-definition digest, exact SQL digest and introduced
@@ -111,3 +119,5 @@ Validate synthetic examples against the selected standard schema with formats en
 Staff directory canonical input also owns the explicit HR intake projection and
 HR scope capability response. `node scripts/generate-workforce-directory.mjs`
 and its `--check` emit the shared Go/Zod contract; do not hand-copy capabilities.
+
+The shared department handoff models and owner events extend `contracts/organization-structure.json`; `node scripts/generate-organization-structure.mjs` now also emits Workforce `department_link_types.go`. SDK receipt and history checks add exact identity/version and observation-state invariants. See [the owner contract](workforce-department-links.md).

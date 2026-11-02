@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "a7d313a136ffa2ee76472a6d23b79f2e760450ba8781d30cbc98916cdbd3668f",
+  "registry_sha256": "8f484be3d652e63ae5bab9719ee77b244f5900be813b459e0b17337567dbe86e",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 745,
-    "unclassified": 728
+    "total": 759,
+    "unclassified": 742
   },
   "entries": [
     {
@@ -277,6 +277,30 @@
         "source": "backend/internal/modules/medicore/module.go",
         "name": "medicore-patient-registered",
         "subject": "helivanta.in.patientmaster.registered.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer organization organization-department-link-request helivanta.in.workforce.department_link_requested.v1",
+      "kind": "consumer",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "name": "organization-department-link-request",
+        "subject": "helivanta.in.workforce.department_link_requested.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer organization organization-hospital-observation helivanta.in.workforce.organization_hospital_observed.v1",
+      "kind": "consumer",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "name": "organization-hospital-observation",
+        "subject": "helivanta.in.workforce.organization_hospital_observed.v1",
         "after_commit": false
       },
       "review": null
@@ -606,6 +630,18 @@
       "review": null
     },
     {
+      "id": "consumer workforce workforce-department-link-observation helivanta.in.organization.department_link_observed.v1",
+      "kind": "consumer",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "name": "workforce-department-link-observation",
+        "subject": "helivanta.in.organization.department_link_observed.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
       "id": "consumer workforce workforce-document-scan helivanta.in.workforce.document_scan_requested.v1",
       "kind": "consumer",
       "module": "workforce",
@@ -614,6 +650,18 @@
         "name": "workforce-document-scan",
         "subject": "helivanta.in.workforce.document_scan_requested.v1",
         "after_commit": true
+      },
+      "review": null
+    },
+    {
+      "id": "consumer workforce workforce-organization-reference helivanta.in.organization.hospital_reference_requested.v1",
+      "kind": "consumer",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "name": "workforce-organization-reference",
+        "subject": "helivanta.in.organization.hospital_reference_requested.v1",
+        "after_commit": false
       },
       "review": null
     },
@@ -4238,6 +4286,118 @@
         "method": "PUT",
         "path": "/v1/medicore/hospitals/:hospital/wards/:ward/rooms/:room",
         "permission": "medicore.bed.configure",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization GET /v1/organization/hospitals",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "GET",
+        "path": "/v1/organization/hospitals",
+        "permission": "organization.structure.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization GET /v1/organization/hospitals/:hospital/departments",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "GET",
+        "path": "/v1/organization/hospitals/:hospital/departments",
+        "permission": "organization.structure.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization GET /v1/organization/hospitals/:hospital/departments/:node/revisions",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "GET",
+        "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions",
+        "permission": "organization.structure.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization GET /v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "GET",
+        "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+        "permission": "organization.structure.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization GET /v1/organization/hospitals/:hospital/registrations/:request",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "GET",
+        "path": "/v1/organization/hospitals/:hospital/registrations/:request",
+        "permission": "organization.structure.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization PUT /v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "PUT",
+        "path": "/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision",
+        "permission": "organization.structure.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization PUT /v1/organization/hospitals/:hospital/registrations/:request",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "method": "PUT",
+        "path": "/v1/organization/hospitals/:hospital/registrations/:request",
+        "permission": "organization.structure.manage",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
@@ -7960,11 +8120,11 @@
         "registration_sha256": "46cdb47d412ae4d5f87d08e9466a229c7cfe26b5f59747cf1501bb0a51b74e17",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-        "rationale": "Guarded hospital capability discovery under the verified subject’s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Guarded hospital capability discovery under the verified subject’s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8045,11 +8205,11 @@
         "registration_sha256": "ed0c9f9ac5d852780c0c04913813537595c3c723ba92e1192248d25651154cc5",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-        "rationale": "Every bounded recorded-state inbox page verifies original tenant/subject, current compound HR intake or independent employment-review authority and a reviewed active actor. A dedicated hospital read context admits only review heads and target Staff references, preserving explicit write checks and prior delete authority. Sensitive-read audit commits before minimal summaries are returned; recorded state is not current activation authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Every bounded recorded-state inbox page verifies original tenant/subject, current compound HR intake or independent employment-review authority and a reviewed active actor. A dedicated hospital read context admits only review heads and target Staff references, preserving explicit write checks and prior delete authority. Sensitive-read audit commits before minimal summaries are returned; recorded state is not current activation authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8672,6 +8832,38 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/hr/masters/:id/department-links",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links",
+        "permission": "workforce.master.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+        "permission": "workforce.master.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -9777,11 +9969,11 @@
         "registration_sha256": "f57280645ede9d20f4ba39e5b79eee2334e96dbb02fa7957a2fbaff188ea70a4",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-        "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding’s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding’s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9861,11 +10053,11 @@
         "registration_sha256": "f49a2dccf110537dcda4c8ae2d06b3ff76beb660f532edf5dfc777949328a05a",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "The owner requires exactly one explicit preparation or employment-review projection, original tenant/subject, current scoped permission(s) and a reviewed active actor link. Review-only RLS reads selected source metadata without general enrollment/file authority. Frozen status and current applicability remain separate. Actor eligibility is not yet based on a reviewed operational employment incarnation; approved terms do not activate employment or access. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "The owner requires exactly one explicit preparation or employment-review projection, original tenant/subject, current scoped permission(s) and a reviewed active actor link. Review-only RLS reads selected source metadata without general enrollment/file authority. Frozen status and current applicability remain separate. Actor eligibility is not yet based on a reviewed operational employment incarnation; approved terms do not activate employment or access. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9971,11 +10163,11 @@
         "registration_sha256": "2fea7a327cd7f2c5ec4a574f536c582180cdcf1285486cff0e8ea82aa6a57d9a",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "Selected private employment evidence requires current compound HR-intake or independent employment-review authority, exact original workspace and reviewed active actor link. The owner verifies effective pending/approved frozen review/person/Staff/evidence basis, audits admission, drops locks over a bounded storage read, checks exact generation/size/raw SHA-256, then reauthorizes the same grants/actor/source before auditing completion and returning private bytes. Four in-flight transfers per handler process bound buffers; no legacy or generic document fallback, presigned URL or operational activation. Operational employment admission/lifecycle cutoff and production employment-reviewer acceptance remains unfinished. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Selected private employment evidence requires current compound HR-intake or independent employment-review authority, exact original workspace and reviewed active actor link. The owner verifies effective pending/approved frozen review/person/Staff/evidence basis, audits admission, drops locks over a bounded storage read, checks exact generation/size/raw SHA-256, then reauthorizes the same grants/actor/source before auditing completion and returning private bytes. Four in-flight transfers per handler process bound buffers; no legacy or generic document fallback, presigned URL or operational activation. Operational employment admission/lifecycle cutoff and production employment-reviewer acceptance remains unfinished. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10085,11 +10277,11 @@
         "registration_sha256": "1103629ced355de309b2ad228bf57ca19f16bdf6fdaece3920ad821989e4dc63",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "Protected selected-review history uses the current compound HR-intake authority or independent scoped employment reviewer and active reviewed actor link, with exact original workspace assertions and no legacy fallback. The owner scopes immutable receipts by tenant/hospital/Staff/review, hydrates the frozen terms/evidence once, and commits attributable read audit before returning a bounded cursor page. History conveys no present employment effectiveness or byte-release authority. Current generation-bound actors now revalidate their consumed employment basis; actors without generation bindings remain explicitly unmigrated. Complete legacy/governance and lifecycle acceptance remains open. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Protected selected-review history uses the current compound HR-intake authority or independent scoped employment reviewer and active reviewed actor link, with exact original workspace assertions and no legacy fallback. The owner scopes immutable receipts by tenant/hospital/Staff/review, hydrates the frozen terms/evidence once, and commits attributable read audit before returning a bounded cursor page. History conveys no present employment effectiveness or byte-release authority. Current generation-bound actors now revalidate their consumed employment basis; actors without generation bindings remain explicitly unmigrated. Complete legacy/governance and lifecycle acceptance remains open. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11122,11 +11314,11 @@
         "registration_sha256": "5c118b02ec412d06bac3fb52082df044b5a6a452313f2ca310aa202bdee935e9",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "Independent reviewed hospital-scoped employment authority, current actor link, frozen-contributor/historical-identity exclusions, current pending source and expected version for approval; exact retry reauthorizes and returns history. Owner head/history, minimized audit and identifier-only outbox commit atomically. This source classification does not establish operational employment cutoff or browser/provider acceptance. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Independent reviewed hospital-scoped employment authority, current actor link, frozen-contributor/historical-identity exclusions, current pending source and expected version for approval; exact retry reauthorizes and returns history. Owner head/history, minimized audit and identifier-only outbox commit atomically. This source classification does not establish operational employment cutoff or browser/provider acceptance. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11201,11 +11393,11 @@
         "registration_sha256": "88dd050a3eb8f054338e37faefb25231924e7a8ae78995da318d0b11ddf38c7b",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "Independent reviewed hospital-scoped employment authority and current actor link; contributor/historical-identity exclusions; approved terms may be revoked even when evidence/source has become unavailable. Owner head/history, minimized audit and identifier-only outbox commit atomically. This source classification does not establish operational employment cutoff or browser/provider acceptance. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Independent reviewed hospital-scoped employment authority and current actor link; contributor/historical-identity exclusions; approved terms may be revoked even when evidence/source has become unavailable. Owner head/history, minimized audit and identifier-only outbox commit atomically. This source classification does not establish operational employment cutoff or browser/provider acceptance. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11280,11 +11472,11 @@
         "registration_sha256": "d973f2ffda0e0c03a461a38b4717e43b92b3dc3a21f5966995277e007b93d58a",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "Both scoped preparation permissions and a reviewed active actor link; only the original proposer can withdraw pending terms, including stale submissions. No reviewer authority is borrowed. Owner head/history, minimized audit and identifier-only outbox commit atomically. This source classification does not establish operational employment cutoff or browser/provider acceptance. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "Both scoped preparation permissions and a reviewed active actor link; only the original proposer can withdraw pending terms, including stale submissions. No reviewer authority is borrowed. Owner head/history, minimized audit and identifier-only outbox commit atomically. This source classification does not establish operational employment cutoff or browser/provider acceptance. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11654,6 +11846,22 @@
         "source": "backend/internal/modules/workforce/module.go",
         "method": "PUT",
         "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id",
+        "permission": "workforce.master.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce PUT /v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "PUT",
+        "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
         "permission": "workforce.master.manage",
         "authentication_required": true,
         "membership_required": true,
@@ -12207,11 +12415,11 @@
         "registration_sha256": "572c70d5d67212c0986682f85a6c0858dd4480da48ab0cfe17a945aa17afd54b",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant/hospital/Staff, exact employment review, frozen person finding, terms revision and selected evidence bindings.",
-        "rationale": "The owner requires explicit HR-intake projection, original tenant/subject, both current scoped preparation/document grants and a reviewed active actor link through compound guards. It rejects legacy fallback. The target may be inactive/non-digital. Actor eligibility is not yet based on a reviewed operational employment incarnation; pending records confer no employment or access activation. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only.",
+        "rationale": "The owner requires explicit HR-intake projection, original tenant/subject, both current scoped preparation/document grants and a reviewed active actor link through compound guards. It rejects legacy fallback. The target may be inactive/non-digital. Actor eligibility is not yet based on a reviewed operational employment incarnation; pending records confer no employment or access activation. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "54d405b014955e8871b7b00f5458aedd009c32e6f405de160e98f4f0687ab42d",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {

@@ -20,6 +20,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/lab"
 	"github.com/tesserix/helivanta/internal/modules/mediconnect"
 	"github.com/tesserix/helivanta/internal/modules/medicore"
+	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
@@ -59,7 +60,7 @@ func Modules(revocationChecker *iam.RevocationChecker, userState iam.IdentityPro
 		supply.New(),
 		lab.New(),
 		patientmaster.New(),
-		workforce.New(), workspace.New(),
+		workforce.New(), workspace.New(), organization.New(),
 	}
 }
 

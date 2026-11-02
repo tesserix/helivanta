@@ -1,5 +1,13 @@
 # Events and cross-product integration contracts
 
+Unreleased organization work adds a same-tenant hospital-reference request,
+retained Workforce existence observation and identifier-only department revision
+notification. Their payloads derive from
+`contracts/organization-structure.json`. No Staff details, private reason or
+authority travel in these events. See the [organization contract](organization.md)
+for correlation, duplicate handling, failure behavior and incomplete UI/runtime
+acceptance. The new owner does not query Workforce tables directly.
+
 The staff-access worktree adds a same-tenant IAM/workforce exchange:
 `helivanta.in.iam.assignment_scope_requested.v1` →
 `helivanta.in.workforce.assignment_scope_verified.v1`. Both declarations and
@@ -97,3 +105,5 @@ Record producer and responsible team, subject/version, exact envelope `type`, JS
 Use additive compatible changes within a subject version. Required new fields, removals, type/meaning changes and tightened consumer validation need a new version or an explicit coordinated migration. An optional producer field can still break a consumer with `DisallowUnknownFields`; test actual consumers. Do not broadcast demographics to make a projection easier. If a new metadata-only visit version is approved, migrate both current intake consumers before retiring v1.
 
 For multi-step work with waits, preserve the existing Temporal direction. Define workflow IDs, activity idempotency, deadlines, human signals, compensation before irreversible actions and reconciliation after them. No new orchestrator or deployed service is introduced by these docs. Follow [#667](https://github.com/tesserix/helivanta/issues/667), [#485](https://github.com/tesserix/helivanta/issues/485), [#5](https://github.com/tesserix/helivanta/issues/5), [#6](https://github.com/tesserix/helivanta/issues/6) and [#710](https://github.com/tesserix/helivanta/issues/710).
+
+The [department handoff candidate](workforce-department-links.md) uses Workforce request/Organization observation messages with retained full identifier claims, explicit boolean results, duplicate recovery and atomic audit/outbox. It does not publish Staff data or grant operating authority.

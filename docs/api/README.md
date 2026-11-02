@@ -39,6 +39,10 @@ The [privacy casework API](privacy.md) owns authenticated tenant-local rights/gr
 
 ## Domain specifications
 
+The unreleased [organization structure foundation](organization.md) implements
+hospital references and bounded department/sub-unit metadata with retained
+revisions. Canonical Staff postings and product access grants remain open.
+
 | Domain                                                 | Specification                                                                                                          |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Patients and clinical work                             | [Patient identity and MediCore](domains/patients-and-clinical.md)                                                      |
@@ -67,3 +71,5 @@ go test ./cmd/contractdocs
 Generation registers handlers without dispatching requests or connecting to infrastructure. It writes the generated inventory, event payload schemas and Markdown reference. Conditional workflow consumers are included with registration gates enabled; that does not assert production enablement. It does not execute migrations, change data, contact CRM systems or create GitHub issues.
 
 For a contract change, update its owning source, concrete examples, failure/retry rules and consumer references together. Run the existing generator's `--check` where relevant. A green inventory check proves registry parity only; it does not prove payload conformance, compatibility or production behavior. Follow the [review gates](review-plan.md) before consumers treat a proposal as approved.
+
+The unreleased [Workforce department handoff](workforce-department-links.md) connects legacy HR revisions to canonical structural revisions with retained owner observations and no implicit Staff posting or permission.

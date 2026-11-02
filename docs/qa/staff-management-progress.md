@@ -1,5 +1,132 @@
 # Staff Management delivery tracker
 
+## HR department handoff — 2026-11-02, active source candidate
+
+Workforce now retains explicit versioned HR-to-Organization mapping requests,
+without changing canonical Staff or old profile/payroll references. Organization
+observes the exact active/current structural revision through retained messages;
+matched snapshots remain historical evidence, never a posting or operating grant.
+HR setup includes a canonical picker, required reason, history and safe retries.
+See [the source contract](../api/workforce-department-links.md).
+
+Focused real Postgres/OpenFGA/NATS tests pass, including owner-to-owner matching,
+stale revision rejection, contradictory/replayed answers, explicit false, role
+revocation and outage. Audit/outbox failure was reproduced as an incorrect 400,
+then corrected to generic 500 with rollback. A lost-reply UI regression reproduced
+an unintended new command/version after history refresh; unchanged retries now
+keep the original command. The final full Workforce/Organization/bootstrap and architecture race suites pass,
+with 588 API tests and 14 final focused UI tests (663 broader affected shell tests
+before the navigation correction). Normal manager browser create/map/reload/edit/
+historical-reference and unsaved-navigation checks passed on the production bundle.
+See [exact local evidence and remaining acceptance](2026-11-02-staff-department-handoff-local.md).
+
+Additional recovery tests now cover malformed/mismatched and reordered replies,
+retained first-answer repair, Organization audit/outbox rollback and Workforce
+observation-audit rollback/replay. Both identity guards were mutation-tested.
+The existing reviewer passed normal local sign-in, read-only HR/history and
+mapping-control denial without expanded permissions. Positive mapping-reader UI
+acceptance remains open. The CI formatting failure is corrected locally; a fresh
+21-task web lint/format/typecheck gate and scoped Go vet/lint passed. The full
+follow-up race run passed (Workforce 578.404s; Organization 17.593s), with
+contract/generator parity and a clean changed-file secret scan. Additional command
+tests cover actor rebinding, stale HR revisions, stable historical retries and
+concurrent distinct command keys committing one pending version. The actor guard
+was mutation-tested; the refreshed full Workforce race suite passed.
+
+Two additive migrations are persisted: Workforce 0070 and Organization 0004.
+They are applied only to local synthetic QA/disposable tests. Source inventory is
+759 surfaces, 17 classified and 742 unclassified. Whole Staff remains 10 partial,
+10 awaiting audit, 1 research and 0 fully accepted. Canonical effective postings,
+full HR-reference migration and Pharma specialization remain open; no issue is
+closed and no production rollout is claimed.
+
+## Pharma OpenFGA boundary — 2026-11-02, local regression
+
+Actual Pharma catalogue and prescription routes now have a real OpenFGA/Postgres
+regression for action permission intersecting with current explicit outlet scope.
+It covers inventory write and owner prescription denial, foreign/unposted scope,
+same-identity role revocation, independent outlet revocation, outage/recovery and
+single-change audit/outbox persistence. A weakened write-permission mutation
+failed with actual 200 versus expected 403; the restored route passed the focused
+race test. See [detailed evidence and boundaries](2026-11-02-pharma-shared-staff-local.md#existing-pharma-authorization-boundary--real-openfga).
+
+The full Pharma race suite passed in 203.057 seconds. Go build, scoped vet and
+lint passed (zero issues). Browser recheck on the standalone production bundle
+confirmed the same inactive canonical pharmacist and persisted department
+history with UTC timestamps. No additional dependency/image downloads were needed.
+
+This is verification of existing guards. Professional profiles, effective Staff
+postings, operational lifecycle enforcement and scoped FGA projection acceptance
+remain open. Whole-Staff counts and issue completion status are unchanged.
+
+## Organization departments — 2026-11-02, local acceptance
+
+The isolated shared-Staff branch now implements platform-owned hospital
+references, bounded departments/sub-units, immutable revisions and normal owner
+UI. Real Postgres protocol tests, architecture/bootstrap, Global API routing,
+build/vet/lint and the production webpack build pass. Real OpenFGA tests verify
+permitted manager, denied pharmacist, same-identity manager revocation with
+retained reader access, and fail-closed outages.
+See [local evidence](2026-11-02-organization-departments-local.md).
+
+Normal browser writes created a synthetic Pharma department and counter sub-unit,
+kept their parent link through edits, retained history and refused parent
+retirement while the child remained active. Read-only verification found root
+version 4, child version 2, six snapshots, correct current audit resource targets
+and the installed deferred revision-integrity trigger.
+
+Forward migrations `0001_organization`, `0002_organization_departments`,
+`0003_organization_department_revision_integrity` and Workforce 0069 are persisted
+and applied to the local synthetic QA runtime and disposable tests. Production is
+unchanged. The ledger contains 754 surfaces: 17 classified, 737 unclassified; no
+new operational or lifecycle surface is classified as accepted.
+
+The [Pharma specialization and audit scope](../architecture/pharma-staff-specialization.md)
+records pharmacist, assistant/PIC, manager/reviewer, owner, inventory/purchasing
+and auditor responsibilities. Canonical Workforce postings, legacy HR handoff,
+professional verification, effective outlet duties, scoped access projections,
+cutoff enforcement and the Staff audit workspace remain open. Whole-Staff
+completion counts remain unchanged; no issue has been closed or tagged complete.
+
+## Pharma consumer acceptance — 2026-11-02, local only
+
+Pharma now consumes the common Staff source at `/pharmacy/staff`. Normal local
+UI onboarding created one inactive synthetic pharmacist; an owner edit advanced
+that same canonical record to version 2 and Pharma displayed the change. A fresh
+pharmacy-only account with no hospital Staff grants saw no Staff table or source
+hospital. See [the exact local journey, checks and limitations](2026-11-02-pharma-shared-staff-local.md).
+
+The affected suites passed: 566 API, 278 shared UI and 654 Pharmacy/Workforce
+tests, with typechecks, lint and production build. The UI consumer itself introduces no regulated pharmacy
+authorization; the separate organization foundation above adds local migrations.
+Postings, standalone employers and full Pharma Staff specialization remain open;
+whole-Staff completion counts below remain unchanged.
+
+## Shared Staff reuse — 2026-11-02, active objective
+
+The requested direction is one canonical Staff foundation with department/product
+specializations, beginning with basic Staff management. The shared
+`@helivanta/ui` `StaffDirectory` now renders the existing Staff workspace; owner
+fetching, scoped authorization and protected actions remain in the workspace.
+See [reuse boundaries](../architecture/shared-staff-foundation.md) and the
+[full delivery plan](../superpowers/plans/2026-11-02-reusable-staff-foundation.md).
+
+Verified locally: all 278 shared UI tests, all 397 Workforce workspace tests,
+UI and changed-workspace lint, shared-package/shell typechecks and the webpack
+production build. A negative stale-row-disclosure mutation failed at the intended
+privacy assertion; the original component was restored byte-for-byte and all nine
+component tests passed again. A fresh local owner login exercised
+persisted directory records, filtering, the existing protected editor and cancel,
+and the no-match state. No Staff record, grant or migration was changed by this
+browser check. Production activation from the previous work remains a separate
+completed rollout; no new deployment is claimed here.
+
+Basic structural metadata now has local acceptance as recorded above. Workforce
+postings, standalone employers and Pharma credential/designation specialization
+remain open. Existing
+HR department reference revisions must be reconciled with the single platform
+owner rather than copied. Whole-Staff completion counts below are unchanged.
+
 ## Current status — 2026-11-02
 
 Approved source `02b1e2b7` and all four recorded migrations are deployed. The user

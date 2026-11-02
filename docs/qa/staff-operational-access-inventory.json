@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "476524c67b5d60949eab31dff2852fe2b4dec20afa2073efcd29b92f12dad959",
+  "registry_sha256": "8f484be3d652e63ae5bab9719ee77b244f5900be813b459e0b17337567dbe86e",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 754,
-    "unclassified": 737
+    "total": 759,
+    "unclassified": 742
   },
   "entries": [
     {
@@ -277,6 +277,18 @@
         "source": "backend/internal/modules/medicore/module.go",
         "name": "medicore-patient-registered",
         "subject": "helivanta.in.patientmaster.registered.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer organization organization-department-link-request helivanta.in.workforce.department_link_requested.v1",
+      "kind": "consumer",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "name": "organization-department-link-request",
+        "subject": "helivanta.in.workforce.department_link_requested.v1",
         "after_commit": false
       },
       "review": null
@@ -614,6 +626,18 @@
         "name": "workforce-credential-reminders",
         "subject": "helivanta.in.workforce.credential_validity_changed.v1",
         "after_commit": true
+      },
+      "review": null
+    },
+    {
+      "id": "consumer workforce workforce-department-link-observation helivanta.in.organization.department_link_observed.v1",
+      "kind": "consumer",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "name": "workforce-department-link-observation",
+        "subject": "helivanta.in.organization.department_link_observed.v1",
+        "after_commit": false
       },
       "review": null
     },
@@ -8100,7 +8124,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8185,7 +8209,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8808,6 +8832,38 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/hr/masters/:id/department-links",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links",
+        "permission": "workforce.master.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+        "permission": "workforce.master.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -9917,7 +9973,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10001,7 +10057,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10111,7 +10167,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10225,7 +10281,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11262,7 +11318,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11341,7 +11397,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11420,7 +11476,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11790,6 +11846,22 @@
         "source": "backend/internal/modules/workforce/module.go",
         "method": "PUT",
         "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id",
+        "permission": "workforce.master.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce PUT /v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "PUT",
+        "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
         "permission": "workforce.master.manage",
         "authentication_required": true,
         "membership_required": true,
@@ -12347,7 +12419,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "8e6c7ed322b69477dd627f75de31625f2a87e8fb4ed4de7a89a47d57734daa91",
+            "sha256": "080f3ab5c17abaa9d3a5ba64cd2df355c7e82b0f7a34d35d0332fb24ed3c2687",
             "symbol": "func (*Module) Routes("
           },
           {

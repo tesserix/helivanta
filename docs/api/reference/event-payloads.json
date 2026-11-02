@@ -971,8 +971,66 @@
       "type": "object"
     }
   },
+  "helivanta.in.organization.department_link_observed.v1": {
+    "source": "backend/internal/modules/organization/contract/organization_reference_generated.go:21",
+    "go_type": "DepartmentLinkObservedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "department_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "department_revision_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "master_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "master_revision_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "matches_current": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "hospital_id",
+        "master_id",
+        "master_revision_id",
+        "department_id",
+        "department_revision_id",
+        "matches_current",
+        "observed_at"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.organization.department_revision_changed.v1": {
-    "source": "backend/internal/modules/organization/contract/organization_reference_generated.go:11",
+    "source": "backend/internal/modules/organization/contract/organization_reference_generated.go:14",
     "go_type": "DepartmentRevisionChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1003,7 +1061,7 @@
     }
   },
   "helivanta.in.organization.hospital_reference_requested.v1": {
-    "source": "backend/internal/modules/organization/contract/organization_reference_generated.go:6",
+    "source": "backend/internal/modules/organization/contract/organization_reference_generated.go:9",
     "go_type": "HospitalReferenceRequestedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2735,6 +2793,48 @@
         "credential_id",
         "review_id",
         "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.workforce.department_link_requested.v1": {
+    "source": "backend/internal/modules/workforce/contract/organization_reference_generated.go:12",
+    "go_type": "DepartmentLinkRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "department_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "department_revision_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "master_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "master_revision_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "hospital_id",
+        "master_id",
+        "master_revision_id",
+        "department_id",
+        "department_revision_id"
       ],
       "type": "object"
     }

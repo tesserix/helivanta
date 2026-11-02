@@ -1,5 +1,32 @@
 # Staff Management delivery tracker
 
+## HR department handoff — 2026-11-02, active source candidate
+
+Workforce now retains explicit versioned HR-to-Organization mapping requests,
+without changing canonical Staff or old profile/payroll references. Organization
+observes the exact active/current structural revision through retained messages;
+matched snapshots remain historical evidence, never a posting or operating grant.
+HR setup includes a canonical picker, required reason, history and safe retries.
+See [the source contract](../api/workforce-department-links.md).
+
+Focused real Postgres/OpenFGA/NATS tests pass, including owner-to-owner matching,
+stale revision rejection, contradictory/replayed answers, explicit false, role
+revocation and outage. Audit/outbox failure was reproduced as an incorrect 400,
+then corrected to generic 500 with rollback. A lost-reply UI regression reproduced
+an unintended new command/version after history refresh; unchanged retries now
+keep the original command. The final full Workforce/Organization/bootstrap and architecture race suites pass,
+with 588 API tests and 14 final focused UI tests (663 broader affected shell tests
+before the navigation correction). Normal manager browser create/map/reload/edit/
+historical-reference and unsaved-navigation checks passed on the production bundle.
+See [exact local evidence and remaining acceptance](2026-11-02-staff-department-handoff-local.md).
+
+Two additive migrations are persisted: Workforce 0070 and Organization 0004.
+They are applied only to local synthetic QA/disposable tests. Source inventory is
+759 surfaces, 17 classified and 742 unclassified. Whole Staff remains 10 partial,
+10 awaiting audit, 1 research and 0 fully accepted. Canonical effective postings,
+full HR-reference migration and Pharma specialization remain open; no issue is
+closed and no production rollout is claimed.
+
 ## Pharma OpenFGA boundary — 2026-11-02, local regression
 
 Actual Pharma catalogue and prescription routes now have a real OpenFGA/Postgres

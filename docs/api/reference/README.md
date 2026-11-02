@@ -943,6 +943,9 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/runs` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year` | `workforce.leave.allocate` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/leave-years` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request` | `workforce.master.manage` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request` | `workforce.master.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links` | `workforce.master.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/masters/:id/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/masters/:id` | `workforce.master.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/masters` | `public` | true | false |
@@ -1118,6 +1121,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.department_link_requested.v1`
 - `helivanta.in.workforce.organization_hospital_observed.v1`
 - `helivanta.in.workforce.employment_review_changed.v1`
 - `helivanta.in.workforce.person_review_changed.v1`
@@ -1163,6 +1167,7 @@ Published subjects:
 
 Subscriptions:
 
+- `workforce-department-link-observation` ← `helivanta.in.organization.department_link_observed.v1`; after-commit hook: false.
 - `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
 - `workforce-organization-reference` ← `helivanta.in.organization.hospital_reference_requested.v1`; after-commit hook: false.
 - `workforce-document-scan` ← `helivanta.in.workforce.document_scan_requested.v1`; after-commit hook: true.
@@ -1218,6 +1223,7 @@ Migration table declarations:
 - `0065_workforce_employment_finding_selection_index`: concurrent index `workforce_employment_person_selection` on `workforce_person_reviews (tenant_id, hospital_id, staff_id, status, created_at DESC, id DESC)`.
 - `0066_workforce_employment_generations`: `workforce_identity_epochs`, `workforce_employment_review_cohorts`, `workforce_employment_generations`.
 - `0069_workforce_organization_observations`: `workforce_organization_observations`.
+- `0070_workforce_department_links`: `workforce_department_links`.
 
 ## workspace
 
@@ -1265,17 +1271,20 @@ Source: [backend/internal/modules/organization/module.go](../../../backend/inter
 
 Published subjects:
 
+- `helivanta.in.organization.department_link_observed.v1`
 - `helivanta.in.organization.hospital_reference_requested.v1`
 - `helivanta.in.organization.department_revision_changed.v1`
 
 Subscriptions:
 
 - `organization-hospital-observation` ← `helivanta.in.workforce.organization_hospital_observed.v1`; after-commit hook: false.
+- `organization-department-link-request` ← `helivanta.in.workforce.department_link_requested.v1`; after-commit hook: false.
 
 Migration table declarations:
 
 - `0001_organization`: `organization_hospital_requests`, `organization_hospital_registrations`.
 - `0002_organization_departments`: `organization_departments`, `organization_department_revisions`.
+- `0004_organization_department_observations`: `organization_department_observations`.
 
 ## Routes outside session authentication
 

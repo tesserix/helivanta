@@ -96,6 +96,38 @@ export const OrganizationHospitalHeadContract = z
   .strict();
 export type OrganizationHospitalHead = z.infer<typeof OrganizationHospitalHeadContract>;
 
+export const DepartmentLinkInputContract = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    master_revision_id: identifier,
+    department_id: identifier,
+    department_revision_id: identifier,
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type DepartmentLinkInput = z.infer<typeof DepartmentLinkInputContract>;
+
+export const DepartmentLinkOutputContract = z
+  .object({
+    request_id: identifier,
+    hospital_id: identifier,
+    master_id: identifier,
+    master_revision_id: identifier,
+    department_id: identifier,
+    department_revision_id: identifier,
+    version: z.number().int().min(1).max(9007199254740991),
+    status: z.enum(["pending", "matched", "rejected"]),
+    created_at: z.string().datetime({ offset: true }),
+    observed_at: z.string().datetime({ offset: true }).nullable().optional(),
+  })
+  .strict();
+export type DepartmentLinkOutput = z.infer<typeof DepartmentLinkOutputContract>;
+
 export const HospitalReferenceRequestedDataContract = z
   .object({
     request_id: identifier,
@@ -114,6 +146,20 @@ export const DepartmentRevisionChangedDataContract = z
   .strict();
 export type DepartmentRevisionChangedData = z.infer<typeof DepartmentRevisionChangedDataContract>;
 
+export const DepartmentLinkObservedDataContract = z
+  .object({
+    request_id: identifier,
+    hospital_id: identifier,
+    master_id: identifier,
+    master_revision_id: identifier,
+    department_id: identifier,
+    department_revision_id: identifier,
+    matches_current: z.boolean(),
+    observed_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type DepartmentLinkObservedData = z.infer<typeof DepartmentLinkObservedDataContract>;
+
 export const OrganizationHospitalObservedDataContract = z
   .object({
     request_id: identifier,
@@ -124,3 +170,15 @@ export const OrganizationHospitalObservedDataContract = z
 export type OrganizationHospitalObservedData = z.infer<
   typeof OrganizationHospitalObservedDataContract
 >;
+
+export const DepartmentLinkRequestedDataContract = z
+  .object({
+    request_id: identifier,
+    hospital_id: identifier,
+    master_id: identifier,
+    master_revision_id: identifier,
+    department_id: identifier,
+    department_revision_id: identifier,
+  })
+  .strict();
+export type DepartmentLinkRequestedData = z.infer<typeof DepartmentLinkRequestedDataContract>;

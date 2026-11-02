@@ -350,6 +350,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/hr/masters/:id/department-links/:request":                                          "one retained HR-to-structure mapping receipt by exact tenant/hospital/master/request; history is a separate paginated collection",
 	"GET /organization/hospitals/:hospital/departments/:node/revisions/:revision":                                          "one retained structural revision by tenant/hospital/node/revision; history uses a separate bounded list (ADR-0051)",
 	"GET /organization/hospitals/:hospital/registrations/:request":                                                         "one immutable registration request selected by tenant, hospital and UUID; no collection (ADR-0051)",
 	"GET /workforce/hospitals/:hospital/staff/:id/employment-reviews/:review/activation-source":                            "one minimized eligibility receipt for one exact approved employment review, with no collection or evidence payload",

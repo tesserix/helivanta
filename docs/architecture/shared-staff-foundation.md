@@ -75,3 +75,5 @@ The [Pharma specialization and audit scope](pharma-staff-specialization.md) reco
 current source evidence and the requested professional, assistant/PIC, access and
 audit responsibilities. These are tracked implementation obligations, not a claim
 that the current read-only directory has delivered those workflows.
+
+The [department handoff candidate](../api/workforce-department-links.md) now connects retained HR vocabulary revisions with exact Organization node/revision IDs through owner observations. It preserves existing profile/payroll references and exposes mapping history in HR setup. This is migration lineage; canonical postings, current eligibility and Pharma professional authority still need implementation and acceptance.

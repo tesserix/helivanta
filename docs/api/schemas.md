@@ -119,3 +119,5 @@ Validate synthetic examples against the selected standard schema with formats en
 Staff directory canonical input also owns the explicit HR intake projection and
 HR scope capability response. `node scripts/generate-workforce-directory.mjs`
 and its `--check` emit the shared Go/Zod contract; do not hand-copy capabilities.
+
+The shared department handoff models and owner events extend `contracts/organization-structure.json`; `node scripts/generate-organization-structure.mjs` now also emits Workforce `department_link_types.go`. SDK receipt and history checks add exact identity/version and observation-state invariants. See [the owner contract](workforce-department-links.md).

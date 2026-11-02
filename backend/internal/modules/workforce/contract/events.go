@@ -440,3 +440,6 @@ type EmploymentReviewChangedData struct {
 
 // SubjectOrganizationHospitalObserved carries a retained existence observation, never human authority.
 const SubjectOrganizationHospitalObserved = "helivanta.in.workforce.organization_hospital_observed.v1"
+
+// SubjectDepartmentLinkRequested asks Organization to observe an exact structural revision.
+const SubjectDepartmentLinkRequested = "helivanta.in.workforce.department_link_requested.v1"

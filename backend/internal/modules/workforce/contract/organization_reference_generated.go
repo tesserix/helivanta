@@ -8,3 +8,12 @@ type OrganizationHospitalObservedData struct {
 	HospitalID uuid.UUID `json:"hospital_id"`
 	Exists     bool      `json:"exists"`
 }
+
+type DepartmentLinkRequestedData struct {
+	RequestID            uuid.UUID `json:"request_id"`
+	HospitalID           uuid.UUID `json:"hospital_id"`
+	MasterID             uuid.UUID `json:"master_id"`
+	MasterRevisionID     uuid.UUID `json:"master_revision_id"`
+	DepartmentID         uuid.UUID `json:"department_id"`
+	DepartmentRevisionID uuid.UUID `json:"department_revision_id"`
+}

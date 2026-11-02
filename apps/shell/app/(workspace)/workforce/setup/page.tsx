@@ -15,12 +15,14 @@ import {
   type HRMasterRevision,
   type Hospital,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
+import { DepartmentHandoff } from "@/components/organization/department-handoff";
+import { Field, PageHeading, SelectControl, useConfirmLeave, useZodForm } from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 export default function HRSetup() {
+  const confirm = useConfirmLeave();
   const hospitals = useApiPagedQuery<Hospital>(
     ["workforce", "setup-hospitals"],
     "/workforce/hospitals",
@@ -38,7 +40,7 @@ export default function HRSetup() {
                 <SelectControl
                   id="hr-hospital"
                   value={hospital.id}
-                  onValueChange={setSelected}
+                  onValueChange={(value) => confirm(() => setSelected(value))}
                   options={hospitals.items.map((h) => ({ value: h.id, label: h.name }))}
                 />
               </Field>
@@ -77,11 +79,13 @@ export default function HRSetup() {
 }
 
 function MasterCatalog({ hospital }: { hospital: Hospital }) {
+  const confirm = useConfirmLeave();
   const { can } = usePermissions();
   const [kind, setKind] = useState<HRMasterKind>("department");
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<HRMaster | "new" | null>(null);
   const [history, setHistory] = useState<HRMaster | null>(null);
+  const [mapping, setMapping] = useState<HRMaster | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const path = `/workforce/hospitals/${hospital.id}/hr/masters`;
   const records = useApiPagedQuery<HRMaster>(
@@ -95,6 +99,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
   const close = () => {
     setEditing(null);
     setHistory(null);
+    setMapping(null);
     opener.current?.focus();
   };
   return (
@@ -111,9 +116,13 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
           {writable && (
             <Button
               onClick={(event) => {
-                opener.current = event.currentTarget;
-                setHistory(null);
-                setEditing("new");
+                const button = event.currentTarget;
+                confirm(() => {
+                  opener.current = button;
+                  setMapping(null);
+                  setHistory(null);
+                  setEditing("new");
+                });
               }}
             >
               Add setup record
@@ -126,9 +135,11 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
               id="hr-kind"
               value={kind}
               onValueChange={(value) => {
-                setKind(value as HRMasterKind);
-                setFilter("");
-                close();
+                confirm(() => {
+                  setKind(value as HRMasterKind);
+                  setFilter("");
+                  close();
+                });
               }}
               options={Object.entries(HR_MASTER_LABELS).map(([value, label]) => ({ value, label }))}
             />
@@ -208,15 +219,37 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
                     <td className="px-5 py-4">{row.version}</td>
                     <td className="px-5 py-4">
                       <div className="flex gap-1">
+                        {row.kind === "department" && can("workforce.master.manage") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`Organization mapping for ${row.name}`}
+                            onClick={(event) => {
+                              const button = event.currentTarget;
+                              confirm(() => {
+                                opener.current = button;
+                                setEditing(null);
+                                setHistory(null);
+                                setMapping(row);
+                              });
+                            }}
+                          >
+                            Organization mapping
+                          </Button>
+                        )}
                         {writable && (
                           <Button
                             size="sm"
                             variant="ghost"
                             aria-label={`Edit ${row.name}`}
                             onClick={(event) => {
-                              opener.current = event.currentTarget;
-                              setHistory(null);
-                              setEditing(row);
+                              const button = event.currentTarget;
+                              confirm(() => {
+                                opener.current = button;
+                                setMapping(null);
+                                setHistory(null);
+                                setEditing(row);
+                              });
                             }}
                           >
                             Edit
@@ -227,9 +260,13 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
                           variant="ghost"
                           aria-label={`History for ${row.name}`}
                           onClick={(event) => {
-                            opener.current = event.currentTarget;
-                            setEditing(null);
-                            setHistory(row);
+                            const button = event.currentTarget;
+                            confirm(() => {
+                              opener.current = button;
+                              setMapping(null);
+                              setEditing(null);
+                              setHistory(row);
+                            });
                           }}
                         >
                           History
@@ -263,6 +300,14 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
           </div>
         </div>
       </section>
+      {mapping && kind === "department" && !records.isError && !records.isPending && (
+        <DepartmentHandoff
+          key={`${hospital.id}:${mapping.id}`}
+          hospital={hospital}
+          master={records.items.find((row) => row.id === mapping.id) ?? mapping}
+          onClose={close}
+        />
+      )}
       {editing && (
         <MasterEditor
           key={editing === "new" ? `new-${kind}` : editing.id}

@@ -109,3 +109,5 @@ scope, department-scoped delegation/inheritance, scheduled changes, merge/split,
 heads/cost centres and product professional acceptance remain open. A department
 row or its event never establishes Staff eligibility, outlet duty or clinical
 permission. Consumers must not treat this metadata slice as completed staffing.
+
+The [Workforce department handoff candidate](workforce-department-links.md) now retains explicit HR-to-structure revision mappings through owner messages. A matched snapshot creates no posting or grant; canonical posting migration and current eligibility remain open.

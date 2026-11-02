@@ -6803,6 +6803,33 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+          "permission": "workforce.master.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links/:request",
+          "permission": "workforce.master.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/department-links",
+          "permission": "workforce.master.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/hr/masters/:id/history",
           "permission": "public",
           "authentication_required": true,
@@ -8551,6 +8578,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.department_link_requested.v1",
         "helivanta.in.workforce.organization_hospital_observed.v1",
         "helivanta.in.workforce.employment_review_changed.v1",
         "helivanta.in.workforce.person_review_changed.v1",
@@ -8597,6 +8625,11 @@
       "directed_subjects": [],
       "directed_write_tables": [],
       "consumers": [
+        {
+          "name": "workforce-department-link-observation",
+          "subject": "helivanta.in.organization.department_link_observed.v1",
+          "after_commit": false
+        },
         {
           "name": "workforce-assignment-scope",
           "subject": "helivanta.in.iam.assignment_scope_requested.v1",
@@ -9394,6 +9427,13 @@
           "creates_tables": [
             "workforce_organization_observations"
           ]
+        },
+        {
+          "id": "0070_workforce_department_links",
+          "sql_sha256": "79221361e672f8eb7f21c21cb4d95b88363278b621cffb5241d6a5945a28b2d4",
+          "creates_tables": [
+            "workforce_department_links"
+          ]
         }
       ]
     },
@@ -9630,6 +9670,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.organization.department_link_observed.v1",
         "helivanta.in.organization.hospital_reference_requested.v1",
         "helivanta.in.organization.department_revision_changed.v1"
       ],
@@ -9639,6 +9680,11 @@
         {
           "name": "organization-hospital-observation",
           "subject": "helivanta.in.workforce.organization_hospital_observed.v1",
+          "after_commit": false
+        },
+        {
+          "name": "organization-department-link-request",
+          "subject": "helivanta.in.workforce.department_link_requested.v1",
           "after_commit": false
         }
       ],
@@ -9664,6 +9710,13 @@
           "id": "0003_organization_department_revision_integrity",
           "sql_sha256": "5f921509757b6bbc152ab533dc2ab1940c36eb50d53574d5c89766fa956adb98",
           "creates_tables": []
+        },
+        {
+          "id": "0004_organization_department_observations",
+          "sql_sha256": "b71de41656408682f9b40c60f79bdd54d98465e16bfdef21c03f6e580f0578af",
+          "creates_tables": [
+            "organization_department_observations"
+          ]
         }
       ]
     }

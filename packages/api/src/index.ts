@@ -134,3 +134,6 @@ export * from "./employment-finding-selection";
 export * from "./organization-directory";
 
 export * from "./organization-queries";
+
+export * from "./department-links";
+export * from "./department-link-queries";

@@ -234,6 +234,9 @@ importers:
 
   e2e:
     devDependencies:
+      '@helivanta/api':
+        specifier: workspace:*
+        version: link:../packages/api
       '@helivanta/config':
         specifier: workspace:*
         version: link:../packages/config
@@ -10201,9 +10204,7 @@ snapshots:
       metro-runtime: 0.87.2
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

@@ -264,3 +264,15 @@ citizen, dispatch, fleet, crew, hospital and CRM work under
 Staff intake and base-scoped case review are documented in
 [EmergencyConnect operations](docs/architecture/emergencyconnect-operations.md).
 The staff console is `/emergency`; public calling remains `/ambulance`.
+
+### Verified-UPI browser fixture
+
+The pharmacy payment/return journey (#1478) runs through real owner services and
+OpenBao Transit with a loopback-only synthetic Razorpay boundary. It does not
+charge a bank or certify live provider settlement. Before starting the dev API,
+run `make e2e-payment-provider` in its own terminal, then export the generated
+configuration with `set -a; source .e2e-web/payments.env; set +a`. Start the API
+and run `make e2e` from that configured shell. The fixture needs Docker, OpenSSL
+and Node 24; it creates its own ephemeral OpenBao container and HTTPS certificate.
+Stop it with Ctrl-C after testing to remove its vault and temporary credentials.
+Never use real provider credentials in this fixture. CI starts/stops it explicitly.

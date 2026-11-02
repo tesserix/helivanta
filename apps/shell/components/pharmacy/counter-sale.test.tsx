@@ -318,7 +318,7 @@ describe("CounterSale", () => {
     const counterPayment = { status: "awaiting_payment" };
     const fetcher = fixture({ counterPayment });
     const { user } = renderWithProviders(
-      <CounterSale scope={scope} canSell canManageProfile={false} />,
+      <CounterSale scope={scope} canSell canManageProfile={false} canRefund />,
     );
     await basketOfEight(user);
     await user.click(await screen.findByRole("button", { name: "Price basket" }));

@@ -163,6 +163,11 @@ describe("VerifiedUpi", () => {
     await waitFor(() =>
       expect(onPaid).toHaveBeenLastCalledWith(expect.stringMatching(/^[0-9a-f-]{36}$/)),
     );
+    // The countdown causes another render after the terminal query settles.
+    // Confirmation must survive stopping the poll, so the sale keeps its tender.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(screen.getByText(/arrived after the QR closed/)).toBeVisible();
+    expect(onPaid).toHaveBeenLastCalledWith(expect.stringMatching(/^[0-9a-f-]{36}$/));
   });
 
   it("does not offer earlier money while its own QR is open", async () => {

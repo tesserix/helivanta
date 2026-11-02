@@ -50,6 +50,8 @@ type counter struct {
 	Name       string    `json:"name"`
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`
+	// Which of card, netbanking and wallet it takes now (#198 slice 6).
+	Modes json.RawMessage `json:"modes" gorm:"->"`
 }
 
 func (counter) TableName() string                 { return "billing_counters" }
@@ -87,6 +89,8 @@ type shift struct {
 	LiveHandoverID     *uuid.UUID `json:"live_handover_id" gorm:"->"`
 	LiveHandoverTo     *string    `json:"live_handover_to" gorm:"->"`
 	LiveHandoverStatus *string    `json:"live_handover_status" gorm:"->"`
+	// Which of card, netbanking and wallet its counter takes now.
+	CounterModes json.RawMessage `json:"counter_modes" gorm:"->"`
 }
 
 func (s shift) PageKey() (time.Time, uuid.UUID) { return s.OpenedAt, s.ID }
@@ -94,7 +98,8 @@ func (s shift) PageKey() (time.Time, uuid.UUID) { return s.OpenedAt, s.ID }
 const shiftSelect = `SELECT s.id,s.hospital_id,s.counter_id,c.code AS counter_code,s.cashier,s.currency,s.opening_float_minor,s.opened_at,s.status,
  s.expected_minor,s.declared_minor,s.variance_minor,s.closed_at,s.authorised_by,s.authorisation_reason,s.authorised_at,
  s.declared_counts,billing_shift_picked_up(s.tenant_id,s.id) AS picked_up_minor,
- s.handover_id,s.handed_over,lh.id AS live_handover_id,lh.to_cashier AS live_handover_to,lh.status AS live_handover_status
+ s.handover_id,s.handed_over,lh.id AS live_handover_id,lh.to_cashier AS live_handover_to,lh.status AS live_handover_status,
+ billing_counter_mode_list(s.tenant_id,s.counter_id) AS counter_modes
  FROM billing_cash_shifts s JOIN billing_counters c ON c.tenant_id=s.tenant_id AND c.id=s.counter_id
  LEFT JOIN billing_cash_handovers lh ON lh.tenant_id=s.tenant_id AND lh.from_shift_id=s.id AND lh.status IN ('offered','disputed')`
 
@@ -117,8 +122,12 @@ type receipt struct {
 	VoidID      *uuid.UUID `json:"-"`
 	VoidReason  *string    `json:"void_reason"`
 	VoidedAt    *time.Time `json:"voided_at"`
-	// cash, or upi: confirmed by the provider, never in the drawer (#211).
-	Mode string `json:"mode"`
+	// cash, or upi: confirmed by the provider, never in the drawer (#211);
+	// or card, netbanking or wallet, recorded with its reference (#198 slice 6).
+	Mode         string  `json:"mode"`
+	Reference    *string `json:"reference"`
+	ApprovalCode *string `json:"approval_code"`
+	Wallet       *string `json:"wallet"`
 	// The UPI reference and whether it landed after its QR closed.
 	RRN  *string `json:"rrn" gorm:"->"`
 	Late bool    `json:"late" gorm:"->"`
@@ -127,7 +136,7 @@ type receipt struct {
 func (r receipt) PageKey() (time.Time, uuid.UUID) { return r.ReceivedAt, r.ID }
 
 const receiptSelect = `SELECT r.id,r.hospital_id,r.shift_id,r.counter_id,c.code AS counter_code,r.number,r.cashier,r.admission_id,r.purpose,r.approval_id,r.amount_minor,r.currency,
- r.received_at,r.void_id,r.void_reason,r.voided_at,r.mode,u.rrn,COALESCE(u.late,false) AS late FROM billing_cash_receipts r JOIN billing_counters c ON c.tenant_id=r.tenant_id AND c.id=r.counter_id
+ r.received_at,r.void_id,r.void_reason,r.voided_at,r.mode,r.reference,r.approval_code,r.wallet,u.rrn,COALESCE(u.late,false) AS late FROM billing_cash_receipts r JOIN billing_counters c ON c.tenant_id=r.tenant_id AND c.id=r.counter_id
  LEFT JOIN billing_upi_requests u ON u.tenant_id=r.tenant_id AND u.id=r.upi_request_id`
 
 func cashFailure(c *gin.Context, err error) {
@@ -163,6 +172,10 @@ func cashFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "upi_waiting", errUpiWaiting.Error())
 	case errors.Is(err, errUpiVoid), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_upi_void":
 		respond.Error(c, http.StatusConflict, "upi_receipt", errUpiVoid.Error())
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_mode":
+		respond.Error(c, http.StatusConflict, "mode_not_accepted", errModeNotAccepted.Error())
+	case errors.Is(err, errDuplicateReference), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_receipt_reference_once":
+		respond.Error(c, http.StatusConflict, "duplicate_reference", errDuplicateReference.Error())
 	case errors.Is(err, errOwnVariance), errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_own_variance":
 		respond.Error(c, http.StatusConflict, "own_variance", errOwnVariance.Error())
 	case errors.Is(err, errBadCount):
@@ -222,7 +235,7 @@ func (h *handlers) putCounter(c *gin.Context) {
 	var out counter
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
 		var held []counter
-		if err := tx.Where("tenant_id=? AND id=?", p.TenantID, id).Limit(1).Find(&held).Error; err != nil {
+		if err := counterQuery(tx).Where("tenant_id=? AND id=?", p.TenantID, id).Limit(1).Find(&held).Error; err != nil {
 			return err
 		}
 		if len(held) == 1 {
@@ -235,7 +248,7 @@ func (h *handlers) putCounter(c *gin.Context) {
 		if err := tx.Exec(`INSERT INTO billing_counters (tenant_id,hospital_id,id,code,name,created_by) VALUES (?,?,?,?,?,?)`, p.TenantID, hospital, id, in.Code, in.Name, p.Subject).Error; err != nil {
 			return err
 		}
-		return tx.Where("tenant_id=? AND id=?", p.TenantID, id).Take(&out).Error
+		return counterQuery(tx).Where("tenant_id=? AND id=?", p.TenantID, id).Take(&out).Error
 	})
 	if err != nil {
 		cashFailure(c, err)
@@ -247,7 +260,7 @@ func (h *handlers) putCounter(c *gin.Context) {
 func (h *handlers) counters(c *gin.Context, params pagination.Params) ([]counter, error) {
 	var rows []counter
 	err := h.inHospital(c, func(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) error {
-		return tenantdb.ApplyOrderedKeyset(tx, params, tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).
+		return tenantdb.ApplyOrderedKeyset(counterQuery(tx), params, tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).
 			Where("tenant_id=? AND hospital_id=?", p.TenantID, hospital).Find(&rows).Error
 	})
 	if err != nil {
@@ -509,9 +522,14 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 		Currency    string `json:"currency"`
 		// A refund above the hospital's threshold names its approval (#199).
 		ApprovalID *uuid.UUID `json:"approval_id"`
+		tender
 	}
 	if err := c.ShouldBindJSON(&in); ok1 != nil || !ok2 || err != nil || in.AmountMinor < 1 || in.AmountMinor > 1_000_000_000 || in.Currency != shiftCurrency || (in.ApprovalID != nil && purpose != "refund") {
 		respond.BadRequest(c, errors.New("an amount of 1 to 1000000000 minor units in INR is required"))
+		return
+	}
+	if !in.normalise(purpose) {
+		respond.BadRequest(c, errors.New("a refund is cash; card needs a reference and a 6-character approval code, netbanking a reference, wallet a reference and the wallet's name"))
 		return
 	}
 	var out receipt
@@ -524,7 +542,7 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 		held, err := loadReceipt(tx, p.TenantID, hospital, receiptID)
 		if err == nil {
 			if held.AdmissionID != admission || held.Purpose != purpose || held.AmountMinor != in.AmountMinor || held.Currency != in.Currency || held.Cashier != p.Subject ||
-				!sameID(held.ApprovalID, in.ApprovalID) {
+				!sameID(held.ApprovalID, in.ApprovalID) || !in.same(held) {
 				return errCashConflict
 			}
 			out = held
@@ -570,9 +588,12 @@ func (h *handlers) receive(c *gin.Context, purpose string) {
 				return errOverBalance
 			}
 		}
-		if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,purpose,amount_minor,currency,approval_id)
- VALUES (?,?,?,?,?,(SELECT COALESCE(max(number),0)+1 FROM billing_cash_receipts WHERE tenant_id=? AND counter_id=?),?,?,?,?,?,?)`,
-			p.TenantID, hospital, receiptID, open[0].ID, open[0].CounterID, p.TenantID, open[0].CounterID, p.Subject, admission, purpose, in.AmountMinor, in.Currency, in.ApprovalID).Error; err != nil {
+		// A mode the counter does not take is refused by the receipt guard,
+		// under the counter lock a switch-off also takes.
+		if err := tx.Exec(`INSERT INTO billing_cash_receipts (tenant_id,hospital_id,id,shift_id,counter_id,number,cashier,admission_id,purpose,amount_minor,currency,approval_id,mode,reference,approval_code,wallet)
+ VALUES (?,?,?,?,?,(SELECT COALESCE(max(number),0)+1 FROM billing_cash_receipts WHERE tenant_id=? AND counter_id=?),?,?,?,?,?,?,?,?,?,?)`,
+			p.TenantID, hospital, receiptID, open[0].ID, open[0].CounterID, p.TenantID, open[0].CounterID, p.Subject, admission, purpose, in.AmountMinor, in.Currency, in.ApprovalID,
+			in.Mode, in.Reference, in.ApprovalCode, in.Wallet).Error; err != nil {
 			return err
 		}
 		created = true
@@ -634,8 +655,9 @@ func (h *handlers) voidReceipt(c *gin.Context) {
 		if open == 0 {
 			return errShiftClosed
 		}
-		if r.Purpose != "refund" {
+		if r.Purpose != "refund" && r.Mode == "cash" {
 			// The drawer may no longer hold this cash: it can have gone out as a refund.
+			// Card, netbanking and wallet were never in it.
 			if err := tx.Exec(`SELECT 1 FROM billing_counters WHERE tenant_id=? AND id=? FOR UPDATE`, p.TenantID, r.CounterID).Error; err != nil {
 				return err
 			}

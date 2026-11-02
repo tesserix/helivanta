@@ -171,12 +171,12 @@ func TestAUpiPaymentBecomesAReceiptOutsideTheDrawer(t *testing.T) {
 
 	day := do(w.r, "GET", w.root+"/collections/"+time.Now().In(ist).Format(time.DateOnly), "admin", "").Body.String()
 	require.Contains(t, day, `"payments_minor":2000,"deposits_minor":0,"refunds_minor":0,"net_minor":2000`, "cash totals stay cash")
-	require.Contains(t, day, `"upi_payments_minor":3000,"upi_deposits_minor":0,"picked_up_minor":0}`, "UPI beside it")
+	require.Contains(t, day, `"upi_payments_minor":3000,"upi_deposits_minor":0,"picked_up_minor":0,"card_payments_minor":0`, "UPI beside it")
 	res := do(w.r, "GET", w.root+"/collections/"+time.Now().In(ist).Format(time.DateOnly)+"/export.csv", "admin", "")
 	require.Equal(t, http.StatusOK, res.Code)
-	require.Contains(t, res.Body.String(), "authorisation_reason,upi_payments,upi_deposits,picked_up\r\n")
-	require.Regexp(t, `\n[^\n]*,IPD-1,[^\n]*,,,30\.00,0\.00,0\.00\r\n`, res.Body.String(), "the shift carries its UPI")
-	require.Regexp(t, `\n[^\n]*,TOTAL,[^\n]*,,,30\.00,0\.00,0\.00\r\n`, res.Body.String(), "and so does the TOTAL")
+	require.Contains(t, res.Body.String(), "authorisation_reason,upi_payments,upi_deposits,picked_up,card_payments,")
+	require.Regexp(t, `\n[^\n]*,IPD-1,[^\n]*,,,30\.00,0\.00,0\.00,0\.00,0\.00,0\.00,0\.00,0\.00,0\.00\r\n`, res.Body.String(), "the shift carries its UPI")
+	require.Regexp(t, `\n[^\n]*,TOTAL,[^\n]*,,,30\.00,0\.00,0\.00,0\.00,0\.00,0\.00,0\.00,0\.00,0\.00\r\n`, res.Body.String(), "and so does the TOTAL")
 }
 
 // A cancel waits for payments' answer; money that lands after the QR closed

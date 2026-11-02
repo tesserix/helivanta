@@ -96,7 +96,18 @@ export type CashCounter = {
   name: string;
   created_by: string;
   created_at: string;
+  /** Which of card, netbanking and wallet it takes now (#198 slice 6). */
+  modes: SwitchedMode[];
 };
+
+/** The modes a counter is set up to take; cash and UPI are not switched. */
+export type SwitchedMode = "card" | "netbanking" | "wallet";
+
+export const switchedModes: { mode: SwitchedMode; label: string }[] = [
+  { mode: "card", label: "Card" },
+  { mode: "netbanking", label: "Netbanking" },
+  { mode: "wallet", label: "Wallet" },
+];
 
 export type CashShift = {
   id: string;
@@ -128,6 +139,8 @@ export type CashShift = {
   live_handover_id: string | null;
   live_handover_to: string | null;
   live_handover_status: "offered" | "disputed" | null;
+  /** Which of card, netbanking and wallet its counter takes now. */
+  counter_modes: SwitchedMode[];
 };
 
 /**
@@ -187,8 +200,16 @@ export type CashReceipt = {
   cashier: string;
   admission_id: string;
   purpose: "payment" | "deposit" | "refund";
-  /** UPI is confirmed by the provider and never in the drawer (#211). */
-  mode: "cash" | "upi";
+  /**
+   * UPI is confirmed by the provider (#211); card, netbanking and wallet are
+   * recorded with their reference (#198 slice 6). None is in the drawer.
+   */
+  mode: "cash" | "upi" | SwitchedMode;
+  reference: string | null;
+  /** Card only: the slip's approval code. No card digits are kept. */
+  approval_code: string | null;
+  /** Wallet only: the wallet's name, lower case. */
+  wallet: string | null;
   /** The UPI reference, and whether it landed after its QR closed. */
   rrn: string | null;
   late: boolean;
@@ -279,6 +300,74 @@ export const cashReceiptSchema = z.object({
     "Enter the amount received",
   ),
 });
+
+function isCardNumber(s: string) {
+  if (/X{4,}[0-9]{4}$/.test(s)) return true;
+  if (!/^[0-9]{13,19}$/.test(s)) return false;
+  let total = 0;
+  [...s].reverse().forEach((c, i) => {
+    let d = Number(c);
+    if (i % 2 === 1) d = d * 2 > 9 ? d * 2 - 9 : d * 2;
+    total += d;
+  });
+  return total % 10 === 0;
+}
+
+/** A payment or deposit the terminal or bank already confirmed. */
+export const tenderSchema = z
+  .object({
+    amount_minor: cashAmount("Enter the amount received").refine(
+      (v) => v >= 1,
+      "Enter the amount received",
+    ),
+    mode: z.enum(["card", "netbanking", "wallet"], { message: "Choose how it was paid" }),
+    reference: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9][A-Z0-9/-]{3,39}$/, "4 to 40 letters, digits, dashes or slashes"),
+    approval_code: z.string().trim().toUpperCase(),
+    wallet: z.string().trim().toLowerCase(),
+  })
+  .superRefine((v, ctx) => {
+    // No card number is ever recorded, whole or masked (the API refuses it too).
+    if (isCardNumber(v.reference))
+      ctx.addIssue({
+        code: "custom",
+        path: ["reference"],
+        message: "That is a card number; enter the transaction reference",
+      });
+    else if (v.mode === "card" && !/^[0-9]{12}$/.test(v.reference))
+      ctx.addIssue({
+        code: "custom",
+        path: ["reference"],
+        message: "The 12-digit RRN on the slip",
+      });
+    if (v.mode === "card" && !/^[A-Z0-9]{6}$/.test(v.approval_code))
+      ctx.addIssue({
+        code: "custom",
+        path: ["approval_code"],
+        message: "The 6-character code on the slip",
+      });
+    if (v.mode === "wallet" && !/^[a-z0-9]([a-z0-9 .-]{0,28}[a-z0-9])?$/.test(v.wallet))
+      ctx.addIssue({
+        code: "custom",
+        path: ["wallet"],
+        message: "Name the wallet, up to 30 characters",
+      });
+  });
+
+/** The tender as the API takes it: only the fields its mode carries. */
+export function tenderBody(v: z.output<typeof tenderSchema>) {
+  return {
+    amount_minor: v.amount_minor,
+    currency: "INR",
+    mode: v.mode,
+    reference: v.reference,
+    ...(v.mode === "card" ? { approval_code: v.approval_code } : {}),
+    ...(v.mode === "wallet" ? { wallet: v.wallet } : {}),
+  };
+}
 
 export const cashReasonSchema = z.object({
   reason: z.string().trim().min(1, "Give a reason").max(500, "At most 500 characters"),
@@ -372,6 +461,13 @@ export type CollectionShift = {
   upi_deposits_minor: number | null;
   /** Cash taken to the safe less corrections: a movement, not revenue. */
   picked_up_minor: number | null;
+  /** Card, netbanking and wallet: at the bank, apart from the cash columns. */
+  card_payments_minor: number | null;
+  card_deposits_minor: number | null;
+  netbanking_payments_minor: number | null;
+  netbanking_deposits_minor: number | null;
+  wallet_payments_minor: number | null;
+  wallet_deposits_minor: number | null;
 };
 
 /** A hospital-local day's cash (#198 slice 2); totals cover counted shifts only. */
@@ -399,6 +495,12 @@ export type DailyCollection = {
     upi_payments_minor: number;
     upi_deposits_minor: number;
     picked_up_minor: number;
+    card_payments_minor: number;
+    card_deposits_minor: number;
+    netbanking_payments_minor: number;
+    netbanking_deposits_minor: number;
+    wallet_payments_minor: number;
+    wallet_deposits_minor: number;
   };
 };
 

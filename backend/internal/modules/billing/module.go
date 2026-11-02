@@ -82,6 +82,9 @@ var pickupsSchema string
 //go:embed handovers.sql
 var handoversSchema string
 
+//go:embed modes.sql
+var modesSchema string
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -114,7 +117,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}, {ID: "0013_billing", SQL: pickupsSchema}, {ID: "0014_billing", SQL: handoversSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}, {ID: "0013_billing", SQL: pickupsSchema}, {ID: "0014_billing", SQL: handoversSchema}, {ID: "0015_billing", SQL: modesSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -141,6 +144,8 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.POST(hp+"/admissions/:admission/final-bills", PermBillIssue, h.issueFinalBill)
 	// Cash counters (#198 slice 1).
 	g.PUT(hp+"/counters/:counter", PermCounterManage, h.putCounter)
+	// Card, netbanking and wallet per counter (#198 slice 6).
+	g.PUT(hp+"/counters/:counter/modes/:mode", PermCounterManage, h.putCounterMode)
 	platform.ListRoute(g, hp+"/counters", PermAccountRead, h.counters)
 	g.PUT(hp+"/counters/:counter/shifts/:shift", PermCashCollect, h.openShift)
 	g.GET(hp+"/cash-denominations", PermAccountRead, h.denominations)

@@ -80,7 +80,7 @@ indistinguishable from a shortage.
 ## Not covered
 
 Handover (since added: `2026-11-02-cash-handover-design.md`); a safe or vault ledger and bank deposit; counting the float by
-note; card and other modes; GL export; events; counting pickups for a closed
+note; card and other modes (since added: `2026-11-02-card-netbanking-wallet-design.md`); GL export; events; counting pickups for a closed
 shift (its variance stands for it).
 
 ## Needs finance review before production

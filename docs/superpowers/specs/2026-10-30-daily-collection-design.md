@@ -77,7 +77,7 @@ billing's own records, and a CSV of the same figures for the ledger.
 
 ## Not covered
 
-Finance sign-off of a day and reopening; GL posting; card and other modes
+Finance sign-off of a day and reopening; GL posting; card and other modes (since added: `2026-11-02-card-netbanking-wallet-design.md`)
 (UPI was added beside the cash columns by `2026-11-01-billing-upi-design.md`); per-cashier and per-authoriser variance trends;
 date ranges; events; handover (since added: `2026-11-02-cash-handover-design.md`; a shift
 being handed over is blinded like an open one); denominations and pickups since added

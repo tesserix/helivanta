@@ -177,7 +177,7 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** card and other modes; GL export; events; receipts on bills. Handover
+- **Not covered:** card and other modes (since added: slice 6, below); GL export; events; receipts on bills. Handover
   since added (#198 slice 5, below).
   Refunds, deposits, the daily collection report, UPI, and pickups and counting by note came
   later, below; the close now takes a count by note and coin, not `declared_minor`.
@@ -281,7 +281,7 @@ Design: [spec](../../superpowers/specs/2026-10-30-daily-collection-design.md).
   (`404` without it). `409 timezone_unset` with no timezone; `400` for a malformed date or one
   after the hospital's today; `413 collection_too_large` above 500 shifts.
 - The shell's Billing page shows it as **Collections** to holders of the permission.
-- **Not covered:** finance sign-off and reopening a day; GL posting; card and other modes;
+- **Not covered:** finance sign-off and reopening a day; GL posting; card and other modes (since added: slice 6, below);
   per-cashier variance trends; date ranges; events.
 - **UPI** (#211, below) is reported beside the cash, never in it: `upi_payments_minor` and
   `upi_deposits_minor` per shift and in the totals, and `upi_payments`, `upi_deposits` as the
@@ -328,7 +328,7 @@ confirms the money with Razorpay; billing records the receipt.
 | `POST …/upi-requests/:request/cancel`                                        | The asking cashier cancels a `requested` or `awaiting_payment` request; it waits in `cancelling` for the answer (`409 upi_not_open` once settled). |
 
 - Receipts carry `mode`, `rrn` and `late`.
-- **Not covered:** card, netbanking, wallets; refunds over UPI, including a late payment's
+- **Not covered:** refunds over UPI, including a late payment's
   credit (finance refunds in the Razorpay dashboard); UPI
   outside the billing desk; releasing a patient on an unconfirmed payment.
 
@@ -408,9 +408,51 @@ note; [spec](../../superpowers/specs/2026-11-02-cash-handover-design.md).
 | `GET …/cash-handovers/incoming`                               | The caller's offers and disputes, without counts.            |
 | `GET …/cash-handovers/disputed`                               | Disputes waiting, without counts; `billing.shift.authorise`. |
 
-- **Not covered:** card, netbanking and wallet modes; GL export; events; a safe
-  ledger; marking handovers in the daily collection report; a handover between
-  counters.
+- **Not covered:** GL export; events; a safe ledger; marking handovers in the
+  daily collection report; a handover between counters. Card, netbanking and
+  wallet: slice 6.
+
+## Card, netbanking and wallet (#198 slice 6)
+
+Payments and deposits the counter's terminal or the bank already confirmed,
+recorded with their reference; [spec](../../superpowers/specs/2026-11-02-card-netbanking-wallet-design.md).
+No gateway is involved and nothing is pending.
+
+- **Counter modes:** `billing.counter.manage` switches `card`, `netbanking` or
+  `wallet` on or off per counter; a change appends a row (who, when) and asking for
+  the current state again records nothing. Counters list `modes`; a shift shows
+  `counter_modes`. A new counter takes none. Cash and UPI are not switched here.
+- **Taking one:** the payment and deposit routes take `mode` (`cash` when absent)
+  and, for these modes, `reference` (upper-cased, 4 to 40 letters, digits, `-` or
+  `/`; a card's is its 12-digit RRN), plus `approval_code` (6 characters) for card
+  and `wallet` (its name, lower-cased) for wallet. No card digits are kept: a
+  Luhn-valid run of 13 to 19 digits, or a masked number, is refused in any mode. Every cash rule holds: the
+  caller's open shift, the counter's numbering, the balance due net of waiting UPI
+  for payments, an open account for deposits. Refused: a mode the counter does not
+  take (`409 mode_not_accepted`), a reference already on a standing receipt at the
+  hospital whatever its mode or wallet name (`409 duplicate_reference`; a card's
+  RRN is keyed with its approval code), a field the mode does not carry or a refund in any mode but cash (`400`).
+  The same id with another mode or reference is `409`.
+- **Void:** as cash, by its cashier while the shift is open, with a reason, and
+  with no drawer check: the money was never in it. A voided receipt frees its
+  reference. The cashier reverses the payment on the terminal or with the bank.
+- **Reports:** the daily collection adds `card_`, `netbanking_` and
+  `wallet_` `payments_minor` and `deposits_minor` per shift and in the totals,
+  blinded on open shifts, and the same six columns at the end of the CSV. Expected
+  cash and `net` stay cash.
+- **The database** enforces the counter's current modes under the counter lock a
+  switch also takes, the fields each mode carries, one standing receipt per
+  reference, and that a reference never changes.
+
+| Route                                                      | Behaviour                                           |
+| ---------------------------------------------------------- | --------------------------------------------------- |
+| `PUT …/counters/:counter/modes/:mode` `{accepted}`         | Switch a mode: `200`; unchanged state records none. |
+| `PUT …/admissions/:admission/receipts/:receipt` `{mode,…}` | A payment by the mode; as for cash.                 |
+| `PUT …/admissions/:admission/deposits/:receipt` `{mode,…}` | A deposit by the mode; as for cash.                 |
+
+- **Not covered:** refunds to a card or account (a card deposit is refunded in
+  cash); reconciliation against terminal or bank settlement; card fees;
+  references unique across a tenant's hospitals; GL export; events.
 
 ## GST on rooms and the tax invoice (#193 slice 1)
 

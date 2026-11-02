@@ -12,7 +12,9 @@ func TestAPastDayIsFinalOnlyWhenEveryShiftIsClosed(t *testing.T) {
 	n := func(v int64) *int64 { return &v }
 	counted := func(status string, variance int64) collectionShift {
 		return collectionShift{Status: status, OpeningFloatMinor: n(0), PaymentsMinor: n(100), DepositsMinor: n(0), RefundsMinor: n(0),
-			VoidedCount: n(0), VoidedMinor: n(0), VoidedRefundsMinor: n(0), UpiPaymentsMinor: n(0), UpiDepositsMinor: n(0), PickedUpMinor: n(0), ExpectedMinor: n(100), DeclaredMinor: n(100 + variance), VarianceMinor: n(variance)}
+			VoidedCount: n(0), VoidedMinor: n(0), VoidedRefundsMinor: n(0), UpiPaymentsMinor: n(0), UpiDepositsMinor: n(0), PickedUpMinor: n(0),
+			CardPaymentsMinor: n(0), CardDepositsMinor: n(0), NetbankingPaymentsMinor: n(0), NetbankingDepositsMinor: n(0), WalletPaymentsMinor: n(0), WalletDepositsMinor: n(0),
+			ExpectedMinor: n(100), DeclaredMinor: n(100 + variance), VarianceMinor: n(variance)}
 	}
 	for name, c := range map[string]struct {
 		shifts []collectionShift

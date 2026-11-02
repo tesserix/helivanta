@@ -11,6 +11,7 @@ import {
   handoverToSchema,
   newBedId,
   openShiftSchema,
+  switchedModes,
   pickupCorrectionSchema,
   pickupCountSchema,
   useApiMutation,
@@ -24,6 +25,7 @@ import {
   type CashPickup,
   type CashShift,
   type Hospital,
+  type SwitchedMode,
 } from "@helivanta/api";
 import {
   Field,
@@ -838,6 +840,45 @@ function Pickup({
   );
 }
 
+// Card, netbanking or wallet at a counter (#198 slice 6): a cashier records
+// them only where the counter takes them.
+function CounterMode({
+  hospital,
+  counter,
+  mode,
+  label,
+}: {
+  hospital: Hospital;
+  counter: CashCounter;
+  mode: SwitchedMode;
+  label: string;
+}) {
+  const on = counter.modes.includes(mode);
+  const toggle = useApiMutation(
+    () =>
+      apiFetch<CashCounter>(
+        `/billing/hospitals/${hospital.id}/counters/${counter.id}/modes/${mode}`,
+        { method: "PUT", body: JSON.stringify({ accepted: !on }) },
+      ),
+    {
+      successToast: `${label} switched ${on ? "off" : "on"} at ${counter.code}`,
+      invalidate: [["billing", "counters", hospital.id]],
+    },
+  );
+  return (
+    <Button
+      size="sm"
+      variant={on ? "secondary" : "outline"}
+      aria-pressed={on}
+      aria-label={`Switch ${on ? "off" : "on"} ${label.toLowerCase()} at ${counter.code}`}
+      disabled={toggle.isPending}
+      onClick={() => toggle.mutate()}
+    >
+      {label} {on ? "on" : "off"}
+    </Button>
+  );
+}
+
 function Counters({ hospital }: { hospital: Hospital }) {
   // A new id for each counter added: a retry repeats the same one.
   const [counterId, setCounterId] = useState(() => newBedId());
@@ -869,8 +910,19 @@ function Counters({ hospital }: { hospital: Hospital }) {
       ) : (
         <ul className="text-sm">
           {counters.items.map((c) => (
-            <li key={c.id}>
-              {c.code} · {c.name}
+            <li key={c.id} className="flex flex-wrap items-center gap-2 py-1">
+              <span>
+                {c.code} · {c.name}
+              </span>
+              {switchedModes.map((m) => (
+                <CounterMode
+                  key={m.mode}
+                  hospital={hospital}
+                  counter={c}
+                  mode={m.mode}
+                  label={m.label}
+                />
+              ))}
             </li>
           ))}
         </ul>

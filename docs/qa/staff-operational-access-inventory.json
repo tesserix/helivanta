@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "c3efe1208a4022d6b0162a597f8f031a72860096a4b87239a03883b88e0bffed",
+  "registry_sha256": "efa661a0281574e700405b8379ac67ea11607c7df3597ef2a075a1f05980c994",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 744,
-    "unclassified": 727
+    "total": 745,
+    "unclassified": 728
   },
   "entries": [
     {
@@ -1617,6 +1617,22 @@
         "source": "backend/internal/modules/billing/module.go",
         "method": "PUT",
         "path": "/v1/billing/hospitals/:hospital/counters/:counter",
+        "permission": "billing.counter.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http billing PUT /v1/billing/hospitals/:hospital/counters/:counter/modes/:mode",
+      "kind": "http",
+      "module": "billing",
+      "registration": {
+        "source": "backend/internal/modules/billing/module.go",
+        "method": "PUT",
+        "path": "/v1/billing/hospitals/:hospital/counters/:counter/modes/:mode",
         "permission": "billing.counter.manage",
         "authentication_required": true,
         "membership_required": true,

@@ -65,6 +65,14 @@ type collectionShift struct {
 	// Cash taken to the safe less corrections (#198 slice 4): a movement out
 	// of the drawer, not revenue, so it is apart from net.
 	PickedUpMinor *int64 `json:"picked_up_minor"`
+	// Card, netbanking and wallet (#198 slice 6): at the bank, never in the
+	// drawer, apart from the cash columns like UPI.
+	CardPaymentsMinor       *int64 `json:"card_payments_minor"`
+	CardDepositsMinor       *int64 `json:"card_deposits_minor"`
+	NetbankingPaymentsMinor *int64 `json:"netbanking_payments_minor"`
+	NetbankingDepositsMinor *int64 `json:"netbanking_deposits_minor"`
+	WalletPaymentsMinor     *int64 `json:"wallet_payments_minor"`
+	WalletDepositsMinor     *int64 `json:"wallet_deposits_minor"`
 }
 
 // collectionTotals cover counted shifts (closed or waiting for
@@ -87,6 +95,13 @@ type collectionTotals struct {
 	UpiPaymentsMinor   int64 `json:"upi_payments_minor"`
 	UpiDepositsMinor   int64 `json:"upi_deposits_minor"`
 	PickedUpMinor      int64 `json:"picked_up_minor"`
+	// Card, netbanking and wallet, apart from cash and net.
+	CardPaymentsMinor       int64 `json:"card_payments_minor"`
+	CardDepositsMinor       int64 `json:"card_deposits_minor"`
+	NetbankingPaymentsMinor int64 `json:"netbanking_payments_minor"`
+	NetbankingDepositsMinor int64 `json:"netbanking_deposits_minor"`
+	WalletPaymentsMinor     int64 `json:"wallet_payments_minor"`
+	WalletDepositsMinor     int64 `json:"wallet_deposits_minor"`
 }
 
 type dailyCollection struct {
@@ -144,6 +159,12 @@ func (h *handlers) collection(c *gin.Context) (dailyCollection, error) {
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='cash' AND r.purpose='refund'),0) AS refunds_minor,
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='upi' AND r.purpose='payment'),0) AS upi_payments_minor,
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='upi' AND r.purpose='deposit'),0) AS upi_deposits_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='card' AND r.purpose='payment'),0) AS card_payments_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='card' AND r.purpose='deposit'),0) AS card_deposits_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='netbanking' AND r.purpose='payment'),0) AS netbanking_payments_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='netbanking' AND r.purpose='deposit'),0) AS netbanking_deposits_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='wallet' AND r.purpose='payment'),0) AS wallet_payments_minor,
+ COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NULL AND r.mode='wallet' AND r.purpose='deposit'),0) AS wallet_deposits_minor,
  count(r.id) FILTER (WHERE r.voided_at IS NOT NULL) AS voided_count,
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose<>'refund'),0) AS voided_minor,
  COALESCE(sum(r.amount_minor) FILTER (WHERE r.voided_at IS NOT NULL AND r.purpose='refund'),0) AS voided_refunds_minor,
@@ -187,6 +208,7 @@ func (d *dailyCollection) summarise() {
 			// adds up to the expected cash.
 			s.OpeningFloatMinor, s.PaymentsMinor, s.DepositsMinor, s.RefundsMinor, s.VoidedCount, s.VoidedMinor, s.VoidedRefundsMinor = nil, nil, nil, nil, nil, nil, nil
 			s.UpiPaymentsMinor, s.UpiDepositsMinor, s.PickedUpMinor = nil, nil, nil
+			s.CardPaymentsMinor, s.CardDepositsMinor, s.NetbankingPaymentsMinor, s.NetbankingDepositsMinor, s.WalletPaymentsMinor, s.WalletDepositsMinor = nil, nil, nil, nil, nil, nil
 			t.OpenShifts++
 			d.Final = false
 			continue
@@ -201,6 +223,12 @@ func (d *dailyCollection) summarise() {
 		t.UpiPaymentsMinor += *s.UpiPaymentsMinor
 		t.UpiDepositsMinor += *s.UpiDepositsMinor
 		t.PickedUpMinor += *s.PickedUpMinor
+		t.CardPaymentsMinor += *s.CardPaymentsMinor
+		t.CardDepositsMinor += *s.CardDepositsMinor
+		t.NetbankingPaymentsMinor += *s.NetbankingPaymentsMinor
+		t.NetbankingDepositsMinor += *s.NetbankingDepositsMinor
+		t.WalletPaymentsMinor += *s.WalletPaymentsMinor
+		t.WalletDepositsMinor += *s.WalletDepositsMinor
 		if v := *s.VarianceMinor; v < 0 {
 			t.ShortageMinor -= v
 		} else {
@@ -249,7 +277,8 @@ func (h *handlers) exportDailyCollection(c *gin.Context) {
 
 var collectionHeader = []string{"date", "timezone", "final", "counter_code", "counter_name", "cashier", "status", "opened_at", "closed_at",
 	"opening_float", "payments", "deposits", "refunds", "net", "voided_receipts", "voided_amount", "voided_refunds", "expected", "declared", "variance",
-	"shortage", "excess", "authorised_by", "authorisation_reason", "upi_payments", "upi_deposits", "picked_up"}
+	"shortage", "excess", "authorised_by", "authorisation_reason", "upi_payments", "upi_deposits", "picked_up",
+	"card_payments", "card_deposits", "netbanking_payments", "netbanking_deposits", "wallet_payments", "wallet_deposits"}
 
 func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 	w := csvsafe.NewWriter(collectionCSVLimit)
@@ -271,7 +300,9 @@ func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 			s.OpenedAt.UTC().Format(time.RFC3339), closed, rupees(s.OpeningFloatMinor), rupees(s.PaymentsMinor), rupees(s.DepositsMinor),
 			rupees(s.RefundsMinor), rupees(net), integer(s.VoidedCount), rupees(s.VoidedMinor), rupees(s.VoidedRefundsMinor), rupees(s.ExpectedMinor), rupees(s.DeclaredMinor),
 			rupees(s.VarianceMinor), rupees(shortage), rupees(excess), csvsafe.Text(deref(s.AuthorisedBy)), csvsafe.Text(deref(s.AuthorisationReason)),
-			rupees(s.UpiPaymentsMinor), rupees(s.UpiDepositsMinor), rupees(s.PickedUpMinor))
+			rupees(s.UpiPaymentsMinor), rupees(s.UpiDepositsMinor), rupees(s.PickedUpMinor),
+			rupees(s.CardPaymentsMinor), rupees(s.CardDepositsMinor), rupees(s.NetbankingPaymentsMinor), rupees(s.NetbankingDepositsMinor),
+			rupees(s.WalletPaymentsMinor), rupees(s.WalletDepositsMinor))
 		if err := w.Write(row); err != nil {
 			return nil, err
 		}
@@ -280,7 +311,9 @@ func encodeCollectionCSV(d dailyCollection) ([]byte, error) {
 	t := d.Totals
 	total := append(append([]string{}, day...), "TOTAL", "", "", "", "", "", "", rupees(&t.PaymentsMinor), rupees(&t.DepositsMinor),
 		rupees(&t.RefundsMinor), rupees(&t.NetMinor), integer(&t.VoidedReceipts), rupees(&t.VoidedMinor), rupees(&t.VoidedRefundsMinor), "", "", "", rupees(&t.ShortageMinor), rupees(&t.ExcessMinor), "", "",
-		rupees(&t.UpiPaymentsMinor), rupees(&t.UpiDepositsMinor), rupees(&t.PickedUpMinor))
+		rupees(&t.UpiPaymentsMinor), rupees(&t.UpiDepositsMinor), rupees(&t.PickedUpMinor),
+		rupees(&t.CardPaymentsMinor), rupees(&t.CardDepositsMinor), rupees(&t.NetbankingPaymentsMinor), rupees(&t.NetbankingDepositsMinor),
+		rupees(&t.WalletPaymentsMinor), rupees(&t.WalletDepositsMinor))
 	if err := w.Write(total); err != nil {
 		return nil, err
 	}

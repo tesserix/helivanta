@@ -14,7 +14,12 @@ const hospital = {
   access_level: "manager" as const,
 };
 const admission = "0199e000-0000-7000-8000-0000000000a9";
-const counter = { id: "0199e000-0000-7000-8000-0000000000c1", code: "IPD-1", name: "IPD desk" };
+const counter = {
+  id: "0199e000-0000-7000-8000-0000000000c1",
+  code: "IPD-1",
+  name: "IPD desk",
+  modes: [] as string[],
+};
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const page = (data: unknown[]) => json(200, { data, page: { next_cursor: null, has_more: false } });
@@ -37,6 +42,7 @@ const shift = (over: Record<string, unknown> = {}) => ({
   authorised_at: null,
   declared_counts: null,
   picked_up_minor: 0,
+  counter_modes: [] as string[],
   ...over,
 });
 const pending = shift({
@@ -83,6 +89,8 @@ function server(opts: {
   incoming?: unknown[];
   disputed?: unknown[];
   put?: unknown;
+  counters?: unknown[];
+  receipts?: unknown[];
 }) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.includes("/iam/me/permissions"))
@@ -109,8 +117,8 @@ function server(opts: {
         created_by: null,
         created_at: null,
       });
-    if (url.includes("/counters")) return page([counter]);
-    if (url.includes("/receipts")) return page([]);
+    if (url.includes("/counters")) return page(opts.counters ?? [counter]);
+    if (url.includes("/receipts")) return page(opts.receipts ?? []);
     return page([]);
   });
   vi.stubGlobal("fetch", fetcher);
@@ -287,6 +295,23 @@ describe("CashDesk", () => {
     expect(ids[0]).not.toEqual(ids[1]);
   });
 
+  it("switches card, netbanking and wallet per counter", async () => {
+    const fetcher = server({
+      permissions: ["billing.account.read", "billing.counter.manage"],
+      counters: [{ ...counter, modes: ["wallet"] }],
+    });
+    const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(
+      await screen.findByRole("button", { name: "Switch off wallet at IPD-1" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Switch on card at IPD-1" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/billing/hospitals/${hospital.id}/counters/${counter.id}/modes/card$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({ accepted: true });
+  });
+
   it("tells the cashier their short count waits for a supervisor", async () => {
     server({ permissions: cashier, mine: pending });
     renderWithProviders(<CashDesk hospital={hospital} />);
@@ -349,6 +374,140 @@ describe("CashPayments", () => {
       amount_minor: 150000,
       currency: "INR",
     });
+  });
+
+  it("records a card payment with its slip's references, only by modes the counter takes", async () => {
+    const fetcher = server({
+      permissions: cashier,
+      mine: shift({ counter_modes: ["card", "wallet"] }),
+    });
+    const { user } = renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(150000)} />,
+    );
+    const form = await screen.findByRole("form", {
+      name: "Record a payment by card, netbanking or wallet",
+    });
+    const paidBy = within(form).getByLabelText("Paid by");
+    await user.click(paidBy);
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual([
+      "Card",
+      "Wallet",
+    ]);
+    await user.keyboard("{Escape}");
+    await user.clear(within(form).getByLabelText("Amount received (INR)"));
+    await user.type(within(form).getByLabelText("Amount received (INR)"), "1500");
+    await user.type(within(form).getByLabelText("Transaction reference (RRN)"), "412345678901");
+    await user.click(within(form).getByRole("button", { name: "Record payment" }));
+    expect(await within(form).findByText("The 6-character code on the slip")).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
+
+    // A card number typed into the reference is never sent.
+    await user.clear(within(form).getByLabelText("Transaction reference (RRN)"));
+    await user.type(within(form).getByLabelText("Transaction reference (RRN)"), "4111111111111111");
+    await user.click(within(form).getByRole("button", { name: "Record payment" }));
+    expect(
+      await within(form).findByText("That is a card number; enter the transaction reference"),
+    ).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.clear(within(form).getByLabelText("Transaction reference (RRN)"));
+    await user.type(within(form).getByLabelText("Transaction reference (RRN)"), "412345678901");
+
+    await user.type(within(form).getByLabelText("Approval code"), "a1b2c3");
+    await user.click(within(form).getByRole("button", { name: "Record payment" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/admissions/${admission}/receipts/[0-9a-f-]{36}$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      amount_minor: 150000,
+      currency: "INR",
+      mode: "card",
+      reference: "412345678901",
+      approval_code: "A1B2C3",
+    });
+    await waitFor(() =>
+      expect(within(form).getByLabelText("Transaction reference (RRN)")).toHaveValue(""),
+    );
+  });
+
+  it("records a wallet deposit with the wallet's name", async () => {
+    const fetcher = server({ permissions: cashier, mine: shift({ counter_modes: ["wallet"] }) });
+    const { user } = renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(0)} />,
+    );
+    const form = await screen.findByRole("form", {
+      name: "Record a deposit by card, netbanking or wallet",
+    });
+    expect(
+      screen.queryByRole("form", { name: "Record a payment by card, netbanking or wallet" }),
+    ).not.toBeInTheDocument();
+    await user.clear(within(form).getByLabelText("Deposit received (INR)"));
+    await user.type(within(form).getByLabelText("Deposit received (INR)"), "2000");
+    await user.type(within(form).getByLabelText("Wallet"), "PhonePe");
+    await user.type(within(form).getByLabelText("Wallet transaction ID"), "T2611021234");
+    await user.click(within(form).getByRole("button", { name: "Record deposit" }));
+    await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/admissions/${admission}/deposits/[0-9a-f-]{36}$`),
+    );
+    expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
+      amount_minor: 200000,
+      currency: "INR",
+      mode: "wallet",
+      reference: "T2611021234",
+      wallet: "phonepe",
+    });
+  });
+
+  it("offers no card, netbanking or wallet at a counter that takes none", async () => {
+    server({ permissions: cashier, mine: shift() });
+    renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(150000)} />,
+    );
+    expect(await screen.findByRole("button", { name: "Take cash" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Record payment" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Record deposit" })).not.toBeInTheDocument();
+  });
+
+  it("shows a card receipt's references and lets its cashier void it", async () => {
+    server({
+      permissions: cashier,
+      mine: shift(),
+      receipts: [
+        {
+          id: "0199e000-0000-7000-8000-0000000000e9",
+          hospital_id: hospital.id,
+          shift_id: shift().id,
+          counter_id: counter.id,
+          counter_code: "IPD-1",
+          number: 3,
+          cashier: "user-clerk",
+          admission_id: admission,
+          purpose: "payment",
+          mode: "card",
+          reference: "412345678901",
+          approval_code: "A1B2C3",
+          wallet: null,
+          rrn: null,
+          late: false,
+          approval_id: null,
+          amount_minor: 150000,
+          currency: "INR",
+          received_at: "2026-11-02T03:00:00Z",
+          void_reason: null,
+          voided_at: null,
+        },
+      ],
+    });
+    renderWithProviders(
+      <CashPayments hospital={hospital} admissionId={admission} account={account(0)} />,
+    );
+    expect(await screen.findByText(/Card Receipt IPD-1-3/)).toHaveTextContent(
+      "Ref 412345678901 · Approval A1B2C3",
+    );
+    expect(
+      await screen.findByRole("button", { name: "Void Card Receipt IPD-1-3" }),
+    ).toBeInTheDocument();
   });
 
   it("refreshes the billing desk's lists after taking cash", async () => {

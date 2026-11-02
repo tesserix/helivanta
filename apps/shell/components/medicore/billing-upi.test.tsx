@@ -32,6 +32,7 @@ const shift = {
   authorised_by: null,
   authorisation_reason: null,
   authorised_at: null,
+  counter_modes: [],
 };
 
 function request(over: Partial<BillingUpiRequest>): BillingUpiRequest {

@@ -44,8 +44,8 @@ function CollectionPanel({ hospital }: { hospital: Hospital }) {
         <p className="mt-1 text-sm text-muted-foreground">
           Each shift that opened on the day, by the hospital&apos;s date, with the cash it took and
           whether its drawer matched. Open shifts are not counted until their cashier closes them.
-          UPI is shown apart: it is at the bank, not in the drawer, and a payment that lands after
-          its QR closed is added to the shift that asked for it.
+          UPI, card, netbanking and wallet are shown apart: they are at the bank, not in the drawer,
+          and a UPI payment that lands after its QR closed is added to the shift that asked for it.
         </p>
       </div>
       {setup.isPending ? (
@@ -137,6 +137,9 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
                 <th className="text-right">Declared</th>
                 <th className="text-right">Variance</th>
                 <th className="text-right">UPI</th>
+                <th className="text-right">Card</th>
+                <th className="text-right">Netbanking</th>
+                <th className="text-right">Wallet</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -162,6 +165,12 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
         <Total label="Voided receipts" value={String(totals.voided_receipts)} />
         <Total label="UPI payments" value={money(totals.upi_payments_minor)} />
         <Total label="UPI deposits" value={money(totals.upi_deposits_minor)} />
+        <Total label="Card payments" value={money(totals.card_payments_minor)} />
+        <Total label="Card deposits" value={money(totals.card_deposits_minor)} />
+        <Total label="Netbanking payments" value={money(totals.netbanking_payments_minor)} />
+        <Total label="Netbanking deposits" value={money(totals.netbanking_deposits_minor)} />
+        <Total label="Wallet payments" value={money(totals.wallet_payments_minor)} />
+        <Total label="Wallet deposits" value={money(totals.wallet_deposits_minor)} />
       </dl>
       <CollectionExport hospital={hospital} date={date} />
     </div>
@@ -185,6 +194,13 @@ const statusLabel = {
 
 function ShiftRow({ shift }: { shift: CollectionShift }) {
   const cell = (minor: number | null) => (minor === null ? "—" : money(minor));
+  // Money at the bank: payments, and deposits beside them when there are any.
+  const banked = (payments: number | null, deposits: number | null) =>
+    payments === null || deposits === null
+      ? "—"
+      : deposits > 0
+        ? `${cell(payments)} + deposits ${cell(deposits)}`
+        : cell(payments);
   const v = shift.variance_minor;
   return (
     <tr>
@@ -216,12 +232,13 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
       <td className="text-right">
         {v === null ? "—" : v === 0 ? "Matched" : v < 0 ? `Short ${money(-v)}` : `Over ${money(v)}`}
       </td>
+      <td className="text-right">{banked(shift.upi_payments_minor, shift.upi_deposits_minor)}</td>
+      <td className="text-right">{banked(shift.card_payments_minor, shift.card_deposits_minor)}</td>
       <td className="text-right">
-        {shift.upi_payments_minor === null || shift.upi_deposits_minor === null
-          ? "—"
-          : shift.upi_deposits_minor > 0
-            ? `${cell(shift.upi_payments_minor)} + deposits ${cell(shift.upi_deposits_minor)}`
-            : cell(shift.upi_payments_minor)}
+        {banked(shift.netbanking_payments_minor, shift.netbanking_deposits_minor)}
+      </td>
+      <td className="text-right">
+        {banked(shift.wallet_payments_minor, shift.wallet_deposits_minor)}
       </td>
     </tr>
   );

@@ -76,7 +76,7 @@ between them, neither close nor open shows it, and each can blame the other.
 
 ## Not covered
 
-Card, netbanking and wallet modes; GL export; events; a safe ledger;
+Card, netbanking and wallet modes (since added: `2026-11-02-card-netbanking-wallet-design.md`); GL export; events; a safe ledger;
 marking handovers in the daily collection report (each side shows as its
 own shift); a handover between counters.
 

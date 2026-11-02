@@ -1,6 +1,8 @@
-# Staff posting preparation release candidate — 2026-11-03
+# Staff posting preparation production release — 2026-11-03
 
-PR #1524 adds non-operating preparation drafts against canonical Workforce Staff and the current Organization department revision. Every public receipt remains `draft` with `grants_access: false`. No duplicate employee or department master is introduced.
+PR #1524 adds non-operating preparation drafts against canonical Workforce Staff and the
+current Organization department revision. Every public receipt remains `draft` with
+`grants_access: false`. No duplicate employee or department master is introduced.
 
 ## Release identity
 
@@ -9,15 +11,27 @@ PR #1524 adds non-operating preparation drafts against canonical Workforce Staff
 - CI: https://github.com/tesserix/helivanta/actions/runs/41456474994 — all jobs passed.
 - Merge revision: `305294ab3bf5e77dcb9db88d11af258f55be22f2`; its tree exactly matches the checked head.
 - Main image workflow: https://github.com/tesserix/helivanta/actions/runs/41460365395 — API/shell build, scan/sign/publish and deploy-branch advancement passed.
-- Kargo freight: `0477a4c69fe5b531512e28282673dac9b8762653` from the merged revision; promotion remains pending.
+- Kargo freight: `0477a4c69fe5b531512e28282673dac9b8762653` from the merged revision; promoted successfully.
 - Forward migration: `0073_workforce_posting_drafts`.
-- Production approval, migration and promotion: pending; this journal does not authorize execution.
+- Specific user approval received for revision `305294ab` and migration 0073.
+- Production promotion `prod.01m6eanw1cfa4s587sv6rx21qc.0477a4c` succeeded using the unchanged configured template. Migration job succeeded at the approved image; all seven deployments are 2/2 updated/ready, and API/Global API/shell are Argo Synced/Healthy.
 
 ## Delivered boundary
 
-The new permission is tenant-admin preparation plus the existing explicit hospital manager/reader grant. The Global API preserves original tenant/subject preconditions and product-owned authorization. New writes pin the Staff version/epoch and an exact active department revision. The narrow Organization owner guard holds both the restructuring gate and source row until the outer product transaction commits. Heads, immutable revisions, save audit and identifier-only outbox are atomic. Current authorization is required for retained historical command receipts; an old receipt does not establish current eligibility.
+The new permission is tenant-admin preparation plus the existing explicit hospital
+manager/reader grant. The Global API preserves original tenant/subject preconditions and
+product-owned authorization. New writes pin the Staff version/epoch and an exact active
+department revision. The narrow Organization owner guard holds both the restructuring
+gate and source row until the outer product transaction commits. Heads, immutable
+revisions, save audit and identifier-only outbox are atomic. Current authorization is
+required for retained historical command receipts; an old receipt does not establish
+current eligibility.
 
-The Staff directory supports required fields, a canonical department picker, explicit UTC instants, editing, bounded collection/history and retained exact command retry/recovery. An uncertain command keeps its identifier and intent. Unsaved navigation is guarded; tenant transitions cancel outstanding requests. Reasons, input hashes and actor subjects are not part of public receipts.
+The Staff directory supports required fields, a canonical department picker, explicit
+UTC instants, editing, bounded collection/history and retained exact command
+retry/recovery. An uncertain command keeps its identifier and intent. Unsaved navigation
+is guarded; tenant transitions cancel outstanding requests. Reasons, input hashes and
+actor subjects are not part of public receipts.
 
 ## Observed validation
 
@@ -32,14 +46,52 @@ The Staff directory supports required fields, a canonical department picker, exp
 
 ## Production preflight and recovery
 
-Read-only preflight observed all seven application deployments ready at `6e9c4816`, Kargo healthy with no automatic promotion policy, and 213 production migration receipts identical to the local pre-migration baseline. Both new tables are absent and required owner helpers/Organization tables exist. The approved local fixture moved from 213 to 214 receipts with exactly 0073 added.
+Read-only preflight observed all seven application deployments ready at `6e9c4816`,
+Kargo healthy with no automatic promotion policy, and 213 production migration receipts
+identical to the local pre-migration baseline. Both new tables are absent and required
+owner helpers/Organization tables exist. The approved local fixture moved from 213 to
+214 receipts with exactly 0073 added.
 
-Use the owning GitOps/Kargo promotion after specific approval of the named release and 0073. Do not patch live deployment images. Preserve the additive schema and immutable drafts if an approved application rollback is needed; do not drop or rewrite history. Production receipts, function/trigger/index checks, workload/image health and normal-role browser results must be recorded after rollout.
+The named approval was executed through the owning Kargo/Argo workflow without
+deployment image patches or edits to the unrelated GitOps worktree. An initial invalid
+generated-name prefix was rejected before any Promotion existed; the corrected request
+passed server-side validation and then succeeded.
 
-Private captures, failure context, runtime metadata and screenshots are under `~/.helivanta/staff-management-20261027/posting-preparation-20261103/`. Existing private QA JSON credentials were reused and left unchanged. Cached dependencies were reused; no container images or dependencies were downloaded locally. The bounded CI failure artifact was retained privately for diagnosis.
+Production now has 214 receipts with exactly 0073 added. All four installed function
+bodies exactly match canonical SQL. Both tables force RLS, all six triggers are enabled,
+all eight indexes are ready/valid and constraints are validated.
+
+Normal production owner sign-in and selection of the intended tenant passed. Against the
+existing clearly synthetic inactive Pharma Staff record and canonical synthetic
+department, UI QA created version 1, edited version 2, displayed both full intervals and
+persisted after reload. Read-only SQL confirmed one canonical Staff master, one head,
+two immutable revisions, two save audits, unchanged Staff version 2/employment epoch 1,
+inactive employment and zero login links. The QA-only reasons identify the records; no
+operating posting or account authority was granted.
+
+The existing restricted production reviewer signed in normally and saw No hospital
+access yet, with zero posting controls. No reviewer membership or role was changed; the
+production session was signed out afterward. This is negative authorization acceptance,
+not positive scoped preparer/reader or independent-review acceptance.
+
+Preserve the additive schema and immutable drafts if an approved application rollback is
+needed; do not drop or rewrite history. No rollback was performed.
+
+Private captures, failure context, runtime metadata and screenshots are under
+`~/.helivanta/staff-management-20261027/posting-preparation-20261103/`. Existing private
+QA JSON credentials were reused and left unchanged. Cached dependencies were reused; no
+container images or dependencies were downloaded locally. The bounded CI failure
+artifact was retained privately for diagnosis.
 
 ## Remaining acceptance
 
-Whole Staff Management is incomplete: 10 partial, 10 awaiting audit, 1 research and zero fully accepted areas. Scoped preparer/reader catalogs, reviewed operating postings, independent decisions, transfers/supervision/contractors, standalone employers and Pharma duty/lifecycle enforcement remain open. Parent issues #118, #417 and #418 remain open; no full Staff E2E-completion tag is earned by this preparation slice. ADR 0052 remains proposed.
+Whole Staff Management is incomplete: 10 partial, 10 awaiting audit, 1 research and zero
+fully accepted areas. Scoped preparer/reader catalogs, reviewed operating postings,
+independent decisions, transfers/supervision/contractors, standalone employers and
+Pharma duty/lifecycle enforcement remain open. Parent issues #118, #417 and #418 remain
+open; no full Staff E2E-completion tag is earned by this preparation slice. ADR 0052
+remains proposed.
 
-See [posting contract](../../api/workforce-postings.md), [progress tracker](../../qa/staff-management-progress.md) and [effective posting plan](../../superpowers/plans/2026-11-02-effective-staff-postings.md).
+See [posting contract](../../api/workforce-postings.md), [progress
+tracker](../../qa/staff-management-progress.md) and [effective posting
+plan](../../superpowers/plans/2026-11-02-effective-staff-postings.md).

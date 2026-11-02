@@ -18,7 +18,8 @@ Follow the [scope and acceptance spec](../specs/2026-11-02-reusable-staff-founda
 - [x] Implement bounded canonical organization departments/sub-units and normal local owner UI.
 - [x] Add explicit retained HR-to-Organization mapping and manager UI/local acceptance.
 - [x] Finish mapping fault matrix and independent-role browser acceptance.
-- [ ] Implement Workforce postings with separate access and lifecycle enforcement.
+- [ ] Implement Workforce postings with separate access and lifecycle enforcement
+      through the [effective-postings plan](2026-11-02-effective-staff-postings.md).
 - [ ] Implement Pharma Connect Staff specialization through canonical references.
 - [ ] Verify complete normal-role, independent-review and negative end-to-end paths.
 

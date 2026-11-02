@@ -1,5 +1,19 @@
 # Staff Management delivery tracker
 
+## Effective posting design — 2026-11-02
+
+The [proposed posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)
+and [delivery plan](../superpowers/plans/2026-11-02-effective-staff-postings.md)
+now trace canonical Staff/employment/posting references, transfers, contractors,
+independent approval, supervision and Pharma duties to current-source enforcement
+through commit. The source audit confirms that current scoped IAM requests are
+hospital-only and legacy Pharma dispense rows lack hospital/outlet lineage;
+neither gap is repaired by the existing outlet helper. The proposed owner-guard
+composition is recorded in [ADR-0052](../adr/0052-staff-source-command-authorization.md)
+with a closed provider boundary and explicit shared-database limitation. No source
+guard, posting API, standalone employer migration or operational acceptance is
+claimed by this design. Whole-Staff completion counts remain unchanged.
+
 ## Approved foundation rollout — 2026-11-02
 
 PR #1521 passed all required checks and merged as `058ea37a` after explicit
@@ -26,7 +40,7 @@ effective times; the edited department survived reload. No new account link,
 professional acceptance, operating grant or Staff activation was created.
 See [production acceptance evidence](2026-11-02-staff-foundation-production.md).
 
-## Credential subject review correction in progress — 2026-11-02
+## Credential subject review correction merged — 2026-11-02
 
 A source review for Pharma specialization reproduced self-subject credential
 approval despite proposer separation (200 instead of 409). Workforce migration
@@ -37,8 +51,12 @@ decision refusals, normal withdrawal and unrelated positive review with retained
 history. The full owner race suite passed in 640.319s, and the final merged-base run
 passed in 596.737s. Vet/lint, build and contract parity passed. A fresh 21-task
 web gate passed; the source-drift CI refusal was repaired by re-reviewing ten
-unchanged route/permission source pins, with all 15 ledger tests passing. No merge, production activation or completed Pharma duty workflow
-is claimed. See [local evidence](2026-11-02-credential-subject-independence-local.md).
+unchanged route/permission source pins, with all 15 ledger tests passing.
+PR #1522 passed every required check on `95de52b3` (CI run 41431224601) and merged
+as `6e9c4816`. Its main image build/scan/sign pipeline is running; production
+remains at the approved foundation `058ea37a`. Workforce 0071/0072 still require
+named rollout/migration approval. No completed Pharma duty workflow is claimed.
+See [local evidence](2026-11-02-credential-subject-independence-local.md).
 Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## HR department handoff — 2026-11-02, active source candidate

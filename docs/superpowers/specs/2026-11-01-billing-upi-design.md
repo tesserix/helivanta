@@ -115,7 +115,7 @@ requests is `billing.account.read`. No new permission.
 
 ## Not covered
 
-- Card, netbanking, wallets, payment links and collect requests to a VPA.
+- Card, netbanking, wallets (since added: `2026-11-02-card-netbanking-wallet-design.md`), payment links and collect requests to a VPA.
 - Refunds over UPI, including for a late payment's surplus credit. Finance refunds those
   in the Razorpay dashboard; recording such a refund in billing is a later slice (as
   #1459 did for the pharmacy). A credit balance is not refundable from the drawer by

@@ -29,7 +29,7 @@ and the daily collection finance signs off is short of real takings.
 7. **Deposits included.** A deposit can be taken by any of these modes.
 8. **Out of this slice:** refunds to a card or account (refunds stay cash),
    reconciliation against terminal or bank settlement reports, card fees,
-   GL export changes beyond new columns, `Shift*` events.
+   GL export changes beyond new columns, `Shift*` events (since added: `2026-11-03-shift-events-design.md`).
 
 ## What it does
 

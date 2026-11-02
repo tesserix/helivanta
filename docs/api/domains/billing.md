@@ -177,7 +177,7 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** card and other modes (since added: slice 6, below); GL export; events; receipts on bills. Handover
+- **Not covered:** card and other modes (since added: slice 6, below); GL export; events (shift events since added: slice 7, below); receipts on bills. Handover
   since added (#198 slice 5, below).
   Refunds, deposits, the daily collection report, UPI, and pickups and counting by note came
   later, below; the close now takes a count by note and coin, not `declared_minor`.
@@ -363,7 +363,7 @@ Design: [spec](../../superpowers/specs/2026-11-02-cash-pickups-design.md).
 | `PUT …/cash-pickups/:pickup/corrections/:correction` `{amount_minor,reason}` | Correct an overstated pickup: `201`; a retry `200`. `billing.shift.authorise`. |
 
 - **Not covered:** a safe ledger and bank deposit; counting the float by note (a float
-  from a handover is counted, below); pickups or corrections after the close (the variance stands); events.
+  from a handover is counted, below); pickups or corrections after the close (the variance stands); events (since added: slice 7, below).
 
 ## Handover between cashiers (#198 slice 5)
 
@@ -408,7 +408,7 @@ note; [spec](../../superpowers/specs/2026-11-02-cash-handover-design.md).
 | `GET …/cash-handovers/incoming`                               | The caller's offers and disputes, without counts.            |
 | `GET …/cash-handovers/disputed`                               | Disputes waiting, without counts; `billing.shift.authorise`. |
 
-- **Not covered:** GL export; events; a safe ledger; marking handovers in the
+- **Not covered:** GL export; events (since added: slice 7, below); a safe ledger; marking handovers in the
   daily collection report; a handover between counters. Card, netbanking and
   wallet: slice 6.
 
@@ -452,7 +452,34 @@ No gateway is involved and nothing is pending.
 
 - **Not covered:** refunds to a card or account (a card deposit is refunded in
   cash); reconciliation against terminal or bank settlement; card fees;
-  references unique across a tenant's hospitals; GL export; events.
+  references unique across a tenant's hospitals; GL export; events for receipts.
+
+## Shift events (#198 slice 7)
+
+What happens to a drawer, published for other services;
+[spec](../../superpowers/specs/2026-11-03-shift-events-design.md). **Nothing
+consumes these yet.**
+
+| Subject                                           | When                                                                        |
+| ------------------------------------------------- | --------------------------------------------------------------------------- |
+| `helivanta.in.billing.shift_opened.v1`            | A shift opens, by its cashier or from a handover (`handover_id`).           |
+| `helivanta.in.billing.shift_variance_recorded.v1` | A count differs from the expected cash; the shift waits for a supervisor.   |
+| `helivanta.in.billing.shift_closed.v1`            | A shift closes for good: the count matched, or the variance was authorised. |
+| `helivanta.in.billing.cash_pickup_recorded.v1`    | A pickup to the safe, or a correction of one (`corrects_id`).               |
+| `helivanta.in.billing.shift_handed_over.v1`       | A handover is accepted, or settled by a supervisor (`settled_by`).          |
+
+- **Payloads** are the `billing/contract` types (`ShiftOpenedData` and so on; see the
+  [event payload reference](../reference/event-payloads.json)): ids, the cashier or
+  supervisor, amounts in paise. Never reasons, counts by note or coin, or anything
+  about patients.
+- **Emitted by the database:** triggers on the shift, pickup and handover tables write
+  the outbox row in the same transaction, so every path that changes a drawer
+  publishes, and a rolled-back change publishes nothing. Each transition happens once,
+  and retried requests replay without writing, so each event is published once;
+  consumers still deduplicate on `event_id`.
+- **Blind:** no event carries the expected cash before the count is in.
+- **Not covered:** events for receipts, refunds and voids, or for a handover offered,
+  withdrawn or disputed; consumers; the GL export.
 
 ## GST on rooms and the tax invoice (#193 slice 1)
 

@@ -29,6 +29,7 @@
 ### Task 1: Contract types and triggers
 
 **Files:**
+
 - Modify: `backend/internal/modules/billing/contract/events.go` (five `Subject*` constants, five `*Data` types)
 - Create: `backend/internal/modules/billing/events.sql`
 - Modify: `backend/internal/modules/billing/module.go` (`eventsSchema`, `0016_billing`, `Publishes()`)

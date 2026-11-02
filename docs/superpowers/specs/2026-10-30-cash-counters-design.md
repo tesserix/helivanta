@@ -61,4 +61,4 @@ expected.
 UPI (since added: `2026-11-01-billing-upi-design.md`), card, netbanking and wallet; handover between cashiers (since added:
 `2026-11-02-cash-handover-design.md`); denominations and mid-shift
 pickups (since added: `2026-11-02-cash-pickups-design.md`); refunds; shift-close and daily collection reports and GL export; events
-(`ShiftOpened` …), which nothing consumes yet; receipts on bills; deposits (#199).
+(`ShiftOpened` …) (since added: `2026-11-03-shift-events-design.md`); receipts on bills; deposits (#199).

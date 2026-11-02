@@ -26,13 +26,13 @@ the safe, without asking billing repeatedly.
 
 Five subjects, published by billing through the outbox:
 
-| Subject | When |
-| --- | --- |
-| `helivanta.in.billing.shift_opened.v1` | A shift opens, by its cashier or from a handover. |
-| `helivanta.in.billing.shift_variance_recorded.v1` | A shift's count differs from the expected cash: it waits for a supervisor. |
-| `helivanta.in.billing.shift_closed.v1` | A shift is closed for good: its count matched, or its variance was authorised. |
-| `helivanta.in.billing.cash_pickup_recorded.v1` | Cash is taken to the safe, or a pickup is corrected. |
-| `helivanta.in.billing.shift_handed_over.v1` | A handover completes: accepted by the incoming cashier or settled by a supervisor. |
+| Subject                                           | When                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `helivanta.in.billing.shift_opened.v1`            | A shift opens, by its cashier or from a handover.                                  |
+| `helivanta.in.billing.shift_variance_recorded.v1` | A shift's count differs from the expected cash: it waits for a supervisor.         |
+| `helivanta.in.billing.shift_closed.v1`            | A shift is closed for good: its count matched, or its variance was authorised.     |
+| `helivanta.in.billing.cash_pickup_recorded.v1`    | Cash is taken to the safe, or a pickup is corrected.                               |
+| `helivanta.in.billing.shift_handed_over.v1`       | A handover completes: accepted by the incoming cashier or settled by a supervisor. |
 
 So a shift publishes `shift_opened`, any pickups, then either `shift_closed`, or
 `shift_variance_recorded` followed by `shift_closed` when it is authorised. A

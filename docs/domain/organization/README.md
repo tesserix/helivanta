@@ -58,11 +58,26 @@ Read this before changing roles, permissions, staff access, departments, approva
 
 ## Current implementation
 
-Verified against source on 2026-10-27. These are the gaps the target model closes.
+Rechecked against source on 2026-11-03 for Staff posting preparation. These
+implementation facts do not establish acceptance of the full target model.
 
-- Role membership is tenant-wide. `iam_members` holds `tenant_id`, `subject` and `role_key` only: no scope, validity, grantor, reason or approval ([`iam/module.go:122`](../../../backend/internal/modules/iam/module.go)).
+- Legacy role membership remains tenant-wide. Scoped assignment proposals,
+  independent decisions, immutable permission snapshots, membership/scope epochs
+  and effective intervals are separate IAM-owned records; they do not redefine
+  `iam_members` as a department or outlet assignment
+  ([IAM authority](../../../backend/internal/modules/iam/assignment_authority.go)).
 - `tenant_admin` receives every declared permission, clinical ones included, because `GrantsFor` appends it to each grant ([`platform/reconcile.go:92`](../../../backend/internal/platform/reconcile.go)). [ADR-0008](../../adr/0008-multi-hospital-tenancy-and-sharing.md) says privileged tenant administrators get no clinical access automatically; the code and the accepted decision disagree.
-- The OpenFGA model includes versioned `scoped_assignment` and `scoped_permission` primitives alongside legacy tenant roles ([`authz/model.go`](../../../backend/pkg/authz/model.go)). IAM has reviewed hospital-scoped assignment proposals, membership generations, immutable snapshots, scope epochs, durable projection and a current-state authority provider. Workforce business routes have not opted into that authority; staff/link/object checks and target-bound RLS remain required. Department, outlet and base consumers are not implemented. Graph tuples alone are not application authority.
+- The OpenFGA model includes versioned `scoped_assignment` and `scoped_permission`
+  primitives alongside legacy tenant roles ([model](../../../backend/pkg/authz/model.go)).
+  Workforce uses current scoped authority for declared leave, HR intake,
+  employment-review and employment-activation paths, with owner-controlled
+  Staff/link checks and purpose-bound RLS. The
+  [HR intake guard](../../../backend/internal/modules/workforce/hr_intake.go)
+  locks IAM authority and revalidates its reviewed actor through commit.
+  [Posting preparation](../../api/workforce-postings.md) currently requires its
+  tenant permission and legacy hospital grant; scoped preparer/reader templates
+  and department/outlet/base assignment consumers remain open. Graph tuples
+  alone are not application authority.
 - System roles are a fixed catalogue ([`authz/authz.go`](../../../backend/pkg/authz/authz.go)). `staff_member` establishes tenant membership with no declared business permissions. IAM must grant membership explicitly; enrollment or linking does not assign it. Custom roles are representable but not creatable.
 - Narrower scope lives in separate per-module grant tables, each with its own vocabulary:
 
@@ -78,8 +93,22 @@ Verified against source on 2026-10-27. These are the gaps the target model close
 
   `supply_access_grants` is the most complete design and the closest to the target assignment record.
 
-- `workforce_staff` records job category and employment status; workforce also owns reviewed hospital-local `workforce_login_links`, immutable private history and inactivation revocation. `workforce_staff_allowed()` still checks legacy `workforce_hospital_access`. Inactivation revokes current links but does not yet revoke IAM assignments or legacy grants ([`workforce/schema.sql`](../../../backend/internal/modules/workforce/schema.sql), [`login_links.sql`](../../../backend/internal/modules/workforce/login_links.sql)).
-- No department entity exists. Issues #22, #287 and #616 each describe one; #429 depends on it.
+- Workforce owns the canonical Staff record, hospital-local reviewed login links,
+  immutable employment generations and source epochs. Legacy hospital grants
+  remain in use. The current generation check validates reviewed person/employment
+  evidence, identity epoch, digital subject and effective interval
+  ([generation actor](../../../backend/internal/modules/workforce/employment_generation_actor.go)).
+  IAM's [guarded command](../../../backend/internal/modules/iam/assignment_command.go)
+  checks current employment bases and assignment cutoffs. These controls do not
+  prove complete suspension, transfer, rehire or Pharma command enforcement;
+  the [Staff tracker](../../qa/staff-management-progress.md) records remaining gates.
+- Organization owns deployed hospital references, departments/sub-units,
+  immutable structural revisions, safe retirement and a current-reference guard
+  ([module](../../../backend/internal/modules/organization/module.go),
+  [guard](../../../backend/internal/modules/organization/department_reference_guard.go)).
+  Workforce retains HR-to-structure observations and non-operating posting
+  drafts. Effective postings, department-scoped access and #429's clinical
+  reachability criteria remain open; a department row is not membership.
 
 ## Open decisions
 

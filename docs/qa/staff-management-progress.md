@@ -1,5 +1,25 @@
 # Staff Management delivery tracker
 
+## Scoped posting source review — 2026-11-03
+
+The [next specification](../superpowers/specs/2026-11-03-scoped-staff-posting-preparation.md)
+and [delivery plan](../superpowers/plans/2026-11-03-scoped-staff-posting-preparation.md)
+record the verified gaps after the approved `305294ab` release. New scoped
+preparer/reader roles need current reviewed digital Staff actors, independent IAM
+assignment approval, an Organization-owned narrow choice projection, purpose RLS,
+root command deadlines and normal positive-role UI acceptance. Adding catalog
+permissions alone would not complete those controls. Existing historical
+nil-generation actor compatibility must not become the new posting admission rule.
+The exclusive supervision gate also protects simultaneous retained-command retry;
+any lock change needs deterministic race evidence.
+
+Affected Organization/API guidance now distinguishes deployed structural metadata
+and non-operating drafts from effective postings and operating authority. The
+legacy reconciler still appends tenant-admin permissions; its documented clinical
+default discrepancy remains open. These documentation/source-review changes add
+no runtime authority, migration, production rollout or new acceptance result.
+Full Staff counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Posting preparation release — 2026-11-03
 
 The first implementation slice is now a non-operating preparation draft against

@@ -312,7 +312,11 @@ function TakeTender({
   return (
     <form
       noValidate
-      aria-label={purpose === "deposit" ? "Record a deposit by card, netbanking or wallet" : "Record a payment by card, netbanking or wallet"}
+      aria-label={
+        purpose === "deposit"
+          ? "Record a deposit by card, netbanking or wallet"
+          : "Record a payment by card, netbanking or wallet"
+      }
       className="flex flex-wrap items-end gap-2"
       onSubmit={form.handleSubmit((v) => {
         const tooMuch = due !== undefined && v.amount_minor > due;
@@ -341,7 +345,11 @@ function TakeTender({
       />
       {mode === "wallet" && (
         <Field id={`${id}-wallet`} label="Wallet" error={errors.wallet?.message}>
-          <input id={`${id}-wallet`} className={`${inputClass} w-36`} {...form.register("wallet")} />
+          <input
+            id={`${id}-wallet`}
+            className={`${inputClass} w-36`}
+            {...form.register("wallet")}
+          />
         </Field>
       )}
       <Field id={`${id}-reference`} label={referenceLabel[mode]} error={errors.reference?.message}>

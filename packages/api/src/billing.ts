@@ -319,9 +319,17 @@ export const tenderSchema = z
   })
   .superRefine((v, ctx) => {
     if (v.mode === "card" && !/^[A-Z0-9]{6}$/.test(v.approval_code))
-      ctx.addIssue({ code: "custom", path: ["approval_code"], message: "The 6-character code on the slip" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["approval_code"],
+        message: "The 6-character code on the slip",
+      });
     if (v.mode === "wallet" && !/^[a-z0-9]([a-z0-9 .-]{0,28}[a-z0-9])?$/.test(v.wallet))
-      ctx.addIssue({ code: "custom", path: ["wallet"], message: "Name the wallet, up to 30 characters" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["wallet"],
+        message: "Name the wallet, up to 30 characters",
+      });
   });
 
 /** The tender as the API takes it: only the fields its mode carries. */

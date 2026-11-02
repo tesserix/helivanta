@@ -301,10 +301,9 @@ describe("CashDesk", () => {
       counters: [{ ...counter, modes: ["wallet"] }],
     });
     const { user } = renderWithProviders(<CashDesk hospital={hospital} />);
-    expect(await screen.findByRole("button", { name: "Switch off wallet at IPD-1" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(
+      await screen.findByRole("button", { name: "Switch off wallet at IPD-1" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("button", { name: "Switch on card at IPD-1" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(
@@ -378,7 +377,10 @@ describe("CashPayments", () => {
   });
 
   it("records a card payment with its slip's references, only by modes the counter takes", async () => {
-    const fetcher = server({ permissions: cashier, mine: shift({ counter_modes: ["card", "wallet"] }) });
+    const fetcher = server({
+      permissions: cashier,
+      mine: shift({ counter_modes: ["card", "wallet"] }),
+    });
     const { user } = renderWithProviders(
       <CashPayments hospital={hospital} admissionId={admission} account={account(150000)} />,
     );
@@ -402,7 +404,9 @@ describe("CashPayments", () => {
     await user.type(within(form).getByLabelText("Approval code"), "a1b2c3");
     await user.click(within(form).getByRole("button", { name: "Record payment" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
-    expect(puts(fetcher)[0][0]).toMatch(new RegExp(`/admissions/${admission}/receipts/[0-9a-f-]{36}$`));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/admissions/${admission}/receipts/[0-9a-f-]{36}$`),
+    );
     expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
       amount_minor: 150000,
       currency: "INR",
@@ -432,7 +436,9 @@ describe("CashPayments", () => {
     await user.type(within(form).getByLabelText("Wallet transaction ID"), "T2611021234");
     await user.click(within(form).getByRole("button", { name: "Record deposit" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
-    expect(puts(fetcher)[0][0]).toMatch(new RegExp(`/admissions/${admission}/deposits/[0-9a-f-]{36}$`));
+    expect(puts(fetcher)[0][0]).toMatch(
+      new RegExp(`/admissions/${admission}/deposits/[0-9a-f-]{36}$`),
+    );
     expect(JSON.parse(String(puts(fetcher)[0][1].body))).toEqual({
       amount_minor: 200000,
       currency: "INR",

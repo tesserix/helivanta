@@ -37,6 +37,12 @@ const day = (date: string) => ({
       upi_payments_minor: 75000,
       upi_deposits_minor: 30000,
       picked_up_minor: 120000,
+      card_payments_minor: 40000,
+      card_deposits_minor: 0,
+      netbanking_payments_minor: 0,
+      netbanking_deposits_minor: 250000,
+      wallet_payments_minor: 0,
+      wallet_deposits_minor: 0,
     },
     {
       shift_id: "s2",
@@ -61,6 +67,12 @@ const day = (date: string) => ({
       upi_payments_minor: null,
       upi_deposits_minor: null,
       picked_up_minor: null,
+      card_payments_minor: null,
+      card_deposits_minor: null,
+      netbanking_payments_minor: null,
+      netbanking_deposits_minor: null,
+      wallet_payments_minor: null,
+      wallet_deposits_minor: null,
     },
   ],
   totals: {
@@ -77,6 +89,12 @@ const day = (date: string) => ({
     upi_payments_minor: 75000,
     upi_deposits_minor: 30000,
     picked_up_minor: 120000,
+    card_payments_minor: 40000,
+    card_deposits_minor: 0,
+    netbanking_payments_minor: 0,
+    netbanking_deposits_minor: 250000,
+    wallet_payments_minor: 0,
+    wallet_deposits_minor: 0,
   },
 });
 const json = (status: number, body: unknown) =>
@@ -152,6 +170,14 @@ describe("DailyCollectionReport", () => {
     expect(counted).toHaveTextContent("INR 750.00 + deposits INR 300.00");
     expect(totals).toHaveTextContent("UPI paymentsINR 750.00");
     expect(totals).toHaveTextContent("UPI depositsINR 300.00");
+    // Card, netbanking and wallet apart too, each in its own column.
+    const cells = within(counted)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(cells.slice(-3)).toEqual(["INR 400.00", "INR 0.00 + deposits INR 2,500.00", "INR 0.00"]);
+    expect(totals).toHaveTextContent("Card paymentsINR 400.00");
+    expect(totals).toHaveTextContent("Netbanking depositsINR 2,500.00");
+    expect(totals).toHaveTextContent("Wallet paymentsINR 0.00");
     // Cash taken to the safe: a movement, not revenue.
     expect(counted).toHaveTextContent("INR 1,200.00");
     expect(totals).toHaveTextContent("Taken to the safeINR 1,200.00");

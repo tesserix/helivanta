@@ -6,14 +6,25 @@ import {
   cashReasonSchema,
   cashReceiptSchema,
   newBedId,
+  switchedModes,
+  tenderBody,
+  tenderSchema,
   useApiMutation,
   useApiPagedQuery,
   usePermissions,
   type AdmissionAccount,
   type CashReceipt,
   type Hospital,
+  type SwitchedMode,
 } from "@helivanta/api";
-import { Field, LoadMore, RequestFailure, formatDateTime, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  RequestFailure,
+  formatDateTime,
+  useZodForm,
+} from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { BillingUpi } from "./billing-upi";
 import { useMyShift } from "./cash-desk";
@@ -81,6 +92,16 @@ export function CashPayments({
           receiptsKey={key}
         />
       )}
+      {open && inr && payable > 0 && open.counter_modes.length > 0 && (
+        <TakeTender
+          hospital={hospital}
+          admissionId={admissionId}
+          purpose="payment"
+          modes={open.counter_modes}
+          due={payable}
+          receiptsKey={key}
+        />
+      )}
       {/* Mounted while the shift is open, so a payment that clears the balance keeps its confirmation. */}
       {open && inr && (
         <BillingUpi
@@ -107,6 +128,15 @@ export function CashPayments({
             shift={open}
             receiptsKey={key}
           />
+          {open.counter_modes.length > 0 && (
+            <TakeTender
+              hospital={hospital}
+              admissionId={admissionId}
+              purpose="deposit"
+              modes={open.counter_modes}
+              receiptsKey={key}
+            />
+          )}
         </>
       )}
       {hasFinalBill &&
@@ -220,6 +250,139 @@ function TakeCash({
   );
 }
 
+const referenceLabel: Record<SwitchedMode, string> = {
+  card: "Transaction reference (RRN)",
+  netbanking: "Bank reference (UTR)",
+  wallet: "Wallet transaction ID",
+};
+
+// Card, netbanking or wallet (#198 slice 6): recorded once the terminal or
+// the bank has confirmed it, with the reference its mode carries. Never in
+// the drawer, and limited to what the counter takes.
+function TakeTender({
+  hospital,
+  admissionId,
+  purpose,
+  modes,
+  due,
+  receiptsKey,
+}: {
+  hospital: Hospital;
+  admissionId: string;
+  purpose: "payment" | "deposit";
+  modes: SwitchedMode[];
+  due?: number;
+  receiptsKey: unknown[];
+}) {
+  // One receipt id per form: a retried submit repeats the same receipt.
+  const [receiptId, setReceiptId] = useState(() => newBedId());
+  const form = useZodForm(tenderSchema, {
+    amount_minor: Number.NaN,
+    mode: modes[0],
+    reference: "",
+    approval_code: "",
+    wallet: "",
+  });
+  const mode = form.watch("mode");
+  const [over, setOver] = useState(false);
+  const take = useApiMutation(
+    (body: ReturnType<typeof tenderBody>) =>
+      apiFetch<CashReceipt>(
+        `/billing/hospitals/${hospital.id}/admissions/${admissionId}/${purpose === "deposit" ? "deposits" : "receipts"}/${receiptId}`,
+        { method: "PUT", body: JSON.stringify(body) },
+      ),
+    {
+      successToast: purpose === "deposit" ? "Deposit recorded" : "Payment recorded",
+      invalidate: [
+        receiptsKey,
+        ["billing", "account", hospital.id, admissionId],
+        ["billing", "desk", hospital.id],
+      ],
+      invalidateOnError: true,
+      onSuccess: () => {
+        setReceiptId(newBedId());
+        // A slip is recorded once: the next one brings its own reference.
+        form.setValue("reference", "");
+        form.setValue("approval_code", "");
+      },
+    },
+  );
+  const id = `${purpose}-tender-${admissionId}`;
+  const errors = form.formState.errors;
+  return (
+    <form
+      noValidate
+      aria-label={purpose === "deposit" ? "Record a deposit by card, netbanking or wallet" : "Record a payment by card, netbanking or wallet"}
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={form.handleSubmit((v) => {
+        const tooMuch = due !== undefined && v.amount_minor > due;
+        setOver(tooMuch);
+        if (!tooMuch) take.mutate(tenderBody(v));
+      })}
+    >
+      <FormSelectField
+        control={form.control}
+        name="mode"
+        id={`${id}-mode`}
+        label="Paid by"
+        options={switchedModes
+          .filter((m) => modes.includes(m.mode))
+          .map((m) => ({ value: m.mode, label: m.label }))}
+      />
+      <CurrencyAmountField
+        id={`${id}-amount`}
+        label={purpose === "deposit" ? "Deposit received" : "Amount received"}
+        currency="INR"
+        initialMinor={0}
+        error={errors.amount_minor?.message}
+        onChange={(minor) =>
+          form.setValue("amount_minor", minor, { shouldValidate: form.formState.isSubmitted })
+        }
+      />
+      {mode === "wallet" && (
+        <Field id={`${id}-wallet`} label="Wallet" error={errors.wallet?.message}>
+          <input id={`${id}-wallet`} className={`${inputClass} w-36`} {...form.register("wallet")} />
+        </Field>
+      )}
+      <Field id={`${id}-reference`} label={referenceLabel[mode]} error={errors.reference?.message}>
+        <input
+          id={`${id}-reference`}
+          autoComplete="off"
+          className={`${inputClass} w-56`}
+          {...form.register("reference")}
+        />
+      </Field>
+      {mode === "card" && (
+        <Field id={`${id}-approval`} label="Approval code" error={errors.approval_code?.message}>
+          <input
+            id={`${id}-approval`}
+            autoComplete="off"
+            className={`${inputClass} w-28`}
+            {...form.register("approval_code")}
+          />
+        </Field>
+      )}
+      <Button type="submit" size="sm" variant="outline" disabled={take.isPending}>
+        {purpose === "deposit" ? "Record deposit" : "Record payment"}
+      </Button>
+      {over && (
+        <p role="alert" className="w-full text-destructive">
+          At most the balance due, {formatPharmacyMoney(due ?? 0, "INR")}; take an advance as a
+          deposit.
+        </p>
+      )}
+    </form>
+  );
+}
+
+const modeLabel: Record<CashReceipt["mode"], string> = {
+  cash: "",
+  upi: "UPI ",
+  card: "Card ",
+  netbanking: "Netbanking ",
+  wallet: "Wallet ",
+};
+
 function Receipt({
   hospital,
   receipt,
@@ -250,13 +413,16 @@ function Receipt({
       ],
     },
   );
-  const label = `${receipt.mode === "upi" ? "UPI " : ""}${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
+  const label = `${modeLabel[receipt.mode]}${{ payment: "Receipt", deposit: "Deposit", refund: "Refund" }[receipt.purpose]} ${receipt.counter_code}-${receipt.number}`;
   return (
     <li className="py-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>
           {label} · {formatDateTime(receipt.received_at)} · {receipt.cashier}
           {receipt.rrn && ` · RRN ${receipt.rrn}`}
+          {receipt.wallet && ` · ${receipt.wallet}`}
+          {receipt.reference && ` · Ref ${receipt.reference}`}
+          {receipt.approval_code && ` · Approval ${receipt.approval_code}`}
           {receipt.late && " · arrived after the QR closed"}
           {receipt.voided_at && (
             <Badge variant="outline" className="ml-2">
@@ -269,9 +435,9 @@ function Receipt({
           {formatPharmacyMoney(receipt.amount_minor, receipt.currency)}
         </span>
       </div>
-      {/* UPI is at the bank: a void hands cash back, so only cash is voided. */}
+      {/* A UPI receipt is the provider's answer, never voided; a typed one can be wrong. */}
       {mine &&
-        receipt.mode === "cash" &&
+        receipt.mode !== "upi" &&
         can("billing.cash.collect") &&
         !receipt.voided_at &&
         !voiding && (

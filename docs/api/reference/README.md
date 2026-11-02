@@ -607,6 +607,7 @@ Source: [backend/internal/modules/billing/module.go](../../../backend/internal/m
 | GET | `/v1/billing/hospitals/:hospital/cash-shifts` | `billing.shift.authorise` | true | false |
 | GET | `/v1/billing/hospitals/:hospital/collections/:date/export.csv` | `billing.collection.read` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/collections/:date` | `billing.collection.read` | false | false |
+| PUT | `/v1/billing/hospitals/:hospital/counters/:counter/modes/:mode` | `billing.counter.manage` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift` | `billing.cash.collect` | false | false |
 | PUT | `/v1/billing/hospitals/:hospital/counters/:counter` | `billing.counter.manage` | false | false |
 | GET | `/v1/billing/hospitals/:hospital/counters` | `billing.account.read` | true | false |
@@ -659,6 +660,7 @@ Migration table declarations:
 - `0012_billing`: `billing_discount_reasons`, `billing_discounts`.
 - `0013_billing`: `billing_cash_pickups`.
 - `0014_billing`: `billing_cash_handovers`.
+- `0015_billing`: `billing_counter_modes`.
 
 ## supply
 

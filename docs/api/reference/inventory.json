@@ -4143,6 +4143,15 @@
         },
         {
           "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/counters/:counter/modes/:mode",
+          "permission": "billing.counter.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/counters/:counter/shifts/:shift",
           "permission": "billing.cash.collect",
           "authentication_required": true,
@@ -4511,6 +4520,13 @@
           "sql_sha256": "567a1f0183be0003df57dbf3ffaeb71b74110da5697842ce9150bafcb54e5f74",
           "creates_tables": [
             "billing_cash_handovers"
+          ]
+        },
+        {
+          "id": "0015_billing",
+          "sql_sha256": "ea9bafa41bed1d8ef2880eb89ccd6917fa9e90d7d25deec11f4350c68b5f48fe",
+          "creates_tables": [
+            "billing_counter_modes"
           ]
         }
       ]

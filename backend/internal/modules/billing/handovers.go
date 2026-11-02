@@ -28,6 +28,8 @@ var (
 	errNotDisputed     = errors.New("the handover is not disputed")
 	errOwnHandover     = errors.New("a disputed handover is settled by someone other than its two cashiers")
 	errHandoverLarge   = errors.New("a handover passes on at most 1000000000 minor units; pick up the excess first")
+	// errAwaitingSettlement holds a cashier whose drawer is disputed.
+	errAwaitingSettlement = errors.New("a drawer handed to you waits for a supervisor's count; take no other drawer until it is settled")
 )
 
 // maxFloatMinor is the most a shift opens with (billing_cash_shifts).
@@ -226,8 +228,8 @@ func (h *handlers) acceptHandover(c *gin.Context) {
 		if err != nil {
 			return handover{}, err
 		}
-		// Checked before the counts are compared, so a busy cashier never
-		// turns a handover into a dispute no one can settle.
+		// Checked before the counts are compared for a clear answer; the
+		// database holds the rule (billing_handover_taker_free).
 		var busy int64
 		if err := tx.Table("billing_cash_shifts").Where("tenant_id=? AND hospital_id=? AND cashier=? AND status<>'closed'", p.TenantID, hospital, p.Subject).Count(&busy).Error; err != nil {
 			return handover{}, err
@@ -352,6 +354,12 @@ func handoverFailure(c *gin.Context, err error) {
 		respond.Error(c, http.StatusConflict, "not_disputed", errNotDisputed.Error())
 	case errors.Is(err, errOwnHandover):
 		respond.Error(c, http.StatusConflict, "own_handover", errOwnHandover.Error())
+	case isConstraint(err, "billing_cash_handover_taker_disputed"):
+		respond.Error(c, http.StatusConflict, "awaiting_settlement", errAwaitingSettlement.Error())
+	case isConstraint(err, "billing_cash_handover_taker_busy"):
+		respond.Error(c, http.StatusConflict, "shift_open", "a shift is already open on this counter or for this cashier; close it first")
+	case isConstraint(err, "billing_cash_shift_handover"):
+		respond.Error(c, http.StatusConflict, "handover_decided", errHandoverDecided.Error())
 	case isConstraint(err, "billing_cash_handover_offer"), isConstraint(err, "billing_cash_handover_live"):
 		respond.Error(c, http.StatusConflict, "shift_closed", errShiftClosed.Error())
 	case isConstraint(err, "billing_cash_handover_to_shift"):
@@ -361,9 +369,10 @@ func handoverFailure(c *gin.Context, err error) {
 	}
 }
 
-// incomingHandovers lists the offers waiting for the caller, newest first.
+// incomingHandovers lists the caller's offers and disputes, newest first: a
+// disputed drawer holds them until it is settled, so they must see it.
 func (h *handlers) incomingHandovers(c *gin.Context, params pagination.Params) ([]handover, error) {
-	return h.listHandovers(c, params, "h.status='offered' AND h.to_cashier=?", true)
+	return h.listHandovers(c, params, "h.status IN ('offered','disputed') AND h.to_cashier=?", true)
 }
 
 // disputedHandovers lists the handovers waiting for a supervisor.

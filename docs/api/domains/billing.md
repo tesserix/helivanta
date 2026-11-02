@@ -383,7 +383,9 @@ note; [spec](../../superpowers/specs/2026-11-02-cash-handover-design.md).
   (`handover_id`). Anything else, a different breakdown of the same total
   included, makes the handover `disputed`. The answer says which, never either
   count; a second count is `409 handover_decided`. A cashier with a shift not yet
-  closed is refused first (`409 shift_open`), so no dispute is left unsettleable.
+  closed is refused first (`409 shift_open`). A disputed drawer then holds its
+  incoming cashier: no other shift and no second dispute until it is settled
+  (`409 awaiting_settlement`), so the settlement can always open their shift.
 - **Settle:** someone holding `billing.shift.authorise` who is neither cashier
   (`409 own_handover`) counts the drawer and gives a reason: their count closes the
   outgoing shift and opens the incoming one, as an acceptance would.
@@ -403,7 +405,7 @@ note; [spec](../../superpowers/specs/2026-11-02-cash-handover-design.md).
 | `PUT …/cash-handovers/:handover/withdrawal`                   | Withdraw while offered; retry `200`.                         |
 | `PUT …/cash-handovers/:handover/acceptance` `{shift,counts}`  | The incoming count: `accepted` or `disputed`; retry `200`.   |
 | `PUT …/cash-handovers/:handover/settlement` `{counts,reason}` | Settle a dispute; `billing.shift.authorise`; retry `200`.    |
-| `GET …/cash-handovers/incoming`                               | Offers waiting for the caller, without counts.               |
+| `GET …/cash-handovers/incoming`                               | The caller's offers and disputes, without counts.            |
 | `GET …/cash-handovers/disputed`                               | Disputes waiting, without counts; `billing.shift.authorise`. |
 
 - **Not covered:** card, netbanking and wallet modes; GL export; events; a safe

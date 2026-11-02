@@ -84,13 +84,7 @@ export function CashDesk({ hospital }: { hospital: Hospital }) {
 
 function MyShift({ hospital }: { hospital: Hospital }) {
   const { shift, none } = useMyShift(hospital);
-  if (none)
-    return (
-      <>
-        <IncomingHandovers hospital={hospital} />
-        <OpenShift hospital={hospital} />
-      </>
-    );
+  if (none) return <IncomingHandovers hospital={hospital} />;
   if (shift.isError)
     return (
       <RequestFailure message="Could not load your shift." retry={() => void shift.refetch()} />
@@ -198,10 +192,12 @@ function HandingOver({ hospital, shift }: { hospital: Hospital; shift: CashShift
   );
 }
 
-/** Drawers offered to the caller, each counted blind once. */
+/**
+ * Drawers offered to the caller, each counted blind once, and any whose
+ * counts differed: that drawer holds them until a supervisor settles it, so
+ * no other shift is offered meanwhile.
+ */
 function IncomingHandovers({ hospital }: { hospital: Hospital }) {
-  // Kept here: a disputed handover leaves the list, and its message must not.
-  const [disputed, setDisputed] = useState<CashHandover[]>([]);
   const offers = useApiPagedQuery<CashHandover>(
     ["billing", "handovers", hospital.id, "incoming"],
     `/billing/hospitals/${hospital.id}/cash-handovers/incoming`,
@@ -210,45 +206,39 @@ function IncomingHandovers({ hospital }: { hospital: Hospital }) {
     return (
       <RequestFailure message="Could not load the drawers handed to you." retry={offers.retry} />
     );
-  if (offers.items.length === 0 && disputed.length === 0) return null;
+  if (offers.isPending) return null;
+  const disputed = offers.items.filter((h) => h.status === "disputed");
+  const offered = offers.items.filter((h) => h.status === "offered");
   return (
-    <div>
-      <h4 className="text-sm font-medium">Drawers handed to you</h4>
-      {disputed.map((h) => (
-        <p key={h.id} className="text-sm" role="status">
-          Your count of {h.counter_code} differs from {h.from_cashier}&apos;s. A supervisor will
-          count the drawer, and your shift opens with their count.
-        </p>
-      ))}
-      <ul className="divide-y divide-border">
-        {offers.items.map((h) => (
-          <TakeOver
-            key={h.id}
-            hospital={hospital}
-            handover={h}
-            onDisputed={(d) => setDisputed((all) => [...all, d])}
+    <>
+      {offers.items.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium">Drawers handed to you</h4>
+          {disputed.map((h) => (
+            <p key={h.id} className="text-sm" role="status">
+              Your count of {h.counter_code} differs from {h.from_cashier}&apos;s. A supervisor will
+              count the drawer, and your shift opens with their count.
+            </p>
+          ))}
+          <ul className="divide-y divide-border">
+            {offered.map((h) => (
+              <TakeOver key={h.id} hospital={hospital} handover={h} />
+            ))}
+          </ul>
+          <LoadMore
+            label="Load more handovers"
+            hasMore={offers.hasMore}
+            isLoading={offers.isFetchingMore}
+            onClick={offers.loadMore}
           />
-        ))}
-      </ul>
-      <LoadMore
-        label="Load more handovers"
-        hasMore={offers.hasMore}
-        isLoading={offers.isFetchingMore}
-        onClick={offers.loadMore}
-      />
-    </div>
+        </div>
+      )}
+      {disputed.length === 0 && <OpenShift hospital={hospital} />}
+    </>
   );
 }
 
-function TakeOver({
-  hospital,
-  handover,
-  onDisputed,
-}: {
-  hospital: Hospital;
-  handover: CashHandover;
-  onDisputed: (h: CashHandover) => void;
-}) {
+function TakeOver({ hospital, handover }: { hospital: Hospital; handover: CashHandover }) {
   const [open, setOpen] = useState(false);
   const shiftId = useMemo(() => newBedId(), []);
   const accept = useApiMutation(
@@ -257,16 +247,14 @@ function TakeOver({
         `/billing/hospitals/${hospital.id}/cash-handovers/${handover.id}/acceptance`,
         { method: "PUT", body: JSON.stringify({ shift: shiftId, counts }) },
       ),
-    // True either way: counts that differ are recorded and wait for a supervisor.
+    // True either way: counts that differ are recorded, and the list then
+    // says the drawer waits for a supervisor.
     {
       successToast: "Count recorded",
       invalidate: [
         ["billing", "my-shift", hospital.id],
         ["billing", "handovers", hospital.id],
       ],
-      onSuccess: (h) => {
-        if (h.status === "disputed") onDisputed(h);
-      },
     },
   );
   return (
@@ -283,7 +271,7 @@ function TakeOver({
           idPrefix={`take-${handover.id}`}
           label={`Count the drawer of ${handover.counter_code}`}
           legend="Notes and coins in the drawer"
-          submit="Take over"
+          submit="Record count"
           pending={accept.isPending}
           onCount={(counts) => accept.mutate(counts)}
         />

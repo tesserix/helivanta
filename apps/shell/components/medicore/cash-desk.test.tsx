@@ -556,7 +556,7 @@ describe("CashPayments refunds", () => {
     expect(screen.queryByRole("button", { name: "Withdraw handover" })).not.toBeInTheDocument();
   });
 
-  it("counts a drawer handed to the caller blind and says when the counts differ", async () => {
+  it("counts a drawer handed to the caller blind, once", async () => {
     const fetcher = server({
       permissions: cashier,
       incoming: [handover()],
@@ -567,14 +567,13 @@ describe("CashPayments refunds", () => {
     await user.click(screen.getByRole("button", { name: "Count the drawer of IPD-1" }));
     const form = await screen.findByRole("form", { name: "Count the drawer of IPD-1" });
     await user.type(within(form).getByLabelText("INR 100.00 notes"), "7");
-    await user.click(within(form).getByRole("button", { name: "Take over" }));
+    await user.click(within(form).getByRole("button", { name: "Record count" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(`/cash-handovers/${handover().id}/acceptance`);
     const body = JSON.parse(String(puts(fetcher)[0][1].body));
     expect(body.counts).toEqual({ "note:10000": 7 });
     expect(body.shift).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/);
     expect(body.shift).not.toBe(handover().id);
-    expect(await screen.findByText(/differs from user-clerk2's/)).toBeInTheDocument();
   });
 
   it("lets a supervisor settle a disputed handover with a count and a reason", async () => {
@@ -597,5 +596,15 @@ describe("CashPayments refunds", () => {
       counts: { "note:50000": 1 },
       reason: "Recounted with both cashiers",
     });
+  });
+
+  it("keeps telling the incoming cashier a disputed drawer waits, and opens no other shift", async () => {
+    server({ permissions: cashier, incoming: [handover({ status: "disputed" })] });
+    renderWithProviders(<CashDesk hospital={hospital} />);
+    expect(await screen.findByText(/differs from user-clerk2's/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Count the drawer of IPD-1" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Open a shift" })).not.toBeInTheDocument();
   });
 });

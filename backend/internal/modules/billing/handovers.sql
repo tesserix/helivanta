@@ -73,9 +73,12 @@ CREATE TABLE billing_cash_handovers (
 CREATE UNIQUE INDEX billing_cash_handover_live ON billing_cash_handovers (tenant_id,from_shift_id) WHERE status IN ('offered','disputed');
 CREATE UNIQUE INDEX billing_cash_handover_done ON billing_cash_handovers (tenant_id,from_shift_id) WHERE status IN ('accepted','settled');
 CREATE UNIQUE INDEX billing_cash_handover_to_shift ON billing_cash_handovers (tenant_id,to_shift_id);
-CREATE INDEX billing_cash_handovers_incoming ON billing_cash_handovers (tenant_id,hospital_id,to_cashier,offered_at DESC,id DESC) WHERE status='offered';
+CREATE INDEX billing_cash_handovers_incoming ON billing_cash_handovers (tenant_id,hospital_id,to_cashier,offered_at DESC,id DESC) WHERE status IN ('offered','disputed');
+-- A disputed drawer holds its incoming cashier until it is settled, so the
+-- settlement can always open their shift: one dispute each.
+CREATE UNIQUE INDEX billing_cash_handover_taker_disputed ON billing_cash_handovers (tenant_id,hospital_id,to_cashier) WHERE status='disputed';
 CREATE INDEX billing_cash_handovers_disputed ON billing_cash_handovers (tenant_id,hospital_id,offered_at DESC,id DESC) WHERE status='disputed';
-ALTER TABLE billing_cash_shifts ADD CONSTRAINT billing_cash_shift_handover FOREIGN KEY (tenant_id,hospital_id,handover_id) REFERENCES billing_cash_handovers (tenant_id,hospital_id,id);
+ALTER TABLE billing_cash_shifts ADD CONSTRAINT billing_cash_shift_handover_ref FOREIGN KEY (tenant_id,hospital_id,handover_id) REFERENCES billing_cash_handovers (tenant_id,hospital_id,id);
 
 ALTER TABLE billing_cash_handovers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_cash_handovers FORCE ROW LEVEL SECURITY;
@@ -87,9 +90,26 @@ CREATE TRIGGER billing_cash_handovers_kept BEFORE DELETE OR TRUNCATE ON billing_
 
 -- The one who acts on a resolved handover: the incoming cashier who
 -- accepted it, or the supervisor who settled it.
+-- Serialises a cashier's shift openings with the counts that would hold them
+-- for a settlement, so neither slips past the other.
+CREATE FUNCTION billing_cashier_lock(row_tenant uuid,row_hospital uuid,row_cashier text) RETURNS void LANGUAGE sql AS $$
+ SELECT pg_advisory_xact_lock(hashtextextended(row_tenant::text||':billing-cashier:'||row_hospital::text||':'||row_cashier, 0))
+$$;
+
 CREATE FUNCTION billing_handover_resolver(h billing_cash_handovers) RETURNS text LANGUAGE sql IMMUTABLE AS $$
  SELECT CASE h.status WHEN 'accepted' THEN h.to_cashier WHEN 'settled' THEN h.settled_by END
 $$;
+
+-- The incoming cashier holds no shift not yet closed: their count either
+-- opens their shift now or holds them for the settlement that will.
+CREATE FUNCTION billing_handover_taker_free(row_tenant uuid,row_hospital uuid,row_cashier text) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+ PERFORM billing_cashier_lock(row_tenant,row_hospital,row_cashier);
+ IF EXISTS (SELECT 1 FROM billing_cash_shifts WHERE tenant_id=row_tenant AND hospital_id=row_hospital AND cashier=row_cashier AND status<>'closed') THEN
+  RAISE EXCEPTION 'the incoming cashier already has a shift' USING ERRCODE='23514', CONSTRAINT='billing_cash_handover_taker_busy';
+ END IF;
+ RETURN true;
+END $$;
 
 -- Offered by the open shift's cashier; withdrawn by them while it stands;
 -- accepted or disputed by the named incoming cashier; a dispute settled by
@@ -111,7 +131,8 @@ BEGIN
   RAISE EXCEPTION 'a handover keeps its shift, cashiers and count' USING ERRCODE='23514', CONSTRAINT='billing_cash_handover_actor';
  END IF;
  IF (OLD.status='offered' AND NEW.status='withdrawn' AND billing_actor()=OLD.from_cashier)
-  OR (OLD.status='offered' AND NEW.status IN ('accepted','disputed') AND billing_actor()=OLD.to_cashier)
+  OR (OLD.status='offered' AND NEW.status IN ('accepted','disputed') AND billing_actor()=OLD.to_cashier
+      AND billing_handover_taker_free(OLD.tenant_id,OLD.hospital_id,OLD.to_cashier))
   OR (OLD.status='disputed' AND NEW.status='settled' AND NEW.settled_by=billing_actor()
       AND (NEW.incoming_counts,NEW.to_shift_id,NEW.decided_at) IS NOT DISTINCT FROM (OLD.incoming_counts,OLD.to_shift_id,OLD.decided_at)) THEN
   RETURN NEW;
@@ -130,6 +151,10 @@ BEGIN
  IF TG_OP='INSERT' THEN
   IF NEW.status<>'open' OR NEW.declared_counts IS NOT NULL OR NEW.handed_over THEN
    RAISE EXCEPTION 'a shift opens for the acting cashier' USING ERRCODE='23514';
+  END IF;
+  PERFORM billing_cashier_lock(NEW.tenant_id,NEW.hospital_id,NEW.cashier);
+  IF EXISTS (SELECT 1 FROM billing_cash_handovers WHERE tenant_id=NEW.tenant_id AND hospital_id=NEW.hospital_id AND to_cashier=NEW.cashier AND status='disputed') THEN
+   RAISE EXCEPTION 'a cashier whose drawer waits for a settlement opens no other shift' USING ERRCODE='23514', CONSTRAINT='billing_cash_shift_awaiting_settlement';
   END IF;
   IF NEW.handover_id IS NULL THEN
    IF NEW.cashier IS DISTINCT FROM billing_actor() THEN

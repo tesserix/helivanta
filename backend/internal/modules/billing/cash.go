@@ -135,6 +135,8 @@ func cashFailure(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, errCashConflict):
 		respond.Conflict(c, err.Error())
+	case errors.As(err, &pg) && pg.ConstraintName == "billing_cash_shift_awaiting_settlement":
+		respond.Error(c, http.StatusConflict, "awaiting_settlement", errAwaitingSettlement.Error())
 	case errors.Is(err, errShiftOpen), errors.As(err, &pg) && pg.Code == "23505" && strings.HasPrefix(pg.ConstraintName, "billing_cash_shift_"):
 		respond.Error(c, http.StatusConflict, "shift_open", "a shift is already open on this counter or for this cashier; close it first")
 	case errors.Is(err, errNoShift):

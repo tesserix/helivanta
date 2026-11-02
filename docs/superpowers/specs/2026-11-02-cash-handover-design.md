@@ -43,7 +43,10 @@ between them, neither close nor open shows it, and each can blame the other.
     closes with that count against its computed expected cash (a variance
     goes to authorisation as at any close), and the incoming shift `shift`
     opens on the same counter with the count's value as its float.
-  - Counts differ: the handover is `disputed`; nothing else changes.
+  - Counts differ: the handover is `disputed`; nothing else changes. The
+    incoming cashier is held for the settlement: no other shift and no
+    second dispute until it is settled, so the settlement can always open
+    their shift.
   - _Builder's call:_ equal means the same notes and coins, not the same
     total. Physical notes do not change between two counts, so a different
     breakdown with the same total is a miscount, and it is cheap to recount.
@@ -52,7 +55,7 @@ between them, neither close nor open shows it, and each can blame the other.
   count is the cash. The outgoing shift closes against it and the incoming
   shift (the id the incoming cashier sent when accepting) opens with it as
   the float, for the incoming cashier.
-- **Lists.** `GET …/cash-handovers/incoming` (offers waiting for the caller)
+- **Lists.** `GET …/cash-handovers/incoming` (the caller's offers and disputes)
   and `GET …/cash-handovers/disputed` (for supervisors), both paginated and
   without counts. A settled or accepted handover shows its agreed count;
   an open or disputed one shows none.

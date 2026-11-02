@@ -162,6 +162,23 @@ func TestAHandoverThatDisagreesWaitsForASupervisor(t *testing.T) {
 	require.Equal(t, http.StatusConflict, status, "a dispute is not withdrawn: "+body)
 	require.Equal(t, "disputed", *w.myHandoverShift(t, "clerk").LiveHandoverStatus)
 
+	// The incoming cashier is held for the settlement: no other drawer meanwhile.
+	incoming := do(w.r, "GET", w.root+"/cash-handovers/incoming", "clerk2", "")
+	require.Equal(t, http.StatusOK, incoming.Code, incoming.Body.String())
+	require.Contains(t, incoming.Body.String(), `"status":"disputed"`, "a reload still tells them")
+	elsewhere, _ := w.counterWithShift(t, "admin", "IPD-2", 0)
+	status, body = w.put("clerk2", "/counters/"+elsewhere+"/shifts/"+v7(), `{"opening_float_minor":0}`)
+	require.Equal(t, http.StatusConflict, status, body)
+	require.Contains(t, body, "awaiting_settlement")
+	second := v7()
+	status, body = w.offer("admin", shiftOf(t, w, "admin"), second, "user-clerk2", `{"note:100":1}`)
+	require.Equal(t, http.StatusCreated, status, body)
+	status, body = w.accept("clerk2", second, v7(), `{"note:200":1}`)
+	require.Equal(t, http.StatusConflict, status, "not a second dispute either: "+body)
+	require.Contains(t, body, "awaiting_settlement")
+	status, body = w.put("admin", "/cash-handovers/"+second+"/withdrawal", "")
+	require.Equal(t, http.StatusOK, status, body)
+
 	disputed := do(w.r, "GET", w.root+"/cash-handovers/disputed", "admin", "")
 	require.Equal(t, http.StatusOK, disputed.Code, disputed.Body.String())
 	require.Contains(t, disputed.Body.String(), id)
@@ -382,4 +399,28 @@ func TestAcceptanceRacesWithdrawal(t *testing.T) {
 			require.Equal(t, http.StatusNotFound, do(w.r, "GET", w.root+"/cash-shifts/mine", "clerk2", "").Code)
 		}
 	}
+}
+
+// shiftOf is the id of the token's shift not yet closed.
+func shiftOf(t *testing.T, w *bedWorld, token string) string {
+	t.Helper()
+	res := do(w.r, "GET", w.root+"/cash-shifts/mine", token, "")
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	var s struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &s))
+	return s.ID
+}
+
+func TestABusyCashierIsNeverLeftWithADisputedHandover(t *testing.T) {
+	w := newBedWorld(t)
+	_, shiftID := w.counterWithShift(t, "clerk", "IPD-1", 1000)
+	id := v7()
+	status, body := w.offer("clerk", shiftID, id, "user-clerk2", `{"note:1000":1}`)
+	require.Equal(t, http.StatusCreated, status, body)
+	w.counterWithShift(t, "clerk2", "IPD-2", 0)
+	requireConstraint(t, w.as("user-clerk2", func(tx *gorm.DB) error {
+		return tx.Exec(`UPDATE billing_cash_handovers SET status='disputed',incoming_counts='{"note:500":1}',to_shift_id=?,decided_at=now() WHERE id=?`, v7(), id).Error
+	}), "billing_cash_handover_taker_busy", "a count that would hold a busy cashier is refused in the database")
 }

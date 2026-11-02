@@ -4008,6 +4008,51 @@
         },
         {
           "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/acceptance",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/settlement",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-handovers/:handover/withdrawal",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/cash-handovers/disputed",
+          "permission": "billing.shift.authorise",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/billing/hospitals/:hospital/cash-handovers/incoming",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/cash-pickups/:pickup/corrections/:correction",
           "permission": "billing.shift.authorise",
           "authentication_required": true,
@@ -4027,6 +4072,15 @@
         {
           "method": "PUT",
           "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/close",
+          "permission": "billing.cash.collect",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/billing/hospitals/:hospital/cash-shifts/:shift/handovers/:handover",
           "permission": "billing.cash.collect",
           "authentication_required": true,
           "membership_required": true,
@@ -4450,6 +4504,13 @@
           "sql_sha256": "bcc2afbd8cf8acdc7a13bb5a74fa52f22d3c24de130978f21ff6ade3cc35bdc8",
           "creates_tables": [
             "billing_cash_pickups"
+          ]
+        },
+        {
+          "id": "0014_billing",
+          "sql_sha256": "567a1f0183be0003df57dbf3ffaeb71b74110da5697842ce9150bafcb54e5f74",
+          "creates_tables": [
+            "billing_cash_handovers"
           ]
         }
       ]

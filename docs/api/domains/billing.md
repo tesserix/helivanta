@@ -177,7 +177,8 @@ Design: [spec](../../superpowers/specs/2026-10-30-cash-counters-design.md).
 | `GET …/admissions/:admission/receipts`                                    | The admission's receipts, voided ones included.      |
 | `PUT …/receipts/:receipt/voids/:void` `{reason}`                          | Void in the open shift.                              |
 
-- **Not covered:** card and other modes; handover; GL export; events; receipts on bills.
+- **Not covered:** card and other modes; GL export; events; receipts on bills. Handover
+  since added (#198 slice 5, below).
   Refunds, deposits, the daily collection report, UPI, and pickups and counting by note came
   later, below; the close now takes a count by note and coin, not `declared_minor`.
   A cashier whose billing grant is revoked mid-shift can no longer see the shift to close it;
@@ -328,7 +329,7 @@ confirms the money with Razorpay; billing records the receipt.
 
 - Receipts carry `mode`, `rrn` and `late`.
 - **Not covered:** card, netbanking, wallets; refunds over UPI, including a late payment's
-  credit (finance refunds in the Razorpay dashboard); handover; UPI
+  credit (finance refunds in the Razorpay dashboard); UPI
   outside the billing desk; releasing a patient on an unconfirmed payment.
 
 ## Cash pickups and counting by note (#198 slice 4)
@@ -361,8 +362,55 @@ Design: [spec](../../superpowers/specs/2026-11-02-cash-pickups-design.md).
 | `GET …/cash-shifts/:shift/pickups`                                           | The shift's pickups and corrections, oldest first. `billing.shift.authorise`.  |
 | `PUT …/cash-pickups/:pickup/corrections/:correction` `{amount_minor,reason}` | Correct an overstated pickup: `201`; a retry `200`. `billing.shift.authorise`. |
 
-- **Not covered:** handover between cashiers; a safe ledger and bank deposit; counting the
-  float by note; pickups or corrections after the close (the variance stands); events.
+- **Not covered:** a safe ledger and bank deposit; counting the float by note (a float
+  from a handover is counted, below); pickups or corrections after the close (the variance stands); events.
+
+## Handover between cashiers (#198 slice 5)
+
+A counter's drawer passes from one cashier to the next on two blind counts by
+note; [spec](../../superpowers/specs/2026-11-02-cash-handover-design.md).
+
+- **Offer:** the shift's own cashier (`billing.cash.collect`) names the incoming
+  cashier's user ID and counts the drawer. The shift becomes `handing_over` and
+  takes no receipt, refund, void, pickup or UPI request until the handover is
+  decided. Refused: handing over to yourself or more than ₹1,00,00,000 (`400`; pick
+  up the excess first), a waiting UPI payment (`409 upi_waiting`), a shift not
+  open (`409 shift_closed`). Withdrawn by the same cashier while the offer stands.
+- **Accept:** the named cashier counts once, without seeing the outgoing count.
+  The same notes and coins: in one transaction the outgoing shift closes against
+  that count (`handed_over`, a variance waits for authorisation as at any close)
+  and the incoming shift opens on the same counter with it as the float
+  (`handover_id`). Anything else, a different breakdown of the same total
+  included, makes the handover `disputed`. The answer says which, never either
+  count; a second count is `409 handover_decided`. A cashier with a shift not yet
+  closed is refused first (`409 shift_open`). A disputed drawer then holds its
+  incoming cashier: no other shift and no second dispute until it is settled
+  (`409 awaiting_settlement`), so the settlement can always open their shift.
+- **Settle:** someone holding `billing.shift.authorise` who is neither cashier
+  (`409 own_handover`) counts the drawer and gives a reason: their count closes the
+  outgoing shift and opens the incoming one, as an acceptance would.
+- **Counter:** a shift closed by handover no longer holds its counter while its
+  variance waits; an ordinary close still does.
+- **Reading:** each shift shows `handover_id`, `handed_over` and the handover in
+  progress (`live_handover_id`, `live_handover_to`, `live_handover_status`). The
+  daily collection blinds a shift being handed over as it does an open one.
+- **The database** enforces who offers, withdraws, accepts and settles, that a
+  shift enters and leaves `handing_over` only through its handover, closes from
+  it only on the agreed count by who resolved it, and that a shift opens from a
+  handover only with its agreed float, counter and cashier.
+
+| Route                                                         | Behaviour                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------------ |
+| `PUT …/cash-shifts/:shift/handovers/:handover` `{to,counts}`  | Offer: `201`; retry `200`; another body `409`.               |
+| `PUT …/cash-handovers/:handover/withdrawal`                   | Withdraw while offered; retry `200`.                         |
+| `PUT …/cash-handovers/:handover/acceptance` `{shift,counts}`  | The incoming count: `accepted` or `disputed`; retry `200`.   |
+| `PUT …/cash-handovers/:handover/settlement` `{counts,reason}` | Settle a dispute; `billing.shift.authorise`; retry `200`.    |
+| `GET …/cash-handovers/incoming`                               | The caller's offers and disputes, without counts.            |
+| `GET …/cash-handovers/disputed`                               | Disputes waiting, without counts; `billing.shift.authorise`. |
+
+- **Not covered:** card, netbanking and wallet modes; GL export; events; a safe
+  ledger; marking handovers in the daily collection report; a handover between
+  counters.
 
 ## GST on rooms and the tax invoice (#193 slice 1)
 

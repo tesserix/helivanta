@@ -1,0 +1,210 @@
+# Scoped Staff posting preparation
+
+Status: proposed implementation specification; no new role, route, migration,
+source-guard exception or production policy is activated by this document.
+Continues the [effective-posting specification](2026-11-02-effective-staff-postings.md)
+and [complete reusable Staff objective](2026-11-02-reusable-staff-foundation.md).
+Tracks #417, #418 and #429 without claiming their acceptance.
+
+## Problem and verified baseline
+
+The deployed `305294ab` preparation API retains canonical Staff/department
+references and immutable non-operating drafts. Its permission and legacy hospital
+grant do not supply a hospital-scoped IAM preparer or reader journey. Granting
+`organization.structure.manage` to make a picker usable would expose unrelated
+structural commands. Adding an IAM template alone would leave source eligibility,
+discovery, RLS and normal UI acceptance unresolved.
+
+Workforce owns Staff, login links, reviewed employment and drafts. Organization
+owns current departments. IAM owns independently approved assignments and their
+OpenFGA projection. Global API routes UI business traffic to those owners.
+Canonical model inputs remain `contracts/staff-access.json`,
+`contracts/workforce-postings.json` and the Organization contract source; consumers
+must reuse generated wire models. A role, employment generation, posting draft
+and effective operating duty are distinct records.
+
+Verified source constraints:
+
+- `pkg/authz/scoped_authority.go` supports hospital scope; it does not implement
+  department or outlet assignments. Compound checks are bounded at two.
+- `iam/assignment_command.go` holds current membership, assignment/scope epochs,
+  credential revocation and employment-basis authority through a guarded commit.
+  Its expiry timer cancels the transaction at the earliest checked cutoff.
+- `workforce/hr_intake.go` demonstrates original-account binding, permission
+  refresh, current scoped grants, no downgrade after scoped admission, and
+  reviewed actor pinning. It is not a posting authorization projection.
+- `lockReviewedLeaveActor` permits historical links without a generation through
+  `validateGenerationActor`. New scoped posting access must require a current
+  reviewed **digital** generation and the exact linked subject.
+- `readProtectedGenerationState` restores owner-private purposes after reading
+  the exact source. `employmentGenerationState` returns the earliest person and
+  employment end. Its result must participate in the command deadline.
+- Organization's current-reference guard proves structural state inside the same
+  guarded database command; it does not prove Staff eligibility. Its existing
+  list includes retired nodes and requires tenant governance read permission.
+- Posting writes take the exclusive `workforce_lock_supervision` gate before
+  Staff rows. That also serializes creation and retained-command retry. Retain
+  this order until deterministic tests justify changing it.
+
+## Capacity, privacy and scope
+
+Unmeasured planning assumptions inherited from the parent: 50 peak requests/s,
+80:20 reads/writes, 500,000/1.5 million Staff at months 12/36, p99 below 500 ms and
+99.9% availability. This implies 40 reads and 10 writes/s at peak; growth is 3×
+over the following 24 months. Scope-specific contention must be measured rather
+than treating the hospital advisory gate as free.
+
+Use bounded keyset pages of at most 50 choices, with a proposed 64 KiB serialized
+response budget including envelope/cursor. Validate that budget against maximum
+Unicode names and actual generated fields before freezing the contract. Existing
+2–20 KiB typical payload estimates are not a worst-case guarantee. No attachment
+or person/employment findings belong in a choice response. No new service, queue,
+cache, image or dependency is needed. Incremental infrastructure cost is existing
+PostgreSQL/OpenFGA capacity; benchmark and audit-retention cost remain unmeasured.
+
+Protected assets are Staff identity, employment findings, private documents,
+reasons and structural visibility. Threats include sibling/foreign scopes, a
+retained session, withdrawn assignments, forged source IDs, role overlap,
+expired employment, same-command races and a source change during commit.
+Verified principal → IAM → source owners → target command are separate trust
+boundaries. Browser IDs, headers and graph tuples never replace owner checks.
+
+## Actors and permissions
+
+| Actor                 | Authority and scope                                          | Preconditions                                                                | Approval                                                             |
+| --------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Posting preparer      | Administrative, one hospital, new immutable catalog template | Current digital reviewed Staff actor; active membership and exact assignment | Existing independent IAM assignment review/activation; no self-grant |
+| Posting reader        | Administrative read, one hospital, separate template         | Same current actor requirements                                              | Same independent IAM path                                            |
+| Organization governor | Existing tenant governance role                              | Existing current authorization                                               | Existing governance path; unchanged                                  |
+
+Add a genuinely separate owner-declared posting-read permission. Preserve the
+existing preparation permission's v1 read behavior for already authorized callers;
+define additive reader admission explicitly. A reader cannot save drafts. A
+preparer can read/save drafts and obtain current choices; neither receives
+structural history/management, protected evidence, identity administration,
+employment activation, posting approval or Pharma operations by implication.
+
+Organization declares a narrow department-choice read permission, composed into
+the new immutable Staff access catalogs. It returns only active, current,
+same-hospital structural references using the canonical Organization output
+model. It exposes no private reason/actor and cannot mutate the tree. Do not
+silently expand existing HR-intake/catalog snapshots. Tenant role defaults and
+legacy grants stay explicit compatibility paths, not fallbacks after scoped
+revocation. This does not settle open ORG-D2/D5/D6 decisions.
+
+## Owner authorization composition
+
+Implement only after resolving the closed provider boundary in
+[ADR-0052](../../adr/0052-staff-source-command-authorization.md) against actual
+architecture tests. No general module RPC, cross-owner table access, owner
+repository export or arbitrary remote callback is permitted.
+
+IAM must bind its checked tenant, subject, hospital, exact server-declared action
+and effective cutoff to the active guarded command. A client cannot mint that
+binding. Restrict minting to the IAM owner with architecture enforcement; do not
+turn it into a general public context setter. Any proof is ephemeral, same-database
+and callback-bound. Copies, a closed callback, changed principal/scope/action,
+an unrelated transaction and another database fail closed.
+
+A Workforce-owned current-actor provider consumes that binding and validates the
+exact active login link, active canonical Staff, non-null reviewed digital
+generation, matching subject, source/identity epochs and effective reviewed
+person/employment evidence. Reuse owner eligibility logic rather than replicating
+it in Organization. Minimal proof consists of canonical Staff/link/generation IDs,
+their current versions/epoch and earliest effective cutoff. Private findings,
+documents and registration content remain in Workforce. Only two initial
+consumers exist: Workforce posting preparation and Organization choices.
+
+Lock order is IAM authority → Workforce supervision/source/actor → Organization
+structural gate/rows → posting head/revisions/audit/outbox. Keep the existing
+exclusive Workforce gate for the first implementation; no shared-to-exclusive
+upgrade. Sort multiple stable source IDs where required. Compare this order with
+every affected identity, person/employment review, source-end and profile writer
+before coding; a hidden reverse order invalidates the design. No OpenFGA or file
+storage I/O occurs under source row locks.
+
+The earliest session, IAM assignment/basis and current Staff-source deadline must
+bound the guarded transaction through commit. The source cutoff may be earlier
+than the IAM observation. Explicitly propagate it to the root guard or prove an
+equivalent atomic bound; checking `effective` once and discarding `until` is
+insufficient. Recheck current eligibility before final commit. No protected rows
+or HTTP success are emitted before the outer transaction commits.
+
+## HTTP, persistence and failures
+
+Publish exact additive routes/query projections, permission semantics and errors
+in canonical owner contracts before implementation. Organization serves its own
+choice projection through Global API; Workforce must not proxy its business
+tables. Workforce serves scope-bound hospital discovery, minimal Staff sources,
+draft lists/history and retained exact-command recovery. Preserve existing v1
+receipts, UUIDv7 commands, expected versions, explicit UTC microseconds,
+`status: draft` and `grants_access: false`.
+
+Purpose-bound RLS must independently limit scoped posting access to the admitted
+hospital and target Staff. A general authorized-purpose flag alone is not enough.
+Source permission does not authorize private HR fields. Reads carry owner audit;
+save audit/head/revision/outbox remain atomic. Same key/actor/intent reauthorizes
+and returns the retained receipt. Different actor, source, scope or intent
+conflicts. A lost response keeps its exact command for recovery.
+
+| Condition                                              | Required result                                                |
+| ------------------------------------------------------ | -------------------------------------------------------------- |
+| Foreign/non-visible object                             | 404 without confirming another scope                           |
+| Missing permission or no current scoped actor          | 403; never retry using legacy authority after scoped admission |
+| Revoked credential                                     | Existing unauthenticated response; no fallback                 |
+| IAM/OpenFGA, source proof or database unavailable      | 503, no stale protected rows or success                        |
+| Invalid required fields/projection                     | 400                                                            |
+| Stale draft/source/revision or changed retained intent | Existing documented 409 contract                               |
+| Audit/outbox failure or elapsed cutoff before commit   | Entire command rolls back; recover using retained command only |
+
+OpenFGA and database are critical; unavailable authority denies. Retained posting
+history is a historical snapshot, but disclosure still requires current access.
+The Organization choice projection must not expose retired/currently changed
+nodes as valid choices; final save verifies the selected exact revision again.
+
+## Normal-role UI acceptance
+
+Discovery must support overlapping legacy, HR-intake and new posting roles
+without duplicate hospitals or a shared cache that accidentally broadens another
+feature. Preserve per-feature projection context in query keys and SDK methods.
+Bind original tenant/subject and abort on account/tenant changes. A reader has
+history and no editor; a preparer has required-field create/edit and current
+choices. Revocation hides protected results and prevents retry with stale data.
+Empty, pending, unavailable, stale and no-access states must be explicit.
+
+Use normal Staff Admin, independently approved scoped preparer, scoped reader
+and unrelated reviewer logins against the local fixture first. Prove required
+fields, source choice, create/edit/history/reload, reader-write denial, exact retry,
+unsaved navigation, role overlap, revocation and foreign hospital isolation.
+Private JSON credentials/evidence remain outside Git. Verify one master, exact
+immutable revisions/audits and zero new operating/login authority by read-only SQL.
+
+## Migration, review and parent acceptance
+
+Allocate the next free owner migration IDs only at implementation, preserving
+reserved Workforce 0068 and immutable previous catalogs. Persist every forward
+SQL migration and canonical generator input. Local fixture application is
+authorized; production migration/rollout requires specific approval of the final
+revision and complete migration list. Recovery removes exposure through GitOps
+and retains additive schema, exact commands and audit history; never drop
+employment/posting evidence to roll back UI access.
+
+Admission gates include real PostgreSQL/OpenFGA negative/race tests, source-cutoff
+ordering, current generation/subject and callback misuse, RLS, audit/outbox
+rollback, same-key concurrent creation, expired deadlines and a lock-removal
+mutation observed failing. Run affected full suites, build/vet/lint, generators,
+architecture/inventory checks and normal-role browser acceptance before merging.
+
+This slice does not create an effective posting or approve operating duties.
+Independent posting approval, managerial supervision/cycles, transfers,
+contractor expiry, suspension/end/rehire, standalone employers, Pharma
+professional acceptance/PIC/cover/assistant duties and every legacy dispensing
+consumer remain mandatory parent work. #429 also needs clinical department
+reachability and referral/roster acceptance; hospital-scoped preparation cannot
+close it. Current source research is not regulatory policy activation.
+
+The simpler alternative of adding catalog permissions alone is rejected because
+it leaves current actor proof, structural choice visibility, RLS and UI behavior
+unimplemented. A separate Staff service is rejected because current-source
+atomicity depends on the existing shared guarded database and no independent
+scaling/failure requirement justifies extraction.

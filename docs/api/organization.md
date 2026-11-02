@@ -1,6 +1,8 @@
 # Organization structure
 
-Status: unreleased implementation with local owner/Global API/browser acceptance.
+Status: deployed structural foundation, present in the verified `305294ab`
+release. Local owner/Global API/browser acceptance is recorded below; that does
+not establish positive scoped Staff role or operating-posting acceptance.
 Platform owns structural metadata; Workforce owns hospital/Staff source and
 postings. See [ADR-0051](../adr/0051-shared-department-owner-boundary.md),
 [command specification](../superpowers/specs/2026-11-02-organization-department-owner.md)
@@ -18,11 +20,11 @@ is created. Product owners retain independent narrower scope and eligibility.
 
 ## Hospital-reference protocol
 
-| Method and path | Permission | Behavior |
-| --- | --- | --- |
-| PUT `/v1/organization/hospitals/:hospital/registrations/:request` | manage | Required UUIDv7 command and reason, 1–500 characters. Request an owner existence observation. |
-| GET same request | read | Retained exact command in current tenant/hospital scope. |
-| GET `/v1/organization/hospitals` | read | Bounded keyset list of current registration heads. |
+| Method and path                                                   | Permission | Behavior                                                                                      |
+| ----------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| PUT `/v1/organization/hospitals/:hospital/registrations/:request` | manage     | Required UUIDv7 command and reason, 1–500 characters. Request an owner existence observation. |
+| GET same request                                                  | read       | Retained exact command in current tenant/hospital scope.                                      |
+| GET `/v1/organization/hospitals`                                  | read       | Bounded keyset list of current registration heads.                                            |
 
 Here and below read/manage mean the two explicit organization permissions above.
 PUT/GET receipts return `hospital_id`, `request_id`, `status`, `created_at`.
@@ -47,12 +49,12 @@ are rejected; event payloads are bounded to 1024 bytes.
 
 ## Departments and sub-units
 
-| Method and path | Permission | Behavior |
-| --- | --- | --- |
-| PUT `/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision` | manage | Create/update/move/retire using immutable UUIDv7 node and command IDs. |
-| GET same revision | read | Exact retained snapshot; singleton, not a collection. |
-| GET `/v1/organization/hospitals/:hospital/departments` | read | Bounded current heads, including retired units. |
-| GET `/v1/organization/hospitals/:hospital/departments/:node/revisions` | read | Bounded retained history for one node. |
+| Method and path                                                                  | Permission | Behavior                                                               |
+| -------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------- |
+| PUT `/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision` | manage     | Create/update/move/retire using immutable UUIDv7 node and command IDs. |
+| GET same revision                                                                | read       | Exact retained snapshot; singleton, not a collection.                  |
+| GET `/v1/organization/hospitals/:hospital/departments`                           | read       | Bounded current heads, including retired units.                        |
+| GET `/v1/organization/hospitals/:hospital/departments/:node/revisions`           | read       | Bounded retained history for one node.                                 |
 
 Commands require `expected_version` (0 on creation), `code`, `name`, `kind`,
 `status`, `reason`, and `parent_id` for a sub-unit. Code is normalized uppercase
@@ -92,10 +94,15 @@ Successful sensitive metadata reads and writes have atomic owner audit records.
 
 Forward migrations `0001_organization`, `0002_organization_departments`,
 `0003_organization_department_revision_integrity` and
-`0069_workforce_organization_observations` are persisted and applied to the local
-synthetic QA runtime, as well as disposable test databases. Workforce 0068 stays
-reserved for the separate unfinished suspension worktree. No new production
-migration or rollout occurred. Source registry/contractdocs generation is required.
+`0069_workforce_organization_observations` are persisted. They predate the approved
+`305294ab` production release, whose read-only ledger check verified exactly
+`0073_workforce_posting_drafts` as the new receipt (213 → 214). The observation
+handoff additionally uses `0004_organization_department_observations` and
+`0070_workforce_department_links`; see its [contract](workforce-department-links.md).
+Workforce 0068 stays reserved for the separate unfinished suspension worktree.
+See the [release evidence](../deployment/releases/2026-11-03-staff-posting-preparation.md)
+for the bounded production verification. Source registry/contractdocs generation
+is required when routes, permissions, events or migrations change.
 
 The owner UI at `/settings/organization` exercises reference registration,
 creation, parent linkage, editing, history and safe-removal refusal through the
@@ -104,10 +111,14 @@ revocation with retained read permission, and outage failure. These do not prove
 all Pharma role or lifecycle journeys; see the
 [Pharma specialization scope](../architecture/pharma-staff-specialization.md).
 
-Legacy HR vocabulary handoff, canonical Workforce postings, standalone employer
+Effective canonical Workforce postings, standalone employer
 scope, department-scoped delegation/inheritance, scheduled changes, merge/split,
 heads/cost centres and product professional acceptance remain open. A department
 row or its event never establishes Staff eligibility, outlet duty or clinical
 permission. Consumers must not treat this metadata slice as completed staffing.
 
-The [Workforce department handoff candidate](workforce-department-links.md) now retains explicit HR-to-structure revision mappings through owner messages. A matched snapshot creates no posting or grant; canonical posting migration and current eligibility remain open.
+The [Workforce department handoff](workforce-department-links.md) retains explicit
+HR-to-structure revision mappings through owner messages. A matched snapshot
+creates no posting or grant. Deployed [preparation drafts](workforce-postings.md)
+reference current structural revisions, while effective postings and operating
+eligibility remain open.

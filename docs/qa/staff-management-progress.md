@@ -76,7 +76,7 @@ The scoped posting-preparer IAM catalog, independent posting review, effective
 transfer/supervision/contractor lifecycle, standalone employers, Pharma duties and
 operating cutoff acceptance remain open in the parent plan. Whole-Staff counts
 remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. This local
-candidate is awaiting code review and has not been merged or deployed. This slice
+candidate merged in PR #1524 as `305294ab` and has not been deployed. This slice
 made no production changes; the last verified Staff credential release was
 `6e9c4816`.
 
@@ -90,7 +90,7 @@ payment list already carried an RRN. Its helper now requires the current paid
 status region; the timeout and sale, invoice, stock and return assertions are
 unchanged. This repairs the acceptance signal rather than permitting an unpaid
 sale. The failure artifact is retained privately; no dependencies or images were
-downloaded for diagnosis. CI and release acceptance remain pending.
+downloaded for diagnosis. Corrected CI [41456474994](https://github.com/tesserix/helivanta/actions/runs/41456474994) passed every job, including Go coverage and E2E, on `f852ce7c`. The merge tree exactly matches that checked head. Main image workflow [41460365395](https://github.com/tesserix/helivanta/actions/runs/41460365395) passed build/scan/sign/publish and deploy-branch advancement. Production remains at the previously verified `6e9c4816`; specific approval of `305294ab` plus 0073 and production acceptance are pending. See the [release journal](../deployment/releases/2026-11-03-staff-posting-preparation.md).
 
 ## Effective posting design — 2026-11-02
 
@@ -102,9 +102,10 @@ through commit. The source audit confirms that current scoped IAM requests are
 hospital-only and legacy Pharma dispense rows lack hospital/outlet lineage;
 neither gap is repaired by the existing outlet helper. The proposed owner-guard
 composition is recorded in [ADR-0052](../adr/0052-staff-source-command-authorization.md)
-with a closed provider boundary and explicit shared-database limitation. No source
-guard, posting API, standalone employer migration or operational acceptance is
-claimed by this design. Whole-Staff completion counts remain unchanged.
+with a closed provider boundary and explicit shared-database limitation. No
+effective posting, standalone employer migration or operational acceptance is
+claimed by this design-only entry. The merged preparation slice is recorded above;
+whole-Staff completion counts remain unchanged.
 
 ## Approved foundation rollout — 2026-11-02
 

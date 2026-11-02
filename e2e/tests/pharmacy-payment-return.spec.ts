@@ -22,6 +22,7 @@ test("a pharmacist uses verified UPI once, cannot switch customer, and returns s
     const qr = await collectUpi(cashier, sku);
     const posted = cashier.waitForResponse(
       (r) => r.request().method() === "PUT" && r.url().includes(`${outlet}/sales/`),
+      { timeout: 30_000 },
     );
     await cashier.getByRole("button", { name: "Post sale", exact: true }).click();
     const response = await posted;

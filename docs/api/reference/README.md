@@ -628,6 +628,11 @@ Published subjects:
 
 - `helivanta.in.billing.payment_requested.v1`
 - `helivanta.in.billing.payment_cancelled.v1`
+- `helivanta.in.billing.shift_opened.v1`
+- `helivanta.in.billing.shift_variance_recorded.v1`
+- `helivanta.in.billing.shift_closed.v1`
+- `helivanta.in.billing.cash_pickup_recorded.v1`
+- `helivanta.in.billing.shift_handed_over.v1`
 
 Subscriptions:
 

@@ -21,7 +21,7 @@ between them, neither close nor open shows it, and each can blame the other.
    (`billing.shift.authorise`, neither cashier), who counts the drawer and
    records a reason. Neither cashier can accept the other's figure.
 3. **Out of this slice:** card, netbanking and wallet modes; the GL export;
-   `Shift*` events; a safe ledger.
+   `Shift*` events (since added: `2026-11-03-shift-events-design.md`); a safe ledger.
 
 ## What it does
 
@@ -76,7 +76,7 @@ between them, neither close nor open shows it, and each can blame the other.
 
 ## Not covered
 
-Card, netbanking and wallet modes (since added: `2026-11-02-card-netbanking-wallet-design.md`); GL export; events; a safe ledger;
+Card, netbanking and wallet modes (since added: `2026-11-02-card-netbanking-wallet-design.md`); GL export; events (since added: `2026-11-03-shift-events-design.md`); a safe ledger;
 marking handovers in the daily collection report (each side shows as its
 own shift); a handover between counters.
 

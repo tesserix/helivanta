@@ -4341,7 +4341,12 @@
       ],
       "publishes": [
         "helivanta.in.billing.payment_requested.v1",
-        "helivanta.in.billing.payment_cancelled.v1"
+        "helivanta.in.billing.payment_cancelled.v1",
+        "helivanta.in.billing.shift_opened.v1",
+        "helivanta.in.billing.shift_variance_recorded.v1",
+        "helivanta.in.billing.shift_closed.v1",
+        "helivanta.in.billing.cash_pickup_recorded.v1",
+        "helivanta.in.billing.shift_handed_over.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -4528,6 +4533,11 @@
           "creates_tables": [
             "billing_counter_modes"
           ]
+        },
+        {
+          "id": "0016_billing",
+          "sql_sha256": "6b436cb4f9504f22ea710352927d8064efdf3f87bd432bf0085f79b99b5d4a71",
+          "creates_tables": []
         }
       ]
     },

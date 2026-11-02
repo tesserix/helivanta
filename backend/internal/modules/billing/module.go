@@ -6,6 +6,7 @@ package billing
 
 import (
 	_ "embed"
+	"strings"
 
 	billingcontract "github.com/tesserix/helivanta/internal/modules/billing/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -85,6 +86,19 @@ var handoversSchema string
 //go:embed modes.sql
 var modesSchema string
 
+// The shift events' triggers name the contract's subjects.
+//
+//go:embed events.sql
+var eventsSchema string
+
+var eventSubjects = strings.NewReplacer(
+	"${SHIFT_OPENED}", billingcontract.SubjectShiftOpened,
+	"${SHIFT_VARIANCE_RECORDED}", billingcontract.SubjectShiftVarianceRecorded,
+	"${SHIFT_CLOSED}", billingcontract.SubjectShiftClosed,
+	"${CASH_PICKUP_RECORDED}", billingcontract.SubjectCashPickupRecorded,
+	"${SHIFT_HANDED_OVER}", billingcontract.SubjectShiftHandedOver,
+)
+
 type Module struct{}
 
 func New() *Module { return &Module{} }
@@ -117,7 +131,7 @@ func (m *Module) Permissions() []authz.Grant {
 }
 
 func (m *Module) Migrations() []tenantdb.Migration {
-	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}, {ID: "0013_billing", SQL: pickupsSchema}, {ID: "0014_billing", SQL: handoversSchema}, {ID: "0015_billing", SQL: modesSchema}}
+	return []tenantdb.Migration{{ID: "0001_billing", SQL: accountsSchema}, {ID: "0002_billing", SQL: bedDaysSchema}, {ID: "0003_billing", SQL: interimBillsSchema}, {ID: "0004_billing", SQL: finalBillsSchema}, {ID: "0005_billing", SQL: cashSchema}, {ID: "0006_billing", SQL: depositsSchema}, {ID: "0007_billing", SQL: refundsSchema}, {ID: "0008_billing", SQL: positionsSchema}, {ID: "0009_billing", SQL: gstSchema}, {ID: "0010_billing", SQL: creditNotesSchema}, {ID: "0011_billing", SQL: upiSchema}, {ID: "0012_billing", SQL: discountsSchema}, {ID: "0013_billing", SQL: pickupsSchema}, {ID: "0014_billing", SQL: handoversSchema}, {ID: "0015_billing", SQL: modesSchema}, {ID: "0016_billing", SQL: eventSubjects.Replace(eventsSchema)}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
@@ -213,9 +227,12 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	platform.ListRoute(g, all+"/:number/lines", PermAccountRead, h.billLines(""))
 }
 
-// Publishes the desk's UPI requests and cancels, for payments.
+// Publishes the desk's UPI requests and cancels, for payments, and the shift
+// events, which nothing consumes yet.
 func (m *Module) Publishes() []string {
-	return []string{billingcontract.SubjectPaymentRequested, billingcontract.SubjectPaymentCancelled}
+	return []string{billingcontract.SubjectPaymentRequested, billingcontract.SubjectPaymentCancelled,
+		billingcontract.SubjectShiftOpened, billingcontract.SubjectShiftVarianceRecorded, billingcontract.SubjectShiftClosed,
+		billingcontract.SubjectCashPickupRecorded, billingcontract.SubjectShiftHandedOver}
 }
 
 // DirectedSubjects declares none: billing publishes nothing that creates

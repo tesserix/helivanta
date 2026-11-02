@@ -121,7 +121,7 @@ requests is `billing.account.read`. No new permission.
   #1459 did for the pharmacy). A credit balance is not refundable from the drawer by
   this slice either.
 - Handover between cashiers, denominations, mid-shift pickups, GL export and events such
-  as `ShiftClosed`.
+  as `ShiftClosed` (since added: `2026-11-03-shift-events-design.md`).
 - UPI from MediConnect, OPD, lab or emergency.
 - Releasing a patient on an unconfirmed payment.
 - A request event dead-lettered by repeated database failures never reaches payments;

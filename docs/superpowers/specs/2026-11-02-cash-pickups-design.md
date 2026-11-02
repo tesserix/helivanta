@@ -22,7 +22,7 @@ indistinguishable from a shortage.
    the count; the typed-total close is replaced, not kept beside it.
 3. **Out of this slice:** handover between cashiers (since added:
    `2026-11-02-cash-handover-design.md`), a safe ledger, the GL
-   export, `Shift*`/`CashPickupRecorded` events, counting the opening float
+   export, `Shift*`/`CashPickupRecorded` events (since added: `2026-11-03-shift-events-design.md`), counting the opening float
    by note.
 
 ## What it does
@@ -80,7 +80,7 @@ indistinguishable from a shortage.
 ## Not covered
 
 Handover (since added: `2026-11-02-cash-handover-design.md`); a safe or vault ledger and bank deposit; counting the float by
-note; card and other modes (since added: `2026-11-02-card-netbanking-wallet-design.md`); GL export; events; counting pickups for a closed
+note; card and other modes (since added: `2026-11-02-card-netbanking-wallet-design.md`); GL export; events (since added: `2026-11-03-shift-events-design.md`); counting pickups for a closed
 shift (its variance stands for it).
 
 ## Needs finance review before production

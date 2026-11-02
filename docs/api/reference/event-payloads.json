@@ -1,6 +1,66 @@
 {
+  "helivanta.in.billing.cash_pickup_recorded.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:116",
+    "go_type": "CashPickupRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "corrects_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "counter_id": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "pickup_id": {
+          "type": "string"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "recorded_by": {
+          "type": "string"
+        },
+        "shift_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pickup_id",
+        "shift_id",
+        "hospital_id",
+        "counter_id",
+        "kind",
+        "amount_minor",
+        "currency",
+        "corrects_id",
+        "recorded_by",
+        "recorded_at"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.billing.payment_cancelled.v1": {
-    "source": "backend/internal/modules/billing/contract/events.go:34",
+    "source": "backend/internal/modules/billing/contract/events.go:36",
     "go_type": "PaymentCancelledData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -24,7 +84,7 @@
     }
   },
   "helivanta.in.billing.payment_requested.v1": {
-    "source": "backend/internal/modules/billing/contract/events.go:24",
+    "source": "backend/internal/modules/billing/contract/events.go:26",
     "go_type": "PaymentRequestedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -51,6 +111,255 @@
         "amount_minor",
         "currency",
         "expires_in_seconds"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.billing.shift_closed.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:93",
+    "go_type": "ShiftClosedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "authorised_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "authorised_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cashier": {
+          "type": "string"
+        },
+        "counted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "counter_id": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "declared_minor": {
+          "type": "integer"
+        },
+        "expected_minor": {
+          "type": "integer"
+        },
+        "handed_over": {
+          "type": "boolean"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "opening_float_minor": {
+          "type": "integer"
+        },
+        "shift_id": {
+          "type": "string"
+        },
+        "variance_minor": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shift_id",
+        "hospital_id",
+        "counter_id",
+        "cashier",
+        "currency",
+        "opening_float_minor",
+        "expected_minor",
+        "declared_minor",
+        "variance_minor",
+        "handed_over",
+        "counted_at",
+        "authorised_by",
+        "authorised_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.billing.shift_handed_over.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:131",
+    "go_type": "ShiftHandedOverData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "agreed_minor": {
+          "type": "integer"
+        },
+        "counter_id": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "from_cashier": {
+          "type": "string"
+        },
+        "from_shift_id": {
+          "type": "string"
+        },
+        "handed_over_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "handover_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "settled_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "to_cashier": {
+          "type": "string"
+        },
+        "to_shift_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "handover_id",
+        "hospital_id",
+        "counter_id",
+        "from_shift_id",
+        "to_shift_id",
+        "from_cashier",
+        "to_cashier",
+        "currency",
+        "agreed_minor",
+        "settled_by",
+        "handed_over_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.billing.shift_opened.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:66",
+    "go_type": "ShiftOpenedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "cashier": {
+          "type": "string"
+        },
+        "counter_id": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "handover_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "opened_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "opening_float_minor": {
+          "type": "integer"
+        },
+        "shift_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shift_id",
+        "hospital_id",
+        "counter_id",
+        "cashier",
+        "currency",
+        "opening_float_minor",
+        "handover_id",
+        "opened_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.billing.shift_variance_recorded.v1": {
+    "source": "backend/internal/modules/billing/contract/events.go:78",
+    "go_type": "ShiftVarianceRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "cashier": {
+          "type": "string"
+        },
+        "counted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "counter_id": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "declared_minor": {
+          "type": "integer"
+        },
+        "expected_minor": {
+          "type": "integer"
+        },
+        "handed_over": {
+          "type": "boolean"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "shift_id": {
+          "type": "string"
+        },
+        "variance_minor": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shift_id",
+        "hospital_id",
+        "counter_id",
+        "cashier",
+        "currency",
+        "expected_minor",
+        "declared_minor",
+        "variance_minor",
+        "handed_over",
+        "counted_at"
       ],
       "type": "object"
     }

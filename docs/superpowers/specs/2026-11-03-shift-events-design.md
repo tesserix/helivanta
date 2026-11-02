@@ -34,10 +34,13 @@ Five subjects, published by billing through the outbox:
 | `helivanta.in.billing.cash_pickup_recorded.v1`    | Cash is taken to the safe, or a pickup is corrected.                               |
 | `helivanta.in.billing.shift_handed_over.v1`       | A handover completes: accepted by the incoming cashier or settled by a supervisor. |
 
-So a shift publishes `shift_opened`, any pickups, then either `shift_closed`, or
-`shift_variance_recorded` followed by `shift_closed` when it is authorised. A
-shift closed by handover publishes the same, and the handover publishes
-`shift_handed_over`; the incoming shift's `shift_opened` names the handover.
+Over its life a shift publishes `shift_opened`, any pickups, then either
+`shift_closed`, or `shift_variance_recorded` and later `shift_closed` when it is
+authorised. A shift closed by handover publishes the same, and the handover
+publishes `shift_handed_over`; the incoming shift's `shift_opened` names the
+handover. That is the lifecycle, not the delivery order: the outbox does not
+order deliveries across subjects or past a failed publish, so a consumer orders
+by `occurred_at` and tolerates events arriving out of order.
 
 **Payloads** (amounts in paise, `currency` `INR`, ids as strings):
 
@@ -90,4 +93,7 @@ and supervisor ids are kept: attribution is the point of the story.
 
 The GL export; events for receipts, refunds and voids; events for a handover
 being offered, withdrawn or disputed, and for a shift going to or back from
-`handing_over`; consumers of any of these events.
+`handing_over`; consumers of any of these events. Nothing is backfilled: events
+start with changes made after migration `0016_billing`, so a shift open or
+waiting for authorisation at deploy time publishes a `shift_closed` without its
+`shift_opened` or `shift_variance_recorded`.

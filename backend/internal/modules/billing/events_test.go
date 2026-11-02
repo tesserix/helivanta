@@ -2,6 +2,7 @@ package billing_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"reflect"
 	"strings"
@@ -132,6 +133,23 @@ func TestAShiftPublishesItsLife(t *testing.T) {
 	require.Zero(t, closed[0].VarianceMinor)
 	require.Nil(t, closed[0].AuthorisedBy)
 	require.Nil(t, closed[0].AuthorisedAt)
+
+	// A change that fails after its trigger ran takes its event with it.
+	lost, failed := v7(), errors.New("after the trigger")
+	err := w.as("user-clerk", func(tx *gorm.DB) error {
+		if err := tx.Exec(`INSERT INTO billing_cash_shifts (tenant_id,hospital_id,id,counter_id,cashier,currency,opening_float_minor)
+			VALUES (?,?,?,?,'user-clerk','INR',0)`, testutil.TenantA, w.hospital, lost, counter).Error; err != nil {
+			return err
+		}
+		var written int64
+		if err := tx.Raw(`SELECT count(*) FROM outbox_events WHERE subject=? AND payload->'data'->>'shift_id'=?`, billingcontract.SubjectShiftOpened, lost).Scan(&written).Error; err != nil {
+			return err
+		}
+		require.Equal(t, int64(1), written, "the trigger wrote the event inside the transaction")
+		return failed
+	})
+	require.ErrorIs(t, err, failed)
+	require.Empty(t, published[billingcontract.ShiftOpenedData](t, w, billingcontract.SubjectShiftOpened, "shift_id", lost), "rolled back with the shift")
 }
 
 func TestAHandoverPublishesTheChangeOfCashier(t *testing.T) {

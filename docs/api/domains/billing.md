@@ -473,13 +473,16 @@ consumes these yet.**
   supervisor, amounts in paise. Never reasons, counts by note or coin, or anything
   about patients.
 - **Emitted by the database:** triggers on the shift, pickup and handover tables write
-  the outbox row in the same transaction, so every path that changes a drawer
-  publishes, and a rolled-back change publishes nothing. Each transition happens once,
-  and retried requests replay without writing, so each event is published once;
-  consumers still deduplicate on `event_id`.
+  the outbox row in the same transaction, so every path that opens, counts, closes,
+  picks up from or hands over a drawer publishes, and a rolled-back change publishes
+  nothing. Each transition happens once, and retried requests replay without writing,
+  so each event is published once; consumers still deduplicate on `event_id`.
+- **Order:** deliveries are not ordered across subjects or past a failed publish;
+  consumers order by `occurred_at` and tolerate events arriving out of order.
 - **Blind:** no event carries the expected cash before the count is in.
 - **Not covered:** events for receipts, refunds and voids, or for a handover offered,
-  withdrawn or disputed; consumers; the GL export.
+  withdrawn or disputed; consumers; the GL export; a backfill (events start with
+  changes after migration `0016_billing`).
 
 ## GST on rooms and the tax invoice (#193 slice 1)
 

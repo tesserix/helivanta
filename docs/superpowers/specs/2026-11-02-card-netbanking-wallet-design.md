@@ -75,13 +75,20 @@ Migration `0015_billing`:
   `reference`, `approval_code`, `wallet`, each null unless its mode needs
   it, by check constraint. `reference` is `^[A-Z0-9][A-Z0-9/-]{3,39}$`
   (stored upper case), `approval_code` `^[A-Z0-9]{6}$`, `wallet` lower case
-  `^[a-z0-9][a-z0-9 .-]{0,29}$`.
-- A unique index over standing receipts:
-  `(tenant, hospital, mode, wallet, reference, approval_code)` where not
-  voided. _Builder's call:_ a voided receipt frees its reference, so an entry
-  made against the wrong patient can be voided and entered again; a card
-  reference is keyed with its approval code, since an RRN alone can repeat
-  across acquirers.
+  `^[a-z0-9]([a-z0-9 .-]{0,28}[a-z0-9])?$`.
+- No card number is stored (review finding): a card's reference is its
+  12-digit RRN (`^[0-9]{12}$`), and in every mode a Luhn-valid run of 13 to
+  19 digits, or a masked number ending `XXXX` and four digits, is refused by
+  check constraint, in Go and in the form. _Builder's call:_ a rare real
+  reference that passes Luhn is refused too; storing a card number is the
+  worse failure.
+- A unique index over standing receipts: `(tenant, hospital, reference,
+approval_code)` where not voided, whatever the mode or wallet name, so a
+  respelt wallet or another mode never lets one payment clear two balances
+  (review finding). _Builder's call:_ a voided receipt frees its reference, so
+  an entry made against the wrong patient can be voided and entered again; a
+  card reference is keyed with its approval code, since an RRN alone can
+  repeat across acquirers.
 - The receipt guard refuses a mode the counter does not currently accept,
   and skips the drawer check when voiding anything but cash. Refunds were
   already cash-only by check; UPI keeps its own path.
@@ -91,6 +98,12 @@ _Builder's call:_ cash and UPI are not switched per counter. Cash is how a
 drawer exists at all; UPI is already gated by the hospital's payment account.
 
 ## Not covered (for finance review)
+
+- Nothing verifies a typed reference: cash recorded as card with an invented
+  RRN leaves the drawer matched. Only settlement reconciliation, out of this
+  slice, would catch it.
+- A non-cash void needs only its cashier's reason, and frees the reference.
+- Voided figures in the daily collection count every mode.
 
 - A deposit taken by card is refunded in cash from the drawer.
 - A voided card receipt relies on the cashier reversing it on the terminal.

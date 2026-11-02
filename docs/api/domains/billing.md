@@ -424,13 +424,14 @@ No gateway is involved and nothing is pending.
   `counter_modes`. A new counter takes none. Cash and UPI are not switched here.
 - **Taking one:** the payment and deposit routes take `mode` (`cash` when absent)
   and, for these modes, `reference` (upper-cased, 4 to 40 letters, digits, `-` or
-  `/`), plus `approval_code` (6 characters) for card and `wallet` (its name,
-  lower-cased) for wallet. No card digits are kept. Every cash rule holds: the
+  `/`; a card's is its 12-digit RRN), plus `approval_code` (6 characters) for card
+  and `wallet` (its name, lower-cased) for wallet. No card digits are kept: a
+  Luhn-valid run of 13 to 19 digits, or a masked number, is refused in any mode. Every cash rule holds: the
   caller's open shift, the counter's numbering, the balance due net of waiting UPI
   for payments, an open account for deposits. Refused: a mode the counter does not
   take (`409 mode_not_accepted`), a reference already on a standing receipt at the
-  hospital (`409 duplicate_reference`; a card's RRN is keyed with its approval
-  code), a field the mode does not carry or a refund in any mode but cash (`400`).
+  hospital whatever its mode or wallet name (`409 duplicate_reference`; a card's
+  RRN is keyed with its approval code), a field the mode does not carry or a refund in any mode but cash (`400`).
   The same id with another mode or reference is `409`.
 - **Void:** as cash, by its cashier while the shift is open, with a reason, and
   with no drawer check: the money was never in it. A voided receipt frees its

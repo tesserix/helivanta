@@ -94,6 +94,11 @@ func TestCardNetbankingAndWalletStayOutOfTheDrawer(t *testing.T) {
 		"a reference with a space":        `{"mode":"netbanking","reference":"AB 1234"}`,
 		"cash with a reference":           `{"mode":"cash","reference":"412345678901"}`,
 		"an unknown mode":                 `{"mode":"cheque","reference":"412345678901"}`,
+		"a card number as the RRN":        `{"mode":"card","reference":"4111111111111111","approval_code":"123456"}`,
+		"a masked card number":            `{"mode":"card","reference":"XXXXXXXX1111","approval_code":"123456"}`,
+		"a card reference not an RRN":     `{"mode":"card","reference":"41234567890","approval_code":"123456"}`,
+		"a card number as a UTR":          `{"mode":"netbanking","reference":"4111111111111111"}`,
+		"a masked card number as a UTR":   `{"mode":"netbanking","reference":"XXXXXXXXXXXX1111"}`,
 	}
 	for why, fields := range bad {
 		status, body := w.put("clerk", receipts+v7(), `{"amount_minor":100,"currency":"INR",`+fields[1:])
@@ -122,6 +127,11 @@ func TestCardNetbankingAndWalletStayOutOfTheDrawer(t *testing.T) {
 	status, body = w.put("clerk", "/admissions/"+other+"/receipts/"+v7(), card)
 	require.Equal(t, http.StatusConflict, status, body)
 	require.Contains(t, body, "duplicate_reference")
+	status, body = w.put("clerk", "/admissions/"+admission+"/deposits/"+v7(), `{"amount_minor":100,"currency":"INR","mode":"wallet","reference":"T2611021234","wallet":"phone pe"}`)
+	require.Equal(t, http.StatusConflict, status, "the same wallet transaction under another spelling: "+body)
+	require.Contains(t, body, "duplicate_reference")
+	status, body = w.put("clerk", "/admissions/"+other+"/receipts/"+v7(), `{"amount_minor":100,"currency":"INR","mode":"netbanking","reference":"T2611021234"}`)
+	require.Equal(t, http.StatusConflict, status, "or under another mode: "+body)
 	status, body = w.put("clerk", "/admissions/"+other+"/receipts/"+v7(), strings.Replace(card, "123456", "654321", 1))
 	require.Equal(t, http.StatusCreated, status, "an RRN with another approval code is another payment: "+body)
 	status, body = w.put("clerk", "/admissions/"+admission+"/refunds/"+v7(), `{"amount_minor":100,"currency":"INR","mode":"card","reference":"412345678901","approval_code":"123456"}`)
@@ -196,6 +206,13 @@ func TestModesHoldInTheDatabase(t *testing.T) {
 	requireConstraint(t, insert("card", "412345678901", "123456", "paytm"), "billing_cash_receipt_reference", "and no wallet")
 	requireConstraint(t, insert("cash", "412345678901", nil, nil), "billing_cash_receipt_reference", "cash carries no reference")
 	requireConstraint(t, insert("card", "412345678901", "abcdef", nil), "billing_cash_receipts_approval_code_check", "upper case only")
+	requireConstraint(t, insert("card", "41234567890", "123456", nil), "billing_cash_receipt_rrn", "a card's reference is its 12-digit RRN")
+	require.NoError(t, w.as("user-admin", func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO billing_counter_modes (tenant_id,hospital_id,id,counter_id,mode,accepted,set_by) VALUES (?,?,?,?,'netbanking',true,'user-admin')`,
+			testutil.TenantA, w.hospital, v7(), counter).Error
+	}))
+	requireConstraint(t, insert("netbanking", "4111111111111111", nil, nil), "billing_cash_receipt_no_card_number", "no card number in any mode")
+	requireConstraint(t, insert("netbanking", "XXXXXXXXXXXX1111", nil, nil), "billing_cash_receipt_no_card_number", "nor a masked one")
 	require.NoError(t, insert("card", "412345678901", "123456", nil))
 	requireConstraint(t, insert("card", "412345678901", "123456", nil), "billing_cash_receipt_reference_once", "one standing receipt per slip")
 
@@ -229,8 +246,8 @@ func TestTheDailyCollectionShowsEachMode(t *testing.T) {
 		status, body := w.put("clerk", "/admissions/"+admission+path+v7(), fmt.Sprintf(`{"amount_minor":%d,"currency":"INR",%s}`, amount, fields))
 		require.Equal(t, http.StatusCreated, status, body)
 	}
-	take("/receipts/", 100, `"mode":"card","reference":"R1001","approval_code":"AAAAAA"`)
-	take("/deposits/", 200, `"mode":"card","reference":"R1002","approval_code":"AAAAAA"`)
+	take("/receipts/", 100, `"mode":"card","reference":"100000000001","approval_code":"AAAAAA"`)
+	take("/deposits/", 200, `"mode":"card","reference":"100000000002","approval_code":"AAAAAA"`)
 	take("/receipts/", 300, `"mode":"netbanking","reference":"R1003"`)
 	take("/deposits/", 400, `"mode":"netbanking","reference":"R1004"`)
 	take("/receipts/", 500, `"mode":"wallet","reference":"R1005","wallet":"paytm"`)

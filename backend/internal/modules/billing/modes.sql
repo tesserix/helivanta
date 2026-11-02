@@ -68,12 +68,36 @@ ALTER TABLE billing_cash_receipts ADD CONSTRAINT billing_cash_receipt_reference 
  (reference IS NOT NULL) = (mode IN ('card','netbanking','wallet'))
  AND (approval_code IS NOT NULL) = (mode='card')
  AND (wallet IS NOT NULL) = (mode='wallet'));
--- One standing receipt per reference at a hospital. A voided one frees it, so
--- an entry against the wrong patient is voided and entered again; a card
--- reference is keyed with its approval code, as an RRN alone can repeat
--- across acquirers.
+-- No card number is ever stored, typed by mistake into a reference: a card's
+-- reference is its 12-digit RRN, and in any mode a Luhn-valid run of 13 to 19
+-- digits, or a masked number, is refused. A rare real reference that happens
+-- to pass Luhn is refused too: storing a card number is the worse failure.
+-- A pinned search path: a CHECK calls it, and a dump restore runs it with an
+-- empty one.
+CREATE FUNCTION billing_card_number(t text) RETURNS boolean LANGUAGE plpgsql IMMUTABLE
+ SET search_path = pg_catalog, public AS $$
+DECLARE total int := 0; d int; n int;
+BEGIN
+ IF t IS NULL THEN RETURN false; END IF;
+ IF t ~ 'X{4,}[0-9]{4}$' THEN RETURN true; END IF;
+ IF t !~ '^[0-9]{13,19}$' THEN RETURN false; END IF;
+ n := length(t);
+ FOR i IN 1..n LOOP
+  d := substr(t, n-i+1, 1)::int;
+  IF i % 2 = 0 THEN d := d*2; IF d > 9 THEN d := d-9; END IF; END IF;
+  total := total + d;
+ END LOOP;
+ RETURN total % 10 = 0;
+END $$;
+ALTER TABLE billing_cash_receipts ADD CONSTRAINT billing_cash_receipt_rrn CHECK (mode<>'card' OR reference ~ '^[0-9]{12}$');
+ALTER TABLE billing_cash_receipts ADD CONSTRAINT billing_cash_receipt_no_card_number CHECK (NOT billing_card_number(reference));
+-- One standing receipt per reference at a hospital, whatever its mode or
+-- wallet name: a free-text name or another mode must not let one payment
+-- clear two balances. A card's RRN is keyed with its approval code, as an RRN
+-- alone can repeat across acquirers. A voided receipt frees its reference, so
+-- an entry against the wrong patient is voided and entered again.
 CREATE UNIQUE INDEX billing_cash_receipt_reference_once ON billing_cash_receipts
- (tenant_id,hospital_id,mode,COALESCE(wallet,''),reference,COALESCE(approval_code,'')) WHERE reference IS NOT NULL AND voided_at IS NULL;
+ (tenant_id,hospital_id,reference,COALESCE(approval_code,'')) WHERE reference IS NOT NULL AND voided_at IS NULL;
 
 -- As in 0011, and: a card, netbanking or wallet receipt is taken only at a
 -- counter that takes that mode now; its reference is fixed like the rest;

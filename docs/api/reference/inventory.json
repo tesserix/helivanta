@@ -4524,7 +4524,7 @@
         },
         {
           "id": "0015_billing",
-          "sql_sha256": "ea9bafa41bed1d8ef2880eb89ccd6917fa9e90d7d25deec11f4350c68b5f48fe",
+          "sql_sha256": "6ef9b130103b1556e11569c5833ff49361238e4503ea37256b9fdec1c1253976",
           "creates_tables": [
             "billing_counter_modes"
           ]

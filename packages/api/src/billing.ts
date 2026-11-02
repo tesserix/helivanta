@@ -301,6 +301,18 @@ export const cashReceiptSchema = z.object({
   ),
 });
 
+function isCardNumber(s: string) {
+  if (/X{4,}[0-9]{4}$/.test(s)) return true;
+  if (!/^[0-9]{13,19}$/.test(s)) return false;
+  let total = 0;
+  [...s].reverse().forEach((c, i) => {
+    let d = Number(c);
+    if (i % 2 === 1) d = d * 2 > 9 ? d * 2 - 9 : d * 2;
+    total += d;
+  });
+  return total % 10 === 0;
+}
+
 /** A payment or deposit the terminal or bank already confirmed. */
 export const tenderSchema = z
   .object({
@@ -318,6 +330,19 @@ export const tenderSchema = z
     wallet: z.string().trim().toLowerCase(),
   })
   .superRefine((v, ctx) => {
+    // No card number is ever recorded, whole or masked (the API refuses it too).
+    if (isCardNumber(v.reference))
+      ctx.addIssue({
+        code: "custom",
+        path: ["reference"],
+        message: "That is a card number; enter the transaction reference",
+      });
+    else if (v.mode === "card" && !/^[0-9]{12}$/.test(v.reference))
+      ctx.addIssue({
+        code: "custom",
+        path: ["reference"],
+        message: "The 12-digit RRN on the slip",
+      });
     if (v.mode === "card" && !/^[A-Z0-9]{6}$/.test(v.approval_code))
       ctx.addIssue({
         code: "custom",

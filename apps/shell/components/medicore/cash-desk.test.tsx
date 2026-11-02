@@ -401,6 +401,17 @@ describe("CashPayments", () => {
     expect(await within(form).findByText("The 6-character code on the slip")).toBeInTheDocument();
     expect(puts(fetcher)).toHaveLength(0);
 
+    // A card number typed into the reference is never sent.
+    await user.clear(within(form).getByLabelText("Transaction reference (RRN)"));
+    await user.type(within(form).getByLabelText("Transaction reference (RRN)"), "4111111111111111");
+    await user.click(within(form).getByRole("button", { name: "Record payment" }));
+    expect(
+      await within(form).findByText("That is a card number; enter the transaction reference"),
+    ).toBeInTheDocument();
+    expect(puts(fetcher)).toHaveLength(0);
+    await user.clear(within(form).getByLabelText("Transaction reference (RRN)"));
+    await user.type(within(form).getByLabelText("Transaction reference (RRN)"), "412345678901");
+
     await user.type(within(form).getByLabelText("Approval code"), "a1b2c3");
     await user.click(within(form).getByRole("button", { name: "Record payment" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));

@@ -23,6 +23,9 @@ var (
 	errDuplicateReference = errors.New("a receipt standing at this hospital already has this reference")
 	receiptReference      = regexp.MustCompile(`^[A-Z0-9][A-Z0-9/-]{3,39}$`)
 	approvalCode          = regexp.MustCompile(`^[A-Z0-9]{6}$`)
+	cardRRN               = regexp.MustCompile(`^[0-9]{12}$`)
+	maskedCard            = regexp.MustCompile(`X{4,}[0-9]{4}$`)
+	cardDigits            = regexp.MustCompile(`^[0-9]{13,19}$`)
 	walletName            = regexp.MustCompile(`^[a-z0-9]([a-z0-9 .-]{0,28}[a-z0-9])?$`)
 	// The modes a counter switches; cash and UPI are not switched here.
 	switchedModes = map[string]bool{"card": true, "netbanking": true, "wallet": true}
@@ -59,9 +62,32 @@ func (t *tender) normalise(purpose string) bool {
 		return t.Reference == nil && t.ApprovalCode == nil && t.Wallet == nil
 	}
 	return switchedModes[t.Mode] && purpose != "refund" &&
-		t.Reference != nil && receiptReference.MatchString(*t.Reference) &&
+		t.Reference != nil && receiptReference.MatchString(*t.Reference) && !cardNumber(*t.Reference) &&
+		(t.Mode != "card" || cardRRN.MatchString(*t.Reference)) &&
 		(t.ApprovalCode != nil) == (t.Mode == "card") && (t.ApprovalCode == nil || approvalCode.MatchString(*t.ApprovalCode)) &&
 		(t.Wallet != nil) == (t.Mode == "wallet") && (t.Wallet == nil || walletName.MatchString(*t.Wallet))
+}
+
+// cardNumber reports a reference that is a card number, whole or masked, as
+// the database's billing_card_number does: none is ever stored.
+func cardNumber(s string) bool {
+	if maskedCard.MatchString(s) {
+		return true
+	}
+	if !cardDigits.MatchString(s) {
+		return false
+	}
+	total := 0
+	for i := range len(s) {
+		d := int(s[len(s)-1-i] - '0')
+		if i%2 == 1 {
+			if d *= 2; d > 9 {
+				d -= 9
+			}
+		}
+		total += d
+	}
+	return total%10 == 0
 }
 
 // same reports whether a held receipt was paid as t says.

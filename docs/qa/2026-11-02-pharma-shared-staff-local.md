@@ -80,9 +80,73 @@ handlers remain the authority. Source discovery and record reads poll through
 bounded TanStack queries, fail closed on unavailable/changed authority and do not
 persist private rows between account scopes.
 
-Separate uncommitted organization-foundation work now exists in this branch; see
-the [unreleased contract](../api/organization.md). It has not been applied to the
-shared local QA runtime or production and is not covered by this UI acceptance.
+The organization foundation is now committed in the same branch and applied to
+the local synthetic QA runtime; see its [separate acceptance record](2026-11-02-organization-departments-local.md)
+and [unreleased contract](../api/organization.md). It remains undeployed to
+production and is not covered by this Staff-source UI acceptance.
+
+## Existing Pharma authorization boundary — real OpenFGA
+
+`TestCatalogueRequiresRealOpenFGAAndCurrentOutletGrant` exercises actual Pharmacy
+routes with the real OpenFGA client/server, real Postgres and the shared permission
+and membership middleware. The harness supplies authentication identities; it does
+not replace signed-session IAM/current-authorization reconciliation acceptance.
+No static permission resolver or always-member replacement supplies authority.
+
+The test verifies:
+
+- Pharmacist and owner catalogue capabilities work only with the exact outlet
+  grant. Inventory can read, but even an outlet editor grant cannot confer the
+  missing OpenFGA catalogue-write capability.
+- Same-tenant unposted and foreign-tenant pharmacists get 404 for reads/writes;
+  changing the outlet ID does not borrow the original grant.
+- Pharmacy ownership does not disclose prescriptions (403); the pharmacist's
+  independently permitted and scoped prescription list succeeds.
+- Removing the pharmacist role denies reads, writes and exact retries (403) on
+  the same authenticated identity. An independent Staff membership remains, so
+  the test distinguishes lost capability from lost tenant membership.
+- Restoring the FGA role does not override a separately revoked outlet grant
+  (404). Explicit outlet restoration restores access.
+- An OpenFGA outage after successful requests returns 503 for catalogue reads,
+  writes and prescription reads. Recovery permits an exact retained retry.
+- Final tenant/outlet-scoped database verification finds exactly one product,
+  revision, catalogue audit event and catalogue outbox event. Refusals and exact
+  retries do not create a second successful business change.
+
+Mutation proof: temporarily substituting catalogue-read for catalogue-write on
+the PUT route made the inventory-denial assertion fail with actual 200 versus
+expected 403. The original route permission was restored immediately. The
+focused race run then passed (`go test -race ./internal/modules/pharmacy -run
+TestCatalogueRequiresRealOpenFGAAndCurrentOutletGrant -count=1`). An initial test
+assumed DELETE returned 204; source and response establish its existing 200
+receipt. The final SQL verification also needs the normal outlet session settings
+because product RLS correctly hides rows without them; the test was corrected,
+without weakening the handler or database policies.
+
+This adds acceptance for existing OpenFGA-plus-SQL guards, not an outlet-grant
+migration into FGA, a new permission, a model change, professional verification
+or employment cutoff. No production data, policy or credentials changed. Cached
+test images and dependencies were reused. The local production UI was also
+reloaded: the canonical department retains four revisions and displays explicit
+UTC timestamps; its counter remains attached to the canonical parent.
+
+Final checks from `backend/`, using cached dependencies and test images:
+
+```sh
+go test -race ./internal/modules/pharmacy -count=1
+go vet ./internal/modules/pharmacy
+golangci-lint run ./internal/modules/pharmacy/...
+go build ./...
+```
+
+All passed; the full Pharma race suite took 203.057 seconds and lint reported
+zero issues. `gofmt -l` on the added test and `git diff --check` were clean.
+No runtime route, grant, payload, schema or migration changed in this follow-up,
+so generated contracts remain unchanged. The current local production bundle
+also showed the same inactive `SYN-SHARED-PHARMA-20261102` after navigating back
+to Pharma's Staff source. Browser screenshots and test logs are retained in the
+private evidence directory above. GitHub-wide Go/E2E checks were still pending
+at this checkpoint; the web check passed. Local results do not claim CI success.
 
 ## Remaining objective
 

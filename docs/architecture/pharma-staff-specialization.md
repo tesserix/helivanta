@@ -134,3 +134,13 @@ activate a new operational permission before revocation, stale-projection,
 cross-outlet and dependency-failure tests pass. Existing SQL outlet grants remain
 part of current product guards; this work does not claim that the department tree
 has already migrated every outlet scope or added inheritance to the FGA model.
+
+The existing Pharma boundary also has a real-OpenFGA route regression in
+`backend/internal/modules/pharmacy/openfga_test.go`: exact outlet grant plus
+action permission, inventory-write denial despite editor scope, owner
+prescription denial, foreign/unposted denial, same-identity role and outlet
+revocation, outage/recovery and single-change audit/outbox persistence. Its
+intentional weakened-permission mutation was observed failing before the intact
+route passed. See [scope and evidence](../qa/2026-11-02-pharma-shared-staff-local.md#existing-pharma-authorization-boundary--real-openfga).
+This harness uses explicit authenticated test identities; signed-session IAM,
+professional eligibility and lifecycle cutoff acceptance remain separate.

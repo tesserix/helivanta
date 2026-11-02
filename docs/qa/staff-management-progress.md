@@ -1,5 +1,24 @@
 # Staff Management delivery tracker
 
+## Pharma OpenFGA boundary — 2026-11-02, local regression
+
+Actual Pharma catalogue and prescription routes now have a real OpenFGA/Postgres
+regression for action permission intersecting with current explicit outlet scope.
+It covers inventory write and owner prescription denial, foreign/unposted scope,
+same-identity role revocation, independent outlet revocation, outage/recovery and
+single-change audit/outbox persistence. A weakened write-permission mutation
+failed with actual 200 versus expected 403; the restored route passed the focused
+race test. See [detailed evidence and boundaries](2026-11-02-pharma-shared-staff-local.md#existing-pharma-authorization-boundary--real-openfga).
+
+The full Pharma race suite passed in 203.057 seconds. Go build, scoped vet and
+lint passed (zero issues). Browser recheck on the standalone production bundle
+confirmed the same inactive canonical pharmacist and persisted department
+history with UTC timestamps. No additional dependency/image downloads were needed.
+
+This is verification of existing guards. Professional profiles, effective Staff
+postings, operational lifecycle enforcement and scoped FGA projection acceptance
+remain open. Whole-Staff counts and issue completion status are unchanged.
+
 ## Organization departments — 2026-11-02, local acceptance
 
 The isolated shared-Staff branch now implements platform-owned hospital

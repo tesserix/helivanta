@@ -64,14 +64,15 @@ export function VerifiedUpi({
   const money = (minor: number) => formatPharmacyMoney(minor, currency);
   const [id, setId] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
   const [refunded, setRefunded] = useState<string | null>(null);
   const now = useNow(1000);
   // Polled until it is final, for as long as the panel is shown.
   const payment = useApiQuery<PharmacyCounterPayment>(
     pharmacyKey(scope, "counter-payment", id ?? ""),
     id ? pharmacyCounterPaymentPath(scope, id) : "",
-    { enabled: id !== null && !done, poll: true },
+    // Stop only the interval after confirmation. Disabling the query observer
+    // during its completing fetch can restore its previous unpaid snapshot.
+    { enabled: id !== null, poll: (snapshot) => !final(snapshot) },
   );
   const unused = useApiPagedQuery<PharmacyCounterPayment>(
     pharmacyKey(scope, "counter-payments", "unused"),
@@ -103,8 +104,6 @@ export function VerifiedUpi({
     usable || (id && (open(p?.status ?? "requested") || p?.status === "cancelling")),
   );
   useEffect(() => onHold?.(held), [held, onHold]);
-  // Adjusted during render, not in an effect: once final, stop polling.
-  if (!done && final(p)) setDone(true);
   // A QR this panel opened is closed when the panel goes away (another
   // tender, a re-priced basket), so the payer cannot pay a bill the counter
   // no longer holds. The ref carries the latest request to the cleanup.
@@ -131,7 +130,6 @@ export function VerifiedUpi({
     onHold?.(true);
     const next = newPharmacyId();
     setChosen(null);
-    setDone(false);
     setId(next);
     start.mutate(next);
   };
@@ -206,7 +204,6 @@ export function VerifiedUpi({
             setRefunded(usable);
             setChosen(null);
             setId(null);
-            setDone(false);
             onPaid(null);
             onHold?.(false);
           }}

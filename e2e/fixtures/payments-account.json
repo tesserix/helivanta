@@ -1,0 +1,6 @@
+{
+  "mode": "test",
+  "key_id": "rzp_test_HELIVANTAE2E",
+  "key_secret": "TEST-ONLY-HELIVANTA-PAYMENTS",
+  "webhook_secret": "TEST-ONLY-HELIVANTA-WEBHOOK"
+}

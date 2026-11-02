@@ -115,3 +115,15 @@ Private evidence directory:
 `~/.helivanta/staff-management-20261027/shared-staff-foundation-20261102/`.
 Credentials remain in the existing private mode-600 JSON and are not reproduced
 here.
+
+## Final merged-base validation and CI repair
+
+After merging the approved foundation into this branch, the full Workforce race
+suite passed in 596.737s. A fresh 21-task web lint/format/typecheck gate passed
+with zero cache hits (35.201s). The CI web gate initially refused a stale module
+source pin in the operational-access ledger. Source comparison proved that only
+the credential SQL embed and migration manifest changed; routes, permissions and
+reviewed actor guards were byte-identical. Ten reviewed module-source pins were
+refreshed with this rationale and the ledger regenerated. All 15 ledger tests
+and its check passed. Counts remain 759 surfaces, 17 classified, 742 unclassified;
+no runtime acceptance or lifecycle cutoff classification was added.

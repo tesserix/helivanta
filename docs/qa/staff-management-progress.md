@@ -80,6 +80,18 @@ candidate is awaiting code review and has not been merged or deployed. This slic
 made no production changes; the last verified Staff credential release was
 `6e9c4816`.
 
+PR [#1524](https://github.com/tesserix/helivanta/pull/1524), application head
+`e061b955`, incorporates current main. Its full API suite/typecheck (594 tests),
+full shell suite (1,396 tests), configured production-style build and normal
+owner browser reload/history smoke passed again. CI scripts, security checks and
+image builds passed. CI E2E exposed an inherited Pharma payment test whose broad
+text predicate returned while the current QR still awaited payment: the unused
+payment list already carried an RRN. Its helper now requires the current paid
+status region; the timeout and sale, invoice, stock and return assertions are
+unchanged. This repairs the acceptance signal rather than permitting an unpaid
+sale. The failure artifact is retained privately; no dependencies or images were
+downloaded for diagnosis. CI and release acceptance remain pending.
+
 ## Effective posting design — 2026-11-02
 
 The [proposed posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)

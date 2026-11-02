@@ -254,7 +254,9 @@ export async function collectUpi(page: Page, sku: string, units = "2") {
     page.getByText("Wait for the UPI payment to be confirmed", { exact: true }),
   ).toBeVisible();
   await provider(page, "pay", { qr_id: qr });
-  await expect(page.getByText(/Paid .*RRN TEST-RRN-/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("status").filter({ hasText: /^Paid .*RRN TEST-RRN-/ })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByRole("combobox", { name: "Customer", exact: true })).toBeDisabled();
   await page.getByRole("combobox", { name: "Customer", exact: true }).click({ force: true });
   await expect(page.getByRole("option", { name: "Bill to admission", exact: true })).toHaveCount(0);

@@ -43,6 +43,12 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"workforce.PostingDraftChangedData.HospitalID": "internal hospital scope for protected preparation lookup; no clinical data",
+	"workforce.PostingDraftChangedData.StaffID":    "hospital-local Staff reference; Staff personal-data protection still applies, no name or patient identity",
+	"workforce.PostingDraftChangedData.DraftID":    "opaque preparation draft reference; no placement dates, reason or operating authority",
+	"workforce.PostingDraftChangedData.RevisionID": "opaque immutable preparation receipt; no actor, reason or evidence",
+	"workforce.PostingDraftChangedData.Version":    "monotonic preparation version for stale-state detection; no personal content",
+
 	"workforce.DepartmentLinkRequestedData.RequestID":              "opaque catalog reference correlating exact retained HR/structure revisions; no Staff, actor, reason or operating authority",
 	"workforce.DepartmentLinkRequestedData.HospitalID":             "opaque catalog reference correlating exact retained HR/structure revisions; no Staff, actor, reason or operating authority",
 	"workforce.DepartmentLinkRequestedData.MasterID":               "opaque catalog reference correlating exact retained HR/structure revisions; no Staff, actor, reason or operating authority",

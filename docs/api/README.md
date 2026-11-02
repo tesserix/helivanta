@@ -42,6 +42,8 @@ The [privacy casework API](privacy.md) owns authenticated tenant-local rights/gr
 The unreleased [organization structure foundation](organization.md) implements
 hospital references and bounded department/sub-unit metadata with retained
 revisions. Canonical Staff postings and product access grants remain open.
+The local [posting preparation candidate](workforce-postings.md) adds non-operating
+drafts and retained commands; effective postings and normal UI acceptance remain open.
 
 | Domain                                                 | Specification                                                                                                          |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |

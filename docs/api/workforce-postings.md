@@ -1,0 +1,122 @@
+# Workforce posting preparation — implementation candidate
+
+This is an unreleased local candidate, not an effective posting or an operating
+grant. Workforce owns the draft and immutable commands/revisions; Organization
+owns the referenced department/sub-unit. No Staff, employment, credential or
+department master is copied. The complete
+[posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)
+and [delivery plan](../superpowers/plans/2026-11-02-effective-staff-postings.md)
+remain required, including independent review and operating lifecycle enforcement.
+
+## Transport and current authority
+
+All UI/app traffic enters Global API and routes to Workforce. Each route requires
+verified tenant membership, `workforce.posting.prepare`, and current explicit
+Workforce hospital reader/manager access. Writes and PUT retries require manager.
+The hospital grant and Staff source are held through the write commit. The new
+permission confers preparation only; no clinical, professional, payroll, login or
+operating authority follows. Scoped posting-preparer catalogs and assignments
+remain a separate parent-plan obligation; this draft candidate does not add them.
+
+Every request requires single `X-Helivanta-Expected-Tenant` and
+`X-Helivanta-Expected-Subject` values matching the verified principal. These detect
+an unintended workspace/account change and confer no authority. Missing/mismatched
+preconditions return 409 `session_changed`. Responses are `no-store`.
+
+| Method and path below `/v1/workforce/hospitals/:hospital/staff/:id` | Result                                                                                                                                                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET `/posting-draft-source`                                         | The existing canonical `EmploymentPeriodSource` four-field concurrency basis: hospital/Staff ID, Staff version and employment epoch. No identity hash, name, evidence or private profile fields. |
+| GET `/posting-drafts`                                               | Bounded newest-first draft heads.                                                                                                                                                                |
+| GET `/posting-drafts/:posting`                                      | Current immutable draft revision.                                                                                                                                                                |
+| PUT `/posting-drafts/:posting/commands/:command`                    | Create or edit a draft, or recover the exact retained command.                                                                                                                                   |
+| GET same command path                                               | Recover its original receipt under current read authority.                                                                                                                                       |
+| GET `/posting-drafts/:posting/history`                              | Bounded newest-first immutable revision history.                                                                                                                                                 |
+
+Hospital/Staff retain their existing nonzero UUID formats. Posting, command,
+structural department and structural revision IDs require UUIDv7. History orders
+by `(recorded_at, revision_id)`; draft collections order by `(created_at, id)`.
+Standard opaque cursor/limit rules apply. Private reads have owner audit
+consequences; audit failure withholds the response.
+
+## Canonical input and retained state
+
+`contracts/workforce-postings.json` owns draft input/output and identifier-only
+change-event payloads. `scripts/generate-workforce-postings.mjs` emits Go/Zod
+models and supports `--check`. The source response reuses the existing
+`EmploymentPeriodSource` model rather than copying its four wire fields.
+
+A complete command supplies `expected_version` (zero only for creation), current
+`staff_version` and `employment_epoch`, `department_id`,
+`department_revision_id`, an explicit `starts_at` instant, optional `ends_at`,
+and a required protected reason (1–500 characters). Null/absent expected version
+is refused. Unknown fields and additional JSON values are refused. Omitted/null
+end means no proposed end; this full command replaces the prior interval rather
+than patching it. End must follow start. Instants normalize to UTC microseconds;
+invalid, zero and out-of-range instants are refused.
+
+Every public receipt is `status:draft`, `grants_access:false`, with canonical IDs,
+versions and recorded instants. Reasons, input hashes and actor subjects remain
+private. Drafts can prepare a placement for an inactive joiner before employment
+activation. They do not establish current employer eligibility, change the
+canonical Staff profile's department, assign a supervisor or outlet, create a
+login link, or activate an IAM assignment. Submission/approval must later bind
+the current reviewed employment generation and all required posting conditions.
+
+Command IDs are unique within the tenant. The retained fingerprint binds the
+exact Staff/draft, actor, expected version and normalized complete intent.
+Same-key/same-intent PUT retry reauthorizes and returns its original revision,
+including after later edits. Changed actor/intent or stale Staff/draft source
+conflicts. A response timeout is an unknown outcome: recover the exact command;
+do not substitute a new ID/version after refreshing history.
+
+## Current structural check and persistence
+
+For a new write, Workforce starts its bounded guarded command, holds its hospital
+grant and Staff source, then invokes the registered Organization reference guard.
+That owner checks the exact verified hospital and current active department
+revision, holds its restructuring gate/row through the same database commit, and
+returns no copied repository or employee data. Only the registered Organization
+owner supplies that guard. Missing/invalid owner configuration fails closed;
+it never fabricates an empty current source. This is the narrow local structural
+part of proposed ADR-0052, not a general cross-module RPC or a cross-service
+cutoff protocol. A history read does not certify its old reference as current.
+
+Forward migration `0073_workforce_posting_drafts` adds owner-only draft heads,
+immutable revisions/commands, exact Staff-purpose RLS, source/version/actor
+constraints and deferred head/latest-revision integrity. Department data remains
+with Organization; no cross-owner foreign key/query is introduced. A save,
+revision, audit and outbox insertion commit together. No destructive down
+migration is supplied; rollback retains additive schema and history.
+
+The event `helivanta.in.workforce.posting_draft_changed.v1` carries hospital,
+Staff, draft/revision IDs and version only, within the verified tenant envelope.
+It contains no reason, name, registration or actor subject. No downstream
+operating-authority consumer is registered by this candidate.
+
+## Failure and acceptance boundaries
+
+Missing route permission is 403. Hidden/foreign Staff, hospital, draft or
+structural object is 404. A changed/retired structural revision, stale version
+or conflicting command is 409 `posting_draft_conflict`. Missing source provider
+or unavailable authorization/source is 503 `posting_source_unavailable`.
+Unexpected persistence/audit/outbox failure is a generic 500 with rollback.
+
+Handler, SQL and real OpenFGA integration tests now cover required fields, stale
+sources, revoked and foreign scope, exact command/history retention, competing
+commands, atomic audit/outbox failure and Staff-purpose RLS. Deterministic owner
+tests hold both source locks through the outer commit, refuse escaped/mismatched
+contexts and detect removal of the shared restructuring lock. All public receipt
+paths serialize UTC instants with microsecond precision. SDK tests verify scope,
+intent, non-operating receipts and bounded page integrity. See the
+[progress evidence](../qa/staff-management-progress.md) for actual suite results.
+The Staff directory now exposes preparation/editing and immutable history to the
+declared tenant-admin permission plus the current explicit hospital grant. UI
+tests cover mandatory fields, exact retained retry, reader controls and source
+outages. Normal local owner create/edit/reload and restricted-reviewer denial
+passed through the Global API. Positive scoped role catalogs and independent
+review/effective activation remain open. Migration 0073 and this candidate have
+not been approved for production.
+No production migration/rollout of 0073 is approved. Preparing these drafts does
+not complete effective transfers, supervisor changes, contractors, independent
+posting approvals, Pharma professional duties, standalone employers or operating
+lifecycle enforcement.

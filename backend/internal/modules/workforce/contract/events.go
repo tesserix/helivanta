@@ -443,3 +443,5 @@ const SubjectOrganizationHospitalObserved = "helivanta.in.workforce.organization
 
 // SubjectDepartmentLinkRequested asks Organization to observe an exact structural revision.
 const SubjectDepartmentLinkRequested = "helivanta.in.workforce.department_link_requested.v1"
+
+const SubjectPostingDraftChanged = "helivanta.in.workforce.posting_draft_changed.v1"

@@ -1,5 +1,97 @@
 # Staff Management delivery tracker
 
+## Posting preparation candidate — 2026-11-03, local only
+
+The first implementation slice is now a non-operating preparation draft against
+canonical Staff and the current Organization department revision. It adds no
+employee master, operating posting, login link or access assignment. The candidate
+[contract](../api/workforce-postings.md) records six owner routes, the separate
+`workforce.posting.prepare` permission, exact retry/recovery, immutable history,
+source binding and forward migration `0073_workforce_posting_drafts`. Migration
+0073 has run only in disposable test databases; it is not production-approved.
+
+Observed public-handler RED/GREEN evidence includes missing source-provider
+503 behavior, canonical source/draft creation, the minimal concurrency-source
+projection, and an original-command receipt scan fix. A new validation regression
+observed 200 where 400 was required when a fractional timestamp truncated to the
+zero date. Post-normalization validation and the SQL constraint now refuse it.
+Real PostgreSQL/OpenFGA integration tests pass for required/invalid fields,
+foreign tenants, reader-write denial, revoked roles/hospital grants, changed
+intent/actor retries, stale Staff and retired structural sources, retained
+historical receipts, paged history and concurrent commands. Fault injection proves
+heads, revisions, saved audits and outbox events roll back together. Direct SQL
+tests prove exact Staff/hospital/purpose RLS and immutable history/removal guards.
+
+Owner-guard tests prove the shared restructuring gate and exact source row remain
+locked until the outer product commit, and reject unguarded, escaped,
+foreign-tenant and different-database contexts. Six SDK tests pass for validation,
+scope-bound source/collection reads, exact-intent command recovery, receipt checks
+and invalid history pages. Cached dependency links were reused; no dependencies
+or container images were downloaded. Targeted Go race tests, API build, affected
+Go vet, Go lint and SDK typecheck/lint passed. The full affected race suites
+passed: bootstrap 62.039s, Workforce 672.595s, Organization 20.424s and platform
+15.146s. The full API package suite passed 594 tests across 75 files.
+Generator/registry checks and all 15 inventory tests passed. The ledger now
+contains 765 surfaces: 23 source-classified and 742 unclassified; no runtime
+acceptance is asserted. Six new preparation routes have their own source reviews,
+and the ten prior Workforce module pins were reviewed against unchanged prior
+route/grant/migration records rather than described as a migrations-only refresh.
+
+A second regression reproduced host-timezone serialization losing seconds from
+a historical UTC instant. All draft receipt paths now normalize timestamps to
+UTC and preserve microseconds. The complete posting test selection passed after
+that fix (bootstrap 42.670s, Workforce 7.414s). A lock mutation was observed
+failing the deterministic owner-lock assertion, then restored; the owner-guard
+suite passed again. The full architecture suite passed after explicitly declaring
+the three singleton GETs, identifier-only event fields and tenant-admin preparation
+matrix. Global API tests passed (139.310s); generation did not replace owner
+authorization or end-to-end proof.
+
+The directory now opens a required-field preparation editor with current
+Organization choices and an explicit UTC interval. Immutable history displays
+department, start, end, Staff source pins and recording time. Command failures
+retain the exact command/intent for retry and receipt recovery, with navigation
+protection and cancellation on a tenant switch. Reader controls and source outages
+are covered by UI tests. Eleven focused directory/panel tests passed; the full
+shell suite passed 1,396 tests across 172 files before the final history-only
+presentation adjustment. The focused tests and configured production-style
+webpack build passed after that adjustment. SDK/shell typechecks and relevant
+linters passed. No container images or dependencies were downloaded.
+
+Normal owner browser QA against the loopback Global API blocked empty required
+fields and an end before start, created version 1, edited version 2, displayed both
+retained revisions, and persisted version 2 after a complete reload. Read-only SQL
+then verified one head, two immutable revisions and two save audits, unchanged
+Staff version/epoch, inactive employment and zero login links. The local fixture
+had 213 migration receipts before refresh and 214 afterward, with exactly 0073
+added. The existing restricted reviewer signed in normally and could see the
+canonical inactive Staff record but had zero posting preparation/edit controls.
+No reviewer roles, memberships or grants were changed. Positive scoped
+preparer/reader catalog acceptance remains open; this negative browser result is
+not independent posting approval. Private evidence and screenshots are in
+`~/.helivanta/staff-management-20261027/posting-preparation-20261103/`; the private
+QA JSON was updated without changing credentials.
+
+The scoped posting-preparer IAM catalog, independent posting review, effective
+transfer/supervision/contractor lifecycle, standalone employers, Pharma duties and
+operating cutoff acceptance remain open in the parent plan. Whole-Staff counts
+remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. This local
+candidate is awaiting code review and has not been merged or deployed. This slice
+made no production changes; the last verified Staff credential release was
+`6e9c4816`.
+
+PR [#1524](https://github.com/tesserix/helivanta/pull/1524), application head
+`e061b955`, incorporates current main. Its full API suite/typecheck (594 tests),
+full shell suite (1,396 tests), configured production-style build and normal
+owner browser reload/history smoke passed again. CI scripts, security checks and
+image builds passed. CI E2E exposed an inherited Pharma payment test whose broad
+text predicate returned while the current QR still awaited payment: the unused
+payment list already carried an RRN. Its helper now requires the current paid
+status region; the timeout and sale, invoice, stock and return assertions are
+unchanged. This repairs the acceptance signal rather than permitting an unpaid
+sale. The failure artifact is retained privately; no dependencies or images were
+downloaded for diagnosis. CI and release acceptance remain pending.
+
 ## Effective posting design — 2026-11-02
 
 The [proposed posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)

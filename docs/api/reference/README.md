@@ -1108,6 +1108,12 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review/withdrawal` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/person-reviews/:review` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/posting-draft-source` | `workforce.posting.prepare` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command` | `workforce.posting.prepare` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command` | `workforce.posting.prepare` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/history` | `workforce.posting.prepare` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting` | `workforce.posting.prepare` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/posting-drafts` | `workforce.posting.prepare` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment/history` | `public` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/roster-assignment` | `workforce.roster.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id` | `public` | false | false |
@@ -1121,6 +1127,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.posting_draft_changed.v1`
 - `helivanta.in.workforce.department_link_requested.v1`
 - `helivanta.in.workforce.organization_hospital_observed.v1`
 - `helivanta.in.workforce.employment_review_changed.v1`
@@ -1225,6 +1232,7 @@ Migration table declarations:
 - `0069_workforce_organization_observations`: `workforce_organization_observations`.
 - `0070_workforce_department_links`: `workforce_department_links`.
 - `0072_workforce_credential_subject_index`: concurrent index `workforce_login_links_credential_subject` on `workforce_login_links (tenant_id, hospital_id, staff_id, subject)`.
+- `0073_workforce_posting_drafts`: `workforce_posting_drafts`, `workforce_posting_draft_revisions`.
 
 ## workspace
 

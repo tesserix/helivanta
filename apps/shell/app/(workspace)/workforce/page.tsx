@@ -33,6 +33,7 @@ import { StaffDocumentPanel } from "./document-panel";
 import { StaffCredentialPanel } from "./credential-panel";
 import { StaffIdentitySourcePanel } from "./identity-source-panel";
 import { StaffEmploymentPeriods } from "./employment-periods-panel";
+import { StaffPostingDraftPanel } from "./posting-drafts-panel";
 import { StaffLoginLinkPanel } from "./login-link-panel";
 
 const inputClass =
@@ -298,6 +299,7 @@ function Directory({
   const [credentialStaff, setCredentialStaff] = useState<Staff | null>(null);
   const [identityStaff, setIdentityStaff] = useState<Staff | null>(null);
   const [employmentStaff, setEmploymentStaff] = useState<Staff | null>(null);
+  const [postingStaff, setPostingStaff] = useState<Staff | null>(null);
   const [linkStaff, setLinkStaff] = useState<Staff | null>(null);
   useEffect(() => {
     if (!editing) opener.current?.focus();
@@ -362,6 +364,7 @@ function Directory({
                   setLinkStaff(null);
                   setIdentityStaff(null);
                   setEmploymentStaff(null);
+                  setPostingStaff(null);
                   setEditing("new");
                 });
               }}
@@ -387,10 +390,33 @@ function Directory({
                     setLinkStaff(null);
                     setIdentityStaff(row);
                     setEmploymentStaff(null);
+                    setPostingStaff(null);
                   });
                 }}
               >
                 Identity details
+              </Button>
+            )}
+            {choice.kind === "legacy" && can("workforce.posting.prepare") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Posting preparation for ${row.display_name}`}
+                onClick={(event) => {
+                  const button = event.currentTarget;
+                  confirmLeave(() => {
+                    opener.current = button;
+                    setEditing(null);
+                    setDocumentStaff(null);
+                    setCredentialStaff(null);
+                    setLinkStaff(null);
+                    setIdentityStaff(null);
+                    setEmploymentStaff(null);
+                    setPostingStaff(row);
+                  });
+                }}
+              >
+                Posting preparation
               </Button>
             )}
             {canPrepare && (
@@ -408,6 +434,7 @@ function Directory({
                     setLinkStaff(null);
                     setIdentityStaff(null);
                     setEmploymentStaff(row);
+                    setPostingStaff(null);
                   });
                 }}
               >
@@ -429,6 +456,7 @@ function Directory({
                         setLinkStaff(null);
                         setIdentityStaff(null);
                         setEmploymentStaff(null);
+                        setPostingStaff(null);
                         setEditing(row);
                       });
                     }}
@@ -449,6 +477,7 @@ function Directory({
                         setLinkStaff(null);
                         setIdentityStaff(null);
                         setEmploymentStaff(null);
+                        setPostingStaff(null);
                         setDocumentStaff(row);
                       })
                     }
@@ -469,6 +498,7 @@ function Directory({
                           setCredentialStaff(null);
                           setIdentityStaff(null);
                           setEmploymentStaff(null);
+                          setPostingStaff(null);
                           setLinkStaff(row);
                         })
                       }
@@ -487,6 +517,7 @@ function Directory({
                         setDocumentStaff(null);
                         setIdentityStaff(null);
                         setEmploymentStaff(null);
+                        setPostingStaff(null);
                         setCredentialStaff(row);
                         setLinkStaff(null);
                       })
@@ -500,6 +531,19 @@ function Directory({
           </>
         )}
       />
+      {postingStaff && choice.kind === "legacy" && can("workforce.posting.prepare") && (
+        <StaffPostingDraftPanel
+          key={`${scope.tenantId}:${scope.subject}:${hospital.id}:${postingStaff.id}`}
+          scope={{ ...scope, hospitalId: hospital.id, staffId: postingStaff.id }}
+          staffLabel={`${postingStaff.display_name} · ${postingStaff.employee_code}`}
+          canManage={manager}
+          onContextChanged={onContextChanged}
+          onClose={() => {
+            setPostingStaff(null);
+            opener.current?.focus();
+          }}
+        />
+      )}
       {employmentStaff && canPrepare && (
         <StaffEmploymentPeriods
           canManageDocuments={canDocuments}
@@ -517,6 +561,7 @@ function Directory({
           onClose={() => {
             setIdentityStaff(null);
             setEmploymentStaff(null);
+            setPostingStaff(null);
             opener.current?.focus();
           }}
         />

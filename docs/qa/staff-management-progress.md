@@ -1,6 +1,6 @@
 # Staff Management delivery tracker
 
-## Posting preparation candidate — 2026-11-03, local only
+## Posting preparation release — 2026-11-03
 
 The first implementation slice is now a non-operating preparation draft against
 canonical Staff and the current Organization department revision. It adds no
@@ -8,7 +8,8 @@ employee master, operating posting, login link or access assignment. The candida
 [contract](../api/workforce-postings.md) records six owner routes, the separate
 `workforce.posting.prepare` permission, exact retry/recovery, immutable history,
 source binding and forward migration `0073_workforce_posting_drafts`. Migration
-0073 has run only in disposable test databases; it is not production-approved.
+0073 was explicitly approved and applied to the loopback QA fixture and production;
+installed-schema and release evidence is recorded below.
 
 Observed public-handler RED/GREEN evidence includes missing source-provider
 503 behavior, canonical source/draft creation, the minimal concurrency-source
@@ -75,10 +76,9 @@ QA JSON was updated without changing credentials.
 The scoped posting-preparer IAM catalog, independent posting review, effective
 transfer/supervision/contractor lifecycle, standalone employers, Pharma duties and
 operating cutoff acceptance remain open in the parent plan. Whole-Staff counts
-remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. This local
-candidate is awaiting code review and has not been merged or deployed. This slice
-made no production changes; the last verified Staff credential release was
-`6e9c4816`.
+remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. This preparation
+slice merged in PR #1524 as `305294ab` and is deployed after specific user
+approval of the revision and 0073. The previous verified release was `6e9c4816`.
 
 PR [#1524](https://github.com/tesserix/helivanta/pull/1524), application head
 `e061b955`, incorporates current main. Its full API suite/typecheck (594 tests),
@@ -90,7 +90,22 @@ payment list already carried an RRN. Its helper now requires the current paid
 status region; the timeout and sale, invoice, stock and return assertions are
 unchanged. This repairs the acceptance signal rather than permitting an unpaid
 sale. The failure artifact is retained privately; no dependencies or images were
-downloaded for diagnosis. CI and release acceptance remain pending.
+downloaded for diagnosis. Corrected CI
+[41456474994](https://github.com/tesserix/helivanta/actions/runs/41456474994) passed
+every job, including Go coverage and E2E, on `f852ce7c`. The merge tree exactly matches
+that checked head. Main image workflow
+[41460365395](https://github.com/tesserix/helivanta/actions/runs/41460365395) passed
+build/scan/sign/publish and deploy-branch advancement. Production rollout of `305294ab`
+plus 0073 was explicitly approved and succeeded as
+`prod.01m6eanw1cfa4s587sv6rx21qc.0477a4c`. All seven deployments are 2/2 updated/ready;
+API/Global API/shell are Argo Synced/Healthy. The ledger has 214 receipts with exactly
+0073 added; four canonical function bodies, forced RLS, six triggers, eight indexes and
+constraints were verified. Normal production owner create/edit/history/reload passed
+against the existing synthetic inactive Pharma Staff, with one master/head, two
+revisions/save audits, unchanged Staff version/epoch and zero login links. Existing
+restricted reviewer normal sign-in denied hospital/posting access without grant changes.
+Full Staff acceptance remains open. See the [release
+journal](../deployment/releases/2026-11-03-staff-posting-preparation.md).
 
 ## Effective posting design — 2026-11-02
 
@@ -102,9 +117,10 @@ through commit. The source audit confirms that current scoped IAM requests are
 hospital-only and legacy Pharma dispense rows lack hospital/outlet lineage;
 neither gap is repaired by the existing outlet helper. The proposed owner-guard
 composition is recorded in [ADR-0052](../adr/0052-staff-source-command-authorization.md)
-with a closed provider boundary and explicit shared-database limitation. No source
-guard, posting API, standalone employer migration or operational acceptance is
-claimed by this design. Whole-Staff completion counts remain unchanged.
+with a closed provider boundary and explicit shared-database limitation. No
+effective posting, standalone employer migration or operational acceptance is
+claimed by this design-only entry. The merged preparation slice is recorded above;
+whole-Staff completion counts remain unchanged.
 
 ## Approved foundation rollout — 2026-11-02
 

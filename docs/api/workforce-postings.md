@@ -1,7 +1,7 @@
 # Workforce posting preparation — implementation candidate
 
-This is an unreleased local candidate, not an effective posting or an operating
-grant. Workforce owns the draft and immutable commands/revisions; Organization
+This preparation slice merged as `305294ab` in PR #1524 and is deployed after
+specific approval of the revision and migration 0073. Every receipt is a non-operating draft. Workforce owns the draft and immutable commands/revisions; Organization
 owns the referenced department/sub-unit. No Staff, employment, credential or
 department master is copied. The complete
 [posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)
@@ -114,9 +114,7 @@ declared tenant-admin permission plus the current explicit hospital grant. UI
 tests cover mandatory fields, exact retained retry, reader controls and source
 outages. Normal local owner create/edit/reload and restricted-reviewer denial
 passed through the Global API. Positive scoped role catalogs and independent
-review/effective activation remain open. Migration 0073 and this candidate have
-not been approved for production.
-No production migration/rollout of 0073 is approved. Preparing these drafts does
-not complete effective transfers, supervisor changes, contractors, independent
+review/effective activation remain open. Migration 0073 and this slice were specifically approved and deployed. The [release journal](../deployment/releases/2026-11-03-staff-posting-preparation.md) records CI, images, installed schema and local/production acceptance evidence.
+Preparing these drafts does not complete effective transfers, supervisor changes, contractors, independent
 posting approvals, Pharma professional duties, standalone employers or operating
 lifecycle enforcement.

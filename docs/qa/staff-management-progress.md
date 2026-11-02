@@ -5,15 +5,26 @@
 PR #1521 passed all required checks and merged as `058ea37a` after explicit
 approval of head `1a632554` and its six additive migrations (Organization
 0001–0004; Workforce 0069–0070). Main starts the image/deploy-branch pipeline;
-production image, migration and browser verification remain in progress. The
-image build/sign/publish and deploy-branch advancement succeeded, but Kargo was
-not promoted: production still runs `02b1e2b7`. Preflight found four additional
-pending Billing migrations (`0012_billing`–`0015_billing`) already on main.
-Separate approval of that extra scope is pending; the original six-migration
-approval is retained. No new production migrations have run. The
-pre-rollout API, shell, document-worker and Argo state was captured privately in
+the image build/sign/publish and deploy-branch advancement succeeded. Preflight
+also found four pending Billing migrations (`0012_billing`–`0015_billing`) on
+main; the user separately approved that additional scope before promotion.
+Kargo promotion `prod.01m6dwe2xg0twhysa8xd97jjg0.1565f0b` succeeded. Production
+runs `058ea37a`; the migration job succeeded and read-only receipt verification
+confirmed all ten approved migrations. API, Global API, shell and document worker
+are each 2/2 ready and updated. The three application Argo resources were
+Synced/Healthy. Pre-rollout captures and promotion/migration receipts are private in
 `~/.helivanta/staff-management-20261027/foundation-rollout-1a632554/`.
 Credential migrations 0071/0072 are separate and have no production approval.
+
+Normal production owner UI created and edited one inactive synthetic pharmacist;
+Pharma's read-only canonical source displayed that same edited record after
+reload. A read-only database check confirmed exactly one matching record at
+version 2, inactive. Normal Organization UI registered the existing synthetic
+hospital reference, received its verified source observation, created a synthetic
+Pharma department and saved revision 2. History retained both names and UTC
+effective times; the edited department survived reload. No new account link,
+professional acceptance, operating grant or Staff activation was created.
+See [production acceptance evidence](2026-11-02-staff-foundation-production.md).
 
 ## Credential subject review correction in progress — 2026-11-02
 

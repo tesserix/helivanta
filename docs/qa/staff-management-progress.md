@@ -28,7 +28,10 @@ mapping-control denial without expanded permissions. Positive mapping-reader UI
 acceptance remains open. The CI formatting failure is corrected locally; a fresh
 21-task web lint/format/typecheck gate and scoped Go vet/lint passed. The full
 follow-up race run passed (Workforce 578.404s; Organization 17.593s), with
-contract/generator parity and a clean changed-file secret scan.
+contract/generator parity and a clean changed-file secret scan. Additional command
+tests cover actor rebinding, stale HR revisions, stable historical retries and
+concurrent distinct command keys committing one pending version. The actor guard
+was mutation-tested; the refreshed full Workforce race suite passed.
 
 Two additive migrations are persisted: Workforce 0070 and Organization 0004.
 They are applied only to local synthetic QA/disposable tests. Source inventory is

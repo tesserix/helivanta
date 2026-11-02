@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ type departmentReplyFixture struct {
 
 func pendingDepartmentReply(t *testing.T, module platform.Module) departmentReplyFixture {
 	t.Helper()
-	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {workforce.PermHospitalManage, workforce.PermMasterManage}}, Modules: []platform.Module{module}})
+	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{Tokens: map[string]string{"admin": testutil.TenantA, "other": testutil.TenantA}, Perms: map[string][]authz.Permission{"admin": {workforce.PermHospitalManage, workforce.PermMasterManage}, "other": {workforce.PermMasterManage}}, Modules: []platform.Module{module}})
 	hospital, master := uuid.NewString(), uuid.NewString()
 	base := "/v1/workforce/hospitals/" + hospital
 	require.Equal(t, 200, testutil.Do(r, "PUT", base, "admin", `{"name":"Synthetic Department Reply Hospital"}`).Code)
@@ -186,4 +187,65 @@ func TestOldDepartmentReplyCannotOverwriteNewerMappingOrTerminalObservation(t *t
 	require.NoError(t, err)
 	require.Error(t, f.apply(t, contradiction))
 	require.JSONEq(t, old, testutil.Do(f.router, "GET", f.path, "admin", "").Body.String())
+}
+
+func TestDepartmentCommandRejectsActorRebindingAndStaleHRSource(t *testing.T) {
+	f := pendingDepartmentReply(t, workforce.New())
+	base := "/v1/workforce/hospitals/" + f.row.HospitalID.String()
+	require.Equal(t, 200, testutil.Do(f.router, "PUT", base+"/access/user-other", "admin", `{"level":"manager"}`).Code)
+	require.Equal(t, 409, testutil.Do(f.router, "PUT", f.path, "other", f.body).Code, "another authorized manager cannot take over the retained command")
+	require.NoError(t, f.apply(t, f.event(t, true)))
+	original := testutil.Do(f.router, "GET", f.path, "admin", "").Body.String()
+	masterPath := base + "/hr/masters/" + f.row.MasterID.String()
+	w := testutil.Do(f.router, "PUT", masterPath, "admin", `{"expected_version":1,"kind":"department","code":"SYN-REPLY","name":"Synthetic Updated Source","active":true}`)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var source struct {
+		RevisionID string `json:"revision_id"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &source))
+	newPath := masterPath + "/department-links/" + uuid.Must(uuid.NewV7()).String()
+	stale := strings.Replace(f.body, `"expected_version":0`, `"expected_version":1`, 1)
+	require.Equal(t, 409, testutil.Do(f.router, "PUT", newPath, "admin", stale).Code)
+	require.Equal(t, 404, testutil.Do(f.router, "GET", newPath, "admin", "").Code)
+	current := strings.Replace(stale, f.row.MasterRevisionID.String(), source.RevisionID, 1)
+	w = testutil.Do(f.router, "PUT", newPath, "admin", current)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"version":2`)
+	require.JSONEq(t, original, testutil.Do(f.router, "GET", f.path, "admin", "").Body.String(), "old source remains retained evidence")
+	require.JSONEq(t, original, testutil.Do(f.router, "PUT", f.path, "admin", f.body).Body.String(), "exact historical retries remain stable")
+}
+
+func TestConflictingNewDepartmentCommandsCommitOnePendingVersion(t *testing.T) {
+	f := pendingDepartmentReply(t, workforce.New())
+	require.NoError(t, f.apply(t, f.event(t, true)))
+	prefix := strings.TrimSuffix(f.path, f.row.RequestID.String())
+	body := strings.Replace(f.body, `"expected_version":0`, `"expected_version":1`, 1)
+	paths := []string{prefix + uuid.Must(uuid.NewV7()).String(), prefix + uuid.Must(uuid.NewV7()).String()}
+	codes := make([]int, len(paths))
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range paths {
+		wg.Go(func() { <-start; codes[i] = testutil.Do(f.router, "PUT", paths[i], "admin", body).Code })
+	}
+	close(start)
+	wg.Wait()
+	require.ElementsMatch(t, []int{200, 409}, codes)
+	for i, path := range paths {
+		w := testutil.Do(f.router, "GET", path, "admin", "")
+		if codes[i] == 200 {
+			require.Equal(t, 200, w.Code, w.Body.String())
+			require.Contains(t, w.Body.String(), `"version":2`)
+			require.Contains(t, w.Body.String(), `"status":"pending"`)
+		} else {
+			require.Equal(t, 404, w.Code, w.Body.String())
+		}
+	}
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table("workforce_audit").Where("action='workforce.department_link.requested'").Count(&count).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 2, count, "one original and one winning command audit")
+		return nil
+	}))
 }

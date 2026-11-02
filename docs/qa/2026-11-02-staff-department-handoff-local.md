@@ -164,8 +164,11 @@ scanned all eight changed files with redaction enabled and found no leaks.
 
 Owner/manager and existing reviewer HR read-only browser journeys are accepted
 above. Foreign scope has handler/component evidence. Positive read-only mapping
-browser access and the remaining command matrix (stale HR source, actor rebinding
-and conflicting concurrent new commands) are not claimed complete. The parent
+browser access remains unverified. The command matrix additionally passed a
+stale HR revision refusal, exact historical receipt retry, authorized-actor
+rebinding refusal and concurrent different-key commands committing one pending
+version/audit. Removing the actor-binding check makes the regression fail (200
+instead of 409); production code was restored before the full race run. The parent
 Staff objective still requires actual HR-reference migration consumers, canonical effective postings,
 standalone employer scope, Pharma professional/evidence review, assistant/PIC
 duties, current lifecycle cutoffs and the Staff audit workspace. Mapping historical

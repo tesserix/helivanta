@@ -9434,6 +9434,40 @@
           "creates_tables": [
             "workforce_department_links"
           ]
+        },
+        {
+          "id": "0071_workforce_credential_subject_independence",
+          "sql_sha256": "8b747aa1fe61aae24cf7ba72e02b6a3dbbd98f36cd1553e4c30c5aef13d5ce86",
+          "creates_tables": []
+        },
+        {
+          "id": "0072_workforce_credential_subject_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_login_links_credential_subject",
+              "table": "workforce_login_links",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "staff_id",
+                  "descending": false
+                },
+                {
+                  "name": "subject",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

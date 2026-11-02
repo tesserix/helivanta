@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,15 +42,20 @@ type credentialStaff struct{ id, credential string }
 
 func newCredentialFixture(t *testing.T) *credentialFixture {
 	t.Helper()
+	return newCredentialFixtureWithRoles(t, nil)
+}
+
+func newCredentialFixtureWithRoles(t *testing.T, roles platform.RoleLister) *credentialFixture {
+	t.Helper()
 	cloud := testinfra.NewGCSProtocol(t)
 	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	hr := []authz.Permission{workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermRosterManage}
+	hr := []authz.Permission{workforce.PermHospitalManage, workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermRosterManage, workforce.PermLoginLinkManage}
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
-		Tokens: map[string]string{"hr": testutil.TenantA, "reviewer": testutil.TenantA, "enrol-only": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
+		Tokens: map[string]string{"hr": testutil.TenantA, "reviewer": testutil.TenantA, "enrol-only": testutil.TenantA, "reader": testutil.TenantA, "independent": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms: map[string][]authz.Permission{"hr": append(hr, workforce.PermCredentialReview), "reviewer": {workforce.PermEnrollmentManage, workforce.PermDocumentManage, workforce.PermCredentialReview},
-			"enrol-only": {workforce.PermEnrollmentManage}, "reader": {workforce.PermEnrollmentManage, workforce.PermCredentialReview}, "foreign": append(hr, workforce.PermCredentialReview)},
-		Modules: []platform.Module{workforce.New()}, Documents: files,
+			"enrol-only": {workforce.PermEnrollmentManage, workforce.PermLoginLinkReview}, "independent": {workforce.PermCredentialReview}, "reader": {workforce.PermEnrollmentManage, workforce.PermCredentialReview}, "foreign": append(hr, workforce.PermCredentialReview)},
+		Modules: []platform.Module{workforce.New()}, Documents: files, Roles: roles,
 	})
 	var database string
 	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw(`SELECT current_database()`).Scan(&database).Error }))
@@ -64,7 +70,7 @@ func newCredentialFixture(t *testing.T) *credentialFixture {
 	for _, base := range []string{f.base, f.other} {
 		require.Equal(t, 200, testutil.Do(r, "PUT", base, "hr", `{"name":"Synthetic Credential Hospital"}`).Code)
 	}
-	for user, level := range map[string]string{"hr": "manager", "reviewer": "manager", "enrol-only": "manager", "reader": "reader"} {
+	for user, level := range map[string]string{"hr": "manager", "reviewer": "manager", "enrol-only": "manager", "independent": "manager", "reader": "reader"} {
 		require.Equal(t, 200, testutil.Do(r, "PUT", f.base+"/access/user-"+user, "hr", `{"level":"`+level+`"}`).Code)
 	}
 	return f
@@ -222,6 +228,7 @@ func TestCredentialReviewNeedsASecondPersonAndUpdatesEnrollment(t *testing.T) {
 	code, out = f.decide(s, review, "hr", 0, "approve", "")
 	require.Equal(t, 409, code, out)
 	require.Equal(t, "self_review", out["reason"])
+	require.Empty(t, f.payloads(workforce.CredentialValidityChanged), "refused subject decisions publish no validity changes")
 	code, out = f.decide(s, review, "enrol-only", 0, "approve", "")
 	require.Equal(t, 403, code, out)
 	code, out = f.decide(s, review, "reviewer", 1, "approve", "")
@@ -476,4 +483,164 @@ func TestCredentialDatabaseGuards(t *testing.T) {
 	requireGuard(t, write(true, `UPDATE workforce_enrollment_credentials SET valid_until='2040-01-01' WHERE staff_id='`+s.id+`'`), "workforce_credential_reviewed", "enrollment row follows the reviewed record")
 	requireGuard(t, write(true, `UPDATE workforce_credential_validity SET valid_until='2040-01-01',version=2 WHERE staff_id='`+s.id+`'`), "only by approving a review", "validity must match an approved review")
 	requireGuard(t, write(true, `DELETE FROM workforce_credential_reviews WHERE staff_id='`+s.id+`'`), "", "reviews are never deleted")
+}
+
+func TestCredentialSubjectCannotDecideOwnReviewThroughCurrentOrRetainedLogin(t *testing.T) {
+	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), "credential-independence-"+uuid.NewString())
+	require.NoError(t, err)
+	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
+	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-reviewer", authz.RoleStaffMember))
+	f := newCredentialFixtureWithRoles(t, fga)
+	s := f.enrol("CRED-SELF-SUBJECT")
+	file := f.evidence(s, cleanScan)
+	review, code, out := f.propose(s, "hr", reviewBody(0, "2032-12-31", file))
+	require.Equal(t, 200, code, out)
+	link := f.base + "/staff/" + s.id + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+	code, out = f.call("PUT", link, "hr", map[string]any{"subject": "user-reviewer", "reason": "Synthetic subject association"})
+	require.Equal(t, 200, code, out)
+	direct := f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-reviewer',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true)`, f.hospital).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE workforce_credential_reviews SET status='approved',approved_version=1,decided_by_subject='user-reviewer',decided_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, f.hospital, review).Error
+	})
+	requireGuard(t, direct, "credential_review_subject_independent", "direct SQL cannot approve a subject's own credential")
+	spoof := f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-reviewer',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true)`, f.hospital).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`UPDATE workforce_credential_reviews SET status='approved',approved_version=1,decided_by_subject='user-independent',decided_at=clock_timestamp() WHERE tenant_id=? AND hospital_id=? AND id=?`, testutil.TenantA, f.hospital, review).Error
+	})
+	requireGuard(t, spoof, "credential_review_actor", "direct SQL cannot spoof an unrelated decision actor")
+
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-reviewer',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true),set_config('app.workforce_login_link_access','sentinel',true)`, f.hospital).Error; err != nil {
+			return err
+		}
+		var result struct {
+			Conflict bool
+			Purpose  string
+		}
+		if err := tx.Raw(`SELECT workforce_credential_subject_conflict(?,?,?,?) AS conflict,current_setting('app.workforce_login_link_access',true) AS purpose`, testutil.TenantA, f.hospital, s.id, "user-reviewer").Scan(&result).Error; err != nil {
+			return err
+		}
+		require.True(t, result.Conflict)
+		var purpose string
+		if err := tx.Raw(`SELECT current_setting('app.workforce_login_link_access',true)`).Scan(&purpose).Error; err != nil {
+			return err
+		}
+		require.Equal(t, "sentinel", purpose, "association lookup restores the prior purpose")
+		return nil
+	}))
+	for _, state := range []string{"pending", "active", "revoked"} {
+		if state != "pending" {
+			actor, decision, expected := "enrol-only", "approve", 1
+			if state == "revoked" {
+				actor, decision, expected = "hr", "revoke", 2
+			}
+			code, out = f.call("POST", link+"/decision", actor, map[string]any{"expected_version": expected, "decision": decision, "reason": "Synthetic association lifecycle"})
+			require.Equal(t, 200, code, out)
+		}
+		for _, decision := range []string{"approve", "reject"} {
+			code, out = f.decide(s, review, "reviewer", 0, decision, "Synthetic subject decision must be refused")
+			require.Equal(t, 409, code, "%s link: %s: %v", state, decision, out)
+			require.Equal(t, "self_review", out["reason"])
+		}
+	}
+	require.Empty(t, f.payloads(workforce.CredentialValidityChanged), "refused subject decisions publish no validity changes")
+	code, out = f.decide(s, review, "enrol-only", 0, "approve", "")
+	require.Equal(t, 403, code, out, "association checks do not replace the review permission")
+	code, out = f.decide(s, review, "hr", 0, "approve", "")
+	require.Equal(t, 409, code, out, "proposer separation remains enforced")
+	code, out = f.decide(s, review, "independent", 0, "approve", "")
+	require.Equal(t, 200, code, out, "unrelated permitted reviewer can decide")
+	require.Equal(t, "approved", out["status"])
+}
+
+func TestCredentialWithdrawnAndRejectedLoginAssociationsRemainIndependent(t *testing.T) {
+	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), "credential-history-"+uuid.NewString())
+	require.NoError(t, err)
+	require.NoError(t, fga.GrantTenantRole(t.Context(), testutil.TenantA, authz.RoleStaffMember))
+	require.NoError(t, fga.GrantRole(t.Context(), testutil.TenantA, "user-reviewer", authz.RoleStaffMember))
+	f := newCredentialFixtureWithRoles(t, fga)
+	for _, decision := range []string{"withdraw", "reject"} {
+		t.Run(decision, func(t *testing.T) {
+			nested := *f
+			nested.t = t
+			f := &nested
+			s := f.enrol("CRED-HISTORY-" + decision)
+			review, code, out := f.propose(s, "hr", reviewBody(0, "2032-12-31", f.evidence(s, cleanScan)))
+			require.Equal(t, 200, code, out)
+			link := f.base + "/staff/" + s.id + "/login-links/" + uuid.Must(uuid.NewV7()).String()
+			code, out = f.call("PUT", link, "hr", map[string]any{"subject": "user-reviewer", "reason": "Synthetic retained relation"})
+			require.Equal(t, 200, code, out)
+			actor := "enrol-only"
+			if decision == "withdraw" {
+				actor = "hr"
+			}
+			code, out = f.call("POST", link+"/decision", actor, map[string]any{"expected_version": 1, "decision": decision, "reason": "Synthetic retained association"})
+			require.Equal(t, 200, code, out)
+			for _, d := range []string{"approve", "reject"} {
+				code, out = f.decide(s, review, "reviewer", 0, d, "Synthetic self decision refused")
+				require.Equal(t, 409, code, out)
+				require.Equal(t, "self_review", out["reason"])
+			}
+			code, out = f.call("POST", f.reviewPath(s, review, "/withdraw"), "hr", map[string]any{"note": "Synthetic proposer withdrawal"})
+			require.Equal(t, 200, code, out, "proposer withdrawal remains available")
+		})
+	}
+}
+
+func TestCredentialDecisionWaitsForConcurrentLoginAssociation(t *testing.T) {
+	f := newCredentialFixture(t)
+	s := f.enrol("CRED-SUBJECT-RACE")
+	review, code, out := f.propose(s, "hr", reviewBody(0, "2032-12-31", f.evidence(s, cleanScan)))
+	require.Equal(t, 200, code, out)
+	staged, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(release) }) }
+	defer unblock()
+	linkDone := make(chan error, 1)
+	go func() {
+		linkDone <- f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.workforce_subject','user-hr',true),set_config('app.workforce_hospital',?,true),set_config('app.workforce_enrollment','authorized',true),set_config('app.workforce_login_link_access','authorized',true),set_config('app.workforce_login_link_command','manage',true)`, f.hospital).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`INSERT INTO workforce_login_links(tenant_id,hospital_id,staff_id,id,subject,status,version,proposed_by_subject,proposal_reason,actor_subject,reason) VALUES(?,?,?,?,'user-reviewer','pending',1,'user-hr','Synthetic concurrent association','user-hr','Synthetic concurrent association')`, testutil.TenantA, f.hospital, s.id, uuid.Must(uuid.NewV7())).Error; err != nil {
+				return err
+			}
+			close(staged)
+			<-release
+			return nil
+		})
+	}()
+	select {
+	case <-staged:
+	case err := <-linkDone:
+		require.NoError(t, err)
+		t.Fatal("association transaction did not reach the barrier")
+	case <-time.After(5 * time.Second):
+		t.Fatal("association transaction did not stage")
+	}
+	decisionDone := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		decisionDone <- testutil.Do(f.r, "POST", f.reviewPath(s, review, "/decision"), "reviewer", `{"expected_version":0,"decision":"approve","note":""}`)
+	}()
+	require.Eventually(t, func() bool {
+		var blocked int64
+		err := f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND query LIKE '%SELECT workforce_credential_subject_conflict%'`).Scan(&blocked).Error
+		})
+		return err == nil && blocked > 0
+	}, 5*time.Second, 10*time.Millisecond, "decision must wait for the uncommitted association Staff lock")
+	unblock()
+	require.NoError(t, <-linkDone)
+	select {
+	case w := <-decisionDone:
+		require.Equal(t, 409, w.Code, w.Body.String())
+		require.Contains(t, w.Body.String(), `"reason":"self_review"`)
+	case <-time.After(5 * time.Second):
+		t.Fatal("decision did not resume after association committed")
+	}
+	require.Empty(t, f.payloads(workforce.CredentialValidityChanged))
 }

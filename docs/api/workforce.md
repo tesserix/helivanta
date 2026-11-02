@@ -858,6 +858,19 @@ This development candidate has not been rolled out to production.
 
 Design: [credential validity spec](../superpowers/specs/2026-10-20-credential-validity-design.md) (#1108 slice A). UI: Credentials on each staff row of `/workforce`, and `/workforce/credentials` for the register.
 
+Decision independence also excludes the Staff subject: a reviewer with any
+retained login-link association to the Staff record (pending, active, rejected,
+withdrawn or revoked) cannot approve or reject its credential review. This uses
+the existing 409 `self_review` response; permission and hospital-manager checks
+still apply. SQL binds the decision actor and enforces the association check;
+concurrent association and review commands serialize on the Staff row. Exact
+successful decision retries preserve their historical receipt, and proposer
+withdrawal remains available. Migration
+`0071_workforce_credential_subject_independence` adds the guard without rewriting
+old reviews. Concurrent index migration `0072_workforce_credential_subject_index`
+bounds retained-association lookup by exact tenant/hospital/Staff/subject. This does not activate Pharma duties or certify existing approvals.
+
+
 | Route                                                                 | Permission                                                 | Behaviour                                                                                                                                                                                                                                                                                                         |
 | --------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /workforce/hospitals/{hospital}/staff/{id}/credentials`          | `workforce.enrollment.manage` and hospital manager         | `time_zone`, `local_date` and each enrolled credential with its `reviewed` record, `status`, `days_remaining` and `pending` review; audited                                                                                                                                                                       |

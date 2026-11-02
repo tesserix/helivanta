@@ -72,3 +72,49 @@ Every response is served `Cache-Control: no-store`. Every write takes the per-cr
 - Reminder thresholds, durable reminders and delivery channels (slice B).
 - Roster credential conflicts (slice C, closes the #1108 part of #1036).
 - Staff self-service and automatic privilege or employment changes, which the story excludes.
+
+## Reviewer subject independence correction (2026-11-02)
+
+Source review for Pharma specialization found that the existing decision checks
+only separate the proposer from the reviewer. A Staff subject with review
+permission and a hospital-manager grant could approve a review prepared by
+someone else for their own linked Staff identity. This is an implementation gap,
+not a new authority grant. Reproduce through normal credential and login-link
+commands before applying the correction.
+
+Workforce remains the single credential/evidence owner. Scope is the exact
+verified tenant, hospital and Staff record. Credential decisions continue to need
+`workforce.credentials.review` plus a locked current hospital-manager grant;
+missing permission is 403, invisible scope is 404 and a subject/proposer conflict
+is the existing 409 `self_review`. No Pharma permission or product acceptance is
+created. Protect review evidence and prevent insiders using their own or retained
+login association to decide eligibility. Other-tenant/hospital associations never
+become authority or disclose their contents.
+
+Refuse approval and rejection by any subject with a retained login link to the
+reviewed Staff record, including pending, active, withdrawn, rejected or revoked
+links. Keep proposer withdrawal and independent reviewer behavior. Preserve
+historical decided records and receipt retries; this correction does not certify
+or rewrite old approvals. Concurrent new login associations and decisions lock
+the same Staff row. Enforce the check at the SQL decision boundary as well as
+through the handler; temporarily enabling the existing manager-only login-link
+read purpose must be restored before other work.
+
+Use the existing bounded request and Staff planning budgets (50 peak requests/s,
+80:20 read/write, p99 <500 ms, 99.9% availability). The association lookup uses the
+exact tenant/hospital/Staff/subject covering index and returns one boolean; no new
+service, store or network dependency. Append guard migration 0071 and concurrent lookup-index migration 0072,
+retaining already applied SQL. The existing chronological Staff index alone does
+not bound a lookup for an absent subject across retained association history. Revert exposure/code while retaining the additive guard and evidence;
+no destructive down migration. Apply only to disposable/local databases until a
+named production migration/rollout is approved.
+
+Acceptance: reproduce own-subject approval; refuse both decisions with current
+and retained associations; independent decision and proposer withdrawal still
+work; actor remains permission/scope checked; direct SQL cannot bypass; a
+concurrent association cannot slip through a stale precheck; failed decisions
+leave pending state, reviewed validity, audit and outbox unchanged. Verify with
+real Postgres and real OpenFGA membership for normal login-link commands. Normal
+local UI evidence is required before claiming this correction accepted. Full
+Pharma professional acceptance and operational lifecycle checks remain separate
+unfinished work under #418.

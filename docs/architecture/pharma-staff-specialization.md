@@ -144,3 +144,17 @@ intentional weakened-permission mutation was observed failing before the intact
 route passed. See [scope and evidence](../qa/2026-11-02-pharma-shared-staff-local.md#existing-pharma-authorization-boundary--real-openfga).
 This harness uses explicit authenticated test identities; signed-session IAM,
 professional eligibility and lifecycle cutoff acceptance remain separate.
+
+## Credential source correction in progress (2026-11-02)
+
+Pharma professional acceptance must consume Workforce's credential/evidence
+reviews. Source verification exposed a self-subject approval gap there: a Staff
+subject could decide a proposal made by another manager. The regression returned
+200 before the correction. The pending fix adds retained-login association and
+SQL actor/serialization guards in Workforce migration 0071, with existing 409
+`self_review` behavior. Focused Postgres/OpenFGA membership tests cover current
+and retained associations, independent approval, proposer withdrawal, direct SQL
+and concurrent association. Local browser acceptance passed subject refusal, proposer withdrawal and
+unrelated positive review; the full owner race suite passed in 640.319s. No outlet-specific professional acceptance,
+effective posting, lifecycle projection or operational bypass is added by this
+source correction. #418 remains open.

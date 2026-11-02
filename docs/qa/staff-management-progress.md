@@ -1,5 +1,28 @@
 # Staff Management delivery tracker
 
+## Approved foundation rollout — 2026-11-02
+
+PR #1521 passed all required checks and merged as `058ea37a` after explicit
+approval of head `1a632554` and its six additive migrations (Organization
+0001–0004; Workforce 0069–0070). Main starts the image/deploy-branch pipeline;
+production image, migration and browser verification remain in progress. The
+pre-rollout API, shell, document-worker and Argo state was captured privately in
+`~/.helivanta/staff-management-20261027/foundation-rollout-1a632554/`.
+Credential migrations 0071/0072 are separate and have no production approval.
+
+## Credential subject review correction in progress — 2026-11-02
+
+A source review for Pharma specialization reproduced self-subject credential
+approval despite proposer separation (200 instead of 409). Workforce migration
+0071 and handler/SQL guards now refuse decisions through any retained Staff login
+association and bind the decision actor. Focused tests include association races,
+direct SQL and independent positive review. Local browser QA passed both subject
+decision refusals, normal withdrawal and unrelated positive review with retained
+history. The full owner race suite passed in 640.319s; vet/lint, build and contract
+parity passed. No merge, production activation or completed Pharma duty workflow
+is claimed. See [local evidence](2026-11-02-credential-subject-independence-local.md).
+Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## HR department handoff — 2026-11-02, active source candidate
 
 Workforce now retains explicit versioned HR-to-Organization mapping requests,

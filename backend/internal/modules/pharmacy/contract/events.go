@@ -135,6 +135,37 @@ type PrescriptionImageChangedData struct {
 	Status string `json:"status"`
 }
 
+// SubjectLicenceEvidenceScanRequested asks the pharmacy evidence worker to scan
+// one immutable outlet licence image (#1391).
+const SubjectLicenceEvidenceScanRequested = "helivanta.in.pharmacy.licence_evidence_scan_requested.v1"
+
+// SubjectLicenceEvidenceChanged records a page's scan outcome.
+const SubjectLicenceEvidenceChanged = "helivanta.in.pharmacy.licence_evidence_changed.v1"
+
+// LicenceEvidenceScanRequestedData carries IDs only, never licence numbers,
+// pharmacist registration details, filenames or content.
+type LicenceEvidenceScanRequestedData struct {
+	OutletID    string `json:"outlet_id"`
+	LicenceID   string `json:"licence_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
+}
+
+// LicenceEvidenceScanInput is the worker's whole input, including the tenant.
+type LicenceEvidenceScanInput struct {
+	TenantID    string `json:"tenant_id"`
+	OutletID    string `json:"outlet_id"`
+	LicenceID   string `json:"licence_id"`
+	FileID      string `json:"file_id"`
+	ScanAttempt int64  `json:"scan_attempt"`
+}
+
+// LicenceEvidenceChangedData adds the bounded lifecycle status.
+type LicenceEvidenceChangedData struct {
+	LicenceEvidenceScanRequestedData
+	Status string `json:"status"`
+}
+
 // SubjectCreditNoteIssued identifies a counter credit note for goods returned (#1386 C-1).
 const SubjectCreditNoteIssued = "helivanta.in.pharmacy.credit_note_issued.v1" //nolint:gosec // an event subject name, not a credential value
 

@@ -130,3 +130,27 @@ func TestPharmacyOutletObjectKeyKeepsPrescriptionsOutOfHospitalPaths(t *testing.
 	require.Error(t, err)
 	require.Empty(t, rejected)
 }
+
+func TestPharmacyLicenceObjectKeyCannotAliasPrescriptionWithIdenticalIDs(t *testing.T) {
+	scope := attachments.ObjectScope{
+		TenantID: uuid.Must(uuid.NewV7()), OwnerKind: "pharmacy_outlet", OwnerID: uuid.Must(uuid.NewV7()),
+		RecordID: uuid.Must(uuid.NewV7()), FileID: uuid.Must(uuid.NewV7()), Version: 1,
+		UploadedAt: time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC),
+	}
+	prescription, err := attachments.ObjectKey(scope)
+	require.NoError(t, err)
+	scope.RecordKind = "licence"
+	licence, err := attachments.ObjectKey(scope)
+	require.NoError(t, err)
+	require.NotEqual(t, prescription, licence)
+	require.Equal(t, "t/"+scope.TenantID.String()+"/o/pharmacy_outlet/"+scope.OwnerID.String()+"/k/licence/r/"+scope.RecordID.String()+"/d/2026/11/01/f/"+scope.FileID.String()+"/v/1", licence)
+	for _, kind := range []string{"prescription", "../licence", "licence/../../patient"} {
+		scope.RecordKind = kind
+		_, err = attachments.ObjectKey(scope)
+		require.Error(t, err)
+	}
+	scope.RecordKind = "licence"
+	scope.OwnerKind = "organisation"
+	_, err = attachments.ObjectKey(scope)
+	require.Error(t, err)
+}

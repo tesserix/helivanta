@@ -102,6 +102,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 		evidence = deps.Documents
 	}
 	prescriptionImageRoutes(s, h, evidence)
+	licenceEvidenceRoutes(s, h, evidence)
 }
 
 func decodeCatalogue(c *gin.Context, in any) bool {

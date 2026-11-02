@@ -77,6 +77,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	licenceProcessor, err := pharmacy.NewLicenceEvidenceProcessor(ctx, db, files, scanner)
+	if err != nil {
+		return err
+	}
 	startup, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	c, err := client.DialContext(startup, client.Options{HostPort: cfg.TemporalAddress, Namespace: cfg.TemporalNamespace, Logger: slog.Default()})
@@ -87,6 +91,8 @@ func run() error {
 	w := worker.New(c, pharmacy.PrescriptionImageTaskQueue, worker.Options{MaxConcurrentActivityExecutionSize: 2, WorkerStopTimeout: 90 * time.Second})
 	w.RegisterWorkflowWithOptions(pharmacy.PrescriptionImageWorkflow, workflow.RegisterOptions{Name: pharmacy.PrescriptionImageWorkflowName})
 	w.RegisterActivityWithOptions(processor.ProcessActivity, activity.RegisterOptions{Name: pharmacy.PrescriptionImageActivityName})
+	w.RegisterWorkflowWithOptions(pharmacy.LicenceEvidenceWorkflow, workflow.RegisterOptions{Name: pharmacy.LicenceEvidenceWorkflowName})
+	w.RegisterActivityWithOptions(licenceProcessor.ProcessActivity, activity.RegisterOptions{Name: pharmacy.LicenceEvidenceActivityName})
 	if err := w.Start(); err != nil {
 		return errors.New("private pharmacy evidence workflow worker unavailable")
 	}

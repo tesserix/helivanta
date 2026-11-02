@@ -525,6 +525,7 @@ Approve full sales/returns/recalls/expiry release, signed prescription fulfillme
 
 ### Registration envelope compatibility
 
+
 Patientmaster publishes its existing ID-only registration payload on
 `helivanta.in.patientmaster.registered.v1` with envelope type `PatientRegistered`.
 The subject routes delivery; it is not the envelope type. Both owner publication
@@ -540,3 +541,34 @@ producer/consumer serialization compatibility; broader broker/UI and deployment
 acceptance remain separate gates. The consumer still grants no dispensing or
 hospital affiliation authority; sales independently require current verified
 scope and all existing stock/financial controls.
+
+### Outlet licence image processing (#1391, processing slice)
+
+Pharmacy owns one immutable PNG/JPEG evidence image (up to 10 MiB) per outlet
+licence declaration. `PUT /licences/:id/evidence/:file` records the exact filename,
+media type, size and SHA-256 intent; the `/content` PUT accepts only those bytes.
+The outlet prefix is the same as other catalogue commands. Writes require
+`pharmacy.licence.manage` and an outlet editor grant. Evidence listing and
+`/download` require `pharmacy.licence.evidence.read` (Pharmacy owner role) plus a
+current outlet read grant; every successful download is audited and reauthorized
+after the private-object read. Foreign tenant/outlet/record references remain 404.
+
+Files stay quarantined until the dedicated Pharmacy evidence worker records an
+exact-generation scan and guarded release. The new licence workflow shares the
+existing bounded Pharmacy worker queue; it has a distinct workflow/activity name,
+ID tuple and restricted table grants. Scan-error retries use the next canonical
+attempt; malware rejection cannot be retried into approval. A corrected document
+requires a new declaration, retaining the original file and history. Downloads
+never expose bucket paths, hashes or public URLs. Licence keys use the separate
+`pharmacy_outlet/.../k/licence/r/...` namespace, preventing identical caller-chosen
+licence/prescription/file IDs from aliasing stored bytes.
+
+The new scan-request/outcome events carry only tenant/outlet/licence/file IDs,
+attempt and closed lifecycle status. Licence numbers, registration details,
+filenames, hashes and bytes are excluded from events and Temporal history.
+Existing prescription paths and completed licence decisions are preserved.
+
+This processing slice does **not** enforce clean evidence at the licence-review
+boundary. The review gate, user interface and renewal advice are the next slice;
+#1391 remains open until they and their browser/worker acceptance are complete.
+Deploy and accept this worker capability before enabling that gate.

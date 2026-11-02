@@ -400,6 +400,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines":                                          "a counter lookup bounded to the 50 newest dispensable lines of one product",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id":                                                 "one prescription record; the prescriptions list is paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download":                           "the bytes of one released page, not a collection",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download":                              "one generation-bound released licence image, bounded to 10 MiB and audited",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status":                                                    "one outlet's licence state for today; licences themselves use cursor pagination",
 	"GET /medicore/hospitals/:hospital/patients/:patient/allergies":                                                        "one patient's allergy status and active entries; audited read",
 	"GET /medicore/hospitals/:hospital/patients/:patient/allergies/:id/history":                                            "one allergy entry's versions; ended by its first correction",

@@ -2,6 +2,11 @@
 
 Status: implementation design; this document does not assert deployed behavior.
 
+Rollout is split deliberately: first deliver the private-file routes, independent
+worker processing and restricted storage/database boundaries; then enforce the
+new-review gate and deliver its UI/renewal advice with updated browser fixtures.
+The processing slice alone does not close #1391 or establish licence approval.
+
 PharmaConnect owns outlet licence declarations and independent decisions. The
 current API retains declaration details but no file, and Pharmacy has no licence
 entry/review UI. SupplyConnect already has private licence images and dated
@@ -11,8 +16,10 @@ renewal advice. No Supply tables or business handlers become Pharmacy dependenci
 
 All commands use the Global API and the verified tenant, pharmacy and outlet.
 The server rechecks the existing outlet grant for every command and download.
-Existing `pharmacy.licence.manage`, `.review` and `.read` permissions remain the
-authority; uploading evidence does not approve a licence. The current four-eyes
+Existing `pharmacy.licence.manage` and `.review` permissions remain the write
+authority. Add `pharmacy.licence.evidence.read` for the existing Pharmacy owner
+role, alongside the outlet read grant. Uploading evidence does not approve a
+licence. The current four-eyes
 database guard remains mandatory. New evidence is Pharmacy-owned private data,
 not a prescription, patient record or general document-library item.
 
@@ -35,7 +42,9 @@ new scan attempt for the same immutable bytes.
 Keep a distinct licence-evidence table with a foreign key to the exact tenant,
 outlet and licence. Do not fabricate a prescription to reuse its image table.
 File paths use the existing `pharmacy_outlet` owner prefix, with the licence ID
-as record ID. File IDs remain unique, and the owner APIs never expose bucket
+as record ID, under a separate `k/licence` record namespace. Identical
+caller-selected licence/prescription/file UUIDs must never alias an object.
+Existing prescription keys remain unchanged. The owner APIs never expose bucket
 paths, raw hashes, credentials or signed download URLs.
 
 The deployed Pharmacy evidence worker gets explicit access to this table and

@@ -15,8 +15,10 @@ Follow the [command and owner specification](../specs/2026-11-02-staff-departmen
 No completion or production activation from a pending request or matched snapshot.
 
 Evidence: [local verification](../../qa/2026-11-02-staff-department-handoff-local.md).
-Manager mapping/history and final guards pass. The remaining command-matrix item
-needs stale HR source, actor-rebinding and conflicting-new-command coverage. The
+Manager mapping/history and final guards pass. The remaining command matrix now passes: stale HR source is refused without a
+receipt; an exact historical retry remains stable; actor rebinding is refused;
+two concurrent new command keys commit one pending mapping/version and audit.
+Removing the actor guard makes its regression fail (200 instead of 409). The
 existing reviewer passed read-only HR/history and mapping-control denial in the
 browser; positive mapping-reader access and canonical posting/migration consumers
 remain open.

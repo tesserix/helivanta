@@ -1224,6 +1224,7 @@ Migration table declarations:
 - `0066_workforce_employment_generations`: `workforce_identity_epochs`, `workforce_employment_review_cohorts`, `workforce_employment_generations`.
 - `0069_workforce_organization_observations`: `workforce_organization_observations`.
 - `0070_workforce_department_links`: `workforce_department_links`.
+- `0072_workforce_credential_subject_index`: concurrent index `workforce_login_links_credential_subject` on `workforce_login_links (tenant_id, hospital_id, staff_id, subject)`.
 
 ## workspace
 

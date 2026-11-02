@@ -88,8 +88,10 @@ it("requires a reason and retains an unchanged command for retry after conflict"
     </NavigationGuardProvider>,
   );
   await screen.findByRole("combobox", { name: "Canonical department or sub-unit" });
-  await user.click(await screen.findByRole("combobox", {name:"Canonical department or sub-unit"}));
-  await user.click(screen.getByRole("option", {name:/Synthetic Structural Pharmacy/}));
+  await user.click(
+    await screen.findByRole("combobox", { name: "Canonical department or sub-unit" }),
+  );
+  await user.click(screen.getByRole("option", { name: /Synthetic Structural Pharmacy/ }));
   await user.click(screen.getByRole("button", { name: "Record department mapping" }));
   expect(writes).toHaveLength(0);
   await user.type(screen.getByLabelText("Mapping reason"), "Synthetic explicit reconciliation");
@@ -112,8 +114,10 @@ it("shows pending snapshot evidence without claiming Staff posting or authority"
       <DepartmentHandoff hospital={hospital} master={master} onClose={() => {}} />
     </NavigationGuardProvider>,
   );
-  await user.click(await screen.findByRole("combobox", {name:"Canonical department or sub-unit"}));
-  await user.click(screen.getByRole("option", {name:/Synthetic Structural Pharmacy/}));
+  await user.click(
+    await screen.findByRole("combobox", { name: "Canonical department or sub-unit" }),
+  );
+  await user.click(screen.getByRole("option", { name: /Synthetic Structural Pharmacy/ }));
   await user.type(screen.getByLabelText("Mapping reason"), "Synthetic explicit reconciliation");
   await user.click(screen.getByRole("button", { name: "Record department mapping" }));
   expect(await screen.findByText(/Mapping 1: Owner observation pending/)).toBeInTheDocument();
@@ -138,8 +142,10 @@ it("retries the original command after an ambiguous write even when refreshed hi
       <DepartmentHandoff hospital={hospital} master={master} onClose={() => {}} />
     </NavigationGuardProvider>,
   );
-  await user.click(await screen.findByRole("combobox", {name:"Canonical department or sub-unit"}));
-  await user.click(screen.getByRole("option", {name:/Synthetic Structural Pharmacy/}));
+  await user.click(
+    await screen.findByRole("combobox", { name: "Canonical department or sub-unit" }),
+  );
+  await user.click(screen.getByRole("option", { name: /Synthetic Structural Pharmacy/ }));
   await user.type(screen.getByLabelText("Mapping reason"), "Synthetic ambiguous retry");
   await user.click(screen.getByRole("button", { name: "Record department mapping" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("could not be recorded");

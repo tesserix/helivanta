@@ -47,6 +47,21 @@ Private proof and screenshots are under
 Private QA JSON gained IDs/evidence metadata atomically with mode 600; all existing
 credentials were preserved. No credentials are repository artifacts.
 
+## Reviewer browser acceptance
+
+The existing reviewer signed in through the normal local login, retaining its
+Pharmacist and Staff member roles and hospital-reader assignment. HR setup showed
+**Read-only configuration**; Add, Edit and Organization mapping controls were
+absent. The reviewer opened HR revision history and saw revisions 1 and 2. No
+membership, permission, password or business record was changed for this check.
+Private screenshots: `department-handoff-reviewer-readonly.png` and
+`department-handoff-reviewer-history.png` in the evidence directory above.
+
+This accepts reader HR vocabulary/history and denial of mapping controls. It does
+not accept positive read-only mapping access: that API requires
+`workforce.master.manage`, which this reviewer does not hold. No broader role was
+added solely to satisfy a fixture.
+
 ## Automated evidence
 
 Observed RED before implementation: missing retained mapping route (404 versus
@@ -110,13 +125,48 @@ production bundle was exercised again in the browser. Existing Vite configuratio
 warnings remain unrelated. Full repository coverage/CI is separate from these
 scoped results; pending GitHub checks are not counted as success.
 
+## Additional observation recovery matrix
+
+Real Postgres/registered-consumer tests now cover retained first-answer replay
+after the Organization source changes, changed request identity, malformed event
+claims, omitted/null/non-boolean answers, mismatched tenant/hospital/master/source
+pins, contradictory terminal replies and old replies arriving after newer mapping
+versions. Organization audit/outbox faults roll back observations and replies;
+Workforce observation-audit faults preserve pending state. Replaying after repair
+succeeds and duplicate replies retain one business audit.
+
+Both retained-identity comparisons were temporarily disabled independently. The
+corresponding tests failed because a changed identity was accepted; production
+code was restored before the green tests and vet/lint checks. Focused race suites
+passed (Organization 7.951s; Workforce 9.245s). No production handler or migration
+changed in this follow-up.
+
+The CI web failure on `735bd929` was generator Prettier formatting. Formatting was
+corrected, including the affected UI test. Missing isolated-worktree dependency
+links were restored from an existing cache with identical manifests and lockfile;
+no dependencies or test images were downloaded. Fresh
+`pnpm turbo lint format:check type-check --concurrency=2 --force` passed all 21
+tasks with no cache hits. Scoped Go vet/lint and generator/contractdocs parity
+passed. The full follow-up race run passed: Organization 17.593s and Workforce
+578.404s, using:
+
+```sh
+go test -race -timeout=20m ./internal/modules/organization ./internal/modules/workforce -count=1
+go vet ./internal/modules/organization ./internal/modules/workforce
+golangci-lint run ./internal/modules/organization/... ./internal/modules/workforce/...
+go run ./cmd/contractdocs -check
+```
+
+`gofmt -l` on the changed Go tests and `git diff --check` were clean. Gitleaks
+scanned all eight changed files with redaction enabled and found no leaks.
+
 ## Boundaries still open
 
-Only the owner/manager browser journey above is accepted here. Reader and foreign
-scope have handler/component evidence; a separate read-only manager/reviewer
-browser session, complete observation fault matrix and organization-side
-audit/outbox fault injection are not claimed. The parent Staff objective still
-requires actual HR-reference migration consumers, canonical effective postings,
+Owner/manager and existing reviewer HR read-only browser journeys are accepted
+above. Foreign scope has handler/component evidence. Positive read-only mapping
+browser access and the remaining command matrix (stale HR source, actor rebinding
+and conflicting concurrent new commands) are not claimed complete. The parent
+Staff objective still requires actual HR-reference migration consumers, canonical effective postings,
 standalone employer scope, Pharma professional/evidence review, assistant/PIC
 duties, current lifecycle cutoffs and the Staff audit workspace. Mapping historical
 catalog revisions does not complete any of those requirements.

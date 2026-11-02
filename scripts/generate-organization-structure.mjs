@@ -31,7 +31,9 @@ for (const [owner, key] of [
 ]) {
   const output = emitModels(contract[key]);
   const file = `backend/internal/modules/${owner}/contract/organization_reference_generated.go`;
-  const imports = output.go.includes("time.Time") ? 'import("time";"github.com/google/uuid")\n' : 'import "github.com/google/uuid"\n';
+  const imports = output.go.includes("time.Time")
+    ? 'import("time";"github.com/google/uuid")\n'
+    : 'import "github.com/google/uuid"\n';
   const source = header + "package contract\n" + imports + output.go;
   const formatted = execFileSync("gofmt", [], { input: source, encoding: "utf8" });
   if (process.argv.includes("--check")) {

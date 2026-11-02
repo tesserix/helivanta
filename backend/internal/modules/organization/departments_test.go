@@ -25,6 +25,11 @@ func departmentHarness(t *testing.T) (*gin.Engine, *tenantdb.DB, context.Context
 }
 func departmentHarnessWithModule(t *testing.T, module platform.Module) (*gin.Engine, *tenantdb.DB, context.Context, string) {
 	t.Helper()
+	r, db, _, ctx, hospital := departmentHarnessWithBus(t, module)
+	return r, db, ctx, hospital
+}
+func departmentHarnessWithBus(t *testing.T, module platform.Module) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context, string) {
+	t.Helper()
 	r, db, bus, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens:  map[string]string{"manager": testutil.TenantA, "reader": testutil.TenantA, "foreign": testutil.TenantB},
 		Perms:   map[string][]authz.Permission{"manager": {"organization.structure.manage", "organization.structure.read"}, "reader": {"organization.structure.read"}, "foreign": {"organization.structure.manage", "organization.structure.read"}},
@@ -43,7 +48,7 @@ func departmentHarnessWithModule(t *testing.T, module platform.Module) (*gin.Eng
 		evt := events.Event{Type: consumer.Subject, Version: 1, TenantID: testutil.TenantA, Data: data}
 		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error { return consumer.Handle(ctx, tx, evt) }))
 	}
-	return r, db, ctx, hospital
+	return r, db, bus, ctx, hospital
 }
 func departmentPath(hospital, node, revision string) string {
 	return "/v1/organization/hospitals/" + hospital + "/departments/" + node + "/revisions/" + revision

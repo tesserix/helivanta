@@ -20,6 +20,16 @@ before the navigation correction). Normal manager browser create/map/reload/edit
 historical-reference and unsaved-navigation checks passed on the production bundle.
 See [exact local evidence and remaining acceptance](2026-11-02-staff-department-handoff-local.md).
 
+Additional recovery tests now cover malformed/mismatched and reordered replies,
+retained first-answer repair, Organization audit/outbox rollback and Workforce
+observation-audit rollback/replay. Both identity guards were mutation-tested.
+The existing reviewer passed normal local sign-in, read-only HR/history and
+mapping-control denial without expanded permissions. Positive mapping-reader UI
+acceptance remains open. The CI formatting failure is corrected locally; a fresh
+21-task web lint/format/typecheck gate and scoped Go vet/lint passed. The full
+follow-up race run passed (Workforce 578.404s; Organization 17.593s), with
+contract/generator parity and a clean changed-file secret scan.
+
 Two additive migrations are persisted: Workforce 0070 and Organization 0004.
 They are applied only to local synthetic QA/disposable tests. Source inventory is
 759 surfaces, 17 classified and 742 unclassified. Whole Staff remains 10 partial,

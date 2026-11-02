@@ -1,5 +1,19 @@
 # Staff Management delivery tracker
 
+## Effective posting design — 2026-11-02
+
+The [proposed posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)
+and [delivery plan](../superpowers/plans/2026-11-02-effective-staff-postings.md)
+now trace canonical Staff/employment/posting references, transfers, contractors,
+independent approval, supervision and Pharma duties to current-source enforcement
+through commit. The source audit confirms that current scoped IAM requests are
+hospital-only and legacy Pharma dispense rows lack hospital/outlet lineage;
+neither gap is repaired by the existing outlet helper. The proposed owner-guard
+composition is recorded in [ADR-0052](../adr/0052-staff-source-command-authorization.md)
+with a closed provider boundary and explicit shared-database limitation. No source
+guard, posting API, standalone employer migration or operational acceptance is
+claimed by this design. Whole-Staff completion counts remain unchanged.
+
 ## Approved foundation rollout — 2026-11-02
 
 PR #1521 passed all required checks and merged as `058ea37a` after explicit
@@ -14,7 +28,8 @@ confirmed all ten approved migrations. API, Global API, shell and document worke
 are each 2/2 ready and updated. The three application Argo resources were
 Synced/Healthy. Pre-rollout captures and promotion/migration receipts are private in
 `~/.helivanta/staff-management-20261027/foundation-rollout-1a632554/`.
-Credential migrations 0071/0072 are separate and have no production approval.
+Credential migrations 0071/0072 were excluded from that foundation approval;
+their later separately approved rollout is recorded below.
 
 Normal production owner UI created and edited one inactive synthetic pharmacist;
 Pharma's read-only canonical source displayed that same edited record after
@@ -26,7 +41,7 @@ effective times; the edited department survived reload. No new account link,
 professional acceptance, operating grant or Staff activation was created.
 See [production acceptance evidence](2026-11-02-staff-foundation-production.md).
 
-## Credential subject review correction in progress — 2026-11-02
+## Credential subject review correction merged — 2026-11-02
 
 A source review for Pharma specialization reproduced self-subject credential
 approval despite proposer separation (200 instead of 409). Workforce migration
@@ -37,8 +52,19 @@ decision refusals, normal withdrawal and unrelated positive review with retained
 history. The full owner race suite passed in 640.319s, and the final merged-base run
 passed in 596.737s. Vet/lint, build and contract parity passed. A fresh 21-task
 web gate passed; the source-drift CI refusal was repaired by re-reviewing ten
-unchanged route/permission source pins, with all 15 ledger tests passing. No merge, production activation or completed Pharma duty workflow
-is claimed. See [local evidence](2026-11-02-credential-subject-independence-local.md).
+unchanged route/permission source pins, with all 15 ledger tests passing.
+PR #1522 passed every required check on `95de52b3` (CI run 41431224601) and merged
+as `6e9c4816`. The user then approved that exact production rollout and Workforce
+0071/0072 after preflight proved those were the only pending migrations and all
+211 historical definitions were unchanged. Kargo promotion succeeded; both
+receipts, the subject guard and valid concurrent index are verified. API, Global
+API, shell and document worker are each 2/2 at `6e9c4816`, with Argo Synced/Healthy.
+Normal owner sign-in, credential-panel smoke and canonical Pharma source/reload
+checks passed without new business records or grants. See the
+[verified release](../deployment/releases/2026-11-02-credential-subject-independence.md).
+The independent subject/proposer decision matrix remains local evidence; no full
+production four-eyes or completed Pharma duty workflow is claimed.
+See [local evidence](2026-11-02-credential-subject-independence-local.md).
 Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## HR department handoff — 2026-11-02, active source candidate
@@ -65,8 +91,12 @@ Additional recovery tests now cover malformed/mismatched and reordered replies,
 retained first-answer repair, Organization audit/outbox rollback and Workforce
 observation-audit rollback/replay. Both identity guards were mutation-tested.
 The existing reviewer passed normal local sign-in, read-only HR/history and
-mapping-control denial without expanded permissions. Positive mapping-reader UI
-acceptance remains open. The CI formatting failure is corrected locally; a fresh
+mapping-control denial without expanded permissions. The later authorized
+mapping-reader check passed after narrowing an existing local manager grant,
+including reload and retained historical receipts. A retained manager form was
+also refused after its hospital grant became reader; read-only database proof
+confirmed no third mapping or success audit, and the captured grant was restored.
+No role or membership was expanded. The CI formatting failure is corrected locally; a fresh
 21-task web lint/format/typecheck gate and scoped Go vet/lint passed. The full
 follow-up race run passed (Workforce 578.404s; Organization 17.593s), with
 contract/generator parity and a clean changed-file secret scan. Additional command
@@ -75,11 +105,12 @@ concurrent distinct command keys committing one pending version. The actor guard
 was mutation-tested; the refreshed full Workforce race suite passed.
 
 Two additive migrations are persisted: Workforce 0070 and Organization 0004.
-They are applied only to local synthetic QA/disposable tests. Source inventory is
+They were initially applied to local synthetic QA/disposable tests and are now
+deployed with the approved foundation rollout recorded above. Source inventory is
 759 surfaces, 17 classified and 742 unclassified. Whole Staff remains 10 partial,
 10 awaiting audit, 1 research and 0 fully accepted. Canonical effective postings,
 full HR-reference migration and Pharma specialization remain open; no issue is
-closed and no production rollout is claimed.
+closed; this handoff does not complete postings or operational authority.
 
 ## Pharma OpenFGA boundary — 2026-11-02, local regression
 

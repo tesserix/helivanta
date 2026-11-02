@@ -62,6 +62,40 @@ not accept positive read-only mapping access: that API requires
 `workforce.master.manage`, which this reviewer does not hold. No broader role was
 added solely to satisfy a fixture.
 
+### Authorized reader and retained-form cutoff follow-up
+
+The missing positive case is now accepted on the same local standalone bundle.
+The existing QA approver already had the mapping route permission and a hospital
+manager grant. A local-only fixture captured that exact grant, narrowed it to
+reader, and later restored it. It validated loopback database configuration,
+the synthetic hospital name, the API listener PID/binary, and the prior grant;
+the update used an exact prior-level comparison. No new role, membership,
+credential or broader grant was introduced.
+
+Through the normal retained browser session, HR setup displayed **Read-only
+configuration**. Organization mapping opened both existing matched receipts,
+including the historical HR revision, and displayed **Read-only department
+mapping history.** The mapping form and HR Add/Edit controls were absent.
+Reloading and reopening the mapping preserved this result.
+
+A second captured fixture verified the server boundary independently of hidden
+controls. After restoring manager access, the approver opened and filled a normal
+mapping form. Its hospital grant was then narrowed to reader without reloading
+the form. Submitting that retained form produced **Could not verify current
+department mapping access. Reopen the mapping to continue.** The panel cleared
+the draft controls. Read-only owner verification still found exactly two matched
+mappings, two Organization observations, two request audits and two observation
+audits; no third successful command survived. The original manager grant was
+restored and both fixture checkpoints record restoration.
+
+Private evidence: `department-handoff-authorized-reader-history.png`,
+`department-handoff-retained-manager-cutoff.png`,
+`department-mapping-reader-fixture.json`, and
+`department-mapping-cutoff-fixture.json` in the existing evidence directory.
+Both scripts enforce local-only configuration; private credential values were
+unchanged. This proves current hospital-grant enforcement for this mapping
+command, not general Staff employment or Pharma operational lifecycle cutoff.
+
 ## Automated evidence
 
 Observed RED before implementation: missing retained mapping route (404 versus
@@ -162,9 +196,9 @@ scanned all eight changed files with redaction enabled and found no leaks.
 
 ## Boundaries still open
 
-Owner/manager and existing reviewer HR read-only browser journeys are accepted
-above. Foreign scope has handler/component evidence. Positive read-only mapping
-browser access remains unverified. The command matrix additionally passed a
+Owner/manager, existing reviewer HR read-only, authorized mapping-reader and
+retained-form hospital-manager cutoff browser journeys are accepted above.
+Foreign scope has handler/component evidence. The command matrix additionally passed a
 stale HR revision refusal, exact historical receipt retry, authorized-actor
 rebinding refusal and concurrent different-key commands committing one pending
 version/audit. Removing the actor-binding check makes the regression fail (200

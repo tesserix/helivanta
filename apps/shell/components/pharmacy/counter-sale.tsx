@@ -711,10 +711,7 @@ function TenderForm({
     <form
       noValidate
       className="mt-6 space-y-4 border-t pt-4"
-      onSubmit={form.handleSubmit(
-        (values) => post.mutate(values),
-        (errors) => console.warn("Counter tender validation fields", Object.keys(errors).join(",")),
-      )}
+      onSubmit={form.handleSubmit((values) => post.mutate(values))}
     >
       <h4 className="font-medium">Payment</h4>
       {customer === "admission" ? (

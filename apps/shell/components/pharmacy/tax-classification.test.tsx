@@ -87,6 +87,16 @@ function serve(
         return new Response(JSON.stringify(classification({})), { status: 201 });
       }
       if (url.includes("/tax-classifications")) return page(history());
+      if (url.endsWith("/price-control"))
+        return new Response(
+          JSON.stringify({
+            state: "undeclared",
+            today: "2026-11-01",
+            in_force: null,
+            reason: "",
+            history: [],
+          }),
+        );
       const detail = products.find((p) => url.endsWith(`/catalogue/products/${p.id}`));
       if (detail)
         return new Response(JSON.stringify(detail), {

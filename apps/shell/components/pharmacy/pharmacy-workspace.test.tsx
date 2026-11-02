@@ -157,6 +157,16 @@ function mockPharmacy(
         { status: denied || 200 },
       );
     if (url.endsWith("/revisions")) return new Response(JSON.stringify(page([])));
+    if (url.endsWith("/price-control"))
+      return new Response(
+        JSON.stringify({
+          state: "undeclared",
+          today: "2026-11-01",
+          in_force: null,
+          reason: "",
+          history: [],
+        }),
+      );
     // One product, read by its id: a link or a reload reopens it (#1303 E2).
     if (/\/catalogue\/products\/[0-9a-f-]{36}$/.test(url))
       return new Response(
@@ -208,6 +218,16 @@ it("uses each configured outlet timezone for revision history and clears the pre
               },
             ]),
           ),
+        );
+      if (url.endsWith("/price-control"))
+        return new Response(
+          JSON.stringify({
+            state: "undeclared",
+            today: "2026-11-01",
+            in_force: null,
+            reason: "",
+            history: [],
+          }),
         );
       if (url.endsWith("/revisions"))
         return new Response(
@@ -358,6 +378,16 @@ it("edits only catalogue input fields and displays a stale-version conflict", as
         { status: 409 },
       );
     if (url.endsWith("/revisions")) return new Response(JSON.stringify(page([])));
+    if (url.endsWith("/price-control"))
+      return new Response(
+        JSON.stringify({
+          state: "undeclared",
+          today: "2026-11-01",
+          in_force: null,
+          reason: "",
+          history: [],
+        }),
+      );
     return base(url, init);
   });
   vi.stubGlobal("fetch", fetcher);

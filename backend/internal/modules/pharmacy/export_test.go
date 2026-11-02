@@ -19,6 +19,12 @@ var (
 	FinancialYear = financialYear
 )
 
+// WithinCeiling and TaxInside expose the #1371 ceiling cap.
+var (
+	WithinCeiling = withinCeiling
+	TaxInside     = taxInside
+)
+
 // DiscountLine exposes the B-3 discount rounding.
 var DiscountLine = discountLine
 

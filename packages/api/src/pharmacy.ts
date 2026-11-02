@@ -19,6 +19,7 @@ export {
   pharmacyLocationInputSchema,
   pharmacyTaxRegistrationInputSchema,
   pharmacyTaxClassificationInputSchema,
+  pharmacyPriceControlInputSchema,
 } from "./pharmacy-contract";
 
 export const pharmacyProductFormSchema = pharmacyProductInputSchema.superRefine((value, ctx) => {
@@ -191,6 +192,12 @@ export type PharmacySaleLine = {
   discount_minor: number;
   /** Units returned on credit notes so far (#1386 C-1); 0 on a quote. */
   returned_units?: number;
+  /** The price-control declaration the line sold under (#1371); null when undeclared. */
+  price_declaration_id: string | null;
+  /** The NPPA ceiling per unit before GST; null when not price-controlled. */
+  ceiling_minor: number | null;
+  /** Which limit set the list price: the batch MRP or the NPPA ceiling. */
+  price_limit: "mrp" | "ceiling";
 };
 export type PharmacySaleQuote = {
   currency: string;
@@ -199,7 +206,8 @@ export type PharmacySaleQuote = {
   cgst_minor: number;
   sgst_minor: number;
   lines: PharmacySaleLine[];
-  nppa_ceiling_checked: false;
+  /** True when every line's product had a price-control declaration in force (#1371). */
+  nppa_ceiling_checked: boolean;
 };
 export type PharmacySaleTender = {
   tender_number: number;
@@ -474,3 +482,31 @@ export function formatPharmacyStorageAddress(
     .map(([label, code]) => `${label} ${code}`);
   return parts.length ? parts.join(" · ") : "Address not recorded";
 }
+
+/** An outlet's NPPA price-control declaration for a product (#1371). */
+export type PharmacyPriceDeclaration = {
+  id: string;
+  product_id: string;
+  controlled: boolean;
+  /** Paise per unit of issue, before GST; null when not controlled. */
+  ceiling_minor: number | null;
+  order_reference: string | null;
+  order_date: string | null;
+  effective_from: string;
+  source: string;
+  declared_by: string;
+  created_at: string;
+  decision: "approved" | "rejected" | null;
+  decision_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+};
+
+export type PharmacyPriceControl = {
+  /** undeclared sells under its MRP alone; blocked is not sold. */
+  state: "undeclared" | "blocked" | "in_force";
+  today: string;
+  in_force: PharmacyPriceDeclaration | null;
+  reason: string;
+  history: PharmacyPriceDeclaration[];
+};

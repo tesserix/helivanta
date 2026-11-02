@@ -1,0 +1,189 @@
+import { screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "@helivanta/api/testing";
+import type {
+  PharmacyPriceControl,
+  PharmacyPriceDeclaration,
+  PharmacyProduct,
+} from "@helivanta/api";
+import { chooseOption } from "../../test/select";
+import { ProductPriceControlSection } from "./price-control";
+
+const scope = {
+  tenantId: "0199e000-0000-7000-8000-0000000000aa",
+  pharmacyId: "0199e000-0000-7000-8000-000000000010",
+  outletId: "0199e000-0000-7000-8000-000000000001",
+};
+const product = {
+  id: "0199e000-0000-7000-8000-0000000000b1",
+  sku: "TEST-PCM",
+  currency: "INR",
+  status: "active",
+} as PharmacyProduct;
+
+const declaration = (over: Partial<PharmacyPriceDeclaration>): PharmacyPriceDeclaration => ({
+  id: "0199e000-0000-7000-8000-0000000000d1",
+  product_id: product.id,
+  controlled: true,
+  ceiling_minor: 1000,
+  order_reference: "S.O. 1234(E)",
+  order_date: "2026-10-01",
+  effective_from: "2026-11-01",
+  source: "TEST NPPA order",
+  declared_by: "user-owner",
+  created_at: "2026-11-01T06:30:00Z",
+  decision: null,
+  decision_reason: null,
+  reviewed_by: null,
+  reviewed_at: null,
+  ...over,
+});
+
+function serve(state: PharmacyPriceControl) {
+  const sent: { method: string; url: string; body: unknown }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT" || init?.method === "POST") {
+        sent.push({ method: init.method, url, body: JSON.parse(String(init.body)) });
+        return new Response(JSON.stringify(declaration({})), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.endsWith("/price-control"))
+        return new Response(JSON.stringify(state), {
+          headers: { "Content-Type": "application/json" },
+        });
+      throw new Error(`Unexpected test API request: ${url}`);
+    }),
+  );
+  return sent;
+}
+
+const undeclared: PharmacyPriceControl = {
+  state: "undeclared",
+  today: "2026-11-01",
+  in_force: null,
+  reason: "no price control has been declared; it sells under its MRP alone",
+  history: [],
+};
+
+afterEach(() => vi.unstubAllGlobals());
+
+const section = (canDeclare: boolean, canReview: boolean) => (
+  <ProductPriceControlSection
+    scope={scope}
+    product={product}
+    today="2026-11-01"
+    canDeclare={canDeclare}
+    canReview={canReview}
+  />
+);
+
+describe("ProductPriceControlSection", () => {
+  it("declares an NPPA ceiling per unit before GST", async () => {
+    const sent = serve(undeclared);
+    const { user } = renderWithProviders(section(true, false));
+    expect(await screen.findByText(/Not declared/)).toBeVisible();
+    const ceiling = screen.getByLabelText("Ceiling per unit, before GST (INR)");
+    await user.clear(ceiling);
+    await user.type(ceiling, "10.00");
+    await user.type(screen.getByLabelText("NPPA order"), "S.O. 1234(E)");
+    await user.type(screen.getByLabelText("Order date"), "2026-10-01");
+    await user.type(screen.getByLabelText("Source"), "TEST NPPA order");
+    await user.click(screen.getByRole("button", { name: "Record declaration" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].method).toBe("PUT");
+    expect(sent[0].url).toMatch(
+      /\/catalogue\/products\/[^/]+\/price-control\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/,
+    );
+    expect(sent[0].body).toEqual({
+      price_control: "controlled",
+      ceiling_minor: 1000,
+      order_reference: "S.O. 1234(E)",
+      order_date: "2026-10-01",
+      effective_from: "2026-11-01",
+      source: "TEST NPPA order",
+    });
+  });
+
+  it("asks for the order before recording a ceiling", async () => {
+    const sent = serve(undeclared);
+    const { user } = renderWithProviders(section(true, false));
+    const ceiling = await screen.findByLabelText("Ceiling per unit, before GST (INR)");
+    await user.clear(ceiling);
+    await user.type(ceiling, "10");
+    await user.type(screen.getByLabelText("Source"), "TEST NPPA order");
+    await user.click(screen.getByRole("button", { name: "Record declaration" }));
+    expect(await screen.findByText("Enter the NPPA order or notification number.")).toBeVisible();
+    expect(screen.getByText("Enter the order's date.")).toBeVisible();
+    expect(sent).toHaveLength(0);
+  });
+
+  it("declares a product not price-controlled without a ceiling", async () => {
+    const sent = serve(undeclared);
+    const { user } = renderWithProviders(section(true, false));
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "Scheduled formulation" }),
+      "Not price-controlled",
+    );
+    expect(screen.queryByLabelText("Ceiling per unit, before GST (INR)")).toBeNull();
+    await user.type(screen.getByLabelText("Source"), "TEST not in the schedule");
+    await user.click(screen.getByRole("button", { name: "Record declaration" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body).toEqual({
+      price_control: "not_controlled",
+      effective_from: "2026-11-01",
+      source: "TEST not in the schedule",
+    });
+  });
+
+  it("lets a second person approve or reject a pending declaration, with a reason", async () => {
+    const sent = serve({
+      state: "blocked",
+      today: "2026-11-01",
+      in_force: null,
+      reason: "the latest declaration awaits review by a second person",
+      history: [declaration({})],
+    });
+    const { user } = renderWithProviders(section(false, true));
+    expect(await screen.findByText(/Not sellable/)).toBeVisible();
+    expect(screen.getByText(/awaits review by a second person/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Record declaration" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    expect(await screen.findByText("Say what you checked.")).toBeVisible();
+    expect(sent).toHaveLength(0);
+    await user.type(screen.getByLabelText("What you checked"), "Gazette ceiling is lower");
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({
+      method: "POST",
+      body: { decision: "rejected", reason: "Gazette ceiling is lower" },
+    });
+    expect(sent[0].url).toMatch(/\/price-control\/0199e000-0000-7000-8000-0000000000d1\/review$/);
+  });
+
+  it("shows the ceiling in force and its history read-only", async () => {
+    const approved = declaration({
+      decision: "approved",
+      decision_reason: "checked",
+      reviewed_by: "user-pharmacist",
+    });
+    serve({
+      state: "in_force",
+      today: "2026-11-01",
+      in_force: approved,
+      reason: "",
+      history: [approved],
+    });
+    renderWithProviders(section(false, false));
+    expect(
+      await screen.findByText("In force: NPPA ceiling INR 10.00 per unit + GST"),
+    ).toBeVisible();
+    expect(screen.getByText(/Approved by user-pharmacist/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Record declaration" })).toBeNull();
+  });
+});

@@ -2457,6 +2457,33 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review",
+          "permission": "pharmacy.price_control.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration",
+          "permission": "pharmacy.price_control.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions",
           "permission": "pharmacy.catalogue.read",
@@ -3211,6 +3238,20 @@
           ]
         },
         {
+          "permission": "pharmacy.price_control.declare",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.price_control.review",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.stock.release",
           "roles": [
             "pharmacist"
@@ -3567,6 +3608,14 @@
           "sql_sha256": "10222074c9038b23a9ebd8087f54afcaee58cf103a6220a013a6b092d053d599",
           "creates_tables": [
             "pharmacy_unused_payment_refunds"
+          ]
+        },
+        {
+          "id": "0029_pharmacy",
+          "sql_sha256": "6a514877009db7f5feea76bfa6fac6d78fa45cacab44602bbac1661f087ef12f",
+          "creates_tables": [
+            "pharmacy_product_price_declarations",
+            "pharmacy_product_price_reviews"
           ]
         }
       ]

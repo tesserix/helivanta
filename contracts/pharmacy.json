@@ -687,6 +687,50 @@
       ]
     },
     {
+      "name": "priceControlInput",
+      "schema": "pharmacyPriceControlInputSchema",
+      "fields": [
+        {
+          "name": "price_control",
+          "type": "string",
+          "enum": ["controlled", "not_controlled"]
+        },
+        {
+          "name": "ceiling_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000000000,
+          "optional": true
+        },
+        {
+          "name": "order_reference",
+          "type": "string",
+          "min": 1,
+          "max": 120,
+          "trim": true,
+          "optional": true
+        },
+        {
+          "name": "order_date",
+          "type": "string",
+          "format": "date",
+          "optional": true
+        },
+        {
+          "name": "effective_from",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "source",
+          "type": "string",
+          "min": 1,
+          "max": 300,
+          "trim": true
+        }
+      ]
+    },
+    {
       "name": "StockOverviewFields",
       "schema": "pharmacyStockOverviewFieldsSchema",
       "fields": [

@@ -73,6 +73,16 @@ function mockCatalogue({ missing = "" } = {}) {
       return new Response(JSON.stringify(counted([1, 2, 3].map(product))));
     if (url.endsWith("/revisions") || url.endsWith("/tax-classifications"))
       return new Response(JSON.stringify(plain([])));
+    if (url.endsWith("/price-control"))
+      return new Response(
+        JSON.stringify({
+          state: "undeclared",
+          today: "2026-11-01",
+          in_force: null,
+          reason: "",
+          history: [],
+        }),
+      );
     const one = /\/catalogue\/products\/([0-9a-f-]{36})$/.exec(url);
     if (one) {
       if (one[1] === missing)

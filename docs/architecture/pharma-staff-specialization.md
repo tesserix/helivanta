@@ -37,17 +37,17 @@ These are duty/capability profiles, not automatic grants or an exhaustive fixed
 list of hospital job titles. Department configuration can add profiles using the
 same explicit permission model; names never imply authority.
 
-| Profile | Intended responsibility | Separation and scope |
-| --- | --- | --- |
-| Pharmacy owner | Outlet governance, commercial setup, financial and licence administration | Current owner role does not read prescriptions or sign clinical supply; preserve that boundary. |
-| Registered pharmacist | Product-owned dispensing and professional decisions | Require current accepted registration, active eligible employment/posting, current outlet grant and command-specific permission. Registration alone grants none of these. |
-| Pharmacist in charge | Reviewed effective duty designation for an outlet/premise, with cover/replacement and gaps visible | A designation is separate from role membership, licence validity and current operating eligibility; never grant all permissions by title. |
-| Pharmacy assistant | Attributed preparation and support under a named eligible supervisor | No pharmacist impersonation, independent dispensing finalization, stock safety release or H1 disclosure by default. Preparation versus signing needs distinct commands and evidence. |
-| Inventory / purchasing | Existing scoped stock and procurement responsibilities | Preserve distinct permissions; stock receipt or payment authority does not confer clinical signing or professional verification. |
-| Staff coordinator / manager | Prepare product profile, propose posting/duty changes, maintain authorized metadata | Related-role editing requires current explicit scope and expected version; no self-approval or privilege escalation through profile edits. |
-| Professional reviewer | Review protected professional registration/evidence against named issuer/jurisdiction and applicable policy | Independent from preparer and subject. Approval records verification, not an IAM grant or an unbounded legal entitlement. |
-| Access reviewer | Decide explicit scoped login/capability requests | Independent IAM approval and reviewed Staff/login link; revocation and denied/expired review fail closed. |
-| Compliance / Staff auditor | Bounded Staff/duty/verification/access audit review and approved export | Separate from patient/prescriber disclosure; no management, signing or review capability follows from audit access. |
+| Profile                     | Intended responsibility                                                                                     | Separation and scope                                                                                                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pharmacy owner              | Outlet governance, commercial setup, financial and licence administration                                   | Current owner role does not read prescriptions or sign clinical supply; preserve that boundary.                                                                                      |
+| Registered pharmacist       | Product-owned dispensing and professional decisions                                                         | Require current accepted registration, active eligible employment/posting, current outlet grant and command-specific permission. Registration alone grants none of these.            |
+| Pharmacist in charge        | Reviewed effective duty designation for an outlet/premise, with cover/replacement and gaps visible          | A designation is separate from role membership, licence validity and current operating eligibility; never grant all permissions by title.                                            |
+| Pharmacy assistant          | Attributed preparation and support under a named eligible supervisor                                        | No pharmacist impersonation, independent dispensing finalization, stock safety release or H1 disclosure by default. Preparation versus signing needs distinct commands and evidence. |
+| Inventory / purchasing      | Existing scoped stock and procurement responsibilities                                                      | Preserve distinct permissions; stock receipt or payment authority does not confer clinical signing or professional verification.                                                     |
+| Staff coordinator / manager | Prepare product profile, propose posting/duty changes, maintain authorized metadata                         | Related-role editing requires current explicit scope and expected version; no self-approval or privilege escalation through profile edits.                                           |
+| Professional reviewer       | Review protected professional registration/evidence against named issuer/jurisdiction and applicable policy | Independent from preparer and subject. Approval records verification, not an IAM grant or an unbounded legal entitlement.                                                            |
+| Access reviewer             | Decide explicit scoped login/capability requests                                                            | Independent IAM approval and reviewed Staff/login link; revocation and denied/expired review fail closed.                                                                            |
+| Compliance / Staff auditor  | Bounded Staff/duty/verification/access audit review and approved export                                     | Separate from patient/prescriber disclosure; no management, signing or review capability follows from audit access.                                                                  |
 
 Do not add broad default clinical grants to tenant administrators, owners or new
 assistant templates. Privileges must be independently effective and revocable at
@@ -56,18 +56,18 @@ facts, not proof of complete professional eligibility enforcement.
 
 ## Audit coverage and implementation obligations
 
-| Surface | Existing source evidence | Staff-specific addition / acceptance still required |
-| --- | --- | --- |
-| Canonical profile and department references | Shared Staff owner reads/writes; new organization revisions have atomic audit/outbox | Preserve correlation to exact Staff, employment, department and posting revisions; audit sensitive reads as well as changes. |
-| Outlet membership and permission changes | `pharmacy_outlet_access_audit` triggers in `catalogue.sql` | Retained request/independent decision/revocation evidence, actor and reason, reviewed login link, capability and effective scope; never audit secret/token values. |
-| Professional profile and registration | Licence snapshot text exists in `licences.go` | Protected evidence upload/finalize/read/download, issuer/source review, accept/reject/correct, expiry/renewal/revoke and duplicate/conflicting-command evidence. |
-| PIC, cover and assistant supervision | No accepted Staff-specific duty implementation | Effective start/end, eligible supervisor, incompatible/overlapping duties, handover/cover and independent changes; retain history after resignation/removal. |
-| Outlet licence / schedule review | Existing four-eyes licence review and schedule review tables/triggers | Correlate future Staff/PIC references without rewriting historical text or granting authority through licence review. |
-| Stock receipt/correction/quarantine/release | Existing stock and release audit triggers | Attribute future Staff/posting/eligibility evidence at the command boundary and preserve product-specific release permission. |
-| Prescription evidence and H1 disclosure | Protected image-read audit; H1 page/export audit with period, digest/count for export | Current reader and outlet scope, purpose and privacy controls; audit access must not disclose patient detail to owner or Staff auditor. |
-| Sales, refunds and physical actions | Existing immutable sale/credit-note/payment records and audit triggers | Keep operator versus preparer/reviewer identity; same durable command cannot post twice; do not erase physical/completed actions on staff exit. |
-| Suspension, disabled login, expiry and exit | Workforce lifecycle/operational inventory remains incomplete | Attempted command denial, revocation projection/retry and recovery must be attributable without leaking private rejection reasons into public logs. |
-| Audit review/export itself | No accepted Pharma Staff audit workspace | Exact scope/period/action filters, bounded pages, current permission at read/release, export manifest/digest, disclosure audit and explicit unavailable/stale results. |
+| Surface                                     | Existing source evidence                                                              | Staff-specific addition / acceptance still required                                                                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canonical profile and department references | Shared Staff owner reads/writes; new organization revisions have atomic audit/outbox  | Preserve correlation to exact Staff, employment, department and posting revisions; audit sensitive reads as well as changes.                                           |
+| Outlet membership and permission changes    | `pharmacy_outlet_access_audit` triggers in `catalogue.sql`                            | Retained request/independent decision/revocation evidence, actor and reason, reviewed login link, capability and effective scope; never audit secret/token values.     |
+| Professional profile and registration       | Licence snapshot text exists in `licences.go`                                         | Protected evidence upload/finalize/read/download, issuer/source review, accept/reject/correct, expiry/renewal/revoke and duplicate/conflicting-command evidence.       |
+| PIC, cover and assistant supervision        | No accepted Staff-specific duty implementation                                        | Effective start/end, eligible supervisor, incompatible/overlapping duties, handover/cover and independent changes; retain history after resignation/removal.           |
+| Outlet licence / schedule review            | Existing four-eyes licence review and schedule review tables/triggers                 | Correlate future Staff/PIC references without rewriting historical text or granting authority through licence review.                                                  |
+| Stock receipt/correction/quarantine/release | Existing stock and release audit triggers                                             | Attribute future Staff/posting/eligibility evidence at the command boundary and preserve product-specific release permission.                                          |
+| Prescription evidence and H1 disclosure     | Protected image-read audit; H1 page/export audit with period, digest/count for export | Current reader and outlet scope, purpose and privacy controls; audit access must not disclose patient detail to owner or Staff auditor.                                |
+| Sales, refunds and physical actions         | Existing immutable sale/credit-note/payment records and audit triggers                | Keep operator versus preparer/reviewer identity; same durable command cannot post twice; do not erase physical/completed actions on staff exit.                        |
+| Suspension, disabled login, expiry and exit | Workforce lifecycle/operational inventory remains incomplete                          | Attempted command denial, revocation projection/retry and recovery must be attributable without leaking private rejection reasons into public logs.                    |
+| Audit review/export itself                  | No accepted Pharma Staff audit workspace                                              | Exact scope/period/action filters, bounded pages, current permission at read/release, export manifest/digest, disclosure audit and explicit unavailable/stale results. |
 
 Audit records retain actor, tenant, narrower scope, opaque target, action/outcome,
 correlation/command/revision, effective/recorded time and minimal changed-field
@@ -145,16 +145,21 @@ route passed. See [scope and evidence](../qa/2026-11-02-pharma-shared-staff-loca
 This harness uses explicit authenticated test identities; signed-session IAM,
 professional eligibility and lifecycle cutoff acceptance remain separate.
 
-## Credential source correction in progress (2026-11-02)
+## Credential source correction deployed (2026-11-02)
 
 Pharma professional acceptance must consume Workforce's credential/evidence
 reviews. Source verification exposed a self-subject approval gap there: a Staff
 subject could decide a proposal made by another manager. The regression returned
-200 before the correction. The pending fix adds retained-login association and
+200 before the correction. The deployed fix adds retained-login association and
 SQL actor/serialization guards in Workforce migration 0071, with existing 409
 `self_review` behavior. Focused Postgres/OpenFGA membership tests cover current
 and retained associations, independent approval, proposer withdrawal, direct SQL
 and concurrent association. Local browser acceptance passed subject refusal, proposer withdrawal and
 unrelated positive review; the full owner race suite passed in 640.319s. No outlet-specific professional acceptance,
 effective posting, lifecycle projection or operational bypass is added by this
-source correction. #418 remains open.
+source correction. PR #1522 passed all checks and merged as `6e9c4816`; the user
+separately approved that production revision and migrations 0071/0072. Kargo,
+migration receipts and runtime health are verified in the
+[release evidence](../deployment/releases/2026-11-02-credential-subject-independence.md).
+The independent decision matrix is local acceptance; production smoke does not
+certify professional eligibility. #418 remains open.

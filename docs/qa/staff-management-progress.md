@@ -28,7 +28,8 @@ confirmed all ten approved migrations. API, Global API, shell and document worke
 are each 2/2 ready and updated. The three application Argo resources were
 Synced/Healthy. Pre-rollout captures and promotion/migration receipts are private in
 `~/.helivanta/staff-management-20261027/foundation-rollout-1a632554/`.
-Credential migrations 0071/0072 are separate and have no production approval.
+Credential migrations 0071/0072 were excluded from that foundation approval;
+their later separately approved rollout is recorded below.
 
 Normal production owner UI created and edited one inactive synthetic pharmacist;
 Pharma's read-only canonical source displayed that same edited record after
@@ -53,9 +54,16 @@ passed in 596.737s. Vet/lint, build and contract parity passed. A fresh 21-task
 web gate passed; the source-drift CI refusal was repaired by re-reviewing ten
 unchanged route/permission source pins, with all 15 ledger tests passing.
 PR #1522 passed every required check on `95de52b3` (CI run 41431224601) and merged
-as `6e9c4816`. Its main image build/scan/sign pipeline is running; production
-remains at the approved foundation `058ea37a`. Workforce 0071/0072 still require
-named rollout/migration approval. No completed Pharma duty workflow is claimed.
+as `6e9c4816`. The user then approved that exact production rollout and Workforce
+0071/0072 after preflight proved those were the only pending migrations and all
+211 historical definitions were unchanged. Kargo promotion succeeded; both
+receipts, the subject guard and valid concurrent index are verified. API, Global
+API, shell and document worker are each 2/2 at `6e9c4816`, with Argo Synced/Healthy.
+Normal owner sign-in, credential-panel smoke and canonical Pharma source/reload
+checks passed without new business records or grants. See the
+[verified release](../deployment/releases/2026-11-02-credential-subject-independence.md).
+The independent subject/proposer decision matrix remains local evidence; no full
+production four-eyes or completed Pharma duty workflow is claimed.
 See [local evidence](2026-11-02-credential-subject-independence-local.md).
 Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 

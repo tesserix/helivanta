@@ -24,7 +24,8 @@ percentage. Failure to read the profile fails the gate.
 without dependencies. Its first assertion failed on the original gate with
 50.0% even though the integration test exercised the other half of the owner's
 behavior. Regression cases cover cross-package execution, repeated calls with
-uncovered code, 100% externally covered code without owner tests, failing
+uncovered code, a fully covered sibling that cannot hide another owner's failure,
+100% externally covered code without owner tests, failing
 behavioral tests, the data-only contract exception, and an unimported gated
 package without tests. CI runs these fixtures before the complete backend gate.
 

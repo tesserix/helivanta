@@ -79,6 +79,21 @@ func TestFirstAgain(t *testing.T) {
 EOF
 expect_fail 'uncovered owner statements still fail the 70% floor' 'FAIL coverage github.com/tesserix/helivanta/internal/modules/sample:'
 
+mkdir -p internal/modules/sibling
+cat >internal/modules/sibling/sibling.go <<'EOF'
+package sibling
+func First() int { return 1 }
+func Second() int { return 2 }
+EOF
+cat >internal/modules/sibling/sibling_test.go <<'EOF'
+package sibling
+import "testing"
+func TestValues(t *testing.T) {
+ if First() != 1 || Second() != 2 { t.Fatal("wrong sibling values") }
+}
+EOF
+expect_fail 'a fully covered sibling cannot hide an undercovered owner' 'FAIL coverage github.com/tesserix/helivanta/internal/modules/sample:'
+
 new_fixture
 rm internal/modules/sample/sample_test.go
 cat >>internal/integration/sample_test.go <<'EOF'

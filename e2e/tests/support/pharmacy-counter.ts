@@ -1,7 +1,8 @@
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
-import type { MembershipCandidate } from "@helivanta/api";
+import type { MembershipCandidate, PharmacyLicenceEvidence } from "@helivanta/api";
 import { login, specAdmin, specPharmacist } from "./login";
 import { api, newOutlet, uuidv7 } from "./pharmacy";
 

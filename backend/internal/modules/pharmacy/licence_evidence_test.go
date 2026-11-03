@@ -38,6 +38,25 @@ type licenceEvidenceScenario struct {
 	data                []byte
 }
 
+// Existing sale/licence fixtures use the same owner upload and restricted scan
+// path as new declarations; no available verdicts are inserted into tables.
+func releaseLicenceEvidenceForTest(t *testing.T, r *gin.Engine, db *tenantdb.DB, files *attachments.GCS, licence, token string) {
+	t.Helper()
+	var page bytes.Buffer
+	require.NoError(t, png.Encode(&page, image.NewRGBA(image.Rect(0, 0, 2, 2))))
+	data := page.Bytes()
+	digest := sha256.Sum256(data)
+	s := licenceEvidenceScenario{r: r, db: db, files: files, licence: licence, path: licencePath("/licences/" + licence + "/evidence/" + uuid.Must(uuid.NewV7()).String()), data: data}
+	body := fmt.Sprintf(`{"filename":"TEST-licence.png","content_type":"image/png","size":%d,"sha256":"%s"}`, len(data), hex.EncodeToString(digest[:]))
+	w := do(r, "PUT", s.path, token, body)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	w = s.upload(token, data)
+	require.Equal(t, http.StatusAccepted, w.Code, w.Body.String())
+	status, err := s.processor(t, "stream: OK\x00").Process(t.Context(), s.input())
+	require.NoError(t, err)
+	require.Equal(t, "available", status)
+}
+
 func newLicenceEvidenceScenario(t *testing.T) licenceEvidenceScenario {
 	t.Helper()
 	cloud := testinfra.NewGCSProtocol(t)
@@ -200,6 +219,32 @@ func TestLicenceEvidenceRetryPinsTheAttemptAndRefusesForgedRelease(t *testing.T)
 	wrong.TenantID = testutil.TenantB
 	_, err = processor.Process(t.Context(), wrong)
 	require.Error(t, err, "an outlet ID is not authority in another tenant")
+}
+
+func TestLicenceReviewWaitsForReleasedEvidenceAndPinsIt(t *testing.T) {
+	s := newLicenceEvidenceScenario(t)
+	reviewPath := licencePath("/licences/" + s.licence + "/review")
+	body := `{"decision":"approved","reason":"TEST checked the original and retained image"}`
+	absent := do(s.r, "POST", reviewPath, "owner", body)
+	require.Equal(t, http.StatusConflict, absent.Code, absent.Body.String())
+	require.Contains(t, absent.Body.String(), "licence_evidence_required")
+	err := s.db.WithTenant(tenantdb.WithActor(t.Context(), "user-owner"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-owner',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO pharmacy_outlet_licence_reviews(tenant_id,outlet_id,licence_id,decision,reason,reviewed_by) VALUES(?,?,?,'approved','TEST direct SQL bypass','user-owner')`, testutil.TenantA, pharmaOutlet, s.licence).Error
+	})
+	require.ErrorContains(t, err, "clean licence evidence required")
+	require.Equal(t, http.StatusCreated, do(s.r, "PUT", s.path, "editor", s.body).Code)
+	require.Equal(t, http.StatusConflict, do(s.r, "POST", reviewPath, "owner", body).Code)
+	require.Equal(t, http.StatusAccepted, s.upload("editor", s.data).Code)
+	require.Equal(t, http.StatusConflict, do(s.r, "POST", reviewPath, "owner", body).Code)
+	_, err = s.processor(t, "stream: OK\x00").Process(t.Context(), s.input())
+	require.NoError(t, err)
+	approved := do(s.r, "POST", reviewPath, "owner", body)
+	require.Equal(t, http.StatusOK, approved.Code, approved.Body.String())
+	require.Contains(t, approved.Body.String(), `"reviewed_evidence_file_id":"`+s.input().FileID+`"`)
+	require.Equal(t, http.StatusConflict, do(s.r, "POST", reviewPath, "owner", body).Code, "a completed review remains immutable")
 }
 
 func mustLicenceScanner(t *testing.T) *attachments.ClamAV {

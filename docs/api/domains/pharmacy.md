@@ -286,7 +286,7 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 | `GET …/reports/receipts?from=&to=&kind=`    | Paged, oldest first: every tender on a sale (`receipt`) and refund on a credit note (`refund`) with its date, document number, kind, payment reference and amount. `kind` is `cash`, `upi`, `upi_verified`, `card` or `admission_account`. Requires `pharmacy.sale.read`                                                                                                      |
 
 - **Reads of posted records,** like the daily report: each document counts on its own outlet date, a return on the credit note's.
-- **They reconcile.** Items plus the daily report's service charges equal its sales and credits; receipts per day and kind equal its tenders and refunds. Tests prove both.
+- **They reconcile.** Items plus the daily report's service charges equal its sales and credits, including credited charges; receipts per day and kind equal its tenders and refunds. The tests prove this for cash, UPI and card receipts and cash refunds; verified-UPI and admission-account rows use the same joins but are not separately exercised.
 - **One row per product never mixes currencies or packs:** a stocked product cannot change either.
 - **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
 - **Not audited.** No patient, prescriber or buyer appears.

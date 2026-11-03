@@ -195,12 +195,35 @@ func TestSalesByItemLeavesOutServiceCharges(t *testing.T) {
 	w.shelve(t, p, "2028-06-30", 12500, 30)
 	delivery := uuid.Must(uuid.NewV7()).String()
 	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
-	code, _, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 7500, delivery))
+	code, sale, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 7500, delivery))
 	require.Equal(t, http.StatusCreated, code, out)
 	code, body, out := reportPage[itemRow](t, w, "pharmacist", "/reports/items?from=2026-11-01&to=2026-11-01")
 	require.Equal(t, http.StatusOK, code, out)
 	require.Len(t, body.Data, 1, out)
 	require.EqualValues(t, 2500, body.Data[0].SalesMinor, "the delivery charge is not the medicine's")
+
+	// With the charge and one medicine unit credited back, items plus service
+	// charges still equal the daily report's sales and credits.
+	res := do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist",
+		chargeReturn(sale.ID, []int{1}, fmt.Sprintf(`{"sale_line":1,"quantity_units":1,"quarantine_location_id":%q}`, w.quarantine), 6250, "cash"))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+	_, body, out = reportPage[itemRow](t, w, "pharmacist", "/reports/items?from=2026-11-01&to=2026-11-01")
+	require.Len(t, body.Data, 1, out)
+	res = do(w.r, "GET", licencePath("/reports/daily?from=2026-11-01&to=2026-11-01"), "pharmacist", "")
+	var daily struct {
+		Days []struct {
+			SalesMinor                int64 `json:"sales_minor"`
+			CreditsMinor              int64 `json:"credits_minor"`
+			ServiceChargesMinor       int64 `json:"service_charges_minor"`
+			ServiceChargeCreditsMinor int64 `json:"service_charge_credits_minor"`
+		} `json:"days"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &daily))
+	require.Len(t, daily.Days, 1)
+	d := daily.Days[0]
+	require.Positive(t, body.Data[0].CreditsMinor)
+	require.Equal(t, d.SalesMinor, body.Data[0].SalesMinor+d.ServiceChargesMinor)
+	require.Equal(t, d.CreditsMinor, body.Data[0].CreditsMinor+d.ServiceChargeCreditsMinor)
 }
 
 func TestTheReceiptsRegisterListsEachPayment(t *testing.T) {

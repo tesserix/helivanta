@@ -151,8 +151,9 @@ func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bo
 	return args, true
 }
 
-// salesReportPage checks the outlet scope before the query string, so a
-// wrong tenant or outlet is refused before anything else is read.
+// salesReportPage refuses malformed scope ids before reading the query
+// string; the outlet grant is checked in the transaction, as for the daily
+// report.
 func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, what, filter, query string,
 	args func(string, uuid.UUID, salesReportFilter) []any) ([]T, error) {
 	p, outlet, ok := catalogueScope(c)

@@ -42,8 +42,9 @@ Activation for a real outlet needs its compliance reviewer (see below).
 ## What it does
 
 - **Declare.** `PUT …/catalogue/products/:id/price-control/:declaration`
-  (`pharmacy.price_control.declare`): either `controlled: false` with a
-  `source` (why it is not price-controlled), or `controlled: true` with
+  (`pharmacy.price_control.declare`): either `price_control: not_controlled`
+  with a `source` (why it is not price-controlled), or
+  `price_control: controlled` with
   `ceiling_minor` (paise per unit of issue, excluding GST), `order_reference`
   (the NPPA order or notification number), `order_date`, and a `source`. Both
   carry `effective_from`. Declarations are immutable; a correction is a new
@@ -51,14 +52,19 @@ Activation for a real outlet needs its compliance reviewer (see below).
   `409`.
 - **Review.** `POST …/price-control/:declaration/review`
   (`pharmacy.price_control.review`) `{decision: approved|rejected, reason}`, by
-  someone other than the declarer (`409 four_eyes`), once.
+  someone other than the declarer (`409 four_eyes`), once, and only while it
+  is the product's latest declaration (`409`: a newer one replaced it).
 - **Read.** `GET …/price-control` (`pharmacy.catalogue.read`): the
   declaration in force today, the state (`undeclared`, `blocked`, `in_force`),
   a reason when blocked, and the history.
 - **In force on a day:** none if the product has no declarations
   (`undeclared`). Otherwise the latest declaration must be approved, and the
   one in force is the approved declaration with the latest `effective_from`
-  on or before the day; if either fails, the product is `blocked`.
+  on or before the day; if either fails, the product is `blocked`. A
+  declaration replaces every earlier one that starts on or after its own
+  start, so a correction is never overridden by the mistake dated after it.
+  Any declaration not yet approved and in force, including "not controlled
+  from tomorrow", stops sales of the product until it is.
 - **At the counter.** A `blocked` product cannot be sold or quoted (`409
 not_sellable`, naming why). For a controlled product, each line's list price
   is the lower of the MRP share and the ceiling plus the line's GST: the most

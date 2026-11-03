@@ -124,12 +124,26 @@ func TestTheCeilingInForceFollowsItsDates(t *testing.T) {
 	require.False(t, s.InForce.Controlled)
 	require.Nil(t, s.InForce.CeilingMinor)
 
-	// The latest start wins, not the latest entry: a backdated declaration
-	// does not displace one that started after it.
+	// A correction replaces every earlier entry that starts on or after its
+	// own start: an older entry dated later never overrides it (review I1).
 	later := w.product(t, "TEST-ZINC", "none")
-	started := w.declarePrice(t, later, ceilingBody(1000, "2026-10-31"), "approved")
-	w.declarePrice(t, later, ceilingBody(1200, "2026-10-30"), "approved")
-	require.Equal(t, started, w.priceState(t, later).InForce.ID)
+	w.declarePrice(t, later, ceilingBody(1000, "2026-10-31"), "approved")
+	backdated := w.declarePrice(t, later, ceilingBody(1200, "2026-10-30"), "approved")
+	require.Equal(t, backdated, w.priceState(t, later).InForce.ID)
+	mistaken := w.product(t, "TEST-IRON", "none")
+	w.declarePrice(t, mistaken, `{"price_control":"not_controlled","effective_from":"2026-11-01","source":"TEST entered by mistake"}`, "approved")
+	corrected := w.declarePrice(t, mistaken, ceilingBody(800, "2026-10-31"), "approved")
+	s = w.priceState(t, mistaken)
+	require.Equal(t, corrected, s.InForce.ID, "the correction, not the mistaken entry dated after it")
+	require.True(t, s.InForce.Controlled)
+
+	// Only the latest entry is reviewed: a replaced one stays as it was.
+	stale := w.product(t, "TEST-CALC", "none")
+	first := w.declarePrice(t, stale, `{"price_control":"not_controlled","effective_from":"2026-11-01","source":"TEST first"}`, "")
+	w.declarePrice(t, stale, ceilingBody(800, "2026-11-01"), "")
+	res := do(w.r, "POST", pricePath(stale, "/"+first+"/review"), "pharmacist", `{"decision":"approved","reason":"late"}`)
+	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
+	require.Contains(t, res.Body.String(), "replaced")
 
 	future := w.product(t, "TEST-ORS", "none")
 	w.declarePrice(t, future, ceilingBody(500, "2026-12-01"), "approved")
@@ -262,9 +276,9 @@ func TestTheCeilingHoldsInTheDatabase(t *testing.T) {
 	require.ErrorContains(t, copyLine(`amount_minor,taxable_minor,cgst_minor,sgst_minor,price_declaration_id,ceiling_minor+1,'ceiling'`), "names the price control in force")
 	require.ErrorContains(t, copyLine(`amount_minor,taxable_minor,cgst_minor,sgst_minor,NULL,NULL,'mrp'`), "names the price control in force", "a declared product is not sold as undeclared")
 
-	// The same ceiling under a declaration not in force is still refused.
-	older := w.declarePrice(t, product, ceilingBody(1000, "2026-10-31"), "approved")
-	require.ErrorContains(t, copyLine(`amount_minor,taxable_minor,cgst_minor,sgst_minor,'`+older+`'::uuid,ceiling_minor,'ceiling'`), "names the price control in force")
+	// The same ceiling under an approved declaration not yet in force is refused.
+	ahead := w.declarePrice(t, product, ceilingBody(1000, "2026-11-05"), "approved")
+	require.ErrorContains(t, copyLine(`amount_minor,taxable_minor,cgst_minor,sgst_minor,'`+ahead+`'::uuid,ceiling_minor,'ceiling'`), "names the price control in force")
 
 	w.declarePrice(t, product, ceilingBody(900, "2026-11-01"), "")
 	require.ErrorContains(t, copyLine(`amount_minor,taxable_minor,cgst_minor,sgst_minor,price_declaration_id,ceiling_minor,'ceiling'`), "no ceiling in force")

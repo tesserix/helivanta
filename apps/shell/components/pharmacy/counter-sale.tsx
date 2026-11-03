@@ -938,7 +938,7 @@ function Invoice({
           Schedule classes are as declared by the outlet.{" "}
           {sale.nppa_ceiling_checked
             ? "NPPA ceiling prices were checked against the outlet's declarations."
-            : "NPPA ceiling prices were not checked for every line: some products have no price control declared."}
+            : "NPPA ceiling prices were not checked for every line."}
         </p>
       </article>
       {sale.lines.some((l) => l.prescription_id) && (

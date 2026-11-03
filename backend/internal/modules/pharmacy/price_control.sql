@@ -63,8 +63,32 @@ CREATE TRIGGER pharmacy_price_review_audit AFTER INSERT ON pharmacy_product_pric
 CREATE TRIGGER pharmacy_price_review_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_product_price_reviews
  FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
 
-CREATE FUNCTION pharmacy_price_review_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+-- Declarations and reviews of one product take one lock, so a review and a
+-- newer declaration never both pass the "latest" check below.
+CREATE FUNCTION pharmacy_price_lock(tenant uuid, outlet uuid, product uuid) RETURNS void LANGUAGE sql AS $$
+ SELECT pg_advisory_xact_lock(hashtextextended(tenant::text||':pharmacy-price:'||outlet::text||':'||product::text, 0))
+$$;
+CREATE FUNCTION pharmacy_price_declaration_lock() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ PERFORM pharmacy_price_lock(NEW.tenant_id,NEW.outlet_id,NEW.product_id);
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_price_declaration_lock BEFORE INSERT ON pharmacy_product_price_declarations
+ FOR EACH ROW EXECUTE FUNCTION pharmacy_price_declaration_lock();
+
+-- Reviewed by someone other than the declarer, and only while it is the
+-- product's latest declaration: a replaced one keeps its state.
+CREATE FUNCTION pharmacy_price_review_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE decl pharmacy_product_price_declarations;
+BEGIN
+ SELECT * INTO decl FROM pharmacy_product_price_declarations WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.declaration_id;
+ IF FOUND THEN
+  PERFORM pharmacy_price_lock(decl.tenant_id,decl.outlet_id,decl.product_id);
+  IF EXISTS (SELECT 1 FROM pharmacy_product_price_declarations n WHERE n.tenant_id=decl.tenant_id AND n.outlet_id=decl.outlet_id
+     AND n.product_id=decl.product_id AND n.seq>decl.seq) THEN
+   RAISE EXCEPTION 'a newer declaration replaced this one' USING ERRCODE='23514',CONSTRAINT='pharmacy_price_review_latest';
+  END IF;
+ END IF;
  IF EXISTS (SELECT 1 FROM pharmacy_product_price_declarations d WHERE d.tenant_id=NEW.tenant_id AND d.outlet_id=NEW.outlet_id
     AND d.id=NEW.declaration_id AND lower(btrim(d.declared_by))=lower(btrim(NEW.reviewed_by))) THEN
   RAISE EXCEPTION 'a price control is reviewed by someone other than who declared it' USING ERRCODE='23514',CONSTRAINT='pharmacy_price_four_eyes';
@@ -79,6 +103,8 @@ CREATE TRIGGER pharmacy_price_review_guard BEFORE INSERT ON pharmacy_product_pri
 -- not approved, or no approved one has started; it is not sold. in_force: the
 -- approved declaration with the latest start on or before the day, so an
 -- approved change dated ahead leaves the current one in force until then.
+-- A declaration replaces every earlier one starting on or after its own
+-- start: a correction is never overridden by the mistake dated after it.
 CREATE FUNCTION pharmacy_product_price_in_force(tenant uuid, outlet uuid, product uuid, day date)
 RETURNS TABLE (state text, declaration_id uuid, controlled boolean, ceiling_minor bigint) LANGUAGE plpgsql STABLE AS $$
 DECLARE latest_approved boolean; pick pharmacy_product_price_declarations;
@@ -93,6 +119,9 @@ BEGIN
  SELECT d.* INTO pick FROM pharmacy_product_price_declarations d JOIN pharmacy_product_price_reviews r
   ON r.tenant_id=d.tenant_id AND r.outlet_id=d.outlet_id AND r.declaration_id=d.id
   WHERE d.tenant_id=tenant AND d.outlet_id=outlet AND d.product_id=product AND r.decision='approved' AND d.effective_from<=day
+   AND NOT EXISTS (SELECT 1 FROM pharmacy_product_price_declarations n JOIN pharmacy_product_price_reviews nr
+    ON nr.tenant_id=n.tenant_id AND nr.outlet_id=n.outlet_id AND nr.declaration_id=n.id AND nr.decision='approved'
+    WHERE n.tenant_id=d.tenant_id AND n.outlet_id=d.outlet_id AND n.product_id=d.product_id AND n.seq>d.seq AND n.effective_from<=d.effective_from)
   ORDER BY d.effective_from DESC, d.seq DESC LIMIT 1;
  IF NOT COALESCE(latest_approved,false) OR pick.id IS NULL THEN
   RETURN QUERY SELECT 'blocked'::text, NULL::uuid, NULL::boolean, NULL::bigint;

@@ -73,6 +73,8 @@ func priceControlError(c *gin.Context, err error) {
 	switch {
 	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_price_four_eyes":
 		respond.Error(c, http.StatusConflict, "four_eyes", "a price control is reviewed by someone other than who declared it")
+	case errors.As(err, &pg) && pg.ConstraintName == "pharmacy_price_review_latest":
+		respond.Conflict(c, "a newer declaration replaced this one; review the latest")
 	case errors.Is(err, errDeclarationReviewed):
 		respond.Conflict(c, "this declaration has already been reviewed")
 	case errors.Is(err, errStockIdentity):
@@ -289,6 +291,9 @@ func (h *catalogueHandlers) getPriceControl(c *gin.Context) {
 				return err
 			}
 			out.InForce = &row
+		case len(out.History) == 0:
+			// A first declaration committed between the two reads.
+			out.Reason = "the latest declaration awaits review by a second person"
 		case out.History[0].Decision == nil:
 			out.Reason = "the latest declaration awaits review by a second person"
 		case *out.History[0].Decision == "rejected":

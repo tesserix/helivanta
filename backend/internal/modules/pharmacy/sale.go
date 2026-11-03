@@ -1092,6 +1092,9 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
 	case prescriptionLimitError(err):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
+	case violated(err, "pharmacy_sale_line_price_unknown"), violated(err, "pharmacy_sale_line_price_source"), violated(err, "pharmacy_sale_line_ceiling"):
+		// A price-control review landed between pricing and posting (#1371).
+		respond.Error(c, http.StatusConflict, "not_sellable", "a product's NPPA price control changed; price the basket again")
 	case violated(err, "pharmacy_sale_tender_paid"), violated(err, "pharmacy_sale_tender_payment_request"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the UPI payment is not a paid payment of this outlet for this amount")
 	case violated(err, "pharmacy_sale_tender_payment_once"):

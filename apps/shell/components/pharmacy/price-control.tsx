@@ -125,7 +125,8 @@ function PriceControlBody({
       )}
       {canDeclare && product.status !== "withdrawn" && (
         <DeclarationForm
-          key={data.history.length}
+          // A new declaration remounts the form with a new id; history is capped at 50.
+          key={data.history[0]?.id ?? "none"}
           currency={product.currency}
           today={today}
           path={path}
@@ -236,6 +237,10 @@ function DeclarationForm({
           name="price_control"
           id="price-kind"
           label="Scheduled formulation"
+          onValueChange={(value) => {
+            // Leaving price control drops the ceiling rather than keeping it unseen.
+            if (value !== "controlled") form.setValue("ceiling_minor", 0);
+          }}
           options={[
             { value: "controlled", label: "Price-controlled (NPPA ceiling)" },
             { value: "not_controlled", label: "Not price-controlled" },

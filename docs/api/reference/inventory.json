@@ -3612,7 +3612,7 @@
         },
         {
           "id": "0029_pharmacy",
-          "sql_sha256": "6a514877009db7f5feea76bfa6fac6d78fa45cacab44602bbac1661f087ef12f",
+          "sql_sha256": "6c993a991e02a376440ca69d917c524a0974cb39929934de0e42213b94cbb0e8",
           "creates_tables": [
             "pharmacy_product_price_declarations",
             "pharmacy_product_price_reviews"

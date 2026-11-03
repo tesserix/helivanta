@@ -140,6 +140,90 @@ describe("ProductPriceControlSection", () => {
     });
   });
 
+  it("never records a ceiling the form no longer shows", async () => {
+    const sent = serve(undeclared);
+    const { user } = renderWithProviders(section(true, false));
+    const ceiling = await screen.findByLabelText("Ceiling per unit, before GST (INR)");
+    await user.clear(ceiling);
+    await user.type(ceiling, "5.00");
+    const kind = screen.getByRole("combobox", { name: "Scheduled formulation" });
+    await chooseOption(user, kind, "Not price-controlled");
+    await chooseOption(user, kind, "Price-controlled (NPPA ceiling)");
+    expect(screen.getByLabelText("Ceiling per unit, before GST (INR)")).toHaveValue("0.00");
+    await chooseOption(user, kind, "Not price-controlled");
+    await user.type(screen.getByLabelText("Source"), "TEST not in the schedule");
+    await user.click(screen.getByRole("button", { name: "Record declaration" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body).not.toHaveProperty("ceiling_minor");
+  });
+
+  it("submits a not-controlled declaration after an unreadable ceiling was typed", async () => {
+    const sent = serve(undeclared);
+    const { user } = renderWithProviders(section(true, false));
+    const ceiling = await screen.findByLabelText("Ceiling per unit, before GST (INR)");
+    await user.clear(ceiling);
+    await user.type(ceiling, "1.2.3");
+    await chooseOption(
+      user,
+      screen.getByRole("combobox", { name: "Scheduled formulation" }),
+      "Not price-controlled",
+    );
+    await user.type(screen.getByLabelText("Source"), "TEST not in the schedule");
+    await user.click(screen.getByRole("button", { name: "Record declaration" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+  });
+
+  it("uses a new id for the next declaration even when history is at its cap", async () => {
+    let first = "0199e000-0000-7000-8000-000000000a00";
+    const history = () =>
+      [
+        first,
+        ...Array.from(
+          { length: 49 },
+          (_, i) => `0199e000-0000-7000-8000-0000000001${String(i).padStart(2, "0")}`,
+        ),
+      ].map((id) =>
+        declaration({ id, controlled: false, ceiling_minor: null, decision: "approved" }),
+      );
+    const sent: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          sent.push(url);
+          first = `0199e000-0000-7000-8000-000000000a0${sent.length}`;
+          return new Response(JSON.stringify(declaration({})), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            state: "in_force",
+            today: "2026-11-01",
+            in_force: null,
+            reason: "",
+            history: history(),
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const { user } = renderWithProviders(section(true, false));
+    for (const note of ["TEST first", "TEST second"]) {
+      await chooseOption(
+        user,
+        await screen.findByRole("combobox", { name: "Scheduled formulation" }),
+        "Not price-controlled",
+      );
+      await user.type(screen.getByLabelText("Source"), note);
+      await user.click(screen.getByRole("button", { name: "Record declaration" }));
+      await waitFor(() => expect(sent).toHaveLength(note === "TEST first" ? 1 : 2));
+      await waitFor(() => expect(screen.getByLabelText("Source")).toHaveValue(""));
+    }
+    expect(sent[0]).not.toBe(sent[1]);
+  });
+
   it("lets a second person approve or reject a pending declaration, with a reason", async () => {
     const sent = serve({
       state: "blocked",

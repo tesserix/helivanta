@@ -1057,6 +1057,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.submit` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history` | `workforce.posting.proposal.read` | true | false |

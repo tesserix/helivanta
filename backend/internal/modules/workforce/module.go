@@ -341,6 +341,7 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	g.PUTScopedHospital("/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command", PermPostingSubmit, "hospital", markScopedPosting, h.putPostingProposal)
 	g.GETScopedHospital("/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command", PermPostingProposalRead, "hospital", markScopedPosting, h.getPostingProposalReceipt)
 	g.PUT("/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command", authz.Public, markScopedPosting, h.putPostingProposalDecision)
+	g.GET("/:hospital/posting-staff/:id/posting-proposals/:proposal/context", authz.Public, markScopedPosting, h.getPostingProposalContext)
 	g.GETScopedHospital("/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command", PermPostingProposalRead, "hospital", markScopedPosting, h.getPostingProposalReceipt)
 	g.GETScopedHospital("/:hospital/posting-staff/:id/posting-proposals/:proposal", PermPostingProposalRead, "hospital", markScopedPosting, h.getPostingProposal)
 	platform.ScopedHospitalListRoute(g, "/:hospital/posting-staff/:id/posting-proposals", PermPostingProposalRead, "hospital", func(c *gin.Context, params pagination.Params) ([]StaffPostingProposal, error) {

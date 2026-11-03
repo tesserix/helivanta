@@ -9,11 +9,14 @@ import {
   StaffPostingProposalContract,
   StaffPostingProposalInputContract,
   StaffPostingDecisionInputContract,
+  StaffPostingProposalContextRequestContract,
+  StaffPostingProposalContextContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
   type StaffPostingProposal,
   type StaffPostingProposalInput,
   type StaffPostingDecisionInput,
+  type StaffPostingProposalContextRequest,
 } from "./staff-postings-contract";
 
 export type StaffPostingProposalScope = Omit<StaffPostingScope, "access"> & { access: "scoped" };
@@ -320,4 +323,51 @@ export async function getStaffPostingReviewSource(
     throw new Error("The Staff posting review source could not be verified.");
   const source = parsed.data;
   return source;
+}
+
+export async function getStaffPostingProposalContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: StaffPostingProposalContextRequest,
+  signal?: AbortSignal,
+) {
+  const request = StaffPostingProposalContextRequestContract.parse(rawRequest);
+  const params = new URLSearchParams({
+    purpose: request.purpose,
+    expected_version: String(request.expected_version),
+    expected_revision_id: commandId.parse(request.expected_revision_id),
+  });
+  const result = StaffPostingProposalContextContract.safeParse(
+    await apiFetch(`${root(scope)}/${commandId.parse(proposal)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  if (!result.success)
+    throw new Error("The protected posting review context could not be verified.");
+  const context = result.data;
+  const row = verifiedProposal(context.proposal, scope, proposal);
+  const selected = context.draft;
+  if (
+    context.purpose !== request.purpose ||
+    row.version !== request.expected_version ||
+    !same(row.revision_id, request.expected_revision_id) ||
+    !matchesScope(selected, scope) ||
+    !same(selected.id, row.draft_id) ||
+    !same(selected.revision_id, row.draft_revision_id) ||
+    selected.version !== row.draft_version ||
+    selected.staff_version !== row.staff_version ||
+    selected.employment_epoch !== row.employment_epoch ||
+    !same(selected.department_id, row.department_id) ||
+    !same(selected.department_revision_id, row.department_revision_id) ||
+    staffPostingInstantMicros(selected.starts_at) !== staffPostingInstantMicros(row.starts_at) ||
+    (selected.ends_at ? staffPostingInstantMicros(selected.ends_at) : null) !==
+      (row.ends_at ? staffPostingInstantMicros(row.ends_at) : null) ||
+    (row.status === "pending") !== (context.decision_reason === null) ||
+    [context.draft_reason, context.submission_reason, context.decision_reason].some(
+      (reason) => reason !== null && reason !== reason.trim(),
+    )
+  )
+    throw new Error("The protected posting context does not match the selected proposal sources.");
+  return context;
 }

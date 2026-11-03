@@ -166,7 +166,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -235,7 +235,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -314,7 +314,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -378,7 +378,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -442,7 +442,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -506,7 +506,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -590,7 +590,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -685,11 +685,11 @@
       "registration_sha256": "46cdb47d412ae4d5f87d08e9466a229c7cfe26b5f59747cf1501bb0a51b74e17",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-      "rationale": "Guarded hospital capability discovery under the verified subject\u2019s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified.",
+      "rationale": "Guarded hospital capability discovery under the verified subject’s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -743,7 +743,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -798,11 +798,11 @@
       "registration_sha256": "f57280645ede9d20f4ba39e5b79eee2334e96dbb02fa7957a2fbaff188ea70a4",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-      "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding\u2019s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified.",
+      "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding’s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -895,7 +895,7 @@
       "id": "http iam POST /v1/auth/session/activity",
       "registration_sha256": "32a6b108e5f8d60109a85dac6bd2ad376bcabf21c4870fcdbc6f97d2b022f87b",
       "authority_kind": "mixed",
-      "resource_scope": "Authenticated caller\u2019s own subject and existing tenant claim; no target subject or hospital is accepted.",
+      "resource_scope": "Authenticated caller’s own subject and existing tenant claim; no target subject or hospital is accepted.",
       "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified.",
       "authority_sources": [
         {
@@ -924,7 +924,7 @@
       "id": "http iam POST /v1/iam/me/sign-out",
       "registration_sha256": "591fcb4cdb5035f951e633928f1261d54eaee7abef6fb09ef9ff36b6d1c218d0",
       "authority_kind": "mixed",
-      "resource_scope": "Authenticated caller\u2019s global credential subject, across every device and tenant; no target subject is accepted.",
+      "resource_scope": "Authenticated caller’s global credential subject, across every device and tenant; no target subject is accepted.",
       "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open. Candidate source rechecked against catalog release e9ea7281: existing registrations/grants remain unchanged; the nine additional proposal/discovery routes, additive 0075 migration and preserved legacy source wrapper are reviewed in docs/qa/2026-11-04-posting-proposal-source-review.md. Classification and open lifecycle obligations remain unchanged; new proposal surfaces remain unclassified.",
       "authority_sources": [
         {
@@ -958,7 +958,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1002,7 +1002,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1046,7 +1046,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1105,7 +1105,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1149,7 +1149,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1193,7 +1193,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "2860aa6a859555d357a70019996e03895ef4804c7aaff8c56b8207595b0b2a72",
+          "sha256": "2005890138446ab0454b28184e392a30fa84ecd75f90155800f70c444199366f",
           "symbol": "func (*Module) Routes("
         },
         {

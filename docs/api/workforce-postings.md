@@ -274,6 +274,41 @@ Earlier SQL remains unchanged; rollback retains the additive tables and evidence
 
 ## In-development rejection and withdrawal
 
+### Protected review context candidate
+
+`GET /posting-proposals/:proposal/context` requires exactly one `purpose`
+(`review` or `submission`), positive safe-integer `expected_version`, and UUIDv7
+`expected_revision_id` query parameter. Unknown/duplicate/malformed parameters
+and query strings over 1 KiB are 400. A changed current head is 409; a hidden
+Staff/proposal is 404. No body field or original-account header grants authority.
+
+`review` requires current hospital-scoped `workforce.posting.review`, actor-use
+authority and the same target/contributor/historical-association independence
+checks as a decision. `submission` requires current `workforce.posting.submit`,
+actor-use authority and the original submitter subject. These checks precede
+private rationale loading, including for retained terminal heads. A static legacy
+permission is not used to choose between these two owner-authorized purposes.
+The registry uses `authz.Public` for dispatch; authentication, membership and
+purpose-specific current owner checks remain required.
+
+The canonical response contains `purpose`, exact public `proposal` and selected
+immutable `draft`, `draft_reason`, `submission_reason` and nullable
+`decision_reason`. Pending heads have no terminal rationale. Each reason is at
+most 500 characters; no actor subject, hash, identity dossier, attachment or
+private HR projection is returned. Later draft edits cannot replace the submitted
+revision or rationale. This retained view does not certify current source or
+department eligibility and does not authorize a later command.
+
+The existing guarded decision-purpose transaction acquires its supervision gate
+before actor rows, preserving source writers and current authority through outer
+commit. Exact-version context-read and Staff-source-use audit commit together;
+failure withholds all protected data and rolls back source-use evidence. No
+business revision, head or outbox row changes. Responses are no-store and the
+single-object response fits the 20-KiB planning budget. Dependency failure returns
+503 without a legacy fallback. This adds no migration or deployed UI acceptance.
+
+### Terminal command behavior
+
 `PUT /posting-proposals/:proposal/decisions/:command` selects current
 `workforce.posting.review` for rejection or `workforce.posting.submit` for
 withdrawal, always composing the exact actor-use grant and reviewed digital source.

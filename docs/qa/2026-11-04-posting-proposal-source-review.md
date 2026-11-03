@@ -5,8 +5,8 @@ acceptance remain open. See the [feature plan](../superpowers/plans/2026-11-03-i
 
 Compared the generated registry against catalog release `e9ea7281`: every
 existing Workforce and IAM route registration and permission declaration remains
-unchanged. Workforce adds nine scoped submission/decision/source/receipt/list/
-history/discovery routes and three posting proposal permissions. IAM migration
+unchanged. Workforce adds ten scoped submission/decision/source/receipt/list/
+history/discovery/protected-context routes and three posting proposal permissions. IAM migration
 0025 is already merged/deployed as the prerequisite, not a new migration for this
 API candidate. No prior migration record or SQL was replaced. Candidate Workforce
 0075 remains additive and has only been applied to disposable test databases.
@@ -45,7 +45,7 @@ survived and is explicitly not claimed as an independently tested boundary.
 
 Reviewed source pins for existing employment review, IAM and legacy draft
 surfaces are refreshed only for these compared changes. Their authority categories
-and unresolved runtime obligations remain unchanged. The nine new proposal
+and unresolved runtime obligations remain unchanged. The ten new proposal
 surfaces remain explicitly **unclassified** in the operational ledger until their
 own full source/lifecycle review; ledger parity does not complete those reviews.
 No department-scoped operating access, supervisor policy, effective posting,
@@ -53,6 +53,40 @@ production migration or clinical/regulatory acceptance is established here.
 
 
 ## Terminal decision review and outstanding evidence
+
+### Protected context addition
+
+The exact-head context GET uses explicit review/submission purpose and current
+scoped actor authority. It loads only public head metadata before invoking the
+same SQL decider as a command; rationale is loaded only after that predicate
+passes. The extracted Go decision-context/decider helpers retain the existing
+settings, generation read purpose, SQL call and denied/error behavior. The new
+read uses the existing write gate before actor rows, avoiding a lock upgrade and
+holding the same source/contributor writers through outer commit. No prior SQL,
+RLS policy, migration, permission or catalog changed.
+
+Reasons come from the selected immutable draft, version-1 submission and exact
+current terminal revision. Later draft edits cannot substitute a different
+rationale. The response excludes actor identities, hashes and identity dossiers;
+current-source/Organization eligibility views remain separate. Exact version
+audit and Staff-source-use evidence commit together; audit failure withholds
+the view and rolls source-use evidence back. `sources_examined` remains an
+attributable actor attestation, not a claim that a browser examined every source.
+
+Real public tests first failed with absent-route 404, then passed for current
+review and original-submitter context. The strengthened real gateway run passed
+in 98.276s. Bypassing only the protected-view decider returned the contributor's
+private context with 200 instead of 403, failing in 88.239s; original source was
+restored and hash-verified. SDK630/typecheck/lint/format, Go build/scoped vet/lint,
+contract checks and 15 inventory tests passed. The complete restored gateway
+race/profile suite subsequently passed in 454.878s, including real OpenFGA outage
+withholding. The current complete Workforce race/profile suite passed in 700.117s
+and the complete architecture race suite in 49.919s. Combined owner/gateway source
+coverage is 12,204/14,672 statements (83.179%); Go's report independently confirms
+83.2% rounded. Exact-head CI remains required. The registry adds exactly
+one authenticated/membership-required GET with explicit bounded-object rationale.
+The ledger is 794 registered/771 unclassified; all ten proposal surfaces remain
+unclassified, with normal reviewer UI and production acceptance still open.
 
 `posting_decisions.go` compares the exact pending version/revision and recovers
 same-key receipts only for the original normalized intent and subject. SQL permits

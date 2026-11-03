@@ -355,3 +355,42 @@ export const StaffPostingReviewHospitalScopeContract = z
 export type StaffPostingReviewHospitalScope = z.infer<
   typeof StaffPostingReviewHospitalScopeContract
 >;
+
+export const StaffPostingProposalContextRequestContract = z
+  .object({
+    purpose: z.enum(["review", "submission"]),
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    expected_revision_id: identifier,
+  })
+  .strict();
+export type StaffPostingProposalContextRequest = z.infer<
+  typeof StaffPostingProposalContextRequestContract
+>;
+
+export const StaffPostingProposalContextContract = z
+  .object({
+    purpose: z.enum(["review", "submission"]),
+    proposal: StaffPostingProposalContract,
+    draft: StaffPostingDraftContract,
+    draft_reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    submission_reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decision_reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .nullable(),
+  })
+  .strict();
+export type StaffPostingProposalContext = z.infer<typeof StaffPostingProposalContextContract>;

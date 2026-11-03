@@ -1,5 +1,61 @@
 # Staff Management delivery tracker
 
+## Protected posting context checkpoint — 2026-11-04
+
+The source-owner coverage correction [#1545](https://github.com/tesserix/helivanta/pull/1545)
+merged normally as **`a12f6a30`** after all required checks passed. Go CI completed
+in 30m08s, including the seven real fixture regressions and complete backend
+gate; its main-base Workforce source-owner result was **83.3% >= 70%**. Web,
+scripts, secrets, E2E and image checks passed. The repository remains public.
+This CI correction is not a production Staff API rollout.
+
+The posting candidate now adds a protected exact-head context view. Current
+independent review authority or the original submitter's current submission
+authority is required before loading the selected immutable draft rationale,
+original submission rationale and nullable terminal rationale. The view shares
+the existing decision predicates and guarded source lock order, audits disclosure
+through commit, and does not change business heads, revisions or outbox rows.
+No SQL or migration file changed. Existing public receipts remain private-field
+free. Canonical Go/Zod/SDK models require the exact purpose/version/revision and
+reject mismatched scope, draft/department/interval pins and malformed rationale.
+
+The real gateway RED returned **404 instead of 200** (90.357s package). The
+initial implementation passed (97.655s), then the strengthened real PostgreSQL/
+OpenFGA case passed in **98.276s**. That case covers later draft edits retaining
+the submitted rationale, terminal reasons, contributor/historical-account denial,
+stale/hidden targets and audit withholding with actor-use rollback. Removing only
+the context's independence call produced **200 instead of required 403** for a
+retained contributor; the mutant failed in **88.239s**. Original context source
+was restored and SHA256 verified. A real OpenFGA outage assertion was then added.
+The complete restored Global API race/profile suite passed in **454.878s**,
+including that assertion, and removed three owned fixtures without fallback SSH
+forwards. Its Workforce-only instrumentation reports 28.8%; this gateway-only
+metric is not combined source-owner coverage for the current addition.
+
+The SDK test first failed on its absent helper. Current **630 tests / 78 files**,
+API typecheck, lint, package-wide formatting, Go build, scoped Go vet/lint and
+contractdocs check passed. The SDK also verifies that 500 Unicode code points are
+accepted and 501 refused for each retained rationale. The pagination gate first refused the new route, then
+passed with the explicit single-object/three-bounded-reasons rationale (2.592s).
+All 15 operational inventory tests passed. Registry comparison proves exactly one
+new authenticated, membership-required route; all previous routes, grants,
+migrations, events and canonical model contents are unchanged. Sixteen module
+source pins were reconciled while preserving every classification/rationale and
+remaining obligation. The ledger is **794 registered / 771 unclassified**; the
+ten proposal surfaces remain unclassified.
+
+The complete current Workforce race/profile suite passed in **700.117s**, removing
+four owned fixtures; the complete architecture race suite passed in **49.919s**,
+removing three. Neither required fallback SSH forwards. Combining the complete
+current Workforce and gateway profiles with the merged source-owner parser gives
+**12,204 / 14,672 statements = 83.179%**; Go's independent report confirms **83.2%**
+rounded. This is code coverage, not Staff feature acceptance. Rebasing onto the
+merged CI correction and exact-head CI remain pending. The pre-context result below is historical evidence,
+not a full-suite run of this addition. Hospital proposal inbox, normal reviewer UI
+and browser acceptance, supervision/root policy, effective departmental postings,
+lifecycle consumers and Pharma duties remain open. Overall acceptance remains
+**10 partial, 10 awaiting audit, 1 research and 0 fully accepted**.
+
 ## Historical-account and coverage checkpoint — 2026-11-04
 
 Draft #1544 at `0cf52a1a` passed web, scripts, secrets, E2E and image CI checks.

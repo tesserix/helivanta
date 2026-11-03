@@ -44,3 +44,20 @@ func TestPostingReviewDiscoveryFailsClosedWithoutCurrentOwners(t *testing.T) {
 	require.Equal(t, 503, response.Code, "missing scope/source owners cannot be represented as verified empty discovery: %s", response.Body.String())
 	require.NotContains(t, response.Body.String(), "data")
 }
+
+func TestPostingReviewContextFailsClosedWithoutCurrentOwners(t *testing.T) {
+	h := newRequestHarness(t)
+	staff := h.staff("SYN-POSTING-CONTEXT-OWNER")
+	for _, purpose := range []string{"review", "submission"} {
+		path := h.base + "/posting-staff/" + staff + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String() + "/context?purpose=" + purpose + "&expected_version=1&expected_revision_id=" + uuid.Must(uuid.NewV7()).String()
+		request := httptest.NewRequest("GET", path, nil)
+		request.Header.Set("Authorization", "Bearer admin")
+		request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+		request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+		response := httptest.NewRecorder()
+		h.handler.ServeHTTP(response, request)
+		require.Equal(t, 503, response.Code, "a private view cannot fall back to broad administration: %s", response.Body.String())
+		require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
+		require.NotContains(t, response.Body.String(), "draft_reason")
+	}
+}

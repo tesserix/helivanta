@@ -2033,7 +2033,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				grant(postingReviewer, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
 				grant(postingReviewer, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 				grant(postingSubmitter, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
-				assertPostingNonDigitalTarget(t, db, testutil.TenantA, call, base, hospital, joiner, manager, maker, postingSubmitter, postingReviewer, generation)
+				assertPostingNonDigitalTarget(t, db, testutil.TenantA, call, base, hospital, joiner, manager, maker, postingSubmitter, postingReviewer, generation, &authorizationUnavailable)
 				return
 			}
 			if scenario == "actor_enforcement" || scenario == "review_discovery" || strings.HasPrefix(scenario, "posting_") {

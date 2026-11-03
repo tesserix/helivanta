@@ -314,3 +314,17 @@ missing protected review view. The original submitter needs the matching retaine
 context for withdrawal/recovery without acquiring unrelated reviewer authority.
 Keep any source release bound to exact proposal/draft revisions and current
 actor/tenant/hospital; later commands must recheck those pins through commit.
+
+Protected-context candidate now adds the exact-head/purpose GET and canonical
+Go/Zod/SDK response described in the specification. Real gateway and SDK tests
+first failed on the absent route/helper, then passed for current independent
+review and original-submitter views. The strengthened gateway case covers
+retained rationale after a later draft edit, terminal rationale, contributor and
+historical-association denial, stale/hidden targets and audit withholding with
+actor-use rollback. Current-source and Organization verification remain separate;
+no checkbox or retained rationale is represented as operational eligibility.
+The decider-bypass mutation failed with an unauthorized 200 instead of 403.
+Restored complete gateway (454.878s), Workforce (700.117s) and architecture
+(49.919s) race suites passed, alongside SDK630/typecheck/lint/format and contract
+checks. Exact-head CI and the hospital inbox/normal UI remain required before
+acceptance. No new SQL or migration is introduced by this view.

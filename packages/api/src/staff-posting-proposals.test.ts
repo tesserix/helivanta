@@ -68,6 +68,146 @@ const receipt = {
 };
 afterEach(() => vi.resetAllMocks());
 
+it("releases only the requested exact protected proposal context", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic retained preparation rationale",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  vi.mocked(apiFetch).mockResolvedValue(context);
+  expect(await api.getStaffPostingProposalContext(scope, receipt.id, request)).toEqual(context);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-proposals/${receipt.id}/context?purpose=review&expected_version=1&expected_revision_id=${receipt.revision_id}`,
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      }),
+    }),
+  );
+});
+
+it("refuses private context with mismatched scope, purpose, immutable sources or reasons", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic retained preparation",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  for (const change of [
+    { purpose: "submission" },
+    { proposal: { ...receipt, staff_id: id(90) } },
+    { proposal: { ...receipt, revision_id: id(90) } },
+    { proposal: { ...receipt, version: 2 } },
+    { draft: { ...draft, revision_id: id(90) } },
+    { draft: { ...draft, department_revision_id: id(90) } },
+    { draft: { ...draft, starts_at: "2026-11-04T00:00:01Z" } },
+    { draft_reason: "Synthetic\ninvalid reason" },
+    { submission_reason: " Synthetic padded reason " },
+    { decision_reason: "A pending proposal cannot contain a terminal reason" },
+    { proposal: { ...receipt, input_hash: "private fields must not reach this view" } },
+    { unknown: true },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...context, ...change });
+    await expect(api.getStaffPostingProposalContext(scope, receipt.id, request)).rejects.toThrow();
+  }
+});
+
+it("recovers terminal rationale only for its exact current head", async () => {
+  const api = await import("./staff-posting-proposals");
+  const rejected = {
+    ...receipt,
+    revision_id: id(90),
+    command_id: id(91),
+    version: 2,
+    status: "rejected",
+  };
+  const context = {
+    purpose: "submission",
+    proposal: rejected,
+    draft,
+    draft_reason: "Synthetic retained preparation",
+    submission_reason: input.reason,
+    decision_reason: "Synthetic independent correction",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(context);
+  expect(
+    await api.getStaffPostingProposalContext(scope, receipt.id, {
+      purpose: "submission",
+      expected_version: 2,
+      expected_revision_id: rejected.revision_id,
+    }),
+  ).toEqual(context);
+});
+
+it("measures retained rationale bounds in Unicode code points", async () => {
+  const api = await import("./staff-posting-proposals");
+  const reason = "😀".repeat(500);
+  const rejected = {
+    ...receipt,
+    revision_id: id(90),
+    command_id: id(91),
+    version: 2,
+    status: "rejected",
+  };
+  const request = {
+    purpose: "submission" as const,
+    expected_version: 2,
+    expected_revision_id: rejected.revision_id,
+  };
+  const context = {
+    purpose: "submission",
+    proposal: rejected,
+    draft,
+    draft_reason: reason,
+    submission_reason: reason,
+    decision_reason: reason,
+  };
+  vi.mocked(apiFetch).mockResolvedValue(context);
+  expect(await api.getStaffPostingProposalContext(scope, receipt.id, request)).toEqual(context);
+  for (const field of ["draft_reason", "submission_reason", "decision_reason"] as const) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...context, [field]: reason + "😀" });
+    await expect(api.getStaffPostingProposalContext(scope, receipt.id, request)).rejects.toThrow();
+  }
+});
+
+it("rejects malformed context intent before requesting protected bytes", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review",
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  for (const change of [
+    { purpose: "admin" },
+    { expected_version: null },
+    { expected_version: 0 },
+    { expected_revision_id: scope.staffId },
+    { unknown: true },
+  ])
+    await expect(
+      api.getStaffPostingProposalContext(scope, receipt.id, { ...request, ...change } as never),
+    ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
 it("requires exact pending revision, source confirmation and a control-free decision reason", () => {
   const decision = {
     expected_version: 1,

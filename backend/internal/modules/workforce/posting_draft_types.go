@@ -110,3 +110,18 @@ type StaffPostingReviewHospitalScope struct {
 	CanSubmit  bool      `json:"can_submit"`
 	CanReview  bool      `json:"can_review"`
 }
+
+type StaffPostingProposalContextRequest struct {
+	Purpose            string    `json:"purpose"`
+	ExpectedVersion    *int64    `json:"expected_version"`
+	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
+}
+
+type StaffPostingProposalContext struct {
+	Purpose          string               `json:"purpose"`
+	Proposal         StaffPostingProposal `json:"proposal"`
+	Draft            StaffPostingDraft    `json:"draft"`
+	DraftReason      string               `json:"draft_reason"`
+	SubmissionReason string               `json:"submission_reason"`
+	DecisionReason   *string              `json:"decision_reason"`
+}

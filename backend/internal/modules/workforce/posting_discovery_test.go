@@ -51,3 +51,11 @@ func TestPostingWorkspacePagesFitWireBudget(t *testing.T) {
 		require.LessOrEqual(t, len(payload), 64*1024, "maximum escaped fields and continuation fit the documented wire budget")
 	}
 }
+
+func TestPostingProtectedContextFitsWireBudget(t *testing.T) {
+	reason := strings.Repeat("<", 500)
+	row := workforce.StaffPostingProposalContext{Purpose: "review", DraftReason: reason, SubmissionReason: reason, DecisionReason: &reason}
+	payload, err := json.Marshal(map[string]any{"data": row})
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(payload), 20*1024, "three maximum escaped reasons and fixed source DTOs fit the protected-view budget")
+}

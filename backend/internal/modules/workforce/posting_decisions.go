@@ -12,12 +12,31 @@ import (
 	"github.com/google/uuid"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"gorm.io/gorm"
 )
 
 var errPostingSupervisionRequired = errors.New("posting supervision policy required")
+
+func postingProposalDecisionContext(tx *gorm.DB, s postingDraftScope, decision string, revision uuid.UUID) error {
+	return tx.Exec(`SELECT set_config('app.workforce_posting_review_mode',?,true),set_config('app.workforce_posting_proposal',?,true),set_config('app.workforce_posting_expected_revision',?,true)`, decision, s.draft.String(), revision.String()).Error
+}
+
+func authorizePostingProposalDecider(tx *gorm.DB, p authn.Principal, s postingDraftScope, decision string) error {
+	if err := generationContext(tx, s.staff, "read"); err != nil {
+		return err
+	}
+	var allowed bool
+	if err := tx.Raw(`SELECT workforce_posting_proposal_decider(?::uuid,?::uuid,?::uuid,?::uuid,?)`, p.TenantID, s.hospital, s.staff, s.draft, decision).Scan(&allowed).Error; err != nil {
+		return err
+	}
+	if !allowed {
+		return authz.ErrScopedCommandDenied
+	}
+	return nil
+}
 
 func validPostingDecisionInput(in *StaffPostingDecisionInput) bool {
 	in.Reason = strings.TrimSpace(in.Reason)
@@ -59,7 +78,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	}
 	var out StaffPostingProposal
 	err = h.scopedPostingTransaction(c, p, s, true, permission, func(ctx context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
-		if err := tx.Exec(`SELECT set_config('app.workforce_posting_review_mode',?,true),set_config('app.workforce_posting_proposal',?,true),set_config('app.workforce_posting_expected_revision',?,true)`, in.Decision, s.draft.String(), in.ExpectedRevisionID.String()).Error; err != nil {
+		if err := postingProposalDecisionContext(tx, s, in.Decision, in.ExpectedRevisionID); err != nil {
 			return err
 		}
 		var receipt struct {
@@ -87,15 +106,8 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		if row.Version != *in.ExpectedVersion || row.RevisionID != in.ExpectedRevisionID || row.Status != "pending" {
 			return errPostingProposalConflict
 		}
-		if err := generationContext(tx, s.staff, "read"); err != nil {
+		if err := authorizePostingProposalDecider(tx, p, s, in.Decision); err != nil {
 			return err
-		}
-		var allowed bool
-		if err := tx.Raw(`SELECT workforce_posting_proposal_decider(?::uuid,?::uuid,?::uuid,?::uuid,?)`, p.TenantID, s.hospital, s.staff, s.draft, in.Decision).Scan(&allowed).Error; err != nil {
-			return err
-		}
-		if !allowed {
-			return authz.ErrScopedCommandDenied
 		}
 		if in.Decision == "approve" {
 			return errPostingSupervisionRequired

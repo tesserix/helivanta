@@ -7848,6 +7848,15 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",

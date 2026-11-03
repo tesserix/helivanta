@@ -96,6 +96,42 @@ from current operational eligibility.
 
 ## Source and supervision requirements
 
+### Protected proposal context
+
+Candidate `GET /posting-proposals/:proposal/context` requires exactly one each
+of `purpose=review|submission`, `expected_version` and `expected_revision_id`.
+Unknown, duplicate or malformed query parameters return 400. The exact current
+head must match both pins, otherwise 409; hidden targets/proposals return 404.
+This is a protected current-head view, not a replacement for immutable receipts.
+
+For `review`, require current hospital review and Staff-actor-use authority and
+the existing independent decider predicate before loading any rationale. For
+`submission`, require current submit and Staff-actor-use authority plus the
+existing original-submitter predicate. Membership, tenant administration, a
+proposal-read assignment or a different submitter cannot release this context.
+The checks apply to pending and retained terminal heads. They never grant a
+later decision; each command reauthorizes its exact intent.
+
+Return the purpose, exact public proposal, its selected immutable public draft,
+draft reason, original submission reason and nullable current terminal decision
+reason. Each reason retains the existing 500-character bound. Never include actor
+subjects, input hashes, identity dossiers, attachment bytes or copied HR data.
+The retained reasons explain the examined intent; they do not certify present
+employment, structural eligibility or positive approval. Current source and
+Organization verification remain separate owner views.
+
+Use the existing guarded decision-purpose transaction and supervision write gate
+for this sensitive read. That gate is acquired before actor rows, preserving the
+existing lock order and holding proposal/draft/contributor source writers through
+commit without a read-to-write lock upgrade. No business head, revision or outbox
+row changes; successful source-use and exact-version context-read audit commit
+together. Audit, authorization, source or commit failure withholds every protected
+byte. Responses are no-store and remain within the inherited 20-KiB response and
+500-ms p99 planning budgets; these are unmeasured, not performance claims.
+No new service, paid dependency, table or migration is needed. The canonical JSON
+contract generates the Go/Zod DTOs; the SDK checks requested scope, purpose,
+proposal pins and draft/source relationships before returning the context.
+
 ### Terminal decisions and incomplete supervision policy
 
 The existing capacity/SLO and single-owner transaction design also apply to

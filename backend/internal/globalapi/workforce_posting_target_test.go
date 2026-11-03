@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, base, hospital, staff, manager, admin, actor, reviewer string, generation map[string]any) {
+func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, base, hospital, staff, manager, admin, actor, reviewer string, generation map[string]any, authorizationUnavailable *atomic.Bool) {
 	t.Helper()
 	staffBase := base + "/staff/" + staff
 	postingBase := base + "/posting-staff/" + staff
@@ -53,6 +54,34 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	require.Equal(t, "pending", pending["status"])
 	require.Equal(t, false, pending["grants_access"])
 	require.Equal(t, pending, call(t, "PUT", command, actor, input, 200))
+	contextQuery := "?purpose=review&expected_version=1&expected_revision_id=" + pending["revision_id"].(string)
+	contextPath := proposal + "/context" + contextQuery
+	protected := call(t, "GET", contextPath, reviewer, nil, 200)
+	require.Equal(t, "review", protected["purpose"])
+	require.Equal(t, pending, protected["proposal"])
+	require.Equal(t, saved, protected["draft"])
+	require.Equal(t, intent["reason"], protected["draft_reason"])
+	require.Equal(t, input["reason"], protected["submission_reason"])
+	require.Nil(t, protected["decision_reason"])
+	func() {
+		authorizationUnavailable.Store(true)
+		defer authorizationUnavailable.Store(false)
+		failure := call(t, "GET", contextPath, reviewer, nil, 503)
+		require.NotContains(t, failure, "data", "OpenFGA outage must withhold the protected view")
+	}()
+	call(t, "GET", contextPath, actor, nil, 403)
+	call(t, "GET", contextPath, admin, nil, 403)
+	submissionContext := strings.Replace(contextPath, "purpose=review", "purpose=submission", 1)
+	require.Equal(t, input["reason"], call(t, "GET", submissionContext, actor, nil, 200)["submission_reason"])
+	call(t, "GET", submissionContext, reviewer, nil, 403)
+	call(t, "GET", strings.Replace(contextPath, "expected_version=1", "expected_version=2", 1), reviewer, nil, 409)
+	call(t, "GET", strings.Replace(contextPath, pending["revision_id"].(string), uuid.Must(uuid.NewV7()).String(), 1), reviewer, nil, 409)
+	for _, query := range []string{"", contextQuery + "&purpose=submission", contextQuery + "&unexpected=true", strings.Replace(contextQuery, "expected_version=1", "expected_version=01", 1)} {
+		call(t, "GET", proposal+"/context"+query, reviewer, nil, 400)
+	}
+	call(t, "GET", strings.Replace(contextPath, "/posting-staff/"+staff, "/posting-staff/"+uuid.Must(uuid.NewV7()).String(), 1), reviewer, nil, 404)
+	call(t, "GET", strings.Replace(contextPath, proposal+"/context", postingBase+"/posting-proposals/"+uuid.Must(uuid.NewV7()).String()+"/context", 1), reviewer, nil, 404)
+	assertPostingContextAuditRollback(t, db, tenant, reviewer, contextPath, call, []string{intent["reason"].(string), input["reason"].(string)})
 	require.Len(t, call(t, "GET", proposal+"/history", actor, nil, 200)["data"], 1)
 	decisionPath := proposal + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	decision := map[string]any{"expected_version": pending["version"], "expected_revision_id": pending["revision_id"], "decision": "reject", "reason": "Independent synthetic placement rejected for correction", "sources_examined": true}
@@ -105,6 +134,12 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	require.Equal(t, "rejected", rejected["status"])
 	require.EqualValues(t, 2, rejected["version"])
 	require.Equal(t, false, rejected["grants_access"])
+	terminalContextPath := proposal + "/context?purpose=review&expected_version=2&expected_revision_id=" + rejected["revision_id"].(string)
+	terminalContext := call(t, "GET", terminalContextPath, reviewer, nil, 200)
+	require.Equal(t, rejected, terminalContext["proposal"])
+	require.Equal(t, input["reason"], terminalContext["submission_reason"])
+	require.Equal(t, decision["reason"], terminalContext["decision_reason"])
+	call(t, "GET", contextPath, reviewer, nil, 409)
 	require.Equal(t, rejected, call(t, "PUT", decisionPath, reviewer, decision, 200))
 	require.Equal(t, rejected, call(t, "GET", decisionPath, reviewer, nil, 200))
 	require.Equal(t, pending, call(t, "GET", command, actor, nil, 200))
@@ -126,6 +161,14 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	contributedDecision := maps.Clone(decision)
 	contributedDecision["expected_version"], contributedDecision["expected_revision_id"] = contributedPending["version"], contributedPending["revision_id"]
 	contributedDecisionPath := contributedProposal + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	contributorContextPath := contributedProposal + "/context?purpose=review&expected_version=1&expected_revision_id=" + contributedPending["revision_id"].(string)
+	call(t, "GET", contributorContextPath, reviewer, nil, 403)
+	laterDraftEdit := maps.Clone(contributedEdit)
+	laterDraftEdit["expected_version"], laterDraftEdit["reason"] = contributed["version"], "Later synthetic preparation must not replace submitted rationale"
+	call(t, "PUT", contributedDraftBase+"/commands/"+uuid.Must(uuid.NewV7()).String(), actor, laterDraftEdit, 200)
+	retainedContext := call(t, "GET", strings.Replace(contributorContextPath, "purpose=review", "purpose=submission", 1), actor, nil, 200)
+	require.Equal(t, contributed, retainedContext["draft"], "context must use the submitted immutable revision after a later edit")
+	require.Equal(t, contributedEdit["reason"], retainedContext["draft_reason"])
 	call(t, "PUT", contributedDecisionPath, reviewer, contributedDecision, 403)
 	require.Equal(t, contributedPending, call(t, "GET", contributedProposal, reviewer, nil, 200), "an earlier draft contributor cannot review even after another preparer edits and submits")
 	require.Len(t, call(t, "GET", contributedProposal+"/history", reviewer, nil, 200)["data"], 1)
@@ -145,6 +188,7 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	aliasDecision["expected_version"], aliasDecision["expected_revision_id"] = aliasPending["version"], aliasPending["revision_id"]
 	importHistoricalPostingAlias(t, db, tenant, hospital, actor, reviewer, admin)
 	aliasDecisionPath := aliasProposal + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	call(t, "GET", aliasProposal+"/context?purpose=review&expected_version=1&expected_revision_id="+aliasPending["revision_id"].(string), reviewer, nil, 403)
 	call(t, "PUT", aliasDecisionPath, reviewer, aliasDecision, 403)
 	require.Equal(t, aliasPending, call(t, "GET", aliasProposal, reviewer, nil, 200), "a retained account association excludes an otherwise current reviewer without changing the pending proposal")
 	require.Len(t, call(t, "GET", aliasProposal+"/history", reviewer, nil, 200)["data"], 1)

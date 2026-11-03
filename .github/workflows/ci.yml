@@ -114,6 +114,7 @@ jobs:
               done
               sleep 0.2
             done' > /dev/null 2>&1 &
+      - run: bash ./scripts/coverage-gate.test.sh
       - run: ./scripts/coverage-gate.sh
       # The drug master's latency target (#476 spec D8), measured alone: the
       # gate above runs every package in parallel under -race, where a

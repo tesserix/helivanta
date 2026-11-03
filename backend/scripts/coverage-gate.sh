@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 FLOOR="${COVERAGE_FLOOR:-70}"
-out=$(go test -race -count=1 -cover -timeout=20m ./... 2>&1) || { echo "$out"; exit 1; }
+profile=$(mktemp)
+trap 'rm -f "$profile"' EXIT
+# Owner code is also exercised through gateway and cross-module integration tests.
+out=$(go test -race -count=1 -coverpkg=./... -coverprofile="$profile" -timeout=20m ./... 2>&1) || { echo "$out"; exit 1; }
 echo "$out"
 is_gated() {
   case "$1" in
@@ -24,15 +27,37 @@ is_gated() {
   esac
 }
 
+counts=$(awk '
+  NR == 1 {next}
+  {
+    block = $1
+    pkg = block
+    sub(/:[^:]*$/, "", pkg)
+    sub(/\/[^\/]*$/, "", pkg)
+    if (!(block in statements)) {
+      statements[block] = $2
+      owner[block] = pkg
+      total[pkg] += $2
+    }
+    if ($3 > 0) hit[block] = 1
+  }
+  END {
+    for (block in hit) covered[owner[block]] += statements[block]
+    for (pkg in total) if (total[pkg] > 0) print pkg, covered[pkg] + 0, total[pkg]
+  }
+' "$profile") || { echo 'FAIL coverage: cannot read combined profile'; exit 1; }
+
 fail=0
-while read -r pkg pct; do
+while read -r pkg covered total; do
   is_gated "$pkg" || continue
-  p="${pct%\%}"
-  if awk "BEGIN{exit !($p < $FLOOR)}"; then
-    echo "FAIL coverage $pkg: ${pct} < ${FLOOR}%"
+  pct=$(awk -v covered="$covered" -v total="$total" 'BEGIN {printf "%.1f", 100 * covered / total}')
+  if awk -v covered="$covered" -v total="$total" -v floor="$FLOOR" 'BEGIN {exit !(100 * covered < floor * total)}'; then
+    echo "FAIL coverage $pkg: ${pct}% < ${FLOOR}%"
     fail=1
+  else
+    echo "PASS coverage $pkg: ${pct}% >= ${FLOOR}%"
   fi
-done < <(echo "$out" | awk '$1=="ok" && /coverage:/{for(i=1;i<=NF;i++) if($i=="coverage:") print $2, $(i+1)}')
+done < <(echo "$counts" | sort)
 
 # Packages with no test files never get an "ok" prefix. Depending on the
 # Go version this shows up either as the classic "?  pkg  [no test files]"

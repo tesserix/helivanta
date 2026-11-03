@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -54,7 +54,15 @@ export function PrescriptionRegister({ scope, today }: { scope: PharmacyScope; t
       to: v.to,
       ...(v.regulatoryClass !== "all" ? { regulatoryClass: v.regulatoryClass } : {}),
       ...(v.productId ? { productId: v.productId } : {}),
+      // Changing the period or schedule keeps the patient being looked at.
+      ...(filter.patientId ? { patientId: filter.patientId } : {}),
     });
+  // Who is being looked at, by name, and where focus goes once narrowed.
+  const [patientName, setPatientName] = useState("");
+  const showEvery = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (filter.patientId) showEvery.current?.focus();
+  }, [filter.patientId]);
   return (
     <Panel>
       <h3 className="font-semibold">Prescription register</h3>
@@ -103,8 +111,9 @@ export function PrescriptionRegister({ scope, today }: { scope: PharmacyScope; t
       </form>
       {filter.patientId && (
         <p className="mt-3 text-sm">
-          One registered patient&apos;s supplies.{" "}
+          Supplies to the registered patient {patientName}.{" "}
           <Button
+            ref={showEvery}
             type="button"
             variant="ghost"
             onClick={() => setFilter({ ...filter, patientId: undefined })}
@@ -117,7 +126,10 @@ export function PrescriptionRegister({ scope, today }: { scope: PharmacyScope; t
         key={JSON.stringify(filter)}
         scope={scope}
         filter={filter}
-        onPatient={(patientId) => setFilter({ ...filter, patientId })}
+        onPatient={(patientId, name) => {
+          setPatientName(name);
+          setFilter({ ...filter, patientId });
+        }}
       />
     </Panel>
   );
@@ -132,7 +144,7 @@ function Entries({
 }: {
   scope: PharmacyScope;
   filter: PharmacyPrescriptionRegisterFilter;
-  onPatient: (patientId: string) => void;
+  onPatient: (patientId: string, name: string) => void;
 }) {
   const entries = useApiPagedQuery<PharmacyPrescriptionRegisterEntry>(
     pharmacyKey(scope, "prescription-register", filter),
@@ -184,7 +196,8 @@ function Entries({
                       type="button"
                       variant="ghost"
                       className="block"
-                      onClick={() => onPatient(e.patient_id!)}
+                      aria-label={`Supplies to ${e.patient_name} (${e.serial})`}
+                      onClick={() => onPatient(e.patient_id!, e.patient_name)}
                     >
                       This patient&apos;s supplies
                     </Button>

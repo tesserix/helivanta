@@ -88,6 +88,11 @@ func TestTheH1RegisterReadsEachH1SupplyAndItsReturns(t *testing.T) {
 		return tx.Raw(`SELECT count(*) FROM audit_events WHERE resource_type='pharmacy_h1_register' AND action='register_read' AND actor_subject='user-pharmacist'`).Scan(&reads).Error
 	}))
 	require.EqualValues(t, 2, reads, "every read of the register is recorded")
+	var fields []string
+	require.NoError(t, w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT DISTINCT array_to_string(changed_fields,',') FROM audit_events WHERE resource_type='pharmacy_h1_register'`).Scan(&fields).Error
+	}))
+	require.Equal(t, []string{"from,to"}, fields, "the H1 audit row is unchanged by the shared helper")
 }
 
 func TestTheH1RegisterIsThePharmacistsAlone(t *testing.T) {

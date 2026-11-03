@@ -114,6 +114,11 @@ func TestThePrescriptionRegisterReadsEverySupplyOnPrescription(t *testing.T) {
 		return tx.Raw(`SELECT count(*) FROM audit_events WHERE resource_type='pharmacy_prescription_register' AND action='register_read' AND actor_subject='user-pharmacist'`).Scan(&reads).Error
 	}))
 	require.EqualValues(t, 5, reads, "every successful read is recorded; a refused one is not")
+	var fields []string
+	require.NoError(t, w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT DISTINCT array_to_string(changed_fields,',') FROM audit_events WHERE resource_type IN ('pharmacy_prescription_register','pharmacy_h1_register') ORDER BY 1`).Scan(&fields).Error
+	}))
+	require.Equal(t, []string{"from,to,class,product_id,patient_id"}, fields, "the audit row names every filter")
 }
 
 func TestThePrescriptionRegisterFindsARegisteredPatientsSupplies(t *testing.T) {

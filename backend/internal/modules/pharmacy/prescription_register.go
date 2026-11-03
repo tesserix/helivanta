@@ -196,8 +196,12 @@ func (h *catalogueHandlers) exportRxRegister(c *gin.Context) {
 		return
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256(data))
-	audit.Log(ctx, requestid.Logger(c), slog.LevelInfo, "pharmacy.prescription_register.exported", "prescription register CSV generated", "tenant_id", p.TenantID,
-		"subject", p.Subject, "pharmacy_id", currentPharmacy(ctx), "outlet_id", outlet, "from", f.from, "to", f.to, "row_count", len(rows), "sha256", digest)
+	// The digest is logged with the exact filter that produced it.
+	logged := []any{"tenant_id", p.TenantID, "subject", p.Subject, "pharmacy_id", currentPharmacy(ctx), "outlet_id", outlet, "row_count", len(rows), "sha256", digest}
+	for _, v := range f.logged() {
+		logged = append(logged, v)
+	}
+	audit.Log(ctx, requestid.Logger(c), slog.LevelInfo, "pharmacy.prescription_register.exported", "prescription register CSV generated", logged...)
 	c.Header("Cache-Control", "private, no-store")
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="pharmacy-prescription-register-%s-%s-%s.csv"`, outlet, f.from, f.to))
 	c.Header("X-Content-Type-Options", "nosniff")

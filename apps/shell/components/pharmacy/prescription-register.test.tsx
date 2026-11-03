@@ -106,9 +106,24 @@ describe("PrescriptionRegister", () => {
       ),
     );
 
-    await user.click(await screen.findByRole("button", { name: "This patient's supplies" }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Supplies to TEST Ravi Kumar (TS/2627/1 · line 1)",
+      }),
+    );
     await waitFor(() => expect(registerReads(fetcher).at(-1)).toContain(`&patient_id=${patient}`));
-    await user.click(await screen.findByRole("button", { name: "Show every patient" }));
+    const every = await screen.findByRole("button", { name: "Show every patient" });
+    await waitFor(() => expect(every).toHaveFocus());
+    expect(screen.getByText(/Supplies to the registered patient TEST Ravi Kumar/)).toBeVisible();
+    // Widening the period keeps the patient.
+    const from = screen.getByLabelText("From");
+    await user.clear(from);
+    await user.type(from, "2026-10-01");
+    await user.click(screen.getByRole("button", { name: "Show register" }));
+    await waitFor(() =>
+      expect(registerReads(fetcher).at(-1)).toMatch(/from=2026-10-01.*&patient_id=/),
+    );
+    await user.click(screen.getByRole("button", { name: "Show every patient" }));
     await waitFor(() => expect(registerReads(fetcher).at(-1)).not.toContain("patient_id"));
   });
 

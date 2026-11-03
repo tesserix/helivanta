@@ -68,6 +68,8 @@ function fixture(
     ceilingBps?: number;
     saveCeiling?: (init: RequestInit) => Response;
     saleLine?: typeof line & { prescription_id?: string; prescription_line?: number };
+    /** Every line of the posted sale, when it has more than one. */
+    saleLines?: (typeof line & { prescription_id?: string; line_number?: number })[];
     /** The status every counter-payment read answers (#1386 C-4b). */
     counterPayment?: { status: string };
     /** The outlet's service charges (#1388); "fail" answers 500. */
@@ -231,7 +233,7 @@ function fixture(
             actor_subject: "user-pharmacist",
             created_at: "2026-11-01T06:30:00Z",
             class_origin: "declared_by_outlet",
-            lines: [options.saleLine ?? line],
+            lines: options.saleLines ?? [options.saleLine ?? line],
             tenders: [
               {
                 tender_number: 1,
@@ -558,7 +560,7 @@ describe("CounterSale", () => {
     );
     // Rule 65(3)(1): the register serial goes on the prescription (#1062).
     expect(screen.getByRole("note")).toHaveTextContent(
-      "and its register serial TS/2627/1 · line 1",
+      "The prescription for line 1: TS/2627/1 · line 1",
     );
 
     const cited = {
@@ -572,6 +574,32 @@ describe("CounterSale", () => {
       ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
     );
     expect(JSON.parse(String(put?.[1]?.body)).lines).toEqual([cited]);
+  });
+
+  it("tells which register serial goes on which prescription (#1062)", async () => {
+    const rxA = "0199e000-0000-7000-8000-0000000000a1";
+    const rxB = "0199e000-0000-7000-8000-0000000000b1";
+    fixture({
+      saleLines: [
+        { ...line, line_number: 1, prescription_id: rxA },
+        { ...line, line_number: 2 },
+        { ...line, line_number: 3, prescription_id: rxB },
+        { ...line, line_number: 4, prescription_id: rxA },
+      ],
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await user.click(await screen.findByRole("button", { name: "Post sale" }));
+    const note = await screen.findByRole("note");
+    const items = within(note).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent(
+      "The prescription for lines 1 and 4: TS/2627/1 · line 1, TS/2627/1 · line 4",
+    );
+    expect(items[1]).toHaveTextContent("The prescription for line 3: TS/2627/1 · line 3");
   });
 
   it("records a walk-in buyer only when given, and asks no endorsement for OTC", async () => {

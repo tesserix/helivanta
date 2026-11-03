@@ -192,6 +192,11 @@ func (h *catalogueHandlers) putServiceChargeVersion(c *gin.Context) {
 	var result serviceChargeVersion
 	created := false
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
+		// The charge's lock comes before seq is drawn, so seq follows the
+		// order versions commit and "latest" is the last one recorded.
+		if err := tx.Exec(`SELECT pharmacy_service_charge_lock(?, ?, ?)`, p.TenantID, outlet, charge).Error; err != nil {
+			return err
+		}
 		// The first version names the charge; every later one repeats its code.
 		if err := tx.Exec(`INSERT INTO pharmacy_service_charges (id, tenant_id, outlet_id, code, created_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT (tenant_id, outlet_id, id) DO NOTHING`,
 			charge, p.TenantID, outlet, in.Code, p.Subject).Error; err != nil {
@@ -457,6 +462,9 @@ func priceCharges(tx *gorm.DB, tenant string, outlet uuid.UUID, day, channel str
 		}
 		if v.Channel != channel {
 			return nil, errNotSellable{"the service charge " + v.Code + " is not for this kind of sale"}
+		}
+		if ch.VersionID != nil && *ch.VersionID != v.ID {
+			return nil, errNotSellable{"the service charge " + v.Code + " changed since it was priced; price the basket again"}
 		}
 		line := saleChargeLine{ChargeNumber: i + 1, ChargeID: ch.ChargeID, VersionID: v.ID, Code: v.Code, Name: v.Name, TaxTreatment: v.TaxTreatment, SACCode: v.SACCode}
 		if v.TaxTreatment == "own_service" {

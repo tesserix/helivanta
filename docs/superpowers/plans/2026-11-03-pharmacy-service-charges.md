@@ -22,7 +22,7 @@
 
 ## Review Focus
 
-1. A review racing a sale: the sale must refuse (409) a charge whose in-force version changed, never post stale terms — `TestAChargeChangedUnderTheSaleIsRefused`.
+1. A review racing a sale: the sale names the quoted `version_id` and is refused (409) when another version is in force — `TestAChargeChangedUnderTheSaleIsRefused`, `TestAChargeChangedAfterTheQuoteIsRefused`.
 2. Principal-supply charge on a basket with mixed GST rates is refused, and on nil-rated-only medicines it takes nature `nil_rated`, rate 0 — `TestPrincipalChargeFollowsTheMedicines`.
 3. A charge credited twice (two credit notes) is refused by the unique key — `TestAChargeIsCreditedOnce`.
 4. A counter charge on an admission sale (and vice versa) is refused — `TestAChargeKeepsToItsChannel`.

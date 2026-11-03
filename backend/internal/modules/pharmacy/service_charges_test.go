@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -175,15 +176,30 @@ type chargedSale struct {
 	Charges      []chargeLineResp                                       `json:"charges"`
 }
 
-func chargedCashSale(product string, units, amount int64, charges ...string) string {
-	list := ""
-	for i, c := range charges {
-		if i > 0 {
-			list += ","
+// chargeRef names a charge with the version a quote would price: in force,
+// else the latest, else a made-up one for a charge that does not exist.
+func (w saleWorld) chargeRef(t *testing.T, charge string) string {
+	t.Helper()
+	version := uuid.Must(uuid.NewV7()).String()
+	if res := do(w.r, "GET", chargePath(charge, ""), "clerk", ""); res.Code == http.StatusOK {
+		var c chargeResp
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &c))
+		if c.InForce != nil {
+			version = c.InForce.ID
+		} else if c.Latest != nil {
+			version = c.Latest.ID
 		}
-		list += fmt.Sprintf(`{"charge_id":%q}`, c)
 	}
-	return fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":%d}],"charges":[%s],"tenders":[{"kind":"cash","amount_minor":%d,"tendered_minor":%d}]}`, product, units, list, amount, amount)
+	return fmt.Sprintf(`{"charge_id":%q,"version_id":%q}`, charge, version)
+}
+
+func (w saleWorld) chargedCashSale(t *testing.T, product string, units, amount int64, charges ...string) string {
+	t.Helper()
+	refs := []string{}
+	for _, c := range charges {
+		refs = append(refs, w.chargeRef(t, c))
+	}
+	return fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":%d}],"charges":[%s],"tenders":[{"kind":"cash","amount_minor":%d,"tendered_minor":%d}]}`, product, units, strings.Join(refs, ","), amount, amount)
 }
 
 func (w saleWorld) postCharged(t *testing.T, body string) (int, chargedSale, string) {
@@ -205,7 +221,7 @@ func TestAChargeIsItsOwnLine(t *testing.T) {
 	handling := uuid.Must(uuid.NewV7()).String()
 	w.declareCharge(t, handling, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
 
-	code, plain, out := w.postCharged(t, chargedCashSale(p, 2, 2500))
+	code, plain, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 2500))
 	require.Equal(t, http.StatusCreated, code, out)
 	require.Empty(t, plain.Charges)
 
@@ -215,7 +231,7 @@ func TestAChargeIsItsOwnLine(t *testing.T) {
 	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &quote))
 	require.Equal(t, int64(2500+5000+2000), quote.TotalMinor)
 
-	code, sale, out := w.postCharged(t, chargedCashSale(p, 2, 9500, delivery, handling))
+	code, sale, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 9500, delivery, handling))
 	require.Equal(t, http.StatusCreated, code, out)
 	require.Equal(t, plain.Lines, sale.Lines, "the medicine line is priced exactly as without the charges")
 	require.Len(t, sale.Charges, 2)
@@ -235,13 +251,13 @@ func TestAChargeIsItsOwnLine(t *testing.T) {
 	require.Equal(t, plain.CGSTMinor+381+107, sale.CGSTMinor)
 
 	// Tenders pay the charges too; a charge appears once; a charge alone is no sale.
-	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 2500, delivery))
+	code, _, out = w.postCharged(t, w.chargedCashSale(t, p, 2, 2500, delivery))
 	require.Equal(t, http.StatusConflict, code, out)
-	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 12500, delivery, delivery))
+	code, _, out = w.postCharged(t, w.chargedCashSale(t, p, 2, 12500, delivery, delivery))
 	require.Equal(t, http.StatusBadRequest, code, out)
 	code, _, out = w.postCharged(t, fmt.Sprintf(`{"lines":[],"charges":[{"charge_id":%q}],"tenders":[{"kind":"cash","amount_minor":5000,"tendered_minor":5000}]}`, delivery))
 	require.Equal(t, http.StatusBadRequest, code, out)
-	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 7500, uuid.Must(uuid.NewV7()).String()))
+	code, _, out = w.postCharged(t, w.chargedCashSale(t, p, 2, 7500, uuid.Must(uuid.NewV7()).String()))
 	require.Equal(t, http.StatusConflict, code, out)
 	require.Contains(t, out, "not one of this outlet")
 
@@ -289,12 +305,12 @@ func TestPrincipalChargeFollowsTheMedicines(t *testing.T) {
 	handling := uuid.Must(uuid.NewV7()).String()
 	w.declareCharge(t, handling, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
 
-	mixed := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2},{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"cash","amount_minor":7000,"tendered_minor":7000}]}`, twelve, five, handling)
+	mixed := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2},{"product_id":%q,"quantity_units":2}],"charges":[%s],"tenders":[{"kind":"cash","amount_minor":7000,"tendered_minor":7000}]}`, twelve, five, w.chargeRef(t, handling))
 	code, _, out := w.postCharged(t, mixed)
 	require.Equal(t, http.StatusConflict, code, out)
 	require.Contains(t, out, "must all have one GST rate")
 
-	code, sale, out := w.postCharged(t, chargedCashSale(nil0, 2, 4500, handling))
+	code, sale, out := w.postCharged(t, w.chargedCashSale(t, nil0, 2, 4500, handling))
 	require.Equal(t, http.StatusCreated, code, out)
 	require.Equal(t, "nil_rated", sale.Charges[0].SupplyNature)
 	require.Equal(t, []int64{0, 2000, 0}, []int64{sale.Charges[0].RatePPM, sale.Charges[0].TaxableMinor, sale.Charges[0].CGSTMinor})
@@ -309,7 +325,7 @@ func TestAChargeKeepsToItsChannel(t *testing.T) {
 	room := uuid.Must(uuid.NewV7()).String()
 	w.declareCharge(t, room, ownCharge("ROOM", "ward_delivery", 3000, "2026-11-01"), "approved")
 
-	code, _, out := w.postCharged(t, chargedCashSale(p, 2, 5500, room))
+	code, _, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 5500, room))
 	require.Equal(t, http.StatusConflict, code, out)
 	require.Contains(t, out, "not for this kind of sale")
 	res := do(w.r, "POST", salePath("/quote"), "pharmacist", fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"channel":"ward_delivery"}`, p, counter))
@@ -319,7 +335,7 @@ func TestAChargeKeepsToItsChannel(t *testing.T) {
 	d := newWard(t, w)
 	d.verify()
 	s := d.admit("R-1", "A-1")
-	body := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"admission_account","amount_minor":5500}],"admission":{"occupancy_id":%q}}`, p, room, s.occupancy)
+	body := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[%s],"tenders":[{"kind":"admission_account","amount_minor":5500}],"admission":{"occupancy_id":%q}}`, p, w.chargeRef(t, room), s.occupancy)
 	code, sale, out := w.postCharged(t, body)
 	require.Equal(t, http.StatusCreated, code, out)
 	require.Equal(t, int64(5500), sale.TotalMinor)
@@ -328,7 +344,7 @@ func TestAChargeKeepsToItsChannel(t *testing.T) {
 		return tx.Raw(`SELECT (payload->'data'->>'amount_minor')::bigint FROM outbox_events WHERE subject=? ORDER BY created_at`, pharmacycontract.SubjectAdmissionChargePosted).Scan(&amounts).Error
 	}))
 	require.Equal(t, []int64{5500}, amounts, "the admission is charged what was billed, the service charge included")
-	body = fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"admission_account","amount_minor":4500}],"admission":{"occupancy_id":%q}}`, p, counter, s.occupancy)
+	body = fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[%s],"tenders":[{"kind":"admission_account","amount_minor":4500}],"admission":{"occupancy_id":%q}}`, p, w.chargeRef(t, counter), s.occupancy)
 	code, _, out = w.postCharged(t, body)
 	require.Equal(t, http.StatusConflict, code, out)
 }
@@ -341,7 +357,7 @@ func TestAChargeChangedUnderTheSaleIsRefused(t *testing.T) {
 	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
 	// A newer version awaiting review: the charge is not billed at all.
 	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 6000, "2026-11-01"), "")
-	code, _, out := w.postCharged(t, chargedCashSale(p, 2, 7500, delivery))
+	code, _, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 7500, delivery))
 	require.Equal(t, http.StatusConflict, code, out)
 	require.Contains(t, out, "not available today")
 }
@@ -382,7 +398,7 @@ func TestAChargeIsCreditedOnce(t *testing.T) {
 	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
 	handling := uuid.Must(uuid.NewV7()).String()
 	w.declareCharge(t, handling, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
-	code, sale, out := w.postCharged(t, chargedCashSale(p, 2, 9500, delivery, handling))
+	code, sale, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 9500, delivery, handling))
 	require.Equal(t, http.StatusCreated, code, out)
 
 	// The delivery alone, whole, with no stock moving.
@@ -456,9 +472,9 @@ func TestTheDailyReportSeparatesServiceCharges(t *testing.T) {
 	w.shelve(t, p, "2028-06-30", 12500, 30)
 	delivery := uuid.Must(uuid.NewV7()).String()
 	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
-	code, sale, out := w.postCharged(t, chargedCashSale(p, 2, 7500, delivery))
+	code, sale, out := w.postCharged(t, w.chargedCashSale(t, p, 2, 7500, delivery))
 	require.Equal(t, http.StatusCreated, code, out)
-	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 2500))
+	code, _, out = w.postCharged(t, w.chargedCashSale(t, p, 2, 2500))
 	require.Equal(t, http.StatusCreated, code, out)
 	res := do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(sale.ID, []int{1}, "", 5000, "cash"))
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
@@ -481,4 +497,32 @@ func TestTheDailyReportSeparatesServiceCharges(t *testing.T) {
 	require.Equal(t, []int64{10000, 5000, 5000, 4238, 5000, 4238},
 		[]int64{d.SalesMinor, d.CreditsMinor, d.ServiceChargesMinor, d.ServiceChargesTaxableMinor, d.ServiceChargeCreditsMinor, d.ServiceChargeCreditsTaxableMinor},
 		"sales and credits stay invoice totals; the service share is reported beside them")
+}
+
+func TestAChargeChangedAfterTheQuoteIsRefused(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	delivery := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
+	quoted := w.chargedCashSale(t, p, 2, 7500, delivery)
+
+	// The same amount under a new treatment, approved after the quote.
+	w.declareCharge(t, delivery, strings.Replace(ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), `"rate_ppm":180000`, `"rate_ppm":50000`, 1), "approved")
+	code, _, out := w.postCharged(t, quoted)
+	require.Equal(t, http.StatusConflict, code, out)
+	require.Contains(t, out, "changed since it was priced")
+
+	noVersion := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"cash","amount_minor":7500,"tendered_minor":7500}]}`, p, delivery)
+	code, _, out = w.postCharged(t, noVersion)
+	require.Equal(t, http.StatusBadRequest, code, out)
+
+	// A charged sale replays as itself.
+	body := w.chargedCashSale(t, p, 2, 7500, delivery)
+	id := uuid.Must(uuid.NewV7()).String()
+	first := do(w.r, "PUT", salePath("/"+id), "pharmacist", body)
+	require.Equal(t, http.StatusCreated, first.Code, first.Body.String())
+	again := do(w.r, "PUT", salePath("/"+id), "pharmacist", body)
+	require.Equal(t, http.StatusOK, again.Code, again.Body.String())
+	require.JSONEq(t, first.Body.String(), again.Body.String())
 }

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
@@ -70,14 +70,16 @@ function fixture(
     saleLine?: typeof line & { prescription_id?: string; prescription_line?: number };
     /** The status every counter-payment read answers (#1386 C-4b). */
     counterPayment?: { status: string };
-    /** The outlet's service charges (#1388). */
-    serviceCharges?: PharmacyServiceCharge[];
+    /** The outlet's service charges (#1388); "fail" answers 500. */
+    serviceCharges?: PharmacyServiceCharge[] | "fail";
   } = {},
 ) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.endsWith("/counter-payments")) return new Response(JSON.stringify(page([])));
     if (url.endsWith("/service-charges"))
-      return new Response(JSON.stringify({ items: options.serviceCharges ?? [] }));
+      return options.serviceCharges === "fail"
+        ? new Response(JSON.stringify({ message: "down" }), { status: 500 })
+        : new Response(JSON.stringify({ items: options.serviceCharges ?? [] }));
     if (url.endsWith("/hospital-affiliations"))
       return new Response(
         JSON.stringify(
@@ -758,9 +760,70 @@ describe("CounterSale", () => {
     );
     expect(JSON.parse(String(put?.[1]?.body))).toEqual({
       lines: [{ product_id: productId, quantity_units: 8 }],
-      charges: [{ charge_id: handling }],
+      charges: [{ charge_id: handling, version_id: "0199e000-0000-7000-8000-0000000000e4" }],
       tenders: [{ kind: "cash", amount_minor: 12000, tendered_minor: 12000 }],
     });
+  });
+
+  it("drops a picked charge that stops being offered", async () => {
+    const counterCharge = (id: string, code: string): PharmacyServiceCharge => ({
+      id,
+      code,
+      today: "2026-11-01",
+      latest: null,
+      in_force: {
+        id: id.replace(/.$/, "f"),
+        charge_id: id,
+        code,
+        name: code,
+        channel: "counter",
+        amount_minor: 1000,
+        status: "available",
+        tax_treatment: "principal_supply",
+        sac_code: null,
+        supply_nature: null,
+        rate_ppm: null,
+        exemption_basis: null,
+        tax_basis: "TEST basis",
+        effective_from: "2026-11-01",
+        declared_by: "user-owner",
+        created_at: "2026-11-01T06:30:00Z",
+        decision: "approved",
+        decision_reason: "checked",
+        reviewed_by: "user-manager",
+        reviewed_at: "2026-11-01T07:00:00Z",
+      },
+    });
+    const a = counterCharge("0199e000-0000-7000-8000-0000000000a1", "WRAP");
+    const b = counterCharge("0199e000-0000-7000-8000-0000000000b1", "BAG");
+    const list = [a, b];
+    const fetcher = fixture({ serviceCharges: list });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(await screen.findByRole("checkbox", { name: /^WRAP/ }));
+    // A new version of WRAP awaits review: it is no longer offered.
+    list.splice(0, 1);
+    // The cashier comes back to the tab: the list refetches.
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(screen.queryByRole("checkbox", { name: /^WRAP/ })).toBeNull());
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    const quote = fetcher.mock.calls.filter(([url]) => String(url).endsWith("/sales/quote")).at(-1);
+    expect(JSON.parse(String(quote?.[1]?.body)).charges).toBeUndefined();
+  });
+
+  it("says when service charges cannot load", async () => {
+    fixture({ serviceCharges: "fail" });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    expect(
+      await screen.findByText(/Could not load the service charges; none can be added/),
+    ).toBeVisible();
   });
 
   it("adds no line before the product's class is known", async () => {

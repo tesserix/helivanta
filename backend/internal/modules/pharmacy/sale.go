@@ -128,6 +128,9 @@ type saleInput struct {
 
 type saleChargeInput struct {
 	ChargeID uuid.UUID `json:"charge_id" binding:"required"`
+	// VersionID is the version the quote priced; a sale requires it, so terms
+	// approved after the quote are refused, not billed unseen.
+	VersionID *uuid.UUID `json:"version_id"`
 }
 
 type saleQuoteInput struct {
@@ -180,6 +183,9 @@ func (in saleInput) digest() string {
 	}
 	for _, ch := range in.Charges {
 		parts = append(parts, "sc", ch.ChargeID.String())
+		if ch.VersionID != nil {
+			parts = append(parts, ch.VersionID.String())
+		}
 	}
 	for _, t := range in.Tenders {
 		tendered, reference := "", ""
@@ -954,6 +960,12 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 	if !distinctCharges(in.Charges) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "each service charge appears once")
 		return
+	}
+	for _, ch := range in.Charges {
+		if ch.VersionID == nil {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "a service charge names the version its quote priced")
+			return
+		}
 	}
 	if !in.validTenders() {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "at most one cash tender, with the amount handed over; UPI and card need a reference; verified UPI names its paid payment")

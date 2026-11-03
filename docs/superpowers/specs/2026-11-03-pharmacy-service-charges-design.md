@@ -84,12 +84,19 @@ picks a rate itself.
   declaration and stays withdrawn when approved.
 - Permissions: `pharmacy.service_charge.declare` and
   `pharmacy.service_charge.review`, both granted to the pharmacy owner (the
-  outlet's manager role). Reading charges takes `pharmacy.sale.read`, so the
+  outlet's manager role). Approval therefore needs two different people with
+  those permissions; a tenant administrator can grant the second.
+- An outlet holds at most 50 charges, so the counter reads them in one bounded
+  list. Charges are never deleted and codes never reused: a withdrawn or
+  mistaken charge keeps its place, and reaching 50 needs a later slice that
+  retires charges. Reading charges takes `pharmacy.sale.read`, so the
   counter can list them.
 
 ### At the counter
 
-- A sale and a quote take `charges: [{charge_id}]`, at most 5, distinct.
+- A quote takes `charges: [{charge_id}]`, at most 5, distinct; a sale takes
+  `charges: [{charge_id, version_id}]`, the version the quote priced, and is
+  refused when another version is in force by then.
   The sale's channel is `ward_delivery` when it is billed to an admission,
   else `counter`; a quote names its `channel` (default `counter`).
 - Each charge becomes a charge line numbered 1–5, apart from the medicine

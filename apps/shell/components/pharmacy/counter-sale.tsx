@@ -218,7 +218,10 @@ function Counter({
     `${pharmacyRoot(scope)}/service-charges`,
   );
   const offered = (services.data?.items ?? []).filter((c) => c.in_force?.status === "available");
-  const [chargeIds, setChargeIds] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+  // A charge that stops being offered (a new version awaits review) drops out
+  // of the selection rather than lingering unseen and unremovable.
+  const chargeIds = picked.filter((id) => offered.some((c) => c.id === id));
   const chargeChannel = offered.find((c) => c.id === chargeIds[0])?.in_force?.channel ?? null;
   const form = useZodForm(lineSchema, {
     product_id: "",
@@ -267,7 +270,7 @@ function Counter({
   }
   function toggleCharge(id: string) {
     if (paymentHeld) return;
-    setChargeIds(chargeIds.includes(id) ? chargeIds.filter((c) => c !== id) : [...chargeIds, id]);
+    setPicked(chargeIds.includes(id) ? chargeIds.filter((c) => c !== id) : [...chargeIds, id]);
     setQuote(null);
     price.reset();
   }
@@ -278,7 +281,7 @@ function Counter({
         products={products.items}
         onNext={() => {
           setPosted(null);
-          setChargeIds([]);
+          setPicked([]);
           changeBasket([]);
         }}
       />
@@ -431,6 +434,14 @@ function Counter({
           ))}
         </ul>
       )}
+      {basket.length > 0 && services.isError && (
+        <p role="alert" className="mt-4 text-sm text-destructive">
+          Could not load the service charges; none can be added to this sale.{" "}
+          <Button type="button" variant="ghost" onClick={() => services.refetch()}>
+            Try again
+          </Button>
+        </p>
+      )}
       {basket.length > 0 && offered.length > 0 && (
         <fieldset className="mt-4 space-y-2 text-sm">
           <legend className="font-medium">Service charges</legend>
@@ -472,7 +483,6 @@ function Counter({
             scope={scope}
             quote={quote}
             basket={basket}
-            chargeIds={chargeIds}
             chargeChannel={chargeChannel}
             onPosted={(sale) => {
               setPaymentHeld(false);
@@ -684,7 +694,6 @@ function TenderForm({
   scope,
   quote,
   basket,
-  chargeIds,
   chargeChannel,
   onPosted,
   onStale,
@@ -695,7 +704,6 @@ function TenderForm({
   scope: PharmacyScope;
   quote: PharmacySaleQuote;
   basket: BasketLine[];
-  chargeIds: string[];
   /** Ward-delivery charges bill an admission; counter charges never do. */
   chargeChannel: "counter" | "ward_delivery" | null;
   onPosted: (sale: PharmacySale) => void;
@@ -748,8 +756,14 @@ function TenderForm({
         method: "PUT",
         body: JSON.stringify({
           lines: basket.map(lineBody),
-          ...(chargeIds.length > 0
-            ? { charges: chargeIds.map((charge) => ({ charge_id: charge })) }
+          // The versions the quote priced: terms approved since are refused, not billed unseen.
+          ...(quote.charges.length > 0
+            ? {
+                charges: quote.charges.map((c) => ({
+                  charge_id: c.charge_id,
+                  version_id: c.version_id,
+                })),
+              }
             : {}),
           tenders: [
             values.customer === "admission"

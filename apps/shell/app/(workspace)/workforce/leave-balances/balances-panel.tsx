@@ -209,7 +209,7 @@ function StaffLedger({
           {staff.display_name} · leave year {year.leave_year} ledger
         </h4>
         <div className="flex gap-2">
-          {correctable && !correcting && staff.balances.length > 0 && (
+          {correctable && !correcting && staff.balances.some((b) => b.in_structure) && (
             <Button variant="outline" onClick={() => setCorrecting(true)}>
               Correct balance
             </Button>
@@ -280,8 +280,10 @@ function CorrectionForm({
   // One id per form instance, so a retried save replays instead of posting a second correction.
   const [entry] = useState(() => crypto.randomUUID());
   const now = today();
+  // The API accepts corrections only for types in the assigned structure.
+  const types = staff.balances.filter((b) => b.in_structure);
   const form = useZodForm(leaveCorrectionSchema, {
-    leave_type_id: staff.balances[0]?.leave_type_id ?? "",
+    leave_type_id: types[0]?.leave_type_id ?? "",
     leave_year: year.leave_year,
     half_days: 0,
     effective_on: now < year.start_on ? year.start_on : now > year.end_on ? year.end_on : now,
@@ -321,7 +323,7 @@ function CorrectionForm({
               onValueChange={(v) =>
                 form.setValue("leave_type_id", v, { shouldDirty: true, shouldValidate: true })
               }
-              options={staff.balances.map((b) => ({
+              options={types.map((b) => ({
                 value: b.leave_type_id,
                 label: `${b.name} (${b.code})`,
               }))}

@@ -691,6 +691,10 @@
       {
         "name": "half_days",
         "type": "int"
+      },
+      {
+        "name": "in_structure",
+        "type": "bool"
       }
     ],
     "staffLeaveBalances": [

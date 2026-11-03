@@ -42,6 +42,7 @@ var errLeaveNextYear = errors.New("next leave year must be open")
 var errLeaveYearClosed = errors.New("leave year is not open for this date")
 var errLeaveFrozen = errors.New("leave assignment change overlaps posted history")
 var errLeaveCorrectionConflict = errors.New("leave correction id reused with different values")
+var errLeaveNotInStructure = errors.New("leave type is outside the staff member's assigned structure on the date")
 var errLeaveEarly = errors.New("leave period has not started or ended yet")
 
 // Every ledger write takes the same hospital lock, so postings, closes, corrections and assignment changes never interleave.
@@ -797,6 +798,19 @@ func (h *handlers) putLeaveCorrection(c *gin.Context) {
 		if leaveType.ID == uuid.Nil || !leaveType.BalanceTracked {
 			return errLeaveReference
 		}
+		// Fail closed: a correction credits leave, so its type must be in the HR-reviewed structure in force on its date.
+		var inStructure bool
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM (SELECT structure_revision_id FROM workforce_staff_leave_assignment_revisions
+  WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND effective_on<=?::date ORDER BY version DESC LIMIT 1) a
+ JOIN workforce_leave_structure_entries e ON (e.tenant_id,e.hospital_id,e.revision_id)=(?,?,a.structure_revision_id)
+ JOIN workforce_leave_config_revisions t ON (t.tenant_id,t.hospital_id,t.id)=(e.tenant_id,e.hospital_id,e.leave_type_revision_id) AND t.config_id=?
+ JOIN workforce_leave_type_rules r ON (r.tenant_id,r.hospital_id,r.revision_id)=(t.tenant_id,t.hospital_id,t.id) AND r.balance_tracked)`,
+			p.TenantID, hospital, staffID, in.EffectiveOn, p.TenantID, hospital, in.LeaveTypeID).Scan(&inStructure).Error; err != nil {
+			return err
+		}
+		if !inStructure {
+			return errLeaveNotInStructure
+		}
 		row := leaveLedgerRow{TenantID: p.TenantID, HospitalID: hospital, ID: entryID, StaffID: staffID, LeaveTypeID: in.LeaveTypeID, LeaveTypeRevisionID: leaveType.ID, LeaveYear: *in.LeaveYear, Kind: "correction", HalfDays: *in.HalfDays, EffectiveOn: effective, IdempotencyKey: "correction:" + entryID.String(), Reason: in.Reason, ActorSubject: p.Subject}
 		if err := tx.Table("workforce_leave_ledger").Create(&row).Error; err != nil {
 			return err
@@ -895,10 +909,21 @@ func loadLeaveBalances(tx *gorm.DB, tenant string, hospital uuid.UUID, year int,
 		StaffID uuid.UUID
 		Balance leaveBalance `gorm:"embedded"`
 	}
-	if err := tx.Raw(`SELECT l.staff_id,l.leave_type_id,c.code,c.name,sum(l.half_days)::int AS half_days
- FROM workforce_leave_ledger l JOIN workforce_leave_configs c ON (c.tenant_id,c.hospital_id,c.id)=(l.tenant_id,l.hospital_id,l.leave_type_id)
- WHERE l.tenant_id=? AND l.hospital_id=? AND l.leave_year=? AND l.effective_on<=?::date AND l.staff_id IN ?
- GROUP BY l.staff_id,l.leave_type_id,c.code,c.name ORDER BY c.code`, tenant, hospital, year, asOf, ids).Scan(&sums).Error; err != nil {
+	// Structure types are listed at zero before their first entry; ledger types outside the structure stay visible.
+	if err := tx.Raw(`WITH assigned AS (SELECT DISTINCT a.staff_id,t.config_id AS leave_type_id
+  FROM (SELECT DISTINCT ON (staff_id) staff_id,structure_revision_id FROM workforce_staff_leave_assignment_revisions
+   WHERE tenant_id=? AND hospital_id=? AND staff_id IN ? AND effective_on<=?::date ORDER BY staff_id,version DESC) a
+  JOIN workforce_leave_structure_entries e ON (e.tenant_id,e.hospital_id,e.revision_id)=(?,?,a.structure_revision_id)
+  JOIN workforce_leave_config_revisions t ON (t.tenant_id,t.hospital_id,t.id)=(e.tenant_id,e.hospital_id,e.leave_type_revision_id)
+  JOIN workforce_leave_type_rules r ON (r.tenant_id,r.hospital_id,r.revision_id)=(t.tenant_id,t.hospital_id,t.id) AND r.balance_tracked),
+ sums AS (SELECT staff_id,leave_type_id,sum(half_days)::int AS half_days FROM workforce_leave_ledger
+  WHERE tenant_id=? AND hospital_id=? AND leave_year=? AND effective_on<=?::date AND staff_id IN ? GROUP BY staff_id,leave_type_id)
+SELECT k.staff_id,k.leave_type_id,c.code,c.name,COALESCE(s.half_days,0) AS half_days,a.staff_id IS NOT NULL AS in_structure
+ FROM (SELECT staff_id,leave_type_id FROM assigned UNION SELECT staff_id,leave_type_id FROM sums) k
+ LEFT JOIN assigned a ON (a.staff_id,a.leave_type_id)=(k.staff_id,k.leave_type_id)
+ LEFT JOIN sums s ON (s.staff_id,s.leave_type_id)=(k.staff_id,k.leave_type_id)
+ JOIN workforce_leave_configs c ON (c.tenant_id,c.hospital_id,c.id)=(?,?,k.leave_type_id)
+ ORDER BY c.code,k.leave_type_id`, tenant, hospital, ids, asOf, tenant, hospital, tenant, hospital, year, asOf, ids, tenant, hospital).Scan(&sums).Error; err != nil {
 		return err
 	}
 	for _, s := range sums {
@@ -949,7 +974,7 @@ func (h *handlers) listLeaveBalances(c *gin.Context, params pagination.Params) (
 	return rows, nil
 }
 
-// getStaffLeaveBalances also answers for staff without an assignment, whose balance may come from corrections alone.
+// getStaffLeaveBalances also answers for staff without a current assignment, whose entries remain from an earlier one.
 func (h *handlers) getStaffLeaveBalances(c *gin.Context) {
 	p, hospital, ok := scope(c)
 	if !ok {
@@ -1006,6 +1031,8 @@ func respondLeaveLedgerError(c *gin.Context, err error) {
 		respond.Error(c, 400, "invalid_request", "Only active staff can receive an active leave assignment.")
 	case errors.Is(err, errLeaveReference):
 		respond.Error(c, 400, "invalid_reference", "Select a current, active leave structure or balance-tracked leave type effective on or before the date.")
+	case errors.Is(err, errLeaveNotInStructure):
+		respond.Error(c, 400, "invalid_reference", "Select a leave type in the staff member's assigned leave structure on the effective date.")
 	case errors.Is(err, errLeaveVersion):
 		respond.Conflict(c, "The leave assignment changed since you opened it. Reload before saving.")
 	case errors.Is(err, errLeaveSettingsFixed):

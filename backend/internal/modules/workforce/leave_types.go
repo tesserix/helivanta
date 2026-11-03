@@ -180,6 +180,7 @@ type leaveBalance struct {
 	Code        string    `json:"code"`
 	Name        string    `json:"name"`
 	HalfDays    int       `json:"half_days"`
+	InStructure bool      `json:"in_structure"`
 }
 
 type staffLeaveBalances struct {

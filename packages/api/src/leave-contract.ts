@@ -379,6 +379,7 @@ export const leaveBalanceContract = z
     code: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
     half_days: z.number().int(),
+    in_structure: z.boolean(),
   })
   .strict();
 export type LeaveBalance = z.infer<typeof leaveBalanceContract>;

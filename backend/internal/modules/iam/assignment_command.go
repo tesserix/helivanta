@@ -68,7 +68,7 @@ func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []auth
 		if err := h.db.ConstrainGuardedCommand(commandCtx, r.TenantID, expires); err != nil {
 			return err
 		}
-		if err := action(commandCtx); err != nil {
+		if err := authz.WithScopedCommandEvidence(commandCtx, checks, action); err != nil {
 			return err
 		}
 		return h.db.WithTenantCommand(commandCtx, r.TenantID, func(tx *gorm.DB) error {

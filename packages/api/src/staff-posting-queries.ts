@@ -1,5 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
+import { listStaffPostingScopes, listStaffPostingTargets } from "./staff-posting-workspace";
 import { POLL_INTERVAL_MS } from "./client";
 import {
   getStaffPostingDraftSource,
@@ -8,7 +9,10 @@ import {
   staffPostingsKey,
   type StaffPostingScope,
 } from "./staff-postings";
-import { listOrganizationDepartments } from "./organization-directory";
+import {
+  listOrganizationDepartments,
+  listPostingDepartmentChoices,
+} from "./organization-directory";
 const options = {
   gcTime: 0,
   staleTime: 0,
@@ -48,6 +52,37 @@ export function useStaffPostingDepartmentChoices(scope: StaffPostingScope, curso
     retry: false,
     refetchOnWindowFocus: false,
     queryKey: [...staffPostingsKey(scope), "departments", cursor],
-    queryFn: ({ signal }) => listOrganizationDepartments(scope, scope.hospitalId, cursor, signal),
+    queryFn: ({ signal }) =>
+      scope.access === "scoped"
+        ? listPostingDepartmentChoices(scope, scope.hospitalId, cursor, signal)
+        : listOrganizationDepartments(scope, scope.hospitalId, cursor, signal),
+  });
+}
+
+export function useStaffPostingScopes(
+  scope: Pick<StaffPostingScope, "tenantId" | "subject">,
+  cursor: string | null,
+) {
+  return useQuery({
+    ...options,
+    queryKey: ["workforce", "posting-scopes", scope.tenantId, scope.subject, cursor],
+    queryFn: ({ signal }) => listStaffPostingScopes(scope, cursor, signal),
+  });
+}
+export function useStaffPostingTargets(
+  scope: Pick<StaffPostingScope, "tenantId" | "subject" | "hospitalId">,
+  cursor: string | null,
+) {
+  return useQuery({
+    ...options,
+    queryKey: [
+      "workforce",
+      "posting-targets",
+      scope.tenantId,
+      scope.subject,
+      scope.hospitalId,
+      cursor,
+    ],
+    queryFn: ({ signal }) => listStaffPostingTargets(scope, cursor, signal),
   });
 }

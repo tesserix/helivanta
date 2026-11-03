@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	PermStructureRead   authz.Permission = "organization.structure.read"
-	PermStructureManage authz.Permission = "organization.structure.manage"
+	PermPostingChoicesRead authz.Permission = "organization.posting_choices.read"
+	PermStructureRead      authz.Permission = "organization.structure.read"
+	PermStructureManage    authz.Permission = "organization.structure.manage"
 )
 
 //go:embed schema.sql
@@ -38,7 +39,7 @@ type Module struct{}
 func New() *Module           { return &Module{} }
 func (*Module) Name() string { return "organization" }
 func (*Module) Permissions() []authz.Grant {
-	return []authz.Grant{{Permission: PermStructureRead}, {Permission: PermStructureManage}}
+	return []authz.Grant{{Permission: PermPostingChoicesRead}, {Permission: PermStructureRead}, {Permission: PermStructureManage}}
 }
 func (*Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{ID: "0001_organization", SQL: schema}, {ID: "0002_organization_departments", SQL: departmentsSchema}, {ID: "0003_organization_department_revision_integrity", SQL: departmentRevisionIntegritySchema}, {ID: "0004_organization_department_observations", SQL: departmentObservationsSchema}}
@@ -53,8 +54,9 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 }
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{db: deps.DB, bus: deps.Bus}
+	h := &handlers{db: deps.DB, bus: deps.Bus, scopeAuthority: deps.ScopedAuthorizer, staffActors: deps.StaffActors}
 	g := r.Group("/organization")
+	platform.ScopedHospitalListRoute(g, "/hospitals/:hospital/posting-department-choices", PermPostingChoicesRead, "hospital", h.listPostingDepartmentChoices)
 	platform.ListRoute(g, "/hospitals", PermStructureRead, h.list)
 	g.PUT("/hospitals/:hospital/registrations/:request", PermStructureManage, h.put)
 	g.GET("/hospitals/:hospital/registrations/:request", PermStructureRead, h.get)
@@ -65,8 +67,10 @@ func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 }
 
 type handlers struct {
-	db  *tenantdb.DB
-	bus *events.Bus
+	scopeAuthority authz.ScopedAuthorizer
+	staffActors    authz.CurrentStaffActorGuard
+	db             *tenantdb.DB
+	bus            *events.Bus
 }
 type registration struct {
 	TenantID  uuid.UUID `json:"-"`

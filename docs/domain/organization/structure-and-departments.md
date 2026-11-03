@@ -2,7 +2,7 @@
 
 [Organization knowledge](README.md) · researched 2026-10-26 · proposed target, not implemented behavior
 
-Departments are where people work, where costs land, where supervision happens and where most access decisions are scoped. Today Helivanta has no department entity, and each product scopes access through its own unit. This reference defines the target structure, what each product holds against a department, and how products exchange work across departments.
+Departments are where people work, where costs land, where supervision happens and where most access decisions are scoped. Organization now owns hospital-bound departments and sub-units with immutable revisions; deployed Workforce preparation retains canonical references in non-operating drafts. Effective postings and department-scoped operating authorization remain open. See the [posting contract](../../api/workforce-postings.md) and [delivery tracker](../../qa/staff-management-progress.md) for verified implementation and acceptance limits. This reference defines the broader target structure and product boundaries.
 
 ## The hierarchy
 
@@ -50,18 +50,18 @@ Department names, codes and sub-units are tenant data. Helivanta ships a catalog
 
 ## What each product holds against a department
 
-| Owner                  | Holds                                                                                             | Department reference used for                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Organization structure | Departments, sub-units, heads, cost centres, effective dates                                      | The single list every product reads                                |
-| Workforce (Staff) | Staff records, reviewed hospital-local login links, postings, rosters, leave, credentials, payroll inputs | Who works where and when; proposals for access |
-| IAM | Login identities, tenant membership, role assignments and their scopes | Assignment scope |
-| MediCore               | Encounters, admissions, orders, notes, discharge                                                  | Treating department and unit; care-team reach                      |
-| PharmaConnect          | Outlets, stock, batches, dispensing, indents from wards                                           | Which department runs an outlet; which ward raised an indent       |
-| LabConnect             | Orders, specimens, results, sections                                                              | Ordering department; performing section                            |
-| SupplyConnect          | Stores, requisitions, purchase orders, receipts, issues                                           | Requesting department; cost centre charged                         |
-| FacilityConnect        | Locations, assets, work orders, preventive maintenance                                            | Owning department of an asset; department that raised a work order |
-| EmergencyConnect       | Bases, fleet, dispatch, receiving                                                                 | Receiving department at the destination hospital                   |
-| Billing and finance    | Tariffs, charges, invoices, budgets                                                               | Revenue and cost centre per department                             |
+| Owner                  | Holds                                                                                                     | Department reference used for                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Organization structure | Departments, sub-units, heads, cost centres, effective dates                                              | The single list every product reads                                |
+| Workforce (Staff)      | Staff records, reviewed hospital-local login links, postings, rosters, leave, credentials, payroll inputs | Who works where and when; proposals for access                     |
+| IAM                    | Login identities, tenant membership, role assignments and their scopes                                    | Assignment scope                                                   |
+| MediCore               | Encounters, admissions, orders, notes, discharge                                                          | Treating department and unit; care-team reach                      |
+| PharmaConnect          | Outlets, stock, batches, dispensing, indents from wards                                                   | Which department runs an outlet; which ward raised an indent       |
+| LabConnect             | Orders, specimens, results, sections                                                                      | Ordering department; performing section                            |
+| SupplyConnect          | Stores, requisitions, purchase orders, receipts, issues                                                   | Requesting department; cost centre charged                         |
+| FacilityConnect        | Locations, assets, work orders, preventive maintenance                                                    | Owning department of an asset; department that raised a work order |
+| EmergencyConnect       | Bases, fleet, dispatch, receiving                                                                         | Receiving department at the destination hospital                   |
+| Billing and finance    | Tariffs, charges, invoices, budgets                                                                       | Revenue and cost centre per department                             |
 
 Products store the department identifier and the effective version they used. They do not copy the department list, and they never decide who heads a department.
 

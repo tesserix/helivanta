@@ -241,6 +241,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/posting-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -480,6 +489,11 @@
             "iam_employment_basis_history",
             "iam_assignment_employment_bases"
           ]
+        },
+        {
+          "id": "0024_iam_staff_posting_templates",
+          "sql_sha256": "30a2065d388a08c36f202f84954b8a3d72d9c16bcdbd0d83c264d51581207749",
+          "creates_tables": []
         }
       ]
     },
@@ -7741,6 +7755,83 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source",
+          "permission": "workforce.posting.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+          "permission": "workforce.posting.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+          "permission": "workforce.posting.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/history",
+          "permission": "workforce.posting.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting",
+          "permission": "workforce.posting.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts",
+          "permission": "workforce.posting.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-targets",
+          "permission": "workforce.posting.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/attendance",
           "permission": "public",
@@ -8619,9 +8710,26 @@
           "membership_required": true,
           "paginated": true,
           "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/posting-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.staff_actor.use",
+          "roles": []
+        },
+        {
+          "permission": "workforce.posting.read",
+          "roles": []
+        },
         {
           "permission": "workforce.posting.prepare",
           "roles": []
@@ -9671,6 +9779,11 @@
             "workforce_posting_drafts",
             "workforce_posting_draft_revisions"
           ]
+        },
+        {
+          "id": "0074_workforce_scoped_postings",
+          "sql_sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+          "creates_tables": []
         }
       ]
     },
@@ -9869,6 +9982,17 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/organization/hospitals/:hospital/posting-department-choices",
+          "permission": "organization.posting_choices.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/organization/hospitals/:hospital/registrations/:request",
           "permission": "organization.structure.read",
@@ -9897,6 +10021,10 @@
         }
       ],
       "grants": [
+        {
+          "permission": "organization.posting_choices.read",
+          "roles": []
+        },
         {
           "permission": "organization.structure.read",
           "roles": []

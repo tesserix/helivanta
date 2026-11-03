@@ -1,5 +1,831 @@
 # Staff Management delivery tracker
 
+## Membership alone grants no posting access — 2026-11-03
+
+Normal Admin UI withdrew the last Reader assignment to v6, preserving ordinary
+membership and the reviewed digital Staff source. Fresh recipient login and
+Posting preparation show **No approved posting hospitals on this page**, with no
+protected Staff target, draft history or editor. Read-only proof verifies active
+Staff v2/epoch2, matching identity epoch, current approved employment/person
+reviews, effective generation, active reviewed link v2 and IAM employment basis.
+Six historical assignments remain: five withdrawn and one active-but-expired;
+zero are currently effective. Canonical Pharma target and three existing
+commands/revisions/save audits remain unchanged. Private credential JSON records
+the acceptance without credential changes. See the [UI proof](2026-11-03-scoped-posting-positive-ui.md#follow-up-membership-and-current-staff-source-without-posting-authority).
+
+## Isolated-session direct withdrawal UI acceptance — 2026-11-03
+
+Direct preparer withdrawal now passes without a recipient logout/account change.
+[Detailed UI proof](2026-11-03-scoped-posting-positive-ui.md#follow-up-direct-withdrawal-with-isolated-browser-sessions)
+records a captured/restored test-only OIDC callback on a second loopback hostname.
+The proposing Admin and independent reviewer used normal login/UI there while the
+recipient retained its original session. Two bounded synthetic assignments were
+independently approved to active v5, then withdrawn to v6 through the proposer UI.
+
+The loading-department case cleared the old panel before Save was available. The
+separate fully loaded case explicitly observed current canonical choices and an
+enabled Save before withdrawal. After withdrawn v6 was visible in Admin UI, Save
+was clicked in the recipient's unchanged session. The access-change cutoff cleared
+protected Staff/editor state and required reopening. No response status was directly
+captured; no exact HTTP status is claimed from the UI text alone.
+
+Read-only persistence still shows one unchanged canonical Pharma Staff target,
+draft v3, three commands/revisions and three save audits. Reader-only discovery and
+v1–v3 history recover without Edit controls. The temporary Admin origin signed out
+and closed; its original OIDC settings were restored exactly. Credentials remain
+private and their JSON checkpoint was updated without changing credential values.
+
+All pushed-head `11cf4101` CI checks pass, including complete Go, web and E2E jobs.
+The [source-writer review](2026-11-03-posting-source-writer-review.md) now maps current
+owner locks, writers and evidence. It identified that earlier source-ending order
+cases exercise retained receipts. Two additional different-target **new draft
+write** cases now pass with exact revision/audit/source-use counts and unchanged
+target versions. The complete parent baseline passed in 329.231s. A temporary
+actor identity-epoch bypass made both new cases return 200 instead of required
+403; source-first created an unauthorized synthetic draft. Exact source bytes
+were restored and hash-verified before final validation. No application binary
+was rebuilt from the mutation.
+The first fixture inherited a retired department and was corrected to active/v0.
+The next fixture left that new department active for the following shared case;
+owner-API retirement cleanup was added without weakening pagination assertions.
+
+A subsequent run failed before assertions because its disposable PostgreSQL
+container exhausted VM disk space while committing a migration. Its log reported
+`pg_wal/xlogtemp: No space left on device`; this was not counted as a product or
+test pass. The task's captured, exited disposable fixtures were reconciled against
+exact container IDs/session labels before cleanup: **213 containers and 79 exclusive
+anonymous volumes** removed, with state retained privately in
+`owned-stopped-test-fixtures-before-cleanup-20261103.json`. Named QA/rehearsal services
+and cached images were preserved. Volume use fell from **16.47 GB to 11.45 GB**.
+All 15 named services, API/gateway readiness, UI login and persisted Staff proof
+were reverified. The private runner now captures and removes its exact disposable
+session fixtures, including startup failures; its durable private copy is
+`shared-staff-foundation-20261102/posting-test-runner.py`. The final complete Global API race suite passed in **363.724s** (22 top-level /
+130 including subtests), zero fallback forwards; its three owned disposable
+fixtures were removed. Scoped vet/lint (0 issues), full Go build, contractdocs
+check, inventory parity (784 registered / 761 unclassified) and whitespace checks
+passed. Private mutation and final-suite logs preserve the negative/positive proof.
+
+Remaining account/foreign-scope browser cases and the earlier intermittent
+evidence-admission observation remain open. Its cause is unproven; neither a
+successful rerun nor disposable-fixture cleanup is claimed as its fix. Full
+Staff, effective departmental posting and Pharma operating lifecycle acceptance
+are not implied by these results.
+
+## Same-session expiry and refreshed local runtime — 2026-11-03
+
+The normal UI expiry case now passes. Admin proposed a separate synthetic posting
+preparer assignment ending **10:32 UTC**; the independent Admin approved it through
+current hospital verification to active v5. The recipient signed in normally,
+opened the canonical Pharma target's v3 editor and entered an unsaved reason.
+That same recipient session remained signed in across expiry. After the deadline,
+discovery displayed Reader and had already removed the dirty editor and Save
+control. The attempted click found no Save control, so **no save request was sent**.
+Reader history v1–v3 remained readable. Read-only SQL confirms exactly three
+commands, revisions and save audits; no additional draft write occurred. Only the
+independent reader assignment is currently effective. Expired/withdrawn grants
+remain historical records. This closes same-session expiry, not the distinct
+direct-withdrawal case with isolated administrator/recipient browser sessions.
+
+The local stack was then rebuilt from merged head `b2cdb065`: owner API 8399,
+Global API 8199 and production-style shell 4399. Prior runtime metadata, migration
+ledger and previous UI build were captured privately. API startup applied only
+main's additive **0031_pharmacy** migration; all earlier migration IDs remain.
+Both APIs pass readiness HTTP 200 and shell login serves HTTP 200. Normal Reader
+discovery and immutable v1–v3 history pass after full reload on the refreshed
+stack; the same read-only proof passes after restart. Production is unchanged.
+The complete merged-source Pharma race suite passes in **256.765 s**; its runner
+used zero fallback forwards and stopped only its three test containers.
+
+Exact-head CI then exposed a shared UI gate that the separate API/shell runs had
+not covered: Staff directory and Posting preparation both used `Contact`, failing
+the existing per-zone icon uniqueness test (21 distinct icons for 22 pages).
+The same test failed locally before the fix. Posting preparation now uses the
+existing `Building` icon. All **278 shared UI tests**, typecheck, lint and format
+checks pass. The assertion remains unchanged; no dependency or permission changed.
+
+Additional commands actually run:
+
+```sh
+# backend/
+python3 /tmp/helivanta-posting-test-runner.py ./internal/modules/pharmacy
+go build -o /tmp/helivanta-scoped-posting-merged-api ./cmd/api
+go build -o /tmp/helivanta-scoped-posting-merged-global-api ./cmd/global-api
+# repository root, cached Node 24.22.1
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui test src/zones.test.ts
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui test
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui type-check
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui lint
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui format:check
+python3 /tmp/helivanta-scoped-posting-retained-editor-expiry-proof.py
+```
+
+Private `scoped-posting-expiry-and-merged-runtime-checkpoint.json`, expiry before/
+after screenshots, `scoped-posting-account-change-cleared-ui.png`,
+`scoped-posting-merged-runtime-reader-ui.png` and runtime/migration captures retain
+the evidence. The credentials JSON was updated atomically with secrets preserved.
+The source-writer audit, remaining account/foreign-scope UI cases, direct
+withdrawal in isolated sessions and the earlier intermittent admission failure
+remain open. No full Staff acceptance or production release is claimed.
+
+## Current-main integration and account-change browser cutoff — 2026-11-03
+
+Merged current main `bdb2560c` into the candidate as `b2cdb065`. The only conflict
+was generated `staff-operational-access-inventory.json`; regeneration from the
+combined canonical registry/review inputs preserves both sets of registrations
+without changing review pins. The ledger now has **784 registered surfaces / 761
+unclassified**. Contractdocs generation/check and inventory parity pass.
+
+On the combined source, the complete SDK suite passes **609 tests** and shell
+passes **1,429 tests / 176 files** in **321.11 s**. API/shell typechecks (including
+the canonical generators) and lint pass. Repository Go build and the complete
+real-fixture architecture race suite pass (**60.653 s**); all **62** template and
+inventory script tests pass. Existing Vitest native-loader and JSDOM navigation
+warnings remain. No dependency installation was required.
+
+Commands used cached Node 24.22.1 through `mise exec node@24.22.1 --`:
+
+```sh
+pnpm --filter @helivanta/api test
+pnpm --filter @helivanta/shell test
+pnpm --filter @helivanta/api --filter @helivanta/shell type-check
+pnpm --filter @helivanta/api --filter @helivanta/shell lint
+node --test scripts/staff-template-migrations.test.mjs scripts/staff-operational-access-inventory.test.mjs
+node scripts/staff-operational-access-inventory.mjs
+node scripts/staff-operational-access-inventory.mjs --check
+```
+
+Go commands ran from `backend/`: `go run ./cmd/contractdocs`, the matching
+`-check`, `go build ./...`, and
+`python3 /tmp/helivanta-posting-test-runner.py ./internal/archtest`.
+The runner used zero fallback forwards and stopped only its three fixture containers.
+The pushed PR no longer reports a merge conflict; exact-head CI is running.
+
+A new short-lived synthetic preparer proposal was created by Admin and
+independently reviewed to active v5, preserving the earlier withdrawn assignment.
+The recipient opened the real v3 editor with an unsaved reason. Signing out in a
+second tab immediately cleared the original editor and returned that tab to login.
+The replacement assignment was withdrawn to v6. This verifies cross-tab session
+clearing, **not** retained-editor role-withdrawal behavior: the session change
+occurred before the old form could attempt a save. A separate uninterrupted-session
+expiry case is in progress. Local Staff browser evidence still uses the prior
+production-style bundle; this main merge changes Pharma surfaces, not the tested
+Staff source. The combined deployment artifact is not claimed accepted here.
+
+## Closed Staff actor architecture boundary — 2026-11-03
+
+Added three architecture checks for ADR-0052: the exact reviewed source-guard
+consumers, explicit provider wiring/injection references, and the single typed
+authorization callback signature. The initial wiring check also rejected the two
+intended `deps.StaffActors` field injections because the existing scanner checks
+all selector references. Its exact-file set was corrected to include those
+existing injections. A temporary unrelated Organization source file then exposed
+bare provider/consumer method references: both new checks failed for that file.
+The probe was removed and the restored checks pass. No production source or
+authorization allowlist was widened; these tests add a new architectural gate.
+
+Commands run from `backend/`:
+
+```sh
+go test -count=1 ./internal/archtest -run '^TestStaffActor'
+go test -race -count=1 ./internal/archtest -run '^TestStaffActor'
+python3 /tmp/helivanta-posting-test-runner.py ./internal/archtest
+go vet ./internal/archtest
+golangci-lint run ./internal/archtest/...
+go build ./...
+go run ./cmd/contractdocs -check
+```
+
+The complete real-fixture architecture race suite passes in **52.193 s**, affected
+lint reports zero issues, and vet/build/contractdocs checks pass. An initial runner
+invocation from the repository root failed before tests because `go.mod` is under
+`backend/`; rerunning from that directory passed. The runner used zero fallback
+forwards and stopped only its three test containers. Repository-root source
+inventory and whitespace checks pass. Source-writer lock-graph review and the
+remaining browser matrix remain open; no production or full Staff acceptance is
+implied by this architecture gate.
+
+## Scoped posting recovery and reader downgrade — 2026-11-03
+
+Additional normal-browser acceptance now passes on the same canonical Pharma
+Staff target: a real owner commit followed by deliberately lost response, exact
+retained-command receipt recovery, Admin withdrawal of preparer authority,
+fresh-session reader-only discovery/history and an unrelated reviewer receiving
+no posting hospitals. [Detailed evidence](2026-11-03-scoped-posting-positive-ui.md#follow-up-lost-response-downgrade-and-unrelated-reviewer)
+records the temporary loopback relay, exact command reconciliation and restoration
+of original Global API routing. No authorization check was bypassed.
+
+The new draft is now v3, with three distinct commands/revisions and three save
+audits; receipt recovery added no duplicate. The old separate draft remains v2
+and target Staff remains v2/epoch1/Inactive. Preparer is withdrawn v6; reader remains
+active v5 with only posting-read/Staff-actor-use permissions and no legacy hospital
+grant. Reader history v1–v3 survives a full reload with no Prepare/Edit controls.
+Private JSON credentials are preserved and its acceptance checkpoint updated.
+
+No application code, schema or production state changed. Head `9b70f71b` passed
+API/shell builds and security scans; deployment advancement was skipped. Remaining
+gates include retained-session cutoff and other account/foreign-scope UI cases,
+the source-writer/architecture/generator audit and the unresolved intermittent
+admission failure. PR #1532 remains draft. Effective posting, supervision, lifecycle,
+departmental/Pharma operating consumers and full Staff acceptance remain open.
+
+## Fresh source and positive scoped posting UI — 2026-11-03
+
+Normal positive reader/preparer core journeys now pass using a newly reviewed
+digital Staff actor. [Detailed browser and persistence evidence](2026-11-03-scoped-posting-positive-ui.md)
+records the complete local onboarding sequence, separate account and officer
+assignments, identity/employment approvals, protected downloads, activation and
+independent login/assignment decisions. All application business mutations used
+normal UI. The old revoked-review source remains unchanged as negative evidence.
+
+Reader-only access discovers one hospital, reads the existing shared Pharma
+Staff draft/history across a full reload and exposes no Prepare/Edit controls.
+Adding independently approved preparer authority deduplicates the hospital choice.
+Required-field validation, current canonical department selection, create, edit,
+unsaved-navigation confirmation/Keep editing, immutable history and full reload
+pass. Read-only proof finds one unchanged canonical Pharma Staff target, one new
+head with two distinct commands/revisions and attributable source/assignment audits;
+the earlier draft remains untouched. No legacy hospital grant or operating access
+was added to the actor.
+
+Two local setup problems were resolved without changing domain eligibility: a
+stale seed credential was reconciled against the active local identity fixture,
+and the saved owner API config now persists the authorized activation flag after
+its default-off response. The same binary remains on local 8399; production is
+unchanged. The observer timeout during identity download was reconciled against
+owner audit and exact downloaded bytes; no review decision was repeated.
+
+No application code changed in this turn. Head `829de653` has successful API/shell
+builds and scans, with deployment advancement skipped. Exact response-loss recovery,
+preparer withdrawal/reader downgrade and the remaining negative UI matrix remain
+open, as does the recorded intermittent admission failure. PR #1532 stays draft;
+no full E2E tag, merge or deployment is claimed. Effective posting and the complete
+Staff/departmental/Pharma parent objective remain incomplete.
+
+## Posting department-choice UI cutoff — 2026-11-03
+
+A component regression exposed an access-change propagation gap: after a scoped
+preparer opened the editor, a 403 from the department-choice owner was treated as
+a recoverable outage. The form and enclosing Staff panel remained visible.
+The new assertion failed with `Current departments are unavailable` instead of
+the access-change cutoff. The editor now classifies department errors alongside
+save errors, and latches any editor access change into the enclosing panel.
+It clears the form and Staff label and notifies the workspace exactly once.
+A preparer downgrade therefore requires reopening under fresh discovery; it does
+not keep an old preparation panel or fall back to another route.
+
+A separate recovery test proves a 503 remains an availability failure: saving is
+disabled, a typed reason survives, and retry restores the canonical department
+choice without notifying access loss. All eight focused posting panel/workspace
+tests pass. The full shell suite passes **1,414 tests** in **328.50 s**; shell
+typecheck and full lint pass. These are rendered component/API-boundary tests,
+not normal authenticated browser acceptance.
+
+Commands actually run from the candidate worktree with cached Node 24.22.1:
+
+```sh
+pnpm --filter @helivanta/shell test 'app/(workspace)/workforce/posting-drafts-panel.test.tsx'
+pnpm --filter @helivanta/shell test 'app/(workspace)/workforce/posting-drafts-panel.test.tsx' 'app/(workspace)/workforce/posting-workspace.test.tsx'
+pnpm --filter @helivanta/shell test
+pnpm --filter @helivanta/shell type-check
+pnpm --filter @helivanta/shell lint
+```
+
+The first command was observed red before the fix and green afterward. The full
+suite log is `/tmp/helivanta-posting-shell-access-cutoff-tests.log`. No backend,
+permission, canonical schema or migration changed. Normal-role browser acceptance
+and the broader effective-posting/departmental/Pharma gates remain open.
+
+Local build preflight additionally found the existing UI listener's `.next`
+directory absent, with `/login` returning HTTP 500. It stopped before mutation.
+The owned loopback fixture was rebuilt from source with `next build --webpack`,
+restarted on 127.0.0.1:4399 and verified with login HTTP 200. The production-style
+build passed with the existing webpack export/standalone-tracing warnings; those
+warnings are not claimed resolved. Capture, build/server logs and runtime metadata
+are private under `shared-staff-foundation-20261102/`. Production is unchanged.
+
+Normal browser navigation and sign-in now work; Chrome's prior
+`ERR_BLOCKED_BY_CLIENT` is not a current blocker. Admin and independent reviewer
+sessions completed a short-lived reader proposal and independent approval through
+the UI, reaching active version 5. The recipient still had a revoked historical
+login link. A fresh link was proposed and independently approved through the UI,
+retaining the old revoked link. The recipient's normal session still revealed no
+posting hospital. Read-only SQL established the source reason: its underlying
+employment review is revoked. IAM allows both posting-read and Staff-actor-use;
+identity/employment epochs match, so neither an active assignment, fresh link nor
+an Active Staff snapshot revives that revoked review. No source fact was rewritten
+to force positive acceptance.
+
+The private `posting-reader-ui-checkpoint.json` and the updated existing
+`local-staff-ui-qa.json` retain canonical IDs, observed states and screenshots;
+credentials remain outside Git. All business mutations used normal UI; persistence
+verification was read-only. Positive eligible reader/preparer create/edit/history/
+retry and the full browser matrix remain open. A newly reviewed source is required
+for those positive cases. Draft PR #1532 remains unmerged and no E2E tag is applied.
+
+## Posting credential cutoff and authorization availability — 2026-11-03
+
+Extended the scoped posting acceptance fixture with administrator credential
+revocation while its independently reviewed posting assignment stays active.
+All seven protected GETs, command PUT and scope discovery reject the old signed
+session with 401, without a successful Staff-source-use audit. The compound IAM
+command guard also refuses the old authentication time before entering its
+callback. The independent administrator can still retrieve the historical
+receipt. A newly minted signed session with an authentication time after the
+revocation watermark can read/retry the unchanged receipt, with one history
+revision; the original token remains denied afterward. This models fresh session
+issuance; it is not browser sign-in acceptance. The fixture deliberately keeps
+its outer authentication revocation checker permissive, so this demonstrates
+the scoped owner-command watermark check independently.
+
+A controllable proxy around the real disposable OpenFGA server returns 503 during
+authorization failure. The seven GETs, retained-command retry, a new command and
+scope discovery fail closed; no successful source-use audit is added. Direct
+owner scope checks also report authorization unavailable. After recovery the
+attempted new command is 404, and the original receipt/history survive unchanged.
+HTTP failures in this fixture occur at the outer authorization resolver; the
+direct scope checks additionally exercise owner authorization unavailability.
+No owned repository or authorization decision is mocked.
+
+The first complete parent integration run passed in 310.346 seconds. A temporary
+local mutation bypassed the IAM credential watermark only for the synthetic
+recipient. The new case failed at its first protected read: expected 401,
+actual 200 with posting source data. The exact original file was restored and
+SHA256 verified before the final complete Global API package run. All 22
+top-level tests passed with the race detector in 332.417 seconds, including
+the added failed-new-command and direct owner-authorization checks.
+No runtime or deployment was rebuilt from the mutation. Private evidence:
+`/tmp/helivanta-posting-credential-first-pass.log`,
+`/tmp/helivanta-posting-credential-mutation-failure.log` and
+`/tmp/helivanta-posting-credential-mutation.json`.
+
+Commands actually run from `backend/` (the private runner configures the local
+Docker socket and releases its own disposable fixtures):
+
+```sh
+python3 /tmp/helivanta-posting-test-runner.py ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+python3 /tmp/helivanta-posting-credential-mutation.py
+python3 /tmp/helivanta-posting-test-runner.py ./internal/globalapi
+go vet ./...
+go build ./...
+golangci-lint run ./internal/globalapi/...
+go run ./cmd/contractdocs -check
+```
+
+The runner executes `go test -race -v -count=1 -timeout=20m`; the final full-package
+log is `/tmp/helivanta-posting-globalapi-verified.log`. The mutation run is the
+intentional red check, not an unresolved product failure. Vet, build, affected
+lint (zero issues), contractdocs check, changed-file gofmt and `git diff --check`
+also pass. No routes, schemas, permissions or migrations changed in this
+acceptance follow-up.
+
+Normal reader/preparer browser acceptance remains open: a fresh Chrome tab to
+`http://helivanta.localhost:4399/login` was again blocked with
+`ERR_BLOCKED_BY_CLIENT`. No browser protection was bypassed. Draft PR1532 stays
+unmerged. No production rollout, migration or operating authority changed.
+Effective posting approval, departmental clinical access, supervisors/transfers,
+contractor/end/rehire lifecycles and Pharma operating consumers remain separate
+open gates; this acceptance evidence does not complete #417/#418/#429.
+
+## Reviewed source and appointment expiry — 2026-11-03
+
+Two additional independently reviewed digital Staff fixtures now exercise the
+actual earliest source deadlines: reviewed-person validity before the appointment
+end, and an approved fixed employee appointment ending before person validity.
+Each fixture waits for its persisted business cutoff, then proves a real posting
+save has passed admission and is blocked at its save-audit insert in PostgreSQL.
+The combined IAM/Workforce guarded root cancels that in-flight save at the cutoff
+without releasing the audit lock. It returns 403 with no receipt and rolls back
+the pending draft, save audit and successful source-use audit. Independently
+current administrative reads confirm no command or draft was committed.
+
+Post-expiry scoped retries, receipts and department choices are denied; discovery
+reveals no hospital. Staff and login-link snapshots remain Active, and the same
+session still reaches ordinary IAM self-service. Effective authorization therefore
+does not wait for physical link cleanup or globally disable the identity. These
+cases prove reviewed-person and fixed-appointment cutoffs for this consumer;
+they do not certify pharmacy registration/duty expiry, contractor/rehire workflows
+or every lifecycle variation. IAM's employment basis mirrors the same earliest
+source cutoff, so this is combined-boundary evidence, not proof that Workforce's
+deadline clamp is independently necessary in these two particular fixtures.
+
+The complete parent passes with real PostgreSQL/OpenFGA and race detection:
+**276.052 s after exact source restoration** (the preceding complete expiry run
+also passed at 262.171 s). The test deliberately observes PostgreSQL's calendar
+boundary rather than advancing a Go-only clock; no arbitrary sleep or production
+timeout change is introduced. Command: `python3 /tmp/helivanta-posting-test-runner.py
+./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'`
+from `backend/`, executing `go test -race -v -count=1 -timeout=20m`.
+
+A temporary local mutation bypassed only the effective-state check in
+`currentDigitalActorGeneration`. The complete parent with `-failfast` failed in
+`activation_actor_enforcement`: expected 403, actual 503 `posting_source_unavailable`
+after a source change. This establishes sensitivity to the denial contract; the
+mutation still failed closed and is **not** evidence of a private-data disclosure.
+The exact original file was restored and SHA-256 verified before the final pass;
+no runtime or deployed binary was refreshed from the mutation. Private mutation
+metadata and failure output are retained under
+`/tmp/helivanta-posting-effective-source-mutation*`.
+
+No product code, canonical migration, permission, dependency or production policy
+changed. Vet and affected Go lint are checked separately. A fresh normal local
+`/login` navigation was rechecked and is still blocked by Chrome
+`ERR_BLOCKED_BY_CLIENT`; no browser warning or protection was overridden. Normal
+Admin/reviewer/reader/preparer browser acceptance, remaining credential/recovery/
+lifecycle cases, the recorded intermittent evidence-admission failure, effective
+posting approval and operating duties remain open. Full Staff Management and the
+broader reusable-foundation goal remain incomplete; no full acceptance tag,
+merge or deployment is claimed.
+
+## Shared Staff login-link and membership cutoff — 2026-11-03
+
+Real signed-session/PostgreSQL/OpenFGA cases now cover login-link revocation
+independently of IAM assignment withdrawal. The preparation assignment remains
+current after the link is revoked, but all new protected GET routes and retained
+PUT refuse access: source, list, detail, command receipt, history, Staff choices
+and department choices. Hospital discovery returns no scope. Denied attempts add
+no successful source-use audit. The revoked link cannot be reapproved. A new
+proposal and independent approval create a different active link bound to the
+same canonical Staff ID and reviewed generation; the original link remains
+revoked, and the original immutable posting receipt is unchanged and readable
+under fresh valid authority. A separately authorized administrator retains
+historical receipt access during cutoff.
+
+A third independently reviewed actor now exercises attributable tenant membership
+removal. The retained pre-removal session is refused. The fixture first observes
+normal graph membership removal, then deliberately reinstates only an obsolete
+OpenFGA role tuple (not an IAM membership row). That graph membership is verified
+present both before and after the private requests. Owner scope authorization
+still refuses every protected read/PUT and the old IAM source evidence. With the
+fixture's raw graph outer gate deliberately stale, owner-filtered discovery
+returns no hospital rows. The normal outer gate returns 403 before that stale
+fixture tuple is introduced. Legacy membership regrant is refused, failed uses
+commit no successful source-use audit, and an independent administrator still
+reads retained history. This tests owner defense in depth; it does not redefine
+production middleware's current-membership status contract or prove membership
+recovery/rehire.
+
+No application/schema/catalog/production change was needed. The complete
+`TestPreEmploymentPersonReviewPreservesInactiveJoiner` parent passes with real
+fixtures and race detection: **138.242 s** (previous membership/link run also
+passed at 137.199 s). Exact command: `python3 /tmp/helivanta-posting-test-runner.py
+./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'`
+from `backend/`; the wrapper executes `go test -race -v -count=1 -timeout=20m`.
+Vet and affected Go lint are checked separately. The broader Staff goal remains
+active and incomplete. Source-expiry/remaining credential and lifecycle variants,
+normal browser acceptance, the recorded intermittent evidence-admission failure,
+effective posting approval and product operating duties remain open. No full
+acceptance label, merge or production deployment is claimed.
+
+## Posting source ordering and preparer downgrade — 2026-11-03
+
+Two independently reviewed digital Staff actors now exercise both PostgreSQL
+supervision-lock orderings for a retained posting-command retry versus an
+identity-source edit. A source edit queued first withholds the actor's retained
+receipt (403). A retained retry queued first returns the original receipt and
+commits one successful source-use audit before the edit. After either source
+change, later scoped GET/PUT attempts are denied; restoring old identity fields
+cannot revive the reviewed generation. An independently authorized administrator
+can still read the immutable historical receipt. This proves retained-command
+release ordering; it does not claim every source-ending/write variation.
+
+The same actors now exercise preparation-role withdrawal and fresh approval:
+withdrawal immediately denies retained PUT and department-choice access; stale
+IAM evidence cannot enter the source callback. Independently approved reader
+access still reads the original receipt, and hospital discovery reports
+`can_prepare=false`. A new independently reviewed preparer assignment plus fresh
+current evidence restores preparation without changing the retained receipt.
+Source audit assertions are now bound to the exact Staff actor, so one actor's
+successful uses cannot satisfy another actor's audit check. The two fixtures reuse
+the hospital's existing verified Organization registration rather than attempting
+a second registration; the API correctly rejects duplicate registration intent.
+
+No product code, schema, role catalog, dependency or production policy changed.
+The complete parent `TestPreEmploymentPersonReviewPreservesInactiveJoiner` passes
+with real PostgreSQL/OpenFGA and `-race -v -count=1 -timeout=20m` through the local
+runner: **121.897 s**. The preceding both-ordering run also passed (114.767 s).
+The new fixture initially returned the correct 409 for a second hospital
+registration; only fixture reuse was corrected, not that API assertion/contract.
+Vet and affected Go lint are checked separately. CI for `31f08186` passed API/shell
+builds, Trivy and GitGuardian; deployment advancement was skipped.
+
+Remaining gates include source-expiry and remaining membership/link/assignment
+revocation cases, normal Admin/reviewer/reader/preparer browser acceptance, the
+recorded intermittent evidence-admission failure, effective posting approval and
+operating duties. The local Chrome block and broader Staff ledger remain open.
+No runtime acceptance tags, merge or production rollout are claimed.
+
+## Shared Staff source boundary and posting races — 2026-11-03
+
+The reusable source seam now has direct real-IAM/PostgreSQL evidence that a valid
+source command cannot be borrowed for a different tenant, subject or hospital,
+used on another owner database, or invoked after its guarded callback completes.
+None of those rejected uses reaches the product callback or creates source-use
+audit evidence; only the original authorized use commits its audit.
+
+Scoped posting retries now run behind observed PostgreSQL supervision-lock
+barriers. Identical concurrent commands return one immutable receipt and history
+revision. Concurrent conflicting intent produces one success and one 409, with
+only one business mutation audit. A source-changing identity edit queued before
+a posting retry commits first; the retry returns 403 without disclosing its
+retained receipt. Restoring the old identity fields still cannot revive the
+reviewed generation. At that checkpoint the complementary command-before-source-
+ending ordering was still open; the newer ordering/downgrade section above now
+proves that behavior for retained retries. Source expiry/remaining assignment and
+membership revocation cases, normal positive-role browser journeys and production
+acceptance remain open.
+
+These are acceptance tests for existing owner-guard behavior; no application,
+schema, permission, dependency or production configuration changed in this
+follow-up. The complete `TestPreEmploymentPersonReviewPreservesInactiveJoiner`
+parent passes with `go test -race -v -count=1 -timeout=20m` through the same private
+local runner: final duration **103.248 s**. This includes the earlier fixture
+cases needed to create and independently approve the real digital Staff actor.
+`go vet ./internal/globalapi` and affected Go lint are checked separately.
+
+An unchanged earlier employment-evidence admission scenario returned 503 after
+storage resumed on one intermediate run. Its assertion was not relaxed or
+skipped. Both unchanged subsequent parent runs passed; the intermediate failure
+is retained privately in `/tmp/helivanta-posting-globalapi-employment-admission-failure.log`.
+That intermittent failure is not claimed fixed. Runtime acceptance tags remain
+withheld. CI for `53bbd2ba` passed API/shell builds, Trivy and GitGuardian;
+deployment advancement was skipped. Full Staff Management remains incomplete.
+
+## Scoped posting workspace candidate — 2026-11-03
+
+PR #1532 now implements the scoped Workforce reader/preparer consumer and
+`/workforce/postings` workspace locally. This supersedes the earlier “no scoped
+consumer” checkpoint below. **Not deployed or normal-browser accepted.** Overall
+status remains **10 partial / 10 awaiting audit / 1 research / 0 fully accepted**;
+no completion percentage or acceptance tag is justified.
+
+Implemented: separate `workforce.posting.read`; six additive `/posting-staff/:id`
+draft routes; bounded `/posting-scopes` (20 hospitals) and `/posting-targets`
+(50 Staff); current scoped department choices; canonical hospital/target DTOs;
+separate SDK paths/cache keys; Staff navigation; reader/preparer UI and save flow.
+Targets expose only ID, employee code and display name. Maximum escaped fields
+plus continuation fit 64 KiB. Expected account headers and no-store apply.
+
+Commands refresh the principal, compare current operation/actor receipts and hold
+IAM/current digital Staff authority through the root commit. Responses follow
+commit; writes acquire the supervision gate before actor/target locks. Audit
+retains assignment/version/epochs and actor/link/generation. Scoped denial never
+falls back to a legacy grant. Candidate append-only migration
+`0074_workforce_scoped_postings` keeps exact-target draft purpose separate from
+directory purpose. It retains one permissive tenant policy and existing Staff
+write checks, and adds a restrictive DELETE policy. No profile-edit/delete right
+is granted. Historical migrations are unchanged.
+
+The full migration test initially exposed the one-permissive-policy invariant;
+the candidate was corrected without weakening the validator. The unpublished
+loopback QA policy experiment was corrected with private before-state capture;
+no migration history, Staff records or production resources were deleted.
+A second full-suite regression exposed that replacing the original Staff policy
+expression erased later HR-intake/identity/leave purposes. The final migration
+extends the current `pg_get_expr` expression instead, preserving all earlier owner
+purposes and write checks. Focused identity-case/source, scoped-leave and posting
+RLS regression tests pass. The existing statement-level no-delete trigger also
+remains mandatory; the new test correctly expects its rejection.
+
+Source-review pins were refreshed after reviewing actual router/module additions
+and the legacy-preserving posting transaction refactor. Legacy posting reviews
+now also pin the extracted transaction helper and overriding migration function.
+Inventory is **778
+registered surfaces / 755 unclassified**; no new runtime acceptance is asserted.
+
+Normal browser acceptance is open: candidate shell/API run locally, but Chrome
+blocked normal sign-in with `ERR_BLOCKED_BY_CLIENT`. Mocked UI and HTTP integration
+tests do not count as normal login acceptance. No dependencies were downloaded.
+An optional broad script sweep found four mobile-tooling suites unavailable due
+to missing Expo dependencies in this worktree; affected posting/template/inventory
+checks are tracked separately.
+
+Remaining: normal Admin/independent reviewer/approved reader/preparer browser
+journeys, persisted results and role-revocation UI evidence, the remaining scoped
+commit-order/expiry matrix, and approval for the named revision plus IAM `0024_iam_staff_posting_templates`
+and Workforce `0074_workforce_scoped_postings` before production.
+Issue #429 remains open for clinical grouping, roster-derived access, referrals
+and sensitivity controls. Effective postings, supervisors/transfers, contractors,
+lifecycle administration and Pharma operating duties remain parent-ledger work.
+
+### Verified candidate commands and results
+
+The private local runner executes real `go test -race -v -count=1 -timeout=20m`
+against isolated PostgreSQL/OpenFGA fixtures; all final runs used zero fallback
+forwards and stopped only their own fixture containers. Final commands:
+
+- `python3 /tmp/helivanta-posting-test-runner.py ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'`
+  — pass, 104.437 s, including scoped audit-failure rollback with no receipt/history revision.
+- The same runner for `./internal/modules/workforce` — 319 top-level tests pass,
+  642.930 s; `./internal/modules/organization` — pass, 18.021 s;
+  `./internal/archtest` — pass, 44.382 s; `./internal/platform` — pass, 11.827 s.
+  Three exact single-object scoped GETs have explicit pagination-allowlist reasons;
+  lists/history retain cursor pagination. No general pagination gate was relaxed.
+- `pnpm --filter @helivanta/api test` — 609 tests pass;
+  `pnpm --filter @helivanta/shell test` — 1,411 tests pass, followed by the final
+  focused scoped-workspace suite — 3 tests pass (reader, preparer, required-field save).
+- API/shell `type-check` and `lint`, `go build ./...`, affected `go vet` and
+  `golangci-lint run` — pass. Canonical generation checks included in API typecheck.
+- `go run ./cmd/contractdocs` and `go run ./cmd/contractdocs -check` — pass;
+  `node scripts/staff-operational-access-inventory.mjs --check` — pass.
+- `node --test scripts/staff-template-migrations.test.mjs scripts/staff-operational-access-inventory.test.mjs`
+  — all 62 pass. The optional unrelated broad script sweep cannot run four Expo
+  suites because their mobile dependencies are absent; no installation was attempted.
+- `API_URL=http://127.0.0.1:8199 pnpm --filter @helivanta/shell exec next build --webpack`
+  — pass, including `/workforce/postings`. Existing React Hook Form export/standalone
+  tracing warnings remain; this does not accept the portable deployment artifact.
+- `git diff --check` — pass. Repository visibility verified **PUBLIC**.
+
+These commands ran from the candidate worktree (Go commands from `backend/`)
+using cached Node 24.22.1. Current owner API, gateway and final shell run locally;
+production was not changed. Passing suites do not complete the open normal-browser,
+remaining cutoff/order matrix or production rollout gates listed above.
+
+## Scoped departmental-choice consumer candidate — 2026-11-03
+
+The first real consumer now composes the registered current Staff actor guard:
+Organization's new hospital-bound posting-department choices projection. A reader
+is denied; an independently approved preparer can read current active canonical
+heads without governance/history or mutation authority. Legacy tenant-admin
+permission alone is also denied. No duplicate department or Staff master is
+created and no operating posting is activated.
+
+The real Global API reviewer/employment parent test first returned 404 for the
+missing endpoint. The restored test now passes reader/preparer separation,
+wrong-hospital denial, retired-head exclusion, legacy-admin denial, scope-epoch
+changes and identity-source invalidation. A newly added preparer grant correctly
+invalidates the previously captured IAM receipt; the test now asserts that denial
+and refreshes current evidence before further commands. Injected Organization
+audit failure returns no data and rolls back Workforce source-use evidence in the
+same root transaction. The fixture uses the repository's test migration harness,
+not a raw/unavailable database handle.
+
+Pagination uses the existing canonical envelope/keyset, default/max 50. Repeated,
+empty, unknown and oversized query options are refused. Canonical-model
+serialization verifies the 64 KiB budget including maximum field lengths, JSON
+HTML escaping and a 2,048-character continuation. The SDK uses the new projection
+and rejects retired, foreign, duplicate, private-field and invalid-continuation
+responses. It does not fall back to the governance endpoint.
+
+Final local race runs passed: the complete reviewer/employment parent (98.314s),
+Organization (18.462s) and architecture (49.801s). The independent permission
+matrix explicitly classifies the hospital-scoped capability without adding a
+legacy job-role grant. Build and affected lint passed; final SDK/typecheck results
+are recorded with this checkpoint. No normal browser acceptance, production
+rollout, new SQL migration, acceptance label or issue closure is claimed. Scoped
+draft read/preparation purpose RLS, bounded posting workspaces/targets, source-end
+and ordering evidence and normal UI journeys remain open. Full Staff counts
+remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Scoped posting catalogs and actor boundary candidate — 2026-11-03
+
+Work continues in `feat/scoped-posting-actors-20261103`; this is an unmerged,
+unreleased candidate. Full Staff Management and departmental acceptance remain
+incomplete: **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+No completion percentage is inferred from test counts.
+
+- Added append-only IAM migration `0024_iam_staff_posting_templates` from
+  `contracts/staff-access.json`, preserving earlier catalog snapshots. The
+  `staff-postings-v1` catalog introduces distinct hospital posting reader and
+  preparer templates. Both include Workforce's current-actor source-use
+  permission; neither grants operating posting approval or structure management.
+- Real PostgreSQL/OpenFGA catalog/projection tests pass for both complete
+  permission snapshots. The reused projection fixture originally synthesized a
+  single permission; it now reads the full published template. The source-use
+  permission has an explicit Workforce declaration and independent matrix entry.
+  Source use still requires exact current IAM callback evidence: a tenant-wide
+  permission alone cannot consume the guard.
+- SDK posting-family reads previously resolved to `/api/v1undefined`. Both new
+  regression cases reproduced that defect and pass with the explicit bounded
+  posting assignment endpoint. Assignment administration offers the two
+  templates only when the server's exact immutable catalog matches. Four UI
+  regressions were observed failing before implementation; missing, duplicated
+  and broader catalogs remain unavailable.
+- Workforce's candidate actor guard rejects absent IAM evidence and historical
+  reviewed links without digital employment generations. The historical-link
+  test now uses a real independently proposed/approved/projected IAM assignment
+  in bootstrap. An earlier test setup issued evidence directly from Workforce;
+  the architecture gate rejected it and that setup was replaced without widening
+  the issuer allowlist. A resource-contention timeout occurred on the first real
+  fixture run; the subsequent exact test passed. No source-use audit is retained
+  on denial and the historical link remains active for its existing consumers.
+- Canonical generators, contractdocs generation/check, SDK/shell typechecks,
+  596 SDK tests, 45 assignment UI tests, affected Go build/vet/lint and 62
+  template/inventory script tests passed. The full shell suite (1,409 tests), Global API reviewer/employment parent
+  workflow, full IAM/Workforce/bootstrap race suites and architecture checks passed.
+- The configured webpack production build passed using the existing cached
+  dependencies. The first build lacked `API_URL`; the configured Turbopack build
+  then refused dependencies linked outside this worktree. Webpack emitted
+  existing React Hook Form export warnings and warned that 27 external-cache
+  files were omitted from standalone tracing. This build is not evidence of a
+  portable deployment artifact. No dependency download/install was performed.
+- Reviewed source diffs before refreshing 39 pins: IAM adds only the forward
+  catalog migration in its module file; Workforce adds the source-use permission;
+  link/generation helpers preserve existing historical compatibility while
+  exposing current generation deadlines for the new boundary. Inventory remains
+  769 registered surfaces, 746 unclassified, with no additional runtime acceptance.
+
+The owner-provider seam is now registered in production bootstrap and the local
+test harness through the shared typed interface. The complete real reviewer /
+reviewed digital-employment parent workflow passed with successful actor use,
+non-identity-edit compatibility and changed/restored identity rejection under a
+still-live IAM assignment. The success/rollback/denial audit assertions also pass in the complete parent
+workflow rerun. No normal browser journey or posting consumer is implied by
+that boundary test.
+
+Local infrastructure verification: the first broad run found an outdated
+23-migration assertion (fixed to include exact migration 24). Later broad runs
+reported connection refusal and timing failures. A fresh OpenFGA container
+returned HTTP 200 inside the `helivanta-tests` VM but its Mac published port
+refused connections; Lima logged failed SSH forwarding. Restarting only the VM's
+`lima-guestagent` restored fresh fixture health. A diagnostic loopback port also
+collided with the separate withdrawal VM's existing SSH forward, which was left
+untouched. The private sequential runner captures only its own fixture metadata,
+stops its test containers and removes any fallback loopback forward after each
+package. Subsequent successful workflow runs used **zero** fallback forwards.
+Named local QA services, images, volumes and the other VM were preserved. Recovery
+metadata is at `/tmp/helivanta-posting-20261103-test-container-state.json`; runtime
+logs and the temporary runner are under `/tmp/helivanta-posting-*`. No production
+infrastructure was changed. Run the complete
+`TestPreEmploymentPersonReviewPreservesInactiveJoiner` parent: the legacy nested
+activation fixture depends on preparer grants seeded by earlier parent cases.
+
+Commands actually run for this candidate (the private sequential wrapper supplies
+only the local Docker socket, records logs and stops its own fixtures):
+
+```sh
+# backend/; the private runner exports these local fixture settings
+export DOCKER_HOST=unix:///Users/samyakrout/.colima/helivanta-tests/docker.sock
+export TESTCONTAINERS_RYUK_DISABLED=true
+go test -race -v -count=1 -timeout=20m ./pkg/authz
+go test -race -v -count=1 -timeout=20m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+go test -race -v -count=1 -timeout=20m ./internal/modules/iam
+go test -race -v -count=1 -timeout=20m ./internal/modules/workforce
+go test -race -v -count=1 -timeout=20m ./internal/bootstrap
+go test -race -v -count=1 -timeout=20m ./internal/archtest
+go run ./cmd/contractdocs
+go run ./cmd/contractdocs -check
+go build ./...
+go vet ./internal/globalapi ./internal/bootstrap ./internal/platform ./internal/modules/iam ./internal/modules/workforce ./pkg/authz
+golangci-lint run ./internal/globalapi/... ./internal/bootstrap/... ./internal/platform/... ./internal/modules/iam/... ./internal/modules/workforce/... ./pkg/authz/...
+
+# repository root; Node 24.22.1 from the existing mise cache
+pnpm --filter @helivanta/api exec vitest run
+pnpm --filter @helivanta/shell test
+pnpm --filter @helivanta/api type-check
+pnpm --filter @helivanta/shell type-check
+pnpm --filter @helivanta/api lint
+pnpm --filter @helivanta/shell lint
+API_URL=http://127.0.0.1:8199 pnpm --filter @helivanta/shell exec next build --webpack
+node --test scripts/staff-template-migrations.test.mjs scripts/staff-operational-access-inventory.test.mjs
+node scripts/generate-staff-access.mjs --check
+node scripts/staff-operational-access-inventory.mjs --check
+git diff --check
+```
+
+Still required before merge/release: compose the registered owner guard in
+both real consumers; narrow current Organization department choices; posting
+read/preparation admission and purpose RLS; bounded hospital/Staff discovery;
+exact SDK projections; real digital-actor positive/negative, source-ending and
+rollback/race coverage; and normal Admin, independent reviewer, preparer and
+reader browser journeys with persistence checks. The existing browser tab is
+still the earlier posting-draft build and logged out; inspecting it does not
+count as acceptance of this candidate. No production rollout or database
+migration was performed. Effective postings, supervision/transfers, contractors,
+suspension/end/resume/rehire and Pharma operating consumers remain parent work.
+
+## Shared cutoff merged; scoped actor evidence candidate — 2026-11-03
+
+[PR #1530](https://github.com/tesserix/helivanta/pull/1530) merged as
+`cd962d4456132c2f73d9f2bb9f579642fceaf5e3` after exact-head CI passed. Final
+source `95196dc4` passed local race suites for tenantdb (24.489s), IAM (328.815s),
+Organization (17.434s), Workforce (580.118s) and Global API (131.032s), plus full
+backend build/vet/lint, contractdocs and source-inventory validation. This closes
+the observed deferred-commit expiry defect described in the earlier candidate
+entry. No production rollout was performed for this revision in that work.
+
+The next feature branch adds callback-bound IAM evidence for the existing
+current, locked assignments. A real PostgreSQL/OpenFGA compound-command test
+first failed without evidence and passed after IAM became the sole issuer.
+Exact tenant/hospital/subject/action matching, immutable grant snapshots, callback
+escape and stripped cancellation are covered. Architecture tests additionally
+rejected an unauthorized selector call and ordinary/raw-string dot-import issuer
+probes. The raw-string probe initially escaped the check; decoding import paths
+before comparison corrected it. All temporary probes were removed and the
+restored gate passed. Full local authz, architecture and IAM race suites passed
+(6.856s, final architecture 72.605s, and 327.120s). An architecture rerun initially
+omitted the Docker endpoint; the corrected run used the existing cached test VM.
+
+This is a candidate foundation component. The current Staff actor provider,
+new immutable role catalogs, source-purpose RLS, owner projections and positive
+reader/preparer browser acceptance are still unimplemented. The
+[specification](../superpowers/specs/2026-11-03-scoped-staff-posting-preparation.md)
+proposes a separate Workforce-owned source-use permission composed with each
+consumer's own permission; reference data is not reusable authorization.
+Effective postings, standalone employers, supervision/transfers, lifecycle
+enforcement and Pharma extensions remain mandatory parent work. Full Staff
+counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Shared command source-cutoff candidate — 2026-11-03
 
 Implementation for the scoped posting foundation adds owner source deadlines to

@@ -626,6 +626,33 @@
         }
       ],
       "definitions_sha256": "3201f0f52874adfe5c010baaaa5ba350fedffe3cc15f2012b5994126e6a38128"
+    },
+    {
+      "id": "0024_iam_staff_posting_templates",
+      "file": "assignment_staff_posting_templates_generated.sql",
+      "sql_sha256": "30a2065d388a08c36f202f84954b8a3d72d9c16bcdbd0d83c264d51581207749",
+      "templates": [
+        {
+          "key": "workforce.posting_reader.v1",
+          "name": "Staff posting reader",
+          "description": "Read hospital Staff posting preparation and retained history using a current reviewed digital Staff actor; cannot edit profiles, prepare postings or grant access.",
+          "family": "posting",
+          "permissions": ["workforce.posting.read", "workforce.staff_actor.use"]
+        },
+        {
+          "key": "workforce.posting_preparer.v1",
+          "name": "Staff posting preparer",
+          "description": "Prepare non-operating hospital Staff posting drafts against current department choices using a reviewed digital Staff actor; cannot approve employment or postings, manage structure or grant operating access.",
+          "family": "posting",
+          "permissions": [
+            "workforce.posting.read",
+            "workforce.posting.prepare",
+            "organization.posting_choices.read",
+            "workforce.staff_actor.use"
+          ]
+        }
+      ],
+      "definitions_sha256": "9e7e2d626c2b44fc758d60472910d40e6c3633df1473b610adb3bece6b763af8"
     }
   ],
   "template_catalogs": [
@@ -670,6 +697,20 @@
         "workforce.employment_activator.v1"
       ],
       "definitions_sha256": "6d07317c07cb9b6c461f16f03dbec88898d3d63a4cdbcd944198d84722965505"
+    },
+    {
+      "key": "staff-postings-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1",
+        "workforce.employment_activator.v1",
+        "workforce.posting_reader.v1",
+        "workforce.posting_preparer.v1"
+      ],
+      "definitions_sha256": "dfce6824443bd9ec2a24a42528a1c8bc8e28bab9b81ba7693cb0da9175b206d5"
     }
   ]
 }

@@ -45,11 +45,11 @@ func TestAppendOnlyTemplateSQLPreservesPublishedDefinitions(t *testing.T) {
 	}
 	const next = "workforce.leave_reviewer.v2"
 	require.Nil(t, read(next))
-	currentCatalog := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?catalog=employment-activation-v1", "admin", "")
+	currentCatalog := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-postings-v1", "admin", "")
 	require.Equal(t, http.StatusOK, currentCatalog.Code, currentCatalog.Body.String())
 	var currentDefinitions []iam.TemplateDefinition
 	require.NoError(t, json.Unmarshal(currentCatalog.Body.Bytes(), &currentDefinitions))
-	require.Len(t, currentDefinitions, 6)
+	require.Len(t, currentDefinitions, 8)
 	baseline := map[string]string{}
 	for _, definition := range currentDefinitions {
 		value := read(definition.Key)

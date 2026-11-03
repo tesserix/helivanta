@@ -38,6 +38,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |
@@ -1048,6 +1049,13 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/person-review-inbox` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/person-review-targets/search` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source` | `workforce.posting.read` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command` | `workforce.posting.read` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command` | `workforce.posting.prepare` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/history` | `workforce.posting.read` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting` | `workforce.posting.read` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts` | `workforce.posting.read` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-targets` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/decision` | `workforce.benefits.approve` | false | false |
@@ -1140,6 +1148,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/posting-scopes` | `public` | true | false |
 
 Published subjects:
 
@@ -1290,6 +1299,7 @@ Source: [backend/internal/modules/organization/module.go](../../../backend/inter
 | PUT | `/v1/organization/hospitals/:hospital/departments/:node/revisions/:revision` | `organization.structure.manage` | false | false |
 | GET | `/v1/organization/hospitals/:hospital/departments/:node/revisions` | `organization.structure.read` | true | false |
 | GET | `/v1/organization/hospitals/:hospital/departments` | `organization.structure.read` | true | false |
+| GET | `/v1/organization/hospitals/:hospital/posting-department-choices` | `organization.posting_choices.read` | true | false |
 | GET | `/v1/organization/hospitals/:hospital/registrations/:request` | `organization.structure.read` | false | false |
 | PUT | `/v1/organization/hospitals/:hospital/registrations/:request` | `organization.structure.manage` | false | false |
 | GET | `/v1/organization/hospitals` | `organization.structure.read` | true | false |

@@ -72,8 +72,15 @@ func (h *handlers) postingScope(c *gin.Context) (authn.Principal, postingDraftSc
 }
 
 func respondPostingDraftError(c *gin.Context, err error) {
+	if c.IsAborted() {
+		return
+	}
 	var pg *pgconn.PgError
 	switch {
+	case errors.Is(err, authz.ErrScopedCredentialRevoked):
+		respond.Unauthenticated(c, "credential revoked")
+	case errors.Is(err, authz.ErrScopedCommandDenied):
+		respond.Forbidden(c, "Staff posting action is not permitted.")
 	case errors.Is(err, authz.ErrScopedAuthorizationUnavailable), errors.Is(err, context.DeadlineExceeded):
 		respond.Error(c, 503, "posting_source_unavailable", "The canonical posting source is unavailable. Retry when the source is available.")
 	case errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, authz.ErrDepartmentReferenceHidden):
@@ -85,7 +92,7 @@ func respondPostingDraftError(c *gin.Context, err error) {
 	}
 }
 
-func postingOwnerContext(tx *gorm.DB, p authn.Principal, s postingDraftScope, writing bool) (EmploymentPeriodSource, error) {
+func postingOwnerContext(tx *gorm.DB, p authn.Principal, s postingDraftScope, writing, scoped bool) (EmploymentPeriodSource, error) {
 	mode := "read"
 	if writing {
 		mode = "write"
@@ -99,12 +106,14 @@ func postingOwnerContext(tx *gorm.DB, p authn.Principal, s postingDraftScope, wr
 			return source, err
 		}
 	}
-	var grant struct{ Level string }
-	if err := tx.Table("workforce_hospital_access").Select("level").Where("tenant_id=? AND hospital_id=? AND subject=?", p.TenantID, s.hospital, p.Subject).Clauses(clause.Locking{Strength: "SHARE"}).Take(&grant).Error; err != nil {
-		return source, err
-	}
-	if writing && grant.Level != "manager" || grant.Level != "manager" && grant.Level != "reader" {
-		return source, gorm.ErrRecordNotFound
+	if !scoped {
+		var grant struct{ Level string }
+		if err := tx.Table("workforce_hospital_access").Select("level").Where("tenant_id=? AND hospital_id=? AND subject=?", p.TenantID, s.hospital, p.Subject).Clauses(clause.Locking{Strength: "SHARE"}).Take(&grant).Error; err != nil {
+			return source, err
+		}
+		if writing && grant.Level != "manager" || grant.Level != "manager" && grant.Level != "reader" {
+			return source, gorm.ErrRecordNotFound
+		}
 	}
 	err := tx.Table("workforce_staff").Select("version AS staff_version,employment_epoch").Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, s.hospital, s.staff).Clauses(clause.Locking{Strength: "SHARE"}).Take(&source).Error
 	return source, err
@@ -154,7 +163,7 @@ func postingDraftAudit(tx *gorm.DB, p authn.Principal, s postingDraftScope, acti
 	if resource == uuid.Nil {
 		resource = s.staff
 	}
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint))`, p.TenantID, s.hospital, p.Subject, "workforce.posting_draft."+action, resource, version).Error
+	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint) || CASE WHEN current_setting('app.workforce_posting_scoped',true) IN ('read','write') THEN jsonb_build_object('assignment_id',current_setting('app.workforce_posting_assignment',true),'assignment_version',current_setting('app.workforce_posting_assignment_version',true)::bigint,'scope_epoch',current_setting('app.workforce_posting_scope_epoch',true)::bigint,'membership_epoch',current_setting('app.workforce_posting_membership_epoch',true)::bigint,'actor_staff_id',current_setting('app.workforce_posting_actor',true),'actor_link_id',current_setting('app.workforce_posting_link',true),'generation_id',current_setting('app.workforce_posting_generation',true)) ELSE '{}'::jsonb END)`, p.TenantID, s.hospital, p.Subject, "workforce.posting_draft."+action, resource, version).Error
 }
 
 func validPostingDraftInput(in *StaffPostingDraftInput) bool {
@@ -190,78 +199,71 @@ func (h *handlers) putPostingDraft(c *gin.Context) {
 	}
 	digest := sha256.Sum256(raw)
 	fingerprint := hex.EncodeToString(digest[:])
-	var source EmploymentPeriodSource
 	var out StaffPostingDraft
-	err = h.db.WithGuardedTenantCommand(c.Request.Context(), p.TenantID, time.Now().Add(5*time.Second), func(tx *gorm.DB) error {
-		var err error
-		source, err = postingOwnerContext(tx, p, s, true)
-		return err
-	}, func(ctx context.Context) error {
-		return h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
-			var receipt struct {
-				ID, PostingID uuid.UUID
-				ActorSubject  string
-				InputHash     string
+	err = h.postingTransaction(c, p, s, true, func(ctx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
+		var receipt struct {
+			ID, PostingID uuid.UUID
+			ActorSubject  string
+			InputHash     string
+		}
+		err := tx.Table("workforce_posting_draft_revisions").Select("id,posting_id,actor_subject,input_hash").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND command_id=?", p.TenantID, s.hospital, s.staff, s.command).Take(&receipt).Error
+		if err == nil {
+			if receipt.PostingID != s.draft || receipt.ActorSubject != p.Subject || receipt.InputHash != fingerprint {
+				return errPostingDraftConflict
 			}
-			err := tx.Table("workforce_posting_draft_revisions").Select("id,posting_id,actor_subject,input_hash").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND command_id=?", p.TenantID, s.hospital, s.staff, s.command).Take(&receipt).Error
-			if err == nil {
-				if receipt.PostingID != s.draft || receipt.ActorSubject != p.Subject || receipt.InputHash != fingerprint {
-					return errPostingDraftConflict
-				}
-				out, err = postingDraftResult(tx, p, s, receipt.ID)
+			out, err = postingDraftResult(tx, p, s, receipt.ID)
+			if err != nil {
+				return err
+			}
+			return postingDraftAudit(tx, p, s, "retry_read", out.Version)
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if source.StaffVersion != in.StaffVersion || source.EmploymentEpoch != in.EmploymentEpoch {
+			return errPostingDraftConflict
+		}
+		var head struct{ Version int64 }
+		err = tx.Table("workforce_posting_drafts").Select("version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, s.hospital, s.staff, s.draft).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&head).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if head.Version != *in.ExpectedVersion {
+			return errPostingDraftConflict
+		}
+		ref := authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: in.DepartmentID, DepartmentRevision: in.DepartmentRevisionID}
+		return h.departmentReferences.WithCurrentDepartment(ctx, ref, func(ctx context.Context) error {
+			return h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
+				revision, err := uuid.NewV7()
 				if err != nil {
 					return err
 				}
-				return postingDraftAudit(tx, p, s, "retry_read", out.Version)
-			}
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err
-			}
-			if source.StaffVersion != in.StaffVersion || source.EmploymentEpoch != in.EmploymentEpoch {
-				return errPostingDraftConflict
-			}
-			var head struct{ Version int64 }
-			err = tx.Table("workforce_posting_drafts").Select("version").Where("tenant_id=? AND hospital_id=? AND staff_id=? AND id=?", p.TenantID, s.hospital, s.staff, s.draft).Clauses(clause.Locking{Strength: "UPDATE"}).Take(&head).Error
-			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err
-			}
-			if head.Version != *in.ExpectedVersion {
-				return errPostingDraftConflict
-			}
-			ref := authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: in.DepartmentID, DepartmentRevision: in.DepartmentRevisionID}
-			return h.departmentReferences.WithCurrentDepartment(ctx, ref, func(ctx context.Context) error {
-				return h.db.WithTenantCommand(ctx, p.TenantID, func(tx *gorm.DB) error {
-					revision, err := uuid.NewV7()
-					if err != nil {
-						return err
-					}
-					if err := tx.Exec(`SELECT set_config('app.workforce_posting_department',?,true),set_config('app.workforce_posting_department_revision',?,true)`, in.DepartmentID.String(), in.DepartmentRevisionID.String()).Error; err != nil {
-						return err
-					}
-					if head.Version == 0 {
-						err = tx.Exec(`INSERT INTO workforce_posting_drafts(tenant_id,hospital_id,staff_id,id,revision_id,version) VALUES(?,?,?,?,?,1)`, p.TenantID, s.hospital, s.staff, s.draft, revision).Error
-					} else {
-						err = tx.Exec(`UPDATE workforce_posting_drafts SET revision_id=?,version=version+1 WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=?`, revision, p.TenantID, s.hospital, s.staff, s.draft, head.Version).Error
-					}
-					if err != nil {
-						return err
-					}
-					if err := tx.Exec(`INSERT INTO workforce_posting_draft_revisions(tenant_id,hospital_id,staff_id,posting_id,id,command_id,expected_version,version,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,reason,actor_subject,input_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, s.hospital, s.staff, s.draft, revision, s.command, *in.ExpectedVersion, head.Version+1, in.StaffVersion, in.EmploymentEpoch, in.DepartmentID, in.DepartmentRevisionID, in.StartsAt, in.EndsAt, in.Reason, p.Subject, fingerprint).Error; err != nil {
-						return err
-					}
-					out, err = postingDraftResult(tx, p, s, revision)
-					if err != nil {
-						return err
-					}
-					if err := postingDraftAudit(tx, p, s, "saved", out.Version); err != nil {
-						return err
-					}
-					data, err := json.Marshal(workforcecontract.PostingDraftChangedData{HospitalID: s.hospital, StaffID: s.staff, DraftID: s.draft, RevisionID: revision, Version: out.Version})
-					if err != nil {
-						return err
-					}
-					return h.bus.Publish(tx, workforcecontract.SubjectPostingDraftChanged, events.Event{Type: workforcecontract.SubjectPostingDraftChanged, Version: 1, TenantID: p.TenantID, Data: data})
-				})
+				if err := tx.Exec(`SELECT set_config('app.workforce_posting_department',?,true),set_config('app.workforce_posting_department_revision',?,true)`, in.DepartmentID.String(), in.DepartmentRevisionID.String()).Error; err != nil {
+					return err
+				}
+				if head.Version == 0 {
+					err = tx.Exec(`INSERT INTO workforce_posting_drafts(tenant_id,hospital_id,staff_id,id,revision_id,version) VALUES(?,?,?,?,?,1)`, p.TenantID, s.hospital, s.staff, s.draft, revision).Error
+				} else {
+					err = tx.Exec(`UPDATE workforce_posting_drafts SET revision_id=?,version=version+1 WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND version=?`, revision, p.TenantID, s.hospital, s.staff, s.draft, head.Version).Error
+				}
+				if err != nil {
+					return err
+				}
+				if err := tx.Exec(`INSERT INTO workforce_posting_draft_revisions(tenant_id,hospital_id,staff_id,posting_id,id,command_id,expected_version,version,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,reason,actor_subject,input_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, s.hospital, s.staff, s.draft, revision, s.command, *in.ExpectedVersion, head.Version+1, in.StaffVersion, in.EmploymentEpoch, in.DepartmentID, in.DepartmentRevisionID, in.StartsAt, in.EndsAt, in.Reason, p.Subject, fingerprint).Error; err != nil {
+					return err
+				}
+				out, err = postingDraftResult(tx, p, s, revision)
+				if err != nil {
+					return err
+				}
+				if err := postingDraftAudit(tx, p, s, "saved", out.Version); err != nil {
+					return err
+				}
+				data, err := json.Marshal(workforcecontract.PostingDraftChangedData{HospitalID: s.hospital, StaffID: s.staff, DraftID: s.draft, RevisionID: revision, Version: out.Version})
+				if err != nil {
+					return err
+				}
+				return h.bus.Publish(tx, workforcecontract.SubjectPostingDraftChanged, events.Event{Type: workforcecontract.SubjectPostingDraftChanged, Version: 1, TenantID: p.TenantID, Data: data})
 			})
 		})
 	})
@@ -278,10 +280,7 @@ func (h *handlers) readPostingDraft(c *gin.Context, receipt bool) {
 		return
 	}
 	var out StaffPostingDraft
-	err := h.db.WithTenantCommand(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if _, err := postingOwnerContext(tx, p, s, false); err != nil {
-			return err
-		}
+	err := h.postingTransaction(c, p, s, false, func(_ context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
 		var revision uuid.UUID
 		if receipt {
 			var row struct{ ID uuid.UUID }
@@ -313,12 +312,8 @@ func (h *handlers) getPostingDraftSource(c *gin.Context) {
 		return
 	}
 	var source EmploymentPeriodSource
-	err := h.db.WithTenantCommand(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		var err error
-		source, err = postingOwnerContext(tx, p, s, false)
-		if err != nil {
-			return err
-		}
+	err := h.postingTransaction(c, p, s, false, func(_ context.Context, tx *gorm.DB, current EmploymentPeriodSource) error {
+		source = current
 		return postingDraftAudit(tx, p, s, "source_read", source.StaffVersion)
 	})
 	if err != nil {
@@ -334,10 +329,7 @@ func (h *handlers) listPostingDrafts(c *gin.Context, params pagination.Params) (
 		return nil, nil
 	}
 	rows := []StaffPostingDraft{}
-	err := h.db.WithTenantCommand(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if _, err := postingOwnerContext(tx, p, s, false); err != nil {
-			return err
-		}
+	err := h.postingTransaction(c, p, s, false, func(_ context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
 		q := tx.Table("(?) AS posting_rows", postingDraftQuery(tx, p, s, false))
 		if err := tenantdb.ApplyKeyset(q, params).Find(&rows).Error; err != nil {
 			return err
@@ -360,10 +352,7 @@ func (h *handlers) postingDraftHistory(c *gin.Context, params pagination.Params)
 		return nil, nil
 	}
 	rows := []StaffPostingDraft{}
-	err := h.db.WithTenantCommand(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if _, err := postingOwnerContext(tx, p, s, false); err != nil {
-			return err
-		}
+	err := h.postingTransaction(c, p, s, false, func(_ context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
 		var current StaffPostingDraft
 		current, err := postingDraftResult(tx, p, s, uuid.Nil)
 		if err != nil {

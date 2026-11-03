@@ -17,6 +17,7 @@ export type StaffPostingScope = {
   subject: string;
   hospitalId: string;
   staffId: string;
+  access?: "legacy" | "scoped";
 };
 const identifier = z
   .string()
@@ -28,6 +29,7 @@ const commandId = z.uuidv7().transform((value) => value.toLowerCase());
 export const staffPostingsKey = (scope: StaffPostingScope) => [
   "workforce",
   "posting-drafts",
+  scope.access ?? "legacy",
   scope.tenantId,
   scope.subject,
   scope.hospitalId,
@@ -44,7 +46,7 @@ function request(scope: StaffPostingScope) {
   return enrollmentRequestOptions(scope);
 }
 function root(scope: StaffPostingScope) {
-  return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/staff/${identifier.parse(scope.staffId)}`;
+  return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/${scope.access === "scoped" ? "posting-staff" : "staff"}/${identifier.parse(scope.staffId)}`;
 }
 function sourceMatches(row: { hospital_id: string; staff_id: string }, scope: StaffPostingScope) {
   return (

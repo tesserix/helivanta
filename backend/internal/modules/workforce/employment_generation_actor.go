@@ -53,12 +53,17 @@ func validateGenerationActor(tx *gorm.DB, p authn.Principal, hospital uuid.UUID,
 	if actor.GenerationID == uuid.Nil {
 		return nil
 	}
-	generation, state, _, err := readProtectedGenerationState(tx, p, hospital, actor.StaffID, actor.ID, actor.GenerationID)
+	_, _, err := currentDigitalActorGeneration(tx, p, hospital, actor)
+	return err
+}
+
+func currentDigitalActorGeneration(tx *gorm.DB, p authn.Principal, hospital uuid.UUID, actor reviewedLeaveActor) (employmentGenerationRecord, time.Time, error) {
+	generation, state, until, err := readProtectedGenerationState(tx, p, hospital, actor.StaffID, actor.ID, actor.GenerationID)
 	if err != nil {
-		return errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
+		return generation, until, errors.Join(authz.ErrScopedAuthorizationUnavailable, err)
 	}
 	if state != "effective" || generation.AccessIntent != "digital" || generation.DeclaredSubject != p.Subject {
-		return authz.ErrScopedCommandDenied
+		return generation, until, authz.ErrScopedCommandDenied
 	}
-	return nil
+	return generation, until, nil
 }

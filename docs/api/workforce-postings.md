@@ -118,3 +118,64 @@ review/effective activation remain open. Migration 0073 and this slice were spec
 Preparing these drafts does not complete effective transfers, supervisor changes, contractors, independent
 posting approvals, Pharma professional duties, standalone employers or operating
 lifecycle enforcement.
+
+## Unreleased scoped-role foundation
+
+The candidate `staff-postings-v1` access catalog is owned by
+`contracts/staff-access.json` and installed by the additive IAM migration
+`0024_iam_staff_posting_templates`. Earlier catalog snapshots are unchanged.
+`GET /v1/iam/posting-assignment-proposals` is the separate bounded posting-family
+list, under the same current proposal-management/review authority as other IAM
+assignment families. The SDK and assignment administration use that endpoint.
+
+The reader snapshot contains `workforce.posting.read` and
+`workforce.staff_actor.use`. The preparer adds `workforce.posting.prepare` and
+`organization.posting_choices.read`. Catalog publication and graph projection
+do not activate either runtime consumer. The currently deployed six draft
+routes above retain their existing preparation permission and explicit hospital
+grant. The candidate source guard additionally requires IAM's exact active
+callback-bound source-use grant, a current reviewed link and effective digital
+employment generation for the same subject and hospital. It constrains the
+shared root command to the earliest owner source end and audits successful use;
+denial rolls back the source-use audit. Historical links without generations
+remain compatible with existing consumers and are refused by this new guard.
+
+The provider is registered in bootstrap and the test harness. The Organization-owned choices consumer is implemented in the same candidate;
+see [its contract](organization.md#unreleased-scoped-posting-choices). Scoped draft
+consumer composition, posting-purpose RLS and discovery are implemented in the
+candidate contract below. Normal positive-role browser acceptance remains open.
+This section announces no enabled production route, effective posting or rollout. See the
+[delivery tracker](../qa/staff-management-progress.md) for actual verification
+and remaining release gates.
+
+### Scoped workspace candidate contract (implemented; normal UI acceptance open)
+
+Additive scoped draft paths use `/v1/workforce/hospitals/:hospital/posting-staff/:id`
+with the same six suffixes and receipts above. Reads require
+`workforce.posting.read`; PUT requires `workforce.posting.prepare`. Both require
+the independent `workforce.staff_actor.use` assignment, fresh IAM evidence and a
+current reviewed digital actor at the same hospital. Legacy paths are unchanged.
+Business audit retains operation assignment/version/epochs and actor/link/generation
+references. Migration `0074_workforce_scoped_postings` adds exact-target read/lock
+visibility without Staff profile writes; rollback retains additive schema/history.
+
+`GET /v1/workforce/posting-scopes` uses the existing bounded
+20-candidate reviewed-link discovery, filters each hospital through the current
+compound posting/source authority and returns canonical `StaffPostingHospitalScope`
+(hospital ID, name, can_prepare). Empty visible pages retain their continuation.
+`GET /v1/workforce/hospitals/:hospital/posting-targets` is a separate bounded
+50-target projection returning only canonical `StaffPostingTarget` ID, employee
+code and display name. It requires the same current reader/source command;
+private profile data is excluded. Target discovery cannot broaden draft-purpose
+RLS beyond its selected exact Staff. Both carry expected account headers, no-store
+responses and atomic owner/source-use audit. Authorization unavailability withholds
+results; absent current eligibility denies rather than reusing a legacy grant.
+Real signed-session/PostgreSQL/OpenFGA tests cover reader/preparer discovery,
+retained commands, grant/link/membership withdrawal and source expiry. Normal
+positive-role core UI journeys now also pass with a freshly reviewed digital
+actor and no legacy hospital grant: reader history/reload without write controls,
+and preparer required-field create/edit/history/reload and unsaved-navigation
+protection on the same canonical Pharma Staff target. See the
+[local UI proof](../qa/2026-11-03-scoped-posting-positive-ui.md). Exact response-loss
+recovery, role withdrawal and the remaining negative browser matrix still need
+acceptance; these results grant no effective posting or production authority.

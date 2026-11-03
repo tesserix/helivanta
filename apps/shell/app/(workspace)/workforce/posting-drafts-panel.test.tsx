@@ -178,3 +178,94 @@ it("withholds preparation when the current Staff source is unavailable", async (
   expect(await screen.findByRole("alert")).toHaveTextContent("Current Staff source is unavailable");
   expect(screen.queryByRole("button", { name: "Prepare posting draft" })).not.toBeInTheDocument();
 });
+
+it("clears the posting panel when department choices deny preparation access", async () => {
+  const changed = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("posting-department-choices"))
+        return Response.json(
+          { error: "forbidden", message: "Preparation access ended" },
+          { status: 403 },
+        );
+      if (url.endsWith("posting-draft-source"))
+        return Response.json({
+          hospital_id: scope.hospitalId,
+          staff_id: scope.staffId,
+          staff_version: 1,
+          employment_epoch: 1,
+        });
+      return Response.json({ data: [], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffPostingDraftPanel
+        scope={{ ...scope, access: "scoped" }}
+        staffLabel="Synthetic Applicant"
+        canManage
+        onClose={() => {}}
+        onContextChanged={changed}
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare posting draft" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Staff access changed. Reopen Staff to verify your current workspace.",
+  );
+  expect(changed).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("form", { name: "Posting preparation" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Posting preparation · Synthetic Applicant")).not.toBeInTheDocument();
+});
+
+it("preserves unsaved preparation while a temporary department outage recovers", async () => {
+  const changed = vi.fn();
+  let departmentReads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("posting-department-choices") && ++departmentReads === 1)
+        return Response.json(
+          { error: "unavailable", message: "Synthetic department outage" },
+          { status: 503 },
+        );
+      if (url.endsWith("posting-draft-source"))
+        return Response.json({
+          hospital_id: scope.hospitalId,
+          staff_id: scope.staffId,
+          staff_version: 1,
+          employment_epoch: 1,
+        });
+      return Response.json({
+        data: url.includes("posting-department-choices") ? [department] : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffPostingDraftPanel
+        scope={{ ...scope, access: "scoped" }}
+        staffLabel="Synthetic Applicant"
+        canManage
+        onClose={() => {}}
+        onContextChanged={changed}
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare posting draft" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Current departments are unavailable.",
+  );
+  await user.type(screen.getByLabelText("Reason"), "Synthetic retained preparation");
+  expect(screen.getByRole("button", { name: "Save posting draft" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Retry department source" }));
+  await user.click(await screen.findByLabelText("Department or sub-unit"));
+  expect(
+    await screen.findByRole("option", { name: "PHARMA · Synthetic Pharmacy" }),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText("Reason")).toHaveValue("Synthetic retained preparation");
+  expect(changed).not.toHaveBeenCalled();
+  expect(departmentReads).toBe(2);
+});

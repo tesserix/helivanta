@@ -182,12 +182,28 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	if templateKey != "workforce.leave_reviewer.v1" {
 		familyPath, otherPath = otherPath, familyPath
 	}
+	catalogPath := "/v1/iam/staff-access-templates"
+	if strings.HasPrefix(templateKey, "workforce.posting_") {
+		familyPath = "/v1/iam/posting-assignment-proposals?limit=50"
+		catalogPath += "?catalog=staff-postings-v1"
+	}
 	currentList := call("GET", familyPath, "admin", "", 200)
 	require.Contains(t, currentList.Body.String(), first)
 	otherList := call("GET", otherPath, "admin", "", 200)
 	require.NotContains(t, otherList.Body.String(), first, "legacy leave consumers must not receive identity assignments")
-	catalogue := call("GET", "/v1/iam/staff-access-templates", "admin", "", 200)
+	catalogue := call("GET", catalogPath, "admin", "", 200)
 	require.Contains(t, catalogue.Body.String(), templateKey)
+	var definitions []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(catalogue.Body.Bytes(), &definitions))
+	var snapshotPermissions []authz.Permission
+	for _, definition := range definitions {
+		if definition.Key == templateKey {
+			for _, value := range definition.Permissions {
+				snapshotPermissions = append(snapshotPermissions, authz.Permission(value))
+			}
+		}
+	}
+	require.NotEmpty(t, snapshotPermissions)
 
 	epoch := func(c *assert.CollectT, wantEpoch, wantAck int64) {
 		require.NoError(c, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
@@ -338,7 +354,7 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 		require.NotContains(t, e.Error(), "private")
 		require.Empty(t, denied.AssignmentID)
 	}
-	snapshot := authz.ScopedAssignment{TenantID: testutil.TenantA, HospitalID: hospital, ScopeKind: "hospital", ScopeID: hospital, ID: first, Version: 4, Subject: "user-target", Permissions: []authz.Permission{permission}}
+	snapshot := authz.ScopedAssignment{TenantID: testutil.TenantA, HospitalID: hospital, ScopeKind: "hospital", ScopeID: hospital, ID: first, Version: 4, Subject: "user-target", Permissions: snapshotPermissions}
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		allowed, e := fga.CheckScopedAssignment(t.Context(), snapshot, "user-target", permission)
 		require.NoError(c, e)

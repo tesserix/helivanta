@@ -1,7 +1,7 @@
 # Scoped Staff posting preparation
 
-Status: proposed implementation specification; no new role, route, migration,
-source-guard exception or production policy is activated by this document.
+Status: implemented local candidate in PR #1532; normal browser acceptance and
+production activation remain open. This specification does not activate policy.
 Continues the [effective-posting specification](2026-11-02-effective-staff-postings.md)
 and [complete reusable Staff objective](2026-11-02-reusable-staff-foundation.md).
 Tracks #417, #418 and #429 without claiming their acceptance.
@@ -114,6 +114,43 @@ it in Organization. Minimal proof consists of canonical Staff/link/generation ID
 their current versions/epoch and earliest effective cutoff. Private findings,
 documents and registration content remain in Workforce. Only two initial
 consumers exist: Workforce posting preparation and Organization choices.
+
+The proposed owner permission is `workforce.staff_actor.use`. Each scoped
+consumer must independently check its own business permission **and** this
+Workforce source-use permission in the existing two-check IAM command. Only the
+Workforce provider interprets source-use evidence. This avoids a cross-owner
+whitelist of arbitrary consumer permissions and does not grant identity review,
+profile disclosure, employment activation or operating duties. The source-use
+permission has no standalone business endpoint. Add it through new immutable
+catalog snapshots with the reader/preparer templates, not by expanding old ones.
+
+IAM issues evidence through `WithScopedCommandEvidence` only inside its already
+verified guarded action. `ScopedCommandGrant` returns a copied exact grant while
+that callback and its original root remain live. Copies of the request slice,
+`context.WithoutCancel`, changed scope/action and escaped callbacks cannot extend
+the evidence. Architecture checks restrict issuing calls to
+`iam/assignment_command.go` and reject dot-import bypasses. Consumers must also
+require their own same-database guarded command; this evidence alone grants no
+database access or current Staff eligibility.
+
+The Staff provider should follow the existing structural-reference callback
+pattern. Return only minimal immutable reference data for the callback's audit
+and target command; those IDs are data, never reusable authority. Every command
+re-enters the provider using its checked actor subject. Do not add an exported
+repository, general module RPC, caller-selected source query, private findings
+payload or another proof-factory API merely to transport those IDs.
+
+Before implementation, prove the source-writer order against identity case
+commands as well as HR/person/employment writers. Existing generation validation
+locks current employment/person review heads for update after the identity epoch.
+Reusing it while another command later advances that actor's identity epoch
+requires a deterministic lock-order test, not an assumption that actor reads are
+lock-free. A candidate is a canonical shared Workforce source gate for actor
+readers and the existing exclusive gate for identity/source writers; posting
+writes must acquire exclusive ownership first to preserve retained-command
+serialization. Do not upgrade shared to exclusive or mutate historical migration
+SQL. These writer/gate changes and their forward migration remain unimplemented
+until the full order is verified.
 
 Lock order is IAM authority → Workforce supervision/source/actor → Organization
 structural gate/rows → posting head/revisions/audit/outbox. Keep the existing
@@ -231,3 +268,43 @@ it leaves current actor proof, structural choice visibility, RLS and UI behavior
 unimplemented. A separate Staff service is rejected because current-source
 atomicity depends on the existing shared guarded database and no independent
 scaling/failure requirement justifies extraction.
+
+## 2026-11-03 implementation checkpoint
+
+The reader permission, scoped draft consumers, bounded hospital/Staff discovery,
+current department choices and `/workforce/postings` UI are implemented locally.
+Candidate migration 0074 preserves one permissive tenant policy, restricts DELETE,
+and retains legacy Staff write checks. Directory reads cannot broaden exact-target
+draft context. Audit records the checked scoped assignment and digital actor.
+See the [QA ledger](../../qa/staff-management-progress.md) for evidence and open gates.
+Normal browser sign-in works. A fresh digital actor has completed UI-created
+Staff/evidence, independent person/employment review, activation and separate link/
+assignment decisions. Reader history/reload with absent write controls and
+preparer required fields, current department choice, create/edit/history/reload
+and unsaved-navigation protection now pass without a legacy hospital grant.
+[Positive UI proof](../../qa/2026-11-03-scoped-posting-positive-ui.md) preserves the
+older revoked source as negative evidence. Follow-up UI acceptance verifies a
+committed-but-lost response recovered through the original command receipt without
+duplicate revisions/audits, preparer withdrawal with fresh-session reader-only
+history across reload, and unrelated reviewer denial. Same-session preparer expiry
+also removes a dirty editor while preserving Reader history; separate-tab sign-out
+clears the original editor to login. Direct withdrawal in isolated browser origins
+also passes with a fully loaded editor and enabled Save, access cutoff on the
+retained save attempt, unchanged persistence and Reader recovery. Its test-only
+OIDC configuration was restored exactly. Different-target fresh-write order and actor identity-epoch mutation evidence
+now pass; the complete restored-source Global API race suite passed in 363.724s.
+Membership alone exposes no posting hospitals despite a current reviewed digital
+source. Remaining account/foreign-scope browser and release gates prevent full
+acceptance. No
+effective posting, operating duty or issue #429 completion is claimed.
+
+### Credential and authorization failure checkpoint (2026-11-03)
+
+The local acceptance fixture now covers administrator credential revocation
+while reviewed posting assignments remain current, old-session denial, a fresh
+signed-session recovery and continued old-token denial. A real OpenFGA outage
+fails protected HTTP requests and owner scope checks closed; recovery preserves
+the retained receipt and leaves the failed new command absent. A synthetic-user
+watermark bypass makes the new test fail with 200 instead of 401; original source
+is restored before final validation. See the Staff progress ledger for exact
+commands, evidence and the unresolved normal-role browser acceptance gate.

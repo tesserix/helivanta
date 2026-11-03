@@ -5,12 +5,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -22,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -52,9 +55,21 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	cloud := testinfra.NewGCSProtocol(t)
 	documents, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	graph, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
+	fgaURL, err := url.Parse(testinfra.StartOpenFGA(t))
 	require.NoError(t, err)
-	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}}
+	var authorizationUnavailable atomic.Bool
+	fgaProxy := httputil.NewSingleHostReverseProxy(fgaURL)
+	fgaBoundary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authorizationUnavailable.Load() {
+			http.Error(w, "synthetic authorization outage", http.StatusServiceUnavailable)
+			return
+		}
+		fgaProxy.ServeHTTP(w, r)
+	}))
+	t.Cleanup(fgaBoundary.Close)
+	graph, err := authz.NewClient(ctx, fgaBoundary.URL, testinfra.IsolationKey(t))
+	require.NoError(t, err)
+	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New()}
 	registry := platform.NewRegistry()
 	for _, module := range modules {
 		require.NoError(t, registry.Register(module))
@@ -1727,7 +1742,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Equal(t, 409, request("GET", evidencePath, reviewer, nil, "application/json").Code)
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	var postingRegistrationPath string
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1749,7 +1765,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				return err == nil && standing.AssignmentID != ""
 			}, 10*time.Second, 20*time.Millisecond)
 			recipient := "synthetic-activation-recipient-" + scenario
-			call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 202)
+			recipientMembership := call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 202)
 			require.Eventually(t, func() bool { bindings, err := graph.ListRoles(ctx, recipient); return err == nil && len(bindings) > 0 }, 10*time.Second, 20*time.Millisecond)
 			joiner := uuid.Must(uuid.NewV7()).String()
 			if scenario == "uuid_staff" {
@@ -1769,11 +1785,15 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, "available", status)
 				files[category] = id
 			}
+			personValidUntil := time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second)
+			if scenario == "posting_source_expiry" {
+				personValidUntil = time.Now().Add(time.Minute).UTC().Truncate(time.Second)
+			}
 			findingPath := joinerPath + "/person-reviews/" + uuid.Must(uuid.NewV7()).String()
 			call(t, "PUT", findingPath, manager, map[string]any{
 				"command_id": uuid.Must(uuid.NewV7()).String(), "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"], "identity_hash": basis["identity_hash"],
 				"policy_reference": "SYN-ACTIVATION-IDENTITY", "finding_reference": "Synthetic independently examined digital recipient",
-				"observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
+				"observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": personValidUntil.Format(time.RFC3339),
 				"access_intent": "digital", "declared_subject": recipient, "identity_examined": true, "known_associations_disclosed": true, "document_ids": []string{files["identity_evidence"]},
 			}, 200)
 			finding := call(t, "POST", findingPath+"/decision", reviewer, map[string]any{"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 1, "decision": "approve", "reason": "Independent synthetic digital person finding", "identity_examined": true, "independent_person_confirmed": true}, 200)
@@ -1799,6 +1819,13 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			startsAt, endsAt := time.Now().Add(-time.Hour).UTC(), time.Now().Add(time.Hour).UTC()
 			if scenario == "future" {
 				startsAt, endsAt = time.Now().Add(time.Hour).UTC(), time.Now().Add(2*time.Hour).UTC()
+			}
+			if scenario == "posting_term_expiry" {
+				endsAt = time.Now().Add(time.Minute).UTC().Truncate(time.Second)
+			}
+			sourceCutoff := personValidUntil
+			if endsAt.Before(sourceCutoff) {
+				sourceCutoff = endsAt.Truncate(time.Second)
 			}
 			terms := call(t, "PUT", periodPath+"?hr_intake=v1", manager, map[string]any{
 				"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 0, "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"],
@@ -1988,7 +2015,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
 			require.NoError(t, err)
 			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
-			if scenario == "actor_enforcement" {
+			if scenario == "actor_enforcement" || strings.HasPrefix(scenario, "posting_") {
 				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 				require.NoError(t, err)
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
@@ -1997,6 +2024,286 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "PUT", loginPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh generation login proposal"}, 200)
 				call(t, "POST", loginPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic generation login review"}, 200)
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
+				grant(recipient, "workforce.posting_reader.v1", authz.StaffActorUse)
+				sourceRequest := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: authz.StaffActorUse}
+				sourceGrant, sourceErr := authority.AuthorizeScope(ctx, sourceRequest)
+				require.NoError(t, sourceErr)
+				sourceGuard := platform.StaffActors(modules, db)
+				require.NotNil(t, sourceGuard)
+				useSource := func(callback func(context.Context, authz.StaffActorReference) error) error {
+					return authority.(authz.CompoundScopedCommandGuard).WithScopeGrants(ctx, []authz.ScopeCheck{{Request: sourceRequest, Grant: sourceGrant}}, time.Now(), func(commandCtx context.Context) error {
+						return sourceGuard.WithCurrentStaffActor(commandCtx, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital)}, callback)
+					})
+				}
+				require.NoError(t, useSource(func(_ context.Context, source authz.StaffActorReference) error {
+					require.Equal(t, uuid.MustParse(joiner), source.StaffID)
+					require.NotEqual(t, uuid.Nil, source.LinkID)
+					require.NotEqual(t, uuid.Nil, source.GenerationID)
+					require.Positive(t, source.LinkVersion)
+					require.Positive(t, source.EmploymentEpoch)
+					return nil
+				}))
+				sourceAudits := func() int64 {
+					t.Helper()
+					var count int64
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Table("workforce_audit").Where("action = ? AND resource_id=?::uuid", "workforce.staff_actor.use", joiner).Count(&count).Error
+					}))
+					return count
+				}
+				require.EqualValues(t, 1, sourceAudits(), "successful source consumption retains attributable evidence")
+				rollback := errors.New("synthetic downstream command rollback")
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { return rollback }), rollback)
+				require.EqualValues(t, 1, sourceAudits(), "downstream rollback removes source-use evidence in the shared root transaction")
+
+				beforeEvidenceBoundary := sourceAudits()
+				assertPostingSourceEvidenceIsCommandBound(t, sourceGuard, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital)}, useSource)
+				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
+
+				for _, migration := range workforce.New().Migrations() {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" {
+						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
+					}
+				}
+				postingScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"].([]any)
+				require.Len(t, postingScopes, 1)
+				require.Equal(t, hospital, postingScopes[0].(map[string]any)["hospital_id"])
+				require.Equal(t, false, postingScopes[0].(map[string]any)["can_prepare"])
+				postingTargets := call(t, "GET", base+"/posting-targets?limit=50", recipient, nil, 200)["data"].([]any)
+				require.NotEmpty(t, postingTargets)
+				for _, target := range postingTargets {
+					require.Len(t, target.(map[string]any), 3)
+					require.NotContains(t, target.(map[string]any), "given_name")
+				}
+				scopedStaffBase := base + "/posting-staff/" + joiner
+				scopedSource := call(t, "GET", scopedStaffBase+"/posting-draft-source", recipient, nil, 200)
+				require.Equal(t, joiner, scopedSource["staff_id"])
+				require.Empty(t, call(t, "GET", scopedStaffBase+"/posting-drafts", recipient, nil, 200)["data"])
+				organizationBase := "/v1/organization/hospitals/" + hospital
+				if postingRegistrationPath == "" {
+					postingRegistrationPath = organizationBase + "/registrations/" + uuid.Must(uuid.NewV7()).String()
+					call(t, "PUT", postingRegistrationPath, maker, map[string]any{"reason": "Synthetic scoped posting department setup"}, 200)
+					require.Eventually(t, func() bool { return call(t, "GET", postingRegistrationPath, maker, nil, 200)["status"] == "verified" }, 10*time.Second, 20*time.Millisecond)
+				}
+				departmentID, departmentRevision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
+				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-P-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-")), "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
+				call(t, "PUT", departmentPath, maker, departmentInput, 200)
+				choicesPath := organizationBase + "/posting-department-choices?limit=1"
+				call(t, "GET", choicesPath, recipient, nil, 403)
+				call(t, "GET", choicesPath, maker, nil, 403)
+				scopedDraft, scopedCommand := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+				scopedCommandPath := scopedStaffBase + "/posting-drafts/" + scopedDraft + "/commands/" + scopedCommand
+				postingIntent := map[string]any{"expected_version": 0, "staff_version": scopedSource["staff_version"], "employment_epoch": scopedSource["employment_epoch"], "department_id": departmentID, "department_revision_id": departmentRevision, "starts_at": time.Now().UTC().Format(time.RFC3339), "reason": "Synthetic scoped non-operating posting draft"}
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+
+				grant(recipient, "workforce.posting_preparer.v1", authz.Permission("organization.posting_choices.read"))
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+					t.Error("stale IAM evidence reached source callback")
+					return nil
+				}), authz.ErrScopedCommandDenied)
+				sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
+				require.NoError(t, sourceErr)
+
+				if scenario == "posting_source_expiry" || scenario == "posting_term_expiry" {
+					beforeExpiry := sourceAudits()
+					assertPostingSaveStopsAtReviewedCutoff(t, db, request, postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent}, sourceCutoff)
+					require.EqualValues(t, beforeExpiry, sourceAudits(), "source expiry rolls back successful-use evidence from the pending save")
+					call(t, "GET", scopedCommandPath, recipient, nil, 403)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+					call(t, "GET", choicesPath, recipient, nil, 403)
+					require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"])
+					call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 404)
+					require.Empty(t, call(t, "GET", joinerPath+"/posting-drafts", maker, nil, 200)["data"])
+					require.Equal(t, "active", call(t, "GET", joinerPath, maker, nil, 200)["employment_status"], "effective cutoff does not require deleting or rewriting Staff")
+					currentLinks := call(t, "GET", joinerPath+"/login-links", maker, nil, 200)["data"].([]any)
+					require.Len(t, currentLinks, 1)
+					require.Equal(t, "active", currentLinks[0].(map[string]any)["status"], "expiry enforcement does not wait for asynchronous link cleanup")
+					call(t, "GET", "/v1/iam/me/permissions", recipient, nil, 200)
+					require.EqualValues(t, beforeExpiry, sourceAudits(), "post-expiry attempts retain no successful source-use audit")
+					return
+				}
+				scopedReceipt := call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200)
+				require.Equal(t, "draft", scopedReceipt["status"])
+				require.Equal(t, false, scopedReceipt["grants_access"])
+				require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200))
+				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts", recipient, nil, 200)["data"], 1)
+				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+				call(t, "GET", joinerPath+"/posting-drafts", recipient, nil, 403)
+				beforePostingAuditFailure := sourceAudits()
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_scoped_posting_audit_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION fail_scoped_posting_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='workforce.posting_draft.saved' THEN RAISE EXCEPTION 'synthetic scoped posting audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_scoped_posting_audit BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION fail_scoped_posting_audit()`}}))
+				failedIntent := map[string]any{}
+				for key, value := range postingIntent {
+					failedIntent[key] = value
+				}
+				failedIntent["expected_version"] = 1
+				failedCommandPath := scopedStaffBase + "/posting-drafts/" + scopedDraft + "/commands/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", failedCommandPath, recipient, failedIntent, 500)
+				require.Equal(t, beforePostingAuditFailure, sourceAudits(), "posting audit failure rolls back source evidence and draft revision")
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_scoped_posting_audit_fault_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP TRIGGER fail_scoped_posting_audit ON workforce_audit; DROP FUNCTION fail_scoped_posting_audit()`}}))
+				call(t, "GET", failedCommandPath, recipient, nil, 404)
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft, recipient, nil, 200))
+				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+				assertPostingConcurrentCommandsRetainOneRevision(t, db, hospital, scopedStaffBase, recipient, request, postingIntent)
+				preparationRequest := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: workforce.PermPostingPrepare}
+				preparationGrant, preparationErr := authority.AuthorizeScope(ctx, preparationRequest)
+				require.NoError(t, preparationErr)
+				require.NotEmpty(t, preparationGrant.AssignmentID)
+				preparationProposalPath := "/v1/iam/assignment-proposals/" + preparationGrant.AssignmentID
+				preparationProposal := call(t, "GET", preparationProposalPath, maker, nil, 200)
+				call(t, "POST", preparationProposalPath+"/decision", maker, map[string]any{"expected_version": preparationProposal["version"], "decision": "withdraw", "reason": "Synthetic posting preparer downgrade"}, 200)
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				call(t, "GET", choicesPath, recipient, nil, 403)
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+					t.Error("withdrawn assignment evidence reached the Staff source callback")
+					return nil
+				}), authz.ErrScopedCommandDenied)
+				require.Eventually(t, func() bool {
+					read, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: workforce.PermPostingRead})
+					return err == nil && read.AssignmentID != ""
+				}, 10*time.Second, 20*time.Millisecond)
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "independently approved reader authority survives a preparer downgrade")
+				downgradedScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"].([]any)
+				require.Len(t, downgradedScopes, 1)
+				require.Equal(t, false, downgradedScopes[0].(map[string]any)["can_prepare"])
+				grant(recipient, "workforce.posting_preparer.v1", workforce.PermPostingPrepare)
+				sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
+				require.NoError(t, sourceErr)
+				require.NotEmpty(t, sourceGrant.AssignmentID)
+				require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200), "fresh independently approved preparation authority can recover an existing command without mutating its receipt")
+				assertPostingReadsDenied := func(status int) {
+					t.Helper()
+					for _, path := range []string{
+						scopedStaffBase + "/posting-draft-source",
+						scopedStaffBase + "/posting-drafts",
+						scopedStaffBase + "/posting-drafts/" + scopedDraft,
+						scopedCommandPath,
+						scopedStaffBase + "/posting-drafts/" + scopedDraft + "/history",
+						base + "/posting-targets",
+						choicesPath,
+					} {
+						denied := call(t, "GET", path, recipient, nil, status)
+						require.NotContains(t, denied, "data")
+					}
+				}
+				if scenario == "posting_credential" {
+					beforeOutage := sourceAudits()
+					unavailableCommandPath := scopedStaffBase + "/posting-drafts/" + scopedDraft + "/commands/" + uuid.Must(uuid.NewV7()).String()
+					unavailableIntent := maps.Clone(postingIntent)
+					unavailableIntent["expected_version"] = 1
+					authorizationUnavailable.Store(true)
+					defer authorizationUnavailable.Store(false)
+					assertPostingReadsDenied(503)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 503)
+					call(t, "PUT", unavailableCommandPath, recipient, unavailableIntent, 503)
+					for _, scopeRequest := range []authz.ScopeRequest{sourceRequest, preparationRequest} {
+						_, authorizationErr := authority.AuthorizeScope(ctx, scopeRequest)
+						require.ErrorIs(t, authorizationErr, authz.ErrScopedAuthorizationUnavailable)
+					}
+					unavailableScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 503)
+					require.NotContains(t, unavailableScopes, "data")
+					require.EqualValues(t, beforeOutage, sourceAudits(), "unavailable authorization retains no successful source-use evidence")
+					authorizationUnavailable.Store(false)
+					call(t, "GET", unavailableCommandPath, recipient, nil, 404)
+					require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "restored authorization discloses the unchanged retained receipt")
+					require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
+
+					oldAuthTime := time.Now()
+					revocation := call(t, "POST", "/v1/iam/subjects/"+recipient+"/revoke", maker, nil, 200)
+					require.Equal(t, true, revocation["revoked"])
+					revocationCompleted := time.Now()
+					beforeRevokedAttempts := sourceAudits()
+					stillAssigned, assignmentErr := authority.AuthorizeScope(ctx, preparationRequest)
+					require.NoError(t, assignmentErr)
+					require.NotEmpty(t, stillAssigned.AssignmentID, "credential revocation does not withdraw the posting assignment")
+					assertPostingReadsDenied(401)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 401)
+					require.NotContains(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 401), "data")
+					require.ErrorIs(t, authority.(authz.CompoundScopedCommandGuard).WithScopeGrants(ctx, []authz.ScopeCheck{{Request: sourceRequest, Grant: sourceGrant}}, oldAuthTime, func(context.Context) error {
+						t.Error("a revoked credential entered the scoped command callback")
+						return nil
+					}), authz.ErrScopedCredentialRevoked)
+					require.EqualValues(t, beforeRevokedAttempts, sourceAudits(), "revoked credentials retain no successful source-use evidence")
+					require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200))
+
+					oldToken := tokens[recipient]
+					require.Eventually(t, func() bool { return time.Now().Truncate(time.Second).After(revocationCompleted) }, 3*time.Second, 10*time.Millisecond, "session auth_time has whole-second precision")
+					tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+					require.NoError(t, err)
+					require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "a genuinely new sign-in can use still-current reviewed authority")
+					require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
+					require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+					tokens[recipient] = oldToken
+					assertPostingReadsDenied(401)
+					return
+				}
+				beforeLinkRevocation := sourceAudits()
+				revokedLink := call(t, "POST", loginPath+"/decision", maker, map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Synthetic reviewed login-link cutoff"}, 200)
+				require.Equal(t, "revoked", revokedLink["status"])
+				stillAssigned, assignmentErr := authority.AuthorizeScope(ctx, preparationRequest)
+				require.NoError(t, assignmentErr)
+				require.NotEmpty(t, stillAssigned.AssignmentID, "login-link cutoff must be checked independently of still-active IAM preparation authority")
+				assertPostingReadsDenied(403)
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"])
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+					t.Error("a revoked login link reached the Staff source callback")
+					return nil
+				}), authz.ErrScopedCommandDenied)
+				require.EqualValues(t, beforeLinkRevocation, sourceAudits(), "revoked-link attempts create no successful source-use audit")
+				require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200), "a login-link cutoff preserves the separately authorized historical receipt")
+				call(t, "POST", loginPath+"/decision", checker, map[string]any{"expected_version": revokedLink["version"], "decision": "approve", "reason": "Synthetic old-link replay must not reopen authority"}, 409)
+				replacementLinkID := uuid.Must(uuid.NewV7())
+				replacementLinkPath := joinerPath + "/login-links/" + replacementLinkID.String()
+				call(t, "PUT", replacementLinkPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh reviewed login-link proposal"}, 200)
+				replacementLink := call(t, "POST", replacementLinkPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic replacement link review"}, 200)
+				require.Equal(t, "active", replacementLink["status"])
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "a fresh independently approved link can disclose the retained receipt")
+				require.NoError(t, useSource(func(_ context.Context, reference authz.StaffActorReference) error {
+					require.Equal(t, replacementLinkID, reference.LinkID)
+					require.Equal(t, uuid.MustParse(joiner), reference.StaffID)
+					require.Equal(t, uuid.MustParse(activationID), reference.GenerationID)
+					return nil
+				}))
+				links := call(t, "GET", joinerPath+"/login-links", maker, nil, 200)["data"].([]any)
+				require.Len(t, links, 2)
+				for _, entry := range links {
+					row := entry.(map[string]any)
+					if row["id"] == replacementLinkID.String() {
+						require.Equal(t, "active", row["status"])
+					} else {
+						require.Equal(t, "revoked", row["status"])
+					}
+				}
+				choices := call(t, "GET", choicesPath, recipient, nil, 200)
+				uncached := request("GET", choicesPath, recipient, nil, "application/json")
+				require.Equal(t, 200, uncached.Code, uncached.Body.String())
+				require.Equal(t, "no-store", uncached.Header().Get("Cache-Control"))
+				choiceRows := choices["data"].([]any)
+				require.Len(t, choiceRows, 1)
+				require.Equal(t, departmentID, choiceRows[0].(map[string]any)["id"])
+				require.Equal(t, departmentRevision, choiceRows[0].(map[string]any)["revision_id"])
+				require.Equal(t, map[string]any{"has_more": false, "next_cursor": nil}, choices["page"])
+
+				require.NotContains(t, choiceRows[0].(map[string]any), "actor_subject")
+				require.NotContains(t, choiceRows[0].(map[string]any), "reason")
+				beforeAuditFailure := sourceAudits()
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_posting_choice_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION fail_posting_choice_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='organization.posting_choices.read' THEN RAISE EXCEPTION 'synthetic posting choice audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_posting_choice_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fail_posting_choice_audit()`}}))
+				failedChoices := call(t, "GET", choicesPath, recipient, nil, 500)
+				require.NotContains(t, failedChoices, "data")
+				require.Equal(t, beforeAuditFailure, sourceAudits(), "Organization audit failure must roll back Workforce source-use evidence")
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_posting_choice_fault_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP TRIGGER fail_posting_choice_audit ON audit_events; DROP FUNCTION fail_posting_choice_audit()`}}))
+				call(t, "GET", organizationBase+"/departments", recipient, nil, 403)
+				call(t, "GET", departmentPath, recipient, nil, 403)
+				call(t, "PUT", organizationBase+"/departments/"+departmentID+"/revisions/"+uuid.Must(uuid.NewV7()).String(), recipient, departmentInput, 403)
+				call(t, "GET", "/v1/organization/hospitals/"+uuid.NewString()+"/posting-department-choices", recipient, nil, 403)
+				call(t, "GET", organizationBase+"/posting-department-choices?limit=51", recipient, nil, 400)
+				call(t, "GET", organizationBase+"/posting-department-choices?limit=1&limit=2", recipient, nil, 400)
+				call(t, "GET", organizationBase+"/posting-department-choices?status=retired", recipient, nil, 400)
+				departmentInput["expected_version"], departmentInput["status"] = 1, "retired"
+				call(t, "PUT", organizationBase+"/departments/"+departmentID+"/revisions/"+uuid.Must(uuid.NewV7()).String(), maker, departmentInput, 200)
+				require.Empty(t, call(t, "GET", choicesPath, recipient, nil, 200)["data"], "retired department heads cannot be selected for a new posting")
 				call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "doctor"}, 409)
 				unchangedPermissions, unchangedErr := graph.Resolve(ctx, recipient, testutil.TenantA)
 				require.NoError(t, unchangedErr)
@@ -2007,9 +2314,129 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				}
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
-				edit("Synthetic altered identity", "+919000000004")
+				require.NoError(t, useSource(func(context.Context, authz.StaffActorReference) error { return nil }), "non-identity edits must preserve a current reviewed digital actor")
+				if scenario == "posting_membership" {
+					beforeMembershipRemoval := sourceAudits()
+					removalID := uuid.Must(uuid.NewV7()).String()
+					removal := call(t, "PUT", "/v1/iam/membership-commands/"+removalID, maker, map[string]any{"operation": "remove", "basis_id": recipientMembership["id"], "subject": recipient, "role_key": "staff_member", "expected_membership_epoch": sourceGrant.MembershipEpoch, "reason": "Synthetic posting membership cutoff"}, 202)
+					require.Greater(t, removal["result_membership_epoch"].(float64), float64(sourceGrant.MembershipEpoch))
+					require.Eventually(t, func() bool {
+						member, err := graph.IsMember(ctx, recipient, testutil.TenantA)
+						return err == nil && !member
+					}, 10*time.Second, 20*time.Millisecond)
+					call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 403)
+					require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, recipient, authz.RoleStaffMember))
+					staleMember, staleErr := graph.IsMember(ctx, recipient, testutil.TenantA)
+					require.NoError(t, staleErr)
+					require.True(t, staleMember, "the fixture deliberately retains an obsolete external graph membership")
+					assertPostingReadsDenied(403)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+					require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"], "the owner filter discloses no hospital when its outer graph gate is deliberately stale")
+					require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+						t.Error("ended membership reached the Staff source callback")
+						return nil
+					}), authz.ErrScopedCommandDenied)
+					call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 409)
+					require.EqualValues(t, beforeMembershipRemoval, sourceAudits(), "ended membership creates no successful source-use evidence")
+					require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200))
+					staleMember, staleErr = graph.IsMember(ctx, recipient, testutil.TenantA)
+					require.NoError(t, staleErr)
+					require.True(t, staleMember, "private disclosure was denied while the obsolete graph membership was still present")
+					return
+				}
+				beforeInvalidation := sourceAudits()
+				endingEnrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+				endingInput := map[string]any{"expected_version": endingEnrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": "Synthetic altered identity", "work_phone": "+919000000004"}}
+				endingRequest := postingRaceRequest{"PUT", joinerPath + "/enrollment?hr_intake=v1", manager, endingInput}
+				if scenario == "posting_new_command_first" || scenario == "posting_new_source_first" {
+					target := uuid.Must(uuid.NewV7()).String()
+					targetLegacyBase := base + "/staff/" + target
+					targetScopedBase := base + "/posting-staff/" + target
+					call(t, "PUT", targetLegacyBase, maker, map[string]any{"employee_code": "SYN-POSTING-" + scenario, "display_name": "Synthetic independent posting target", "job_category": "other", "employment_status": "inactive"}, 200)
+					targetSource := call(t, "GET", targetScopedBase+"/posting-draft-source", recipient, nil, 200)
+					require.Equal(t, target, targetSource["staff_id"])
+					require.NotEqual(t, joiner, target, "ending the actor must not change the independent target's source")
+					currentDepartment, currentRevision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+					currentDepartmentInput := maps.Clone(departmentInput)
+					currentDepartmentInput["expected_version"], currentDepartmentInput["status"] = 0, "active"
+					currentDepartmentInput["code"] = "SYN-N-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-"))
+					call(t, "PUT", organizationBase+"/departments/"+currentDepartment+"/revisions/"+currentRevision, maker, currentDepartmentInput, 200)
+					t.Cleanup(func() {
+						retirement := maps.Clone(currentDepartmentInput)
+						retirement["expected_version"], retirement["status"] = 1, "retired"
+						call(t, "PUT", organizationBase+"/departments/"+currentDepartment+"/revisions/"+uuid.Must(uuid.NewV7()).String(), maker, retirement, 200)
+					})
+					newDraft, newCommand := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+					newCommandPath := targetScopedBase + "/posting-drafts/" + newDraft + "/commands/" + newCommand
+					newIntent := maps.Clone(postingIntent)
+					newIntent["staff_version"], newIntent["employment_epoch"] = targetSource["staff_version"], targetSource["employment_epoch"]
+					newIntent["department_id"], newIntent["department_revision_id"] = currentDepartment, currentRevision
+					newWrite := postingRaceRequest{"PUT", newCommandPath, recipient, newIntent}
+					beforeNewWrite := sourceAudits()
+					expectedSaved := 0
+					var written map[string]any
+					if scenario == "posting_new_command_first" {
+						writing, ending := startSerializedPostingRequests(t, db, hospital, request, newWrite, endingRequest)
+						written = finishActivationRequest(t, writing, 200)
+						require.Equal(t, target, written["staff_id"])
+						require.EqualValues(t, 1, written["version"])
+						require.Equal(t, false, written["grants_access"])
+						finishActivationRequest(t, ending, 200)
+						expectedSaved = 1
+					} else {
+						ending, writing := startSerializedPostingRequests(t, db, hospital, request, endingRequest, newWrite)
+						finishActivationRequest(t, ending, 200)
+						denied := finishActivationRequest(t, writing, 403)
+						require.NotContains(t, denied, "id", "an ended actor cannot create a draft for an otherwise unchanged target")
+					}
+					edit("", "+919000000004")
+					call(t, "PUT", newCommandPath, recipient, newIntent, 403)
+					freshPath := targetScopedBase + "/posting-drafts/" + newDraft + "/commands/" + uuid.Must(uuid.NewV7()).String()
+					freshIntent := maps.Clone(newIntent)
+					freshIntent["expected_version"] = expectedSaved
+					call(t, "PUT", freshPath, recipient, freshIntent, 403)
+					legacyReceiptPath := targetLegacyBase + "/posting-drafts/" + newDraft + "/commands/" + newCommand
+					if expectedSaved == 1 {
+						require.Equal(t, written, call(t, "GET", legacyReceiptPath, maker, nil, 200))
+						require.Len(t, call(t, "GET", targetLegacyBase+"/posting-drafts/"+newDraft+"/history", maker, nil, 200)["data"], 1)
+					} else {
+						call(t, "GET", legacyReceiptPath, maker, nil, 404)
+					}
+					require.Len(t, call(t, "GET", targetLegacyBase+"/posting-drafts", maker, nil, 200)["data"], expectedSaved)
+					unchangedTarget := call(t, "GET", targetLegacyBase+"/posting-draft-source", maker, nil, 200)
+					require.Equal(t, targetSource["staff_version"], unchangedTarget["staff_version"])
+					require.Equal(t, targetSource["employment_epoch"], unchangedTarget["employment_epoch"])
+					require.EqualValues(t, beforeNewWrite+int64(expectedSaved), sourceAudits(), "only a write committed before actor source ending retains successful-use evidence")
+					var saveAudits int64
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Table("workforce_audit").Where("action='workforce.posting_draft.saved' AND resource_id=?", newDraft).Count(&saveAudits).Error
+					}))
+					require.EqualValues(t, expectedSaved, saveAudits)
+					return
+				}
+				retainedRequest := postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent}
+				if scenario == "posting_command_first" {
+					retained, ending := startSerializedPostingRequests(t, db, hospital, request, retainedRequest, endingRequest)
+					require.Equal(t, scopedReceipt, finishActivationRequest(t, retained, 200), "a retained command that wins the commit order returns its immutable receipt")
+					finishActivationRequest(t, ending, 200)
+					require.EqualValues(t, beforeInvalidation+1, sourceAudits(), "only the command committed before source ending records a successful source use")
+					beforeInvalidation = sourceAudits()
+				} else {
+					ending, retained := startSerializedPostingRequests(t, db, hospital, request, endingRequest, retainedRequest)
+					finishActivationRequest(t, ending, 200)
+					deniedRetained := finishActivationRequest(t, retained, 403)
+					require.NotContains(t, deniedRetained, "id", "a source change that wins the commit order withholds even a retained command receipt")
+				}
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 403)
+				called := false
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { called = true; return nil }), authz.ErrScopedCommandDenied)
+				require.False(t, called, "identity changed and restored cannot revive a source guard under a still-live IAM assignment")
+				call(t, "GET", choicesPath, recipient, nil, 403)
+				call(t, "GET", scopedCommandPath, recipient, nil, 403)
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200), "ending source authority preserves the historical receipt for an independently authorized administrator")
+				require.EqualValues(t, beforeInvalidation, sourceAudits(), "denied source consumption retains no new audit evidence")
 				grant(recipient, "workforce.hr_intake.v1", workforce.PermEnrollmentManage)
 				call(t, "PUT", base+"/access/"+recipient, maker, map[string]any{"level": "manager"}, 200)
 				call(t, "GET", joinerPath+"/enrollment", recipient, nil, 403)

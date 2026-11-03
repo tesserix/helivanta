@@ -140,3 +140,40 @@ it("accepts the actual retained hospital head version on a source page", async (
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(page([head]))));
   expect((await listOrganizationHospitals(scope)).data).toEqual([head]);
 });
+
+it("selects current posting department choices without requesting structure governance", async () => {
+  const { listPostingDepartmentChoices } = await import("./organization-directory");
+  const fetcher = vi.fn().mockResolvedValue(Response.json(page()));
+  vi.stubGlobal("fetch", fetcher);
+  const controller = new AbortController();
+  expect(
+    await listPostingDepartmentChoices(scope, hospital, "opaque+/=", controller.signal),
+  ).toEqual(page());
+  const [url, options] = fetcher.mock.calls[0]!;
+  const parsed = new URL(String(url), "https://example.invalid");
+  expect(parsed.pathname).toBe(
+    `/api/v1/organization/hospitals/${hospital}/posting-department-choices`,
+  );
+  expect(parsed.searchParams.get("limit")).toBe("50");
+  expect(parsed.searchParams.get("cursor")).toBe("opaque+/=");
+  expect(options.cache).toBe("no-store");
+  expect(options.signal).toBe(controller.signal);
+  expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+  expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+});
+
+it.each([
+  ["retired head", page([{ ...row, status: "retired" }])],
+  ["foreign hospital", page([{ ...row, hospital_id: scope.tenantId }])],
+  ["private reason", page([{ ...row, reason: "private" }])],
+  ["private actor", page([{ ...row, actor_subject: "private" }])],
+  ["duplicate choice", page([row, row])],
+  ["wrong current revision", page([{ ...row, revision_id: hospital }])],
+  ["incomplete continuation", { data: [row], page: { has_more: true, next_cursor: null } }],
+  ["unrequested continuation", { data: [row], page: { has_more: false, next_cursor: "opaque" } }],
+  ["repeated continuation", { data: [row], page: { has_more: true, next_cursor: "opaque" } }],
+])("rejects a %s in the posting-choice projection", async (_label, response) => {
+  const { listPostingDepartmentChoices } = await import("./organization-directory");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(response)));
+  await expect(listPostingDepartmentChoices(scope, hospital, "opaque")).rejects.toThrow();
+});

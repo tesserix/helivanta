@@ -76,3 +76,20 @@ separate and source ending never disables unrelated employment/global identity.
 See the [full posting specification](../superpowers/specs/2026-11-02-effective-staff-postings.md)
 for the canonical owner records, independent decisions, employer migration and
 browser/production acceptance that remain required.
+
+## Scoped posting candidate enforcement — 2026-11-03
+
+`CurrentStaffActorGuard` exposes only `WithCurrentStaffActor`, with a scoped
+callback and opaque Staff/link/generation references. Production consumers are
+Organization's `posting_choices.go` and Workforce's `posting_authority.go`.
+`platform.StaffActors` selects the Workforce provider at application wiring;
+the two modules receive that interface through their existing dependency fields.
+The corresponding harness and exact integration-test call sites are explicit.
+
+`internal/archtest/staff_actor_test.go` enforces that closed consumer/wiring set
+and the single authorization-method signature. Temporary bare consumer/provider
+method references in an unrelated Organization source file were observed failing
+both rules, then removed. Existing cross-module import/table-ownership checks
+remain unchanged. This guard does not certify the complete source-writer lock
+graph or permit new operating consumers without their own reviewed contract and
+runtime acceptance. The ADR remains proposed for the unreleased candidate.

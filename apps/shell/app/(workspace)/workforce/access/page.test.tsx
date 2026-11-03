@@ -766,3 +766,76 @@ it.each(["missing", "broader", "extra"])(
     ).not.toBeInTheDocument();
   },
 );
+
+it("offers posting reader and preparer assignments only from their exact catalog", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/iam/staff-access-templates?catalog=staff-postings-v1"))
+        return Response.json(catalogDefinitions("staff-postings-v1"));
+      if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting preparation" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  const templates = screen.getByRole("listbox");
+  expect(templates).toHaveTextContent("Staff posting reader");
+  expect(templates).toHaveTextContent("Staff posting preparer");
+  expect(templates).not.toHaveTextContent("Staff employment activator");
+  expect(templates).not.toHaveTextContent("HR intake administrator");
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.some(([url]) => String(url).includes("/iam/posting-assignment-proposals?")),
+  ).toBe(true);
+});
+
+it.each(["missing", "broader", "extra"])(
+  "does not offer posting authority from a %s catalog",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("staff-postings-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter((template) => template.family !== "posting")
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((template) =>
+              template.family === "posting"
+                ? {
+                    ...template,
+                    permissions: [...template.permissions, "organization.structure.manage"],
+                  }
+                : template,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/iam/staff-access-templates?catalog=staff-postings-v1"))
+          return Response.json(altered);
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await screen.findByText("Staff posting assignments are unavailable in this workspace.");
+    await user.click(await screen.findByLabelText("Assignment area"));
+    expect(
+      screen.queryByRole("option", { name: "Staff posting preparation" }),
+    ).not.toBeInTheDocument();
+  },
+);

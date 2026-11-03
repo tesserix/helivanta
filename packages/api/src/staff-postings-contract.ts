@@ -94,3 +94,33 @@ export const StaffPostingDraftContract = z
   .strict()
   .superRefine(validPosting);
 export type StaffPostingDraft = z.infer<typeof StaffPostingDraftContract>;
+
+export const StaffPostingHospitalScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_prepare: z.boolean(),
+  })
+  .strict();
+export type StaffPostingHospitalScope = z.infer<typeof StaffPostingHospitalScopeContract>;
+
+export const StaffPostingTargetContract = z
+  .object({
+    id: identifier,
+    employee_code: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z
+      .string()
+      .min(1)
+      .max(150)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StaffPostingTarget = z.infer<typeof StaffPostingTargetContract>;

@@ -75,6 +75,11 @@ func (r *Router) POSTScopedHospital(path string, permission authz.Permission, ho
 	r.handleHospitalScope(http.MethodPost, path, permission, hospitalParam, false, handlers...)
 }
 
+// PUTScopedHospital declares an idempotent hospital-scoped command.
+func (r *Router) PUTScopedHospital(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHospitalScope(http.MethodPut, path, permission, hospitalParam, false, handlers...)
+}
+
 // GETScopedHospital declares a purpose-bound hospital-scoped read.
 func (r *Router) GETScopedHospital(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
 	r.handleHospitalScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)

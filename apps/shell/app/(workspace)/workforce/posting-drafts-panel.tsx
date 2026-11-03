@@ -50,6 +50,7 @@ export function StaffPostingDraftPanel({
   const [history, setHistory] = useState<string | null>(null);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [editorAccessChanged, setEditorAccessChanged] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const confirmLeave = useConfirmLeave();
   useEffect(() => {
@@ -62,7 +63,7 @@ export function StaffPostingDraftPanel({
     [source.error, drafts.error, revisions.error],
     onContextChanged,
   );
-  if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
+  if (cutoff || editorAccessChanged) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   const available = source.data && !source.isError && !source.isFetching;
   return (
     <Panel className="mt-5 space-y-5 p-5" aria-label="Staff posting preparation">
@@ -214,7 +215,10 @@ export function StaffPostingDraftPanel({
             setEditor(null);
             setSaved(true);
           }}
-          onContextChanged={onContextChanged}
+          onContextChanged={() => {
+            setEditorAccessChanged(true);
+            onContextChanged?.();
+          }}
         />
       )}
     </Panel>
@@ -301,7 +305,7 @@ function PostingEditor({
     "posting preparation; an unconfirmed command may already be saved",
     save.isPending,
   );
-  const cutoff = useStaffAccessCutoff([save.error], onContextChanged);
+  const cutoff = useStaffAccessCutoff([save.error, departments.error], onContextChanged);
   const stale =
     basis.staff_version !== source.staff_version ||
     basis.employment_epoch !== source.employment_epoch;

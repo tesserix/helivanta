@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "0c187c6ed3be8ac334aa95075c107577e717f4e188b6bcf54aaaf5a7c19fb828",
+  "registry_sha256": "85efddb00fa0d2e8d013e378ea5eddf19a8d3dd63d8519f3743e5554eb5bc251",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 803,
-    "unclassified": 780
+    "total": 809,
+    "unclassified": 786
   },
   "entries": [
     {
@@ -458,6 +458,18 @@
         "name": "pharmacy-bed-occupancy-started",
         "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
         "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer pharmacy pharmacy-licence-evidence-scan helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
+      "kind": "consumer",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "name": "pharmacy-licence-evidence-scan",
+        "subject": "helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
+        "after_commit": true
       },
       "review": null
     },
@@ -5848,6 +5860,38 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence",
+        "permission": "pharmacy.licence.evidence.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download",
+        "permission": "pharmacy.licence.evidence.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview",
       "kind": "http",
       "module": "pharmacy",
@@ -6536,6 +6580,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/retry/:attempt",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/retry/:attempt",
+        "permission": "pharmacy.licence.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review",
       "kind": "http",
       "module": "pharmacy",
@@ -6879,6 +6939,38 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id",
+        "permission": "pharmacy.licence.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file",
+        "permission": "pharmacy.licence.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/content",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/content",
         "permission": "pharmacy.licence.manage",
         "authentication_required": true,
         "membership_required": true,

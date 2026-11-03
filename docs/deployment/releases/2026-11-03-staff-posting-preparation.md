@@ -98,6 +98,10 @@ plan](../../superpowers/plans/2026-11-02-effective-staff-postings.md).
 
 ## Scoped posting-role follow-up candidate — not deployed
 
+Merged as #1532 at `091f2287`. Its release, approval and acceptance evidence is in the
+[2026-11-04 release record](2026-11-04-scoped-posting-actors.md); the text below
+describes the candidate as it stood before merge.
+
 The `feat/scoped-posting-actors-20261103` follow-up adds immutable reader/preparer
 catalogs through append-only IAM migration `0024_iam_staff_posting_templates`, a
 bounded assignment-family list, exact SDK/admin catalog support and a shared

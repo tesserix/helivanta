@@ -121,6 +121,9 @@ lifecycle enforcement.
 
 ## Unreleased scoped-role foundation
 
+Merged as #1532 at `091f2287`. Its production promotion was approved on 2026-11-04
+and has not run yet; see the [release record](../deployment/releases/2026-11-04-scoped-posting-actors.md).
+
 The candidate `staff-postings-v1` access catalog is owned by
 `contracts/staff-access.json` and installed by the additive IAM migration
 `0024_iam_staff_posting_templates`. Earlier catalog snapshots are unchanged.

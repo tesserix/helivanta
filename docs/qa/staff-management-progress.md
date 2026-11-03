@@ -9,18 +9,21 @@ catalogs and SQL remain byte-identical. This slice does not introduce proposal
 routes, an effective posting, department operating rights or Pharma duties.
 The owner API/SDK, reviewer UI and lifecycle consumers remain separate follow-ups.
 
-Local validation: 609 SDK tests/76 files, API typecheck/lint, 66 catalog/inventory
-checks, Go build/scoped IAM vet/lint (0 issues), generated contracts/check and
-whitespace checks pass. The first serial real IAM race run completed in 430.927s with one stale
-migration-count assertion (24 instead of 25); all behavioral cases, including
-both new scoped-role projections, passed. The phase test now also pins exact
-migration 0025 and its nonempty SQL, and its focused race run passed in 2.520s.
-A final full serial run and CI are required before merge. The first SDK
-attempt could not resolve the new worktree's shared setup file; correcting cached
-workspace links produced the passing run without installing dependencies.
-Existing IAM source pins were reconciled for the additive migration only;
-registry parity is 784 surfaces / 761 unclassified, with no new runtime acceptance.
-No production migration or promotion has been performed for this candidate.
+Local validation passed: 609 SDK tests/76 files, API typecheck/lint, 66
+catalog/inventory checks, Go build/scoped IAM vet/lint (0 issues), generated
+contracts/check and whitespace checks. The full serial IAM race suite passed in
+462.333s after correcting the migration-count assertion from 24 to 25. All PR
+#1539 checks subsequently passed. Registry parity remains 784 surfaces / 761
+unclassified; catalog registration does not establish operating acceptance.
+
+PR #1539 merged as `e9ea7281` and its approved production promotion succeeded.
+Exactly IAM migration 0025 was added, moving receipts from 219 to 220. All seven
+application deployments were 2/2 ready, all 14 application containers were ready
+with zero restarts, and API/Global API/shell were Argo Synced/Healthy. Published
+image digests match the running container image IDs. See the [release evidence](../deployment/releases/2026-11-04-posting-review-catalogs.md).
+Authenticated production catalog UI acceptance is pending the owner sign-in
+handoff. No effective posting, operating authority or full Staff acceptance is
+claimed. Proposal submission/terminal-decision API work remains unmerged.
 
 
 ## Membership alone grants no posting access — 2026-11-03

@@ -1,0 +1,42 @@
+{
+  "source": "e9ea72816b688918aa5602d32e669a4dafa4655b",
+  "pr": 1539,
+  "freight": "181116378923cd272cb0c8e5b298a47ad6cd610e",
+  "promotion": "prod.01m6gzg126gejj9mtq6bz45aba.1811163",
+  "promotion_phase": "Succeeded",
+  "migrations_before": 219,
+  "migrations_after": 220,
+  "added_migrations": [
+    "0025_iam_staff_posting_review_templates"
+  ],
+  "canonical_function_sha256": "4655ae9dbb038c973b59a0e778e4fadbb3d1fe97ddb3fcfd1d9182e94286bc80",
+  "installed_function_matches_committed_sql": true,
+  "image_digests": {
+    "api": "sha256:fb5f2d96fa282adbf517fefc4016e5e59c90cc69045bfdecc7b14a6504668f31",
+    "shell": "sha256:8decc82acb7350d32983c675afa55a950f76d0dd12ab6073399cbf4e34b55b2e"
+  },
+  "application_deployments": 7,
+  "ready_replicas_per_deployment": 2,
+  "ready_application_containers": 14,
+  "application_container_restarts": 0,
+  "migration_exit_code": 0,
+  "argo": [
+    {
+      "name": "helivanta-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-global-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-shell",
+      "sync": "Synced",
+      "health": "Healthy"
+    }
+  ],
+  "authenticated_production_ui_acceptance": "pending_owner_sign_in",
+  "full_staff_management_accepted": false
+}

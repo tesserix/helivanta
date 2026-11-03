@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "bc287e37c291ca7829a5f2038b6e621caf5f819cf2f7211f60e52fd93edf892e",
+  "registry_sha256": "7b6dc1b0042ac34c609b6186f6bed3e464e3c3416745f9e4839448b4e1d97cd7",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 772,
-    "unclassified": 749
+    "total": 774,
+    "unclassified": 751
   },
   "entries": [
     {
@@ -5933,6 +5933,38 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "GET",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/h1/export",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions/export",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions/export",
         "permission": "pharmacy.prescription.read",
         "authentication_required": true,
         "membership_required": true,

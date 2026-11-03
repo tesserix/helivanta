@@ -59,7 +59,10 @@ function Entries({ scope, period }: { scope: PharmacyScope; period: Period }) {
   );
   return (
     <div className="mt-4 space-y-3">
-      <RegisterExport scope={scope} period={period} />
+      <RegisterExport
+        label="H1 register export"
+        download={(signal) => fetchPharmacyH1RegisterCSV(scope, period.from, period.to, signal)}
+      />
       {entries.isError ? (
         <RequestFailure message="Could not load the H1 register." retry={entries.retry} />
       ) : entries.isPending ? (
@@ -118,7 +121,14 @@ function Entries({ scope, period }: { scope: PharmacyScope; period: Period }) {
   );
 }
 
-function RegisterExport({ scope, period }: { scope: PharmacyScope; period: Period }) {
+/** An audited register CSV download; download fetches it for the shown filter. */
+export function RegisterExport({
+  label,
+  download: fetchFile,
+}: {
+  label: string;
+  download: (signal: AbortSignal) => Promise<{ blob: Blob; filename: string }>;
+}) {
   const controller = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -133,7 +143,7 @@ function RegisterExport({ scope, period }: { scope: PharmacyScope; period: Perio
     setError("");
     try {
       const signal = AbortSignal.any([current.signal, AbortSignal.timeout(20_000)]);
-      const file = await fetchPharmacyH1RegisterCSV(scope, period.from, period.to, signal);
+      const file = await fetchFile(signal);
       if (tenantTransitionPending()) return;
       const url = URL.createObjectURL(file.blob);
       try {
@@ -164,7 +174,7 @@ function RegisterExport({ scope, period }: { scope: PharmacyScope; period: Perio
       <Button variant="outline" disabled={pending} onClick={download}>
         {pending ? "Preparing CSV…" : "Download register CSV"}
       </Button>
-      <p role="status" aria-label="H1 register export" className="text-sm text-muted-foreground">
+      <p role="status" aria-label={label} className="text-sm text-muted-foreground">
         {message}
       </p>
       {error && (

@@ -1091,7 +1091,12 @@ function Invoice({
       {sale.lines.some((l) => l.prescription_id) && (
         <p role="note" className="mt-4 rounded-md border p-3 text-sm print:hidden">
           Endorse the prescription: note {sale.seller_legal_name}, {sale.seller_address} and{" "}
-          {sale.sale_date} on it before returning it.
+          {sale.sale_date} on it, and its register serial{" "}
+          {sale.lines
+            .filter((l) => l.prescription_id)
+            .map((l) => `${sale.invoice_number} · line ${l.line_number}`)
+            .join(", ")}
+          , before returning it.
         </p>
       )}
       <div className="mt-4 flex gap-2 print:hidden">

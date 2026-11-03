@@ -556,6 +556,10 @@ describe("CounterSale", () => {
     expect(screen.getByRole("note")).toHaveTextContent(
       "Endorse the prescription: note TEST Main Pharmacy LLP, TEST 1 Market Road and 2026-11-01",
     );
+    // Rule 65(3)(1): the register serial goes on the prescription (#1062).
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "and its register serial TS/2627/1 · line 1",
+    );
 
     const cited = {
       product_id: productId,

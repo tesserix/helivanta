@@ -461,7 +461,7 @@ supplied. The records are kept for three years and are open for inspection.
      line-number order; each entry carries its invoice and line number.
 
 Not covered: Schedule X and NDPS registers (#165, #171); registers for drugs other than H1
-(Rule 65(3)(1)'s general prescription register is the invoice and credit note record);
+(superseded: Rule 65(3)(1)'s prescription register is its own read since #1062, because the invoice lacks the names and addresses it requires);
 printing as a bound register.
 
 #### C-3 decisions (2026-10-28)

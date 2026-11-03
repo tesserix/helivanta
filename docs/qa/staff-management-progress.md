@@ -1,5 +1,42 @@
 # Staff Management delivery tracker
 
+## Reporting-line leave routing — 2026-11-04
+
+#1536 lets HR choose who decides leave first. A versioned, reviewed routing
+policy (`hospital` or `reporting_line` with an escalation interval) is pinned to
+each request when it is filed; a reporting-line request gets one step per
+eligible supervisor, opening level by level. A scoped reviewer reads and decides
+a routed request only through an open step held by their own staff member, and
+the hospital leave desk keeps final authority. Migration
+`0078_workforce_leave_routing` adds the policy revisions, the pinned route and a
+restrictive review policy; `GET`/`PUT /hr/leave-routing` are new.
+
+Local browser acceptance on the `helivanta-dev-*` stack (API and UI built from
+the #1536 branch), Synthetic Staff QA Hospital 20261027:
+
+1. The owner opened **Leave balances**, chose reporting-line routing and saved
+   without input; the panel showed the hours, source and review errors. With 24
+   hours, a padded source reference and the review box it saved version 1 with
+   the source trimmed.
+2. The owner filed 1 day for SYN-QA-EMPLOYEE-20261027, whose supervisor is
+   SYN-QA-REVIEWER-20261027, and 1 day for SYN-FULL-UI-20261101, who has none.
+   Request review showed the first pinned to level 1, open since filing, and the
+   second as routed with no eligible reporting officer. A request filed before
+   the policy showed no route.
+3. The reporting officer, a second person holding the scoped leave-reviewer
+   grant, saw only the first request in **Review leave**, marked **Direct
+   report**, and approved it. Their own request and the out-of-route request
+   were absent; reading or deciding the out-of-route request through the API
+   returned 404, and saving the routing policy returned 403.
+4. A hospital leave desk approver, neither the filer nor on the route, approved
+   the out-of-route request from **Leave requests**.
+   Read-only SQL shows both approvals with `routing_version` 1, the officer's
+   with `route_level` 1 and their assignment evidence, the desk's with
+   `route_level` `desk`, and no audit row for the refused read.
+
+Screenshots and runtime records stay in the private local QA directory.
+Production promotion awaits named approval.
+
 ## Incremental production release — 2026-11-04
 
 Posting proposals and the read-only reviewer inbox are now **merged and deployed**:
@@ -135,7 +172,6 @@ was reproduced locally, then passed after formatting that one test with cached
 Prettier 3.9.10 under Node 24.11.1. All six tests in the changed file passed.
 The correction changes only test layout; rerun CI remains required.
 
-
 The API/SDK slice is committed and pushed in draft [PR #1544](https://github.com/tesserix/helivanta/pull/1544),
 code commit `80dbc610`, on top of merged documentation `6a09287c`. The full
 restored Global API race suite passed in **411.298s** and removed its three
@@ -158,7 +194,6 @@ unclassified. Historical-alias proof, protected proposal context, hospital inbox
 normal reviewer UI, supervision and positive approval remain open, alongside
 broader departmental/lifecycle consumer work. No full Staff completion label is
 warranted.
-
 
 The candidate is now isolated on `codex/scoped-posting-proposals-20261104`, based
 on current main; 1,498 tracked backend/API/contract/script files and all 27 changed
@@ -186,7 +221,6 @@ Original shared-command bytes were restored and SHA256 verified; no production
 clock, timeout or authorization behavior changed. The full restored-source API
 suite subsequently passed in 411.298s, before the separate Leave rebase noted above.
 
-
 The complete architecture race suite passed in **56.617s**, including migration,
 RLS, OpenFGA matrix and owner-interface checks; three owned disposable fixtures
 were removed. All 15 operational inventory tests passed after the reviewed source
@@ -194,7 +228,6 @@ pin reconciliation. The full Workforce race suite passed in **622.627s**, with f
 disposable fixtures removed and no fallback SSH forwards. The full Global API
 run on the latest discovery source is now running, in addition to the focused proof above and the earlier 400.053s parent
 run on pre-discovery source.
-
 
 Reviewer discovery's corrected real Global API journey passed in **58.785s**
 (three owned disposable fixtures removed). It proves reviewer-only capability
@@ -206,7 +239,6 @@ under cached Node **24.11.1**, with no installation. Typecheck/lint, Go build,
 scoped vet/lint and regenerated contract checks passed. The new endpoint and
 canonical DTO remain unmerged; source inventory is **793 registered / 770
 unclassified**, with no new runtime acceptance classification.
-
 
 The complete parent journey on restored terminal-decision source passed in
 **400.053s**, with three exact task-owned disposable fixtures removed. The prior
@@ -222,14 +254,12 @@ actual catalog includes reading and excludes editing. Its assertion and design
 note were corrected to preserve read-only preparation and explicitly refuse
 edits. No IAM snapshot or test authorization requirement was changed.
 
-
 Mutation proof removed only the retained draft-contributor branch. The new
 assertion failed with **200 instead of 403** and a rejected version-2 receipt;
 the mutant package failed in 96.847s. Original SQL bytes were restored and their
 SHA256 verified before the full restored-source Global API run. The existing
 IAM migration-count test was observed failing (24 versus 25), reconciled to the
 already-merged main test that pins migration 0025, and passed in 2.667s.
-
 
 The next focused real PostgreSQL/OpenFGA run passed in **109.950s** on the existing
 Staff QA VM, using cached images and three disposable session-owned fixtures
@@ -240,7 +270,6 @@ positive canonical-event counts. The added contributor case keeps an earlier
 draft author ineligible after a different preparer edits/submits, verifies the
 pending head/history and missing decision receipt, and allows the original
 submitter to withdraw. This is not full reviewer UI or positive approval evidence.
-
 
 The submitter/reviewer IAM prerequisite is now deployed as `e9ea7281`; its
 separate [release record](https://github.com/tesserix/helivanta/pull/1541)
@@ -260,7 +289,6 @@ as a pass. A concurrent full coverage run in the separate leave-opening-balances
 worktree was using the same Docker VM; Docker listing took 12.68s and VM SSH timed
 out at 15s. Its containers/processes were preserved. No transport fix or successful
 new fault-injection run is claimed.
-
 
 ## Separate non-digital placement target verification — 2026-11-04
 
@@ -422,7 +450,6 @@ image digests match the running container image IDs. See the [release evidence](
 Authenticated production catalog UI acceptance is pending the owner sign-in
 handoff. No effective posting, operating authority or full Staff acceptance is
 claimed. Proposal submission/terminal-decision API work remains unmerged.
-
 
 ## Membership alone grants no posting access — 2026-11-03
 
@@ -4822,7 +4849,6 @@ four exact-session-owned fixtures were removed and no fallback SSH forwards were
 needed. The representative inbox query-plan/index probe is the final pending
 checkpoint check. Production and broad Staff acceptance remain unchanged.
 
-
 The final real gateway protection/index-plan journey passed in **100.443s**.
 The representative full-projection first-page `EXPLAIN (ANALYZE, BUFFERS)` uses
 `workforce_posting_proposal_inbox`, returns three synthetic rows under a Limit
@@ -4833,7 +4859,6 @@ production scale or an SLO. The full plan and test logs are retained privately i
 All checkpoint checks now pass. Normal decision UI, an isolated real-account
 browser journey and the wider supervision/operational/lifecycle work remain open;
 this candidate remains draft and is not rolled out.
-
 
 ### 2026-11-04 reviewer terminal decisions — candidate only
 

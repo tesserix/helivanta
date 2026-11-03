@@ -14,6 +14,7 @@ import {
   type StaffPostingReviewHospitalScope,
 } from "@helivanta/api";
 import { PostingProposalDecision } from "./posting-proposal-decision";
+import { PostingSubmissionWorkspace } from "./posting-submission-workspace";
 import { useStaffAccessCutoff, STAFF_ACCESS_CHANGED } from "./staff-access-cutoff";
 
 type Props = {
@@ -37,7 +38,7 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   if (hospitals.isPending || (hospitals.isFetching && !busy))
     return <p role="status">Checking posting review hospitals…</p>;
-  if (hospitals.isError)
+  if ((hospitals.isError && !busy) || !hospitals.data)
     return (
       <div role="alert">
         Posting review access could not be verified.{" "}
@@ -51,6 +52,15 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
         Examine proposed department placements within your approved hospital scope. Proposals do not
         grant operating access.
       </p>
+      {hospitals.isError && (
+        <div role="alert">
+          Posting review admission could not be rechecked. The retained command has not been
+          discarded.{" "}
+          <Button disabled={hospitals.isFetching} onClick={() => void hospitals.refetch()}>
+            Recheck posting admission
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap gap-3">
         {hospitals.data.data.map((row) => (
           <Button
@@ -78,6 +88,8 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
           busy={busy}
           onBusy={setBusy}
           onContextChanged={onContextChanged}
+          admissionAvailable={hospitals.isSuccess && !hospitals.isFetching}
+          onAdmissionRecheck={() => void hospitals.refetch()}
         />
       )}
       <div className="flex flex-wrap gap-2">
@@ -125,20 +137,45 @@ function HospitalPostingReviews({
   busy,
   onBusy,
   onContextChanged,
+  admissionAvailable,
+  onAdmissionRecheck,
 }: {
   scope: StaffPostingInboxScope;
   hospital: StaffPostingReviewHospitalScope;
   busy: boolean;
   onBusy: (value: boolean) => void;
   onContextChanged: () => void;
+  admissionAvailable: boolean;
+  onAdmissionRecheck: () => void;
 }) {
   const [notice, setNotice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<StaffPostingProposal["status"]>("pending");
   const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<StaffPostingInboxItem | null>(null);
   const inbox = useStaffPostingProposalInbox(scope, status, cursor, busy);
   const cutoff = useStaffAccessCutoff([inbox.error], onContextChanged);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
+  if (submitting && hospital.can_submit)
+    return (
+      <PostingSubmissionWorkspace
+        scope={scope}
+        admissionAvailable={admissionAvailable}
+        onAdmissionRecheck={onAdmissionRecheck}
+        busy={busy}
+        onBusy={onBusy}
+        onClose={() => setSubmitting(false)}
+        onContextChanged={onContextChanged}
+        onCompleted={() => {
+          setSubmitting(false);
+          setSelected(null);
+          setNotice(
+            "Posting proposal submitted for independent review. Operating authority is unchanged.",
+          );
+          void inbox.refetch();
+        }}
+      />
+    );
   if (inbox.isPending || (inbox.isFetching && !busy))
     return <p role="status">Loading posting proposals…</p>;
   if (inbox.isError)
@@ -159,6 +196,17 @@ function HospitalPostingReviews({
   return (
     <Panel className="space-y-5">
       {notice && <p role="status">{notice}</p>}
+      {hospital.can_submit && (
+        <Button
+          disabled={busy}
+          onClick={() => {
+            setSelected(null);
+            setSubmitting(true);
+          }}
+        >
+          Submit prepared posting
+        </Button>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold">{hospital.name} · Posting proposals</h2>
         <Button

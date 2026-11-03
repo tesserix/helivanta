@@ -39,9 +39,15 @@ export function useStaffPostingDraftSource(scope: StaffPostingScope) {
     queryFn: ({ signal }) => getStaffPostingDraftSource(scope, signal),
   });
 }
-export function useStaffPostingDrafts(scope: StaffPostingScope, cursor: string | null) {
+export function useStaffPostingDrafts(
+  scope: StaffPostingScope,
+  cursor: string | null,
+  busy = false,
+) {
   return useQuery({
     ...options,
+    refetchInterval: busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !busy,
     queryKey: [...staffPostingsKey(scope), "list", cursor],
     queryFn: ({ signal }) => listStaffPostingDrafts(scope, cursor, signal),
   });
@@ -85,9 +91,12 @@ export function useStaffPostingScopes(
 export function useStaffPostingTargets(
   scope: Pick<StaffPostingScope, "tenantId" | "subject" | "hospitalId">,
   cursor: string | null,
+  busy = false,
 ) {
   return useQuery({
     ...options,
+    refetchInterval: busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !busy,
     queryKey: [
       "workforce",
       "posting-targets",

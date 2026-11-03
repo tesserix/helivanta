@@ -1,4 +1,4 @@
-# Workforce posting preparation — implementation candidate
+# Workforce postings — preparation and independent review
 
 This preparation slice merged as `305294ab` in PR #1524 and is deployed after
 specific approval of the revision and migration 0073. Every receipt is a non-operating draft. Workforce owns the draft and immutable commands/revisions; Organization
@@ -10,13 +10,13 @@ remain required, including independent review and operating lifecycle enforcemen
 
 ## Transport and current authority
 
-All UI/app traffic enters Global API and routes to Workforce. Each route requires
+All UI/app traffic enters Global API and routes to Workforce. Each legacy preparation route below requires
 verified tenant membership, `workforce.posting.prepare`, and current explicit
 Workforce hospital reader/manager access. Writes and PUT retries require manager.
 The hospital grant and Staff source are held through the write commit. The new
 permission confers preparation only; no clinical, professional, payroll, login or
-operating authority follows. Scoped posting-preparer catalogs and assignments
-remain a separate parent-plan obligation; this draft candidate does not add them.
+operating authority follows. Scoped reader/preparer consumers and independent review are separate deployed
+slices documented below. None grants an effective placement or operating access.
 
 Every request requires single `X-Helivanta-Expected-Tenant` and
 `X-Helivanta-Expected-Subject` values matching the verified principal. These detect
@@ -183,7 +183,7 @@ protection on the same canonical Pharma Staff target. See the
 recovery, role withdrawal and the remaining negative browser matrix still need
 acceptance; these results grant no effective posting or production authority.
 
-## In-development independent review catalog
+## Deployed independent review catalog
 
 The isolated independent-review feature appends the closed
 `staff-posting-reviews-v1` catalog and additive IAM
@@ -197,18 +197,18 @@ The isolated independent-review feature appends the closed
 
 Neither role grants general profile editing, structure governance, operating IAM,
 clinical or Pharma authority. Reviewer excludes draft preparation and submission;
-submitter excludes independent review. This catalog is not deployed and does not
-prove functioning submission/review consumers. Their candidate command paths and
-remaining gates are in the [independent review specification](../superpowers/specs/2026-11-03-independent-staff-posting-review.md).
-The candidate now implements rejection and proposer withdrawal as described below.
-Positive approval still awaits the supervision policy. No production migration or
-role activation occurred for these commands.
+submitter excludes independent review. The catalog deployed in #1539. Proposal API/SDK, discovery and the read-only
+reviewer inbox deployed in #1544 (`1d6becdf`); rejection/withdrawal UI deployed
+in #1547 (`e7588e65`). These releases do not prove authenticated browser acceptance
+or positive approval. The [independent review specification](../superpowers/specs/2026-11-03-independent-staff-posting-review.md)
+retains the complete supervision and lifecycle obligations. Positive approval
+still awaits supervision policy; no operating role is activated by a proposal.
 
-## In-development proposal submissions and readiness
+## Deployed proposal submissions and readiness
 
-The isolated review branch implements the following suffixes below
-`/v1/workforce/hospitals/:hospital/posting-staff/:id`. These are candidate
-interfaces, not a production release or an effective departmental assignment.
+The #1544 release implements the following suffixes below
+`/v1/workforce/hospitals/:hospital/posting-staff/:id`. These production interfaces
+create non-operating proposals, not effective departmental assignments.
 
 | Method and suffix                                    | Required current scoped capability |
 | ---------------------------------------------------- | ---------------------------------- |
@@ -263,7 +263,7 @@ source/authorization dependencies return 503. The SDK validates original scope,
 selected draft/command/generation and microsecond intervals, rejects operating
 receipts and never routes review through the legacy Staff paths.
 
-Unreleased Workforce migration `0075_workforce_posting_proposals` adds forced-RLS
+Deployed Workforce migration `0075_workforce_posting_proposals` adds forced-RLS
 heads, immutable command/revision rows, exact composite source references and
 current-head/actor/interval guards. Submission, audit and the identifier-only
 `helivanta.in.workforce.posting_proposal_changed.v1` event commit together.
@@ -272,9 +272,9 @@ pending submission followed by one independently rejected or proposer-withdrawn
 revision. Approval is refused until the supervision policy is implemented.
 Earlier SQL remains unchanged; rollback retains the additive tables and evidence.
 
-## In-development rejection and withdrawal
+## Deployed rejection and withdrawal
 
-### Protected review context candidate
+### Protected review context
 
 `GET /posting-proposals/:proposal/context` requires exactly one `purpose`
 (`review` or `submission`), positive safe-integer `expected_version`, and UUIDv7
@@ -350,7 +350,7 @@ Independent approval, supervision/transfer/lifecycle enforcement, Staff review U
 acceptance and operating consumers remain open. Earlier migrations and catalog
 snapshots remain unchanged. See the [delivery evidence](../superpowers/plans/2026-11-03-independent-staff-posting-review.md).
 
-### Review hospital discovery candidate
+### Review hospital discovery
 
 `GET /v1/workforce/posting-review-scopes` uses the same bounded 20-candidate
 reviewed-link discovery and opaque continuation rules. It independently requires
@@ -367,10 +367,11 @@ reading and review, without preparation/editing. Earlier catalogs remain intact.
 The SDK uses same-origin Global API, mandatory original-account headers, no-store
 and cancellation. It rejects extra/private fields, missing/nonboolean flags,
 duplicate hospitals, oversized pages and inconsistent/repeating continuation.
-This candidate is not deployed and adds no storage migration. The hospital inbox described below is implemented in this candidate; normal
-reviewer UI, supervision and positive approval remain unfinished.
+Discovery and the hospital inbox deployed in #1544. Reviewer rejection and
+submitter withdrawal controls deployed in #1547; normal real-account browser
+acceptance, supervision and positive approval remain unfinished.
 
-## Hospital posting proposal inbox (candidate)
+## Hospital posting proposal inbox
 
 `GET /v1/workforce/hospitals/:hospital/posting-proposal-inbox` requires current
 hospital-scoped `workforce.posting.proposal.read` and a reviewed digital Staff
@@ -396,11 +397,41 @@ proof atomically. Audit persistence failure returns 500 with no data and rolls
 actor-use evidence back. Unavailable authorization returns 503; missing current
 permission returns 403. Empty queues are not a fallback for unavailable owners.
 
-Append-only candidate migration `0076_workforce_posting_proposal_browse` extends
+Append-only deployed migration `0076_workforce_posting_proposal_browse` extends
 the single existing permissive read predicate for heads/current-and-original
 revisions, with restrictive UPDATE/DELETE guards retaining the prior read
-restriction and unchanged write checks. History-preservation guards remain intact. Candidate `0077`
+restriction and unchanged write checks. History-preservation guards remain intact. Migration `0077`
 registers a concurrent `(tenant_id,hospital_id,status,created_at DESC,id DESC)`
-index. These follow candidate 0075 and have only been applied in disposable QA.
-They are forward migrations; production rollback would require a separately
-reviewed compensating change. No production activation is established here.
+index. These follow 0075; all three deployed in #1544, advancing the production
+ledger 220→223. #1547 added no migrations. Rollback preserves additive schema and
+history; a compensating change needs separate review. No positive operating
+activation is established by these releases.
+
+
+## Normal submission UI — candidate, browser acceptance open
+
+The next UI slice adds submission from the normal posting review workspace only
+for a server-observed hospital `can_submit`. It uses canonical scoped Staff
+choices and existing draft/source endpoints. It displays the exact draft version,
+interval with recorded offset and matching active Organization department code/name before
+rationale and source-examination attestation. Current department choices are
+bounded and paginated; an empty page with continuation is not treated as absence.
+Unavailable or changed department/source observations disable new submission.
+The owner remains responsible for complete interval and source admission.
+
+One parsed intent, proposal ID and command ID are retained through uncertain
+outcomes. Receipt404 preserves them and independently rechecks current hospital submission
+admission, draft, employment and department observations. A lost submit capability
+clears private controls even when read access remains. Admission503 preserves the
+command and permits a deliberate admission recheck without granting new authority. Exact retry never rebases the command onto
+new sources. Dirty/retained forms pause background refresh and prevent silent
+navigation loss. Account/tenant changes abort the client and clear private state;
+the original request may already have committed. All requests retain original
+account headers through Global API, and owner commands reauthorize through commit.
+No API, schema, permission, OpenFGA model or production activation changes here.
+
+The released reviewer slice is recorded in the
+[deployment evidence](../deployment/releases/2026-11-04-posting-decisions.md).
+Authenticated browser acceptance of normal submission/review, effective approval,
+supervision, transfers, contractors and all departmental/Pharma consumers remain
+open. UI component/SDK tests do not close those acceptance gates.

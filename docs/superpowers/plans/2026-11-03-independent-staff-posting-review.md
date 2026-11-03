@@ -483,3 +483,74 @@ saved config yielded no store, so it is not copied or treated as authoritative;
 canonical IAM reconciliation will initialize the candidate graph from cloned IAM.
 Normal real-account browser acceptance remains open. This is fixture preparation,
 not activation, completed Staff Management, merge or production rollout.
+
+
+## 2026-11-04 incremental releases and normal submission UI
+
+#1544 (`1d6becdf`) and #1547 (`e7588e65`) are merged/deployed. The user's explicit
+incremental-delivery instruction supersedes the earlier single-branch shipping
+restriction for validated bounded slices; it does not relax isolation, source,
+persistence, browser acceptance or full feature completion requirements.
+
+The next submission slice consumes the existing hospital `can_submit` capability,
+canonical target choices, exact draft revisions and reviewed employment source.
+Workforce remains the Staff/proposal owner, Organization the department owner and
+IAM/OpenFGA the current scoped authority; no Pharma-specific Staff master exists.
+Reviewer-only assignments never receive a submit action or target discovery.
+Required rationale and attestation use canonical schemas. One parsed intent and
+proposal/command pair survive uncertain outcomes; missing receipt404 rechecks
+current draft/source authority without replacing the command. Dirty/retained
+forms pause focus/poll refresh and guard navigation; account/tenant changes abort
+the client and clear private state. The server reauthorizes every operation.
+
+Assets are private Staff rationale and employment-source references. Threats are
+foreign tenants/hospitals, changed accounts, revoked assignments and stale source
+state. Every request retains the original expected tenant/subject and exact
+hospital/Staff scope through Global API. Existing owner commands return hidden
+objects404, missing permission403 and unavailable authorization503. This UI adds
+no route, permission, wire model, migration, service or operating grant.
+
+Twenty-six component/SDK-integrated checks pass, including a RED→GREEN validation
+error regression and a RED→GREEN pagination reset. The current-source predicate
+mutation is caught; source is restored. Final full shell 1,457/177 (326.64s), SDK 633/78, types, lint, targeted
+format and the registered-client webpack build pass. Real-account browser
+acceptance remains pending. Positive approval, supervision
+bootstrap and the complete parent operational/lifecycle scope remain mandatory.
+
+
+The submission actors perform administrative preparation/review, not clinical
+authority. `workforce.posting_submitter.v1` and
+`workforce.posting_reviewer.v1` are hospital-scoped templates; each requires a
+current reviewed digital Staff/login source and the separate Staff-actor-use
+capability. IAM assignment proposal and independent approval remain the existing
+IAM workflow; this UI neither creates nor approves a grant. The catalog's current
+`posting` family is not a new general authority-kind implementation.
+[ORG-AC-01/02/07](../../domain/organization/access-model.md) and
+[ORG-AU-07](../../domain/organization/authority-and-roles.md) retain assignment-only
+authority, explicit scope, fail-closed status codes and independent approval.
+
+The form additionally resolves the exact active department revision through
+Organization's existing bounded scoped choices. Its human code/name must be
+visible before new submission is enabled; empty pages retain continuation.
+Changed/unavailable references disable the form. Removing the exact revision
+predicate is caught by the revised-department test; restored source is hashed.
+This adds no department owner, wire model, policy, pharmacy designation or
+clinical/legal rule. The final suite, package types/lint/format, registered-client
+webpack build and local readiness200 pass for this department refinement and
+current admission recovery.
+
+
+Receipt404 now refreshes current hospital admission as well as source/draft/
+department context. A confirmed loss of submit capability clears the private form
+even if read permissions remain. Admission503 preserves the original command,
+marks admission unavailable and allows a deliberate recheck without silently
+resetting selection. Both cases failed before implementation and pass now.
+
+Actual final commands (Node24): `pnpm --filter @helivanta/shell test`,
+`pnpm --filter @helivanta/api test`,
+`pnpm --filter @helivanta/shell --filter @helivanta/api type-check`,
+the same filters with `lint` and `format:check`, and
+`pnpm --filter @helivanta/shell exec next build --webpack`.
+The build uses the existing registered local client and Global API loopback8198;
+no IdP client or membership was created. Browser acceptance is still at owner
+sign-in; previously rejected Terminal credential-entry setup was not bypassed.

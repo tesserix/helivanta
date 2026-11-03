@@ -35,6 +35,7 @@
 **Files:** Create `backend/internal/modules/pharmacy/service_charges.sql`, `service_charges.go`, `service_charges_test.go`. Modify `module.go` (migration, permissions, routes via `catalogue.go`), `contracts/pharmacy.json` (`serviceChargeInput`), regenerate `input_types.go` and `packages/api/src/pharmacy-contract.ts`; `archtest/arch_test.go` (`unpaginatedGETAllowlist` for `GET /service-charges/:charge`), `archtest/matrix_test.go`; `operational_roles_test.go`.
 
 **Interfaces — Produces:**
+
 - Tables `pharmacy_service_charges(tenant_id,outlet_id,id,code)`, `pharmacy_service_charge_versions(..., charge_id, seq, name, channel, amount_minor, available, tax_treatment, sac_code, supply_nature, rate_ppm, exemption_basis, tax_basis, effective_from, intent_sha256, declared_by)`, `pharmacy_service_charge_reviews(version_id PK, decision, reason, reviewed_by)`.
 - `pharmacy_service_charge_in_force(tenant, outlet, charge, day) RETURNS TABLE(version_id uuid)`: one row (the version) or none.
 - Routes: `PUT /service-charges/:charge/versions/:version` (declare; first version creates the charge with `code`, later versions must repeat it), `POST /service-charges/:charge/versions/:version/review`, `GET /service-charges` (paged list, each with `in_force` version for today and `latest` version), `GET /service-charges/:charge` (history, newest 50).
@@ -49,6 +50,7 @@
 **Files:** Modify `service_charges.sql` (charge lines), `sale.go` (`saleInput.Charges`, `saleQuoteInput.Charges`, `.Channel`, digest, `priceCharges`, totals, insert, `loadSale`, error mapping), `service_charges_test.go`.
 
 **Interfaces:**
+
 - Input `charges: [{charge_id: uuid}]`; quote also `channel: "counter"|"ward_delivery"` (default counter).
 - Table `pharmacy_sale_charge_lines(tenant_id,outlet_id,sale_id,charge_number 1–5, charge_id, version_id, code, name, tax_treatment, sac_code, supply_nature, rate_ppm, amount_minor, taxable_minor, cgst_minor, sgst_minor)`, unique `(sale_id, charge_id)`.
 - Triggers: `pharmacy_sale_charge_line_guard` (constraint `pharmacy_sale_charge_source`: version is in force on sale date, available, channel matches sale, values copied; own_service copies SAC/nature/rate); sealed; deferred `pharmacy_sale_charge_principal` (every medicine line has the principal line's nature and rate); `pharmacy_sale_balanced` redefined to add charge totals.
@@ -70,12 +72,14 @@
 ### Task 4: Daily report
 
 **Files:** `daily_report.go`, its test.
+
 - [ ] Test first: a day with a charged sale and a credited charge shows the four new fields exactly.
 - [ ] Add CTEs over charge lines and credited charge lines; commit.
 
 ### Task 5: Shell
 
 **Files:** `packages/api/src/pharmacy.ts` (types `PharmacyServiceCharge`, `PharmacyServiceChargeVersion`, `PharmacySaleCharge`, `PharmacyCreditNoteCharge`, sale/quote/credit-note/daily-row fields, export `pharmacyServiceChargeInputSchema`); create `apps/shell/components/pharmacy/service-charges.tsx` + test (list, declare form, review form); `counter-sale.tsx` (pick charges available for the sale's channel, quote and post with them, show charge lines on the invoice: SAC and rate, or "Supplied with the medicines and taxed as them"); `returns.tsx` (credit charges); `daily-report.tsx` (medicine and service rows); `pharmacy-workspace.tsx` (render setup on counter view); tests for each.
+
 - [ ] Tests first per component; implement; `pnpm turbo lint type-check test build format:check` green; commit.
 
 ### Task 6: Docs and gates

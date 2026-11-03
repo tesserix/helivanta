@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
+import type { PharmacySaleCharge, PharmacyServiceCharge } from "@helivanta/api";
 import { CounterSale } from "./counter-sale";
 
 const scope = {
@@ -49,6 +50,7 @@ const totals = {
   cgst_minor: 536,
   sgst_minor: 536,
   nppa_ceiling_checked: false,
+  charges: [] as PharmacySaleCharge[],
 };
 
 afterEach(() => {
@@ -68,10 +70,14 @@ function fixture(
     saleLine?: typeof line & { prescription_id?: string; prescription_line?: number };
     /** The status every counter-payment read answers (#1386 C-4b). */
     counterPayment?: { status: string };
+    /** The outlet's service charges (#1388). */
+    serviceCharges?: PharmacyServiceCharge[];
   } = {},
 ) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.endsWith("/counter-payments")) return new Response(JSON.stringify(page([])));
+    if (url.endsWith("/service-charges"))
+      return new Response(JSON.stringify({ items: options.serviceCharges ?? [] }));
     if (url.endsWith("/hospital-affiliations"))
       return new Response(
         JSON.stringify(
@@ -146,6 +152,7 @@ function fixture(
               sku: "TEST-PCM-500",
               brand_name: "TEST Paracetamol",
               status: "active",
+              currency: "INR",
             },
             {
               id: "0199e000-0000-7000-8000-000000000009",
@@ -611,6 +618,149 @@ describe("CounterSale", () => {
     ]);
     expect(body.patient).toBeUndefined();
     expect(body.buyer).toBeUndefined();
+  });
+
+  it("bills service charges of one channel as their own lines (#1388)", async () => {
+    const version = {
+      tax_basis: "TEST accountant note",
+      effective_from: "2026-11-01",
+      declared_by: "user-owner",
+      created_at: "2026-11-01T06:30:00Z",
+      decision: "approved" as const,
+      decision_reason: "checked",
+      reviewed_by: "user-manager",
+      reviewed_at: "2026-11-01T07:00:00Z",
+      exemption_basis: null,
+      status: "available" as const,
+    };
+    const delivery = "0199e000-0000-7000-8000-0000000000e1";
+    const handling = "0199e000-0000-7000-8000-0000000000e2";
+    const serviceCharges: PharmacyServiceCharge[] = [
+      {
+        id: delivery,
+        code: "DELIVERY",
+        today: "2026-11-01",
+        latest: null,
+        in_force: {
+          ...version,
+          id: "0199e000-0000-7000-8000-0000000000e3",
+          charge_id: delivery,
+          code: "DELIVERY",
+          name: "Ward delivery",
+          channel: "ward_delivery",
+          amount_minor: 5000,
+          tax_treatment: "own_service",
+          sac_code: "996812",
+          supply_nature: "taxable",
+          rate_ppm: 180000,
+        },
+      },
+      {
+        id: handling,
+        code: "HANDLING",
+        today: "2026-11-01",
+        latest: null,
+        in_force: {
+          ...version,
+          id: "0199e000-0000-7000-8000-0000000000e4",
+          charge_id: handling,
+          code: "HANDLING",
+          name: "Handling",
+          channel: "counter",
+          amount_minor: 2000,
+          tax_treatment: "principal_supply",
+          sac_code: null,
+          supply_nature: null,
+          rate_ppm: null,
+        },
+      },
+    ];
+    const handlingLine: PharmacySaleCharge = {
+      charge_number: 1,
+      charge_id: handling,
+      version_id: "0199e000-0000-7000-8000-0000000000e4",
+      code: "HANDLING",
+      name: "Handling",
+      tax_treatment: "principal_supply",
+      sac_code: null,
+      supply_nature: "taxable",
+      rate_ppm: 120000,
+      amount_minor: 2000,
+      taxable_minor: 1786,
+      cgst_minor: 107,
+      sgst_minor: 107,
+      credited_minor: 0,
+    };
+    const priced = { ...totals, total_minor: 12000, charges: [handlingLine], lines: [line] };
+    const fetcher = fixture({
+      serviceCharges,
+      quote: () => new Response(JSON.stringify(priced)),
+      sale: () =>
+        new Response(
+          JSON.stringify({
+            ...priced,
+            id: "0199e000-0000-7000-8000-000000000030",
+            invoice_number: "TS/2627/1",
+            financial_year: "2627",
+            sale_date: "2026-11-01",
+            seller_legal_name: profile.legal_name,
+            seller_address: profile.address,
+            seller_gstin: "27PQRST5678K2Z1",
+            place_of_supply: "27",
+            actor_subject: "user-pharmacist",
+            created_at: "2026-11-01T06:30:00Z",
+            class_origin: "declared_by_outlet",
+            tenders: [],
+          }),
+          { status: 201 },
+        ),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    const wardBox = await screen.findByRole("checkbox", { name: /Ward delivery · INR 50.00/ });
+    const counterBox = screen.getByRole("checkbox", { name: /Handling · INR 20.00 · counter/ });
+
+    // A ward charge bills an admission, so only that customer is offered.
+    await user.click(wardBox);
+    expect(counterBox).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await user.click(await screen.findByRole("combobox", { name: "Customer" }));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Bill to admission"]);
+    await user.keyboard("{Escape}");
+
+    await user.click(wardBox);
+    await user.click(counterBox);
+    expect(wardBox).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    const quotes = fetcher.mock.calls.filter(([url]) => String(url).endsWith("/sales/quote"));
+    expect(JSON.parse(String(quotes.at(-1)?.[1]?.body))).toEqual({
+      lines: [{ product_id: productId, quantity_units: 8 }],
+      charges: [{ charge_id: handling }],
+      channel: "counter",
+    });
+    expect(await screen.findByRole("table", { name: "Service charges" })).toBeVisible();
+    expect(screen.getByText("With the medicines")).toBeVisible();
+    expect(screen.getByText(/taxed at their rate \(CGST Act s.8\(a\)\)/)).toBeVisible();
+    await user.click(screen.getByRole("combobox", { name: "Customer" }));
+    expect(screen.queryByRole("option", { name: "Bill to admission" })).toBeNull();
+    await user.keyboard("{Escape}");
+
+    const received = screen.getByLabelText("Amount received (INR)");
+    await user.clear(received);
+    await user.type(received, "120");
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" })).toBeVisible();
+    expect(screen.getByRole("table", { name: "Service charges" })).toBeVisible();
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      lines: [{ product_id: productId, quantity_units: 8 }],
+      charges: [{ charge_id: handling }],
+      tenders: [{ kind: "cash", amount_minor: 12000, tendered_minor: 12000 }],
+    });
   });
 
   it("adds no line before the product's class is known", async () => {

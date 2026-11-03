@@ -437,6 +437,10 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability` | `pharmacy.sale.read` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales` | `pharmacy.sale.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review` | `pharmacy.service_charge.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version` | `pharmacy.service_charge.declare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge` | `pharmacy.sale.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges` | `pharmacy.sale.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/batches/:id` | `pharmacy.stock.receive` | false | false |
@@ -522,6 +526,7 @@ Migration table declarations:
 - `0027_pharmacy`: `pharmacy_bed_occupancies`.
 - `0028_pharmacy`: `pharmacy_unused_payment_refunds`.
 - `0029_pharmacy`: `pharmacy_product_price_declarations`, `pharmacy_product_price_reviews`.
+- `0031_pharmacy`: `pharmacy_service_charges`, `pharmacy_service_charge_versions`, `pharmacy_service_charge_reviews`, `pharmacy_sale_charge_lines`, `pharmacy_credit_note_charge_lines`.
 
 ## payments
 

@@ -18,9 +18,11 @@ import {
   type PharmacyProduct,
   type PharmacySale,
   type PharmacySaleAvailability,
+  type PharmacySaleCharge,
   type PharmacySaleLine,
   type PharmacySaleQuote,
   type PharmacyScope,
+  type PharmacyServiceCharge,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
@@ -210,6 +212,14 @@ function Counter({
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const [posted, setPosted] = useState<PharmacySale | null>(null);
   const [paymentHeld, setPaymentHeld] = useState(false);
+  // Service charges (#1388): their own lines, all of one channel per sale.
+  const services = useApiQuery<{ items: PharmacyServiceCharge[] }>(
+    pharmacyKey(scope, "counter", "service-charges"),
+    `${pharmacyRoot(scope)}/service-charges`,
+  );
+  const offered = (services.data?.items ?? []).filter((c) => c.in_force?.status === "available");
+  const [chargeIds, setChargeIds] = useState<string[]>([]);
+  const chargeChannel = offered.find((c) => c.id === chargeIds[0])?.in_force?.channel ?? null;
   const form = useZodForm(lineSchema, {
     product_id: "",
     quantity_units: 1,
@@ -239,7 +249,12 @@ function Counter({
     (lines: BasketLine[]) =>
       apiFetch<PharmacySaleQuote>(`${pharmacyRoot(scope)}/sales/quote`, {
         method: "POST",
-        body: JSON.stringify({ lines: lines.map(lineBody) }),
+        body: JSON.stringify({
+          lines: lines.map(lineBody),
+          ...(chargeIds.length > 0
+            ? { charges: chargeIds.map((id) => ({ charge_id: id })), channel: chargeChannel }
+            : {}),
+        }),
       }),
     { onSuccess: setQuote, suppressErrorToast: true },
   );
@@ -250,6 +265,12 @@ function Counter({
     setQuote(null);
     price.reset();
   }
+  function toggleCharge(id: string) {
+    if (paymentHeld) return;
+    setChargeIds(chargeIds.includes(id) ? chargeIds.filter((c) => c !== id) : [...chargeIds, id]);
+    setQuote(null);
+    price.reset();
+  }
   if (posted)
     return (
       <Invoice
@@ -257,6 +278,7 @@ function Counter({
         products={products.items}
         onNext={() => {
           setPosted(null);
+          setChargeIds([]);
           changeBasket([]);
         }}
       />
@@ -409,6 +431,28 @@ function Counter({
           ))}
         </ul>
       )}
+      {basket.length > 0 && offered.length > 0 && (
+        <fieldset className="mt-4 space-y-2 text-sm">
+          <legend className="font-medium">Service charges</legend>
+          {offered.map((c) => {
+            const v = c.in_force!;
+            // One sale is one channel: ward charges bill an admission, counter charges do not.
+            const otherChannel = chargeChannel !== null && v.channel !== chargeChannel;
+            return (
+              <label key={c.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={chargeIds.includes(c.id)}
+                  disabled={paymentHeld || otherChannel}
+                  onChange={() => toggleCharge(c.id)}
+                />
+                {v.name} · {formatPharmacyMoney(v.amount_minor, basket[0].product.currency)} ·{" "}
+                {v.channel === "ward_delivery" ? "ward delivery" : "counter"}
+              </label>
+            );
+          })}
+        </fieldset>
+      )}
       {basket.length > 0 && !quote && (
         <Button className="mt-4" disabled={price.isPending} onClick={() => price.mutate(basket)}>
           {price.isPending ? "Pricing…" : "Price basket"}
@@ -422,11 +466,14 @@ function Counter({
       {quote && (
         <>
           <SaleLines lines={quote.lines} currency={quote.currency} products={products.items} />
+          <SaleCharges charges={quote.charges} currency={quote.currency} />
           <Totals sale={quote} />
           <TenderForm
             scope={scope}
             quote={quote}
             basket={basket}
+            chargeIds={chargeIds}
+            chargeChannel={chargeChannel}
             onPosted={(sale) => {
               setPaymentHeld(false);
               setPosted(sale);
@@ -506,6 +553,45 @@ function SaleLines({
         ))}
       </tbody>
     </table>
+  );
+}
+
+function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; currency: string }) {
+  if (charges.length === 0) return null;
+  const money = (minor: number) => formatPharmacyMoney(minor, currency);
+  return (
+    <>
+      <table className="mt-2 w-full text-sm" aria-label="Service charges">
+        <thead className="text-left text-muted-foreground">
+          <tr>
+            <th className="py-2">Service charge</th>
+            <th>SAC</th>
+            <th>Taxable</th>
+            <th>CGST + SGST</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {charges.map((c) => (
+            <tr key={c.charge_number} className="border-t">
+              <td className="py-2">{c.name}</td>
+              <td>{c.sac_code ?? "With the medicines"}</td>
+              <td>{money(c.taxable_minor)}</td>
+              <td>
+                {money(c.cgst_minor)} + {money(c.sgst_minor)} ({c.rate_ppm / 10000}%)
+              </td>
+              <td>{money(c.amount_minor)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {charges.some((c) => c.tax_treatment === "principal_supply") && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          A charge marked &quot;With the medicines&quot; is part of their supply and taxed at their
+          rate (CGST Act s.8(a)).
+        </p>
+      )}
+    </>
   );
 }
 
@@ -598,6 +684,8 @@ function TenderForm({
   scope,
   quote,
   basket,
+  chargeIds,
+  chargeChannel,
   onPosted,
   onStale,
   canRefund,
@@ -607,6 +695,9 @@ function TenderForm({
   scope: PharmacyScope;
   quote: PharmacySaleQuote;
   basket: BasketLine[];
+  chargeIds: string[];
+  /** Ward-delivery charges bill an admission; counter charges never do. */
+  chargeChannel: "counter" | "ward_delivery" | null;
   onPosted: (sale: PharmacySale) => void;
   onStale: () => void;
   canRefund: boolean;
@@ -620,7 +711,7 @@ function TenderForm({
     reference: "",
     payment_request_id: "",
     total: quote.total_minor,
-    customer: "walk_in",
+    customer: chargeChannel === "ward_delivery" ? "admission" : "walk_in",
     patient_id: "",
     occupancy_id: "",
     buyer_name: "",
@@ -657,6 +748,9 @@ function TenderForm({
         method: "PUT",
         body: JSON.stringify({
           lines: basket.map(lineBody),
+          ...(chargeIds.length > 0
+            ? { charges: chargeIds.map((charge) => ({ charge_id: charge })) }
+            : {}),
           tenders: [
             values.customer === "admission"
               ? { kind: "admission_account", amount_minor: quote.total_minor }
@@ -803,7 +897,13 @@ function TenderForm({
           { value: "walk_in", label: "Walk-in buyer" },
           { value: "patient", label: "Registered patient" },
           { value: "admission", label: "Bill to admission" },
-        ]}
+        ].filter((o) =>
+          chargeChannel === "ward_delivery"
+            ? o.value === "admission"
+            : chargeChannel === "counter"
+              ? o.value !== "admission"
+              : true,
+        )}
       />
       {paymentHeld && (
         <p role="status" className="text-sm">
@@ -895,6 +995,7 @@ function Invoice({
           GSTIN {sale.seller_gstin} · Place of supply {sale.place_of_supply} · Date {sale.sale_date}
         </p>
         <SaleLines lines={sale.lines} currency={sale.currency} products={products} />
+        <SaleCharges charges={sale.charges} currency={sale.currency} />
         <Totals sale={sale} />
         {sale.tenders.map((t) => (
           <p key={t.tender_number} className="mt-2 text-sm">

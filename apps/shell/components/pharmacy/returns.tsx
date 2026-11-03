@@ -101,7 +101,9 @@ const returnSchema = z
         .regex(/^[0-9]{0,7}$/, "Enter whole units"),
     ),
     left: z.array(z.number()),
-    location: z.string().min(1, "Choose the quarantine location"),
+    // Service charges credited whole (#1388); none moves stock.
+    charges: z.array(z.boolean()),
+    location: z.string(),
     name: z.string().trim().min(1, "Enter the name of the person refunded").max(200),
     address: z.string().trim().min(1, "Enter their address").max(500),
     reason: z.string().trim().min(5, "Give the reason, at least 5 characters").max(200),
@@ -121,8 +123,18 @@ const returnSchema = z
         });
       if (n > 0) any = true;
     });
-    if (!any)
-      ctx.addIssue({ code: "custom", path: ["units"], message: "Enter the units coming back" });
+    if (any && v.location === "")
+      ctx.addIssue({
+        code: "custom",
+        path: ["location"],
+        message: "Choose the quarantine location",
+      });
+    if (!any && !v.charges.some(Boolean))
+      ctx.addIssue({
+        code: "custom",
+        path: ["units"],
+        message: "Enter the units coming back or a service charge to credit",
+      });
     if (v.kind !== "cash" && v.kind !== "admission_account" && v.reference === "")
       ctx.addIssue({ code: "custom", path: ["reference"], message: "Enter the refund reference" });
   });
@@ -155,7 +167,10 @@ function ReturnForm({
   return (
     <ReturnFormFor
       // What is left to return seeds the form: new figures, a new form.
-      key={sale.data.lines.map((l) => l.returned_units ?? 0).join(",")}
+      key={[
+        ...sale.data.lines.map((l) => l.returned_units ?? 0),
+        ...sale.data.charges.map((c) => c.credited_minor),
+      ].join(",")}
       scope={scope}
       sale={sale.data}
       quarantine={locations.items.filter((l) => l.stock_status === "quarantine")}
@@ -190,6 +205,7 @@ function ReturnFormFor({
   const form = useZodForm(returnSchema, {
     units: sale.lines.map(() => ""),
     left,
+    charges: sale.charges.map(() => false),
     location: "",
     name: sale.buyer_name ?? "",
     address: "",
@@ -208,8 +224,11 @@ function ReturnFormFor({
             .map((l, i) => ({ sale_line: l.line_number, quantity_units: Number(v.units[i] || 0) }))
             .filter((l) => l.quantity_units > 0)
             .map((l) => ({ ...l, quarantine_location_id: v.location })),
+          charges: sale.charges
+            .filter((_, i) => v.charges[i])
+            .map((c) => ({ sale_charge: c.charge_number })),
           // The server prices the credit; the refund is collected after it says the total.
-          refunds: [refund(v, preview(sale, v.units))],
+          refunds: [refund(v, preview(sale, v.units, v.charges))],
           reason: v.reason,
           recipient: { name: v.name, address: v.address },
         }),
@@ -235,7 +254,7 @@ function ReturnFormFor({
   }, [refused, onRefused]);
   const errors = form.formState.errors;
   const units = form.watch("units");
-  const total = preview(sale, units);
+  const total = preview(sale, units, form.watch("charges"));
   return (
     <Panel>
       <div className="flex items-start justify-between gap-4">
@@ -291,9 +310,26 @@ function ReturnFormFor({
               ))}
             </tbody>
           </table>
-          {errors.units?.message && (
+          {sale.charges.length > 0 && (
+            <fieldset className="space-y-2 text-sm">
+              <legend className="font-medium">Service charges, credited whole</legend>
+              {sale.charges.map((c, i) => (
+                <label key={c.charge_number} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    disabled={c.credited_minor > 0}
+                    {...form.register(`charges.${i}`)}
+                  />
+                  {c.name} · {formatPharmacyMoney(c.amount_minor, sale.currency)}
+                  {c.credited_minor > 0 ? " · already credited" : ""}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {/* Registered per index, the array's own error lands on its root. */}
+          {(errors.units?.root?.message ?? errors.units?.message) && (
             <p role="alert" className="text-sm text-destructive">
-              {errors.units.message}
+              {errors.units?.root?.message ?? errors.units?.message}
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-3">
@@ -369,7 +405,8 @@ function ReturnFormFor({
 // preview is the refund the server will credit: the cumulative pro-rata step
 // of each line's taxable value and of each tax half, rounded down, summed
 // (#1386 C-1 decision 2).
-function preview(sale: PharmacySale, units: string[]): number {
+function preview(sale: PharmacySale, units: string[], charges: boolean[]): number {
+  const credited = sale.charges.reduce((sum, c, i) => (charges[i] ? sum + c.amount_minor : sum), 0);
   return sale.lines.reduce((sum, l, i) => {
     const r = Number(units[i] || 0);
     const k = l.returned_units ?? 0;
@@ -377,7 +414,7 @@ function preview(sale: PharmacySale, units: string[]): number {
     const prorate = (v: number) =>
       Math.floor((v * (k + r)) / l.quantity_units) - Math.floor((v * k) / l.quantity_units);
     return sum + prorate(l.taxable_minor) + 2 * prorate(l.cgst_minor);
-  }, 0);
+  }, credited);
 }
 
 function refund(v: ReturnValues, amount: number) {
@@ -432,6 +469,34 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
             ))}
           </tbody>
         </table>
+        {note.charges.length > 0 && (
+          <table className="mt-2 w-full text-sm" aria-label="Service charges credited">
+            <thead className="text-left text-muted-foreground">
+              <tr>
+                <th className="py-2">Service charge</th>
+                <th>SAC</th>
+                <th>Rate</th>
+                <th>Taxable</th>
+                <th>CGST + SGST</th>
+                <th>Credited</th>
+              </tr>
+            </thead>
+            <tbody>
+              {note.charges.map((c) => (
+                <tr key={c.charge_number} className="border-t">
+                  <td className="py-2">{c.name}</td>
+                  <td>{c.sac_code ?? "With the medicines"}</td>
+                  <td>{c.rate_ppm / 10000}%</td>
+                  <td>{money(c.taxable_minor)}</td>
+                  <td>
+                    {money(c.cgst_minor)} + {money(c.sgst_minor)}
+                  </td>
+                  <td>{money(c.amount_minor)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
         <p className="mt-3 text-sm font-medium">Total credited {money(note.total_minor)}</p>
         <p className="text-sm">Reason: {note.reason}</p>
         <p className="mt-2 text-xs text-muted-foreground">

@@ -20,6 +20,7 @@ export {
   pharmacyTaxRegistrationInputSchema,
   pharmacyTaxClassificationInputSchema,
   pharmacyPriceControlInputSchema,
+  pharmacyServiceChargeInputSchema,
 } from "./pharmacy-contract";
 
 export const pharmacyProductFormSchema = pharmacyProductInputSchema.superRefine((value, ctx) => {
@@ -199,6 +200,25 @@ export type PharmacySaleLine = {
   /** Which limit set the list price: the batch MRP or the NPPA ceiling. */
   price_limit: "mrp" | "ceiling";
 };
+/** A service charge as billed (#1388): its own line, with the version applied. */
+export type PharmacySaleCharge = {
+  charge_number: number;
+  charge_id: string;
+  version_id: string;
+  code: string;
+  name: string;
+  /** own_service carries its SAC; principal_supply is taxed as the medicines (CGST Act s.8(a)). */
+  tax_treatment: "own_service" | "principal_supply";
+  sac_code: string | null;
+  supply_nature: "taxable" | "nil_rated" | "exempt";
+  rate_ppm: number;
+  amount_minor: number;
+  taxable_minor: number;
+  cgst_minor: number;
+  sgst_minor: number;
+  /** Credited on a credit note so far: 0 or the whole amount. */
+  credited_minor: number;
+};
 export type PharmacySaleQuote = {
   currency: string;
   total_minor: number;
@@ -206,6 +226,7 @@ export type PharmacySaleQuote = {
   cgst_minor: number;
   sgst_minor: number;
   lines: PharmacySaleLine[];
+  charges: PharmacySaleCharge[];
   /** True when every line's product had a price-control declaration in force (#1371). */
   nppa_ceiling_checked: boolean;
 };
@@ -292,6 +313,10 @@ export type PharmacyCreditNote = {
   actor_subject: string;
   created_at: string;
   lines: PharmacyCreditNoteLine[];
+  /** Service charges credited whole (#1388). */
+  charges: (Omit<PharmacySaleCharge, "charge_id" | "version_id" | "credited_minor"> & {
+    sale_charge: number;
+  })[];
   refunds: {
     refund_number: number;
     kind: "cash" | "upi" | "card";
@@ -509,4 +534,38 @@ export type PharmacyPriceControl = {
   in_force: PharmacyPriceDeclaration | null;
   reason: string;
   history: PharmacyPriceDeclaration[];
+};
+
+/** A version of an outlet's service charge (#1388). */
+export type PharmacyServiceChargeVersion = {
+  id: string;
+  charge_id: string;
+  code: string;
+  name: string;
+  channel: "counter" | "ward_delivery";
+  amount_minor: number;
+  status: "available" | "withdrawn";
+  tax_treatment: "own_service" | "principal_supply";
+  sac_code: string | null;
+  supply_nature: "taxable" | "nil_rated" | "exempt" | null;
+  rate_ppm: number | null;
+  exemption_basis: string | null;
+  tax_basis: string;
+  effective_from: string;
+  declared_by: string;
+  created_at: string;
+  decision: "approved" | "rejected" | null;
+  decision_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+};
+
+export type PharmacyServiceCharge = {
+  id: string;
+  code: string;
+  today: string;
+  /** The version billed today; null while the latest awaits review or none has started. */
+  in_force: PharmacyServiceChargeVersion | null;
+  latest: PharmacyServiceChargeVersion | null;
+  history?: PharmacyServiceChargeVersion[];
 };

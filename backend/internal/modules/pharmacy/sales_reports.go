@@ -106,23 +106,15 @@ const receiptRows = `(SELECT t.id, s.created_at, to_char(s.sale_date,'YYYY-MM-DD
 var receiptKinds = map[string]bool{"cash": true, "upi": true, "upi_verified": true, "card": true, "admission_account": true}
 
 func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
-	args, ok := salesReportArgs(c, "sales by item", "product_id")
-	if !ok {
-		return nil, nil
-	}
-	return salesReportPage[itemSalesRow](c, h, params, itemSalesRows, func(tenant string, outlet uuid.UUID) []any {
-		period := []any{tenant, outlet, args.since, args.until}
-		return append(append(period, period...), tenant, outlet, args.product, args.product)
+	return salesReportPage[itemSalesRow](c, h, params, "sales by item", "product_id", itemSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		period := []any{tenant, outlet, f.since, f.until}
+		return append(append(period, period...), tenant, outlet, f.product, f.product)
 	})
 }
 
 func (h *catalogueHandlers) listReceipts(c *gin.Context, params pagination.Params) ([]receiptEntry, error) {
-	args, ok := salesReportArgs(c, "the receipts register", "kind")
-	if !ok {
-		return nil, nil
-	}
-	return salesReportPage[receiptEntry](c, h, params, receiptRows, func(tenant string, outlet uuid.UUID) []any {
-		half := []any{tenant, outlet, args.since, args.until, args.kind, args.kind}
+	return salesReportPage[receiptEntry](c, h, params, "the receipts register", "kind", receiptRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		half := []any{tenant, outlet, f.since, f.until, f.kind, f.kind}
 		return append(half, half...)
 	})
 }
@@ -159,14 +151,21 @@ func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bo
 	return args, true
 }
 
-func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, query string, args func(string, uuid.UUID) []any) ([]T, error) {
+// salesReportPage checks the outlet scope before the query string, so a
+// wrong tenant or outlet is refused before anything else is read.
+func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, what, filter, query string,
+	args func(string, uuid.UUID, salesReportFilter) []any) ([]T, error) {
 	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return nil, nil
+	}
+	f, ok := salesReportArgs(c, what, filter)
 	if !ok {
 		return nil, nil
 	}
 	var rows []T
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tenantdb.ApplyOrderedKeyset(tx.Table(query, args(p.TenantID, outlet)...), params,
+		return tenantdb.ApplyOrderedKeyset(tx.Table(query, args(p.TenantID, outlet, f)...), params,
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}).Find(&rows).Error
 	})
 	if err != nil {

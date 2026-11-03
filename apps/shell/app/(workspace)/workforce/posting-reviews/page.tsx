@@ -23,13 +23,14 @@ export default function PostingReviews() {
 function PostingReviewAccount({ restart }: { restart: () => void }) {
   const [nonce] = useState(() => crypto.randomUUID());
   const [changed, setChanged] = useState(false);
+  const [busy, setBusy] = useState(false);
   const identity = useApiQuery<PermissionsResponse>(
     ["workforce", "posting-review-account", nonce],
     "/iam/me/permissions",
     {
       gcTime: 0,
       staleTime: 0,
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: !busy,
       request: { cache: "no-store" },
     },
   );
@@ -43,7 +44,7 @@ function PostingReviewAccount({ restart }: { restart: () => void }) {
         <Button onClick={restart}>Reopen posting reviews</Button>
       </section>
     );
-  if (identity.isPending || identity.isFetching)
+  if (identity.isPending || (identity.isFetching && !busy))
     return <p role="status">Checking posting review account…</p>;
   if (identity.isError || !identity.data?.tenant_id || !identity.data.subject)
     return (
@@ -55,6 +56,7 @@ function PostingReviewAccount({ restart }: { restart: () => void }) {
   return (
     <StaffPostingReviewWorkspace
       scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
+      onBusyChanged={setBusy}
       onContextChanged={() => setChanged(true)}
     />
   );

@@ -4809,3 +4809,23 @@ production scale or an SLO. The full plan and test logs are retained privately i
 All checkpoint checks now pass. Normal decision UI, an isolated real-account
 browser journey and the wider supervision/operational/lifecycle work remain open;
 this candidate remains draft and is not rolled out.
+
+
+### 2026-11-04 reviewer terminal decisions — candidate only
+
+Implemented independent rejection and original-submitter withdrawal in the normal
+posting reviewer page, with current source observation, mandatory rationale/
+attestation, retained-command recovery/exact retry, navigation protection and
+private-view clearing on revoked admission. A missing receipt rechecks context
+without discarding the command. Nine reviewer checks, full shell 1440 and SDK 633
+pass alongside types/lint/format and a webpack build. The backend/contract hashes
+match the already race-tested candidate; no new migration or operating approval
+was added.
+
+A separate local DB restores 1131 tenant-scoped QA rows over 151 required tables,
+with FK/RLS checks, fresh audit history and independent NATS/OpenFGA. It preserves
+the existing Leave runtime. A dedicated Temporal namespace and API readiness are
+still being completed before real-account browser acceptance. Positive approval,
+supervision, transfers, contractors, suspension, exit/rehire and departmental/Pharma
+operating consumers remain open. Overall counts remain 10 partial, 10 awaiting
+audit, 1 research, 0 fully accepted; the candidate stays draft and undeployed.

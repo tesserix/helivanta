@@ -347,3 +347,21 @@ it consumes only existing caller-link discovery and exact-actor source purposes.
 The existing capacity, timeout, no-store, keyset limits and additive rollback
 policy apply. The hospital proposal inbox is specified above. Normal reviewer decision UI and
 real-account browser acceptance remain mandatory follow-ups on this feature branch.
+
+## Terminal decision UI and recovery
+
+The normal reviewer page must expose rejection only after successful independent
+protected-context admission; the original submitter may withdraw under current
+submit capability. Positive approval remains unavailable pending supervision.
+Before attesting to source examination, display both the immutable submitted
+sources and a current owner employment-source observation, including changed or
+expired state. A failed source read cannot be treated as a current source.
+
+Use the canonical decision schema for mandatory rationale/attestation. Capture
+one immutable command ID, exact selected head and parsed intent before sending.
+An unconfirmed outcome locks editing and offers only that command's receipt
+recovery or exact retry; a missing receipt is not proof that an in-flight command
+cannot commit. Account/tenant changes clear private views. Navigation warns about
+retained intent; ordinary focus/refetch must not silently discard it. Every write
+continues to use original-account headers and owner reauthorization. UI capability
+observations and source snapshots confer no operating or professional authority.

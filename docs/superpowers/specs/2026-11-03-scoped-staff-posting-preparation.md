@@ -130,6 +130,29 @@ equivalent atomic bound; checking `effective` once and discarding `until` is
 insufficient. Recheck current eligibility before final commit. No protected rows
 or HTTP success are emitted before the outer transaction commits.
 
+The platform operation `DB.ConstrainGuardedCommand(ctx, tenant, until)` may only
+shorten an active same-database/same-tenant command. It grants no access and
+accepts no permission, SQL or source selector. A past cutoff cancels the root
+transaction even if an inner owner ignores the returned error; a future cutoff
+remains armed through the outer commit. A later source cannot extend an earlier
+deadline. Wrong scope/database, absent or closed command and a zero cutoff fail
+closed. IAM retains its current denial semantics when a command source expires.
+No public wire contract or schema changes are needed for this lifetime control.
+
+PostgreSQL deferred constraints must drain inside the cancellable command before
+its final deadline check and before issuing COMMIT. Canceling a driver context
+while COMMIT itself is blocked is an uncertain database outcome, not proof of
+rollback. An observed real-PostgreSQL test reproduced a committed write after
+the source-expiry error when deferred trigger work was left inside COMMIT.
+`SET CONSTRAINTS ALL IMMEDIATE` before the final context check prevents that
+deferred work from carrying an already-expired command into a successful commit.
+The final admission also compares the effective cutoff with PostgreSQL
+`clock_timestamp()` after the deferred work drains; it does not rely solely on
+when the Go timer goroutine is scheduled. Command participation is closed before
+draining, so no owner may append work through an escaped callback at that point.
+Ordinary network loss after COMMIT remains an uncertain response; retained
+commands and fresh authorization are still required to recover its outcome.
+
 ## HTTP, persistence and failures
 
 Publish exact additive routes/query projections, permission semantics and errors

@@ -12890,7 +12890,7 @@
         "registration_sha256": "5e9f9529200a3515c4f0d227bc4677088b7f2ce4200a37eb375e87b50f8a27f3",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, exact hospital and canonical Staff; immutable preparation draft/command or bounded history only. This is personnel preparation, not an operating posting or professional grant.",
-        "rationale": "Current tenant membership and workforce.posting.prepare are checked through the standard OpenFGA route boundary. Exact original tenant/subject preconditions, explicit Workforce hospital manager/reader and canonical Staff scope are rechecked under owner RLS and locks. New commands hold the manager grant and Staff version/epoch through a bounded guarded transaction, bind the current active Organization department revision through the owner restructuring gate and row lock, and atomically persist immutable revision, audit and ID-only outbox. Exact same-actor/intent retries recover the historical receipt after current manager reauthorization without certifying old sources as current. Preparation can precede reviewed employment and cannot activate Staff, grant IAM membership/assignments, or establish Pharma duty. Legacy hospital grants do not establish the current reviewed actor incarnation. Tests here are source/owner acceptance evidence, not full browser/production lifecycle acceptance.",
+        "rationale": "Current tenant membership and workforce.posting.prepare are checked through the standard OpenFGA route boundary. Exact original tenant/subject preconditions, explicit Workforce hospital manager/reader and canonical Staff scope are rechecked under owner RLS and locks. New commands hold the manager grant and Staff version/epoch through a bounded guarded transaction, bind the current active Organization department revision through the owner restructuring gate and row lock, and atomically persist immutable revision, audit and ID-only outbox. Exact same-actor/intent retries recover the historical receipt after current manager reauthorization without certifying old sources as current. Preparation can precede reviewed employment and cannot activate Staff, grant IAM membership/assignments, or establish Pharma duty. Legacy hospital grants do not establish the current reviewed actor incarnation. Tests here are source/owner acceptance evidence, not full browser/production lifecycle acceptance. Shared-command review on 2026-11-03 additionally verified that deferred constraints drain before the final deadline check and before COMMIT is issued; source cutoff cancellation is retained through that boundary. Real PostgreSQL regression evidence covers a deferred trigger blocked after the owner callback, with backend completion observed before inspecting persistence. This does not supply a current scoped posting actor or expand legacy hospital authority. Final commit admission additionally compares the effective deadline with the database clock after deferred checks finish; owner participation is closed before finalization.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
@@ -12924,7 +12924,7 @@
           },
           {
             "path": "backend/pkg/tenantdb/command.go",
-            "sha256": "ca525251fac07d3c3d193bb605c67cbfb8149765f6fc29311092b41dce89d434",
+            "sha256": "1ea36d6605041bc1610c2de0b7e369e350fa8aa69a8aa631e384e6b3d6d2b25a",
             "symbol": "func (d *DB) WithGuardedTenantCommand("
           }
         ],

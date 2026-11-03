@@ -1,5 +1,32 @@
 # Staff Management delivery tracker
 
+## Shared command source-cutoff candidate — 2026-11-03
+
+Implementation for the scoped posting foundation adds owner source deadlines to
+the existing shared command; IAM now consumes that mechanism while retaining its
+current denied/expired semantics. It grants no permission, creates no employee
+master and adds no migration. An expired source cancels the root even if an
+owner ignores its error or uses an already-canceled child context. Later sources
+cannot extend an earlier cutoff; absent, foreign-database/tenant and escaped
+command contexts are rejected.
+
+Real PostgreSQL testing exposed a commit-boundary defect: while a deferred
+constraint trigger blocked COMMIT, the source timer returned expiry but the row
+subsequently committed. The candidate drains deferred constraints inside the
+cancellable command, before the final context check and before issuing COMMIT.
+It also checks the effective cutoff against the database clock after those
+constraints finish, and closes owner participation before that finalization.
+The same test now observes the canceled backend transaction ending and verifies
+zero persisted rows. Ordinary lost COMMIT acknowledgments still require retained
+command recovery; this change cannot promise that every transport error means
+rollback. The existing compound IAM grant/expiry test also passed locally.
+
+Broader owner regression checks are in progress. No new runtime revision has been
+merged, deployed or accepted by this entry. Scoped posting reader/preparer roles,
+their normal positive-role UI acceptance, effective departmental postings and the
+remaining parent lifecycle/Pharma work remain open. Full Staff counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Scoped posting source review — 2026-11-03
 
 The [next specification](../superpowers/specs/2026-11-03-scoped-staff-posting-preparation.md)

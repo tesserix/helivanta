@@ -7,8 +7,11 @@ Its Go behavioral suites passed, but the coverage gate failed at Workforce
 **69.2% < 70%**. The gateway workflow executions were not counted toward their
 source owner. A separate CI correction, commit `8264c08f`, counts the combined Go
 profile by source-owner package, retaining the 70% floor and no-owner-test
-refusal. Six real Go fixture regressions and shell checks passed; full CI remains
-required. No coverage result or merge is claimed for that correction yet.
+refusal. Separate [PR #1545](https://github.com/tesserix/helivanta/pull/1545),
+latest head `83db033c`, has seven real Go fixture regressions, including refusal
+to let a fully covered sibling hide another owner's coverage failure. Those
+regressions, shell checks and CI lint passed; the complete CI gate remains in
+progress. No merge is claimed for that correction yet.
 
 The historical-account regression now imports an old revoked association between
 a contributor's subject and an otherwise current reviewer's canonical Staff.
@@ -26,10 +29,17 @@ was restored and SHA256 verified. The restored focused Global API run passed in
 fixtures were removed and no fallback SSH forwarding was required.
 
 The combined implementation's earlier full Workforce race suite passed in
-**576.956s**. A further complete Workforce race run with an owner coverage profile
-is in progress. Neither that earlier complete Workforce run nor the new focused
-Global API run is represented as full Global API execution of the added alias
-case. Normal reviewer UI acceptance and production rollout remain unproven.
+**576.956s**. The further complete Workforce race run with an owner coverage
+profile passed in **685.470s**, removing four owned fixtures without fallback SSH
+forwards. Its own binary reports 69.2%, reproducing the CI metric. Combining this
+profile with the restored focused real gateway profile and using the new gate's
+actual parser gives **11,775 / 14,611 Workforce statements = 80.590%**. This is
+measured source execution across those two runs, not complete backend CI or UI
+acceptance. The full current Global API race suite including the new alias case
+subsequently passed in **565.391s**, removing three owned fixtures without fallback
+SSH forwards. Combining the two complete-suite profiles with the actual gate
+parser gives **12,147 / 14,611 Workforce statements = 83.136%**. Full backend CI,
+normal reviewer UI acceptance and production rollout remain unproven.
 Overall acceptance remains **10 partial, 10 awaiting audit, 1 research and
 0 fully accepted**.
 

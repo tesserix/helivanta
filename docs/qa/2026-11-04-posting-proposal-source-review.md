@@ -150,3 +150,14 @@ Workforce per-test-binary coverage floor (69.2% versus 70%). A separate source-o
 coverage-accounting correction retains the floor and missing-owner-test safeguards;
 its real Go fixture regressions passed, while full CI remains required. The API
 candidate still has no production or normal reviewer UI acceptance.
+
+The additional full Workforce race/profile run passed in 685.470s at the
+historical-association candidate. The owner binary again reported 69.2%. The
+source-owner parser in separate CI PR #1545 counts 11,775 / 14,611 statements
+(80.590%) when combining that full owner profile with the restored focused real
+gateway profile. Its seven dependency-free real Go fixture regressions and CI
+lint passed. The complete current Global API race run subsequently passed in
+565.391s, including the new alias case, with three owned fixtures removed and no
+fallback SSH forwards. Combining the two complete-suite profiles with that parser
+gives 12,147 / 14,611 Workforce statements (83.136%). Full backend CI remains in
+progress; these complete affected-package runs are not a substitute for that gate.

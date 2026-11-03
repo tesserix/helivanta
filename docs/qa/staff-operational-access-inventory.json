@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "5e4a7018a94605a00151fd9173351ea1318bf6a52677e37a55192c6a47149721",
+  "registry_sha256": "b52431f9489fdceedcd1d8ac48f288d17b72c234f327f8cdc96ec7859d93f57e",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 784,
@@ -3052,11 +3052,11 @@
         "registration_sha256": "2ecc32405c08d9ad3e1137a1068ce51e39722af7837263cdadd229432000391c",
         "authority_kind": "mixed",
         "resource_scope": "Verified caller session and its current tenant membership; no hospital employment or operational object is selected.",
-        "rationale": "Cookie-only renewal checks current upstream active identity and tenant role binding, preserves subject, authentication time and idle deadline, and fails closed on unreadable identity or roles. The same session can serve governance and hospital operations, so this is mixed authority. Renewal does not establish reviewed hospital employment and cannot replace owner-side effective-cutoff checks.",
+        "rationale": "Cookie-only renewal checks current upstream active identity and tenant role binding, preserves subject, authentication time and idle deadline, and fails closed on unreadable identity or roles. The same session can serve governance and hospital operations, so this is mixed authority. Renewal does not establish reviewed hospital employment and cannot replace owner-side effective-cutoff checks. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
+            "sha256": "980590a8df89bfb7e57776e221583266cd880f4c2f9e01ae38e0f5d682227021",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3096,11 +3096,11 @@
         "registration_sha256": "32a6b108e5f8d60109a85dac6bd2ad376bcabf21c4870fcdbc6f97d2b022f87b",
         "authority_kind": "mixed",
         "resource_scope": "Authenticated caller’s own subject and existing tenant claim; no target subject or hospital is accepted.",
-        "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant.",
+        "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
+            "sha256": "980590a8df89bfb7e57776e221583266cd880f4c2f9e01ae38e0f5d682227021",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3156,11 +3156,11 @@
         "registration_sha256": "591fcb4cdb5035f951e633928f1261d54eaee7abef6fb09ef9ff36b6d1c218d0",
         "authority_kind": "mixed",
         "resource_scope": "Authenticated caller’s global credential subject, across every device and tenant; no target subject is accepted.",
-        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries.",
+        "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries. Rechecked 2026-11-04: IAM module only appends immutable role-catalog migration 0025; existing routes, grants and scope enforcement are unchanged. New submitter/reviewer templates are independently assigned hospital-scoped prerequisites and grant no operating or Pharma authority. Runtime acceptance remains open.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
+            "sha256": "980590a8df89bfb7e57776e221583266cd880f4c2f9e01ae38e0f5d682227021",
             "symbol": "func (m *Module) Routes("
           },
           {

@@ -5,6 +5,17 @@ Continues the [effective posting specification](2026-11-02-effective-staff-posti
 and its complete parent obligations. Depends on scoped preparation PR #1532.
 This specification pins the next command boundary; adding it does not implement it.
 
+## Delivery sequence
+
+The user requested smaller committed, merged and deployed PRs on 2026-11-04.
+Deliver the independently assigned IAM catalogs as a bounded prerequisite first,
+then the proposal owner API/SDK, then reviewer UI and finally effective posting
+and downstream department/Pharma consumers. Catalog admission is not current
+operating eligibility. Each slice retains its applicable security, persistence,
+contract and test gates; full feature acceptance still requires this complete
+specification and the parent lifecycle requirements. No positive placement or
+Pharma authority is introduced by the catalog prerequisite.
+
 ## Owners, scope and capacity
 
 Workforce owns one canonical Staff record, reviewed employment generation and

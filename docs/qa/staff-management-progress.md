@@ -1,5 +1,24 @@
 # Staff Management delivery tracker
 
+## Bounded posting role-catalog prerequisite — 2026-11-04
+
+Following the user's request for smaller releases, the first isolated change adds
+independently approved hospital-scoped posting submitter/reviewer catalogs through
+append-only IAM migration `0025_iam_staff_posting_review_templates`. Historical
+catalogs and SQL remain byte-identical. This slice does not introduce proposal
+routes, an effective posting, department operating rights or Pharma duties.
+The owner API/SDK, reviewer UI and lifecycle consumers remain separate follow-ups.
+
+Local validation: 609 SDK tests/76 files, API typecheck/lint, 66 catalog/inventory
+checks, Go build/scoped IAM vet/lint (0 issues), generated contracts/check and
+whitespace checks pass. Full real IAM race validation is running. The first SDK
+attempt could not resolve the new worktree's shared setup file; correcting cached
+workspace links produced the passing run without installing dependencies.
+Existing IAM source pins were reconciled for the additive migration only;
+registry parity is 784 surfaces / 761 unclassified, with no new runtime acceptance.
+No production migration or promotion has been performed for this candidate.
+
+
 ## Membership alone grants no posting access — 2026-11-03
 
 Normal Admin UI withdrew the last Reader assignment to v6, preserving ordinary

@@ -2891,8 +2891,26 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
           "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales",
+          "permission": "pharmacy.stock.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,

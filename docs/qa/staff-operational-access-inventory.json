@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "5c095cbe278ea64c46a25868fe2a0991a5ea568476dc679c20499e12982f3351",
+  "registry_sha256": "f7ff1580effa3e3b0f8c470871498f1e122fa0f81fb85474ab59536c6e463c4b",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 799,
-    "unclassified": 776
+    "total": 801,
+    "unclassified": 778
   },
   "entries": [
     {
@@ -6040,6 +6040,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
       "kind": "http",
       "module": "pharmacy",
@@ -6048,6 +6064,22 @@
         "method": "GET",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
         "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales",
+        "permission": "pharmacy.stock.read",
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,

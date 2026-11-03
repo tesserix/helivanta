@@ -11,7 +11,11 @@ The owner API/SDK, reviewer UI and lifecycle consumers remain separate follow-up
 
 Local validation: 609 SDK tests/76 files, API typecheck/lint, 66 catalog/inventory
 checks, Go build/scoped IAM vet/lint (0 issues), generated contracts/check and
-whitespace checks pass. Full real IAM race validation is running. The first SDK
+whitespace checks pass. The first serial real IAM race run completed in 430.927s with one stale
+migration-count assertion (24 instead of 25); all behavioral cases, including
+both new scoped-role projections, passed. The phase test now also pins exact
+migration 0025 and its nonempty SQL, and its focused race run passed in 2.520s.
+A final full serial run and CI are required before merge. The first SDK
 attempt could not resolve the new worktree's shared setup file; correcting cached
 workspace links produced the passing run without installing dependencies.
 Existing IAM source pins were reconciled for the additive migration only;

@@ -1729,7 +1729,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Equal(t, 409, request("GET", evidencePath, reviewer, nil, "application/json").Code)
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	var postingRegistrationPath string
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1990,7 +1991,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
 			require.NoError(t, err)
 			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
-			if scenario == "actor_enforcement" {
+			if scenario == "actor_enforcement" || scenario == "posting_command_first" {
 				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 				require.NoError(t, err)
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
@@ -2022,7 +2023,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					t.Helper()
 					var count int64
 					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
-						return tx.Table("workforce_audit").Where("action = ?", "workforce.staff_actor.use").Count(&count).Error
+						return tx.Table("workforce_audit").Where("action = ? AND resource_id=?::uuid", "workforce.staff_actor.use", joiner).Count(&count).Error
 					}))
 					return count
 				}
@@ -2055,12 +2056,14 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, joiner, scopedSource["staff_id"])
 				require.Empty(t, call(t, "GET", scopedStaffBase+"/posting-drafts", recipient, nil, 200)["data"])
 				organizationBase := "/v1/organization/hospitals/" + hospital
-				registrationPath := organizationBase + "/registrations/" + uuid.Must(uuid.NewV7()).String()
-				call(t, "PUT", registrationPath, maker, map[string]any{"reason": "Synthetic scoped posting department setup"}, 200)
-				require.Eventually(t, func() bool { return call(t, "GET", registrationPath, maker, nil, 200)["status"] == "verified" }, 10*time.Second, 20*time.Millisecond)
+				if postingRegistrationPath == "" {
+					postingRegistrationPath = organizationBase + "/registrations/" + uuid.Must(uuid.NewV7()).String()
+					call(t, "PUT", postingRegistrationPath, maker, map[string]any{"reason": "Synthetic scoped posting department setup"}, 200)
+					require.Eventually(t, func() bool { return call(t, "GET", postingRegistrationPath, maker, nil, 200)["status"] == "verified" }, 10*time.Second, 20*time.Millisecond)
+				}
 				departmentID, departmentRevision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
-				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-POSTING-CHOICE", "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
+				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-P-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-")), "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
 				call(t, "PUT", departmentPath, maker, departmentInput, 200)
 				choicesPath := organizationBase + "/posting-department-choices?limit=1"
 				call(t, "GET", choicesPath, recipient, nil, 403)
@@ -2101,6 +2104,32 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, scopedReceipt, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft, recipient, nil, 200))
 				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
 				assertPostingConcurrentCommandsRetainOneRevision(t, db, hospital, scopedStaffBase, recipient, request, postingIntent)
+				preparationRequest := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: workforce.PermPostingPrepare}
+				preparationGrant, preparationErr := authority.AuthorizeScope(ctx, preparationRequest)
+				require.NoError(t, preparationErr)
+				require.NotEmpty(t, preparationGrant.AssignmentID)
+				preparationProposalPath := "/v1/iam/assignment-proposals/" + preparationGrant.AssignmentID
+				preparationProposal := call(t, "GET", preparationProposalPath, maker, nil, 200)
+				call(t, "POST", preparationProposalPath+"/decision", maker, map[string]any{"expected_version": preparationProposal["version"], "decision": "withdraw", "reason": "Synthetic posting preparer downgrade"}, 200)
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				call(t, "GET", choicesPath, recipient, nil, 403)
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+					t.Error("withdrawn assignment evidence reached the Staff source callback")
+					return nil
+				}), authz.ErrScopedCommandDenied)
+				require.Eventually(t, func() bool {
+					read, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: workforce.PermPostingRead})
+					return err == nil && read.AssignmentID != ""
+				}, 10*time.Second, 20*time.Millisecond)
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "independently approved reader authority survives a preparer downgrade")
+				downgradedScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"].([]any)
+				require.Len(t, downgradedScopes, 1)
+				require.Equal(t, false, downgradedScopes[0].(map[string]any)["can_prepare"])
+				grant(recipient, "workforce.posting_preparer.v1", workforce.PermPostingPrepare)
+				sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
+				require.NoError(t, sourceErr)
+				require.NotEmpty(t, sourceGrant.AssignmentID)
+				require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200), "fresh independently approved preparation authority can recover an existing command without mutating its receipt")
 				choices := call(t, "GET", choicesPath, recipient, nil, 200)
 				uncached := request("GET", choicesPath, recipient, nil, "application/json")
 				require.Equal(t, 200, uncached.Code, uncached.Body.String())
@@ -2143,12 +2172,20 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				beforeInvalidation := sourceAudits()
 				endingEnrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
 				endingInput := map[string]any{"expected_version": endingEnrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": "Synthetic altered identity", "work_phone": "+919000000004"}}
-				ending, retained := startSerializedPostingRequests(t, db, hospital, request,
-					postingRaceRequest{"PUT", joinerPath + "/enrollment?hr_intake=v1", manager, endingInput},
-					postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent})
-				finishActivationRequest(t, ending, 200)
-				deniedRetained := finishActivationRequest(t, retained, 403)
-				require.NotContains(t, deniedRetained, "id", "a source change that wins the commit order withholds even a retained command receipt")
+				endingRequest := postingRaceRequest{"PUT", joinerPath + "/enrollment?hr_intake=v1", manager, endingInput}
+				retainedRequest := postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent}
+				if scenario == "posting_command_first" {
+					retained, ending := startSerializedPostingRequests(t, db, hospital, request, retainedRequest, endingRequest)
+					require.Equal(t, scopedReceipt, finishActivationRequest(t, retained, 200), "a retained command that wins the commit order returns its immutable receipt")
+					finishActivationRequest(t, ending, 200)
+					require.EqualValues(t, beforeInvalidation+1, sourceAudits(), "only the command committed before source ending records a successful source use")
+					beforeInvalidation = sourceAudits()
+				} else {
+					ending, retained := startSerializedPostingRequests(t, db, hospital, request, endingRequest, retainedRequest)
+					finishActivationRequest(t, ending, 200)
+					deniedRetained := finishActivationRequest(t, retained, 403)
+					require.NotContains(t, deniedRetained, "id", "a source change that wins the commit order withholds even a retained command receipt")
+				}
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 403)
 				called := false
@@ -2157,6 +2194,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "GET", choicesPath, recipient, nil, 403)
 				call(t, "GET", scopedCommandPath, recipient, nil, 403)
 				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200), "ending source authority preserves the historical receipt for an independently authorized administrator")
 				require.EqualValues(t, beforeInvalidation, sourceAudits(), "denied source consumption retains no new audit evidence")
 				grant(recipient, "workforce.hr_intake.v1", workforce.PermEnrollmentManage)
 				call(t, "PUT", base+"/access/"+recipient, maker, map[string]any{"level": "manager"}, 200)

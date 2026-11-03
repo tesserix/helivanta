@@ -1,5 +1,43 @@
 # Staff Management delivery tracker
 
+## Posting source ordering and preparer downgrade — 2026-11-03
+
+Two independently reviewed digital Staff actors now exercise both PostgreSQL
+supervision-lock orderings for a retained posting-command retry versus an
+identity-source edit. A source edit queued first withholds the actor's retained
+receipt (403). A retained retry queued first returns the original receipt and
+commits one successful source-use audit before the edit. After either source
+change, later scoped GET/PUT attempts are denied; restoring old identity fields
+cannot revive the reviewed generation. An independently authorized administrator
+can still read the immutable historical receipt. This proves retained-command
+release ordering; it does not claim every source-ending/write variation.
+
+The same actors now exercise preparation-role withdrawal and fresh approval:
+withdrawal immediately denies retained PUT and department-choice access; stale
+IAM evidence cannot enter the source callback. Independently approved reader
+access still reads the original receipt, and hospital discovery reports
+`can_prepare=false`. A new independently reviewed preparer assignment plus fresh
+current evidence restores preparation without changing the retained receipt.
+Source audit assertions are now bound to the exact Staff actor, so one actor's
+successful uses cannot satisfy another actor's audit check. The two fixtures reuse
+the hospital's existing verified Organization registration rather than attempting
+a second registration; the API correctly rejects duplicate registration intent.
+
+No product code, schema, role catalog, dependency or production policy changed.
+The complete parent `TestPreEmploymentPersonReviewPreservesInactiveJoiner` passes
+with real PostgreSQL/OpenFGA and `-race -v -count=1 -timeout=20m` through the local
+runner: **121.897 s**. The preceding both-ordering run also passed (114.767 s).
+The new fixture initially returned the correct 409 for a second hospital
+registration; only fixture reuse was corrected, not that API assertion/contract.
+Vet and affected Go lint are checked separately. CI for `31f08186` passed API/shell
+builds, Trivy and GitGuardian; deployment advancement was skipped.
+
+Remaining gates include source-expiry and remaining membership/link/assignment
+revocation cases, normal Admin/reviewer/reader/preparer browser acceptance, the
+recorded intermittent evidence-admission failure, effective posting approval and
+operating duties. The local Chrome block and broader Staff ledger remain open.
+No runtime acceptance tags, merge or production rollout are claimed.
+
 ## Shared Staff source boundary and posting races — 2026-11-03
 
 The reusable source seam now has direct real-IAM/PostgreSQL evidence that a valid
@@ -14,9 +52,11 @@ revision. Concurrent conflicting intent produces one success and one 409, with
 only one business mutation audit. A source-changing identity edit queued before
 a posting retry commits first; the retry returns 403 without disclosing its
 retained receipt. Restoring the old identity fields still cannot revive the
-reviewed generation. The complementary command-before-source-ending ordering,
-source expiry/remaining assignment and membership revocation matrix, normal
-positive-role browser journeys and production acceptance remain open.
+reviewed generation. At that checkpoint the complementary command-before-source-
+ending ordering was still open; the newer ordering/downgrade section above now
+proves that behavior for retained retries. Source expiry/remaining assignment and
+membership revocation cases, normal positive-role browser journeys and production
+acceptance remain open.
 
 These are acceptance tests for existing owner-guard behavior; no application,
 schema, permission, dependency or production configuration changed in this

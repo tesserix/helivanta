@@ -125,3 +125,9 @@ type StaffPostingProposalContext struct {
 	SubmissionReason string               `json:"submission_reason"`
 	DecisionReason   *string              `json:"decision_reason"`
 }
+
+type StaffPostingInboxItem struct {
+	Proposal    StaffPostingProposal `json:"proposal"`
+	Staff       StaffPostingTarget   `json:"staff"`
+	IsSubmitter bool                 `json:"is_submitter"`
+}

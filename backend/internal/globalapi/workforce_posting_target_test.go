@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, base, hospital, staff, manager, admin, actor, reviewer string, generation map[string]any, authorizationUnavailable *atomic.Bool) {
+func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, base, hospital, staff, manager, admin, actor, reviewer string, generation map[string]any, authorizationUnavailable *atomic.Bool, queueReviewer string) {
 	t.Helper()
 	staffBase := base + "/staff/" + staff
 	postingBase := base + "/posting-staff/" + staff
@@ -53,6 +53,28 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	require.Equal(t, generation["id"], pending["generation_id"])
 	require.Equal(t, "pending", pending["status"])
 	require.Equal(t, false, pending["grants_access"])
+	queuePath := base + "/posting-proposal-inbox?status=pending&limit=1"
+	queue := call(t, "GET", queuePath, queueReviewer, nil, 200)
+	queueRows := queue["data"].([]any)
+	require.Len(t, queueRows, 1)
+	queueRow := queueRows[0].(map[string]any)
+	require.Equal(t, pending, queueRow["proposal"])
+	currentStaff := call(t, "GET", staffBase, admin, nil, 200)
+	require.Equal(t, map[string]any{"id": staff, "employee_code": currentStaff["employee_code"], "display_name": currentStaff["display_name"]}, queueRow["staff"])
+	require.Equal(t, false, queueRow["is_submitter"])
+	require.Equal(t, true, queue["page"].(map[string]any)["has_more"])
+	cursor := queue["page"].(map[string]any)["next_cursor"].(string)
+	next := call(t, "GET", queuePath+"&cursor="+cursor, queueReviewer, nil, 200)["data"].([]any)
+	require.Len(t, next, 1)
+	require.NotEqual(t, pending["id"], next[0].(map[string]any)["proposal"].(map[string]any)["id"])
+	call(t, "GET", strings.Replace(queuePath, "status=pending", "status=rejected", 1)+"&cursor="+cursor, queueReviewer, nil, 400)
+	call(t, "GET", queuePath+"&cursor="+cursor, actor, nil, 400)
+	call(t, "GET", base+"/posting-proposal-inbox?limit=9", queueReviewer, nil, 400)
+	call(t, "GET", queuePath, admin, nil, 403)
+	call(t, "PUT", draftBase+"/commands/"+uuid.Must(uuid.NewV7()).String(), queueReviewer, map[string]any{}, 403)
+	ownedQueue := call(t, "GET", queuePath, actor, nil, 200)["data"].([]any)
+	require.Equal(t, true, ownedQueue[0].(map[string]any)["is_submitter"])
+	assertPostingInboxProtection(t, db, tenant, hospital, staff, pending["id"].(string), queueReviewer, admin, queuePath, call, authorizationUnavailable)
 	require.Equal(t, pending, call(t, "PUT", command, actor, input, 200))
 	contextQuery := "?purpose=review&expected_version=1&expected_revision_id=" + pending["revision_id"].(string)
 	contextPath := proposal + "/context" + contextQuery

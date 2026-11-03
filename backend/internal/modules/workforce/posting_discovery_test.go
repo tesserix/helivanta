@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type postingDiscoveryMember struct{}
@@ -58,4 +59,20 @@ func TestPostingProtectedContextFitsWireBudget(t *testing.T) {
 	payload, err := json.Marshal(map[string]any{"data": row})
 	require.NoError(t, err)
 	require.LessOrEqual(t, len(payload), 20*1024, "three maximum escaped reasons and fixed source DTOs fit the protected-view budget")
+}
+
+func TestPostingHospitalInboxFitsWireBudget(t *testing.T) {
+	end := time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)
+	id := uuid.Must(uuid.NewV7())
+	proposal := workforce.StaffPostingProposal{ID: id, RevisionID: id, CommandID: id, HospitalID: id, StaffID: id,
+		Version: 9007199254740990, Status: "withdrawn", DraftID: id, DraftRevisionID: id, DraftVersion: 9007199254740990,
+		GenerationID: id, StaffVersion: 9007199254740990, EmploymentEpoch: 9007199254740990, DepartmentID: id, DepartmentRevisionID: id,
+		StartsAt: end, EndsAt: &end, EligibilityUntil: end, CreatedAt: end, RecordedAt: end}
+	rows := make([]workforce.StaffPostingInboxItem, 8)
+	for i := range rows {
+		rows[i] = workforce.StaffPostingInboxItem{Proposal: proposal, Staff: workforce.StaffPostingTarget{ID: id, EmployeeCode: strings.Repeat("<", 40), DisplayName: strings.Repeat("<", 150)}}
+	}
+	encoded, err := json.Marshal(map[string]any{"data": rows, "page": map[string]any{"has_more": true, "next_cursor": strings.Repeat("X", 2048)}})
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(encoded), 20*1024, "maximum escaped labels, source pins and continuation fit the inbox budget")
 }

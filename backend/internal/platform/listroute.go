@@ -1,6 +1,10 @@
 package platform
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -63,12 +67,32 @@ func ScopedHospitalListRoute[T Keyed](r *Router, path string, permission authz.P
 	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlers(path, h)...)
 }
 
+// ScopedHospitalQueryListRoute binds new cursors to the caller, hospital and one normalized filter.
+func ScopedHospitalQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam, queryKey, queryDefault string, maxLimit int, h ListHandler[T]) {
+	if queryKey == "" || queryKey == "cursor" || queryKey == "limit" || maxLimit < 1 || maxLimit > pagination.MaxLimit {
+		panic("platform: scoped query list requires a domain filter")
+	}
+	scope := func(c *gin.Context, p authn.Principal) string {
+		value := c.Query(queryKey)
+		if value == "" {
+			value = queryDefault
+		}
+		digest := sha256.Sum256([]byte(p.Subject + "\x00" + c.FullPath() + "\x00" + strings.ToLower(c.Param(hospitalParam)) + "\x00" + value))
+		return hex.EncodeToString(digest[:])
+	}
+	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
+}
+
 // ScopedHospitalProjectionListRoute preserves list envelopes and legacy admission for opt-in scope consumers.
 func ScopedHospitalProjectionListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam, queryKey, version string, h ListHandler[T]) {
 	r.handleHospitalScopeUsing("GET", path, permission, hospitalParam, true, authz.RequireHospitalScopeProjection(permission, hospitalParam, r.scopedAuthorizer, queryKey, version), listHandlers(path, h)...)
 }
 
 func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
+	return listHandlersWithScope(path, h, nil, 0)
+}
+
+func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, maxLimit int) []gin.HandlerFunc {
 	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
@@ -83,6 +107,23 @@ func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 			respond.BadRequest(c, err)
 			return
 		}
+		if maxLimit > 0 {
+			if c.Query("limit") == "" {
+				params.Limit = maxLimit
+			}
+			if params.Limit > maxLimit {
+				respond.BadRequest(c, pagination.ErrInvalidLimit)
+				return
+			}
+		}
+		scope := ""
+		if scopeFor != nil {
+			scope = scopeFor(c, p)
+			if params.After != nil && params.After.Scope != scope {
+				respond.BadRequest(c, pagination.ErrInvalidCursor)
+				return
+			}
+		}
 
 		rows, err := h(c, params)
 		if c.IsAborted() {
@@ -90,6 +131,10 @@ func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 		}
 		if err != nil {
 			respond.InternalErr(c, err, "could not list "+path)
+			return
+		}
+		if maxLimit > 0 && len(rows) > params.Limit+1 {
+			respond.InternalErr(c, errors.New("list page exceeds bound"), "could not list "+path)
 			return
 		}
 
@@ -106,7 +151,7 @@ func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 		var next *string
 		if hasMore && len(rows) > 0 {
 			at, id := rows[len(rows)-1].PageKey()
-			encoded := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id}.Encode()
+			encoded := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Scope: scope}.Encode()
 			next = &encoded
 		}
 

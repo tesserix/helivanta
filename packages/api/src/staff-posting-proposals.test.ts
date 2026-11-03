@@ -68,6 +68,81 @@ const receipt = {
 };
 afterEach(() => vi.resetAllMocks());
 
+it("discovers bounded hospital proposal rows with original account headers", async () => {
+  const api = await import("./staff-posting-proposals");
+  const staff = {
+    id: scope.staffId,
+    employee_code: "SYN-POSTING-QUEUE",
+    display_name: "Synthetic queue worker",
+  };
+  const page = {
+    data: [{ proposal: receipt, staff, is_submitter: false }],
+    page: { has_more: false, next_cursor: null },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(page);
+  const controller = new AbortController();
+  expect(
+    await api.listStaffPostingProposalInbox(scope, "pending", null, controller.signal),
+  ).toEqual(page);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-proposal-inbox?status=pending&limit=8`,
+    expect.objectContaining({
+      cache: "no-store",
+      signal: controller.signal,
+      headers: expect.objectContaining({
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      }),
+    }),
+  );
+});
+
+it("rejects inbox rows outside their hospital, Staff relationship, status or page bound", async () => {
+  const api = await import("./staff-posting-proposals");
+  const item = {
+    proposal: receipt,
+    staff: { id: scope.staffId, employee_code: "SYN-QUEUE", display_name: "Synthetic worker" },
+    is_submitter: false,
+  };
+  const page = { data: [item], page: { has_more: false, next_cursor: null } };
+  for (const changed of [
+    { ...page, data: [{ ...item, proposal: { ...receipt, hospital_id: id(90) } }] },
+    { ...page, data: [{ ...item, staff: { ...item.staff, id: id(90) } }] },
+    { ...page, data: [{ ...item, proposal: { ...receipt, status: "rejected" } }] },
+    { ...page, data: [{ ...item, reason: "Private rationale must not be listed" }] },
+    { ...page, data: [item, item] },
+    {
+      ...page,
+      data: Array.from({ length: 9 }, (_, n) => ({
+        ...item,
+        proposal: { ...receipt, id: id(n + 100) },
+      })),
+    },
+    { ...page, data: [], page: { has_more: true, next_cursor: "next" } },
+    { ...page, page: { has_more: true, next_cursor: null } },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue(changed);
+    await expect(api.listStaffPostingProposalInbox(scope)).rejects.toThrow();
+  }
+  vi.mocked(apiFetch).mockResolvedValue({
+    ...page,
+    page: { has_more: true, next_cursor: "replayed" },
+  });
+  await expect(api.listStaffPostingProposalInbox(scope, "pending", "replayed")).rejects.toThrow();
+});
+
+it("discards inbox responses cancelled during transfer", async () => {
+  const api = await import("./staff-posting-proposals");
+  const controller = new AbortController();
+  vi.mocked(apiFetch).mockImplementationOnce(async () => {
+    controller.abort();
+    return { data: [], page: { has_more: false, next_cursor: null } };
+  });
+  await expect(
+    api.listStaffPostingProposalInbox(scope, "pending", null, controller.signal),
+  ).rejects.toThrow();
+});
+
 it("releases only the requested exact protected proposal context", async () => {
   const api = await import("./staff-posting-proposals");
   const request = {

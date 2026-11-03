@@ -198,3 +198,47 @@ lint passed. The complete current Global API race run subsequently passed in
 fallback SSH forwards. Combining the two complete-suite profiles with that parser
 gives 12,147 / 14,611 Workforce statements (83.136%). Full backend CI remains in
 progress; these complete affected-package runs are not a substitute for that gate.
+
+### Hospital inbox source delta
+
+The inbox adds one scoped GET and additive candidate migrations 0076/0077.
+Comparison against published `b5cf5631` preserves every existing Workforce/IAM
+route registration and grant. The only changed previously reviewed source hash
+is Workforce `module.go`: additive embed/migrations/route registration, with no
+legacy route or grant changes. Existing 23 review classifications and rationales
+are preserved. Generated inventory is now 795 registered / 772 unclassified;
+all eleven new proposal surfaces remain unclassified.
+
+`postingActorForHospital` extracts the existing exact active-link discovery
+without changing its query, and adds nil-provider/zero-actor refusal. The new
+inbox still obtains current authority inside `scopedPostingTransaction`.
+`postingProposalAuditRecord` preserves existing proof fields and merges trusted
+inbox status/count before immutable source proof. Existing audit callers pass
+no additional details. The list helper retains old wrappers/cursor encoding;
+only the new scoped-query wrapper opts into subject/hospital/filter binding and
+an eight-item default/max with handler-overrun refusal.
+
+The SQL read purpose broadens SELECT only. The first full owner run rejected a
+second permissive policy; the migration now composes the existing permissive
+predicate and retains its original UPDATE/DELETE eligibility with restrictive
+guards and its unchanged WITH CHECK predicate. Existing statement-level destructive
+operation guards continue to reject revision updates and both table deletes;
+proposal-head UPDATE under the read purpose affects zero rows. The fixture
+assertions were corrected to distinguish those two existing protection modes.
+No rejected statement is treated as a successful zero-row command.
+
+
+Corrected-migration validation: full Global API race 472.140s, Workforce
+race 679.419s, architecture race 65.636s and platform race 12.850s pass. The RLS
+invariant failure from the first owner run is resolved. Contractdocs, the
+canonical generators and 15 inventory tests pass; the additional full-projection
+queue-plan/index probe is being recorded separately. No scale or production
+acceptance follows from these small synthetic fixtures.
+
+
+The final gateway protection/index-plan run passed in 100.443s. The representative
+full-projection first-page plan uses the registered inbox index and returns three
+rows under Limit; execution 2.124ms/planning 5.003ms on the small synthetic fixture.
+The exact index columns are asserted. The plan is captured privately; continuation
+and production-scale/SLO evidence remain open. No runtime code changed after the
+complete suite runs; this final addition is test-only plan/index evidence.

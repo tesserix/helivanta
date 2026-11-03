@@ -7763,6 +7763,17 @@
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-proposal-inbox",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source",
           "permission": "workforce.posting.read",
           "authentication_required": true,
@@ -9913,6 +9924,44 @@
           "creates_tables": [
             "workforce_posting_proposals",
             "workforce_posting_proposal_revisions"
+          ]
+        },
+        {
+          "id": "0076_workforce_posting_proposal_browse",
+          "sql_sha256": "74791a2485620c4cbbedcf24447d02ce6d3920a26eac965786126c5b251c2e3f",
+          "creates_tables": []
+        },
+        {
+          "id": "0077_workforce_posting_proposal_inbox_index",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "workforce_posting_proposal_inbox",
+              "table": "workforce_posting_proposals",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "hospital_id",
+                  "descending": false
+                },
+                {
+                  "name": "status",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": true
+                },
+                {
+                  "name": "id",
+                  "descending": true
+                }
+              ]
+            }
           ]
         }
       ]

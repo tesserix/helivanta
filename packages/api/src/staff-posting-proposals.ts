@@ -11,6 +11,7 @@ import {
   StaffPostingDecisionInputContract,
   StaffPostingProposalContextRequestContract,
   StaffPostingProposalContextContract,
+  StaffPostingInboxItemContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
   type StaffPostingProposal,
@@ -20,6 +21,7 @@ import {
 } from "./staff-postings-contract";
 
 export type StaffPostingProposalScope = Omit<StaffPostingScope, "access"> & { access: "scoped" };
+export type StaffPostingInboxScope = Omit<StaffPostingProposalScope, "staffId">;
 const identifier = z
   .string()
   .guid()
@@ -44,7 +46,7 @@ export const staffPostingProposalsKey = (scope: StaffPostingProposalScope) => [
   scope.staffId,
 ];
 
-function root(scope: StaffPostingProposalScope) {
+function hospitalRoot(scope: StaffPostingInboxScope) {
   if (scope.access !== "scoped")
     throw new Error("Posting review requires an explicitly scoped workspace.");
   identifier.parse(scope.tenantId);
@@ -54,7 +56,10 @@ function root(scope: StaffPostingProposalScope) {
     .refine((value) => value === value.trim() && !/\p{Cc}/u.test(value))
     .parse(scope.subject);
   if (tenantTransitionPending()) throw new Error("Wait for your workspace to finish switching.");
-  return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}/posting-staff/${identifier.parse(scope.staffId)}/posting-proposals`;
+  return `/workforce/hospitals/${identifier.parse(scope.hospitalId)}`;
+}
+function root(scope: StaffPostingProposalScope) {
+  return `${hospitalRoot(scope)}/posting-staff/${identifier.parse(scope.staffId)}/posting-proposals`;
 }
 function matchesScope(
   row: { hospital_id: string; staff_id: string },
@@ -370,4 +375,55 @@ export async function getStaffPostingProposalContext(
   )
     throw new Error("The protected posting context does not match the selected proposal sources.");
   return context;
+}
+
+const inboxPageContract = z
+  .object({
+    data: z.array(StaffPostingInboxItemContract).max(8),
+    page: z.object({ has_more: z.boolean(), next_cursor: cursorSchema.nullable() }).strict(),
+  })
+  .strict();
+
+export async function listStaffPostingProposalInbox(
+  scope: StaffPostingInboxScope,
+  status: StaffPostingProposal["status"] = "pending",
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const selectedStatus = StaffPostingProposalContract.shape.status.parse(status);
+  const query = new URLSearchParams({ status: selectedStatus, limit: "8" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  signal?.throwIfAborted();
+  const raw = await apiFetch(`${hospitalRoot(scope)}/posting-proposal-inbox?${query}`, {
+    ...enrollmentRequestOptions(scope),
+    signal,
+  });
+  signal?.throwIfAborted();
+  const page = inboxPageContract.parse(raw);
+  if (
+    page.page.has_more !== Boolean(page.page.next_cursor) ||
+    (page.page.has_more && page.data.length === 0) ||
+    (cursor !== null && page.page.next_cursor === cursor) ||
+    new Set(page.data.map((item) => item.proposal.id.toLowerCase())).size !== page.data.length
+  )
+    throw new Error("The posting proposal inbox page could not be verified.");
+  for (const [index, item] of page.data.entries()) {
+    if (
+      !same(item.proposal.hospital_id, scope.hospitalId) ||
+      !same(item.staff.id, item.proposal.staff_id) ||
+      item.proposal.status !== selectedStatus
+    )
+      throw new Error("The posting inbox does not match this hospital, Staff or status.");
+    if (index > 0) {
+      const previous = page.data[index - 1].proposal;
+      const before = staffPostingInstantMicros(previous.created_at)!;
+      const after = staffPostingInstantMicros(item.proposal.created_at)!;
+      if (
+        before < after ||
+        (before === after && previous.id.toLowerCase() <= item.proposal.id.toLowerCase())
+      )
+        throw new Error("The posting proposal inbox order could not be verified.");
+    }
+  }
+  return page;
 }

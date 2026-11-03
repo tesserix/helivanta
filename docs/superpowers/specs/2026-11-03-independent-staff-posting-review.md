@@ -96,6 +96,53 @@ from current operational eligibility.
 
 ## Source and supervision requirements
 
+### Hospital proposal inbox
+
+Candidate `GET /v1/workforce/hospitals/:hospital/posting-proposal-inbox` consumes
+current hospital `workforce.posting.proposal.read` and Staff-actor-use authority
+through one guarded owner transaction. Tenant administration and legacy hospital
+grants do not substitute. Read the caller's own active link for admission, then
+require the guarded actor to match that discovered Staff before querying rows;
+a changed link must refuse, not fabricate an empty queue.
+
+Return canonical nested public proposal and Staff summary DTOs plus an
+`is_submitter` observation derived from the original submission and current
+principal. This boolean grants no command authority. Independence stays in the
+protected context/decision owner checks. Staff labels are current directory
+labels; the proposal's versions and intervals remain its recorded source pins.
+Exclude reasons, actor subjects, hashes and evidence. Default status is pending;
+one explicit pending/approved/rejected/withdrawn filter is supported per request.
+
+Use at most eight entries plus one probe, with newest-first `(created_at,id)`
+keysets and an explicit 20-KiB wire-budget test. Retain the parent's 50 peak
+requests/s, 80:20 reads/writes, p99 under 500 ms and 99.9% planning assumptions.
+For sizing only, four retained proposals per Staff imply 2/6 million heads at
+the inherited 12/36-month Staff volumes. These are not measured SLOs or policy.
+Add the tenant/hospital/status/time/ID queue index through a separate concurrent
+index migration. No new service, table, paid dependency or employee master is
+required; incremental cost is existing database/index storage, to be measured.
+
+Append owner 0076 for a read-only inbox purpose on proposal heads and only their
+original/current revisions. Compose the single existing permissive predicate;
+retain its original UPDATE/DELETE eligibility in restrictive policies and its
+unchanged write check. Reuse the guarded
+directory purpose for Staff labels. Keep prior SQL, write checks and destructive
+guards unchanged. Bind the read purpose to exact tenant, hospital, current actor,
+link/generation and positive scoped assignment/epoch pins in read mode. Audit the
+hospital/status/page observation and current actor-use through commit; errors or
+dependency failure withhold the whole page. No business write or outbox event is
+performed. Missing providers are 503, missing authority 403, malformed queries or
+cross-scope cursors 400. A healthy authorized empty queue remains explicit.
+
+The new scoped-list wrapper binds opaque cursor positions to principal, actual
+hospital, route and normalized status; existing list wrappers/cursors retain
+their behavior. SDK validation binds every nested Staff/proposal to the requested
+hospital and status, rejects duplicate/replayed pages and private extra fields,
+and carries original-account headers/no-store/cancellation through Global API.
+Normal UI must use the server context check when opening a row and reauthorize
+every decision. Rollback retains additive policies/index/history; production
+rollout/migration still needs its named revision and forward list approved.
+
 ### Protected proposal context
 
 Candidate `GET /posting-proposals/:proposal/context` requires exactly one each
@@ -264,8 +311,10 @@ consumer must intersect current source/posting/duty/grant validity; null placeme
 end does not extend those owners' authority. The SDK and owner tests distinguish
 these cases rather than imposing a fabricated end on all permanent employment.
 
-The candidate forward schema is Workforce `0075_workforce_posting_proposals` plus
-the existing candidate IAM `0025_iam_staff_posting_review_templates`. Verify the
+The candidate forward schema is Workforce `0075_workforce_posting_proposals`,
+`0076_workforce_posting_proposal_browse` and concurrent-index registration
+`0077_workforce_posting_proposal_inbox_index`. IAM
+`0025_iam_staff_posting_review_templates` is the already deployed prerequisite. Verify the
 complete merged/main migration set before any production approval. No installed
 local persistent schema or production schema was changed by disposable tests.
 
@@ -296,5 +345,5 @@ Ordinary membership and administrator roles do not substitute for scoped
 capabilities. This route needs no new storage or broadened Staff/proposal RLS;
 it consumes only existing caller-link discovery and exact-actor source purposes.
 The existing capacity, timeout, no-store, keyset limits and additive rollback
-policy apply. A hospital proposal inbox and the normal reviewer UI remain
-separate mandatory follow-ups on this same feature branch.
+policy apply. The hospital proposal inbox is specified above. Normal reviewer decision UI and
+real-account browser acceptance remain mandatory follow-ups on this feature branch.

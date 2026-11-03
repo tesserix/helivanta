@@ -350,7 +350,6 @@ Independent approval, supervision/transfer/lifecycle enforcement, Staff review U
 acceptance and operating consumers remain open. Earlier migrations and catalog
 snapshots remain unchanged. See the [delivery evidence](../superpowers/plans/2026-11-03-independent-staff-posting-review.md).
 
-
 ### Review hospital discovery candidate
 
 `GET /v1/workforce/posting-review-scopes` uses the same bounded 20-candidate
@@ -368,5 +367,40 @@ reading and review, without preparation/editing. Earlier catalogs remain intact.
 The SDK uses same-origin Global API, mandatory original-account headers, no-store
 and cancellation. It rejects extra/private fields, missing/nonboolean flags,
 duplicate hospitals, oversized pages and inconsistent/repeating continuation.
-This candidate is not deployed and adds no storage migration. A hospital proposal
-inbox, normal reviewer UI, supervision and positive approval remain unfinished.
+This candidate is not deployed and adds no storage migration. The hospital inbox described below is implemented in this candidate; normal
+reviewer UI, supervision and positive approval remain unfinished.
+
+## Hospital posting proposal inbox (candidate)
+
+`GET /v1/workforce/hospitals/:hospital/posting-proposal-inbox` requires current
+hospital-scoped `workforce.posting.proposal.read` and a reviewed digital Staff
+actor with `workforce.staff_actor.use`. The caller's active login link supplies
+a candidate actor only; current assignment, membership/credential epochs and
+actor source are rechecked under the owner transaction through commit. Legacy
+administrator authority alone does not authorize this route.
+
+The only filters are `status`, `limit` and `cursor`, each supplied once. Status
+defaults to `pending`; `approved`, `rejected` and `withdrawn` are also accepted.
+Pages default to at most eight items, plus one internal continuation probe, in
+descending `(created_at,id)` order. Cursors bind to the current subject, exact
+hospital, route and normalized status as well as the verified tenant. Replaying
+across those boundaries returns 400. Responses use `Cache-Control: no-store`.
+
+Each item contains the public proposal, canonical Staff ID/code/display name,
+and `is_submitter`. It includes no rationale, subject, hashes or identity dossier.
+`is_submitter` is a display hint; exact-head protected context and decisions
+independently reauthorize the original submitter or independent reviewer.
+
+The owner records hospital, status, returned-row count and current actor source
+proof atomically. Audit persistence failure returns 500 with no data and rolls
+actor-use evidence back. Unavailable authorization returns 503; missing current
+permission returns 403. Empty queues are not a fallback for unavailable owners.
+
+Append-only candidate migration `0076_workforce_posting_proposal_browse` extends
+the single existing permissive read predicate for heads/current-and-original
+revisions, with restrictive UPDATE/DELETE guards retaining the prior read
+restriction and unchanged write checks. History-preservation guards remain intact. Candidate `0077`
+registers a concurrent `(tenant_id,hospital_id,status,created_at DESC,id DESC)`
+index. These follow candidate 0075 and have only been applied in disposable QA.
+They are forward migrations; production rollback would require a separately
+reviewed compensating change. No production activation is established here.

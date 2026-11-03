@@ -337,7 +337,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -2033,7 +2033,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				grant(postingReviewer, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
 				grant(postingReviewer, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 				grant(postingSubmitter, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
-				assertPostingNonDigitalTarget(t, db, testutil.TenantA, call, base, hospital, joiner, manager, maker, postingSubmitter, postingReviewer, generation, &authorizationUnavailable)
+				queueReviewer := "synthetic-activation-recipient-review_discovery"
+				grant(queueReviewer, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
+				assertPostingNonDigitalTarget(t, db, testutil.TenantA, call, base, hospital, joiner, manager, maker, postingSubmitter, postingReviewer, generation, &authorizationUnavailable, queueReviewer)
 				return
 			}
 			if scenario == "actor_enforcement" || scenario == "review_discovery" || strings.HasPrefix(scenario, "posting_") {
@@ -2126,7 +2128,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" {
 						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
 					}
 				}

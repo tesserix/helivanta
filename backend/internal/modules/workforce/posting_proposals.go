@@ -136,7 +136,18 @@ func postingProposalAudit(tx *gorm.DB, p authn.Principal, s postingDraftScope, a
 	if resource == uuid.Nil {
 		resource = s.staff
 	}
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,jsonb_build_object('version',?::bigint,'assignment_id',current_setting('app.workforce_posting_assignment',true),'assignment_version',current_setting('app.workforce_posting_assignment_version',true)::bigint,'scope_epoch',current_setting('app.workforce_posting_scope_epoch',true)::bigint,'membership_epoch',current_setting('app.workforce_posting_membership_epoch',true)::bigint,'actor_staff_id',current_setting('app.workforce_posting_actor',true),'actor_link_id',current_setting('app.workforce_posting_link',true),'actor_generation_id',current_setting('app.workforce_posting_generation',true)))`, p.TenantID, s.hospital, p.Subject, "workforce.posting_proposal."+action, resource, version).Error
+	return postingProposalAuditRecord(tx, p, s.hospital, resource, action, version, nil)
+}
+
+func postingProposalAuditRecord(tx *gorm.DB, p authn.Principal, hospital, resource uuid.UUID, action string, version int64, details map[string]any) error {
+	if details == nil {
+		details = map[string]any{}
+	}
+	payload, err := json.Marshal(details)
+	if err != nil {
+		return err
+	}
+	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,?::jsonb || jsonb_build_object('version',?::bigint,'assignment_id',current_setting('app.workforce_posting_assignment',true),'assignment_version',current_setting('app.workforce_posting_assignment_version',true)::bigint,'scope_epoch',current_setting('app.workforce_posting_scope_epoch',true)::bigint,'membership_epoch',current_setting('app.workforce_posting_membership_epoch',true)::bigint,'actor_staff_id',current_setting('app.workforce_posting_actor',true),'actor_link_id',current_setting('app.workforce_posting_link',true),'actor_generation_id',current_setting('app.workforce_posting_generation',true)))`, p.TenantID, hospital, p.Subject, "workforce.posting_proposal."+action, resource, string(payload), version).Error
 }
 
 func validPostingProposalInput(in *StaffPostingProposalInput) bool {

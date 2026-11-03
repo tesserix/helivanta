@@ -394,3 +394,12 @@ export const StaffPostingProposalContextContract = z
   })
   .strict();
 export type StaffPostingProposalContext = z.infer<typeof StaffPostingProposalContextContract>;
+
+export const StaffPostingInboxItemContract = z
+  .object({
+    proposal: StaffPostingProposalContract,
+    staff: StaffPostingTargetContract,
+    is_submitter: z.boolean(),
+  })
+  .strict();
+export type StaffPostingInboxItem = z.infer<typeof StaffPostingInboxItemContract>;

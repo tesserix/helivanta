@@ -482,6 +482,20 @@
         "pointer": true,
         "nullable": true
       }
+    ],
+    "StaffPostingInboxItem": [
+      {
+        "name": "proposal",
+        "type": "StaffPostingProposal"
+      },
+      {
+        "name": "staff",
+        "type": "StaffPostingTarget"
+      },
+      {
+        "name": "is_submitter",
+        "type": "bool"
+      }
     ]
   },
   "events": {

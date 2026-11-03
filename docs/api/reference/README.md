@@ -1049,6 +1049,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/person-review-inbox` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/person-review-targets/search` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-proposal-inbox` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source` | `workforce.posting.read` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command` | `workforce.posting.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command` | `workforce.posting.prepare` | false | false |
@@ -1270,6 +1271,7 @@ Migration table declarations:
 - `0072_workforce_credential_subject_index`: concurrent index `workforce_login_links_credential_subject` on `workforce_login_links (tenant_id, hospital_id, staff_id, subject)`.
 - `0073_workforce_posting_drafts`: `workforce_posting_drafts`, `workforce_posting_draft_revisions`.
 - `0075_workforce_posting_proposals`: `workforce_posting_proposals`, `workforce_posting_proposal_revisions`.
+- `0077_workforce_posting_proposal_inbox_index`: concurrent index `workforce_posting_proposal_inbox` on `workforce_posting_proposals (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
 
 ## workspace
 

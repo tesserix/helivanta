@@ -328,3 +328,107 @@ Restored complete gateway (454.878s), Workforce (700.117s) and architecture
 (49.919s) race suites passed, alongside SDK630/typecheck/lint/format and contract
 checks. Exact-head CI and the hospital inbox/normal UI remain required before
 acceptance. No new SQL or migration is introduced by this view.
+
+## 2026-11-04 hospital inbox implementation (validation in progress)
+
+The candidate adds a normal hospital proposal inbox backed by canonical Staff
+labels and immutable public proposal heads. The route defaults to pending,
+returns at most eight rows plus one internal probe, and binds continuation to
+the verified account, hospital and status. Protected reasons remain on the
+independently authorized exact-head context route. The SDK validates relationship,
+status, ordering, duplicates, page bounds and cancellation.
+
+Append-only candidate 0076 adds a guarded read purpose; 0077 registers the
+concurrent tenant/hospital/status/newest-first index. Neither is applied in
+production. The first owner-suite run exposed the repository's single-permissive
+RLS invariant: the initial additional SELECT policy was rejected. Corrected the
+candidate migration to compose the one existing permissive policy, preserve its
+write check and constrain UPDATE/DELETE to the prior read predicate. Existing
+statement-level history-preservation triggers remain intact.
+
+The strengthened real PostgreSQL/OpenFGA gateway journey passed in 112.522s before
+that policy-composition correction. It verified canonical labels, pagination,
+submitter display, reviewer-only draft denial, no head updates, rejected revision
+updates/deletes, missing proof/marker, changed actor, foreign tenant, audit rollback,
+authorization outage and immediate same-session cutoff after assignment withdrawal.
+Two fixture assertions were corrected after failures: statement-level destructive
+guards reject rather than affect zero rows, and the persisted-state probe needs
+the proposal UUID rather than its route URL. These were test errors, not weakened
+production guards. The complete suites on the corrected migration are pending.
+
+SDK: 633 tests / 78 files pass, with type checks, lint and formatting. Go build,
+scoped vet and scoped golangci-lint pass (0 issues). Full platform race suite
+passes in 12.850s via the isolated QA runner; its initial bare invocation failed
+because it omitted the explicit Docker socket. Removing cursor scope rejection
+made the changed-status assertion return 200 instead of 400; the mutation failed,
+original bytes were restored (SHA256
+`e04cc298a22ae0a74e600b3b8f714cdaaa390b26ba3781df50a7c85a31404322`),
+and both focused cursor/bound tests passed again under race in 2.157s.
+
+Contractdocs generation/check and all 15 inventory tests pass. The existing
+Workforce/IAM registrations and grants are unchanged; exactly one route was added
+and the ledger is 795 registered / 772 unclassified. Prior 23 classifications and
+rationales are retained. Source/inventory review does not establish operational
+acceptance. The query index still needs recorded plan/scale evidence; no scale
+or latency claim is made from the small fixtures.
+
+Normal reviewer inbox/detail/decision UI and real browser acceptance remain open,
+along with supervision, positive approval and effective posting/lifecycle consumers.
+Do not merge or roll out this candidate as completed Staff Management.
+
+### Corrected-migration and reviewer presentation checks
+
+The corrected 0076 composition passes the focused owner security suite in
+11.579s and the full Global API race suite in 472.140s. The complete architecture
+race suite passes in 65.636s through the explicit QA socket. A bare architecture
+invocation initially failed to reach Docker; that was not an application failure.
+The first full Workforce rerun was interrupted by the private wrapper's race
+between listing and inspecting another suite's removed container. The wrapper
+now tolerates that disappearance; four exact-session-owned fixtures were captured
+privately and removed. The serial complete owner rerun subsequently passed in 679.419s.
+
+The normal candidate `/workforce/posting-reviews` page now discovers scoped
+hospitals, lists the bounded public inbox and opens exact-head protected rationale
+only on selection. Tenant switching hides the account view; account/hospital/
+status/page changes unmount selected context. Query keys include original account,
+hospital and exact selected version/revision/purpose, with zero cache retention.
+Reviewers get review context; original submitters request submission context.
+This is read-only presentation, not complete decision/browser acceptance.
+
+Four component checks pass for discovery/selected disclosure/close, 403 cutoff,
+503 withholding and original-account change. Existing posting component checks
+also pass (12 total across three files). Navigation first failed for the missing
+entry; adding it exposed a duplicate-icon check, fixed with a unique Staff icon.
+The full UI library passes 279 tests/27 files, types and lint; shell types/lint
+and a local webpack build pass. The default build first lacked API_URL, then
+Turbopack rejected dependency symlinks outside this worktree; the successful
+webpack build uses the identical cached lockfile and local workspace sources.
+The complete shell suite remains pending. No packages or images were downloaded.
+
+Read-only local discovery found ports4399/8399 now owned by a separate Leave
+candidate, with saved runtime PID different from the current listener. Those
+services and their state were preserved. This posting candidate needs an isolated
+local runtime before real-account browser acceptance; production remains unchanged.
+
+The complete shell suite subsequently passed **1,435 tests /177 files** in
+321.34s. The successful webpack build includes `/workforce/posting-reviews`.
+Its read-only behavior remains separate from decision controls and browser
+acceptance. An additional representative full-projection SQL plan/index probe is
+being verified through the real gateway fixture; it does not establish scale.
+
+The complete corrected-migration Workforce race suite passed in **679.419s**;
+four exact-session-owned fixtures were removed and no fallback SSH forwards were
+needed. The representative inbox query-plan/index probe is the final pending
+checkpoint check. Production and broad Staff acceptance remain unchanged.
+
+
+The final real gateway protection/index-plan journey passed in **100.443s**.
+The representative full-projection first-page `EXPLAIN (ANALYZE, BUFFERS)` uses
+`workforce_posting_proposal_inbox`, returns three synthetic rows under a Limit
+and records 2.124ms execution/5.003ms planning on this small fixture. Index
+registration/column order are verified. This does not prove continuation plans,
+production scale or an SLO. The full plan and test logs are retained privately in
+`~/.helivanta/staff-management-20261027/posting-inbox-20261104/`.
+All checkpoint checks now pass. Normal decision UI, an isolated real-account
+browser journey and the wider supervision/operational/lifecycle work remain open;
+this candidate remains draft and is not rolled out.

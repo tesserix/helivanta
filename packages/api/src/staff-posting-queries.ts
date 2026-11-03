@@ -1,6 +1,18 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { listStaffPostingScopes, listStaffPostingTargets } from "./staff-posting-workspace";
+import {
+  listStaffPostingScopes,
+  listStaffPostingTargets,
+  listStaffPostingReviewScopes,
+} from "./staff-posting-workspace";
+import {
+  getStaffPostingProposalContext,
+  listStaffPostingProposalInbox,
+  staffPostingProposalsKey,
+  type StaffPostingInboxScope,
+  type StaffPostingProposalScope,
+} from "./staff-posting-proposals";
+import type { StaffPostingProposal } from "./staff-postings-contract";
 import { POLL_INTERVAL_MS } from "./client";
 import {
   getStaffPostingDraftSource,
@@ -84,5 +96,69 @@ export function useStaffPostingTargets(
       cursor,
     ],
     queryFn: ({ signal }) => listStaffPostingTargets(scope, cursor, signal),
+  });
+}
+
+export function useStaffPostingReviewScopes(
+  scope: Pick<StaffPostingScope, "tenantId" | "subject">,
+  cursor: string | null,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    queryKey: ["workforce", "posting-review-scopes", scope.tenantId, scope.subject, cursor],
+    queryFn: ({ signal }) => listStaffPostingReviewScopes(scope, cursor, signal),
+  });
+}
+export function useStaffPostingProposalInbox(
+  scope: StaffPostingInboxScope,
+  status: StaffPostingProposal["status"],
+  cursor: string | null,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    queryKey: [
+      "workforce",
+      "posting-inbox",
+      scope.tenantId,
+      scope.subject,
+      scope.hospitalId,
+      status,
+      cursor,
+    ],
+    queryFn: ({ signal }) => listStaffPostingProposalInbox(scope, status, cursor, signal),
+  });
+}
+export function useStaffPostingProposalContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  purpose: "review" | "submission",
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+      purpose,
+    ],
+    queryFn: ({ signal }) =>
+      getStaffPostingProposalContext(
+        scope,
+        proposal.id,
+        {
+          purpose,
+          expected_version: proposal.version,
+          expected_revision_id: proposal.revision_id,
+        },
+        signal,
+      ),
   });
 }

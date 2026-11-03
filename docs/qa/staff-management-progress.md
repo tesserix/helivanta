@@ -4757,3 +4757,55 @@ in the associated PR before merge; no additional domain completion is claimed.
 - Local QA on tree `d465d104` (identical to merge `091f2287`) passed both leave separation-of-duties rules through the normal UI and the bound session API. The owner who filed a request got 403 on its approval while the independent leave reviewer approved it. A request filed on the reviewer's own Staff record never reached that reviewer's queue, returned 404 on review detail and 403 on both approve and reject, and stayed pending at version 1.
 - Setup exposed a Leave balances gap: **Correct balance** is hidden until a staff member's first ledger entry, so an opening balance for a newly assigned structure needed the correction API. Filed as [#1537](https://github.com/tesserix/helivanta/issues/1537).
 - [Release record](../deployment/releases/2026-11-04-scoped-posting-actors.md) for freight `a03f45e8` and its five migrations. The user approved the promotion on 2026-11-04; Promotion `prod.01m6gxvcqvx37wcqnavf92aq27.a03f45e` Succeeded, the ledger gained exactly those five IDs and every pod runs `091f2287`. Staff self-service filing (#1132) and reporting-line routing (#1536) remain open.
+
+### 2026-11-04 scoped posting inbox candidate — not yet released
+
+The reviewer can now discover public posting proposals by approved hospital via
+the candidate owner API/SDK, without entering Staff UUIDs. The eight-item queue
+returns canonical Staff code/name, public proposal metadata and an original-
+submitter display hint. It excludes private rationales and identity evidence;
+opening protected context still requires current independent review authority.
+
+The local protection journey passed before the final RLS policy-composition fix;
+complete corrected-migration suites remain in progress. SDK 633/typecheck/lint/
+format, Go build/scoped vet/lint, full platform race and 15 inventory tests pass.
+The first full owner run caught a real extra-permissive-policy error; it is fixed
+in candidate 0076 and awaits complete rerun. Candidate 0077 persists its concurrent
+queue index. No production migration or rollout occurred. See the [delivery
+record](../superpowers/plans/2026-11-03-independent-staff-posting-review.md).
+
+Reviewer UI/browser acceptance, effective supervision/approval, transfers,
+contractor expiry, suspension, exit/rehire and departmental/Pharma consumers remain
+open. Overall counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully
+accepted**. This is progress within a partial area, not a completion percentage.
+
+Candidate validation update: corrected-migration Global API race 472.140s,
+architecture race 65.636s and focused owner security 11.579s pass. The full owner
+rerun passed in 679.419s after the private test-wrapper interruption. Read-only reviewer UI
+now has four positive/refusal/account-switch component checks, and the UI library
+passes 279 tests plus types/lint. The shell passes types/lint and a webpack build;
+full shell tests and real-account browser acceptance remain pending. Shared local
+ports 4399/8399 belong to another Leave candidate and were preserved. An isolated
+posting runtime is still required. No rollout, migration or production activation
+was performed; the overall 21-area counts are unchanged.
+
+Full shell verification now passes **1,435 tests /177 files** (321.34s). This
+covers source/component behavior only; real-account browser decisions and
+operational/lifecycle acceptance remain open.
+
+The complete corrected-migration Workforce race suite passed in **679.419s**;
+four exact-session-owned fixtures were removed and no fallback SSH forwards were
+needed. The representative inbox query-plan/index probe is the final pending
+checkpoint check. Production and broad Staff acceptance remain unchanged.
+
+
+The final real gateway protection/index-plan journey passed in **100.443s**.
+The representative full-projection first-page `EXPLAIN (ANALYZE, BUFFERS)` uses
+`workforce_posting_proposal_inbox`, returns three synthetic rows under a Limit
+and records 2.124ms execution/5.003ms planning on this small fixture. Index
+registration/column order are verified. This does not prove continuation plans,
+production scale or an SLO. The full plan and test logs are retained privately in
+`~/.helivanta/staff-management-20261027/posting-inbox-20261104/`.
+All checkpoint checks now pass. Normal decision UI, an isolated real-account
+browser journey and the wider supervision/operational/lifecycle work remain open;
+this candidate remains draft and is not rolled out.

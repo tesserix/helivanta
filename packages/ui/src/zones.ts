@@ -358,6 +358,12 @@ export const ZONES: Zone[] = [
         permission: "public",
       },
       {
+        label: "Posting reviews",
+        href: "/workforce/posting-reviews",
+        icon: ListChecks,
+        permission: "public",
+      },
+      {
         label: "Employment reviews",
         href: "/workforce/employment-reviews",
         icon: ScrollText,

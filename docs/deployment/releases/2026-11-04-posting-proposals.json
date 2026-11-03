@@ -1,0 +1,71 @@
+{
+  "source": "1d6becdfcc04d13c0d50c791348f1e8962c0d3e4",
+  "pr": 1544,
+  "freight": "04c36a4001e7def9d0fee802937fbfab0b925429",
+  "promotion": "prod.01m6hs4y6yn75e61dw14cqbyf8.04c36a4",
+  "promotion_phase": "Succeeded",
+  "migrations_before": 220,
+  "migrations_after": 223,
+  "added_migrations": [
+    "0075_workforce_posting_proposals",
+    "0076_workforce_posting_proposal_browse",
+    "0077_workforce_posting_proposal_inbox_index"
+  ],
+  "removed_migrations": [],
+  "canonical_function_sha256": "9ec4dc2d9590bc6e2265f64b282b1f263574da6b88522b4e98890a6020978397",
+  "installed_function_matches_committed_sql": true,
+  "inbox_index_valid": true,
+  "inbox_index_ready": true,
+  "image_digests": {
+    "api": "sha256:3c2c0a9c5374f1713b28bca9100cbda207c2fcfc5da37901a34d1c80300cba27",
+    "shell": "sha256:c121c184930536d9991718bf0eca4b81b2d6846996a6170eba4d031d967f6f8c"
+  },
+  "application_deployments": 7,
+  "ready_replicas_per_deployment": 2,
+  "ready_application_containers": 14,
+  "application_container_restarts": 0,
+  "migration_job": "helivanta-api-migrate-n9xvk",
+  "migration_exit_code": 0,
+  "public_smoke": [
+    {
+      "path": "/",
+      "status": 200,
+      "via_global_api": false
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "via_global_api": false
+    },
+    {
+      "path": "/api/v1/workforce/posting-review-scopes",
+      "status": 401,
+      "via_global_api": true
+    },
+    {
+      "path": "/api/v1/workforce/hospitals/00000000-0000-4000-8000-000000000001/posting-staff/00000000-0000-4000-8000-000000000002/posting-proposals",
+      "status": 401,
+      "via_global_api": true
+    }
+  ],
+  "authenticated_production_ui_acceptance": "pending_owner_sign_in",
+  "positive_posting_approval": "blocked_by_posting_supervision_required",
+  "full_staff_management_accepted": false,
+  "argo": [
+    {
+      "name": "helivanta-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-global-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-shell",
+      "sync": "Synced",
+      "health": "Healthy"
+    }
+  ]
+}

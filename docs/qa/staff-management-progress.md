@@ -1,5 +1,29 @@
 # Staff Management delivery tracker
 
+## Incremental production release — 2026-11-04
+
+Posting proposals and the read-only reviewer inbox are now **merged and deployed**:
+[#1544](https://github.com/tesserix/helivanta/pull/1544), source `1d6becdf`.
+Kargo succeeded; exactly three persisted migrations advanced the ledger 220→223.
+All seven application deployments are 2/2; all 14 containers match signed image
+digests with zero restarts. Argo is Synced/Healthy. Public landing/login GETs
+return 200; unauthenticated posting routes return 401 through Global API.
+See the [release evidence](../deployment/releases/2026-11-04-posting-proposals.md).
+This checkpoint supersedes earlier draft/unmerged/undeployed statements for the
+#1544 slice only; historical validation notes below are retained.
+
+Independent rejection and submitter withdrawal UI are implemented separately in
+[#1547](https://github.com/tesserix/helivanta/pull/1547), with nine reviewer tests,
+1,440 shell tests and 633 SDK tests passing locally. Exact-head CI is in progress.
+The isolated local runtime is ready with a registered OIDC client; normal browser
+acceptance remains at owner sign-in. Earlier Temporal/readiness setup blockers
+are resolved. No new IdP app or grant was created to bypass that sign-in.
+
+Positive effective posting approval remains blocked by
+`posting_supervision_required`; supervision, lifecycle and departmental/Pharma
+consumer acceptance remain open. **10 partial, 10 awaiting audit, 1 research,
+0 fully accepted**. Incremental delivery does not mark these broader areas done.
+
 ## Protected posting context checkpoint — 2026-11-04
 
 The source-owner coverage correction [#1545](https://github.com/tesserix/helivanta/pull/1545)

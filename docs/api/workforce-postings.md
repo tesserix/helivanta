@@ -200,5 +200,207 @@ clinical or Pharma authority. Reviewer excludes draft preparation and submission
 submitter excludes independent review. This catalog is not deployed and does not
 prove functioning submission/review consumers. Their candidate command paths and
 remaining gates are in the [independent review specification](../superpowers/specs/2026-11-03-independent-staff-posting-review.md).
-The missing-route owner/Global API tests remain RED until that full vertical
-feature is implemented. No production migration or role activation occurred.
+The candidate now implements rejection and proposer withdrawal as described below.
+Positive approval still awaits the supervision policy. No production migration or
+role activation occurred for these commands.
+
+## In-development proposal submissions and readiness
+
+The isolated review branch implements the following suffixes below
+`/v1/workforce/hospitals/:hospital/posting-staff/:id`. These are candidate
+interfaces, not a production release or an effective departmental assignment.
+
+| Method and suffix                                    | Required current scoped capability |
+| ---------------------------------------------------- | ---------------------------------- |
+| GET `/posting-review-source`                         | `workforce.posting.proposal.read`  |
+| PUT `/posting-proposals/:proposal/commands/:command` | `workforce.posting.submit`         |
+| GET same command path                                | `workforce.posting.proposal.read`  |
+| GET `/posting-proposals`                             | `workforce.posting.proposal.read`  |
+| GET `/posting-proposals/:proposal`                   | `workforce.posting.proposal.read`  |
+| GET `/posting-proposals/:proposal/history`           | `workforce.posting.proposal.read`  |
+
+Every path additionally composes the exact current `workforce.staff_actor.use`
+assignment and reviewed digital actor through the existing owner-held root
+transaction. Tenant/hospital/Staff, original account headers and current
+credential/membership/scope epochs remain independent checks. No legacy grant
+fallback is available for these paths. Target employment need not have a digital
+login; the real different-target/non-digital journey verifies source admission,
+immutable submission and changed/restored identity refusal.
+
+Submission requires explicit expected version zero, the current draft ID/revision/
+version, current Staff version/employment epoch, exact reviewed generation ID,
+required reason and true `sources_examined`. Missing/null/false and unknown fields
+are refused. The server derives the department and proposed interval from the
+selected current immutable draft and checks its Organization-owned reference.
+It consumes the Workforce-owned current generation, person/employment findings,
+identity epoch and evidence; no private HR projection is copied into another owner.
+
+Fixed-term placements require a planned end no later than the reviewed appointment
+end. Ongoing employment may propose a null placement end. A placement's nominal
+end is distinct from `eligibility_until`, the captured reviewed-source cutoff:
+source validity may expire before a long-running/open-ended placement ends.
+The start must fall within the reviewed appointment and before that cutoff.
+Current actor/target source deadlines still constrain the entire submission
+transaction. Later operational consumers must intersect all current source,
+posting, duty and IAM intervals; a stored open-ended proposal grants no authority
+beyond a source cutoff. No interval is silently shortened or fabricated.
+
+The public receipt includes proposal/revision/command IDs, exact Staff/draft/
+generation/department pins, interval, source cutoff, status and recorded instants.
+Initial status is `pending`; terminal decisions produce `rejected` or `withdrawn`.
+`grants_access` is always false. Protected reason,
+input hash and actor/contributor identities are excluded. Same-key/same-actor/
+same-intent retry reauthorizes and returns its original receipt; changed intent
+conflicts. An additional live proposal for the same draft revision conflicts.
+Lists/history use bounded keyset pages. Sensitive source/receipt/history reads
+are audited; all responses are no-store.
+
+Readiness exposes current Staff concurrency and a minimal reviewed generation
+projection with an owner `checked_at` instant. `no_current_generation`,
+`current`, `not_started`, `source_changed` and `expired` are explicit states.
+Missing generations use nulls, never fabricated zero IDs or success. Missing
+source/authorization dependencies return 503. The SDK validates original scope,
+selected draft/command/generation and microsecond intervals, rejects operating
+receipts and never routes review through the legacy Staff paths.
+
+Unreleased Workforce migration `0075_workforce_posting_proposals` adds forced-RLS
+heads, immutable command/revision rows, exact composite source references and
+current-head/actor/interval guards. Submission, audit and the identifier-only
+`helivanta.in.workforce.posting_proposal_changed.v1` event commit together.
+Removal and history rewriting are refused. The SQL guard permits only initial
+pending submission followed by one independently rejected or proposer-withdrawn
+revision. Approval is refused until the supervision policy is implemented.
+Earlier SQL remains unchanged; rollback retains the additive tables and evidence.
+
+## In-development rejection and withdrawal
+
+### Protected review context candidate
+
+`GET /posting-proposals/:proposal/context` requires exactly one `purpose`
+(`review` or `submission`), positive safe-integer `expected_version`, and UUIDv7
+`expected_revision_id` query parameter. Unknown/duplicate/malformed parameters
+and query strings over 1 KiB are 400. A changed current head is 409; a hidden
+Staff/proposal is 404. No body field or original-account header grants authority.
+
+`review` requires current hospital-scoped `workforce.posting.review`, actor-use
+authority and the same target/contributor/historical-association independence
+checks as a decision. `submission` requires current `workforce.posting.submit`,
+actor-use authority and the original submitter subject. These checks precede
+private rationale loading, including for retained terminal heads. A static legacy
+permission is not used to choose between these two owner-authorized purposes.
+The registry uses `authz.Public` for dispatch; authentication, membership and
+purpose-specific current owner checks remain required.
+
+The canonical response contains `purpose`, exact public `proposal` and selected
+immutable `draft`, `draft_reason`, `submission_reason` and nullable
+`decision_reason`. Pending heads have no terminal rationale. Each reason is at
+most 500 characters; no actor subject, hash, identity dossier, attachment or
+private HR projection is returned. Later draft edits cannot replace the submitted
+revision or rationale. This retained view does not certify current source or
+department eligibility and does not authorize a later command.
+
+The existing guarded decision-purpose transaction acquires its supervision gate
+before actor rows, preserving source writers and current authority through outer
+commit. Exact-version context-read and Staff-source-use audit commit together;
+failure withholds all protected data and rolls back source-use evidence. No
+business revision, head or outbox row changes. Responses are no-store and the
+single-object response fits the 20-KiB planning budget. Dependency failure returns
+503 without a legacy fallback. This adds no migration or deployed UI acceptance.
+
+### Terminal command behavior
+
+`PUT /posting-proposals/:proposal/decisions/:command` selects current
+`workforce.posting.review` for rejection or `workforce.posting.submit` for
+withdrawal, always composing the exact actor-use grant and reviewed digital source.
+The route's registry entry is public only with respect to a static legacy
+permission; it still requires authentication/membership and the action-specific
+owner authorization above. Missing current owners fail 503 before parsing; there
+is no broad administrator fallback. `GET` of the same command suffix requires
+current `workforce.posting.proposal.read` and returns one immutable receipt.
+
+Input requires the exact pending `expected_revision_id` (UUIDv7), positive
+`expected_version`, `decision`, protected control-free reason and true
+`sources_examined`. Unknown fields/false confirmation are 400. Stale pins,
+changed key intent or a second terminal transition are 409. An unrelated hidden
+proposal/receipt is 404. Original proposer identity is required for withdrawal,
+even if the caller separately holds both submit/review capabilities. Independent
+review excludes the target, original submitter and every retained draft
+contributor, including historical target and reviewer login associations.
+Only exact target/reviewer associations are visible under the protected decision
+purpose; existing write checks and delete restrictions remain unchanged. No
+association identity is returned to a caller.
+
+Rejection and withdrawal copy the exact original source/interval pins, append
+version 2 and atomically update the head, audit and identifier-only outbox. They
+do not require currently eligible target sources, so expired/changed evidence
+does not strand a pending proposal. Actors and IAM scopes must still be current.
+Original submission and terminal command receipts remain immutable. Exact-key
+retry reauthorizes and returns the original result after later changes; changed
+actor/intent conflicts. Rejected/withdrawn drafts may be proposed again under a
+new proposal ID. No result grants operating access.
+
+An authorized independent `approve` returns 409 `posting_supervision_required`
+and appends nothing while the mandatory supervision policy is unavailable.
+The SDK exposes rejection/withdrawal and exact-command recovery, retaining the
+original pending receipt to verify every immutable source/interval pin and the
+expected terminal version. It refuses approval before transport. This is not
+positive posting approval or reviewer UI acceptance.
+
+Independent approval, supervision/transfer/lifecycle enforcement, Staff review UI
+acceptance and operating consumers remain open. Earlier migrations and catalog
+snapshots remain unchanged. See the [delivery evidence](../superpowers/plans/2026-11-03-independent-staff-posting-review.md).
+
+### Review hospital discovery candidate
+
+`GET /v1/workforce/posting-review-scopes` uses the same bounded 20-candidate
+reviewed-link discovery and opaque continuation rules. It independently requires
+current scoped proposal-read and Staff-actor-use authority and a current reviewed
+digital actor. The canonical `StaffPostingReviewHospitalScope` projection contains
+only `hospital_id`, `name`, `can_submit` and `can_review`. Permission/source refusal
+filters a candidate; unavailable authorization or audit persistence withholds the
+page. Missing current owner providers return 503 even before an empty scan.
+Submit/review flags are observations; commands reauthorize the exact current
+assignment and Staff source through commit. No draft-edit, clinical or Pharma
+right follows from this projection. The existing reviewer catalog includes draft
+reading and review, without preparation/editing. Earlier catalogs remain intact.
+
+The SDK uses same-origin Global API, mandatory original-account headers, no-store
+and cancellation. It rejects extra/private fields, missing/nonboolean flags,
+duplicate hospitals, oversized pages and inconsistent/repeating continuation.
+This candidate is not deployed and adds no storage migration. The hospital inbox described below is implemented in this candidate; normal
+reviewer UI, supervision and positive approval remain unfinished.
+
+## Hospital posting proposal inbox (candidate)
+
+`GET /v1/workforce/hospitals/:hospital/posting-proposal-inbox` requires current
+hospital-scoped `workforce.posting.proposal.read` and a reviewed digital Staff
+actor with `workforce.staff_actor.use`. The caller's active login link supplies
+a candidate actor only; current assignment, membership/credential epochs and
+actor source are rechecked under the owner transaction through commit. Legacy
+administrator authority alone does not authorize this route.
+
+The only filters are `status`, `limit` and `cursor`, each supplied once. Status
+defaults to `pending`; `approved`, `rejected` and `withdrawn` are also accepted.
+Pages default to at most eight items, plus one internal continuation probe, in
+descending `(created_at,id)` order. Cursors bind to the current subject, exact
+hospital, route and normalized status as well as the verified tenant. Replaying
+across those boundaries returns 400. Responses use `Cache-Control: no-store`.
+
+Each item contains the public proposal, canonical Staff ID/code/display name,
+and `is_submitter`. It includes no rationale, subject, hashes or identity dossier.
+`is_submitter` is a display hint; exact-head protected context and decisions
+independently reauthorize the original submitter or independent reviewer.
+
+The owner records hospital, status, returned-row count and current actor source
+proof atomically. Audit persistence failure returns 500 with no data and rolls
+actor-use evidence back. Unavailable authorization returns 503; missing current
+permission returns 403. Empty queues are not a fallback for unavailable owners.
+
+Append-only candidate migration `0076_workforce_posting_proposal_browse` extends
+the single existing permissive read predicate for heads/current-and-original
+revisions, with restrictive UPDATE/DELETE guards retaining the prior read
+restriction and unchanged write checks. History-preservation guards remain intact. Candidate `0077`
+registers a concurrent `(tenant_id,hospital_id,status,created_at DESC,id DESC)`
+index. These follow candidate 0075 and have only been applied in disposable QA.
+They are forward migrations; production rollback would require a separately
+reviewed compensating change. No production activation is established here.

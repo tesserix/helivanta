@@ -3698,6 +3698,46 @@
       "type": "object"
     }
   },
+  "helivanta.in.workforce.posting_proposal_changed.v1": {
+    "source": "backend/internal/modules/workforce/contract/posting_draft_generated.go:14",
+    "go_type": "PostingProposalChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "proposal_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "revision_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "staff_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "proposal_id",
+        "revision_id",
+        "version",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.workforce.roster_changed.v1": {
     "source": "backend/internal/modules/workforce/contract/events.go:100",
     "go_type": "RosterChangedData",

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,6 +35,10 @@ func (r StaffPostingDraft) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt
 type postingDraftHistory struct{ StaffPostingDraft }
 
 func (r postingDraftHistory) PageKey() (time.Time, uuid.UUID) { return r.RecordedAt, r.RevisionID }
+
+func validPostingReason(reason string) bool {
+	return validBenefitText(reason, 1, 500) && strings.IndexFunc(reason, unicode.IsControl) < 0
+}
 
 func postingV7(id uuid.UUID) bool { return id.Version() == 7 && id.Variant() == uuid.RFC4122 }
 
@@ -175,7 +180,7 @@ func validPostingDraftInput(in *StaffPostingDraftInput) bool {
 	}
 	return in.ExpectedVersion != nil && *in.ExpectedVersion >= 0 && *in.ExpectedVersion < 9007199254740990 &&
 		in.StaffVersion >= 1 && in.StaffVersion <= 9007199254740990 && in.EmploymentEpoch >= 1 && in.EmploymentEpoch <= 9007199254740990 &&
-		postingV7(in.DepartmentID) && postingV7(in.DepartmentRevisionID) && validBenefitText(in.Reason, 1, 500) &&
+		postingV7(in.DepartmentID) && postingV7(in.DepartmentRevisionID) && validPostingReason(in.Reason) &&
 		!in.StartsAt.IsZero() && in.StartsAt.Year() >= 1 && in.StartsAt.Year() <= 9999 && (in.EndsAt == nil || in.EndsAt.Year() <= 9999 && in.EndsAt.After(in.StartsAt))
 }
 

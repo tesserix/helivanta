@@ -49,6 +49,128 @@ const validPosting = (
   if (value.reason && /\p{Cc}/u.test(value.reason))
     ctx.addIssue({ code: "custom", path: ["reason"], message: "Remove control characters." });
 };
+
+const validProposalSubmission = (
+  value: { draft_id: string; draft_revision_id: string; generation_id: string; reason: string },
+  ctx: z.RefinementCtx,
+) => {
+  for (const key of ["draft_id", "draft_revision_id", "generation_id"] as const)
+    if (!z.uuidv7().safeParse(value[key]).success)
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "Choose the exact reviewed source revision.",
+      });
+  if (/\p{Cc}/u.test(value.reason))
+    ctx.addIssue({ code: "custom", path: ["reason"], message: "Remove control characters." });
+};
+const validProposalDecision = (
+  value: { expected_revision_id: string; reason: string },
+  ctx: z.RefinementCtx,
+) => {
+  if (!z.uuidv7().safeParse(value.expected_revision_id).success)
+    ctx.addIssue({
+      code: "custom",
+      path: ["expected_revision_id"],
+      message: "Choose the exact pending proposal revision.",
+    });
+  if (/\p{Cc}/u.test(value.reason))
+    ctx.addIssue({ code: "custom", path: ["reason"], message: "Remove control characters." });
+};
+const validProposal = (
+  value: {
+    id: string;
+    revision_id: string;
+    command_id: string;
+    draft_id: string;
+    draft_revision_id: string;
+    generation_id: string;
+    department_id: string;
+    department_revision_id: string;
+    starts_at: string;
+    ends_at: string | null;
+    eligibility_until: string;
+    grants_access: boolean;
+  },
+  ctx: z.RefinementCtx,
+) => {
+  validPosting(value, ctx);
+  for (const key of [
+    "id",
+    "revision_id",
+    "command_id",
+    "draft_id",
+    "draft_revision_id",
+    "generation_id",
+  ] as const)
+    if (!z.uuidv7().safeParse(value[key]).success)
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "The proposal source could not be verified.",
+      });
+  const until = staffPostingInstantMicros(value.eligibility_until),
+    start = staffPostingInstantMicros(value.starts_at),
+    upper = staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+  if (until === null || start === null || until <= start || until > upper)
+    ctx.addIssue({
+      code: "custom",
+      path: ["eligibility_until"],
+      message: "The reviewed source interval could not be verified.",
+    });
+};
+
+const validReviewSource = (
+  value: {
+    generation_id: string | null;
+    generation_state: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    eligibility_until: string | null;
+    checked_at: string;
+  },
+  ctx: z.RefinementCtx,
+) => {
+  const checked = staffPostingInstantMicros(value.checked_at),
+    start = value.starts_at === null ? null : staffPostingInstantMicros(value.starts_at),
+    end = value.ends_at === null ? null : staffPostingInstantMicros(value.ends_at),
+    until =
+      value.eligibility_until === null ? null : staffPostingInstantMicros(value.eligibility_until);
+  const lower = staffPostingInstantMicros("0001-01-01T00:00:00Z")!,
+    upper = staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+  const bounded = (instant: bigint | null) =>
+    instant !== null && instant > lower && instant <= upper;
+  let valid =
+    bounded(checked) &&
+    (value.generation_id === null || z.uuidv7().safeParse(value.generation_id).success);
+  if (value.generation_state === "no_current_generation")
+    valid =
+      valid &&
+      value.generation_id === null &&
+      value.starts_at === null &&
+      value.ends_at === null &&
+      value.eligibility_until === null;
+  else {
+    valid =
+      valid &&
+      value.generation_id !== null &&
+      bounded(start) &&
+      (value.ends_at === null || (bounded(end) && end! > start!));
+    if (value.generation_state === "current" || value.generation_state === "not_started")
+      valid =
+        valid &&
+        bounded(until) &&
+        until! > checked! &&
+        (value.generation_state === "current" ? start! <= checked! : start! > checked!);
+    if (value.generation_state === "expired") valid = valid && bounded(until) && until! <= checked!;
+  }
+  if (!valid)
+    ctx.addIssue({
+      code: "custom",
+      path: ["generation_state"],
+      message: "The current reviewed Staff source could not be verified.",
+    });
+};
 const identifier = z
   .string()
   .guid("Choose a valid record.")
@@ -124,3 +246,160 @@ export const StaffPostingTargetContract = z
   })
   .strict();
 export type StaffPostingTarget = z.infer<typeof StaffPostingTargetContract>;
+
+export const StaffPostingProposalInputContract = z
+  .object({
+    expected_version: z.number().int().min(0).max(0),
+    draft_id: identifier,
+    draft_revision_id: identifier,
+    draft_version: z.number().int().min(1).max(9007199254740990),
+    generation_id: identifier,
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    sources_examined: z
+      .boolean()
+      .refine((value) => value === true, "Review the selected sources before submitting."),
+  })
+  .strict()
+  .superRefine(validProposalSubmission);
+export type StaffPostingProposalInput = z.infer<typeof StaffPostingProposalInputContract>;
+
+export const StaffPostingProposalContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    command_id: identifier,
+    hospital_id: identifier,
+    staff_id: identifier,
+    version: z.number().int().min(1).max(9007199254740990),
+    status: z.enum(["pending", "approved", "rejected", "withdrawn"]),
+    grants_access: z.boolean(),
+    draft_id: identifier,
+    draft_revision_id: identifier,
+    draft_version: z.number().int().min(1).max(9007199254740990),
+    generation_id: identifier,
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    department_id: identifier,
+    department_revision_id: identifier,
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }).nullable(),
+    eligibility_until: z.string().datetime({ offset: true }),
+    created_at: z.string().datetime({ offset: true }),
+    recorded_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine(validProposal);
+export type StaffPostingProposal = z.infer<typeof StaffPostingProposalContract>;
+
+export const StaffPostingDecisionInputContract = z
+  .object({
+    expected_version: z.number().int().min(1).max(9007199254740989),
+    expected_revision_id: identifier,
+    decision: z.enum(["approve", "reject", "withdraw"]),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    sources_examined: z
+      .boolean()
+      .refine((value) => value === true, "Review the selected proposal sources before deciding."),
+  })
+  .strict()
+  .superRefine(validProposalDecision);
+export type StaffPostingDecisionInput = z.infer<typeof StaffPostingDecisionInputContract>;
+
+export const StaffPostingReviewSourceContract = z
+  .object({
+    hospital_id: identifier,
+    staff_id: identifier,
+    staff_version: z.number().int().min(1).max(9007199254740990),
+    employment_epoch: z.number().int().min(1).max(9007199254740990),
+    generation_id: identifier.nullable(),
+    generation_state: z.enum([
+      "no_current_generation",
+      "current",
+      "not_started",
+      "source_changed",
+      "expired",
+    ]),
+    starts_at: z.string().datetime({ offset: true }).nullable(),
+    ends_at: z.string().datetime({ offset: true }).nullable(),
+    eligibility_until: z.string().datetime({ offset: true }).nullable(),
+    checked_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine(validReviewSource);
+export type StaffPostingReviewSource = z.infer<typeof StaffPostingReviewSourceContract>;
+
+export const StaffPostingReviewHospitalScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    can_submit: z.boolean(),
+    can_review: z.boolean(),
+  })
+  .strict();
+export type StaffPostingReviewHospitalScope = z.infer<
+  typeof StaffPostingReviewHospitalScopeContract
+>;
+
+export const StaffPostingProposalContextRequestContract = z
+  .object({
+    purpose: z.enum(["review", "submission"]),
+    expected_version: z.number().int().min(1).max(9007199254740990),
+    expected_revision_id: identifier,
+  })
+  .strict();
+export type StaffPostingProposalContextRequest = z.infer<
+  typeof StaffPostingProposalContextRequestContract
+>;
+
+export const StaffPostingProposalContextContract = z
+  .object({
+    purpose: z.enum(["review", "submission"]),
+    proposal: StaffPostingProposalContract,
+    draft: StaffPostingDraftContract,
+    draft_reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    submission_reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    decision_reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .nullable(),
+  })
+  .strict();
+export type StaffPostingProposalContext = z.infer<typeof StaffPostingProposalContextContract>;
+
+export const StaffPostingInboxItemContract = z
+  .object({
+    proposal: StaffPostingProposalContract,
+    staff: StaffPostingTargetContract,
+    is_submitter: z.boolean(),
+  })
+  .strict();
+export type StaffPostingInboxItem = z.infer<typeof StaffPostingInboxItemContract>;

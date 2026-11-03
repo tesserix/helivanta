@@ -3,6 +3,7 @@ import { apiFetch } from "./client";
 import { personReviewRequest } from "./person-reviews";
 import {
   StaffPostingHospitalScopeContract,
+  StaffPostingReviewHospitalScopeContract,
   StaffPostingTargetContract,
 } from "./staff-postings-contract";
 import type { StaffPostingScope } from "./staff-postings";
@@ -13,6 +14,9 @@ const continuation = z
   .strict();
 const hospitalPage = z
   .object({ data: z.array(StaffPostingHospitalScopeContract).max(20), page: continuation })
+  .strict();
+const reviewHospitalPage = z
+  .object({ data: z.array(StaffPostingReviewHospitalScopeContract).max(20), page: continuation })
   .strict();
 const targetPage = z
   .object({ data: z.array(StaffPostingTargetContract).max(50), page: continuation })
@@ -65,4 +69,20 @@ export async function listStaffPostingTargets(
   );
   signal?.throwIfAborted();
   return verifyPage(targetPage.parse(result), cursor, (row) => row.id.toLowerCase());
+}
+
+export async function listStaffPostingReviewScopes(
+  scope: Pick<StaffPostingScope, "tenantId" | "subject">,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const result = await apiFetch(`/workforce/posting-review-scopes?${query(20, cursor)}`, {
+    ...personReviewRequest(scope),
+    signal,
+  });
+  signal?.throwIfAborted();
+  return verifyPage(reviewHospitalPage.parse(result), cursor, (row) =>
+    row.hospital_id.toLowerCase(),
+  );
 }

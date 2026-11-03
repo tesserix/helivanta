@@ -11,7 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func readProtectedGenerationState(tx *gorm.DB, p authn.Principal, hospital, staff, link, id uuid.UUID) (generation employmentGenerationRecord, state string, until time.Time, err error) {
+func readProtectedGenerationState(tx *gorm.DB, p authn.Principal, hospital, staff, link, id uuid.UUID) (employmentGenerationRecord, string, time.Time, error) {
+	return readProtectedStaffGenerationState(tx, p, hospital, staff, staff, link, id)
+}
+
+func readProtectedStaffGenerationState(tx *gorm.DB, p authn.Principal, hospital, staff, actor, link, id uuid.UUID) (generation employmentGenerationRecord, state string, until time.Time, err error) {
 	keys := []string{"app.workforce_hr_intake", "app.workforce_hr_intake_actor", "app.workforce_hr_intake_link", "app.workforce_enrollment", "app.workforce_employment_review", "app.workforce_employment_review_id", "app.workforce_employment_evidence", "app.workforce_employment_person_review", "app.workforce_identity_source", "app.workforce_identity_staff", "app.workforce_person_review_documents", "app.workforce_generation", "app.workforce_generation_staff"}
 	names, err := json.Marshal(keys)
 	if err != nil {
@@ -33,7 +37,7 @@ func readProtectedGenerationState(tx *gorm.DB, p authn.Principal, hospital, staf
 		err = errors.Join(err, tx.Exec(`SELECT set_config(key,value,true) FROM jsonb_each_text(?::jsonb)`, string(restore)).Error)
 	}()
 	// The owner reads only this selected basis and restores purpose scope before caller work.
-	if err = tx.Exec(`SELECT set_config('app.workforce_hr_intake','authorized',true),set_config('app.workforce_hr_intake_actor',?,true),set_config('app.workforce_hr_intake_link',?,true),set_config('app.workforce_enrollment','authorized',true)`, staff.String(), link.String()).Error; err != nil {
+	if err = tx.Exec(`SELECT set_config('app.workforce_hr_intake','authorized',true),set_config('app.workforce_hr_intake_actor',?,true),set_config('app.workforce_hr_intake_link',?,true),set_config('app.workforce_enrollment','authorized',true)`, actor.String(), link.String()).Error; err != nil {
 		return generation, "", until, err
 	}
 	generation, err = loadEmploymentGeneration(tx, p, hospital, staff, id)

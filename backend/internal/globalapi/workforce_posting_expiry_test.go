@@ -1,6 +1,7 @@
 package globalapi
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"sync"
@@ -20,10 +21,14 @@ func assertPostingSaveStopsAtReviewedCutoff(t *testing.T, db *tenantdb.DB, reque
 	sql := fmt.Sprintf(`CREATE FUNCTION wait_posting_expiry_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='workforce.posting_draft.saved' THEN PERFORM workforce_lock_supervision(NEW.tenant_id,'%s'::uuid); END IF; RETURN NEW; END $$; CREATE TRIGGER wait_posting_expiry_audit BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION wait_posting_expiry_audit()`, lockHospital)
 	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_posting_expiry_wait_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
 	clear := sync.OnceFunc(func() {
-		require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_posting_expiry_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP TRIGGER wait_posting_expiry_audit ON workforce_audit; DROP FUNCTION wait_posting_expiry_audit()`}}))
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 10*time.Second)
+		defer cancel()
+		if err := db.Migrate(cleanup, []tenantdb.Migration{{ID: "test_posting_expiry_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP TRIGGER wait_posting_expiry_audit ON workforce_audit; DROP FUNCTION wait_posting_expiry_audit()`}}); err != nil {
+			t.Errorf("clear source expiry probe: %v", err)
+		}
 	})
 	t.Cleanup(clear)
-	// Observe the persisted business cutoff: a Go-only clock cannot advance PostgreSQL clock_timestamp().
+	// The shared command and PostgreSQL use separate real clocks; either may enforce the cutoff first.
 	delay := time.Until(until.Add(-4 * time.Second))
 	require.Positive(t, delay, "the approved source must still be effective before the expiry probe")
 	timer := time.NewTimer(delay)
@@ -40,7 +45,8 @@ func assertPostingSaveStopsAtReviewedCutoff(t *testing.T, db *tenantdb.DB, reque
 	require.NotContains(t, denied, "id", "an expired command must disclose no saved receipt")
 	var observed time.Time
 	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw(`SELECT clock_timestamp()`).Scan(&observed).Error }))
-	require.False(t, observed.Before(until), "the request reached the real source boundary while its save audit was blocked")
+	hostObserved := time.Now().UTC()
+	require.True(t, !observed.Before(until) || !hostObserved.Before(until), "a real owner clock must reach the exact cutoff while the save audit is blocked: database=%s cutoff=%s host=%s", observed.UTC().Format(time.RFC3339Nano), until.UTC().Format(time.RFC3339Nano), hostObserved.Format(time.RFC3339Nano))
 	unlock()
 	clear()
 	var saved int64

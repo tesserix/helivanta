@@ -108,23 +108,13 @@ func (h *handlers) listPostingTargets(c *gin.Context, page pagination.Params) ([
 		respond.BadRequest(c, errors.New("posting targets are limited to 50 per page"))
 		return nil, nil
 	}
-	// Candidate discovery supplies only the caller's reviewed link; all target rows remain guarded below.
-	var actor struct{ StaffID uuid.UUID }
-	err = h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
-		if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_leave_discovery','authorized',true)`, p.Subject).Error; err != nil {
-			return err
-		}
-		return tx.Table("workforce_login_links").Select("staff_id").Where("tenant_id=? AND hospital_id=? AND subject=? AND status='active'", p.TenantID, hospital, p.Subject).Take(&actor).Error
-	})
+	actor, err := h.postingActorForHospital(c, p, hospital)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = authz.ErrScopedCommandDenied
-		}
 		respondPostingDraftError(c, err)
 		return nil, nil
 	}
 	markScopedPosting(c)
-	scope := postingDraftScope{hospital: hospital, staff: actor.StaffID}
+	scope := postingDraftScope{hospital: hospital, staff: actor}
 	rows := []postingTargetRow{}
 	err = h.postingTransaction(c, p, scope, false, func(_ context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
 		if err := tx.Exec(`SELECT set_config('app.workforce_posting_directory','read',true)`).Error; err != nil {
@@ -141,4 +131,21 @@ func (h *handlers) listPostingTargets(c *gin.Context, page pagination.Params) ([
 		return nil, nil
 	}
 	return rows, nil
+}
+
+func (h *handlers) postingActorForHospital(c *gin.Context, p authn.Principal, hospital uuid.UUID) (uuid.UUID, error) {
+	if h.db == nil {
+		return uuid.Nil, authz.ErrScopedAuthorizationUnavailable
+	}
+	var actor struct{ StaffID uuid.UUID }
+	err := h.db.WithTenant(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.workforce_subject',?,true),set_config('app.workforce_leave_discovery','authorized',true)`, p.Subject).Error; err != nil {
+			return err
+		}
+		return tx.Table("workforce_login_links").Select("staff_id").Where("tenant_id=? AND hospital_id=? AND subject=? AND status='active'", p.TenantID, hospital, p.Subject).Take(&actor).Error
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) || err == nil && actor.StaffID == uuid.Nil {
+		return uuid.Nil, authz.ErrScopedCommandDenied
+	}
+	return actor.StaffID, err
 }

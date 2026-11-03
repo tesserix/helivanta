@@ -36,3 +36,5 @@ Keep each implementation vertical: owning schema/commands, canonical SDK, normal
 UI, current authority, atomic audit/recovery and real tests together. Record
 observed RED and GREEN results; do not add unused guard scaffolding or describe
 the historical HR mapping protocol as current posting eligibility.
+
+The next isolated implementation follows the [independent posting review plan](2026-11-03-independent-staff-posting-review.md). Its missing-route RED evidence does not complete posting approval, supervision or any operating consumer.

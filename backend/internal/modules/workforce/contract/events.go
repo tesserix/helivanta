@@ -445,3 +445,5 @@ const SubjectOrganizationHospitalObserved = "helivanta.in.workforce.organization
 const SubjectDepartmentLinkRequested = "helivanta.in.workforce.department_link_requested.v1"
 
 const SubjectPostingDraftChanged = "helivanta.in.workforce.posting_draft_changed.v1"
+
+const SubjectPostingProposalChanged = "helivanta.in.workforce.posting_proposal_changed.v1"

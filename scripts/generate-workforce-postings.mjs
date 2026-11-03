@@ -30,11 +30,57 @@ const validPosting = (value: {department_id:string; department_revision_id:strin
  if(value.grants_access===true) ctx.addIssue({code:"custom",path:["grants_access"],message:"Preparation cannot grant access."});
  if(value.reason && /\\p{Cc}/u.test(value.reason)) ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
 };
+
+const validProposalSubmission = (value:{draft_id:string;draft_revision_id:string;generation_id:string;reason:string},ctx:z.RefinementCtx) => {
+ for(const key of ["draft_id","draft_revision_id","generation_id"] as const) if(!z.uuidv7().safeParse(value[key]).success) ctx.addIssue({code:"custom",path:[key],message:"Choose the exact reviewed source revision."});
+ if(/\\p{Cc}/u.test(value.reason)) ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
+};
+const validProposalDecision = (value:{expected_revision_id:string;reason:string},ctx:z.RefinementCtx) => {
+ if(!z.uuidv7().safeParse(value.expected_revision_id).success)ctx.addIssue({code:"custom",path:["expected_revision_id"],message:"Choose the exact pending proposal revision."});
+ if(/\\p{Cc}/u.test(value.reason))ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
+};
+const validProposal = (value:{id:string;revision_id:string;command_id:string;draft_id:string;draft_revision_id:string;generation_id:string;department_id:string;department_revision_id:string;starts_at:string;ends_at:string|null;eligibility_until:string;grants_access:boolean},ctx:z.RefinementCtx) => {
+ validPosting(value,ctx);
+ for(const key of ["id","revision_id","command_id","draft_id","draft_revision_id","generation_id"] as const) if(!z.uuidv7().safeParse(value[key]).success) ctx.addIssue({code:"custom",path:[key],message:"The proposal source could not be verified."});
+ const until=staffPostingInstantMicros(value.eligibility_until),start=staffPostingInstantMicros(value.starts_at),upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ if(until===null || start===null || until<=start || until>upper) ctx.addIssue({code:"custom",path:["eligibility_until"],message:"The reviewed source interval could not be verified."});
+};
+
+const validReviewSource = (value:{generation_id:string|null;generation_state:string;starts_at:string|null;ends_at:string|null;eligibility_until:string|null;checked_at:string},ctx:z.RefinementCtx) => {
+ const checked=staffPostingInstantMicros(value.checked_at),start=value.starts_at===null?null:staffPostingInstantMicros(value.starts_at),end=value.ends_at===null?null:staffPostingInstantMicros(value.ends_at),until=value.eligibility_until===null?null:staffPostingInstantMicros(value.eligibility_until);
+ const lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ const bounded=(instant:bigint|null)=>instant!==null&&instant>lower&&instant<=upper;
+ let valid=bounded(checked)&&(value.generation_id===null||z.uuidv7().safeParse(value.generation_id).success);
+ if(value.generation_state==="no_current_generation")valid=valid&&value.generation_id===null&&value.starts_at===null&&value.ends_at===null&&value.eligibility_until===null;
+ else {
+  valid=valid&&value.generation_id!==null&&bounded(start)&&(value.ends_at===null||(bounded(end)&&end!>start!));
+  if(value.generation_state==="current"||value.generation_state==="not_started")valid=valid&&bounded(until)&&until!>checked!&&(value.generation_state==="current"?start!<=checked!:start!>checked!);
+  if(value.generation_state==="expired")valid=valid&&bounded(until)&&until!<=checked!;
+ }
+ if(!valid)ctx.addIssue({code:"custom",path:["generation_state"],message:"The current reviewed Staff source could not be verified."});
+};
 `;
-const refined = models.ts.replace(
-  /(export const StaffPostingDraft(?:Input)?Contract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
-  "$1.superRefine(validPosting);",
-);
+const refined = models.ts
+  .replace(
+    /(export const StaffPostingDraft(?:Input)?Contract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validPosting);",
+  )
+  .replace(
+    /(export const StaffPostingProposalInputContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validProposalSubmission);",
+  )
+  .replace(
+    /(export const StaffPostingDecisionInputContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validProposalDecision);",
+  )
+  .replace(
+    /(export const StaffPostingProposalContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validProposal);",
+  )
+  .replace(
+    /(export const StaffPostingReviewSourceContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validReviewSource);",
+  );
 await writeGenerated(
   root,
   "backend/internal/modules/workforce/posting_draft_types.go",

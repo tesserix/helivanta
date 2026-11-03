@@ -317,3 +317,8 @@ it("shows employment reviews without tenant-wide HR or document grants", () => {
   const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
   expect(pages.some((page) => page.href === "/workforce/employment-reviews")).toBe(true);
 });
+
+it("shows scoped posting reviews without tenant-wide Staff grants", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/posting-reviews")).toBe(true);
+});

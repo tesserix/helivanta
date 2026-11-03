@@ -1,5 +1,349 @@
 # Staff Management delivery tracker
 
+## Protected posting context checkpoint — 2026-11-04
+
+The source-owner coverage correction [#1545](https://github.com/tesserix/helivanta/pull/1545)
+merged normally as **`a12f6a30`** after all required checks passed. Go CI completed
+in 30m08s, including the seven real fixture regressions and complete backend
+gate; its main-base Workforce source-owner result was **83.3% >= 70%**. Web,
+scripts, secrets, E2E and image checks passed. The repository remains public.
+This CI correction is not a production Staff API rollout.
+
+The posting candidate now adds a protected exact-head context view. Current
+independent review authority or the original submitter's current submission
+authority is required before loading the selected immutable draft rationale,
+original submission rationale and nullable terminal rationale. The view shares
+the existing decision predicates and guarded source lock order, audits disclosure
+through commit, and does not change business heads, revisions or outbox rows.
+No SQL or migration file changed. Existing public receipts remain private-field
+free. Canonical Go/Zod/SDK models require the exact purpose/version/revision and
+reject mismatched scope, draft/department/interval pins and malformed rationale.
+
+The real gateway RED returned **404 instead of 200** (90.357s package). The
+initial implementation passed (97.655s), then the strengthened real PostgreSQL/
+OpenFGA case passed in **98.276s**. That case covers later draft edits retaining
+the submitted rationale, terminal reasons, contributor/historical-account denial,
+stale/hidden targets and audit withholding with actor-use rollback. Removing only
+the context's independence call produced **200 instead of required 403** for a
+retained contributor; the mutant failed in **88.239s**. Original context source
+was restored and SHA256 verified. A real OpenFGA outage assertion was then added.
+The complete restored Global API race/profile suite passed in **454.878s**,
+including that assertion, and removed three owned fixtures without fallback SSH
+forwards. Its Workforce-only instrumentation reports 28.8%; this gateway-only
+metric is not combined source-owner coverage for the current addition.
+
+The SDK test first failed on its absent helper. Current **630 tests / 78 files**,
+API typecheck, lint, package-wide formatting, Go build, scoped Go vet/lint and
+contractdocs check passed. The SDK also verifies that 500 Unicode code points are
+accepted and 501 refused for each retained rationale. The pagination gate first refused the new route, then
+passed with the explicit single-object/three-bounded-reasons rationale (2.592s).
+All 15 operational inventory tests passed. Registry comparison proves exactly one
+new authenticated, membership-required route; all previous routes, grants,
+migrations, events and canonical model contents are unchanged. Sixteen module
+source pins were reconciled while preserving every classification/rationale and
+remaining obligation. The ledger is **794 registered / 771 unclassified**; the
+ten proposal surfaces remain unclassified.
+
+The complete current Workforce race/profile suite passed in **700.117s**, removing
+four owned fixtures; the complete architecture race suite passed in **49.919s**,
+removing three. Neither required fallback SSH forwards. Combining the complete
+current Workforce and gateway profiles with the merged source-owner parser gives
+**12,204 / 14,672 statements = 83.179%**; Go's independent report confirms **83.2%**
+rounded. This is code coverage, not Staff feature acceptance. The code is rebased
+onto `a12f6a30` as **`6714efd1`**. All **1,418** tested runtime/contract source
+hashes are byte-identical across that rebase, and the complete upstream opening
+Leave acceptance section was retained alongside the posting history. Rebased
+contractdocs/inventory checks and shell lint passed. Exact-head CI remains pending.
+The pre-context result below is historical evidence,
+not a full-suite run of this addition. Hospital proposal inbox, normal reviewer UI
+and browser acceptance, supervision/root policy, effective departmental postings,
+lifecycle consumers and Pharma duties remain open. Overall acceptance remains
+**10 partial, 10 awaiting audit, 1 research and 0 fully accepted**.
+
+## Historical-account and coverage checkpoint — 2026-11-04
+
+Draft #1544 at `0cf52a1a` passed web, scripts, secrets, E2E and image CI checks.
+Its Go behavioral suites passed, but the coverage gate failed at Workforce
+**69.2% < 70%**. The gateway workflow executions were not counted toward their
+source owner. A separate CI correction, commit `8264c08f`, counts the combined Go
+profile by source-owner package, retaining the 70% floor and no-owner-test
+refusal. Separate [PR #1545](https://github.com/tesserix/helivanta/pull/1545),
+latest head `83db033c`, has seven real Go fixture regressions, including refusal
+to let a fully covered sibling hide another owner's coverage failure. Those
+regressions, shell checks and CI lint passed; the complete CI gate remains in
+progress. No merge is claimed for that correction yet.
+
+The historical-account regression now imports an old revoked association between
+a contributor's subject and an otherwise current reviewer's canonical Staff.
+Current reviewer generations, links and assignments still come from the real
+public workflow. Rejection returns 403, the pending head/history remain unchanged,
+no decision receipt appears, and the original submitter can withdraw. The target
+remains non-digital and has no login link. This tests a legacy imported association,
+not a modern account-rebinding UI or every historical-target association branch.
+
+The baseline PostgreSQL/OpenFGA run passed in **87.337s**. Removing only the
+reviewer-Staff/contributor association exclusion produced **200 instead of 403**
+and a rejected version-2 receipt; the mutant failed in **83.673s**. Original SQL
+was restored and SHA256 verified. The restored focused Global API run passed in
+**105.106s**, with race detection and Workforce instrumentation; three owned
+fixtures were removed and no fallback SSH forwarding was required.
+
+The combined implementation's earlier full Workforce race suite passed in
+**576.956s**. The further complete Workforce race run with an owner coverage
+profile passed in **685.470s**, removing four owned fixtures without fallback SSH
+forwards. Its own binary reports 69.2%, reproducing the CI metric. Combining this
+profile with the restored focused real gateway profile and using the new gate's
+actual parser gives **11,775 / 14,611 Workforce statements = 80.590%**. This is
+measured source execution across those two runs, not complete backend CI or UI
+acceptance. The full current Global API race suite including the new alias case
+subsequently passed in **565.391s**, removing three owned fixtures without fallback
+SSH forwards. Combining the two complete-suite profiles with the actual gate
+parser gives **12,147 / 14,611 Workforce statements = 83.136%**. Full backend CI,
+normal reviewer UI acceptance and production rollout remain unproven.
+Overall acceptance remains **10 partial, 10 awaiting audit, 1 research and
+0 fully accepted**.
+
+## Posting decision validation checkpoint — 2026-11-04
+
+The first web CI run for draft #1544 stopped at API formatting in
+`staff-posting-review-workspace.test.ts`. The same package-wide `format:check`
+was reproduced locally, then passed after formatting that one test with cached
+Prettier 3.9.10 under Node 24.11.1. All six tests in the changed file passed.
+The correction changes only test layout; rerun CI remains required.
+
+
+The API/SDK slice is committed and pushed in draft [PR #1544](https://github.com/tesserix/helivanta/pull/1544),
+code commit `80dbc610`, on top of merged documentation `6a09287c`. The full
+restored Global API race suite passed in **411.298s** and removed its three
+owned disposable fixtures. That binary preceded the rebase which inherited
+main's separate Leave change `96a47d0b`; its posting implementation is unchanged.
+The inherited delta is six Leave implementation/test/contract files. Do not
+represent the preceding complete-package results as complete-package execution
+of that inherited delta.
+
+On combined code head `80dbc610`, all **625 SDK tests / 78 files**, API typecheck
+and lint under cached Node **24.11.1**, full Go build, scoped vet/golangci-lint and
+contractdocs check passed again. Cached dependencies were linked with local
+API/config sources and an identical lockfile, without installation. The current
+head's complete Workforce race suite is now running, and combined-head CI is
+pending. Both the staged and committed secret scans passed. Main's complete
+tracker and catalog review rationales were retained through the rebase.
+
+The draft does not request production rollout. Its nine new surfaces remain
+unclassified. Historical-alias proof, protected proposal context, hospital inbox,
+normal reviewer UI, supervision and positive approval remain open, alongside
+broader departmental/lifecycle consumer work. No full Staff completion label is
+warranted.
+
+
+The candidate is now isolated on `codex/scoped-posting-proposals-20261104`, based
+on current main; 1,498 tracked backend/API/contract/script files and all 27 changed
+source hashes matched the tested worktree before the expiry fixture correction.
+Main's catalog review notes and all 19 existing authority classifications were
+preserved when reconciling the source ledger. The documentation-only release
+record PR #1541 passed all required checks and merged normally as `6a09287c`, with
+no ruleset exception or production mutation.
+
+The subsequent full Global API run failed in the pre-existing expiry fixture
+(303.162s): the blocked save returned the required 403, but the fixture compared
+only PostgreSQL's clock against the host-enforced deadline. Diagnostics reproduced
+both expiry cases: host observations were 6–7ms after the exact cutoff while DB
+samples were 20–22ms before it. The fixture now accepts expiration enforced by
+either real owner clock, with no tolerance or altered cutoff. It retains actual
+SQL blocking, exact 403, no receipt and audit/actor-use rollback checks. Cleanup
+now uses an independent bounded context and nonfatal error reporting instead of
+panicking inside `sync.OnceFunc` after the test context is cancelled.
+
+A mutation moved the shared source timer one hour late. The original exact-status
+assertion rejected it with 503 instead of 403 (105.516s); the private wrapper had
+expected a timeout message, so its stricter text oracle also failed. Inspection
+confirmed the actual mutation failure at the intended expiry response assertion.
+Original shared-command bytes were restored and SHA256 verified; no production
+clock, timeout or authorization behavior changed. The full restored-source API
+suite subsequently passed in 411.298s, before the separate Leave rebase noted above.
+
+
+The complete architecture race suite passed in **56.617s**, including migration,
+RLS, OpenFGA matrix and owner-interface checks; three owned disposable fixtures
+were removed. All 15 operational inventory tests passed after the reviewed source
+pin reconciliation. The full Workforce race suite passed in **622.627s**, with four exact task-owned
+disposable fixtures removed and no fallback SSH forwards. The full Global API
+run on the latest discovery source is now running, in addition to the focused proof above and the earlier 400.053s parent
+run on pre-discovery source.
+
+
+Reviewer discovery's corrected real Global API journey passed in **58.785s**
+(three owned disposable fixtures removed). It proves reviewer-only capability
+flags, retained read-only draft access and denied editing, administrator-only
+empty discovery, a 20-row limit, audit-failure response withholding and actor-use
+rollback, OpenFGA outage refusal, and immediate same-session discovery cutoff
+after the reviewed assignment is withdrawn. The SDK passed **625 tests / 78 files**
+under cached Node **24.11.1**, with no installation. Typecheck/lint, Go build,
+scoped vet/lint and regenerated contract checks passed. The new endpoint and
+canonical DTO remain unmerged; source inventory is **793 registered / 770
+unclassified**, with no new runtime acceptance classification.
+
+
+The complete parent journey on restored terminal-decision source passed in
+**400.053s**, with three exact task-owned disposable fixtures removed. The prior
+full-package failure (208.119s) in an existing activation-source read remains
+recorded; the passing parent-only rerun does not establish its cause. The first
+90 seconds of read-only database observations found no prolonged lock waits.
+
+Reviewer discovery now has a separate canonical capability projection. Its owner
+unavailability assertion was observed failing with absent-route 404, then passed
+with 503 after implementation (5.684s package). The first positive fixture
+incorrectly expected the immutable reviewer catalog to lack draft reading; the
+actual catalog includes reading and excludes editing. Its assertion and design
+note were corrected to preserve read-only preparation and explicitly refuse
+edits. No IAM snapshot or test authorization requirement was changed.
+
+
+Mutation proof removed only the retained draft-contributor branch. The new
+assertion failed with **200 instead of 403** and a rejected version-2 receipt;
+the mutant package failed in 96.847s. Original SQL bytes were restored and their
+SHA256 verified before the full restored-source Global API run. The existing
+IAM migration-count test was observed failing (24 versus 25), reconciled to the
+already-merged main test that pins migration 0025, and passed in 2.667s.
+
+
+The next focused real PostgreSQL/OpenFGA run passed in **109.950s** on the existing
+Staff QA VM, using cached images and three disposable session-owned fixtures
+removed after capture. No fallback SSH forwards were needed. It covers fixed and
+ongoing submissions, non-digital target identity invalidation, explicit rejected
+and withdrawn revisions, retained retry/recovery, and audit/outbox rollback with
+positive canonical-event counts. The added contributor case keeps an earlier
+draft author ineligible after a different preparer edits/submits, verifies the
+pending head/history and missing decision receipt, and allows the original
+submitter to withdraw. This is not full reviewer UI or positive approval evidence.
+
+
+The submitter/reviewer IAM prerequisite is now deployed as `e9ea7281`; its
+separate [release record](https://github.com/tesserix/helivanta/pull/1541)
+is in PR #1541. Proposal API/SDK work in this branch is still unmerged.
+Rejection/withdrawal have exact pending-revision checks, original-key recovery and
+atomic history/audit/outbox; positive approval remains blocked on supervision.
+The [source review](2026-11-04-posting-proposal-source-review.md) records remaining
+historical-alias, source-race, RLS and UI proof obligations.
+
+On resumption, the full SDK suite passed **619 tests / 77 files**. The reason
+control-character regression passed with race detection in **2.656s**; full Go
+build, contractdocs check and scoped Workforce/Global API/architecture vet passed.
+The focused real Global API run failed **before assertions** at OpenFGA HTTP
+readiness, despite service-start logs. Package failure time was 263.948s; wrapper
+447.9s, with one exact task-owned disposable fixture removed. It is not counted
+as a pass. A concurrent full coverage run in the separate leave-opening-balances
+worktree was using the same Docker VM; Docker listing took 12.68s and VM SSH timed
+out at 15s. Its containers/processes were preserved. No transport fix or successful
+new fault-injection run is claimed.
+
+
+## Separate non-digital placement target verification — 2026-11-04
+
+Scoped preparation PR [#1532](https://github.com/tesserix/helivanta/pull/1532)
+is merged as `091f2287`; GitHub reports all required checks successful and the
+repository remains public. This supersedes the older draft-PR status in historical
+entries. It does not release the independent-review worktree.
+
+A real Global API/PostgreSQL/OpenFGA journey now separates a current reviewed
+digital submitter from a newly reviewed, activated **non-digital target**. The
+target has no declared account or login link. Source readiness, canonical
+department draft, pending submission, exact retry and immutable history pass;
+administrator-only reading and an unrelated generation are refused. Changing and
+restoring the target's identity invalidates its generation even with a fresh
+draft and current Staff concurrency pins. A new submission returns 409, while
+the original non-operating receipt remains readable and no login is created.
+The focused parent run passed in 62.224s. Its initial fixture failed required
+employee-code length validation before any posting assertion; the synthetic
+scenario/code was shortened rather than changing the product limit.
+
+Mutation proof bypassed only the different target's `identity_changed` result:
+the new submission returned **200 instead of required 409**, failing the public
+API assertion. Exact original owner bytes were restored and hash-verified.
+An earlier actor-versus-target HR-purpose mutation survived; it is not claimed
+as a tested security boundary or a product defect. Private logs preserve both
+observations. No runtime binary was rebuilt from either mutation.
+
+The preceding full Global API race suite passed in 410.914s after the ongoing
+placement correction; the subsequent complete run including the non-digital
+target passed in **448.467s**, with zero fallback forwards and three exact owned
+fixtures removed. All 616 SDK tests across 77 files, canonical-generator
+checks/typecheck, SDK lint, Go build, scoped vet/lint (0 issues), contractdocs
+check and whitespace check pass. The full architecture run exposed missing
+permission declarations and three singleton GET classifications. The declarations
+now preserve scoped-only assignment authority and the approved legacy permission
+matrix; the singleton entries explain why no collection cursor applies. The full
+architecture suite then passed in **71.684s** with real PostgreSQL/OpenFGA,
+including migration/RLS checks. The initial direct invocation also lacked the
+Docker endpoint; its infrastructure failures are not product regression evidence.
+After registry corrections, the focused real fixed/ongoing/non-digital submission
+and parent setup run passed in **79.689s**, with zero fallback forwards and three
+exact owned fixtures removed.
+
+The operational inventory initially refused stale source pins as intended. The
+[source review](2026-11-04-posting-proposal-source-review.md) compares all prior
+Workforce/IAM routes and grants against refreshed main, preserving all of them.
+Nineteen existing reviews were reconciled for the additive module changes and
+preserved wrappers. Parity passes at **790 registered / 767 unclassified**;
+all 15 inventory tests pass. No new surface was classified as runtime accepted.
+
+The existing loopback browser separately verified current scoped Preparer
+discovery, the canonical Pharma target, explicit draft-only wording and empty
+form errors for department, UTC start and reason. Cancel returned to the unchanged
+empty draft list. No business data or access was saved. This browser uses the
+existing preparation runtime and is not independent-review UI acceptance.
+
+Independent approval/supervision, target source races in both orders, transfers
+and lifecycle consumers, department-scoped operating permissions, full review UI,
+Pharma duties and production release remain open. The overall ledger stays
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Reviewed posting submissions in development — 2026-11-04
+
+The [independent posting feature](../superpowers/plans/2026-11-03-independent-staff-posting-review.md)
+now has real pending submission/source/read/history/retained-command handlers,
+canonical SDK models and an additive forced-RLS proposal schema in the current
+worktree. A proposal references the existing canonical Staff, reviewed generation
+and Organization department; it grants no operating access. Fixed-term, source,
+retry/duplicate, required-field and audit/outbox rollback paths have public API
+proof. Ongoing employment now permits a null placement end while retaining its
+separate finite reviewed-source cutoff; fixed appointments reject unbounded or
+outlasting placements. The focused fixed/ongoing run passed in 89.620s after the
+new ongoing case was observed failing with 409.
+
+Later validation results and registry corrections are recorded above. Earlier
+finite-end-only passes are explicitly marked superseded in the detailed plan. The owner-only
+missing-decision test remains RED because the decision path is not implemented.
+Independent approval/supervision/lifecycle, different actor/target cutoff proof,
+normal browser acceptance and release gates remain open. No production mutation
+or full Staff/Pharma completion is claimed. Overall ledger remains 10 partial,
+10 awaiting audit and one research area.
+
+## Independent posting review started — 2026-11-03
+
+The [next vertical feature](../superpowers/plans/2026-11-03-independent-staff-posting-review.md)
+is isolated in `helivanta-effective-posting-review-20261103`, based on pushed
+scoped-preparation head `0b27e927`. The candidate specification pins ownership,
+new scoped submit/review actors, retained command paths, source/supervision and
+failure requirements. Its first owner-router tests are RED: submission and
+decision routes are absent (404), rather than 503 when current owners are not
+composed. The real reviewed-source Global API fixture separately reaches
+submission and gets absent-route 404 instead of current-assignment refusal 403. This is evidence of missing functionality, not a security bypass.
+No placeholder handler, approval or operating authority was added. The next
+closed IAM catalog and its additive migration are under development on this
+isolated branch.
+Workforce canonical models, positive independent-review fixture, persistence and
+UI remain to implement together on that branch. The template generator tests
+pass (51). Combined existing/new role catalog and real OpenFGA projection tests
+pass (117.945s); scoped IAM vet/lint, generator/contractdocs checks, the SDK
+suite (609 tests) and API typecheck pass. Commands and UI are still unimplemented.
+
+The unchanged evidence-download admission case also passed five consecutive
+four-transfer runs (140.672s total package time), with zero fallback forwards and
+three exact owned fixtures removed. The earlier isolated 503 remains an unresolved
+observation; these passes do not prove its cause or a fix. All exact-head scoped preparation CI for `0b27e927` now passes, including Go,
+web and E2E; deploy advancement was skipped. No merge, production rollout or completion tag occurred.
+
 ## Opening leave balances — 2026-11-04
 
 #1537 (PR #1542, merge `96a47d0b`) lets HR record an opening balance for a staff
@@ -50,7 +394,7 @@ PR #1539 merged as `e9ea7281` and its approved production promotion succeeded.
 Exactly IAM migration 0025 was added, moving receipts from 219 to 220. All seven
 application deployments were 2/2 ready, all 14 application containers were ready
 with zero restarts, and API/Global API/shell were Argo Synced/Healthy. Published
-image digests match the running container image IDs. See the [release evidence](../deployment/releases/2026-11-04-posting-review-catalogs.md).
+image digests match the running container image IDs. See the [release evidence](https://github.com/tesserix/helivanta/pull/1541).
 Authenticated production catalog UI acceptance is pending the owner sign-in
 handoff. No effective posting, operating authority or full Staff acceptance is
 claimed. Proposal submission/terminal-decision API work remains unmerged.
@@ -4413,3 +4757,55 @@ in the associated PR before merge; no additional domain completion is claimed.
 - Local QA on tree `d465d104` (identical to merge `091f2287`) passed both leave separation-of-duties rules through the normal UI and the bound session API. The owner who filed a request got 403 on its approval while the independent leave reviewer approved it. A request filed on the reviewer's own Staff record never reached that reviewer's queue, returned 404 on review detail and 403 on both approve and reject, and stayed pending at version 1.
 - Setup exposed a Leave balances gap: **Correct balance** is hidden until a staff member's first ledger entry, so an opening balance for a newly assigned structure needed the correction API. Filed as [#1537](https://github.com/tesserix/helivanta/issues/1537).
 - [Release record](../deployment/releases/2026-11-04-scoped-posting-actors.md) for freight `a03f45e8` and its five migrations. The user approved the promotion on 2026-11-04; Promotion `prod.01m6gxvcqvx37wcqnavf92aq27.a03f45e` Succeeded, the ledger gained exactly those five IDs and every pod runs `091f2287`. Staff self-service filing (#1132) and reporting-line routing (#1536) remain open.
+
+### 2026-11-04 scoped posting inbox candidate — not yet released
+
+The reviewer can now discover public posting proposals by approved hospital via
+the candidate owner API/SDK, without entering Staff UUIDs. The eight-item queue
+returns canonical Staff code/name, public proposal metadata and an original-
+submitter display hint. It excludes private rationales and identity evidence;
+opening protected context still requires current independent review authority.
+
+The local protection journey passed before the final RLS policy-composition fix;
+complete corrected-migration suites remain in progress. SDK 633/typecheck/lint/
+format, Go build/scoped vet/lint, full platform race and 15 inventory tests pass.
+The first full owner run caught a real extra-permissive-policy error; it is fixed
+in candidate 0076 and awaits complete rerun. Candidate 0077 persists its concurrent
+queue index. No production migration or rollout occurred. See the [delivery
+record](../superpowers/plans/2026-11-03-independent-staff-posting-review.md).
+
+Reviewer UI/browser acceptance, effective supervision/approval, transfers,
+contractor expiry, suspension, exit/rehire and departmental/Pharma consumers remain
+open. Overall counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully
+accepted**. This is progress within a partial area, not a completion percentage.
+
+Candidate validation update: corrected-migration Global API race 472.140s,
+architecture race 65.636s and focused owner security 11.579s pass. The full owner
+rerun passed in 679.419s after the private test-wrapper interruption. Read-only reviewer UI
+now has four positive/refusal/account-switch component checks, and the UI library
+passes 279 tests plus types/lint. The shell passes types/lint and a webpack build;
+full shell tests and real-account browser acceptance remain pending. Shared local
+ports 4399/8399 belong to another Leave candidate and were preserved. An isolated
+posting runtime is still required. No rollout, migration or production activation
+was performed; the overall 21-area counts are unchanged.
+
+Full shell verification now passes **1,435 tests /177 files** (321.34s). This
+covers source/component behavior only; real-account browser decisions and
+operational/lifecycle acceptance remain open.
+
+The complete corrected-migration Workforce race suite passed in **679.419s**;
+four exact-session-owned fixtures were removed and no fallback SSH forwards were
+needed. The representative inbox query-plan/index probe is the final pending
+checkpoint check. Production and broad Staff acceptance remain unchanged.
+
+
+The final real gateway protection/index-plan journey passed in **100.443s**.
+The representative full-projection first-page `EXPLAIN (ANALYZE, BUFFERS)` uses
+`workforce_posting_proposal_inbox`, returns three synthetic rows under a Limit
+and records 2.124ms execution/5.003ms planning on this small fixture. Index
+registration/column order are verified. This does not prove continuation plans,
+production scale or an SLO. The full plan and test logs are retained privately in
+`~/.helivanta/staff-management-20261027/posting-inbox-20261104/`.
+All checkpoint checks now pass. Normal decision UI, an isolated real-account
+browser journey and the wider supervision/operational/lifecycle work remain open;
+this candidate remains draft and is not rolled out.

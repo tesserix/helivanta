@@ -7,6 +7,7 @@ import {
 } from "./staff-posting-workspace";
 import {
   getStaffPostingProposalContext,
+  getStaffPostingReviewSource,
   listStaffPostingProposalInbox,
   staffPostingProposalsKey,
   type StaffPostingInboxScope,
@@ -102,11 +103,13 @@ export function useStaffPostingTargets(
 export function useStaffPostingReviewScopes(
   scope: Pick<StaffPostingScope, "tenantId" | "subject">,
   cursor: string | null,
+  busy = false,
 ) {
   return useQuery({
     gcTime: 0,
     staleTime: 0,
     retry: false,
+    refetchOnWindowFocus: !busy,
     queryKey: ["workforce", "posting-review-scopes", scope.tenantId, scope.subject, cursor],
     queryFn: ({ signal }) => listStaffPostingReviewScopes(scope, cursor, signal),
   });
@@ -115,11 +118,13 @@ export function useStaffPostingProposalInbox(
   scope: StaffPostingInboxScope,
   status: StaffPostingProposal["status"],
   cursor: string | null,
+  busy = false,
 ) {
   return useQuery({
     gcTime: 0,
     staleTime: 0,
     retry: false,
+    refetchOnWindowFocus: !busy,
     queryKey: [
       "workforce",
       "posting-inbox",
@@ -136,11 +141,13 @@ export function useStaffPostingProposalContext(
   scope: StaffPostingProposalScope,
   proposal: StaffPostingProposal,
   purpose: "review" | "submission",
+  busy = false,
 ) {
   return useQuery({
     gcTime: 0,
     staleTime: 0,
     retry: false,
+    refetchOnWindowFocus: !busy,
     queryKey: [
       ...staffPostingProposalsKey(scope),
       "context",
@@ -160,5 +167,16 @@ export function useStaffPostingProposalContext(
         },
         signal,
       ),
+  });
+}
+
+export function useStaffPostingReviewSource(scope: StaffPostingProposalScope, busy = false) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: !busy,
+    queryKey: [...staffPostingProposalsKey(scope), "review-source"],
+    queryFn: ({ signal }) => getStaffPostingReviewSource(scope, signal),
   });
 }

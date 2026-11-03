@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@tesserix/web";
-import { Field, Panel, SelectControl } from "@helivanta/ui";
+import { Field, Panel, SelectControl, useConfirmLeave } from "@helivanta/ui";
 import {
   useStaffPostingReviewScopes,
   useStaffPostingProposalInbox,
@@ -13,19 +13,29 @@ import {
   type StaffPostingProposal,
   type StaffPostingReviewHospitalScope,
 } from "@helivanta/api";
+import { PostingProposalDecision } from "./posting-proposal-decision";
 import { useStaffAccessCutoff, STAFF_ACCESS_CHANGED } from "./staff-access-cutoff";
 
-type Props = { scope: EnrollmentRequestScope; onContextChanged: () => void };
+type Props = {
+  scope: EnrollmentRequestScope;
+  onContextChanged: () => void;
+  onBusyChanged?: (busy: boolean) => void;
+};
 export function StaffPostingReviewWorkspace(props: Props) {
   return <PostingReviewAccount key={`${props.scope.tenantId}:${props.scope.subject}`} {...props} />;
 }
-function PostingReviewAccount({ scope, onContextChanged }: Props) {
+function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props) {
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    onBusyChanged?.(busy);
+  }, [busy, onBusyChanged]);
+  useEffect(() => () => onBusyChanged?.(false), [onBusyChanged]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const hospitals = useStaffPostingReviewScopes(scope, cursor);
+  const hospitals = useStaffPostingReviewScopes(scope, cursor, busy);
   const cutoff = useStaffAccessCutoff([hospitals.error], onContextChanged);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
-  if (hospitals.isPending || hospitals.isFetching)
+  if (hospitals.isPending || (hospitals.isFetching && !busy))
     return <p role="status">Checking posting review hospitals…</p>;
   if (hospitals.isError)
     return (
@@ -46,6 +56,7 @@ function PostingReviewAccount({ scope, onContextChanged }: Props) {
           <Button
             key={row.hospital_id}
             variant={selected === row.hospital_id ? "default" : "outline"}
+            disabled={busy}
             aria-label={`Open posting reviews for ${row.name}`}
             onClick={() => setSelected(row.hospital_id)}
           >
@@ -64,6 +75,8 @@ function PostingReviewAccount({ scope, onContextChanged }: Props) {
           key={hospital.hospital_id}
           scope={{ ...scope, hospitalId: hospital.hospital_id, access: "scoped" }}
           hospital={hospital}
+          busy={busy}
+          onBusy={setBusy}
           onContextChanged={onContextChanged}
         />
       )}
@@ -71,6 +84,7 @@ function PostingReviewAccount({ scope, onContextChanged }: Props) {
         {hospitals.data.page.has_more && (
           <Button
             variant="outline"
+            disabled={busy}
             onClick={() => {
               setSelected(null);
               setCursor(hospitals.data.page.next_cursor);
@@ -82,6 +96,7 @@ function PostingReviewAccount({ scope, onContextChanged }: Props) {
         {cursor && (
           <Button
             variant="ghost"
+            disabled={busy}
             onClick={() => {
               setSelected(null);
               setCursor(null);
@@ -92,6 +107,7 @@ function PostingReviewAccount({ scope, onContextChanged }: Props) {
         )}
         <Button
           variant="outline"
+          disabled={busy}
           onClick={() => {
             setSelected(null);
             void hospitals.refetch();
@@ -106,19 +122,25 @@ function PostingReviewAccount({ scope, onContextChanged }: Props) {
 function HospitalPostingReviews({
   scope,
   hospital,
+  busy,
+  onBusy,
   onContextChanged,
 }: {
   scope: StaffPostingInboxScope;
   hospital: StaffPostingReviewHospitalScope;
+  busy: boolean;
+  onBusy: (value: boolean) => void;
   onContextChanged: () => void;
 }) {
+  const [notice, setNotice] = useState("");
   const [status, setStatus] = useState<StaffPostingProposal["status"]>("pending");
   const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<StaffPostingInboxItem | null>(null);
-  const inbox = useStaffPostingProposalInbox(scope, status, cursor);
+  const inbox = useStaffPostingProposalInbox(scope, status, cursor, busy);
   const cutoff = useStaffAccessCutoff([inbox.error], onContextChanged);
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
-  if (inbox.isPending || inbox.isFetching) return <p role="status">Loading posting proposals…</p>;
+  if (inbox.isPending || (inbox.isFetching && !busy))
+    return <p role="status">Loading posting proposals…</p>;
   if (inbox.isError)
     return (
       <div role="alert">
@@ -126,19 +148,22 @@ function HospitalPostingReviews({
         <Button onClick={() => void inbox.refetch()}>Retry proposals</Button>
       </div>
     );
-  const current =
-    selected &&
-    inbox.data.data.find(
-      (item) =>
-        item.proposal.id === selected.proposal.id &&
-        item.proposal.revision_id === selected.proposal.revision_id,
-    );
+  const current = busy
+    ? selected
+    : selected &&
+      inbox.data.data.find(
+        (item) =>
+          item.proposal.id === selected.proposal.id &&
+          item.proposal.revision_id === selected.proposal.revision_id,
+      );
   return (
     <Panel className="space-y-5">
+      {notice && <p role="status">{notice}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold">{hospital.name} · Posting proposals</h2>
         <Button
           variant="outline"
+          disabled={busy}
           onClick={() => {
             setSelected(null);
             void inbox.refetch();
@@ -151,6 +176,7 @@ function HospitalPostingReviews({
         <SelectControl
           id="posting-inbox-status"
           value={status}
+          disabled={busy}
           onValueChange={(value) => {
             setSelected(null);
             setCursor(null);
@@ -177,9 +203,11 @@ function HospitalPostingReviews({
                 ? `Ends ${new Date(item.proposal.ends_at).toISOString()}`
                 : "Ongoing"}
             </p>
-            {(item.is_submitter || hospital.can_review) && (
+            {((item.is_submitter && hospital.can_submit) ||
+              (!item.is_submitter && hospital.can_review)) && (
               <Button
                 variant="outline"
+                disabled={busy}
                 aria-label={`Open proposal for ${item.staff.display_name}`}
                 onClick={() => setSelected(item)}
               >
@@ -195,6 +223,26 @@ function HospitalPostingReviews({
           key={`${current.proposal.id}:${current.proposal.revision_id}`}
           scope={scope}
           item={current}
+          action={
+            current.is_submitter
+              ? hospital.can_submit
+                ? "withdraw"
+                : null
+              : hospital.can_review
+                ? "reject"
+                : null
+          }
+          busy={busy}
+          onBusy={onBusy}
+          onCompleted={(row) => {
+            setSelected(null);
+            setNotice(
+              row.status === "rejected"
+                ? "Posting proposal rejected."
+                : "Posting proposal withdrawn.",
+            );
+            void inbox.refetch();
+          }}
           onClose={() => setSelected(null)}
           onContextChanged={onContextChanged}
         />
@@ -203,6 +251,7 @@ function HospitalPostingReviews({
         {inbox.data.page.has_more && (
           <Button
             variant="outline"
+            disabled={busy}
             onClick={() => {
               setSelected(null);
               setCursor(inbox.data.page.next_cursor);
@@ -214,6 +263,7 @@ function HospitalPostingReviews({
         {cursor && (
           <Button
             variant="ghost"
+            disabled={busy}
             onClick={() => {
               setSelected(null);
               setCursor(null);
@@ -229,11 +279,19 @@ function HospitalPostingReviews({
 function PostingProposalDetail({
   scope,
   item,
+  action,
+  busy,
+  onBusy,
+  onCompleted,
   onClose,
   onContextChanged,
 }: {
   scope: StaffPostingInboxScope;
   item: StaffPostingInboxItem;
+  action: "reject" | "withdraw" | null;
+  busy: boolean;
+  onBusy: (value: boolean) => void;
+  onCompleted: (row: StaffPostingProposal) => void;
   onClose: () => void;
   onContextChanged: () => void;
 }) {
@@ -241,13 +299,15 @@ function PostingProposalDetail({
     { ...scope, staffId: item.staff.id },
     item.proposal,
     item.is_submitter ? "submission" : "review",
+    busy,
   );
+  const confirmLeave = useConfirmLeave();
   const cutoff = useStaffAccessCutoff([context.error], onContextChanged);
   return (
     <Panel className="space-y-4" aria-label="Selected posting proposal">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">{item.staff.display_name} · Proposal details</h3>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={() => confirmLeave(onClose)}>
           Close proposal
         </Button>
       </div>
@@ -261,31 +321,56 @@ function PostingProposalDetail({
           <Button onClick={() => void context.refetch()}>Retry protected proposal</Button>
         </div>
       ) : (
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <dt className="text-sm text-muted-foreground">Draft rationale</dt>
-            <dd className="break-words">{context.data.draft_reason}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Submission rationale</dt>
-            <dd className="break-words">{context.data.submission_reason}</dd>
-          </div>
-          {context.data.decision_reason && (
+        <>
+          <dl className="grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-sm text-muted-foreground">Decision rationale</dt>
-              <dd className="break-words">{context.data.decision_reason}</dd>
+              <dt className="text-sm text-muted-foreground">Draft rationale</dt>
+              <dd className="break-words">{context.data.draft_reason}</dd>
             </div>
-          )}
-          <div>
-            <dt className="text-sm text-muted-foreground">Proposed placement (UTC)</dt>
-            <dd>
-              {new Date(context.data.proposal.starts_at).toISOString()} ·{" "}
-              {context.data.proposal.ends_at
-                ? new Date(context.data.proposal.ends_at).toISOString()
-                : "Ongoing"}
-            </dd>
-          </div>
-        </dl>
+            <div>
+              <dt className="text-sm text-muted-foreground">Submission rationale</dt>
+              <dd className="break-words">{context.data.submission_reason}</dd>
+            </div>
+            {context.data.decision_reason && (
+              <div>
+                <dt className="text-sm text-muted-foreground">Decision rationale</dt>
+                <dd className="break-words">{context.data.decision_reason}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="text-sm text-muted-foreground">Submitted department reference</dt>
+              <dd className="break-all">{context.data.proposal.department_id}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Submitted department revision</dt>
+              <dd className="break-all">{context.data.proposal.department_revision_id}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Proposed placement (UTC)</dt>
+              <dd>
+                {new Date(context.data.proposal.starts_at).toISOString()} ·{" "}
+                {context.data.proposal.ends_at
+                  ? new Date(context.data.proposal.ends_at).toISOString()
+                  : "Ongoing"}
+              </dd>
+            </div>
+          </dl>
+        </>
+      )}
+      {context.data && !cutoff && (
+        <PostingProposalDecision
+          scope={{ ...scope, staffId: item.staff.id }}
+          proposal={context.data.proposal}
+          contextAvailable={context.isSuccess && !context.isFetching}
+          onContextRecheck={() => {
+            void context.refetch();
+          }}
+          action={action}
+          busy={busy}
+          onBusy={onBusy}
+          onCompleted={onCompleted}
+          onContextChanged={onContextChanged}
+        />
       )}
     </Panel>
   );

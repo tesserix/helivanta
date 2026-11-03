@@ -432,3 +432,54 @@ production scale or an SLO. The full plan and test logs are retained privately i
 All checkpoint checks now pass. Normal decision UI, an isolated real-account
 browser journey and the wider supervision/operational/lifecycle work remain open;
 this candidate remains draft and is not rolled out.
+
+
+## 2026-11-04 terminal reviewer decisions (candidate)
+
+The normal reviewer page now permits rejection under independently admitted
+review context; the original submitter can withdraw under current submit scope.
+Both require canonical mandatory rationale/attestation and a successfully read
+current employment-source observation. It displays current/changed source state
+and check time alongside submitted department/revision references. Positive
+approval and effective postings remain unavailable pending supervision policy.
+
+A parsed immutable head/intent gets one command ID before sending. Unconfirmed
+outcomes lock edits and workspace navigation, retain the original command, and
+offer receipt recovery/exact retry. Focus refresh is paused during dirty or
+retained intent. The decision component survives protected-context refresh so
+revalidation cannot silently discard its key. Account/tenant changes clear the
+private account view; writes retain original-account headers and the owner
+reauthorizes independently. Leaving warns that an unconfirmed command may have
+been recorded.
+
+The missing-receipt test exposed the generic Staff 404 cutoff dropping retained
+intent. Receipt 404 now keeps that exact command and independently rechecks
+protected context. A real context 403 still clears private rationale and decision
+controls. Corrected the fixture to use the owner's actual string `error` and
+`message` envelope. Restoring the generic 404 cutoff failed the recovery case;
+restored source SHA256 is
+`5a2b0952f4ceaa8690fde20712e01778d3ff3b143bbbd24382ce755dcafe6943`.
+
+Nine reviewer component tests pass: discovery/selected disclosure/close, admission
+403, unavailable context503, account switch, mandatory rejection, original-
+submitter withdrawal, lost-response receipt recovery/focus/navigation protection,
+source503 refusal, missing receipt/exact retry and revoked-authority recheck.
+The combined cases span nine tests. Full shell 1440/177 files and SDK 633/78 files,
+types/lint/format and the candidate webpack build pass. Backend/contracts are
+unchanged from the prior full Go race suites; current source hashes were compared.
+No schema, API payload, permission, operating authority or production policy changed.
+
+An isolated local QA runtime is being prepared under
+`~/.helivanta/staff-management-20261027/posting-review-ui-20261104/`. It has dedicated
+cached-image PostgreSQL, NATS and OpenFGA with loopback bindings. The consistent
+read-only seed contains 1131 QA rows over 151 required tables, excluding source audit
+history and processing queues. Generated columns are recomputed by PostgreSQL;
+all table counts, FKs and RLS policies restore successfully. Source services/data
+are preserved. Listener-only Go build overlays bind candidate CLI services to
+loopback; application handlers are unchanged and overlay hashes are recorded.
+The Global API is live on 8198; candidate API startup requires a dedicated local
+Temporal namespace before readiness can pass. Source graph discovery from the
+saved config yielded no store, so it is not copied or treated as authoritative;
+canonical IAM reconciliation will initialize the candidate graph from cloned IAM.
+Normal real-account browser acceptance remains open. This is fixture preparation,
+not activation, completed Staff Management, merge or production rollout.

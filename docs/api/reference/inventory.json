@@ -7829,6 +7829,92 @@
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command",
+          "permission": "workforce.posting.submit",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-targets",
           "permission": "workforce.posting.read",
           "authentication_required": true,
@@ -8718,6 +8804,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/posting-review-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/posting-scopes",
           "permission": "public",
           "authentication_required": true,
@@ -8729,6 +8824,18 @@
       "grants": [
         {
           "permission": "workforce.staff_actor.use",
+          "roles": []
+        },
+        {
+          "permission": "workforce.posting.proposal.read",
+          "roles": []
+        },
+        {
+          "permission": "workforce.posting.submit",
+          "roles": []
+        },
+        {
+          "permission": "workforce.posting.review",
           "roles": []
         },
         {
@@ -8885,6 +8992,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.posting_proposal_changed.v1",
         "helivanta.in.workforce.posting_draft_changed.v1",
         "helivanta.in.workforce.department_link_requested.v1",
         "helivanta.in.workforce.organization_hospital_observed.v1",
@@ -9789,6 +9897,14 @@
           "id": "0074_workforce_scoped_postings",
           "sql_sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
           "creates_tables": []
+        },
+        {
+          "id": "0075_workforce_posting_proposals",
+          "sql_sha256": "7c8938273da5eaada13f417410ef1844338d1247c7ff5e89d6e46b49726987d7",
+          "creates_tables": [
+            "workforce_posting_proposals",
+            "workforce_posting_proposal_revisions"
+          ]
         }
       ]
     },

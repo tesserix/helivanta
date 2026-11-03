@@ -35,6 +35,17 @@ func (h *handlers) postingTransaction(c *gin.Context, p authn.Principal, scope p
 			return action(c.Request.Context(), tx, source)
 		})
 	}
+	permission := PermPostingRead
+	if writing {
+		permission = PermPostingPrepare
+	}
+	return h.scopedPostingTransaction(c, p, scope, writing, permission, action)
+}
+
+func (h *handlers) scopedPostingTransaction(c *gin.Context, p authn.Principal, scope postingDraftScope, writing bool, permission authz.Permission, action func(context.Context, *gorm.DB, EmploymentPeriodSource) error) error {
+	if !c.GetBool(scopedPostingKey) {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
 	if !authn.Refresh(c) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
@@ -47,9 +58,9 @@ func (h *handlers) postingTransaction(c *gin.Context, p authn.Principal, scope p
 	if !supported || h.staffActors == nil || p.IdleDeadline.IsZero() {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	permission, mode := PermPostingRead, "read"
+	mode := "read"
 	if writing {
-		permission, mode = PermPostingPrepare, "write"
+		mode = "write"
 	}
 	ctx, cancel := context.WithDeadline(c.Request.Context(), p.IdleDeadline)
 	defer cancel()
@@ -80,7 +91,7 @@ func (h *handlers) postingTransaction(c *gin.Context, p authn.Principal, scope p
 		return h.staffActors.WithCurrentStaffActor(commandCtx, authz.StaffActorScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: scope.hospital}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
 			return h.db.WithTenantCommand(actorCtx, p.TenantID, func(tx *gorm.DB) error {
 				grant := checks[0].Grant
-				if err := tx.Exec(`SELECT set_config('app.workforce_posting_scoped',?,true),set_config('app.workforce_posting_actor',?,true),set_config('app.workforce_posting_link',?,true),set_config('app.workforce_posting_generation',?,true),set_config('app.workforce_posting_assignment',?,true),set_config('app.workforce_posting_assignment_version',?,true),set_config('app.workforce_posting_scope_epoch',?,true),set_config('app.workforce_posting_membership_epoch',?,true)`, mode, actor.StaffID.String(), actor.LinkID.String(), actor.GenerationID.String(), grant.AssignmentID, strconv.FormatInt(grant.Version, 10), strconv.FormatInt(grant.ScopeEpoch, 10), strconv.FormatInt(grant.MembershipEpoch, 10)).Error; err != nil {
+				if err := tx.Exec(`SELECT set_config('app.workforce_posting_permission',?,true),set_config('app.workforce_posting_scoped',?,true),set_config('app.workforce_posting_actor',?,true),set_config('app.workforce_posting_link',?,true),set_config('app.workforce_posting_generation',?,true),set_config('app.workforce_posting_assignment',?,true),set_config('app.workforce_posting_assignment_version',?,true),set_config('app.workforce_posting_scope_epoch',?,true),set_config('app.workforce_posting_membership_epoch',?,true)`, string(permission), mode, actor.StaffID.String(), actor.LinkID.String(), actor.GenerationID.String(), grant.AssignmentID, strconv.FormatInt(grant.Version, 10), strconv.FormatInt(grant.ScopeEpoch, 10), strconv.FormatInt(grant.MembershipEpoch, 10)).Error; err != nil {
 					return err
 				}
 				source, err := postingOwnerContext(tx, p, scope, writing, true)

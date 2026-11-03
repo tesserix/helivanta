@@ -46,3 +46,67 @@ type StaffPostingTarget struct {
 	EmployeeCode string    `json:"employee_code"`
 	DisplayName  string    `json:"display_name"`
 }
+
+type StaffPostingProposalInput struct {
+	ExpectedVersion *int64    `json:"expected_version" binding:"required"`
+	DraftID         uuid.UUID `json:"draft_id"`
+	DraftRevisionID uuid.UUID `json:"draft_revision_id"`
+	DraftVersion    *int64    `json:"draft_version" binding:"required"`
+	GenerationID    uuid.UUID `json:"generation_id"`
+	StaffVersion    *int64    `json:"staff_version" binding:"required"`
+	EmploymentEpoch *int64    `json:"employment_epoch" binding:"required"`
+	Reason          string    `json:"reason" binding:"required,max=500"`
+	SourcesExamined *bool     `json:"sources_examined" binding:"required"`
+}
+
+type StaffPostingProposal struct {
+	ID                   uuid.UUID  `json:"id"`
+	RevisionID           uuid.UUID  `json:"revision_id"`
+	CommandID            uuid.UUID  `json:"command_id"`
+	HospitalID           uuid.UUID  `json:"hospital_id"`
+	StaffID              uuid.UUID  `json:"staff_id"`
+	Version              int64      `json:"version"`
+	Status               string     `json:"status"`
+	GrantsAccess         bool       `json:"grants_access"`
+	DraftID              uuid.UUID  `json:"draft_id"`
+	DraftRevisionID      uuid.UUID  `json:"draft_revision_id"`
+	DraftVersion         int64      `json:"draft_version"`
+	GenerationID         uuid.UUID  `json:"generation_id"`
+	StaffVersion         int64      `json:"staff_version"`
+	EmploymentEpoch      int64      `json:"employment_epoch"`
+	DepartmentID         uuid.UUID  `json:"department_id"`
+	DepartmentRevisionID uuid.UUID  `json:"department_revision_id"`
+	StartsAt             time.Time  `json:"starts_at"`
+	EndsAt               *time.Time `json:"ends_at"`
+	EligibilityUntil     time.Time  `json:"eligibility_until"`
+	CreatedAt            time.Time  `json:"created_at"`
+	RecordedAt           time.Time  `json:"recorded_at"`
+}
+
+type StaffPostingDecisionInput struct {
+	ExpectedVersion    *int64    `json:"expected_version" binding:"required"`
+	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
+	Decision           string    `json:"decision"`
+	Reason             string    `json:"reason" binding:"required,max=500"`
+	SourcesExamined    *bool     `json:"sources_examined" binding:"required"`
+}
+
+type StaffPostingReviewSource struct {
+	HospitalID       uuid.UUID  `json:"hospital_id"`
+	StaffID          uuid.UUID  `json:"staff_id"`
+	StaffVersion     int64      `json:"staff_version"`
+	EmploymentEpoch  int64      `json:"employment_epoch"`
+	GenerationID     *uuid.UUID `json:"generation_id"`
+	GenerationState  string     `json:"generation_state"`
+	StartsAt         *time.Time `json:"starts_at"`
+	EndsAt           *time.Time `json:"ends_at"`
+	EligibilityUntil *time.Time `json:"eligibility_until"`
+	CheckedAt        time.Time  `json:"checked_at"`
+}
+
+type StaffPostingReviewHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+	CanSubmit  bool      `json:"can_submit"`
+	CanReview  bool      `json:"can_review"`
+}

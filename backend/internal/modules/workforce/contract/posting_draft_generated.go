@@ -10,3 +10,12 @@ type PostingDraftChangedData struct {
 	RevisionID uuid.UUID `json:"revision_id"`
 	Version    int64     `json:"version"`
 }
+
+type PostingProposalChangedData struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	StaffID    uuid.UUID `json:"staff_id"`
+	ProposalID uuid.UUID `json:"proposal_id"`
+	RevisionID uuid.UUID `json:"revision_id"`
+	Version    int64     `json:"version"`
+	Status     string    `json:"status"`
+}

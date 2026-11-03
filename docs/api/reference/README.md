@@ -1055,6 +1055,14 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/history` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting` | `workforce.posting.read` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts` | `workforce.posting.read` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.proposal.read` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.submit` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `workforce.posting.proposal.read` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history` | `workforce.posting.proposal.read` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal` | `workforce.posting.proposal.read` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals` | `workforce.posting.proposal.read` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source` | `workforce.posting.proposal.read` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-targets` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
@@ -1148,10 +1156,12 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/posting-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-scopes` | `public` | true | false |
 
 Published subjects:
 
+- `helivanta.in.workforce.posting_proposal_changed.v1`
 - `helivanta.in.workforce.posting_draft_changed.v1`
 - `helivanta.in.workforce.department_link_requested.v1`
 - `helivanta.in.workforce.organization_hospital_observed.v1`
@@ -1258,6 +1268,7 @@ Migration table declarations:
 - `0070_workforce_department_links`: `workforce_department_links`.
 - `0072_workforce_credential_subject_index`: concurrent index `workforce_login_links_credential_subject` on `workforce_login_links (tenant_id, hospital_id, staff_id, subject)`.
 - `0073_workforce_posting_drafts`: `workforce_posting_drafts`, `workforce_posting_draft_revisions`.
+- `0075_workforce_posting_proposals`: `workforce_posting_proposals`, `workforce_posting_proposal_revisions`.
 
 ## workspace
 

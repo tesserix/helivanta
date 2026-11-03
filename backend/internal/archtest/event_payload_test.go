@@ -43,11 +43,17 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
-	"workforce.PostingDraftChangedData.HospitalID": "internal hospital scope for protected preparation lookup; no clinical data",
-	"workforce.PostingDraftChangedData.StaffID":    "hospital-local Staff reference; Staff personal-data protection still applies, no name or patient identity",
-	"workforce.PostingDraftChangedData.DraftID":    "opaque preparation draft reference; no placement dates, reason or operating authority",
-	"workforce.PostingDraftChangedData.RevisionID": "opaque immutable preparation receipt; no actor, reason or evidence",
-	"workforce.PostingDraftChangedData.Version":    "monotonic preparation version for stale-state detection; no personal content",
+	"workforce.PostingProposalChangedData.HospitalID": "internal hospital scope for protected proposal lookup; no clinical data",
+	"workforce.PostingProposalChangedData.StaffID":    "hospital-local canonical Staff reference; minimize disclosure and reauthorize reads",
+	"workforce.PostingProposalChangedData.ProposalID": "opaque placement proposal identity; no operating authority or private reason",
+	"workforce.PostingProposalChangedData.RevisionID": "opaque immutable proposal receipt; no contributor identity or evidence",
+	"workforce.PostingProposalChangedData.Version":    "monotonic proposal version for consumer stale-state detection",
+	"workforce.PostingProposalChangedData.Status":     "proposal workflow status only; consumers must reauthorize actual operational eligibility",
+	"workforce.PostingDraftChangedData.HospitalID":    "internal hospital scope for protected preparation lookup; no clinical data",
+	"workforce.PostingDraftChangedData.StaffID":       "hospital-local Staff reference; Staff personal-data protection still applies, no name or patient identity",
+	"workforce.PostingDraftChangedData.DraftID":       "opaque preparation draft reference; no placement dates, reason or operating authority",
+	"workforce.PostingDraftChangedData.RevisionID":    "opaque immutable preparation receipt; no actor, reason or evidence",
+	"workforce.PostingDraftChangedData.Version":       "monotonic preparation version for stale-state detection; no personal content",
 
 	"workforce.DepartmentLinkRequestedData.RequestID":              "opaque catalog reference correlating exact retained HR/structure revisions; no Staff, actor, reason or operating authority",
 	"workforce.DepartmentLinkRequestedData.HospitalID":             "opaque catalog reference correlating exact retained HR/structure revisions; no Staff, actor, reason or operating authority",

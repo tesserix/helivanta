@@ -42,8 +42,8 @@ not authorization for another PR. The repository remained PUBLIC.
 
 The [merged image workflow](https://github.com/tesserix/helivanta/actions/runs/41659304484)
 passed builds, Trivy scans, SBOMs, Cosign signing and deploy-branch advancement.
-At evidence recording, the [main CI run](https://github.com/tesserix/helivanta/actions/runs/41659305740)
-had passed web, scripts, secrets and E2E; Go was still running.
+The [main CI run](https://github.com/tesserix/helivanta/actions/runs/41659305740)
+subsequently completed successfully, including Go, web, scripts, secrets and E2E.
 
 ## Remaining acceptance
 

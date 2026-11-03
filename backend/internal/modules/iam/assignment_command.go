@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -30,14 +31,7 @@ func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []auth
 	r := checks[0].Request
 	ctx, cancelBudget := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelBudget()
-	ctx, cancelExpiry := context.WithCancelCause(ctx)
-	defer cancelExpiry(nil)
-	var expiryTimer *time.Timer
-	defer func() {
-		if expiryTimer != nil {
-			expiryTimer.Stop()
-		}
-	}()
+	var expires time.Time
 	until, _ := ctx.Deadline()
 	err := h.db.WithGuardedTenantCommand(ctx, r.TenantID, until, func(tx *gorm.DB) error {
 		basisLock := "SELECT pg_advisory_xact_lock_shared(hashtextextended(?,0))"
@@ -64,13 +58,16 @@ func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []auth
 		if err := lockScopeChecks(tx, checks); err != nil {
 			return err
 		}
-		expires, err := currentScopeChecks(tx, checks)
+		currentUntil, err := currentScopeChecks(tx, checks)
 		if err != nil {
 			return err
 		}
-		expiryTimer = time.AfterFunc(time.Until(expires), func() { cancelExpiry(authz.ErrScopedCommandDenied) })
+		expires = currentUntil
 		return nil
 	}, func(commandCtx context.Context) error {
+		if err := h.db.ConstrainGuardedCommand(commandCtx, r.TenantID, expires); err != nil {
+			return err
+		}
 		if err := action(commandCtx); err != nil {
 			return err
 		}
@@ -79,7 +76,7 @@ func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []auth
 			return err
 		})
 	})
-	if err != nil && errors.Is(context.Cause(ctx), authz.ErrScopedCommandDenied) {
+	if errors.Is(err, tenantdb.ErrGuardedCommandExpired) {
 		return authz.ErrScopedCommandDenied
 	}
 	return err

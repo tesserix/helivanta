@@ -1,5 +1,55 @@
 # Staff Management delivery tracker
 
+## Reviewed source and appointment expiry — 2026-11-03
+
+Two additional independently reviewed digital Staff fixtures now exercise the
+actual earliest source deadlines: reviewed-person validity before the appointment
+end, and an approved fixed employee appointment ending before person validity.
+Each fixture waits for its persisted business cutoff, then proves a real posting
+save has passed admission and is blocked at its save-audit insert in PostgreSQL.
+The combined IAM/Workforce guarded root cancels that in-flight save at the cutoff
+without releasing the audit lock. It returns 403 with no receipt and rolls back
+the pending draft, save audit and successful source-use audit. Independently
+current administrative reads confirm no command or draft was committed.
+
+Post-expiry scoped retries, receipts and department choices are denied; discovery
+reveals no hospital. Staff and login-link snapshots remain Active, and the same
+session still reaches ordinary IAM self-service. Effective authorization therefore
+does not wait for physical link cleanup or globally disable the identity. These
+cases prove reviewed-person and fixed-appointment cutoffs for this consumer;
+they do not certify pharmacy registration/duty expiry, contractor/rehire workflows
+or every lifecycle variation. IAM's employment basis mirrors the same earliest
+source cutoff, so this is combined-boundary evidence, not proof that Workforce's
+deadline clamp is independently necessary in these two particular fixtures.
+
+The complete parent passes with real PostgreSQL/OpenFGA and race detection:
+**276.052 s after exact source restoration** (the preceding complete expiry run
+also passed at 262.171 s). The test deliberately observes PostgreSQL's calendar
+boundary rather than advancing a Go-only clock; no arbitrary sleep or production
+timeout change is introduced. Command: `python3 /tmp/helivanta-posting-test-runner.py
+./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'`
+from `backend/`, executing `go test -race -v -count=1 -timeout=20m`.
+
+A temporary local mutation bypassed only the effective-state check in
+`currentDigitalActorGeneration`. The complete parent with `-failfast` failed in
+`activation_actor_enforcement`: expected 403, actual 503 `posting_source_unavailable`
+after a source change. This establishes sensitivity to the denial contract; the
+mutation still failed closed and is **not** evidence of a private-data disclosure.
+The exact original file was restored and SHA-256 verified before the final pass;
+no runtime or deployed binary was refreshed from the mutation. Private mutation
+metadata and failure output are retained under
+`/tmp/helivanta-posting-effective-source-mutation*`.
+
+No product code, canonical migration, permission, dependency or production policy
+changed. Vet and affected Go lint are checked separately. A fresh normal local
+`/login` navigation was rechecked and is still blocked by Chrome
+`ERR_BLOCKED_BY_CLIENT`; no browser warning or protection was overridden. Normal
+Admin/reviewer/reader/preparer browser acceptance, remaining credential/recovery/
+lifecycle cases, the recorded intermittent evidence-admission failure, effective
+posting approval and operating duties remain open. Full Staff Management and the
+broader reusable-foundation goal remain incomplete; no full acceptance tag,
+merge or deployment is claimed.
+
 ## Shared Staff login-link and membership cutoff — 2026-11-03
 
 Real signed-session/PostgreSQL/OpenFGA cases now cover login-link revocation

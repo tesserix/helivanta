@@ -1730,7 +1730,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
 	var postingRegistrationPath string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_membership", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_membership", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1772,11 +1772,15 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, "available", status)
 				files[category] = id
 			}
+			personValidUntil := time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second)
+			if scenario == "posting_source_expiry" {
+				personValidUntil = time.Now().Add(time.Minute).UTC().Truncate(time.Second)
+			}
 			findingPath := joinerPath + "/person-reviews/" + uuid.Must(uuid.NewV7()).String()
 			call(t, "PUT", findingPath, manager, map[string]any{
 				"command_id": uuid.Must(uuid.NewV7()).String(), "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"], "identity_hash": basis["identity_hash"],
 				"policy_reference": "SYN-ACTIVATION-IDENTITY", "finding_reference": "Synthetic independently examined digital recipient",
-				"observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
+				"observed_on": time.Now().UTC().Format(time.DateOnly), "valid_until": personValidUntil.Format(time.RFC3339),
 				"access_intent": "digital", "declared_subject": recipient, "identity_examined": true, "known_associations_disclosed": true, "document_ids": []string{files["identity_evidence"]},
 			}, 200)
 			finding := call(t, "POST", findingPath+"/decision", reviewer, map[string]any{"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 1, "decision": "approve", "reason": "Independent synthetic digital person finding", "identity_examined": true, "independent_person_confirmed": true}, 200)
@@ -1802,6 +1806,13 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			startsAt, endsAt := time.Now().Add(-time.Hour).UTC(), time.Now().Add(time.Hour).UTC()
 			if scenario == "future" {
 				startsAt, endsAt = time.Now().Add(time.Hour).UTC(), time.Now().Add(2*time.Hour).UTC()
+			}
+			if scenario == "posting_term_expiry" {
+				endsAt = time.Now().Add(time.Minute).UTC().Truncate(time.Second)
+			}
+			sourceCutoff := personValidUntil
+			if endsAt.Before(sourceCutoff) {
+				sourceCutoff = endsAt.Truncate(time.Second)
 			}
 			terms := call(t, "PUT", periodPath+"?hr_intake=v1", manager, map[string]any{
 				"command_id": uuid.Must(uuid.NewV7()).String(), "expected_version": 0, "staff_version": basis["staff_version"], "employment_epoch": basis["employment_epoch"],
@@ -1991,7 +2002,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
 			require.NoError(t, err)
 			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
-			if scenario == "actor_enforcement" || scenario == "posting_command_first" || scenario == "posting_membership" {
+			if scenario == "actor_enforcement" || scenario == "posting_command_first" || scenario == "posting_membership" || scenario == "posting_source_expiry" || scenario == "posting_term_expiry" {
 				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 				require.NoError(t, err)
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
@@ -2081,6 +2092,24 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
 				require.NoError(t, sourceErr)
 
+				if scenario == "posting_source_expiry" || scenario == "posting_term_expiry" {
+					beforeExpiry := sourceAudits()
+					assertPostingSaveStopsAtReviewedCutoff(t, db, request, postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent}, sourceCutoff)
+					require.EqualValues(t, beforeExpiry, sourceAudits(), "source expiry rolls back successful-use evidence from the pending save")
+					call(t, "GET", scopedCommandPath, recipient, nil, 403)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+					call(t, "GET", choicesPath, recipient, nil, 403)
+					require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"])
+					call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 404)
+					require.Empty(t, call(t, "GET", joinerPath+"/posting-drafts", maker, nil, 200)["data"])
+					require.Equal(t, "active", call(t, "GET", joinerPath, maker, nil, 200)["employment_status"], "effective cutoff does not require deleting or rewriting Staff")
+					currentLinks := call(t, "GET", joinerPath+"/login-links", maker, nil, 200)["data"].([]any)
+					require.Len(t, currentLinks, 1)
+					require.Equal(t, "active", currentLinks[0].(map[string]any)["status"], "expiry enforcement does not wait for asynchronous link cleanup")
+					call(t, "GET", "/v1/iam/me/permissions", recipient, nil, 200)
+					require.EqualValues(t, beforeExpiry, sourceAudits(), "post-expiry attempts retain no successful source-use audit")
+					return
+				}
 				scopedReceipt := call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200)
 				require.Equal(t, "draft", scopedReceipt["status"])
 				require.Equal(t, false, scopedReceipt["grants_access"])

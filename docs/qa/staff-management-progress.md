@@ -1,5 +1,38 @@
 # Staff Management delivery tracker
 
+## Fresh source and positive scoped posting UI — 2026-11-03
+
+Normal positive reader/preparer core journeys now pass using a newly reviewed
+digital Staff actor. [Detailed browser and persistence evidence](2026-11-03-scoped-posting-positive-ui.md)
+records the complete local onboarding sequence, separate account and officer
+assignments, identity/employment approvals, protected downloads, activation and
+independent login/assignment decisions. All application business mutations used
+normal UI. The old revoked-review source remains unchanged as negative evidence.
+
+Reader-only access discovers one hospital, reads the existing shared Pharma
+Staff draft/history across a full reload and exposes no Prepare/Edit controls.
+Adding independently approved preparer authority deduplicates the hospital choice.
+Required-field validation, current canonical department selection, create, edit,
+unsaved-navigation confirmation/Keep editing, immutable history and full reload
+pass. Read-only proof finds one unchanged canonical Pharma Staff target, one new
+head with two distinct commands/revisions and attributable source/assignment audits;
+the earlier draft remains untouched. No legacy hospital grant or operating access
+was added to the actor.
+
+Two local setup problems were resolved without changing domain eligibility: a
+stale seed credential was reconciled against the active local identity fixture,
+and the saved owner API config now persists the authorized activation flag after
+its default-off response. The same binary remains on local 8399; production is
+unchanged. The observer timeout during identity download was reconciled against
+owner audit and exact downloaded bytes; no review decision was repeated.
+
+No application code changed in this turn. Head `829de653` has successful API/shell
+builds and scans, with deployment advancement skipped. Exact response-loss recovery,
+preparer withdrawal/reader downgrade and the remaining negative UI matrix remain
+open, as does the recorded intermittent admission failure. PR #1532 stays draft;
+no full E2E tag, merge or deployment is claimed. Effective posting and the complete
+Staff/departmental/Pharma parent objective remain incomplete.
+
 ## Posting department-choice UI cutoff — 2026-11-03
 
 A component regression exposed an access-change propagation gap: after a scoped

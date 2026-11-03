@@ -172,5 +172,10 @@ responses and atomic owner/source-use audit. Authorization unavailability withho
 results; absent current eligibility denies rather than reusing a legacy grant.
 Real signed-session/PostgreSQL/OpenFGA tests cover reader/preparer discovery,
 retained commands, grant/link/membership withdrawal and source expiry. Normal
-positive-role browser acceptance remains open; passing integration tests do not
-establish an accepted UI journey.
+positive-role core UI journeys now also pass with a freshly reviewed digital
+actor and no legacy hospital grant: reader history/reload without write controls,
+and preparer required-field create/edit/history/reload and unsaved-navigation
+protection on the same canonical Pharma Staff target. See the
+[local UI proof](../qa/2026-11-03-scoped-posting-positive-ui.md). Exact response-loss
+recovery, role withdrawal and the remaining negative browser matrix still need
+acceptance; these results grant no effective posting or production authority.

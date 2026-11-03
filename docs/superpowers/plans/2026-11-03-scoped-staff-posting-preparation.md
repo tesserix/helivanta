@@ -123,9 +123,12 @@ Workforce exposes separate `/posting-staff/:id` routes and bounded workspace/tar
 discovery; current department choices are guarded by Organization. Migration
 0074 retains the tenant-policy validator and denies scoped Staff writes/deletes.
 SDK/UI tests distinguish reader/preparer behavior and the scoped save path.
-Normal-role acceptance remains open. The latest local build restores browser
-sign-in and Admin/independent-reviewer proposal/link approval. The tested reader's
-existing employment review is revoked; its active assignment and fresh link
-correctly reveal no hospital. Positive eligible reader/preparer acceptance needs
-a newly reviewed source. PR #1532 stays draft and runtime acceptance tags remain
-withheld; the remaining matrix and named production approval remain required.
+Normal-role acceptance remains open, with positive core journeys now verified.
+A fresh digital actor completed normal UI source/evidence, independent reviews,
+activation and link/assignment decisions. Reader history/reload and preparer
+required-field create/edit/history/reload plus unsaved-navigation protection pass
+without a legacy hospital grant. The old revoked-review source remains negative
+evidence. See the [UI checkpoint](../../qa/2026-11-03-scoped-posting-positive-ui.md).
+Response-loss recovery, preparer withdrawal and the remaining negative matrix
+remain required. PR #1532 stays draft; full acceptance tags and production
+promotion remain withheld pending their distinct gates and named approval.

@@ -282,6 +282,36 @@ export const pharmacyPriceControlInputSchema = z
   })
   .strict();
 
+export const pharmacyServiceChargeInputSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(2)
+      .max(20)
+      .regex(new RegExp("^[A-Z][A-Z0-9_]{1,19}$"), "Use the required format."),
+    name: z.string().trim().min(1).max(80),
+    channel: z.enum(["counter", "ward_delivery"]),
+    amount_minor: z.number().int().min(1).max(100000000),
+    status: z.enum(["available", "withdrawn"]),
+    tax_treatment: z.enum(["own_service", "principal_supply"]),
+    sac_code: z
+      .string()
+      .trim()
+      .min(6)
+      .max(6)
+      .regex(new RegExp("^99[0-9]{4}$"), "Use the required format.")
+      .nullable()
+      .optional(),
+    supply_nature: z.enum(["taxable", "nil_rated", "exempt"]).nullable().optional(),
+    rate_ppm: z.number().int().min(0).max(1000000).nullable().optional(),
+    exemption_basis: z.string().trim().min(1).max(500).nullable().optional(),
+    tax_basis: z.string().trim().min(5).max(500),
+    effective_from: z.string().date("Use a full valid date."),
+  })
+  .strict();
+
 export const pharmacyStockOverviewFieldsSchema = z
   .object({
     outlet_id: identifier,

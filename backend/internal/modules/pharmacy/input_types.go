@@ -153,6 +153,21 @@ type priceControlInput struct {
 	Source         string  `json:"source" binding:"required,min=1,max=300"`
 }
 
+type serviceChargeInput struct {
+	Code           string  `json:"code" binding:"required,min=2,max=20"`
+	Name           string  `json:"name" binding:"required,min=1,max=80"`
+	Channel        string  `json:"channel" binding:"required,oneof=counter ward_delivery"`
+	AmountMinor    int64   `json:"amount_minor" binding:"min=1,max=100000000"`
+	Status         string  `json:"status" binding:"required,oneof=available withdrawn"`
+	TaxTreatment   string  `json:"tax_treatment" binding:"required,oneof=own_service principal_supply"`
+	SacCode        *string `json:"sac_code" binding:"omitempty,min=6,max=6"`
+	SupplyNature   *string `json:"supply_nature" binding:"omitempty,required,oneof=taxable nil_rated exempt"`
+	RatePpm        *int64  `json:"rate_ppm" binding:"omitempty,min=0,max=1000000"`
+	ExemptionBasis *string `json:"exemption_basis" binding:"omitempty,min=1,max=500"`
+	TaxBasis       string  `json:"tax_basis" binding:"required,min=5,max=500"`
+	EffectiveFrom  string  `json:"effective_from"`
+}
+
 type StockOverviewFields struct {
 	OutletID                uuid.UUID `json:"outlet_id" binding:"required"`
 	OutletCode              string    `json:"outlet_code"`

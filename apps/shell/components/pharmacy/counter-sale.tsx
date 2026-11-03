@@ -1020,6 +1020,19 @@ function TenderForm({
   );
 }
 
+// endorsements groups a sale's prescription lines by the prescription they
+// cite, so each paper prescription gets only its own register serials.
+function endorsements(sale: PharmacySale): { lines: number[]; serials: string[] }[] {
+  const groups = new Map<string, number[]>();
+  for (const l of sale.lines)
+    if (l.prescription_id)
+      groups.set(l.prescription_id, [...(groups.get(l.prescription_id) ?? []), l.line_number]);
+  return [...groups.values()].map((lines) => ({
+    lines,
+    serials: lines.map((n) => `${sale.invoice_number} · line ${n}`),
+  }));
+}
+
 function Invoice({
   sale,
   products,
@@ -1089,10 +1102,19 @@ function Invoice({
         </p>
       </article>
       {sale.lines.some((l) => l.prescription_id) && (
-        <p role="note" className="mt-4 rounded-md border p-3 text-sm print:hidden">
+        <div role="note" className="mt-4 rounded-md border p-3 text-sm print:hidden">
           Endorse the prescription: note {sale.seller_legal_name}, {sale.seller_address} and{" "}
-          {sale.sale_date} on it before returning it.
-        </p>
+          {sale.sale_date} on it before returning it. Each prescription also takes the register
+          serial of the lines it was dispensed on (Rule 65(3)(1)):
+          <ul className="mt-1 list-disc pl-5">
+            {endorsements(sale).map(({ lines, serials }) => (
+              <li key={lines.join(",")}>
+                The prescription for {lines.length === 1 ? "line" : "lines"}{" "}
+                {lines.join(lines.length === 2 ? " and " : ", ")}: {serials.join(", ")}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <div className="mt-4 flex gap-2 print:hidden">
         <Button type="button" variant="outline" onClick={() => window.print()}>

@@ -49,6 +49,7 @@ import {
   Users,
   Wallet,
   type LucideIcon,
+  BookText,
 } from "lucide-react";
 
 export type ZonePage = {
@@ -182,6 +183,13 @@ export const ZONES: Zone[] = [
         label: "H1 register",
         href: "/pharmacy/h1-register",
         icon: ScrollText,
+        permission: "pharmacy.prescription.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Prescription register",
+        href: "/pharmacy/prescription-register",
+        icon: BookText,
         permission: "pharmacy.prescription.read",
       },
       {

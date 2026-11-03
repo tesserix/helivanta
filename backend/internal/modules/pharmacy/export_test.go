@@ -37,3 +37,10 @@ func SetH1ExportRows(t interface{ Cleanup(func()) }, n int) {
 	h1ExportRows = n
 	t.Cleanup(func() { h1ExportRows = old })
 }
+
+// SetRxRegisterExportRows lowers the prescription register export bound for one test.
+func SetRxRegisterExportRows(t interface{ Cleanup(func()) }, n int) {
+	old := rxRegisterExportRows
+	rxRegisterExportRows = n
+	t.Cleanup(func() { rxRegisterExportRows = old })
+}

@@ -38,16 +38,20 @@ Read-only preflight on 2026-11-04: Stage `prod` Healthy with last promotion
 `prod.01m6eanw1cfa4s587sv6rx21qc.0477a4c` Succeeded, all nine deployments ready at
 `305294ab`, and every Helivanta Argo application Synced/Healthy.
 
-**Not yet promoted.** The local Kargo CLI session had expired and no Promotion was
-created. The maintainer runs:
+**Promoted.** After the maintainer refreshed the Kargo CLI session, Promotion
+`prod.01m6gxvcqvx37wcqnavf92aq27.a03f45e` was created at 2026-11-03T14:43:43Z and
+Succeeded at 14:44:45Z.
 
-```sh
-kargo login https://kargo.tesserix.app --kubeconfig
-kargo promote --project kargo-helivanta --freight a03f45e8204fb727fd107b5f5698261ae05ca0ab --stage prod
-```
+Read-only post-promotion checks:
 
-Post-promotion checks: the migration hook adds exactly the five IDs above, every
-application pod runs `091f2287`, and Argo reports Synced/Healthy.
+- Migration hook `helivanta-api-migrate-td545` on `091f2287` Succeeded.
+  `schema_migrations` gained exactly `0024_iam_staff_posting_templates`,
+  `0029_pharmacy`, `0031_pharmacy`, `0016_billing` and
+  `0074_workforce_scoped_postings` (14:44:14–14:44:15Z), and nothing else.
+- All nine deployments are ready at full replicas; every application pod runs
+  `091f2287f77170c3ead3ecf972246b94822b9d14`.
+- Every Helivanta Argo application, including `helivanta-api`, `helivanta-shell`
+  and `helivanta-global-api`, is Synced/Healthy.
 
 ## Local acceptance
 

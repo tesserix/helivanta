@@ -119,10 +119,10 @@ Preparing these drafts does not complete effective transfers, supervisor changes
 posting approvals, Pharma professional duties, standalone employers or operating
 lifecycle enforcement.
 
-## Unreleased scoped-role foundation
+## Scoped-role foundation
 
-Merged as #1532 at `091f2287`. Its production promotion was approved on 2026-11-04
-and has not run yet; see the [release record](../deployment/releases/2026-11-04-scoped-posting-actors.md).
+Merged as #1532 at `091f2287` and deployed to production by an approved promotion
+on 2026-11-04; see the [release record](../deployment/releases/2026-11-04-scoped-posting-actors.md).
 
 The candidate `staff-postings-v1` access catalog is owned by
 `contracts/staff-access.json` and installed by the additive IAM migration
@@ -144,10 +144,10 @@ denial rolls back the source-use audit. Historical links without generations
 remain compatible with existing consumers and are refused by this new guard.
 
 The provider is registered in bootstrap and the test harness. The Organization-owned choices consumer is implemented in the same candidate;
-see [its contract](organization.md#unreleased-scoped-posting-choices). Scoped draft
+see [its contract](organization.md#scoped-posting-choices). Scoped draft
 consumer composition, posting-purpose RLS and discovery are implemented in the
 candidate contract below. Normal positive-role browser acceptance remains open.
-This section announces no enabled production route, effective posting or rollout. See the
+These routes run in production from `091f2287`; drafts stay non-operating and no effective posting exists. See the
 [delivery tracker](../qa/staff-management-progress.md) for actual verification
 and remaining release gates.
 

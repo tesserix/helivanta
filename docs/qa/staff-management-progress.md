@@ -1,5 +1,62 @@
 # Staff Management delivery tracker
 
+## Closed Staff actor architecture boundary — 2026-11-03
+
+Added three architecture checks for ADR-0052: the exact reviewed source-guard
+consumers, explicit provider wiring/injection references, and the single typed
+authorization callback signature. The initial wiring check also rejected the two
+intended `deps.StaffActors` field injections because the existing scanner checks
+all selector references. Its exact-file set was corrected to include those
+existing injections. A temporary unrelated Organization source file then exposed
+bare provider/consumer method references: both new checks failed for that file.
+The probe was removed and the restored checks pass. No production source or
+authorization allowlist was widened; these tests add a new architectural gate.
+
+Commands run from `backend/`:
+
+```sh
+go test -count=1 ./internal/archtest -run '^TestStaffActor'
+go test -race -count=1 ./internal/archtest -run '^TestStaffActor'
+python3 /tmp/helivanta-posting-test-runner.py ./internal/archtest
+go vet ./internal/archtest
+golangci-lint run ./internal/archtest/...
+go build ./...
+go run ./cmd/contractdocs -check
+```
+
+The complete real-fixture architecture race suite passes in **52.193 s**, affected
+lint reports zero issues, and vet/build/contractdocs checks pass. An initial runner
+invocation from the repository root failed before tests because `go.mod` is under
+`backend/`; rerunning from that directory passed. The runner used zero fallback
+forwards and stopped only its three test containers. Repository-root source
+inventory and whitespace checks pass. Source-writer lock-graph review and the
+remaining browser matrix remain open; no production or full Staff acceptance is
+implied by this architecture gate.
+
+## Scoped posting recovery and reader downgrade — 2026-11-03
+
+Additional normal-browser acceptance now passes on the same canonical Pharma
+Staff target: a real owner commit followed by deliberately lost response, exact
+retained-command receipt recovery, Admin withdrawal of preparer authority,
+fresh-session reader-only discovery/history and an unrelated reviewer receiving
+no posting hospitals. [Detailed evidence](2026-11-03-scoped-posting-positive-ui.md#follow-up-lost-response-downgrade-and-unrelated-reviewer)
+records the temporary loopback relay, exact command reconciliation and restoration
+of original Global API routing. No authorization check was bypassed.
+
+The new draft is now v3, with three distinct commands/revisions and three save
+audits; receipt recovery added no duplicate. The old separate draft remains v2
+and target Staff remains v2/epoch1/Inactive. Preparer is withdrawn v6; reader remains
+active v5 with only posting-read/Staff-actor-use permissions and no legacy hospital
+grant. Reader history v1–v3 survives a full reload with no Prepare/Edit controls.
+Private JSON credentials are preserved and its acceptance checkpoint updated.
+
+No application code, schema or production state changed. Head `9b70f71b` passed
+API/shell builds and security scans; deployment advancement was skipped. Remaining
+gates include retained-session cutoff and other account/foreign-scope UI cases,
+the source-writer/architecture/generator audit and the unresolved intermittent
+admission failure. PR #1532 remains draft. Effective posting, supervision, lifecycle,
+departmental/Pharma operating consumers and full Staff acceptance remain open.
+
 ## Fresh source and positive scoped posting UI — 2026-11-03
 
 Normal positive reader/preparer core journeys now pass using a newly reviewed

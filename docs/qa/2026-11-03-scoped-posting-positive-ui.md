@@ -115,10 +115,68 @@ rerun merely to document browser observations.
 
 ## Remaining gates
 
-Exact response-loss command recovery, preparer withdrawal/reader downgrade and
-the remaining account/scope/negative browser matrix remain open. The earlier
+The remaining account/scope/negative browser matrix, including a retained editor
+across authority withdrawal, remains open. The earlier
 intermittent evidence-admission failure is still recorded, not claimed fixed.
 PR #1532 remains draft. Effective posting approval, transfers/supervision, contractor
 and exit/rehire lifecycle enforcement, Pharma duties/operating consumers, the
 standalone-employer migration and the remaining Staff areas remain parent work.
 No full E2E tag, production migration or rollout is approved by this QA record.
+
+## Follow-up: lost response, downgrade and unrelated reviewer
+
+The same normal preparer edited the new draft from version 2, proposing an end of
+3 December 17:00 UTC. A temporary loopback relay between Global API's Workforce
+destination and owner API forwarded that exact synthetic PUT. Only after the
+owner returned 200 did it replace the response with 503. Browser traffic still
+used Global API; authentication, source checks and owner persistence were unchanged.
+The relay matched the exact synthetic draft and fired once. It logged the command
+path, owner status and response hash, without tokens or response payloads.
+
+The UI displayed an unconfirmed outcome, disabled editing of the retained command,
+and offered exact retry and receipt recovery. Selecting **Recover exact posting
+receipt** displayed version 3 and all three immutable revisions. Read-only SQL
+matched the relay's exact command to one version-3 revision. There are three
+distinct commands/revisions and three attributable save audits in total: recovery
+created no duplicate revision or save audit. The older separate draft remains v2;
+the canonical Pharma Staff remains Inactive at v2/epoch1. Original Global API
+routing was restored and the relay stopped after the test.
+
+Admin then withdrew only this actor's preparer assignment through normal Staff
+access UI, recording a reason. It reached withdrawn version 6; its history retains
+versions 1–6 and the separate proposer's/reviewer's decisions. The independent
+reader assignment remains active v5. After sign-out and a fresh normal recipient
+login, discovery showed exactly one hospital labelled Reader. Prepare/Edit controls
+were absent; draft v3 and immutable v1/v2/v3 history remained readable, including
+after a full reload. Read-only proof confirms the active assignment's permissions
+are only posting read and Staff actor use, with zero legacy hospital grants.
+This verifies fresh-session downgrade; it does not claim a retained stale editor
+was exercised across that withdrawal.
+
+A normal login as the independent person/employment reviewer then opened Posting
+preparation and received **No approved posting hospitals on this page.** Its review
+roles do not create posting authority. No new assignment or membership was granted
+in this follow-up.
+
+Additional private evidence in the same directory:
+
+- `scoped-posting-response-loss-relay-proof.json` and
+  `scoped-posting-response-loss-persistence-proof.json`;
+- `scoped-posting-reader-downgrade-proof.json` and
+  `scoped-posting-followup-ui-checkpoint.json`;
+- `scoped-posting-response-loss-{unknown,recovered}-ui.png`,
+  `scoped-posting-reader-downgrade-reload-ui.png` and
+  `scoped-posting-unrelated-reviewer-denial-ui.png`.
+
+The credential JSON was updated atomically with this checkpoint, preserving its
+credentials. The local response-loss proof and downgrade proof were run with
+`python3 /tmp/helivanta-scoped-posting-response-loss-proof.py` and
+`python3 /tmp/helivanta-scoped-posting-reader-downgrade-proof.py`. The first downgrade
+proof reused an active-assignment snapshot join and omitted the withdrawn row;
+the read-only query was corrected to retain the latest immutable snapshot for
+both current states before its assertions passed. This was a QA-query correction,
+not an application persistence fix.
+
+No application code changed. Exact head `9b70f71b` passed API/shell builds,
+GitGuardian and Trivy; deployment advancement was skipped. PR #1532 remains draft
+pending the remaining browser and source/architecture acceptance gates.

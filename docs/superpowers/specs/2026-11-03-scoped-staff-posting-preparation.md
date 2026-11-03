@@ -283,8 +283,11 @@ assignment decisions. Reader history/reload with absent write controls and
 preparer required fields, current department choice, create/edit/history/reload
 and unsaved-navigation protection now pass without a legacy hospital grant.
 [Positive UI proof](../../qa/2026-11-03-scoped-posting-positive-ui.md) preserves the
-older revoked source as negative evidence. Response-loss recovery, role withdrawal
-and the remaining negative matrix still prevent full browser acceptance. No
+older revoked source as negative evidence. Follow-up UI acceptance verifies a
+committed-but-lost response recovered through the original command receipt without
+duplicate revisions/audits, preparer withdrawal with fresh-session reader-only
+history across reload, and unrelated reviewer denial. Retained-session cutoff and
+the remaining account/foreign-scope matrix still prevent full browser acceptance. No
 effective posting, operating duty or issue #429 completion is claimed.
 
 ### Credential and authorization failure checkpoint (2026-11-03)

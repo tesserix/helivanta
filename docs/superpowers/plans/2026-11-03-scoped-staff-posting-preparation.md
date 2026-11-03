@@ -21,7 +21,7 @@ unchecked runtime gates is completed by publishing this plan.
       open clinical/default-role and full operating-lifecycle gaps.
 - [ ] Audit the complete affected source-writer lock graph, including identity,
       review, profile, source-end, assignment activation and structural writers.
-- [ ] Resolve ADR-0052's closed provider/wiring allowance in architecture tests;
+- [x] Resolve ADR-0052's closed provider/wiring allowance in architecture tests;
       prove no cross-module business calls or cross-owner table access.
 - [ ] Freeze exact additive owner routes/projections, canonical fields, errors,
       permission/read compatibility, cursor bindings and payload budget.
@@ -129,6 +129,10 @@ activation and link/assignment decisions. Reader history/reload and preparer
 required-field create/edit/history/reload plus unsaved-navigation protection pass
 without a legacy hospital grant. The old revoked-review source remains negative
 evidence. See the [UI checkpoint](../../qa/2026-11-03-scoped-posting-positive-ui.md).
-Response-loss recovery, preparer withdrawal and the remaining negative matrix
-remain required. PR #1532 stays draft; full acceptance tags and production
+Follow-up normal UI acceptance also verifies exact receipt recovery after an
+owner-committed response is deliberately lost, preparer withdrawal with fresh
+reader-only discovery/history, and unrelated reviewer denial. One retained
+command produces one revision/audit; the local relay is removed and original
+routing restored. Retained-session cutoff and the remaining account/foreign-scope
+negative matrix remain required. PR #1532 stays draft; full acceptance tags and production
 promotion remain withheld pending their distinct gates and named approval.

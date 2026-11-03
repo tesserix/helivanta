@@ -142,9 +142,9 @@ remain compatible with existing consumers and are refused by this new guard.
 
 The provider is registered in bootstrap and the test harness. The Organization-owned choices consumer is implemented in the same candidate;
 see [its contract](organization.md#unreleased-scoped-posting-choices). Scoped draft
-consumer composition, posting-purpose RLS,
-discovery and positive-role browser acceptance remain open. This section
-announces no enabled route, effective posting or production rollout. See the
+consumer composition, posting-purpose RLS and discovery are implemented in the
+candidate contract below. Normal positive-role browser acceptance remains open.
+This section announces no enabled production route, effective posting or rollout. See the
 [delivery tracker](../qa/staff-management-progress.md) for actual verification
 and remaining release gates.
 
@@ -170,4 +170,7 @@ private profile data is excluded. Target discovery cannot broaden draft-purpose
 RLS beyond its selected exact Staff. Both carry expected account headers, no-store
 responses and atomic owner/source-use audit. Authorization unavailability withholds
 results; absent current eligibility denies rather than reusing a legacy grant.
-These discovery paths remain unaccepted until their tests and UI journey pass.
+Real signed-session/PostgreSQL/OpenFGA tests cover reader/preparer discovery,
+retained commands, grant/link/membership withdrawal and source expiry. Normal
+positive-role browser acceptance remains open; passing integration tests do not
+establish an accepted UI journey.

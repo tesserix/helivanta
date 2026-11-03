@@ -279,3 +279,14 @@ draft context. Audit records the checked scoped assignment and digital actor.
 See the [QA ledger](../../qa/staff-management-progress.md) for evidence and open gates.
 Normal sign-in is blocked by Chrome `ERR_BLOCKED_BY_CLIENT`; no browser acceptance,
 effective posting, operating duty or issue #429 completion is claimed.
+
+### Credential and authorization failure checkpoint (2026-11-03)
+
+The local acceptance fixture now covers administrator credential revocation
+while reviewed posting assignments remain current, old-session denial, a fresh
+signed-session recovery and continued old-token denial. A real OpenFGA outage
+fails protected HTTP requests and owner scope checks closed; recovery preserves
+the retained receipt and leaves the failed new command absent. A synthetic-user
+watermark bypass makes the new test fail with 200 instead of 401; original source
+is restored before final validation. See the Staff progress ledger for exact
+commands, evidence and the unresolved normal-role browser acceptance gate.

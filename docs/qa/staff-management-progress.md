@@ -1,5 +1,69 @@
 # Staff Management delivery tracker
 
+## Posting credential cutoff and authorization availability — 2026-11-03
+
+Extended the scoped posting acceptance fixture with administrator credential
+revocation while its independently reviewed posting assignment stays active.
+All seven protected GETs, command PUT and scope discovery reject the old signed
+session with 401, without a successful Staff-source-use audit. The compound IAM
+command guard also refuses the old authentication time before entering its
+callback. The independent administrator can still retrieve the historical
+receipt. A newly minted signed session with an authentication time after the
+revocation watermark can read/retry the unchanged receipt, with one history
+revision; the original token remains denied afterward. This models fresh session
+issuance; it is not browser sign-in acceptance. The fixture deliberately keeps
+its outer authentication revocation checker permissive, so this demonstrates
+the scoped owner-command watermark check independently.
+
+A controllable proxy around the real disposable OpenFGA server returns 503 during
+authorization failure. The seven GETs, retained-command retry, a new command and
+scope discovery fail closed; no successful source-use audit is added. Direct
+owner scope checks also report authorization unavailable. After recovery the
+attempted new command is 404, and the original receipt/history survive unchanged.
+HTTP failures in this fixture occur at the outer authorization resolver; the
+direct scope checks additionally exercise owner authorization unavailability.
+No owned repository or authorization decision is mocked.
+
+The first complete parent integration run passed in 310.346 seconds. A temporary
+local mutation bypassed the IAM credential watermark only for the synthetic
+recipient. The new case failed at its first protected read: expected 401,
+actual 200 with posting source data. The exact original file was restored and
+SHA256 verified before the final complete Global API package run. All 22
+top-level tests passed with the race detector in 332.417 seconds, including
+the added failed-new-command and direct owner-authorization checks.
+No runtime or deployment was rebuilt from the mutation. Private evidence:
+`/tmp/helivanta-posting-credential-first-pass.log`,
+`/tmp/helivanta-posting-credential-mutation-failure.log` and
+`/tmp/helivanta-posting-credential-mutation.json`.
+
+Commands actually run from `backend/` (the private runner configures the local
+Docker socket and releases its own disposable fixtures):
+
+```sh
+python3 /tmp/helivanta-posting-test-runner.py ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+python3 /tmp/helivanta-posting-credential-mutation.py
+python3 /tmp/helivanta-posting-test-runner.py ./internal/globalapi
+go vet ./...
+go build ./...
+golangci-lint run ./internal/globalapi/...
+go run ./cmd/contractdocs -check
+```
+
+The runner executes `go test -race -v -count=1 -timeout=20m`; the final full-package
+log is `/tmp/helivanta-posting-globalapi-verified.log`. The mutation run is the
+intentional red check, not an unresolved product failure. Vet, build, affected
+lint (zero issues), contractdocs check, changed-file gofmt and `git diff --check`
+also pass. No routes, schemas, permissions or migrations changed in this
+acceptance follow-up.
+
+Normal reader/preparer browser acceptance remains open: a fresh Chrome tab to
+`http://helivanta.localhost:4399/login` was again blocked with
+`ERR_BLOCKED_BY_CLIENT`. No browser protection was bypassed. Draft PR1532 stays
+unmerged. No production rollout, migration or operating authority changed.
+Effective posting approval, departmental clinical access, supervisors/transfers,
+contractor/end/rehire lifecycles and Pharma operating consumers remain separate
+open gates; this acceptance evidence does not complete #417/#418/#429.
+
 ## Reviewed source and appointment expiry — 2026-11-03
 
 Two additional independently reviewed digital Staff fixtures now exercise the

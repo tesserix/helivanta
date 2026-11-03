@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -54,7 +55,19 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	cloud := testinfra.NewGCSProtocol(t)
 	documents, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
 	require.NoError(t, err)
-	graph, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
+	fgaURL, err := url.Parse(testinfra.StartOpenFGA(t))
+	require.NoError(t, err)
+	var authorizationUnavailable atomic.Bool
+	fgaProxy := httputil.NewSingleHostReverseProxy(fgaURL)
+	fgaBoundary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authorizationUnavailable.Load() {
+			http.Error(w, "synthetic authorization outage", http.StatusServiceUnavailable)
+			return
+		}
+		fgaProxy.ServeHTTP(w, r)
+	}))
+	t.Cleanup(fgaBoundary.Close)
+	graph, err := authz.NewClient(ctx, fgaBoundary.URL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New()}
 	registry := platform.NewRegistry()
@@ -1730,7 +1743,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
 	var postingRegistrationPath string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_membership", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -2002,7 +2015,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
 			require.NoError(t, err)
 			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
-			if scenario == "actor_enforcement" || scenario == "posting_command_first" || scenario == "posting_membership" || scenario == "posting_source_expiry" || scenario == "posting_term_expiry" {
+			if scenario == "actor_enforcement" || scenario == "posting_command_first" || scenario == "posting_membership" || scenario == "posting_credential" || scenario == "posting_source_expiry" || scenario == "posting_term_expiry" {
 				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 				require.NoError(t, err)
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
@@ -2159,7 +2172,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.NoError(t, sourceErr)
 				require.NotEmpty(t, sourceGrant.AssignmentID)
 				require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200), "fresh independently approved preparation authority can recover an existing command without mutating its receipt")
-				assertPostingReadsDenied := func() {
+				assertPostingReadsDenied := func(status int) {
 					t.Helper()
 					for _, path := range []string{
 						scopedStaffBase + "/posting-draft-source",
@@ -2170,9 +2183,60 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						base + "/posting-targets",
 						choicesPath,
 					} {
-						denied := call(t, "GET", path, recipient, nil, 403)
+						denied := call(t, "GET", path, recipient, nil, status)
 						require.NotContains(t, denied, "data")
 					}
+				}
+				if scenario == "posting_credential" {
+					beforeOutage := sourceAudits()
+					unavailableCommandPath := scopedStaffBase + "/posting-drafts/" + scopedDraft + "/commands/" + uuid.Must(uuid.NewV7()).String()
+					unavailableIntent := maps.Clone(postingIntent)
+					unavailableIntent["expected_version"] = 1
+					authorizationUnavailable.Store(true)
+					defer authorizationUnavailable.Store(false)
+					assertPostingReadsDenied(503)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 503)
+					call(t, "PUT", unavailableCommandPath, recipient, unavailableIntent, 503)
+					for _, scopeRequest := range []authz.ScopeRequest{sourceRequest, preparationRequest} {
+						_, authorizationErr := authority.AuthorizeScope(ctx, scopeRequest)
+						require.ErrorIs(t, authorizationErr, authz.ErrScopedAuthorizationUnavailable)
+					}
+					unavailableScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 503)
+					require.NotContains(t, unavailableScopes, "data")
+					require.EqualValues(t, beforeOutage, sourceAudits(), "unavailable authorization retains no successful source-use evidence")
+					authorizationUnavailable.Store(false)
+					call(t, "GET", unavailableCommandPath, recipient, nil, 404)
+					require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "restored authorization discloses the unchanged retained receipt")
+					require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
+
+					oldAuthTime := time.Now()
+					revocation := call(t, "POST", "/v1/iam/subjects/"+recipient+"/revoke", maker, nil, 200)
+					require.Equal(t, true, revocation["revoked"])
+					revocationCompleted := time.Now()
+					beforeRevokedAttempts := sourceAudits()
+					stillAssigned, assignmentErr := authority.AuthorizeScope(ctx, preparationRequest)
+					require.NoError(t, assignmentErr)
+					require.NotEmpty(t, stillAssigned.AssignmentID, "credential revocation does not withdraw the posting assignment")
+					assertPostingReadsDenied(401)
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 401)
+					require.NotContains(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 401), "data")
+					require.ErrorIs(t, authority.(authz.CompoundScopedCommandGuard).WithScopeGrants(ctx, []authz.ScopeCheck{{Request: sourceRequest, Grant: sourceGrant}}, oldAuthTime, func(context.Context) error {
+						t.Error("a revoked credential entered the scoped command callback")
+						return nil
+					}), authz.ErrScopedCredentialRevoked)
+					require.EqualValues(t, beforeRevokedAttempts, sourceAudits(), "revoked credentials retain no successful source-use evidence")
+					require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200))
+
+					oldToken := tokens[recipient]
+					require.Eventually(t, func() bool { return time.Now().Truncate(time.Second).After(revocationCompleted) }, 3*time.Second, 10*time.Millisecond, "session auth_time has whole-second precision")
+					tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
+					require.NoError(t, err)
+					require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "a genuinely new sign-in can use still-current reviewed authority")
+					require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
+					require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+					tokens[recipient] = oldToken
+					assertPostingReadsDenied(401)
+					return
 				}
 				beforeLinkRevocation := sourceAudits()
 				revokedLink := call(t, "POST", loginPath+"/decision", maker, map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Synthetic reviewed login-link cutoff"}, 200)
@@ -2180,7 +2244,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				stillAssigned, assignmentErr := authority.AuthorizeScope(ctx, preparationRequest)
 				require.NoError(t, assignmentErr)
 				require.NotEmpty(t, stillAssigned.AssignmentID, "login-link cutoff must be checked independently of still-active IAM preparation authority")
-				assertPostingReadsDenied()
+				assertPostingReadsDenied(403)
 				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
 				require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"])
 				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
@@ -2265,7 +2329,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					staleMember, staleErr := graph.IsMember(ctx, recipient, testutil.TenantA)
 					require.NoError(t, staleErr)
 					require.True(t, staleMember, "the fixture deliberately retains an obsolete external graph membership")
-					assertPostingReadsDenied()
+					assertPostingReadsDenied(403)
 					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
 					require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"], "the owner filter discloses no hospital when its outer graph gate is deliberately stale")
 					require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {

@@ -1,0 +1,138 @@
+import { screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "@helivanta/api/testing";
+import { ItemSales, ReceiptsRegister } from "./sales-reports";
+
+const scope = {
+  tenantId: "11111111-1111-1111-1111-111111111111",
+  pharmacyId: "0199e000-0000-7000-8000-000000000010",
+  outletId: "0199e000-0000-7000-8000-000000000001",
+};
+const period = { from: "2026-11-01", to: "2026-11-15" };
+
+const item = {
+  product_id: "0199e000-0000-7000-8000-000000000101",
+  sku: "TEST-PCM-500",
+  brand_name: "TEST Paracetamol",
+  generic_name: "TEST paracetamol",
+  manufacturer: "TEST Manufacturer",
+  pack_size: 10,
+  unit_of_issue: "tablet",
+  currency: "INR",
+  units_sold: 7,
+  sales_minor: 8850,
+  discount_minor: 0,
+  sales_taxable_minor: 7902,
+  sales_cgst_minor: 474,
+  sales_sgst_minor: 474,
+  mrp_low_minor: 12500,
+  mrp_high_minor: 13000,
+  units_returned: 2,
+  credits_minor: 2500,
+  credits_taxable_minor: 2232,
+  credits_cgst_minor: 134,
+  credits_sgst_minor: 134,
+  net_units: 5,
+  net_minor: 6350,
+};
+
+const receipt = (over: object) => ({
+  id: crypto.randomUUID(),
+  posted_at: "2026-11-01T06:30:00Z",
+  day: "2026-11-01",
+  direction: "receipt",
+  document_id: "0199e000-0000-7000-8000-000000000201",
+  document_number: "PH/2627/1",
+  kind: "cash",
+  reference: null,
+  amount_minor: 6250,
+  currency: "INR",
+  ...over,
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+function serve(rows: unknown[] | "fail") {
+  const fetcher = vi.fn<(url: string) => Promise<Response>>(async () =>
+    rows === "fail"
+      ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
+      : new Response(JSON.stringify({ data: rows, page: { next_cursor: null, has_more: false } })),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  return fetcher;
+}
+
+describe("ItemSales", () => {
+  it("shows each product's sales, returns and net for the period", async () => {
+    const fetcher = serve([item]);
+    renderWithProviders(<ItemSales scope={scope} period={period} />);
+    await screen.findByRole("table", { name: "Sales by item" });
+    expect(String(fetcher.mock.calls[0]![0])).toContain(
+      "/reports/items?from=2026-11-01&to=2026-11-15",
+    );
+    const row = screen.getByRole("row", { name: /TEST Paracetamol/ });
+    expect(row).toHaveTextContent("TEST-PCM-500, pack of 10 tablet");
+    expect(row).toHaveTextContent("7 units for INR 88.50");
+    expect(row).toHaveTextContent("MRP INR 125.00–INR 130.00 a pack");
+    expect(row).toHaveTextContent("2 units for INR 25.00");
+    expect(row).toHaveTextContent("5 units, INR 63.50");
+  });
+
+  it("leaves out the MRP when the period only had returns", async () => {
+    serve([{ ...item, units_sold: 0, sales_minor: 0, mrp_low_minor: null, mrp_high_minor: null }]);
+    renderWithProviders(<ItemSales scope={scope} period={period} />);
+    const row = await screen.findByRole("row", { name: /TEST Paracetamol/ });
+    expect(row).not.toHaveTextContent("MRP");
+  });
+
+  it("says when nothing was sold and reports a failed load", async () => {
+    serve([]);
+    const { unmount } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    expect(
+      await screen.findByText("No items sold or returned from 2026-11-01 to 2026-11-15."),
+    ).toBeVisible();
+    unmount();
+    serve("fail");
+    renderWithProviders(<ItemSales scope={scope} period={period} />);
+    expect(await screen.findByText("Could not load sales by item.")).toBeVisible();
+  });
+});
+
+describe("ReceiptsRegister", () => {
+  it("lists each receipt and refund with its mode and reference", async () => {
+    serve([
+      receipt({}),
+      receipt({ kind: "upi", reference: "TEST-UPI-7", amount_minor: 2600 }),
+      receipt({ kind: "admission_account", amount_minor: 4000 }),
+      receipt({
+        day: "2026-11-02",
+        direction: "refund",
+        document_number: "PH/2627/C1",
+        amount_minor: 2500,
+      }),
+    ]);
+    renderWithProviders(<ReceiptsRegister scope={scope} period={period} />);
+    await screen.findByRole("table", { name: "Receipts and refunds" });
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent("PH/2627/1ReceiptCash—INR 62.50");
+    expect(rows[1]).toHaveTextContent("TEST-UPI-7");
+    expect(rows[2]).toHaveTextContent("Admission accountnot collected");
+    expect(rows[3]).toHaveTextContent("PH/2627/C1RefundCash—INR 25.00");
+  });
+
+  it("says when there were no payments and reports a failed load", async () => {
+    serve([]);
+    const { unmount } = renderWithProviders(<ReceiptsRegister scope={scope} period={period} />);
+    expect(
+      await screen.findByText("No receipts or refunds from 2026-11-01 to 2026-11-15."),
+    ).toBeVisible();
+    unmount();
+    serve("fail");
+    renderWithProviders(<ReceiptsRegister scope={scope} period={period} />);
+    expect(await screen.findByText("Could not load receipts and refunds.")).toBeVisible();
+  });
+});

@@ -37,6 +37,7 @@ against it (legacy SALES RECEIPTS AND REFUNDS, 450, and RECEIPT AND REFUND,
    daily report shows them. So, for one period, the items' amounts plus the
    daily report's service charges equal the daily report's sales and credits:
    the tests prove it.
+
 4. **The receipts and refunds register.**
    `GET …/reports/receipts?from=&to=&kind=` lists every tender on a sale
    (`receipt`) and every refund on a credit note (`refund`), oldest first, paged:
@@ -66,4 +67,7 @@ against it (legacy SALES RECEIPTS AND REFUNDS, 450, and RECEIPT AND REFUND,
   refunds (`pharmacy_unused_payment_refunds`): they belong to the payment
   journey (#1478) and are in neither report yet.
 - Category and clinician filters (there is no category master), CSV export.
+- Product and kind filters on screen: the screen, under the daily report and
+  sharing its period, lists the whole period; the API filters are there for
+  the next screen change.
 - Legacy "deleted amount": nothing is deleted.

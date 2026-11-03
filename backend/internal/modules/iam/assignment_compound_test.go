@@ -98,6 +98,11 @@ func TestCompoundAssignmentCommand(t *testing.T) {
 	slices.Reverse(checks)
 	original := slices.Clone(checks)
 	write := func(ctx context.Context) error {
+		for _, check := range checks {
+			current, ok := authz.ScopedCommandGrant(ctx, check.Request)
+			require.True(t, ok, "the source owner needs IAM evidence for the exact guarded action")
+			require.Equal(t, check.Grant, current)
+		}
 		return db.WithTenantCommand(ctx, testutil.TenantA, func(tx *gorm.DB) error {
 			return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,'user-target','compound_scope_write','iam_assignment_snapshots',?)`, testutil.TenantA, checks[0].Grant.AssignmentID).Error
 		})

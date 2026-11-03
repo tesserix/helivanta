@@ -1,5 +1,37 @@
 # Staff Management delivery tracker
 
+## Shared cutoff merged; scoped actor evidence candidate — 2026-11-03
+
+[PR #1530](https://github.com/tesserix/helivanta/pull/1530) merged as
+`cd962d4456132c2f73d9f2bb9f579642fceaf5e3` after exact-head CI passed. Final
+source `95196dc4` passed local race suites for tenantdb (24.489s), IAM (328.815s),
+Organization (17.434s), Workforce (580.118s) and Global API (131.032s), plus full
+backend build/vet/lint, contractdocs and source-inventory validation. This closes
+the observed deferred-commit expiry defect described in the earlier candidate
+entry. No production rollout was performed for this revision in that work.
+
+The next feature branch adds callback-bound IAM evidence for the existing
+current, locked assignments. A real PostgreSQL/OpenFGA compound-command test
+first failed without evidence and passed after IAM became the sole issuer.
+Exact tenant/hospital/subject/action matching, immutable grant snapshots, callback
+escape and stripped cancellation are covered. Architecture tests additionally
+rejected an unauthorized selector call and ordinary/raw-string dot-import issuer
+probes. The raw-string probe initially escaped the check; decoding import paths
+before comparison corrected it. All temporary probes were removed and the
+restored gate passed. Full local authz, architecture and IAM race suites passed
+(6.856s, final architecture 72.605s, and 327.120s). An architecture rerun initially
+omitted the Docker endpoint; the corrected run used the existing cached test VM.
+
+This is a candidate foundation component. The current Staff actor provider,
+new immutable role catalogs, source-purpose RLS, owner projections and positive
+reader/preparer browser acceptance are still unimplemented. The
+[specification](../superpowers/specs/2026-11-03-scoped-staff-posting-preparation.md)
+proposes a separate Workforce-owned source-use permission composed with each
+consumer's own permission; reference data is not reusable authorization.
+Effective postings, standalone employers, supervision/transfers, lifecycle
+enforcement and Pharma extensions remain mandatory parent work. Full Staff
+counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Shared command source-cutoff candidate — 2026-11-03
 
 Implementation for the scoped posting foundation adds owner source deadlines to

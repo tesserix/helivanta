@@ -115,6 +115,43 @@ their current versions/epoch and earliest effective cutoff. Private findings,
 documents and registration content remain in Workforce. Only two initial
 consumers exist: Workforce posting preparation and Organization choices.
 
+The proposed owner permission is `workforce.staff_actor.use`. Each scoped
+consumer must independently check its own business permission **and** this
+Workforce source-use permission in the existing two-check IAM command. Only the
+Workforce provider interprets source-use evidence. This avoids a cross-owner
+whitelist of arbitrary consumer permissions and does not grant identity review,
+profile disclosure, employment activation or operating duties. The source-use
+permission has no standalone business endpoint. Add it through new immutable
+catalog snapshots with the reader/preparer templates, not by expanding old ones.
+
+IAM issues evidence through `WithScopedCommandEvidence` only inside its already
+verified guarded action. `ScopedCommandGrant` returns a copied exact grant while
+that callback and its original root remain live. Copies of the request slice,
+`context.WithoutCancel`, changed scope/action and escaped callbacks cannot extend
+the evidence. Architecture checks restrict issuing calls to
+`iam/assignment_command.go` and reject dot-import bypasses. Consumers must also
+require their own same-database guarded command; this evidence alone grants no
+database access or current Staff eligibility.
+
+The Staff provider should follow the existing structural-reference callback
+pattern. Return only minimal immutable reference data for the callback's audit
+and target command; those IDs are data, never reusable authority. Every command
+re-enters the provider using its checked actor subject. Do not add an exported
+repository, general module RPC, caller-selected source query, private findings
+payload or another proof-factory API merely to transport those IDs.
+
+Before implementation, prove the source-writer order against identity case
+commands as well as HR/person/employment writers. Existing generation validation
+locks current employment/person review heads for update after the identity epoch.
+Reusing it while another command later advances that actor's identity epoch
+requires a deterministic lock-order test, not an assumption that actor reads are
+lock-free. A candidate is a canonical shared Workforce source gate for actor
+readers and the existing exclusive gate for identity/source writers; posting
+writes must acquire exclusive ownership first to preserve retained-command
+serialization. Do not upgrade shared to exclusive or mutate historical migration
+SQL. These writer/gate changes and their forward migration remain unimplemented
+until the full order is verified.
+
 Lock order is IAM authority → Workforce supervision/source/actor → Organization
 structural gate/rows → posting head/revisions/audit/outbox. Keep the existing
 exclusive Workforce gate for the first implementation; no shared-to-exclusive

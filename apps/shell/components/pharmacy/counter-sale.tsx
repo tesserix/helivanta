@@ -212,6 +212,10 @@ function Counter({
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const [posted, setPosted] = useState<PharmacySale | null>(null);
   const [paymentHeld, setPaymentHeld] = useState(false);
+  // A post whose outcome is unknown may have committed: until a settled
+  // answer, nothing may change the sale, or a retry would be a second sale (#1533).
+  const [uncertain, setUncertain] = useState(false);
+  const held = paymentHeld || uncertain;
   // Service charges (#1388): their own lines, all of one channel per sale.
   const services = useApiQuery<{ items: PharmacyServiceCharge[] }>(
     pharmacyKey(scope, "counter", "service-charges"),
@@ -263,13 +267,13 @@ function Counter({
   );
   // A changed basket is a new price: the old quote no longer applies.
   function changeBasket(next: BasketLine[]) {
-    if (paymentHeld) return;
+    if (held) return;
     setBasket(next);
     setQuote(null);
     price.reset();
   }
   function toggleCharge(id: string) {
-    if (paymentHeld) return;
+    if (held) return;
     setPicked(chargeIds.includes(id) ? chargeIds.filter((c) => c !== id) : [...chargeIds, id]);
     setQuote(null);
     price.reset();
@@ -374,7 +378,7 @@ function Counter({
           </Field>
         )}
         <div className="flex items-end">
-          <Button type="submit" variant="outline" disabled={!classKnown}>
+          <Button type="submit" variant="outline" disabled={!classKnown || held}>
             Add to basket
           </Button>
         </div>
@@ -425,7 +429,7 @@ function Counter({
               <Button
                 type="button"
                 variant="ghost"
-                disabled={paymentHeld}
+                disabled={held}
                 onClick={() => changeBasket(basket.filter((b) => b !== line))}
               >
                 Remove {line.product.sku}
@@ -454,7 +458,7 @@ function Counter({
                 <input
                   type="checkbox"
                   checked={chargeIds.includes(c.id)}
-                  disabled={paymentHeld || otherChannel}
+                  disabled={held || otherChannel}
                   onChange={() => toggleCharge(c.id)}
                 />
                 {v.name} · {formatPharmacyMoney(v.amount_minor, basket[0].product.currency)} ·{" "}
@@ -486,12 +490,14 @@ function Counter({
             chargeChannel={chargeChannel}
             onPosted={(sale) => {
               setPaymentHeld(false);
+              setUncertain(false);
               setPosted(sale);
             }}
             onStale={() => setQuote(null)}
             canRefund={canRefund}
             paymentHeld={paymentHeld}
             onPaymentHold={setPaymentHeld}
+            onUncertain={setUncertain}
           />
         </>
       )}
@@ -700,6 +706,7 @@ function TenderForm({
   canRefund,
   paymentHeld,
   onPaymentHold,
+  onUncertain,
 }: {
   scope: PharmacyScope;
   quote: PharmacySaleQuote;
@@ -711,6 +718,8 @@ function TenderForm({
   canRefund: boolean;
   paymentHeld: boolean;
   onPaymentHold: (held: boolean) => void;
+  /** True while a post's outcome is unknown; the counter then holds the basket. */
+  onUncertain: (uncertain: boolean) => void;
 }) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(tenderSchema, {
@@ -823,144 +832,167 @@ function TenderForm({
     post.error instanceof ApiError &&
     post.error.status === 409 &&
     post.error.code === "not_sellable";
+  const uncertain = post.isError && !refused;
+  useEffect(() => onUncertain(uncertain), [uncertain, onUncertain]);
+  // What was first sent; a retry resends exactly it, so the server replays
+  // the committed sale or posts it once, never a different sale under its id.
+  const [sent, setSent] = useState<z.infer<typeof tenderSchema> | null>(null);
   return (
     <form
       noValidate
       className="mt-6 space-y-4 border-t pt-4"
-      onSubmit={form.handleSubmit((values) => post.mutate(values))}
+      onSubmit={(event) => {
+        if (uncertain && sent) {
+          event.preventDefault();
+          post.mutate(sent);
+          return;
+        }
+        return form.handleSubmit((values) => {
+          setSent(values);
+          post.mutate(values);
+        })(event);
+      }}
     >
       <h4 className="font-medium">Payment</h4>
-      {customer === "admission" ? (
-        <p className="text-sm">
-          Billed to the admission account. Nothing is collected at the counter.
-        </p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormSelectField
-            control={form.control}
-            name="kind"
-            id="tender-kind"
-            label="Paid by"
-            disabled={paymentHeld || post.isPending}
-            options={[
-              { value: "cash", label: "Cash" },
-              { value: "upi_verified", label: "UPI (verified)" },
-              { value: "upi", label: "UPI (reference only)" },
-              { value: "card", label: "Card" },
-            ]}
-          />
-          {kind === "cash" ? (
-            <div>
-              <CurrencyAmountField
-                id="tender-received"
-                label="Amount received"
-                currency={quote.currency}
-                initialMinor={quote.total_minor}
-                error={form.formState.errors.tendered_minor?.message}
-                onChange={(minor) =>
-                  form.setValue("tendered_minor", minor, { shouldValidate: true })
-                }
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
-              </p>
-            </div>
-          ) : kind === "upi_verified" ? (
-            <div className="sm:col-span-2">
-              <VerifiedUpi
-                scope={scope}
-                amountMinor={quote.total_minor}
-                currency={quote.currency}
-                onPaid={onPaid}
-                onHold={onPaymentHold}
-                canRefund={canRefund}
-              />
-              {form.formState.errors.payment_request_id && (
-                <p className="mt-1 text-sm text-destructive">
-                  {form.formState.errors.payment_request_id.message}
-                </p>
-              )}
-            </div>
-          ) : (
-            <Field
-              id="tender-reference"
-              label="Payment reference"
-              error={form.formState.errors.reference?.message}
-            >
-              <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
-            </Field>
-          )}
-        </div>
-      )}
-      {form.getValues("discounted") && (
-        <Field
-          id="discount-reason"
-          label="Reason for the discount"
-          error={form.formState.errors.discount_reason?.message}
-        >
-          <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
-        </Field>
-      )}
-      <FormSelectField
-        control={form.control}
-        name="customer"
-        id="sale-customer"
-        label="Customer"
-        disabled={paymentHeld || post.isPending}
-        options={[
-          { value: "walk_in", label: "Walk-in buyer" },
-          { value: "patient", label: "Registered patient" },
-          { value: "admission", label: "Bill to admission" },
-        ].filter((o) =>
-          chargeChannel === "ward_delivery"
-            ? o.value === "admission"
-            : chargeChannel === "counter"
-              ? o.value !== "admission"
-              : true,
-        )}
-      />
-      {paymentHeld && (
+      {uncertain && (
         <p role="status" className="text-sm">
-          Finish the sale or record the completed refund before changing the customer or tender.
-          Cancel an unpaid QR and wait for confirmation before changing them.
+          Whether this sale was posted is not known yet. Until it is, this sale cannot be changed;
+          try again to find out.
         </p>
       )}
-      {customer === "admission" ? (
-        <div>
-          <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
-          {form.formState.errors.occupancy_id && (
-            <p className="mt-1 text-sm text-destructive">
-              {form.formState.errors.occupancy_id.message}
-            </p>
-          )}
-        </div>
-      ) : customer === "patient" ? (
-        <div>
-          <CounterPatientLookup scope={scope} value={patient} onChange={choosePatient} />
-          {form.formState.errors.patient_id && (
-            <p className="mt-1 text-sm text-destructive">
-              {form.formState.errors.patient_id.message}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
+      <fieldset disabled={uncertain} className="space-y-4">
+        {customer === "admission" ? (
+          <p className="text-sm">
+            Billed to the admission account. Nothing is collected at the counter.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormSelectField
+              control={form.control}
+              name="kind"
+              id="tender-kind"
+              label="Paid by"
+              disabled={paymentHeld || post.isPending}
+              options={[
+                { value: "cash", label: "Cash" },
+                { value: "upi_verified", label: "UPI (verified)" },
+                { value: "upi", label: "UPI (reference only)" },
+                { value: "card", label: "Card" },
+              ]}
+            />
+            {kind === "cash" ? (
+              <div>
+                <CurrencyAmountField
+                  id="tender-received"
+                  label="Amount received"
+                  currency={quote.currency}
+                  initialMinor={quote.total_minor}
+                  error={form.formState.errors.tendered_minor?.message}
+                  onChange={(minor) =>
+                    form.setValue("tendered_minor", minor, { shouldValidate: true })
+                  }
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
+                </p>
+              </div>
+            ) : kind === "upi_verified" ? (
+              <div className="sm:col-span-2">
+                <VerifiedUpi
+                  scope={scope}
+                  amountMinor={quote.total_minor}
+                  currency={quote.currency}
+                  onPaid={onPaid}
+                  onHold={onPaymentHold}
+                  canRefund={canRefund}
+                />
+                {form.formState.errors.payment_request_id && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {form.formState.errors.payment_request_id.message}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Field
+                id="tender-reference"
+                label="Payment reference"
+                error={form.formState.errors.reference?.message}
+              >
+                <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
+              </Field>
+            )}
+          </div>
+        )}
+        {form.getValues("discounted") && (
           <Field
-            id="buyer-name"
-            label="Buyer name (optional)"
-            error={form.formState.errors.buyer_name?.message}
+            id="discount-reason"
+            label="Reason for the discount"
+            error={form.formState.errors.discount_reason?.message}
           >
-            <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+            <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
           </Field>
-          <Field
-            id="buyer-phone"
-            label="Buyer phone (optional)"
-            error={form.formState.errors.buyer_phone?.message}
-          >
-            <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
-          </Field>
-        </div>
-      )}
+        )}
+        <FormSelectField
+          control={form.control}
+          name="customer"
+          id="sale-customer"
+          label="Customer"
+          disabled={paymentHeld || post.isPending}
+          options={[
+            { value: "walk_in", label: "Walk-in buyer" },
+            { value: "patient", label: "Registered patient" },
+            { value: "admission", label: "Bill to admission" },
+          ].filter((o) =>
+            chargeChannel === "ward_delivery"
+              ? o.value === "admission"
+              : chargeChannel === "counter"
+                ? o.value !== "admission"
+                : true,
+          )}
+        />
+        {paymentHeld && (
+          <p role="status" className="text-sm">
+            Finish the sale or record the completed refund before changing the customer or tender.
+            Cancel an unpaid QR and wait for confirmation before changing them.
+          </p>
+        )}
+        {customer === "admission" ? (
+          <div>
+            <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
+            {form.formState.errors.occupancy_id && (
+              <p className="mt-1 text-sm text-destructive">
+                {form.formState.errors.occupancy_id.message}
+              </p>
+            )}
+          </div>
+        ) : customer === "patient" ? (
+          <div>
+            <CounterPatientLookup scope={scope} value={patient} onChange={choosePatient} />
+            {form.formState.errors.patient_id && (
+              <p className="mt-1 text-sm text-destructive">
+                {form.formState.errors.patient_id.message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field
+              id="buyer-name"
+              label="Buyer name (optional)"
+              error={form.formState.errors.buyer_name?.message}
+            >
+              <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+            </Field>
+            <Field
+              id="buyer-phone"
+              label="Buyer phone (optional)"
+              error={form.formState.errors.buyer_phone?.message}
+            >
+              <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
+            </Field>
+          </div>
+        )}
+      </fieldset>
       {post.isError && (
         <div role="alert" className="text-sm text-destructive">
           <p>{post.error.message}</p>

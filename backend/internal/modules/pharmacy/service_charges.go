@@ -390,3 +390,88 @@ func (h *catalogueHandlers) getServiceCharge(c *gin.Context) {
 	}
 	respond.OK(c, out)
 }
+
+// saleChargeLine is a charge as billed: the version applied and its terms,
+// copied, so a later version never alters an issued invoice.
+type saleChargeLine struct {
+	ChargeNumber  int       `gorm:"column:charge_number" json:"charge_number"`
+	ChargeID      uuid.UUID `gorm:"column:charge_id" json:"charge_id"`
+	VersionID     uuid.UUID `gorm:"column:version_id" json:"version_id"`
+	Code          string    `gorm:"column:code" json:"code"`
+	Name          string    `gorm:"column:name" json:"name"`
+	TaxTreatment  string    `gorm:"column:tax_treatment" json:"tax_treatment"`
+	SACCode       *string   `gorm:"column:sac_code" json:"sac_code"`
+	SupplyNature  string    `gorm:"column:supply_nature" json:"supply_nature"`
+	RatePPM       int64     `gorm:"column:rate_ppm" json:"rate_ppm"`
+	AmountMinor   int64     `gorm:"column:amount_minor" json:"amount_minor"`
+	TaxableMinor  int64     `gorm:"column:taxable_minor" json:"taxable_minor"`
+	CGSTMinor     int64     `gorm:"column:cgst_minor" json:"cgst_minor"`
+	SGSTMinor     int64     `gorm:"column:sgst_minor" json:"sgst_minor"`
+	CreditedMinor int64     `gorm:"column:credited_minor" json:"credited_minor"`
+}
+
+const saleChargeColumns = `SELECT c.charge_number, c.charge_id, c.version_id, c.code, c.name, c.tax_treatment, c.sac_code, c.supply_nature, c.rate_ppm,
+	c.amount_minor, c.taxable_minor, c.cgst_minor, c.sgst_minor,
+	(SELECT COALESCE(sum(k.amount_minor),0) FROM pharmacy_credit_note_charge_lines k WHERE k.tenant_id=c.tenant_id AND k.outlet_id=c.outlet_id
+	 AND k.sale_id=c.sale_id AND k.sale_charge=c.charge_number) AS credited_minor
+	FROM pharmacy_sale_charge_lines c`
+
+func distinctCharges(in []saleChargeInput) bool {
+	seen := map[uuid.UUID]bool{}
+	for _, ch := range in {
+		if seen[ch.ChargeID] {
+			return false
+		}
+		seen[ch.ChargeID] = true
+	}
+	return true
+}
+
+// priceCharges bills each charge at the version in force on day for the
+// sale's channel. A principal-supply charge is taxed as the medicines, so
+// they must share one supply nature and rate; with none to follow it is
+// refused rather than guessed (spec decision 1). The schema checks it all again.
+func priceCharges(tx *gorm.DB, tenant string, outlet uuid.UUID, day, channel string, in []saleChargeInput, lines []saleLine) ([]saleChargeLine, error) {
+	out := []saleChargeLine{}
+	for i, ch := range in {
+		var codes []string
+		if err := tx.Raw(`SELECT code FROM pharmacy_service_charges WHERE tenant_id=? AND outlet_id=? AND id=?`, tenant, outlet, ch.ChargeID).Scan(&codes).Error; err != nil {
+			return nil, err
+		}
+		if len(codes) == 0 {
+			return nil, errNotSellable{"a service charge is not one of this outlet's"}
+		}
+		var now []struct {
+			VersionID uuid.UUID
+			Available bool
+		}
+		if err := tx.Raw(`SELECT version_id, available FROM pharmacy_service_charge_in_force(?, ?, ?, ?::date)`, tenant, outlet, ch.ChargeID, day).Scan(&now).Error; err != nil {
+			return nil, err
+		}
+		if len(now) == 0 || !now[0].Available {
+			return nil, errNotSellable{"the service charge " + codes[0] + " is not available today"}
+		}
+		var v serviceChargeVersion
+		if err := tx.Raw(serviceChargeVersionQuery+` WHERE v.tenant_id=? AND v.outlet_id=? AND v.id=?`, tenant, outlet, now[0].VersionID).Scan(&v).Error; err != nil {
+			return nil, err
+		}
+		if v.Channel != channel {
+			return nil, errNotSellable{"the service charge " + v.Code + " is not for this kind of sale"}
+		}
+		line := saleChargeLine{ChargeNumber: i + 1, ChargeID: ch.ChargeID, VersionID: v.ID, Code: v.Code, Name: v.Name, TaxTreatment: v.TaxTreatment, SACCode: v.SACCode}
+		if v.TaxTreatment == "own_service" {
+			line.SupplyNature, line.RatePPM = *v.SupplyNature, *v.RatePPM
+		} else {
+			for j, l := range lines {
+				if j > 0 && (l.SupplyNature != line.SupplyNature || l.RatePPM != line.RatePPM) {
+					return nil, errNotSellable{"the service charge " + v.Code + " is taxed as the medicines, which must all have one GST rate"}
+				}
+				line.SupplyNature, line.RatePPM = l.SupplyNature, l.RatePPM
+			}
+		}
+		line.AmountMinor, line.TaxableMinor, line.CGSTMinor = taxInside(v.AmountMinor, line.SupplyNature, line.RatePPM)
+		line.SGSTMinor = line.CGSTMinor
+		out = append(out, line)
+	}
+	return out, nil
+}

@@ -8,6 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	pharmacycontract "github.com/tesserix/helivanta/internal/modules/pharmacy/contract" //nolint:depguard // external test reading its own contract
 )
 
 // #1388: service charges, versioned and reviewed, billed as their own lines.
@@ -35,10 +38,10 @@ type chargeVersionResp struct {
 }
 
 type chargeResp struct {
-	ID      string             `json:"id"`
-	Code    string             `json:"code"`
-	InForce *chargeVersionResp `json:"in_force"`
-	Latest  *chargeVersionResp `json:"latest"`
+	ID      string              `json:"id"`
+	Code    string              `json:"code"`
+	InForce *chargeVersionResp  `json:"in_force"`
+	Latest  *chargeVersionResp  `json:"latest"`
 	History []chargeVersionResp `json:"history"`
 }
 
@@ -146,4 +149,199 @@ func TestAPendingVersionStopsTheCharge(t *testing.T) {
 	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
 	require.Contains(t, res.Body.String(), "newer version")
 	require.Len(t, w.charge(t, charge).History, 5)
+}
+
+type chargeLineResp struct {
+	ChargeNumber int     `json:"charge_number"`
+	ChargeID     string  `json:"charge_id"`
+	VersionID    string  `json:"version_id"`
+	Code         string  `json:"code"`
+	TaxTreatment string  `json:"tax_treatment"`
+	SACCode      *string `json:"sac_code"`
+	SupplyNature string  `json:"supply_nature"`
+	RatePPM      int64   `json:"rate_ppm"`
+	AmountMinor  int64   `json:"amount_minor"`
+	TaxableMinor int64   `json:"taxable_minor"`
+	CGSTMinor    int64   `json:"cgst_minor"`
+	SGSTMinor    int64   `json:"sgst_minor"`
+}
+
+type chargedSale struct {
+	ID           string                                                 `json:"id"`
+	TotalMinor   int64                                                  `json:"total_minor"`
+	TaxableMinor int64                                                  `json:"taxable_minor"`
+	CGSTMinor    int64                                                  `json:"cgst_minor"`
+	Lines        []struct{ AmountMinor, TaxableMinor, CGSTMinor int64 } `json:"lines"`
+	Charges      []chargeLineResp                                       `json:"charges"`
+}
+
+func chargedCashSale(product string, units, amount int64, charges ...string) string {
+	list := ""
+	for i, c := range charges {
+		if i > 0 {
+			list += ","
+		}
+		list += fmt.Sprintf(`{"charge_id":%q}`, c)
+	}
+	return fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":%d}],"charges":[%s],"tenders":[{"kind":"cash","amount_minor":%d,"tendered_minor":%d}]}`, product, units, list, amount, amount)
+}
+
+func (w saleWorld) postCharged(t *testing.T, body string) (int, chargedSale, string) {
+	t.Helper()
+	res := do(w.r, "PUT", salePath("/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", body)
+	var s chargedSale
+	if res.Code < 300 {
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &s))
+	}
+	return res.Code, s, res.Body.String()
+}
+
+func TestAChargeIsItsOwnLine(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	delivery := uuid.Must(uuid.NewV7()).String()
+	version := w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
+	handling := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, handling, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
+
+	code, plain, out := w.postCharged(t, chargedCashSale(p, 2, 2500))
+	require.Equal(t, http.StatusCreated, code, out)
+	require.Empty(t, plain.Charges)
+
+	res := do(w.r, "POST", salePath("/quote"), "pharmacist", fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q},{"charge_id":%q}]}`, p, delivery, handling))
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	var quote chargedSale
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &quote))
+	require.Equal(t, int64(2500+5000+2000), quote.TotalMinor)
+
+	code, sale, out := w.postCharged(t, chargedCashSale(p, 2, 9500, delivery, handling))
+	require.Equal(t, http.StatusCreated, code, out)
+	require.Equal(t, plain.Lines, sale.Lines, "the medicine line is priced exactly as without the charges")
+	require.Len(t, sale.Charges, 2)
+	own := sale.Charges[0]
+	sac := "996812"
+	// 5000 at 18% inside: half = round(5000 × 0.18 / 2.36) = 381.
+	require.Equal(t, chargeLineResp{ChargeNumber: 1, ChargeID: delivery, VersionID: version, Code: "DELIVERY", TaxTreatment: "own_service", SACCode: &sac,
+		SupplyNature: "taxable", RatePPM: 180000, AmountMinor: 5000, TaxableMinor: 4238, CGSTMinor: 381, SGSTMinor: 381}, own)
+	principal := sale.Charges[1]
+	// Taxed as the medicine, 12%: half = round(2000 × 0.12 / 2.24) = 107.
+	require.Nil(t, principal.SACCode)
+	require.Equal(t, "taxable", principal.SupplyNature)
+	require.Equal(t, int64(120000), principal.RatePPM)
+	require.Equal(t, []int64{2000, 1786, 107, 107}, []int64{principal.AmountMinor, principal.TaxableMinor, principal.CGSTMinor, principal.SGSTMinor})
+	require.Equal(t, int64(9500), sale.TotalMinor)
+	require.Equal(t, plain.TaxableMinor+4238+1786, sale.TaxableMinor)
+	require.Equal(t, plain.CGSTMinor+381+107, sale.CGSTMinor)
+
+	// Tenders pay the charges too; a charge appears once; a charge alone is no sale.
+	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 2500, delivery))
+	require.Equal(t, http.StatusConflict, code, out)
+	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 12500, delivery, delivery))
+	require.Equal(t, http.StatusBadRequest, code, out)
+	code, _, out = w.postCharged(t, fmt.Sprintf(`{"lines":[],"charges":[{"charge_id":%q}],"tenders":[{"kind":"cash","amount_minor":5000,"tendered_minor":5000}]}`, delivery))
+	require.Equal(t, http.StatusBadRequest, code, out)
+	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 7500, uuid.Must(uuid.NewV7()).String()))
+	require.Equal(t, http.StatusConflict, code, out)
+	require.Contains(t, out, "not one of this outlet")
+
+	// The database holds a hand-written charge line to the version in force,
+	// with that version's values.
+	forge := func(name string) error {
+		return catalogueTx(t, w.db, func(tx *gorm.DB) error {
+			id := uuid.Must(uuid.NewV7())
+			if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,seller_legal_name,
+				seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,actor_subject)
+				SELECT ?,tenant_id,outlet_id,financial_year,99,'TS/2627/99',sale_date,invoice_profile_id,seller_legal_name,seller_address,seller_gstin,place_of_supply,
+				currency,total_minor,taxable_minor,cgst_minor,sgst_minor,intent_sha256,'user-editor' FROM pharmacy_sales WHERE id=?`, id, sale.ID).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`INSERT INTO pharmacy_sale_charge_lines (tenant_id,outlet_id,sale_id,charge_number,charge_id,version_id,code,name,tax_treatment,sac_code,
+				supply_nature,rate_ppm,amount_minor,taxable_minor,cgst_minor,sgst_minor) SELECT tenant_id,outlet_id,?,charge_number,charge_id,version_id,code,`+name+`,tax_treatment,sac_code,
+				supply_nature,rate_ppm,amount_minor,taxable_minor,cgst_minor,sgst_minor FROM pharmacy_sale_charge_lines WHERE sale_id=? AND charge_number=1`, id, sale.ID).Error
+		})
+	}
+	require.ErrorContains(t, forge("'TEST other name'"), "is the version in force", "a value that is not the version's")
+	require.ErrorContains(t, forge("name"), "a sale is its lines", "a faithful copy passes the guard and reaches the balance check")
+
+	// A later version never alters the issued invoice, and replaces the old one.
+	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 9000, "2026-11-01"), "approved")
+	res = do(w.r, "GET", salePath("/"+sale.ID), "pharmacist", "")
+	require.Equal(t, http.StatusOK, res.Code)
+	var again chargedSale
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &again))
+	require.Equal(t, sale.Charges, again.Charges)
+	require.ErrorContains(t, forge("name"), "is the version in force", "a replaced version")
+}
+
+func TestPrincipalChargeFollowsTheMedicines(t *testing.T) {
+	w := newSaleWorld(t, true)
+	twelve := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, twelve, "2028-06-30", 12500, 30)
+	five := w.product(t, "TEST-ORS", "none")
+	res := do(w.r, "POST", productPath(five)+"/tax-classifications", "editor", classificationBody("30049099", "taxable", "5", "", w.taxFrom, "TEST corrected rate"))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+	w.shelve(t, five, "2028-06-30", 12500, 30)
+	nil0 := w.product(t, "TEST-NIL", "none")
+	res = do(w.r, "POST", productPath(nil0)+"/tax-classifications", "editor", classificationBody("30049099", "nil_rated", "0", "", w.taxFrom, "TEST nil rated"))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+	w.shelve(t, nil0, "2028-06-30", 12500, 30)
+	handling := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, handling, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
+
+	mixed := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2},{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"cash","amount_minor":7000,"tendered_minor":7000}]}`, twelve, five, handling)
+	code, _, out := w.postCharged(t, mixed)
+	require.Equal(t, http.StatusConflict, code, out)
+	require.Contains(t, out, "must all have one GST rate")
+
+	code, sale, out := w.postCharged(t, chargedCashSale(nil0, 2, 4500, handling))
+	require.Equal(t, http.StatusCreated, code, out)
+	require.Equal(t, "nil_rated", sale.Charges[0].SupplyNature)
+	require.Equal(t, []int64{0, 2000, 0}, []int64{sale.Charges[0].RatePPM, sale.Charges[0].TaxableMinor, sale.Charges[0].CGSTMinor})
+}
+
+func TestAChargeKeepsToItsChannel(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	counter := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, counter, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
+	room := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, room, ownCharge("ROOM", "ward_delivery", 3000, "2026-11-01"), "approved")
+
+	code, _, out := w.postCharged(t, chargedCashSale(p, 2, 5500, room))
+	require.Equal(t, http.StatusConflict, code, out)
+	require.Contains(t, out, "not for this kind of sale")
+	res := do(w.r, "POST", salePath("/quote"), "pharmacist", fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"channel":"ward_delivery"}`, p, counter))
+	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
+
+	// Billed to an admission, the ward charge goes on the account with the medicine.
+	d := newWard(t, w)
+	d.verify()
+	s := d.admit("R-1", "A-1")
+	body := fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"admission_account","amount_minor":5500}],"admission":{"occupancy_id":%q}}`, p, room, s.occupancy)
+	code, sale, out := w.postCharged(t, body)
+	require.Equal(t, http.StatusCreated, code, out)
+	require.Equal(t, int64(5500), sale.TotalMinor)
+	var amounts []int64
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT (payload->'data'->>'amount_minor')::bigint FROM outbox_events WHERE subject=? ORDER BY created_at`, pharmacycontract.SubjectAdmissionChargePosted).Scan(&amounts).Error
+	}))
+	require.Equal(t, []int64{5500}, amounts, "the admission is charged what was billed, the service charge included")
+	body = fmt.Sprintf(`{"lines":[{"product_id":%q,"quantity_units":2}],"charges":[{"charge_id":%q}],"tenders":[{"kind":"admission_account","amount_minor":4500}],"admission":{"occupancy_id":%q}}`, p, counter, s.occupancy)
+	code, _, out = w.postCharged(t, body)
+	require.Equal(t, http.StatusConflict, code, out)
+}
+
+func TestAChargeChangedUnderTheSaleIsRefused(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	delivery := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
+	// A newer version awaiting review: the charge is not billed at all.
+	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 6000, "2026-11-01"), "")
+	code, _, out := w.postCharged(t, chargedCashSale(p, 2, 7500, delivery))
+	require.Equal(t, http.StatusConflict, code, out)
+	require.Contains(t, out, "not available today")
 }

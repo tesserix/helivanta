@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "217bff2d86b7bdb2d399e5a1bc4a370032ca5008c1ae78afcfdad6961e35f6a5",
+  "registry_sha256": "274a1af1c9f5ee6cf9184811bd504066fb28e87dcf79648444ccd243246e4c51",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 769,
-    "unclassified": 746
+    "total": 778,
+    "unclassified": 755
   },
   "entries": [
     {
@@ -3715,7 +3715,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "3b85cc406aea8b9af903427e38ea2a60f60a91ea13e708f382bf1ab141009057",
+            "sha256": "9fc0df099b5ba5c7b14c1a8685710eabb9f0275489fc4e47d1c5211cc7d3c952",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -3769,7 +3769,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "3b85cc406aea8b9af903427e38ea2a60f60a91ea13e708f382bf1ab141009057",
+            "sha256": "9fc0df099b5ba5c7b14c1a8685710eabb9f0275489fc4e47d1c5211cc7d3c952",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -3967,7 +3967,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "3b85cc406aea8b9af903427e38ea2a60f60a91ea13e708f382bf1ab141009057",
+            "sha256": "9fc0df099b5ba5c7b14c1a8685710eabb9f0275489fc4e47d1c5211cc7d3c952",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -4197,7 +4197,7 @@
           },
           {
             "path": "backend/internal/platform/router.go",
-            "sha256": "3b85cc406aea8b9af903427e38ea2a60f60a91ea13e708f382bf1ab141009057",
+            "sha256": "9fc0df099b5ba5c7b14c1a8685710eabb9f0275489fc4e47d1c5211cc7d3c952",
             "symbol": "func (r *Router) handle("
           },
           {
@@ -4369,6 +4369,24 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http organization GET /v1/organization/hospitals/:hospital/posting-department-choices",
+      "kind": "http",
+      "module": "organization",
+      "registration": {
+        "source": "backend/internal/modules/organization/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/organization/hospitals/:hospital/posting-department-choices",
+        "permission": "organization.posting_choices.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null
@@ -8188,7 +8206,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8273,7 +8291,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -9623,6 +9641,114 @@
       "review": null
     },
     {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source",
+        "permission": "workforce.posting.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts",
+        "permission": "workforce.posting.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting",
+        "permission": "workforce.posting.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+        "permission": "workforce.posting.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/history",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/history",
+        "permission": "workforce.posting.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/hospitals/:hospital/posting-targets",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/workforce/hospitals/:hospital/posting-targets",
+        "permission": "workforce.posting.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http workforce GET /v1/workforce/hospitals/:hospital/staff",
       "kind": "http",
       "module": "workforce",
@@ -10037,7 +10163,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10121,7 +10247,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10231,7 +10357,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10345,7 +10471,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10658,23 +10784,33 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func (h *handlers) getPostingDraftSource("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func postingOwnerContext("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.sql",
             "sha256": "c2c380f6eaacf458ef36f0e5451c87a92b1a923ca50a0e51f632918812200b13",
             "symbol": "CREATE FUNCTION workforce_posting_draft_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/posting_authority.go",
+            "sha256": "ee360f7337d6f03cb4847c61371092f36c0def80f8452d46f126f7e9d169c919",
+            "symbol": "func (h *handlers) postingTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/scoped_postings.sql",
+            "sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_posting_draft_context("
           }
         ],
         "remaining": [
@@ -10707,23 +10843,33 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func (h *handlers) listPostingDrafts("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func postingOwnerContext("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.sql",
             "sha256": "c2c380f6eaacf458ef36f0e5451c87a92b1a923ca50a0e51f632918812200b13",
             "symbol": "CREATE FUNCTION workforce_posting_draft_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/posting_authority.go",
+            "sha256": "ee360f7337d6f03cb4847c61371092f36c0def80f8452d46f126f7e9d169c919",
+            "symbol": "func (h *handlers) postingTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/scoped_postings.sql",
+            "sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_posting_draft_context("
           }
         ],
         "remaining": [
@@ -10756,23 +10902,33 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func (h *handlers) getPostingDraft("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func postingOwnerContext("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.sql",
             "sha256": "c2c380f6eaacf458ef36f0e5451c87a92b1a923ca50a0e51f632918812200b13",
             "symbol": "CREATE FUNCTION workforce_posting_draft_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/posting_authority.go",
+            "sha256": "ee360f7337d6f03cb4847c61371092f36c0def80f8452d46f126f7e9d169c919",
+            "symbol": "func (h *handlers) postingTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/scoped_postings.sql",
+            "sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_posting_draft_context("
           }
         ],
         "remaining": [
@@ -10805,23 +10961,33 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func (h *handlers) getPostingDraftReceipt("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func postingOwnerContext("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.sql",
             "sha256": "c2c380f6eaacf458ef36f0e5451c87a92b1a923ca50a0e51f632918812200b13",
             "symbol": "CREATE FUNCTION workforce_posting_draft_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/posting_authority.go",
+            "sha256": "ee360f7337d6f03cb4847c61371092f36c0def80f8452d46f126f7e9d169c919",
+            "symbol": "func (h *handlers) postingTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/scoped_postings.sql",
+            "sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_posting_draft_context("
           }
         ],
         "remaining": [
@@ -10854,23 +11020,33 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func (h *handlers) postingDraftHistory("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func postingOwnerContext("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.sql",
             "sha256": "c2c380f6eaacf458ef36f0e5451c87a92b1a923ca50a0e51f632918812200b13",
             "symbol": "CREATE FUNCTION workforce_posting_draft_context("
+          },
+          {
+            "path": "backend/internal/modules/workforce/posting_authority.go",
+            "sha256": "ee360f7337d6f03cb4847c61371092f36c0def80f8452d46f126f7e9d169c919",
+            "symbol": "func (h *handlers) postingTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/scoped_postings.sql",
+            "sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_posting_draft_context("
           }
         ],
         "remaining": [
@@ -10936,6 +11112,22 @@
         "source": "backend/internal/modules/workforce/module.go",
         "method": "GET",
         "path": "/v1/workforce/person-review-scopes",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/posting-scopes",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/posting-scopes",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,
@@ -11627,7 +11819,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11706,7 +11898,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11785,7 +11977,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12452,6 +12644,24 @@
       "review": null
     },
     {
+      "id": "http workforce PUT /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "PUT",
+        "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command",
+        "permission": "workforce.posting.prepare",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http workforce PUT /v1/workforce/hospitals/:hospital/staff/:id",
       "kind": "http",
       "module": "workforce",
@@ -12728,7 +12938,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12910,17 +13120,17 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
+            "sha256": "f58ba7bffff490d9522d104d3598772f6e1e95ae6a38541760f5b8d3a0479075",
             "symbol": "func (*Module) Routes("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func (h *handlers) putPostingDraft("
           },
           {
             "path": "backend/internal/modules/workforce/posting_drafts.go",
-            "sha256": "311b1daa12d4266d7e852de7f42a6c22adc34d60bcf21b970ecdec1c45983a8e",
+            "sha256": "5fcedeff2f78d93ca05707385d8d8ac97eb432e13ba953e4573cb6784c860201",
             "symbol": "func postingOwnerContext("
           },
           {
@@ -12942,6 +13152,16 @@
             "path": "backend/pkg/tenantdb/command.go",
             "sha256": "1ea36d6605041bc1610c2de0b7e369e350fa8aa69a8aa631e384e6b3d6d2b25a",
             "symbol": "func (d *DB) WithGuardedTenantCommand("
+          },
+          {
+            "path": "backend/internal/modules/workforce/posting_authority.go",
+            "sha256": "ee360f7337d6f03cb4847c61371092f36c0def80f8452d46f126f7e9d169c919",
+            "symbol": "func (h *handlers) postingTransaction("
+          },
+          {
+            "path": "backend/internal/modules/workforce/scoped_postings.sql",
+            "sha256": "3e20a9a807934b0825be8ca7633ef3c064aaee1d33b1d72f8720c8d3fbbf4da0",
+            "symbol": "CREATE OR REPLACE FUNCTION workforce_posting_draft_context("
           }
         ],
         "remaining": [

@@ -350,6 +350,9 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-draft-source":                                            "one scoped Staff concurrency basis; no collection",
+	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting":                                         "one scoped posting draft; no collection",
+	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-drafts/:posting/commands/:command":                       "one scoped immutable command receipt; no collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/posting-draft-source":                                                    "one minimal Staff concurrency basis; no collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting":                                                 "one current preparation draft; draft lists and history remain cursor-paginated",
 	"GET /workforce/hospitals/:hospital/staff/:id/posting-drafts/:posting/commands/:command":                               "one retained command receipt; no collection",

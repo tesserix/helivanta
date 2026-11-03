@@ -115,3 +115,14 @@ consumer composition, current department choices, posting-purpose
 RLS, discovery, positive digital-actor and command ordering tests, normal scoped
 browser acceptance and production rollout remain unfinished. No standalone
 foundation component is to be merged/deployed as completed posting acceptance.
+
+## 2026-11-03 candidate checkpoint
+
+Tasks 1–4 and the scoped workspace implementation in Task 5 now have local code.
+Workforce exposes separate `/posting-staff/:id` routes and bounded workspace/target
+discovery; current department choices are guarded by Organization. Migration
+0074 retains the tenant-policy validator and denies scoped Staff writes/deletes.
+SDK/UI tests distinguish reader/preparer behavior and the scoped save path.
+Task 6 remains acceptance work: normal sign-in was blocked by Chrome, so PR #1532
+stays draft and runtime acceptance tags are withheld. The remaining source/commit-
+order/revocation matrix and named production approval remain required.

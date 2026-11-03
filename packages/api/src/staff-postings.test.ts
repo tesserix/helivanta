@@ -143,3 +143,30 @@ it("lists only drafts for the exact Staff workspace", async () => {
   });
   await expect(listStaffPostingDrafts(scope)).rejects.toThrow("receipt");
 });
+
+it("isolates scoped posting paths and caches without legacy fallback after denial", async () => {
+  const { getStaffPostingDraftSource, saveStaffPostingDraft, staffPostingsKey } =
+    await import("./staff-postings");
+  const scoped = { ...scope, access: "scoped" as const };
+  expect(staffPostingsKey(scoped)).not.toEqual(staffPostingsKey(scope));
+  vi.mocked(apiFetch).mockResolvedValue({
+    hospital_id: scope.hospitalId,
+    staff_id: scope.staffId,
+    staff_version: 1,
+    employment_epoch: 1,
+  });
+  await getStaffPostingDraftSource(scoped);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-draft-source`,
+    expect.anything(),
+  );
+  vi.mocked(apiFetch).mockResolvedValue(publicReceipt);
+  await saveStaffPostingDraft(scoped, draft, command, input);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-drafts/${draft}/commands/${command}`,
+    expect.objectContaining({ method: "PUT" }),
+  );
+  vi.mocked(apiFetch).mockClear().mockRejectedValue(new Error("access denied"));
+  await expect(getStaffPostingDraftSource(scoped)).rejects.toThrow("access denied");
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+});

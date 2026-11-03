@@ -122,3 +122,48 @@ HR-to-structure revision mappings through owner messages. A matched snapshot
 creates no posting or grant. Deployed [preparation drafts](workforce-postings.md)
 reference current structural revisions, while effective postings and operating
 eligibility remain open.
+
+## Unreleased scoped posting choices
+
+`GET /v1/organization/hospitals/:hospital/posting-department-choices` is an
+additive candidate read projection for the independently approved
+`workforce.posting_preparer.v1` hospital assignment. It requires both the
+Organization-owned `organization.posting_choices.read` permission and
+Workforce-owned `workforce.staff_actor.use` through current callback-bound IAM
+evidence. A tenant-admin permission or legacy hospital grant alone is
+insufficient. The current reviewed link and effective digital employment source
+must match the authenticated subject and exact hospital; the owner guard and its
+source cutoff participate in the same shared command. This is the existing
+single-database owner seam, not an independently deployed service protocol.
+
+The endpoint reuses canonical `DepartmentOutput`: current active heads only,
+including active sub-units, with canonical hospital/node/revision IDs, version,
+code, name, kind, optional parent, status and timestamps. Retired heads are
+excluded. No private reason, historical snapshot, actor, Staff profile, finding
+or document is returned. There is no implicit structure-management/history,
+clinical or operating authority. The SDK `listPostingDepartmentChoices` uses
+this endpoint directly and rejects retired, foreign, duplicate, private or
+invalid-continuation responses; it never falls back to the governance list.
+
+Original tenant/subject assertions and `no-store` apply. Standard newest-first
+opaque keyset pagination has default/max **50**; larger, repeated, empty or
+unknown query options are refused. Maximum canonical fields, JSON HTML escaping
+and a 2,048-character continuation fit the proposed 64 KiB serialized budget in a
+real canonical-model serialization test. This is a size bound, not a latency or
+contention benchmark.
+
+Missing permission/current Staff eligibility is 403, revoked credentials 401,
+changed original account 409 and unavailable authorization/source 503. Existing
+Organization errors retain 404 for an absent hospital reference and 409 for an
+unverified/conflicting reference. Unexpected storage/audit failure returns a
+generic 500 and no page. Organization disclosure audit and Workforce source-use
+audit commit together; injected Organization audit failure rolls both back.
+Current selected heads are held through commit. Existing governance routes keep
+their separate permissions and cannot be invoked by this role.
+
+Real PostgreSQL/OpenFGA/Global API tests exercise reader denial, preparer success,
+legacy-admin denial, wrong hospital, retirement, scope-epoch changes, source
+identity invalidation, invalid queries and atomic audit failure. No production
+rollout or normal positive-role browser acceptance is implied; the
+[tracker](../qa/staff-management-progress.md) records remaining scoped draft,
+discovery and UI work.

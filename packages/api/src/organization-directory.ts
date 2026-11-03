@@ -123,6 +123,29 @@ export async function listOrganizationDepartments(
   page.data.forEach((row) => verifyDepartment(row, hospitalId));
   return safePage(page, (row) => identifier.parse(row.id));
 }
+export async function listPostingDepartmentChoices(
+  scope: OrganizationScope,
+  hospitalId: string,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const page = departmentPage.parse(
+    await apiFetch(
+      `/organization/hospitals/${identifier.parse(hospitalId)}/posting-department-choices?${pageQuery(cursor)}`,
+      {
+        ...scopedRequest(scope),
+        signal,
+      },
+    ),
+  );
+  page.data.forEach((row) => {
+    verifyDepartment(row, hospitalId);
+    if (row.status !== "active") throw new Error("The posting department is no longer available.");
+  });
+  if (cursor !== null && page.page.next_cursor === cursor)
+    throw new Error("The posting department page could not be verified.");
+  return safePage(page, (row) => identifier.parse(row.id));
+}
 export async function listOrganizationDepartmentRevisions(
   scope: OrganizationScope,
   hospitalId: string,

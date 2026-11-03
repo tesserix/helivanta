@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
+	"github.com/tesserix/helivanta/internal/modules/organization"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -55,7 +56,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	require.NoError(t, err)
 	graph, err := authz.NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
-	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}}
+	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New()}
 	registry := platform.NewRegistry()
 	for _, module := range modules {
 		require.NoError(t, registry.Register(module))
@@ -2029,6 +2030,100 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				rollback := errors.New("synthetic downstream command rollback")
 				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { return rollback }), rollback)
 				require.EqualValues(t, 1, sourceAudits(), "downstream rollback removes source-use evidence in the shared root transaction")
+
+				for _, migration := range workforce.New().Migrations() {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" {
+						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
+					}
+				}
+				postingScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"].([]any)
+				require.Len(t, postingScopes, 1)
+				require.Equal(t, hospital, postingScopes[0].(map[string]any)["hospital_id"])
+				require.Equal(t, false, postingScopes[0].(map[string]any)["can_prepare"])
+				postingTargets := call(t, "GET", base+"/posting-targets?limit=50", recipient, nil, 200)["data"].([]any)
+				require.NotEmpty(t, postingTargets)
+				for _, target := range postingTargets {
+					require.Len(t, target.(map[string]any), 3)
+					require.NotContains(t, target.(map[string]any), "given_name")
+				}
+				scopedStaffBase := base + "/posting-staff/" + joiner
+				scopedSource := call(t, "GET", scopedStaffBase+"/posting-draft-source", recipient, nil, 200)
+				require.Equal(t, joiner, scopedSource["staff_id"])
+				require.Empty(t, call(t, "GET", scopedStaffBase+"/posting-drafts", recipient, nil, 200)["data"])
+				organizationBase := "/v1/organization/hospitals/" + hospital
+				registrationPath := organizationBase + "/registrations/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", registrationPath, maker, map[string]any{"reason": "Synthetic scoped posting department setup"}, 200)
+				require.Eventually(t, func() bool { return call(t, "GET", registrationPath, maker, nil, 200)["status"] == "verified" }, 10*time.Second, 20*time.Millisecond)
+				departmentID, departmentRevision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
+				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-POSTING-CHOICE", "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
+				call(t, "PUT", departmentPath, maker, departmentInput, 200)
+				choicesPath := organizationBase + "/posting-department-choices?limit=1"
+				call(t, "GET", choicesPath, recipient, nil, 403)
+				call(t, "GET", choicesPath, maker, nil, 403)
+				scopedDraft, scopedCommand := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+				scopedCommandPath := scopedStaffBase + "/posting-drafts/" + scopedDraft + "/commands/" + scopedCommand
+				postingIntent := map[string]any{"expected_version": 0, "staff_version": scopedSource["staff_version"], "employment_epoch": scopedSource["employment_epoch"], "department_id": departmentID, "department_revision_id": departmentRevision, "starts_at": time.Now().UTC().Format(time.RFC3339), "reason": "Synthetic scoped non-operating posting draft"}
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+
+				grant(recipient, "workforce.posting_preparer.v1", authz.Permission("organization.posting_choices.read"))
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+					t.Error("stale IAM evidence reached source callback")
+					return nil
+				}), authz.ErrScopedCommandDenied)
+				sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
+				require.NoError(t, sourceErr)
+
+				scopedReceipt := call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200)
+				require.Equal(t, "draft", scopedReceipt["status"])
+				require.Equal(t, false, scopedReceipt["grants_access"])
+				require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200))
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200))
+				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts", recipient, nil, 200)["data"], 1)
+				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+				call(t, "GET", joinerPath+"/posting-drafts", recipient, nil, 403)
+				beforePostingAuditFailure := sourceAudits()
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_scoped_posting_audit_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION fail_scoped_posting_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='workforce.posting_draft.saved' THEN RAISE EXCEPTION 'synthetic scoped posting audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_scoped_posting_audit BEFORE INSERT ON workforce_audit FOR EACH ROW EXECUTE FUNCTION fail_scoped_posting_audit()`}}))
+				failedIntent := map[string]any{}
+				for key, value := range postingIntent {
+					failedIntent[key] = value
+				}
+				failedIntent["expected_version"] = 1
+				failedCommandPath := scopedStaffBase + "/posting-drafts/" + scopedDraft + "/commands/" + uuid.Must(uuid.NewV7()).String()
+				call(t, "PUT", failedCommandPath, recipient, failedIntent, 500)
+				require.Equal(t, beforePostingAuditFailure, sourceAudits(), "posting audit failure rolls back source evidence and draft revision")
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_scoped_posting_audit_fault_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP TRIGGER fail_scoped_posting_audit ON workforce_audit; DROP FUNCTION fail_scoped_posting_audit()`}}))
+				call(t, "GET", failedCommandPath, recipient, nil, 404)
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft, recipient, nil, 200))
+				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+				choices := call(t, "GET", choicesPath, recipient, nil, 200)
+				uncached := request("GET", choicesPath, recipient, nil, "application/json")
+				require.Equal(t, 200, uncached.Code, uncached.Body.String())
+				require.Equal(t, "no-store", uncached.Header().Get("Cache-Control"))
+				choiceRows := choices["data"].([]any)
+				require.Len(t, choiceRows, 1)
+				require.Equal(t, departmentID, choiceRows[0].(map[string]any)["id"])
+				require.Equal(t, departmentRevision, choiceRows[0].(map[string]any)["revision_id"])
+				require.Equal(t, map[string]any{"has_more": false, "next_cursor": nil}, choices["page"])
+
+				require.NotContains(t, choiceRows[0].(map[string]any), "actor_subject")
+				require.NotContains(t, choiceRows[0].(map[string]any), "reason")
+				beforeAuditFailure := sourceAudits()
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_posting_choice_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: `CREATE FUNCTION fail_posting_choice_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='organization.posting_choices.read' THEN RAISE EXCEPTION 'synthetic posting choice audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_posting_choice_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fail_posting_choice_audit()`}}))
+				failedChoices := call(t, "GET", choicesPath, recipient, nil, 500)
+				require.NotContains(t, failedChoices, "data")
+				require.Equal(t, beforeAuditFailure, sourceAudits(), "Organization audit failure must roll back Workforce source-use evidence")
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_posting_choice_fault_clear_" + uuid.Must(uuid.NewV7()).String(), SQL: `DROP TRIGGER fail_posting_choice_audit ON audit_events; DROP FUNCTION fail_posting_choice_audit()`}}))
+				call(t, "GET", organizationBase+"/departments", recipient, nil, 403)
+				call(t, "GET", departmentPath, recipient, nil, 403)
+				call(t, "PUT", organizationBase+"/departments/"+departmentID+"/revisions/"+uuid.Must(uuid.NewV7()).String(), recipient, departmentInput, 403)
+				call(t, "GET", "/v1/organization/hospitals/"+uuid.NewString()+"/posting-department-choices", recipient, nil, 403)
+				call(t, "GET", organizationBase+"/posting-department-choices?limit=51", recipient, nil, 400)
+				call(t, "GET", organizationBase+"/posting-department-choices?limit=1&limit=2", recipient, nil, 400)
+				call(t, "GET", organizationBase+"/posting-department-choices?status=retired", recipient, nil, 400)
+				departmentInput["expected_version"], departmentInput["status"] = 1, "retired"
+				call(t, "PUT", organizationBase+"/departments/"+departmentID+"/revisions/"+uuid.Must(uuid.NewV7()).String(), maker, departmentInput, 200)
+				require.Empty(t, call(t, "GET", choicesPath, recipient, nil, 200)["data"], "retired department heads cannot be selected for a new posting")
 				call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "doctor"}, 409)
 				unchangedPermissions, unchangedErr := graph.Resolve(ctx, recipient, testutil.TenantA)
 				require.NoError(t, unchangedErr)
@@ -2040,13 +2135,17 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
 				require.NoError(t, useSource(func(context.Context, authz.StaffActorReference) error { return nil }), "non-identity edits must preserve a current reviewed digital actor")
+				beforeInvalidation := sourceAudits()
 				edit("Synthetic altered identity", "+919000000004")
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 403)
 				called := false
 				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { called = true; return nil }), authz.ErrScopedCommandDenied)
 				require.False(t, called, "identity changed and restored cannot revive a source guard under a still-live IAM assignment")
-				require.EqualValues(t, 2, sourceAudits(), "denied source consumption retains no new audit evidence")
+				call(t, "GET", choicesPath, recipient, nil, 403)
+				call(t, "GET", scopedCommandPath, recipient, nil, 403)
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				require.EqualValues(t, beforeInvalidation, sourceAudits(), "denied source consumption retains no new audit evidence")
 				grant(recipient, "workforce.hr_intake.v1", workforce.PermEnrollmentManage)
 				call(t, "PUT", base+"/access/"+recipient, maker, map[string]any{"level": "manager"}, 200)
 				call(t, "GET", joinerPath+"/enrollment", recipient, nil, 403)

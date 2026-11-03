@@ -119,6 +119,40 @@
         "name": "recorded_at",
         "type": "time"
       }
+    ],
+    "StaffPostingHospitalScope": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 150
+      },
+      {
+        "name": "can_prepare",
+        "type": "bool"
+      }
+    ],
+    "StaffPostingTarget": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string",
+        "min": 1,
+        "max": 40
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "min": 1,
+        "max": 150
+      }
     ]
   },
   "events": {

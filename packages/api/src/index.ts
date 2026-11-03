@@ -141,3 +141,4 @@ export * from "./staff-postings-contract";
 export * from "./staff-postings";
 
 export * from "./staff-posting-queries";
+export * from "./staff-posting-workspace";

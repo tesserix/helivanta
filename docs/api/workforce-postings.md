@@ -140,9 +140,34 @@ shared root command to the earliest owner source end and audits successful use;
 denial rolls back the source-use audit. Historical links without generations
 remain compatible with existing consumers and are refused by this new guard.
 
-The provider is registered in bootstrap and the test harness. Consumer composition,
-narrow department choices, scoped posting-purpose RLS,
+The provider is registered in bootstrap and the test harness. The Organization-owned choices consumer is implemented in the same candidate;
+see [its contract](organization.md#unreleased-scoped-posting-choices). Scoped draft
+consumer composition, posting-purpose RLS,
 discovery and positive-role browser acceptance remain open. This section
 announces no enabled route, effective posting or production rollout. See the
 [delivery tracker](../qa/staff-management-progress.md) for actual verification
 and remaining release gates.
+
+### Scoped workspace candidate contract (implemented; normal UI acceptance open)
+
+Additive scoped draft paths use `/v1/workforce/hospitals/:hospital/posting-staff/:id`
+with the same six suffixes and receipts above. Reads require
+`workforce.posting.read`; PUT requires `workforce.posting.prepare`. Both require
+the independent `workforce.staff_actor.use` assignment, fresh IAM evidence and a
+current reviewed digital actor at the same hospital. Legacy paths are unchanged.
+Business audit retains operation assignment/version/epochs and actor/link/generation
+references. Migration `0074_workforce_scoped_postings` adds exact-target read/lock
+visibility without Staff profile writes; rollback retains additive schema/history.
+
+`GET /v1/workforce/posting-scopes` uses the existing bounded
+20-candidate reviewed-link discovery, filters each hospital through the current
+compound posting/source authority and returns canonical `StaffPostingHospitalScope`
+(hospital ID, name, can_prepare). Empty visible pages retain their continuation.
+`GET /v1/workforce/hospitals/:hospital/posting-targets` is a separate bounded
+50-target projection returning only canonical `StaffPostingTarget` ID, employee
+code and display name. It requires the same current reader/source command;
+private profile data is excluded. Target discovery cannot broaden draft-purpose
+RLS beyond its selected exact Staff. Both carry expected account headers, no-store
+responses and atomic owner/source-use audit. Authorization unavailability withholds
+results; absent current eligibility denies rather than reusing a legacy grant.
+These discovery paths remain unaccepted until their tests and UI journey pass.

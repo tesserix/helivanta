@@ -1,5 +1,131 @@
 # Staff Management delivery tracker
 
+## Scoped posting workspace candidate — 2026-11-03
+
+PR #1532 now implements the scoped Workforce reader/preparer consumer and
+`/workforce/postings` workspace locally. This supersedes the earlier “no scoped
+consumer” checkpoint below. **Not deployed or normal-browser accepted.** Overall
+status remains **10 partial / 10 awaiting audit / 1 research / 0 fully accepted**;
+no completion percentage or acceptance tag is justified.
+
+Implemented: separate `workforce.posting.read`; six additive `/posting-staff/:id`
+draft routes; bounded `/posting-scopes` (20 hospitals) and `/posting-targets`
+(50 Staff); current scoped department choices; canonical hospital/target DTOs;
+separate SDK paths/cache keys; Staff navigation; reader/preparer UI and save flow.
+Targets expose only ID, employee code and display name. Maximum escaped fields
+plus continuation fit 64 KiB. Expected account headers and no-store apply.
+
+Commands refresh the principal, compare current operation/actor receipts and hold
+IAM/current digital Staff authority through the root commit. Responses follow
+commit; writes acquire the supervision gate before actor/target locks. Audit
+retains assignment/version/epochs and actor/link/generation. Scoped denial never
+falls back to a legacy grant. Candidate append-only migration
+`0074_workforce_scoped_postings` keeps exact-target draft purpose separate from
+directory purpose. It retains one permissive tenant policy and existing Staff
+write checks, and adds a restrictive DELETE policy. No profile-edit/delete right
+is granted. Historical migrations are unchanged.
+
+The full migration test initially exposed the one-permissive-policy invariant;
+the candidate was corrected without weakening the validator. The unpublished
+loopback QA policy experiment was corrected with private before-state capture;
+no migration history, Staff records or production resources were deleted.
+A second full-suite regression exposed that replacing the original Staff policy
+expression erased later HR-intake/identity/leave purposes. The final migration
+extends the current `pg_get_expr` expression instead, preserving all earlier owner
+purposes and write checks. Focused identity-case/source, scoped-leave and posting
+RLS regression tests pass. The existing statement-level no-delete trigger also
+remains mandatory; the new test correctly expects its rejection.
+
+Source-review pins were refreshed after reviewing actual router/module additions
+and the legacy-preserving posting transaction refactor. Legacy posting reviews
+now also pin the extracted transaction helper and overriding migration function.
+Inventory is **778
+registered surfaces / 755 unclassified**; no new runtime acceptance is asserted.
+
+Normal browser acceptance is open: candidate shell/API run locally, but Chrome
+blocked normal sign-in with `ERR_BLOCKED_BY_CLIENT`. Mocked UI and HTTP integration
+tests do not count as normal login acceptance. No dependencies were downloaded.
+An optional broad script sweep found four mobile-tooling suites unavailable due
+to missing Expo dependencies in this worktree; affected posting/template/inventory
+checks are tracked separately.
+
+Remaining: normal Admin/independent reviewer/approved reader/preparer browser
+journeys, persisted results and role-revocation UI evidence, the remaining scoped
+commit-order/expiry matrix, and approval for the named revision plus IAM `0024_iam_staff_posting_templates`
+and Workforce `0074_workforce_scoped_postings` before production.
+Issue #429 remains open for clinical grouping, roster-derived access, referrals
+and sensitivity controls. Effective postings, supervisors/transfers, contractors,
+lifecycle administration and Pharma operating duties remain parent-ledger work.
+
+### Verified candidate commands and results
+
+The private local runner executes real `go test -race -v -count=1 -timeout=20m`
+against isolated PostgreSQL/OpenFGA fixtures; all final runs used zero fallback
+forwards and stopped only their own fixture containers. Final commands:
+
+- `python3 /tmp/helivanta-posting-test-runner.py ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'`
+  — pass, 104.437 s, including scoped audit-failure rollback with no receipt/history revision.
+- The same runner for `./internal/modules/workforce` — 319 top-level tests pass,
+  642.930 s; `./internal/modules/organization` — pass, 18.021 s;
+  `./internal/archtest` — pass, 44.382 s; `./internal/platform` — pass, 11.827 s.
+  Three exact single-object scoped GETs have explicit pagination-allowlist reasons;
+  lists/history retain cursor pagination. No general pagination gate was relaxed.
+- `pnpm --filter @helivanta/api test` — 609 tests pass;
+  `pnpm --filter @helivanta/shell test` — 1,411 tests pass, followed by the final
+  focused scoped-workspace suite — 3 tests pass (reader, preparer, required-field save).
+- API/shell `type-check` and `lint`, `go build ./...`, affected `go vet` and
+  `golangci-lint run` — pass. Canonical generation checks included in API typecheck.
+- `go run ./cmd/contractdocs` and `go run ./cmd/contractdocs -check` — pass;
+  `node scripts/staff-operational-access-inventory.mjs --check` — pass.
+- `node --test scripts/staff-template-migrations.test.mjs scripts/staff-operational-access-inventory.test.mjs`
+  — all 62 pass. The optional unrelated broad script sweep cannot run four Expo
+  suites because their mobile dependencies are absent; no installation was attempted.
+- `API_URL=http://127.0.0.1:8199 pnpm --filter @helivanta/shell exec next build --webpack`
+  — pass, including `/workforce/postings`. Existing React Hook Form export/standalone
+  tracing warnings remain; this does not accept the portable deployment artifact.
+- `git diff --check` — pass. Repository visibility verified **PUBLIC**.
+
+These commands ran from the candidate worktree (Go commands from `backend/`)
+using cached Node 24.22.1. Current owner API, gateway and final shell run locally;
+production was not changed. Passing suites do not complete the open normal-browser,
+remaining cutoff/order matrix or production rollout gates listed above.
+
+## Scoped departmental-choice consumer candidate — 2026-11-03
+
+The first real consumer now composes the registered current Staff actor guard:
+Organization's new hospital-bound posting-department choices projection. A reader
+is denied; an independently approved preparer can read current active canonical
+heads without governance/history or mutation authority. Legacy tenant-admin
+permission alone is also denied. No duplicate department or Staff master is
+created and no operating posting is activated.
+
+The real Global API reviewer/employment parent test first returned 404 for the
+missing endpoint. The restored test now passes reader/preparer separation,
+wrong-hospital denial, retired-head exclusion, legacy-admin denial, scope-epoch
+changes and identity-source invalidation. A newly added preparer grant correctly
+invalidates the previously captured IAM receipt; the test now asserts that denial
+and refreshes current evidence before further commands. Injected Organization
+audit failure returns no data and rolls back Workforce source-use evidence in the
+same root transaction. The fixture uses the repository's test migration harness,
+not a raw/unavailable database handle.
+
+Pagination uses the existing canonical envelope/keyset, default/max 50. Repeated,
+empty, unknown and oversized query options are refused. Canonical-model
+serialization verifies the 64 KiB budget including maximum field lengths, JSON
+HTML escaping and a 2,048-character continuation. The SDK uses the new projection
+and rejects retired, foreign, duplicate, private-field and invalid-continuation
+responses. It does not fall back to the governance endpoint.
+
+Final local race runs passed: the complete reviewer/employment parent (98.314s),
+Organization (18.462s) and architecture (49.801s). The independent permission
+matrix explicitly classifies the hospital-scoped capability without adding a
+legacy job-role grant. Build and affected lint passed; final SDK/typecheck results
+are recorded with this checkpoint. No normal browser acceptance, production
+rollout, new SQL migration, acceptance label or issue closure is claimed. Scoped
+draft read/preparation purpose RLS, bounded posting workspaces/targets, source-end
+and ordering evidence and normal UI journeys remain open. Full Staff counts
+remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Scoped posting catalogs and actor boundary candidate — 2026-11-03
 
 Work continues in `feat/scoped-posting-actors-20261103`; this is an unmerged,

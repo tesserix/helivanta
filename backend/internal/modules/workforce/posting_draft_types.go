@@ -34,3 +34,15 @@ type StaffPostingDraft struct {
 	CreatedAt            time.Time  `json:"created_at"`
 	RecordedAt           time.Time  `json:"recorded_at"`
 }
+
+type StaffPostingHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+	CanPrepare bool      `json:"can_prepare"`
+}
+
+type StaffPostingTarget struct {
+	ID           uuid.UUID `json:"id"`
+	EmployeeCode string    `json:"employee_code"`
+	DisplayName  string    `json:"display_name"`
+}

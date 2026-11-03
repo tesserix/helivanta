@@ -1,7 +1,7 @@
 # Scoped Staff posting preparation
 
-Status: proposed implementation specification; no new role, route, migration,
-source-guard exception or production policy is activated by this document.
+Status: implemented local candidate in PR #1532; normal browser acceptance and
+production activation remain open. This specification does not activate policy.
 Continues the [effective-posting specification](2026-11-02-effective-staff-postings.md)
 and [complete reusable Staff objective](2026-11-02-reusable-staff-foundation.md).
 Tracks #417, #418 and #429 without claiming their acceptance.
@@ -268,3 +268,14 @@ it leaves current actor proof, structural choice visibility, RLS and UI behavior
 unimplemented. A separate Staff service is rejected because current-source
 atomicity depends on the existing shared guarded database and no independent
 scaling/failure requirement justifies extraction.
+
+## 2026-11-03 implementation checkpoint
+
+The reader permission, scoped draft consumers, bounded hospital/Staff discovery,
+current department choices and `/workforce/postings` UI are implemented locally.
+Candidate migration 0074 preserves one permissive tenant policy, restricts DELETE,
+and retains legacy Staff write checks. Directory reads cannot broaden exact-target
+draft context. Audit records the checked scoped assignment and digital actor.
+See the [QA ledger](../../qa/staff-management-progress.md) for evidence and open gates.
+Normal sign-in is blocked by Chrome `ERR_BLOCKED_BY_CLIENT`; no browser acceptance,
+effective posting, operating duty or issue #429 completion is claimed.

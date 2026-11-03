@@ -481,6 +481,48 @@ describe("CounterSale", () => {
     expect(ids[1]).toBe(ids[0]);
   });
 
+  it("holds the basket and tender after an unclear failure, and retries what was sent (#1533)", async () => {
+    let attempts = 0;
+    const fetcher = fixture({
+      sale: () => {
+        attempts++;
+        return new Response(
+          JSON.stringify({ error: "bad_gateway", message: "Upstream timed out" }),
+          {
+            status: 502,
+          },
+        );
+      },
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    const received = await screen.findByLabelText("Amount received (INR)");
+    await user.clear(received);
+    await user.type(received, "200");
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText(/The sale may have been posted/)).toBeVisible();
+
+    // Nothing that would change the sale can be touched until its outcome is known.
+    expect(screen.getByRole("button", { name: "Remove TEST-PCM-500" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add to basket" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Paid by" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Customer" })).toBeDisabled();
+    expect(screen.getByLabelText("Amount received (INR)")).toBeDisabled();
+    expect(screen.getByLabelText("Buyer name (optional)")).toBeDisabled();
+    expect(screen.getByText(/Until it is, this sale cannot be changed/)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(attempts).toBe(2));
+    const puts = fetcher.mock.calls.filter(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    expect(puts[1][0]).toBe(puts[0][0]);
+    expect(puts[1][1]?.body).toBe(puts[0][1]?.body);
+  });
+
   it("dispenses a Schedule H line only against a chosen prescription and reminds to endorse it", async () => {
     const rxLine = { ...line, regulatory_class: "H", prescription_id: rxId, prescription_line: 1 };
     const fetcher = fixture({

@@ -67,3 +67,52 @@ func TestPostingTemplateScope(t *testing.T) {
 		t.Run(template.key, func(t *testing.T) { exerciseAssignmentProjection(t, template.key, template.permission) })
 	}
 }
+
+func TestPostingReviewCatalogPreservesExistingSnapshotsAndSeparatesRoles(t *testing.T) {
+	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"admin": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": {iam.PermAssignmentManage}},
+		Modules: []platform.Module{iam.New(nil)},
+	})
+	response := testutil.Do(router, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-posting-reviews-v1", "admin", "")
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var templates []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &templates))
+	require.Len(t, templates, 10)
+	for index, expected := range []struct {
+		key         string
+		permissions []string
+	}{
+		{"workforce.posting_submitter.v1", []string{"workforce.posting.read", "workforce.posting.prepare", "workforce.posting.proposal.read", "workforce.posting.submit", "organization.posting_choices.read", "workforce.staff_actor.use"}},
+		{"workforce.posting_reviewer.v1", []string{"workforce.posting.read", "workforce.posting.proposal.read", "workforce.posting.review", "organization.posting_choices.read", "workforce.staff_actor.use"}},
+	} {
+		actual := templates[8+index]
+		require.Equal(t, expected.key, actual.Key)
+		require.Equal(t, "posting", actual.Family)
+		require.Equal(t, expected.permissions, actual.Permissions)
+		var encoded string
+		require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT iam_assignment_template_permissions(?)::text`, expected.key).Scan(&encoded).Error
+		}))
+		var installed []string
+		require.NoError(t, json.Unmarshal([]byte(encoded), &installed))
+		require.Equal(t, expected.permissions, installed)
+	}
+	prior := testutil.Do(router, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-postings-v1", "admin", "")
+	require.Equal(t, http.StatusOK, prior.Code, prior.Body.String())
+	var existing []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(prior.Body.Bytes(), &existing))
+	require.Equal(t, templates[:8], existing)
+}
+
+func TestPostingReviewTemplateScope(t *testing.T) {
+	for _, template := range []struct {
+		key        string
+		permission authz.Permission
+	}{
+		{"workforce.posting_submitter.v1", "workforce.posting.submit"},
+		{"workforce.posting_reviewer.v1", "workforce.posting.review"},
+	} {
+		t.Run(template.key, func(t *testing.T) { exerciseAssignmentProjection(t, template.key, template.permission) })
+	}
+}

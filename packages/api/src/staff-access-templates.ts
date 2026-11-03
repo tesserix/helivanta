@@ -68,6 +68,35 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
   },
+  {
+    key: "workforce.posting_submitter.v1",
+    name: "Staff posting submitter",
+    description:
+      "Prepare and submit hospital-scoped placement proposals from current reviewed Staff sources; no independent approval or operating access.",
+    family: "posting",
+    permissions: [
+      "workforce.posting.read",
+      "workforce.posting.prepare",
+      "workforce.posting.proposal.read",
+      "workforce.posting.submit",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+  },
+  {
+    key: "workforce.posting_reviewer.v1",
+    name: "Staff posting reviewer",
+    description:
+      "Independently review hospital-scoped placement proposals and their current sources; no draft editing, access grants or clinical authority.",
+    family: "posting",
+    permissions: [
+      "workforce.posting.read",
+      "workforce.posting.proposal.read",
+      "workforce.posting.review",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -105,5 +134,17 @@ export const staffAccessTemplateCatalogs = {
     "workforce.employment_activator.v1",
     "workforce.posting_reader.v1",
     "workforce.posting_preparer.v1",
+  ],
+  "staff-posting-reviews-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
+    "workforce.posting_submitter.v1",
+    "workforce.posting_reviewer.v1",
   ],
 } as const;

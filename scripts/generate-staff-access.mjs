@@ -47,7 +47,9 @@ for (const migration of migrations) {
   const introducedDefinitions = [];
   for (const template of migration.templates) {
     if (template?.family === "posting") {
-      const kind = template.key?.match(/^workforce\.posting_(reader|preparer)\.v[1-9][0-9]*$/)?.[1];
+      const kind = template.key?.match(
+        /^workforce\.posting_(reader|preparer|submitter|reviewer)\.v[1-9][0-9]*$/,
+      )?.[1];
       const permissions = {
         reader: ["workforce.posting.read", "workforce.staff_actor.use"],
         preparer: [
@@ -56,11 +58,24 @@ for (const migration of migrations) {
           "organization.posting_choices.read",
           "workforce.staff_actor.use",
         ],
+        submitter: [
+          "workforce.posting.read",
+          "workforce.posting.prepare",
+          "workforce.posting.proposal.read",
+          "workforce.posting.submit",
+          "organization.posting_choices.read",
+          "workforce.staff_actor.use",
+        ],
+        reviewer: [
+          "workforce.posting.read",
+          "workforce.posting.proposal.read",
+          "workforce.posting.review",
+          "organization.posting_choices.read",
+          "workforce.staff_actor.use",
+        ],
       }[kind];
       if (!permissions || JSON.stringify(template.permissions) !== JSON.stringify(permissions))
-        throw new Error(
-          "Posting templates require their exact reader/preparer and Staff source permissions",
-        );
+        throw new Error("Posting templates require their exact role and Staff source permissions");
     }
     if (
       template?.family === "employment" &&

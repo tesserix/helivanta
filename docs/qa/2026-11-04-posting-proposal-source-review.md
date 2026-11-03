@@ -62,6 +62,16 @@ target, draft contributors and historical linked-account associations. These
 historical-alias exclusions still require stronger public-interface test proof;
 source inspection alone is not acceptance.
 
+The subsequent legacy-alias regression supplies public-interface proof for the
+reviewer-Staff/contributor association branch. It imports a revoked historical
+link while preserving public-workflow current generations, links and assignments.
+The decision returns 403 with unchanged pending state/history and no receipt;
+original-submitter withdrawal still works. A mutation removing only this branch
+returned 200/rejected version 2 and failed the assertion (83.673s). Original SQL
+was restored and hash-verified, then the focused real PostgreSQL/OpenFGA race run
+passed (105.106s). This does not establish modern account-rebinding UI acceptance
+or separately prove the target's historical-association branch.
+
 The decision read purpose extends the existing login-link read policy while
 preserving its write check and adding a restrictive delete guard. Full migration
 and RLS suites must pass again before release. Decision heads, retained revisions,
@@ -133,5 +143,10 @@ contract files differ from the pre-rebase runtime source, and posting source
 bytes are unchanged. Current-head SDK625, typecheck/lint, Go build, scoped vet/
 lint, contractdocs check and committed secret scan passed. Complete-package
 pre-rebase results are not represented as complete-package runs of those new
-Leave changes. Current-head Workforce and combined CI validation remain pending.
-The API candidate still has no production or normal reviewer UI acceptance.
+Leave changes. The current combined implementation's complete Workforce race
+suite subsequently passed in 576.956s. CI at formatting commit `0cf52a1a` passed
+web/scripts/secrets/E2E/image checks and all Go behavioral suites, but failed the
+Workforce per-test-binary coverage floor (69.2% versus 70%). A separate source-owner
+coverage-accounting correction retains the floor and missing-owner-test safeguards;
+its real Go fixture regressions passed, while full CI remains required. The API
+candidate still has no production or normal reviewer UI acceptance.

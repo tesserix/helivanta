@@ -1,5 +1,38 @@
 # Staff Management delivery tracker
 
+## Historical-account and coverage checkpoint — 2026-11-04
+
+Draft #1544 at `0cf52a1a` passed web, scripts, secrets, E2E and image CI checks.
+Its Go behavioral suites passed, but the coverage gate failed at Workforce
+**69.2% < 70%**. The gateway workflow executions were not counted toward their
+source owner. A separate CI correction, commit `8264c08f`, counts the combined Go
+profile by source-owner package, retaining the 70% floor and no-owner-test
+refusal. Six real Go fixture regressions and shell checks passed; full CI remains
+required. No coverage result or merge is claimed for that correction yet.
+
+The historical-account regression now imports an old revoked association between
+a contributor's subject and an otherwise current reviewer's canonical Staff.
+Current reviewer generations, links and assignments still come from the real
+public workflow. Rejection returns 403, the pending head/history remain unchanged,
+no decision receipt appears, and the original submitter can withdraw. The target
+remains non-digital and has no login link. This tests a legacy imported association,
+not a modern account-rebinding UI or every historical-target association branch.
+
+The baseline PostgreSQL/OpenFGA run passed in **87.337s**. Removing only the
+reviewer-Staff/contributor association exclusion produced **200 instead of 403**
+and a rejected version-2 receipt; the mutant failed in **83.673s**. Original SQL
+was restored and SHA256 verified. The restored focused Global API run passed in
+**105.106s**, with race detection and Workforce instrumentation; three owned
+fixtures were removed and no fallback SSH forwarding was required.
+
+The combined implementation's earlier full Workforce race suite passed in
+**576.956s**. A further complete Workforce race run with an owner coverage profile
+is in progress. Neither that earlier complete Workforce run nor the new focused
+Global API run is represented as full Global API execution of the added alias
+case. Normal reviewer UI acceptance and production rollout remain unproven.
+Overall acceptance remains **10 partial, 10 awaiting audit, 1 research and
+0 fully accepted**.
+
 ## Posting decision validation checkpoint — 2026-11-04
 
 The first web CI run for draft #1544 stopped at API formatting in

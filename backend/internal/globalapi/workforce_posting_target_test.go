@@ -2,7 +2,9 @@ package globalapi
 
 import (
 	"context"
+	"fmt"
 	"maps"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,6 +135,22 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	require.Equal(t, "withdrawn", contributedWithdrawal["status"])
 	require.EqualValues(t, 2, contributedWithdrawal["version"])
 	require.Equal(t, false, contributedWithdrawal["grants_access"])
+	aliasDraft := uuid.Must(uuid.NewV7()).String()
+	aliasSaved := call(t, "PUT", postingBase+"/posting-drafts/"+aliasDraft+"/commands/"+uuid.Must(uuid.NewV7()).String(), actor, intent, 200)
+	aliasInput := maps.Clone(input)
+	aliasInput["draft_id"], aliasInput["draft_revision_id"], aliasInput["draft_version"] = aliasDraft, aliasSaved["revision_id"], aliasSaved["version"]
+	aliasProposal := postingBase + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
+	aliasPending := call(t, "PUT", aliasProposal+"/commands/"+uuid.Must(uuid.NewV7()).String(), actor, aliasInput, 200)
+	aliasDecision := maps.Clone(decision)
+	aliasDecision["expected_version"], aliasDecision["expected_revision_id"] = aliasPending["version"], aliasPending["revision_id"]
+	importHistoricalPostingAlias(t, db, tenant, hospital, actor, reviewer, admin)
+	aliasDecisionPath := aliasProposal + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	call(t, "PUT", aliasDecisionPath, reviewer, aliasDecision, 403)
+	require.Equal(t, aliasPending, call(t, "GET", aliasProposal, reviewer, nil, 200), "a retained account association excludes an otherwise current reviewer without changing the pending proposal")
+	require.Len(t, call(t, "GET", aliasProposal+"/history", reviewer, nil, 200)["data"], 1)
+	call(t, "GET", aliasDecisionPath, reviewer, nil, 404)
+	aliasDecision["decision"] = "withdraw"
+	require.Equal(t, "withdrawn", call(t, "PUT", aliasDecisionPath, actor, aliasDecision, 200)["status"])
 	withdrawalProposal := postingBase + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
 	withdrawalPending := call(t, "PUT", withdrawalProposal+"/commands/"+uuid.Must(uuid.NewV7()).String(), actor, input, 200)
 
@@ -163,4 +181,31 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	require.Equal(t, withdrawn, call(t, "PUT", withdrawalPath, actor, withdrawal, 200))
 	require.Equal(t, withdrawn, call(t, "GET", withdrawalPath, actor, nil, 200))
 	require.Empty(t, call(t, "GET", staffBase+"/login-links", admin, nil, 200)["data"], "posting work must not provision a login for its non-digital target")
+}
+
+// Import a legacy revoked association; current generations and assignments are still created by the public workflow.
+func importHistoricalPostingAlias(t *testing.T, db *tenantdb.DB, tenant, hospital, contributor, reviewer, administrator string) {
+	t.Helper()
+	quoted := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+	link := uuid.Must(uuid.NewV7()).String()
+	sql := fmt.Sprintf(`
+ SELECT set_config('app.tenant_id',%s,true),set_config('app.workforce_subject',%s,true),set_config('app.workforce_hospital',%s,true),set_config('app.workforce_login_link_access','authorized',true);
+ ALTER TABLE workforce_login_links DISABLE TRIGGER workforce_login_link_guard;
+ ALTER TABLE workforce_login_links DISABLE TRIGGER workforce_bind_login_generation;
+ ALTER TABLE workforce_login_link_history DISABLE TRIGGER workforce_login_link_history_guard;
+ DO $fixture$ DECLARE current_link record;BEGIN
+ SELECT l.staff_id INTO STRICT current_link FROM workforce_login_links l
+ WHERE l.tenant_id=%s::uuid AND l.hospital_id=%s::uuid AND l.subject=%s AND l.status='active' AND l.employment_generation_id IS NOT NULL;
+ INSERT INTO workforce_login_links(tenant_id,hospital_id,staff_id,id,subject,status,version,proposed_by_subject,proposal_reason,actor_subject,reason,created_at,updated_at)
+ VALUES(%s::uuid,%s::uuid,current_link.staff_id,%s::uuid,%s,'revoked',3,'synthetic-legacy-importer','Imported synthetic historical alias','synthetic-legacy-importer','Imported revoked association',clock_timestamp()-interval '2 hours',clock_timestamp()-interval '118 minutes');
+ INSERT INTO workforce_login_link_history(tenant_id,hospital_id,id,version,status,actor_subject,reason,created_at)
+ VALUES(%s::uuid,%s::uuid,%s::uuid,1,'pending','synthetic-legacy-importer','Imported synthetic historical alias',clock_timestamp()-interval '2 hours'),
+ (%s::uuid,%s::uuid,%s::uuid,2,'active','synthetic-independent-legacy-reviewer','Imported historical independent approval',clock_timestamp()-interval '119 minutes');
+ IF (SELECT count(*) FROM workforce_login_links WHERE tenant_id=%s::uuid AND hospital_id=%s::uuid AND staff_id=current_link.staff_id AND status='active')<>1 THEN RAISE EXCEPTION 'fixture changed current login continuity';END IF;
+ END $fixture$;
+ ALTER TABLE workforce_login_link_history ENABLE TRIGGER workforce_login_link_history_guard;
+ ALTER TABLE workforce_login_links ENABLE TRIGGER workforce_bind_login_generation;
+ ALTER TABLE workforce_login_links ENABLE TRIGGER workforce_login_link_guard;
+ `, quoted(tenant), quoted(administrator), quoted(hospital), quoted(tenant), quoted(hospital), quoted(reviewer), quoted(tenant), quoted(hospital), quoted(link), quoted(contributor), quoted(tenant), quoted(hospital), quoted(link), quoted(tenant), quoted(hospital), quoted(link), quoted(tenant), quoted(hospital))
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_historical_posting_alias_" + link, SQL: sql}}))
 }

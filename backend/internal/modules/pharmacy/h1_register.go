@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -95,15 +96,27 @@ func outletPeriod(c *gin.Context, what string) (string, string, bool) {
 }
 
 // auditH1Read records who read the register; the read and its record commit
-// together, so an unrecorded read is never returned. audit_events holds field
-// names only, so the period's values go to the structured audit log.
+// together, so an unrecorded read is never returned.
 func auditH1Read(c *gin.Context, tx *gorm.DB, tenant, subject string, outlet uuid.UUID, action, from, to string) error {
-	if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields) VALUES(?,?,?,'pharmacy_h1_register',?,ARRAY['from','to']::text[])`,
-		tenant, subject, action, outlet).Error; err != nil {
+	return auditRegisterRead(c, tx, "h1_register", tenant, subject, outlet, action, "from", from, "to", to)
+}
+
+// auditRegisterRead writes a register read to audit_events, which holds
+// field names only, and the filter values to the structured audit log.
+func auditRegisterRead(c *gin.Context, tx *gorm.DB, register, tenant, subject string, outlet uuid.UUID, action string, filters ...string) error {
+	fields := []string{}
+	for i := 0; i < len(filters); i += 2 {
+		fields = append(fields, filters[i])
+	}
+	if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields) VALUES(?,?,?,?,?,?::text[])`,
+		tenant, subject, action, "pharmacy_"+register, outlet, "{"+strings.Join(fields, ",")+"}").Error; err != nil {
 		return err
 	}
-	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "pharmacy.h1_register."+action, "H1 register read", "tenant_id", tenant, "subject", subject,
-		"outlet_id", outlet, "from", from, "to", to)
+	args := []any{"tenant_id", tenant, "subject", subject, "outlet_id", outlet}
+	for _, f := range filters {
+		args = append(args, f)
+	}
+	audit.Log(c.Request.Context(), requestid.Logger(c), slog.LevelInfo, "pharmacy."+register+"."+action, "register read", args...)
 	return nil
 }
 

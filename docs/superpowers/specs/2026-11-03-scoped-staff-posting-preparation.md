@@ -286,7 +286,9 @@ and unsaved-navigation protection now pass without a legacy hospital grant.
 older revoked source as negative evidence. Follow-up UI acceptance verifies a
 committed-but-lost response recovered through the original command receipt without
 duplicate revisions/audits, preparer withdrawal with fresh-session reader-only
-history across reload, and unrelated reviewer denial. Retained-session cutoff and
+history across reload, and unrelated reviewer denial. Same-session preparer expiry
+also removes a dirty editor while preserving Reader history; separate-tab sign-out
+clears the original editor to login. Direct withdrawal with isolated sessions and
 the remaining account/foreign-scope matrix still prevent full browser acceptance. No
 effective posting, operating duty or issue #429 completion is claimed.
 

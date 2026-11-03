@@ -1,5 +1,105 @@
 # Staff Management delivery tracker
 
+## Same-session expiry and refreshed local runtime — 2026-11-03
+
+The normal UI expiry case now passes. Admin proposed a separate synthetic posting
+preparer assignment ending **10:32 UTC**; the independent Admin approved it through
+current hospital verification to active v5. The recipient signed in normally,
+opened the canonical Pharma target's v3 editor and entered an unsaved reason.
+That same recipient session remained signed in across expiry. After the deadline,
+discovery displayed Reader and had already removed the dirty editor and Save
+control. The attempted click found no Save control, so **no save request was sent**.
+Reader history v1–v3 remained readable. Read-only SQL confirms exactly three
+commands, revisions and save audits; no additional draft write occurred. Only the
+independent reader assignment is currently effective. Expired/withdrawn grants
+remain historical records. This closes same-session expiry, not the distinct
+direct-withdrawal case with isolated administrator/recipient browser sessions.
+
+The local stack was then rebuilt from merged head `b2cdb065`: owner API 8399,
+Global API 8199 and production-style shell 4399. Prior runtime metadata, migration
+ledger and previous UI build were captured privately. API startup applied only
+main's additive **0031_pharmacy** migration; all earlier migration IDs remain.
+Both APIs pass readiness HTTP 200 and shell login serves HTTP 200. Normal Reader
+discovery and immutable v1–v3 history pass after full reload on the refreshed
+stack; the same read-only proof passes after restart. Production is unchanged.
+The complete merged-source Pharma race suite passes in **256.765 s**; its runner
+used zero fallback forwards and stopped only its three test containers.
+
+Exact-head CI then exposed a shared UI gate that the separate API/shell runs had
+not covered: Staff directory and Posting preparation both used `Contact`, failing
+the existing per-zone icon uniqueness test (21 distinct icons for 22 pages).
+The same test failed locally before the fix. Posting preparation now uses the
+existing `Building` icon. All **278 shared UI tests**, typecheck, lint and format
+checks pass. The assertion remains unchanged; no dependency or permission changed.
+
+Additional commands actually run:
+
+```sh
+# backend/
+python3 /tmp/helivanta-posting-test-runner.py ./internal/modules/pharmacy
+go build -o /tmp/helivanta-scoped-posting-merged-api ./cmd/api
+go build -o /tmp/helivanta-scoped-posting-merged-global-api ./cmd/global-api
+# repository root, cached Node 24.22.1
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui test src/zones.test.ts
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui test
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui type-check
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui lint
+mise exec node@24.22.1 -- pnpm --filter @helivanta/ui format:check
+python3 /tmp/helivanta-scoped-posting-retained-editor-expiry-proof.py
+```
+
+Private `scoped-posting-expiry-and-merged-runtime-checkpoint.json`, expiry before/
+after screenshots, `scoped-posting-account-change-cleared-ui.png`,
+`scoped-posting-merged-runtime-reader-ui.png` and runtime/migration captures retain
+the evidence. The credentials JSON was updated atomically with secrets preserved.
+The source-writer audit, remaining account/foreign-scope UI cases, direct
+withdrawal in isolated sessions and the earlier intermittent admission failure
+remain open. No full Staff acceptance or production release is claimed.
+
+## Current-main integration and account-change browser cutoff — 2026-11-03
+
+Merged current main `bdb2560c` into the candidate as `b2cdb065`. The only conflict
+was generated `staff-operational-access-inventory.json`; regeneration from the
+combined canonical registry/review inputs preserves both sets of registrations
+without changing review pins. The ledger now has **784 registered surfaces / 761
+unclassified**. Contractdocs generation/check and inventory parity pass.
+
+On the combined source, the complete SDK suite passes **609 tests** and shell
+passes **1,429 tests / 176 files** in **321.11 s**. API/shell typechecks (including
+the canonical generators) and lint pass. Repository Go build and the complete
+real-fixture architecture race suite pass (**60.653 s**); all **62** template and
+inventory script tests pass. Existing Vitest native-loader and JSDOM navigation
+warnings remain. No dependency installation was required.
+
+Commands used cached Node 24.22.1 through `mise exec node@24.22.1 --`:
+
+```sh
+pnpm --filter @helivanta/api test
+pnpm --filter @helivanta/shell test
+pnpm --filter @helivanta/api --filter @helivanta/shell type-check
+pnpm --filter @helivanta/api --filter @helivanta/shell lint
+node --test scripts/staff-template-migrations.test.mjs scripts/staff-operational-access-inventory.test.mjs
+node scripts/staff-operational-access-inventory.mjs
+node scripts/staff-operational-access-inventory.mjs --check
+```
+
+Go commands ran from `backend/`: `go run ./cmd/contractdocs`, the matching
+`-check`, `go build ./...`, and
+`python3 /tmp/helivanta-posting-test-runner.py ./internal/archtest`.
+The runner used zero fallback forwards and stopped only its three fixture containers.
+The pushed PR no longer reports a merge conflict; exact-head CI is running.
+
+A new short-lived synthetic preparer proposal was created by Admin and
+independently reviewed to active v5, preserving the earlier withdrawn assignment.
+The recipient opened the real v3 editor with an unsaved reason. Signing out in a
+second tab immediately cleared the original editor and returned that tab to login.
+The replacement assignment was withdrawn to v6. This verifies cross-tab session
+clearing, **not** retained-editor role-withdrawal behavior: the session change
+occurred before the old form could attempt a save. A separate uninterrupted-session
+expiry case is in progress. Local Staff browser evidence still uses the prior
+production-style bundle; this main merge changes Pharma surfaces, not the tested
+Staff source. The combined deployment artifact is not claimed accepted here.
+
 ## Closed Staff actor architecture boundary — 2026-11-03
 
 Added three architecture checks for ADR-0052: the exact reviewed source-guard

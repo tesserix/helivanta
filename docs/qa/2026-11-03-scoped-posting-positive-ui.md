@@ -115,8 +115,9 @@ rerun merely to document browser observations.
 
 ## Remaining gates
 
-The remaining account/scope/negative browser matrix, including a retained editor
-across authority withdrawal, remains open. The earlier
+The remaining account/scope/negative browser matrix, including direct withdrawal
+with isolated administrator/recipient sessions, remains open. Same-session expiry
+is verified below. The earlier
 intermittent evidence-admission failure is still recorded, not claimed fixed.
 PR #1532 remains draft. Effective posting approval, transfers/supervision, contractor
 and exit/rehire lifecycle enforcement, Pharma duties/operating consumers, the
@@ -180,3 +181,38 @@ not an application persistence fix.
 No application code changed. Exact head `9b70f71b` passed API/shell builds,
 GitGuardian and Trivy; deployment advancement was skipped. PR #1532 remains draft
 pending the remaining browser and source/architecture acceptance gates.
+
+## Follow-up: same-session expiry and merged runtime
+
+The two-tab withdrawal attempt first established that signing out in an Admin tab
+clears the recipient tab's dirty posting editor and returns it to login. Shared
+cookies therefore prevented that attempt from isolating role withdrawal; it is
+recorded as account/session clearing, not as a successful stale-role save test.
+The temporary replacement preparer was independently reviewed to active v5 and
+then withdrawn to v6, preserving the independent reader and original draft.
+
+A further independently approved synthetic preparer assignment expired at
+2026-11-03T10:32:00Z. The recipient opened the real v3 editor and typed a reason
+while the assignment was effective. Without logout, login or account change,
+the workspace downgraded to Reader after expiry and had removed the dirty editor
+and Save control before the attempted save click. No request was sent. History
+v1–v3 remained readable, and read-only SQL found the same three commands/revisions/
+save audits. Only posting-read and Staff-actor-use remain currently effective;
+the expired preparer record is retained, rather than rewritten as revoked.
+
+Merged main `bdb2560c` was integrated as `b2cdb065`. The only conflict was the
+generated operational inventory, regenerated from combined canonical inputs
+without refreshing source pins. Full API/shell/UI validations are recorded in the
+tracker. Both APIs and the production-style UI were rebuilt/restarted locally;
+prior runtime/migration state was captured privately. Only additive local
+`0031_pharmacy` was applied. Readiness and normal Reader discovery/history after
+full reload pass on the refreshed stack; the exact persistence proof still passes.
+Production was not changed. Existing webpack export/tracing warnings remain.
+
+Additional private artifacts are `scoped-posting-retained-editor-expiry-proof.json`,
+`scoped-posting-expiry-and-merged-runtime-checkpoint.json`,
+`scoped-posting-expiry-editor-before-ui.png`,
+`scoped-posting-expiry-reader-history-ui.png`,
+`scoped-posting-account-change-cleared-ui.png` and
+`scoped-posting-merged-runtime-reader-ui.png`. Credentials remain private and their
+JSON was updated atomically without changing credential values.

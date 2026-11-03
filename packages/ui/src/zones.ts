@@ -354,7 +354,7 @@ export const ZONES: Zone[] = [
       {
         label: "Posting preparation",
         href: "/workforce/postings",
-        icon: Contact,
+        icon: Building,
         permission: "public",
       },
       {

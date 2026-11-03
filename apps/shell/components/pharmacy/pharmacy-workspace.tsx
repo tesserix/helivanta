@@ -36,10 +36,12 @@ import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
+import { ServiceChargesSetup } from "./service-charges";
 import { Prescriptions } from "./prescriptions";
 import { Returns } from "./returns";
 import { DailyReport } from "./daily-report";
 import { H1Register } from "./h1-register";
+import { PrescriptionRegister } from "./prescription-register";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
@@ -50,6 +52,7 @@ type PharmacyView =
   | "returns"
   | "daily-report"
   | "h1-register"
+  | "prescription-register"
   | "stock-overview"
   | "stock"
   | "receiving"
@@ -65,6 +68,8 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
   "daily-report": "Each day's sales, credit notes, payments and refunds at this outlet.",
   "h1-register":
     "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
+  "prescription-register":
+    "Every Schedule G, H and H1 supply on a prescription and its returns, for inspection.",
   "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
@@ -367,18 +372,37 @@ function OutletPharmacy({
       ) : view === "setup" ? null : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />
       ) : view === "counter" ? (
-        <CounterSale
-          scope={scope}
-          canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
-          canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
-          canDiscount={can("pharmacy.sale.discount")}
-          canRefund={access.data?.level === "editor" && can("pharmacy.sale.return")}
-          canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
-        />
+        <div className="space-y-6">
+          <CounterSale
+            scope={scope}
+            canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
+            canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
+            canDiscount={can("pharmacy.sale.discount")}
+            canRefund={access.data?.level === "editor" && can("pharmacy.sale.return")}
+            canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
+          />
+          {access.data?.level === "editor" &&
+            (can("pharmacy.service_charge.declare") || can("pharmacy.service_charge.review")) && (
+              <ServiceChargesSetup
+                scope={scope}
+                currency={countryProfile(outlet.country_code)?.currency ?? ""}
+                today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(
+                  new Date(),
+                )}
+                canDeclare={can("pharmacy.service_charge.declare")}
+                canReview={can("pharmacy.service_charge.review")}
+              />
+            )}
+        </div>
       ) : view === "h1-register" ? (
         <H1Register
           scope={scope}
           // The outlet's own date (en-CA formats as YYYY-MM-DD).
+          today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
+        />
+      ) : view === "prescription-register" ? (
+        <PrescriptionRegister
+          scope={scope}
           today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(new Date())}
         />
       ) : view === "daily-report" ? (

@@ -18,9 +18,11 @@ import {
   type PharmacyProduct,
   type PharmacySale,
   type PharmacySaleAvailability,
+  type PharmacySaleCharge,
   type PharmacySaleLine,
   type PharmacySaleQuote,
   type PharmacyScope,
+  type PharmacyServiceCharge,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
@@ -210,6 +212,21 @@ function Counter({
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const [posted, setPosted] = useState<PharmacySale | null>(null);
   const [paymentHeld, setPaymentHeld] = useState(false);
+  // A post whose outcome is unknown may have committed: until a settled
+  // answer, nothing may change the sale, or a retry would be a second sale (#1533).
+  const [uncertain, setUncertain] = useState(false);
+  const held = paymentHeld || uncertain;
+  // Service charges (#1388): their own lines, all of one channel per sale.
+  const services = useApiQuery<{ items: PharmacyServiceCharge[] }>(
+    pharmacyKey(scope, "counter", "service-charges"),
+    `${pharmacyRoot(scope)}/service-charges`,
+  );
+  const offered = (services.data?.items ?? []).filter((c) => c.in_force?.status === "available");
+  const [picked, setPicked] = useState<string[]>([]);
+  // A charge that stops being offered (a new version awaits review) drops out
+  // of the selection rather than lingering unseen and unremovable.
+  const chargeIds = picked.filter((id) => offered.some((c) => c.id === id));
+  const chargeChannel = offered.find((c) => c.id === chargeIds[0])?.in_force?.channel ?? null;
   const form = useZodForm(lineSchema, {
     product_id: "",
     quantity_units: 1,
@@ -239,14 +256,25 @@ function Counter({
     (lines: BasketLine[]) =>
       apiFetch<PharmacySaleQuote>(`${pharmacyRoot(scope)}/sales/quote`, {
         method: "POST",
-        body: JSON.stringify({ lines: lines.map(lineBody) }),
+        body: JSON.stringify({
+          lines: lines.map(lineBody),
+          ...(chargeIds.length > 0
+            ? { charges: chargeIds.map((id) => ({ charge_id: id })), channel: chargeChannel }
+            : {}),
+        }),
       }),
     { onSuccess: setQuote, suppressErrorToast: true },
   );
   // A changed basket is a new price: the old quote no longer applies.
   function changeBasket(next: BasketLine[]) {
-    if (paymentHeld) return;
+    if (held) return;
     setBasket(next);
+    setQuote(null);
+    price.reset();
+  }
+  function toggleCharge(id: string) {
+    if (held) return;
+    setPicked(chargeIds.includes(id) ? chargeIds.filter((c) => c !== id) : [...chargeIds, id]);
     setQuote(null);
     price.reset();
   }
@@ -257,6 +285,7 @@ function Counter({
         products={products.items}
         onNext={() => {
           setPosted(null);
+          setPicked([]);
           changeBasket([]);
         }}
       />
@@ -349,7 +378,7 @@ function Counter({
           </Field>
         )}
         <div className="flex items-end">
-          <Button type="submit" variant="outline" disabled={!classKnown}>
+          <Button type="submit" variant="outline" disabled={!classKnown || held}>
             Add to basket
           </Button>
         </div>
@@ -400,7 +429,7 @@ function Counter({
               <Button
                 type="button"
                 variant="ghost"
-                disabled={paymentHeld}
+                disabled={held}
                 onClick={() => changeBasket(basket.filter((b) => b !== line))}
               >
                 Remove {line.product.sku}
@@ -408,6 +437,36 @@ function Counter({
             </li>
           ))}
         </ul>
+      )}
+      {basket.length > 0 && services.isError && (
+        <p role="alert" className="mt-4 text-sm text-destructive">
+          Could not load the service charges; none can be added to this sale.{" "}
+          <Button type="button" variant="ghost" onClick={() => services.refetch()}>
+            Try again
+          </Button>
+        </p>
+      )}
+      {basket.length > 0 && offered.length > 0 && (
+        <fieldset className="mt-4 space-y-2 text-sm">
+          <legend className="font-medium">Service charges</legend>
+          {offered.map((c) => {
+            const v = c.in_force!;
+            // One sale is one channel: ward charges bill an admission, counter charges do not.
+            const otherChannel = chargeChannel !== null && v.channel !== chargeChannel;
+            return (
+              <label key={c.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={chargeIds.includes(c.id)}
+                  disabled={held || otherChannel}
+                  onChange={() => toggleCharge(c.id)}
+                />
+                {v.name} · {formatPharmacyMoney(v.amount_minor, basket[0].product.currency)} ·{" "}
+                {v.channel === "ward_delivery" ? "ward delivery" : "counter"}
+              </label>
+            );
+          })}
+        </fieldset>
       )}
       {basket.length > 0 && !quote && (
         <Button className="mt-4" disabled={price.isPending} onClick={() => price.mutate(basket)}>
@@ -422,19 +481,23 @@ function Counter({
       {quote && (
         <>
           <SaleLines lines={quote.lines} currency={quote.currency} products={products.items} />
+          <SaleCharges charges={quote.charges} currency={quote.currency} />
           <Totals sale={quote} />
           <TenderForm
             scope={scope}
             quote={quote}
             basket={basket}
+            chargeChannel={chargeChannel}
             onPosted={(sale) => {
               setPaymentHeld(false);
+              setUncertain(false);
               setPosted(sale);
             }}
             onStale={() => setQuote(null)}
             canRefund={canRefund}
             paymentHeld={paymentHeld}
             onPaymentHold={setPaymentHeld}
+            onUncertain={setUncertain}
           />
         </>
       )}
@@ -506,6 +569,45 @@ function SaleLines({
         ))}
       </tbody>
     </table>
+  );
+}
+
+function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; currency: string }) {
+  if (charges.length === 0) return null;
+  const money = (minor: number) => formatPharmacyMoney(minor, currency);
+  return (
+    <>
+      <table className="mt-2 w-full text-sm" aria-label="Service charges">
+        <thead className="text-left text-muted-foreground">
+          <tr>
+            <th className="py-2">Service charge</th>
+            <th>SAC</th>
+            <th>Taxable</th>
+            <th>CGST + SGST</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {charges.map((c) => (
+            <tr key={c.charge_number} className="border-t">
+              <td className="py-2">{c.name}</td>
+              <td>{c.sac_code ?? "With the medicines"}</td>
+              <td>{money(c.taxable_minor)}</td>
+              <td>
+                {money(c.cgst_minor)} + {money(c.sgst_minor)} ({c.rate_ppm / 10000}%)
+              </td>
+              <td>{money(c.amount_minor)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {charges.some((c) => c.tax_treatment === "principal_supply") && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          A charge marked &quot;With the medicines&quot; is part of their supply and taxed at their
+          rate (CGST Act s.8(a)).
+        </p>
+      )}
+    </>
   );
 }
 
@@ -598,20 +700,26 @@ function TenderForm({
   scope,
   quote,
   basket,
+  chargeChannel,
   onPosted,
   onStale,
   canRefund,
   paymentHeld,
   onPaymentHold,
+  onUncertain,
 }: {
   scope: PharmacyScope;
   quote: PharmacySaleQuote;
   basket: BasketLine[];
+  /** Ward-delivery charges bill an admission; counter charges never do. */
+  chargeChannel: "counter" | "ward_delivery" | null;
   onPosted: (sale: PharmacySale) => void;
   onStale: () => void;
   canRefund: boolean;
   paymentHeld: boolean;
   onPaymentHold: (held: boolean) => void;
+  /** True while a post's outcome is unknown; the counter then holds the basket. */
+  onUncertain: (uncertain: boolean) => void;
 }) {
   const [id, setId] = useState(() => newPharmacyId());
   const form = useZodForm(tenderSchema, {
@@ -620,7 +728,7 @@ function TenderForm({
     reference: "",
     payment_request_id: "",
     total: quote.total_minor,
-    customer: "walk_in",
+    customer: chargeChannel === "ward_delivery" ? "admission" : "walk_in",
     patient_id: "",
     occupancy_id: "",
     buyer_name: "",
@@ -657,6 +765,15 @@ function TenderForm({
         method: "PUT",
         body: JSON.stringify({
           lines: basket.map(lineBody),
+          // The versions the quote priced: terms approved since are refused, not billed unseen.
+          ...(quote.charges.length > 0
+            ? {
+                charges: quote.charges.map((c) => ({
+                  charge_id: c.charge_id,
+                  version_id: c.version_id,
+                })),
+              }
+            : {}),
           tenders: [
             values.customer === "admission"
               ? { kind: "admission_account", amount_minor: quote.total_minor }
@@ -715,138 +832,167 @@ function TenderForm({
     post.error instanceof ApiError &&
     post.error.status === 409 &&
     post.error.code === "not_sellable";
+  const uncertain = post.isError && !refused;
+  useEffect(() => onUncertain(uncertain), [uncertain, onUncertain]);
+  // What was first sent; a retry resends exactly it, so the server replays
+  // the committed sale or posts it once, never a different sale under its id.
+  const [sent, setSent] = useState<z.infer<typeof tenderSchema> | null>(null);
   return (
     <form
       noValidate
       className="mt-6 space-y-4 border-t pt-4"
-      onSubmit={form.handleSubmit((values) => post.mutate(values))}
+      onSubmit={(event) => {
+        if (uncertain && sent) {
+          event.preventDefault();
+          post.mutate(sent);
+          return;
+        }
+        return form.handleSubmit((values) => {
+          setSent(values);
+          post.mutate(values);
+        })(event);
+      }}
     >
       <h4 className="font-medium">Payment</h4>
-      {customer === "admission" ? (
-        <p className="text-sm">
-          Billed to the admission account. Nothing is collected at the counter.
-        </p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormSelectField
-            control={form.control}
-            name="kind"
-            id="tender-kind"
-            label="Paid by"
-            disabled={paymentHeld || post.isPending}
-            options={[
-              { value: "cash", label: "Cash" },
-              { value: "upi_verified", label: "UPI (verified)" },
-              { value: "upi", label: "UPI (reference only)" },
-              { value: "card", label: "Card" },
-            ]}
-          />
-          {kind === "cash" ? (
-            <div>
-              <CurrencyAmountField
-                id="tender-received"
-                label="Amount received"
-                currency={quote.currency}
-                initialMinor={quote.total_minor}
-                error={form.formState.errors.tendered_minor?.message}
-                onChange={(minor) =>
-                  form.setValue("tendered_minor", minor, { shouldValidate: true })
-                }
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
-              </p>
-            </div>
-          ) : kind === "upi_verified" ? (
-            <div className="sm:col-span-2">
-              <VerifiedUpi
-                scope={scope}
-                amountMinor={quote.total_minor}
-                currency={quote.currency}
-                onPaid={onPaid}
-                onHold={onPaymentHold}
-                canRefund={canRefund}
-              />
-              {form.formState.errors.payment_request_id && (
-                <p className="mt-1 text-sm text-destructive">
-                  {form.formState.errors.payment_request_id.message}
-                </p>
-              )}
-            </div>
-          ) : (
-            <Field
-              id="tender-reference"
-              label="Payment reference"
-              error={form.formState.errors.reference?.message}
-            >
-              <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
-            </Field>
-          )}
-        </div>
-      )}
-      {form.getValues("discounted") && (
-        <Field
-          id="discount-reason"
-          label="Reason for the discount"
-          error={form.formState.errors.discount_reason?.message}
-        >
-          <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
-        </Field>
-      )}
-      <FormSelectField
-        control={form.control}
-        name="customer"
-        id="sale-customer"
-        label="Customer"
-        disabled={paymentHeld || post.isPending}
-        options={[
-          { value: "walk_in", label: "Walk-in buyer" },
-          { value: "patient", label: "Registered patient" },
-          { value: "admission", label: "Bill to admission" },
-        ]}
-      />
-      {paymentHeld && (
+      {uncertain && (
         <p role="status" className="text-sm">
-          Finish the sale or record the completed refund before changing the customer or tender.
-          Cancel an unpaid QR and wait for confirmation before changing them.
+          Whether this sale was posted is not known yet. Until it is, this sale cannot be changed;
+          try again to find out.
         </p>
       )}
-      {customer === "admission" ? (
-        <div>
-          <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
-          {form.formState.errors.occupancy_id && (
-            <p className="mt-1 text-sm text-destructive">
-              {form.formState.errors.occupancy_id.message}
-            </p>
-          )}
-        </div>
-      ) : customer === "patient" ? (
-        <div>
-          <CounterPatientLookup scope={scope} value={patient} onChange={choosePatient} />
-          {form.formState.errors.patient_id && (
-            <p className="mt-1 text-sm text-destructive">
-              {form.formState.errors.patient_id.message}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
+      <fieldset disabled={uncertain} className="space-y-4">
+        {customer === "admission" ? (
+          <p className="text-sm">
+            Billed to the admission account. Nothing is collected at the counter.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormSelectField
+              control={form.control}
+              name="kind"
+              id="tender-kind"
+              label="Paid by"
+              disabled={paymentHeld || post.isPending}
+              options={[
+                { value: "cash", label: "Cash" },
+                { value: "upi_verified", label: "UPI (verified)" },
+                { value: "upi", label: "UPI (reference only)" },
+                { value: "card", label: "Card" },
+              ]}
+            />
+            {kind === "cash" ? (
+              <div>
+                <CurrencyAmountField
+                  id="tender-received"
+                  label="Amount received"
+                  currency={quote.currency}
+                  initialMinor={quote.total_minor}
+                  error={form.formState.errors.tendered_minor?.message}
+                  onChange={(minor) =>
+                    form.setValue("tendered_minor", minor, { shouldValidate: true })
+                  }
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Collect at least {formatPharmacyMoney(quote.total_minor, quote.currency)}
+                </p>
+              </div>
+            ) : kind === "upi_verified" ? (
+              <div className="sm:col-span-2">
+                <VerifiedUpi
+                  scope={scope}
+                  amountMinor={quote.total_minor}
+                  currency={quote.currency}
+                  onPaid={onPaid}
+                  onHold={onPaymentHold}
+                  canRefund={canRefund}
+                />
+                {form.formState.errors.payment_request_id && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {form.formState.errors.payment_request_id.message}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Field
+                id="tender-reference"
+                label="Payment reference"
+                error={form.formState.errors.reference?.message}
+              >
+                <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
+              </Field>
+            )}
+          </div>
+        )}
+        {form.getValues("discounted") && (
           <Field
-            id="buyer-name"
-            label="Buyer name (optional)"
-            error={form.formState.errors.buyer_name?.message}
+            id="discount-reason"
+            label="Reason for the discount"
+            error={form.formState.errors.discount_reason?.message}
           >
-            <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+            <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
           </Field>
-          <Field
-            id="buyer-phone"
-            label="Buyer phone (optional)"
-            error={form.formState.errors.buyer_phone?.message}
-          >
-            <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
-          </Field>
-        </div>
-      )}
+        )}
+        <FormSelectField
+          control={form.control}
+          name="customer"
+          id="sale-customer"
+          label="Customer"
+          disabled={paymentHeld || post.isPending}
+          options={[
+            { value: "walk_in", label: "Walk-in buyer" },
+            { value: "patient", label: "Registered patient" },
+            { value: "admission", label: "Bill to admission" },
+          ].filter((o) =>
+            chargeChannel === "ward_delivery"
+              ? o.value === "admission"
+              : chargeChannel === "counter"
+                ? o.value !== "admission"
+                : true,
+          )}
+        />
+        {paymentHeld && (
+          <p role="status" className="text-sm">
+            Finish the sale or record the completed refund before changing the customer or tender.
+            Cancel an unpaid QR and wait for confirmation before changing them.
+          </p>
+        )}
+        {customer === "admission" ? (
+          <div>
+            <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
+            {form.formState.errors.occupancy_id && (
+              <p className="mt-1 text-sm text-destructive">
+                {form.formState.errors.occupancy_id.message}
+              </p>
+            )}
+          </div>
+        ) : customer === "patient" ? (
+          <div>
+            <CounterPatientLookup scope={scope} value={patient} onChange={choosePatient} />
+            {form.formState.errors.patient_id && (
+              <p className="mt-1 text-sm text-destructive">
+                {form.formState.errors.patient_id.message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field
+              id="buyer-name"
+              label="Buyer name (optional)"
+              error={form.formState.errors.buyer_name?.message}
+            >
+              <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+            </Field>
+            <Field
+              id="buyer-phone"
+              label="Buyer phone (optional)"
+              error={form.formState.errors.buyer_phone?.message}
+            >
+              <Input id="buyer-phone" inputMode="tel" {...form.register("buyer_phone")} />
+            </Field>
+          </div>
+        )}
+      </fieldset>
       {post.isError && (
         <div role="alert" className="text-sm text-destructive">
           <p>{post.error.message}</p>
@@ -874,6 +1020,19 @@ function TenderForm({
   );
 }
 
+// endorsements groups a sale's prescription lines by the prescription they
+// cite, so each paper prescription gets only its own register serials.
+function endorsements(sale: PharmacySale): { lines: number[]; serials: string[] }[] {
+  const groups = new Map<string, number[]>();
+  for (const l of sale.lines)
+    if (l.prescription_id)
+      groups.set(l.prescription_id, [...(groups.get(l.prescription_id) ?? []), l.line_number]);
+  return [...groups.values()].map((lines) => ({
+    lines,
+    serials: lines.map((n) => `${sale.invoice_number} · line ${n}`),
+  }));
+}
+
 function Invoice({
   sale,
   products,
@@ -895,6 +1054,7 @@ function Invoice({
           GSTIN {sale.seller_gstin} · Place of supply {sale.place_of_supply} · Date {sale.sale_date}
         </p>
         <SaleLines lines={sale.lines} currency={sale.currency} products={products} />
+        <SaleCharges charges={sale.charges} currency={sale.currency} />
         <Totals sale={sale} />
         {sale.tenders.map((t) => (
           <p key={t.tender_number} className="mt-2 text-sm">
@@ -942,10 +1102,19 @@ function Invoice({
         </p>
       </article>
       {sale.lines.some((l) => l.prescription_id) && (
-        <p role="note" className="mt-4 rounded-md border p-3 text-sm print:hidden">
+        <div role="note" className="mt-4 rounded-md border p-3 text-sm print:hidden">
           Endorse the prescription: note {sale.seller_legal_name}, {sale.seller_address} and{" "}
-          {sale.sale_date} on it before returning it.
-        </p>
+          {sale.sale_date} on it before returning it. Each prescription also takes the register
+          serial of the lines it was dispensed on (Rule 65(3)(1)):
+          <ul className="mt-1 list-disc pl-5">
+            {endorsements(sale).map(({ lines, serials }) => (
+              <li key={lines.join(",")}>
+                The prescription for {lines.length === 1 ? "line" : "lines"}{" "}
+                {lines.join(lines.length === 2 ? " and " : ", ")}: {serials.join(", ")}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <div className="mt-4 flex gap-2 print:hidden">
         <Button type="button" variant="outline" onClick={() => window.print()}>

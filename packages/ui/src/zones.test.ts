@@ -262,6 +262,7 @@ describe("zone icons and sections", () => {
       ["Dispensing", "Returns", "/pharmacy/returns"],
       ["Dispensing", "Daily sales", "/pharmacy/daily-report"],
       ["Dispensing", "H1 register", "/pharmacy/h1-register"],
+      ["Dispensing", "Prescription register", "/pharmacy/prescription-register"],
       ["Dispensing", "Prescriptions", "/pharmacy/prescriptions"],
       ["Dispensing", "Dispense queue", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],

@@ -92,6 +92,9 @@ var storageAddressSchema string
 //go:embed price_control.sql
 var priceControlSchema string
 
+//go:embed service_charges.sql
+var serviceChargesSchema string
+
 const (
 	PermAccountsRead    authz.Permission = "pharmacy.accounts.read"
 	PermAccountsWrite   authz.Permission = "pharmacy.accounts.write"
@@ -116,6 +119,9 @@ const (
 	// NPPA ceiling prices (#1371): declared by one person, reviewed by another.
 	PermPriceControlDeclare authz.Permission = "pharmacy.price_control.declare"
 	PermPriceControlReview  authz.Permission = "pharmacy.price_control.review"
+	// Service charges (#1388): one person declares a version, another reviews it.
+	PermServiceChargeDeclare authz.Permission = "pharmacy.service_charge.declare"
+	PermServiceChargeReview  authz.Permission = "pharmacy.service_charge.review"
 	// PermStockRelease moves stock from quarantine to sellable (#1386 A3).
 	PermStockRelease authz.Permission = "pharmacy.stock.release"
 	// Counter sale (#1386 B-1).
@@ -163,6 +169,8 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermScheduleReview, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
 		{Permission: PermPriceControlDeclare, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
 		{Permission: PermPriceControlReview, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
+		{Permission: PermServiceChargeDeclare, Roles: []authz.Role{authz.RolePharmacyOwner}},
+		{Permission: PermServiceChargeReview, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermStockRelease, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleCreate, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
@@ -233,7 +241,7 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}, {ID: "0021_pharmacy", SQL: paymentRequestsSchema}, {ID: "0022_pharmacy", SQL: verifiedUPISchema}, {ID: "0023_pharmacy", SQL: affiliationVerificationSchema}, {ID: "0024_pharmacy", SQL: stockOverviewSchema}, {ID: "0025_pharmacy", SQL: registeredPatientsSchema}, {ID: "0026_pharmacy", SQL: registeredPatientSaleSchema}, {ID: "0027_pharmacy", SQL: admissionSaleSchema}, {ID: "0028_pharmacy", SQL: unusedPaymentRefundsSchema}, {ID: "0029_pharmacy", SQL: priceControlSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}, {ID: "0021_pharmacy", SQL: paymentRequestsSchema}, {ID: "0022_pharmacy", SQL: verifiedUPISchema}, {ID: "0023_pharmacy", SQL: affiliationVerificationSchema}, {ID: "0024_pharmacy", SQL: stockOverviewSchema}, {ID: "0025_pharmacy", SQL: registeredPatientsSchema}, {ID: "0026_pharmacy", SQL: registeredPatientSaleSchema}, {ID: "0027_pharmacy", SQL: admissionSaleSchema}, {ID: "0028_pharmacy", SQL: unusedPaymentRefundsSchema}, {ID: "0029_pharmacy", SQL: priceControlSchema}, {ID: "0031_pharmacy", SQL: serviceChargesSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {

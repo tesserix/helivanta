@@ -2850,6 +2850,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions/export",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
@@ -2900,6 +2918,42 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
+          "permission": "pharmacy.service_charge.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version",
+          "permission": "pharmacy.service_charge.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3262,6 +3316,18 @@
           "permission": "pharmacy.price_control.review",
           "roles": [
             "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.service_charge.declare",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.service_charge.review",
+          "roles": [
             "pharmacy_owner"
           ]
         },
@@ -3630,6 +3696,17 @@
           "creates_tables": [
             "pharmacy_product_price_declarations",
             "pharmacy_product_price_reviews"
+          ]
+        },
+        {
+          "id": "0031_pharmacy",
+          "sql_sha256": "4bcb11af239f656b373ba0ef3824dd579ac2f2052b4f0d006105b250e76ca495",
+          "creates_tables": [
+            "pharmacy_service_charges",
+            "pharmacy_service_charge_versions",
+            "pharmacy_service_charge_reviews",
+            "pharmacy_sale_charge_lines",
+            "pharmacy_credit_note_charge_lines"
           ]
         }
       ]

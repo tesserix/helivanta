@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
+import type { PharmacySaleCharge } from "@helivanta/api";
 import { Returns } from "./returns";
 
 const scope = {
@@ -64,6 +65,7 @@ const sale = {
   class_origin: "declared_by_outlet",
   nppa_ceiling_checked: false,
   lines: [line],
+  charges: [] as PharmacySaleCharge[],
   tenders: [],
 };
 
@@ -72,10 +74,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function fixture() {
+function fixture(sold: typeof sale = sale, note: Record<string, unknown> = {}) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
-    if (url.includes("/sales?")) return new Response(JSON.stringify(page([sale])));
-    if (url.endsWith(`/sales/${saleId}`)) return new Response(JSON.stringify(sale));
+    if (url.includes("/sales?")) return new Response(JSON.stringify(page([sold])));
+    if (url.endsWith(`/sales/${saleId}`)) return new Response(JSON.stringify(sold));
     if (url.includes("/stock/locations"))
       return new Response(
         JSON.stringify(
@@ -131,7 +133,9 @@ function fixture() {
               sgst_minor: 201,
             },
           ],
+          charges: [],
           refunds: [{ refund_number: 1, kind: "cash", amount_minor: 3750, reference: null }],
+          ...note,
         }),
         { status: 201 },
       );
@@ -174,6 +178,7 @@ describe("Returns", () => {
     expect(JSON.parse(String(put?.[1]?.body))).toEqual({
       sale_id: saleId,
       lines: [{ sale_line: 1, quantity_units: 3, quarantine_location_id: quarantine }],
+      charges: [],
       refunds: [{ kind: "cash", amount_minor: 3750 }],
       reason: "TEST prescription changed",
       recipient: { name: "TEST Ravi Kumar", address: "TEST 4 Station Road" },
@@ -255,5 +260,91 @@ describe("Returns", () => {
     expect(JSON.parse(String(put?.[1]?.body)).refunds).toEqual([
       { kind: "admission_account", amount_minor: 3750 },
     ]);
+  });
+
+  it("credits a service charge whole, with no stock to receive (#1388)", async () => {
+    const charge: PharmacySaleCharge = {
+      charge_number: 1,
+      charge_id: "0199e000-0000-7000-8000-0000000000e1",
+      version_id: "0199e000-0000-7000-8000-0000000000e3",
+      code: "DELIVERY",
+      name: "Ward delivery",
+      tax_treatment: "own_service",
+      sac_code: "996812",
+      supply_nature: "taxable",
+      rate_ppm: 180000,
+      amount_minor: 5000,
+      taxable_minor: 4238,
+      cgst_minor: 381,
+      sgst_minor: 381,
+      credited_minor: 0,
+    };
+    const credited = {
+      sale_charge: 1,
+      charge_number: 1,
+      code: charge.code,
+      name: charge.name,
+      tax_treatment: charge.tax_treatment,
+      sac_code: charge.sac_code,
+      supply_nature: charge.supply_nature,
+      rate_ppm: charge.rate_ppm,
+      amount_minor: charge.amount_minor,
+      taxable_minor: charge.taxable_minor,
+      cgst_minor: charge.cgst_minor,
+      sgst_minor: charge.sgst_minor,
+    };
+    const fetcher = fixture(
+      { ...sale, charges: [charge] },
+      { lines: [], charges: [credited], total_minor: 5000 },
+    );
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    await user.type(await screen.findByLabelText("Refunded to"), "TEST Ravi Kumar");
+    await user.type(screen.getByLabelText("Their address"), "TEST 4 Station Road");
+    await user.type(screen.getByLabelText("Reason"), "TEST delivery not made");
+    await user.click(screen.getByRole("button", { name: "Issue credit note" }));
+    expect(
+      await screen.findByText("Enter the units coming back or a service charge to credit"),
+    ).toBeVisible();
+    await user.click(screen.getByRole("checkbox", { name: /Ward delivery · INR 50.00/ }));
+    expect(screen.getByText("Refund INR 50.00")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Issue credit note" }));
+    expect(await screen.findByRole("table", { name: "Service charges credited" })).toBeVisible();
+    const put = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toMatchObject({
+      sale_id: saleId,
+      lines: [],
+      charges: [{ sale_charge: 1 }],
+      refunds: [{ kind: "cash", amount_minor: 5000 }],
+    });
+  });
+
+  it("offers a credited charge no more", async () => {
+    fixture({
+      ...sale,
+      charges: [
+        {
+          charge_number: 1,
+          charge_id: "0199e000-0000-7000-8000-0000000000e1",
+          version_id: "0199e000-0000-7000-8000-0000000000e3",
+          code: "DELIVERY",
+          name: "Ward delivery",
+          tax_treatment: "own_service",
+          sac_code: "996812",
+          supply_nature: "taxable",
+          rate_ppm: 180000,
+          amount_minor: 5000,
+          taxable_minor: 4238,
+          cgst_minor: 381,
+          sgst_minor: 381,
+          credited_minor: 5000,
+        },
+      ],
+    });
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    expect(
+      await screen.findByRole("checkbox", { name: /Ward delivery · INR 50.00 · already credited/ }),
+    ).toBeDisabled();
   });
 });

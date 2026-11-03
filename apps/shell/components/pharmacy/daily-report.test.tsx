@@ -32,6 +32,10 @@ const zero = {
   card_refund_minor: 0,
   admission_account_minor: 0,
   admission_account_refund_minor: 0,
+  service_charges_minor: 0,
+  service_charges_taxable_minor: 0,
+  service_charge_credits_minor: 0,
+  service_charge_credits_taxable_minor: 0,
 };
 const days = [
   {
@@ -49,6 +53,7 @@ const days = [
     upi_minor: 2500,
     upi_verified_minor: 68000,
     admission_account_minor: 4000,
+    service_charges_minor: 5000,
   },
   {
     ...zero,
@@ -60,6 +65,7 @@ const days = [
     net_minor: -5000,
     cash_refund_minor: 5000,
     admission_account_refund_minor: 1000,
+    service_charge_credits_minor: 2000,
   },
 ];
 
@@ -92,12 +98,15 @@ describe("DailyReport", () => {
     const first = screen.getByRole("row", { name: /2026-11-01/ });
     expect(first).toHaveTextContent("2 for INR 150.00");
     expect(first).toHaveTextContent("12 units");
+    // Service charges (#1388) are reported apart from medicine revenue.
+    expect(first).toHaveTextContent("medicines INR 100.00, service charges INR 50.00");
     expect(first).toHaveTextContent(
       "Cash INR 125.00, UPI (verified) INR 680.00, UPI INR 25.00, Admission account INR 40.00",
     );
     const second = screen.getByRole("row", { name: /2026-11-02/ });
     expect(second).toHaveTextContent("1 for INR 50.00");
     expect(second).toHaveTextContent("INR -50.00");
+    expect(second).toHaveTextContent("medicines INR 30.00, service charges INR 20.00");
     expect(second).toHaveTextContent("Cash INR 50.00");
     // Taken and refunded name only the kinds used.
     expect(within(first).getAllByRole("cell")[4]).toHaveTextContent(/^—$/);

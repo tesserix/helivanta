@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "274a1af1c9f5ee6cf9184811bd504066fb28e87dcf79648444ccd243246e4c51",
+  "registry_sha256": "5e4a7018a94605a00151fd9173351ea1318bf6a52677e37a55192c6a47149721",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 778,
-    "unclassified": 755
+    "total": 784,
+    "unclassified": 761
   },
   "entries": [
     {
@@ -5976,6 +5976,38 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions/export",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/registers/prescriptions/export",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily",
       "kind": "http",
       "module": "pharmacy",
@@ -6031,6 +6063,38 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "GET",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge",
         "permission": "pharmacy.sale.read",
         "authentication_required": true,
         "membership_required": true,
@@ -6424,6 +6488,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
+        "permission": "pharmacy.service_charge.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
       "kind": "http",
       "module": "pharmacy",
@@ -6768,6 +6848,22 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
         "permission": "pharmacy.sale.create",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version",
+        "permission": "pharmacy.service_charge.declare",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

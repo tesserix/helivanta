@@ -23,7 +23,7 @@ import (
 
 // #1386 B-1: an OTC counter sale.
 
-var salePerms = append(append([]authz.Permission{}, releasePerms...), "pharmacy.licence.manage", "pharmacy.licence.review", "pharmacy.sale.create", "pharmacy.sale.read", "pharmacy.prescription.record", "pharmacy.prescription.read", "pharmacy.sale.return", "pharmacy.price_control.declare", "pharmacy.price_control.review")
+var salePerms = append(append([]authz.Permission{}, releasePerms...), "pharmacy.licence.manage", "pharmacy.licence.review", "pharmacy.sale.create", "pharmacy.sale.read", "pharmacy.prescription.record", "pharmacy.prescription.read", "pharmacy.sale.return", "pharmacy.price_control.declare", "pharmacy.price_control.review", "pharmacy.service_charge.declare", "pharmacy.service_charge.review")
 
 type saleWorld struct {
 	r                    *gin.Engine

@@ -389,6 +389,9 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant` | `pharmacy.sale.create` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review` | `pharmacy.price_control.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration` | `pharmacy.price_control.declare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control` | `pharmacy.catalogue.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/revisions` | `pharmacy.catalogue.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration/review` | `pharmacy.schedule.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule/:declaration` | `pharmacy.schedule.declare` | false | false |
@@ -518,6 +521,7 @@ Migration table declarations:
 - `0025_pharmacy`: `pharmacy_registered_patients`.
 - `0027_pharmacy`: `pharmacy_bed_occupancies`.
 - `0028_pharmacy`: `pharmacy_unused_payment_refunds`.
+- `0029_pharmacy`: `pharmacy_product_price_declarations`, `pharmacy_product_price_reviews`.
 
 ## payments
 

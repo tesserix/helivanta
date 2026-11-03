@@ -290,6 +290,12 @@ type saleLine struct {
 	ListAmountMinor    int64      `gorm:"column:list_amount_minor" json:"list_amount_minor"`
 	DiscountBps        int64      `gorm:"column:discount_bps" json:"discount_bps"`
 	DiscountMinor      int64      `gorm:"column:discount_minor" json:"discount_minor"`
+	// The price-control declaration the line sold under (#1371), null when
+	// the product has none; its NPPA ceiling per unit before GST, null when
+	// not controlled; and whether the MRP or the ceiling set the list price.
+	PriceDeclarationID *uuid.UUID `gorm:"column:price_declaration_id" json:"price_declaration_id"`
+	CeilingMinor       *int64     `gorm:"column:ceiling_minor" json:"ceiling_minor"`
+	PriceLimit         string     `gorm:"column:price_limit" json:"price_limit"`
 	// Units returned on credit notes so far (#1386 C-1); zero on a quote.
 	ReturnedUnits int64 `gorm:"column:returned_units" json:"returned_units"`
 	declaration   uuid.UUID
@@ -581,6 +587,7 @@ type saleProduct struct {
 		RegulatoryClass string
 		NDPS            bool
 	}
+	price priceInForce
 }
 
 func saleProducts(tx *gorm.DB, tenant string, outlet uuid.UUID, seller saleSeller, ids []uuid.UUID) (map[uuid.UUID]*saleProduct, error) {
@@ -632,6 +639,16 @@ func saleProducts(tx *gorm.DB, tenant string, outlet uuid.UUID, seller saleSelle
 			return nil, errNotSellable{pr.SKU + " is Schedule X or NDPS, which cannot be sold until their controls exist"}
 		}
 		pr.class = class[0]
+		// Fail closed (#1371): once a product's price control is declared it
+		// sells only under an approved declaration in force, never on MRP alone.
+		price, err := readPriceInForce(tx, tenant, outlet, id, seller.today)
+		if err != nil {
+			return nil, err
+		}
+		if price.State == "blocked" {
+			return nil, errNotSellable{pr.SKU + " has no approved price control in force today; its NPPA ceiling awaits review"}
+		}
+		pr.price = price
 	}
 	return byID, nil
 }
@@ -683,6 +700,16 @@ func allocate(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, in []s
 			take := min(need, b.OnHand)
 			need -= take
 			list, _, _ := priceLine(b.MRPMinor, pr.PackSize, take, pr.tax.SupplyNature, pr.tax.RatePPM)
+			var ceiling *int64
+			limit := "mrp"
+			if pr.price.Controlled != nil && *pr.price.Controlled {
+				ceiling = pr.price.CeilingMinor
+				var capped bool
+				list, capped = withinCeiling(list, *ceiling*take, l.DiscountBps, pr.tax.SupplyNature, pr.tax.RatePPM)
+				if capped {
+					limit = "ceiling"
+				}
+			}
 			if list == 0 {
 				return nil, errNotSellable{fmt.Sprintf("%s: %d units of a pack of %d price to nothing; sell more units", pr.SKU, take, pr.PackSize)}
 			}
@@ -695,7 +722,8 @@ func allocate(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, in []s
 				LotNumber: b.LotNumber, ExpiresOn: b.ExpiresOn, RegulatoryClass: pr.class.RegulatoryClass, ClassificationCode: pr.tax.ClassificationCode,
 				SupplyNature: pr.tax.SupplyNature, RatePPM: pr.tax.RatePPM, MRPMinor: b.MRPMinor, PackSize: pr.PackSize, QuantityUnits: take,
 				AmountMinor: amount, TaxableMinor: taxable, CGSTMinor: half, SGSTMinor: half, declaration: pr.class.DeclarationID,
-				ListAmountMinor: list, DiscountBps: l.DiscountBps, DiscountMinor: discount})
+				ListAmountMinor: list, DiscountBps: l.DiscountBps, DiscountMinor: discount,
+				PriceDeclarationID: pr.price.DeclarationID, CeilingMinor: ceiling, PriceLimit: limit})
 		}
 		if need > 0 {
 			short = append(short, fmt.Sprintf("%s (%d more units needed)", pr.SKU, need))
@@ -862,6 +890,7 @@ func (h *catalogueHandlers) postSaleQuote(c *gin.Context) {
 		}
 		quote.Currency, quote.Lines = seller.currency, lines
 		quote.TotalMinor, quote.TaxableMinor, quote.CGSTMinor = saleTotals(lines)
+		quote.CeilingChecked = ceilingChecked(lines)
 		quote.SGSTMinor = quote.CGSTMinor
 		return nil
 	})
@@ -999,10 +1028,11 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		for _, l := range lines {
 			if err := tx.Exec(`INSERT INTO pharmacy_sale_lines (tenant_id,outlet_id,sale_id,line_number,product_id,batch_id,location_id,lot_number,expires_on,
 				regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,
-				prescription_id,prescription_line,discount_bps,discount_minor)
-				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
+				prescription_id,prescription_line,discount_bps,discount_minor,price_declaration_id,ceiling_minor,price_limit)
+				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
 				l.RegulatoryClass, l.declaration, l.ClassificationCode, l.SupplyNature, l.RatePPM, l.MRPMinor, l.PackSize, l.QuantityUnits, l.AmountMinor,
-				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.PrescriptionID, l.PrescriptionLine, l.DiscountBps, l.DiscountMinor).Error; err != nil {
+				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.PrescriptionID, l.PrescriptionLine, l.DiscountBps, l.DiscountMinor,
+				l.PriceDeclarationID, l.CeilingMinor, l.PriceLimit).Error; err != nil {
 				return err
 			}
 			movement := stockMovement{ID: uuid.Must(uuid.NewV7()), TenantID: uuid.MustParse(p.TenantID), OutletID: outlet, ActorSubject: p.Subject,
@@ -1062,6 +1092,9 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", refusal.reason)
 	case prescriptionLimitError(err):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the prescription no longer allows this sale; price the basket again")
+	case violated(err, "pharmacy_sale_line_price_unknown"), violated(err, "pharmacy_sale_line_price_source"), violated(err, "pharmacy_sale_line_ceiling"):
+		// A price-control review landed between pricing and posting (#1371).
+		respond.Error(c, http.StatusConflict, "not_sellable", "a product's NPPA price control changed; price the basket again")
 	case violated(err, "pharmacy_sale_tender_paid"), violated(err, "pharmacy_sale_tender_payment_request"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the UPI payment is not a paid payment of this outlet for this amount")
 	case violated(err, "pharmacy_sale_tender_payment_once"):
@@ -1096,6 +1129,7 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	*out = rows[0]
 	if err := tx.Raw(`SELECT line_number,product_id,batch_id,location_id,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,regulatory_class,
 		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,prescription_id,prescription_line,list_amount_minor,discount_bps,discount_minor,
+		price_declaration_id,ceiling_minor,price_limit,
 		(SELECT COALESCE(sum(c.quantity_units),0) FROM pharmacy_credit_note_lines c WHERE c.tenant_id=l.tenant_id AND c.outlet_id=l.outlet_id
 		 AND c.sale_id=l.sale_id AND c.sale_line=l.line_number) AS returned_units
 		FROM pharmacy_sale_lines l WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
@@ -1105,13 +1139,12 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 		WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY tender_number`, tenant, outlet, id).Scan(&out.Tenders).Error; err != nil {
 		return err
 	}
-	// Decision 2: the class on the invoice is the outlet's declaration, and
-	// NPPA ceiling prices (#1371) are not checked; the invoice says both.
+	// Decision 2: the class on the invoice is the outlet's declaration.
 	for _, l := range out.Lines {
 		out.DiscountMinor += l.DiscountMinor
 	}
 	out.ClassOrigin = "declared_by_outlet"
-	out.CeilingChecked = false
+	out.CeilingChecked = ceilingChecked(out.Lines)
 	return nil
 }
 

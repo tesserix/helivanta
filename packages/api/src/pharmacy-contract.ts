@@ -271,6 +271,17 @@ export const pharmacyTaxClassificationInputSchema = z
   })
   .strict();
 
+export const pharmacyPriceControlInputSchema = z
+  .object({
+    price_control: z.enum(["controlled", "not_controlled"]),
+    ceiling_minor: z.number().int().min(1).max(1000000000000).nullable().optional(),
+    order_reference: z.string().trim().min(1).max(120).nullable().optional(),
+    order_date: z.string().date("Use a full valid date.").nullable().optional(),
+    effective_from: z.string().date("Use a full valid date."),
+    source: z.string().trim().min(1).max(300),
+  })
+  .strict();
+
 export const pharmacyStockOverviewFieldsSchema = z
   .object({
     outlet_id: identifier,

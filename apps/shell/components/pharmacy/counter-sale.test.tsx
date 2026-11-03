@@ -259,7 +259,7 @@ describe("CounterSale", () => {
       <CounterSale scope={scope} canSell canManageProfile={false} />,
     );
     expect(await screen.findByText(/Invoices print as TEST Main Pharmacy LLP/)).toBeVisible();
-    expect(await screen.findByText(/NPPA ceiling prices are not checked/)).toBeVisible();
+    expect(await screen.findByText(/with no price control declared sells at/)).toBeVisible();
     await user.click(await screen.findByLabelText("Product"));
     expect(screen.queryByRole("option", { name: /TEST-OLD/ })).toBeNull();
     await user.keyboard("{Escape}");
@@ -290,6 +290,33 @@ describe("CounterSale", () => {
     });
     await user.click(screen.getByRole("button", { name: "New sale" }));
     expect(await screen.findByRole("heading", { name: "Counter sale" })).toBeVisible();
+  });
+
+  it("shows which lines the NPPA ceiling priced and whether every line was checked", async () => {
+    fixture({
+      quote: () =>
+        new Response(
+          JSON.stringify({
+            ...totals,
+            nppa_ceiling_checked: true,
+            lines: [
+              {
+                ...line,
+                price_declaration_id: "0199e000-0000-7000-8000-0000000000d1",
+                ceiling_minor: 1000,
+                price_limit: "ceiling",
+              },
+            ],
+          }),
+        ),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    expect(await screen.findByText(/Invoices print as TEST Main Pharmacy LLP/)).toBeVisible();
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    expect(await screen.findByText("NPPA ceiling INR 10.00/unit + GST")).toBeVisible();
   });
 
   it("refuses cash below the total and asks UPI for a reference", async () => {

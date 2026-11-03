@@ -144,6 +144,15 @@ type taxClassificationInput struct {
 	Reason             *string `json:"reason" binding:"omitempty,min=1,max=500"`
 }
 
+type priceControlInput struct {
+	PriceControl   string  `json:"price_control" binding:"required,oneof=controlled not_controlled"`
+	CeilingMinor   *int64  `json:"ceiling_minor" binding:"omitempty,min=1,max=1000000000000"`
+	OrderReference *string `json:"order_reference" binding:"omitempty,min=1,max=120"`
+	OrderDate      *string `json:"order_date" binding:"omitempty"`
+	EffectiveFrom  string  `json:"effective_from"`
+	Source         string  `json:"source" binding:"required,min=1,max=300"`
+}
+
 type StockOverviewFields struct {
 	OutletID                uuid.UUID `json:"outlet_id" binding:"required"`
 	OutletCode              string    `json:"outlet_code"`

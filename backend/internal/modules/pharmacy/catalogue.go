@@ -86,6 +86,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	taxClassificationRoutes(s, h)
 	licenceRoutes(s, h)
 	scheduleRoutes(s, h)
+	priceControlRoutes(s, h)
 	saleRoutes(s, h)
 	prescriptionRoutes(s, h)
 	creditNoteRoutes(s, h)

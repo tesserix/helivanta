@@ -273,8 +273,9 @@ function Counter({
     <Panel>
       <h3 className="font-semibold">Counter sale</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        A Schedule G, H or H1 medicine is dispensed against a recorded prescription. NPPA ceiling
-        prices are not checked.
+        A Schedule G, H or H1 medicine is dispensed against a recorded prescription. A product with
+        an NPPA ceiling in force is priced within it; one with no price control declared sells at
+        its MRP.
       </p>
       <form
         noValidate
@@ -479,7 +480,14 @@ function SaleLines({
             <td>{l.classification_code}</td>
             <td>{l.lot_number}</td>
             <td>{l.expires_on}</td>
-            <td>{money(l.mrp_minor)}</td>
+            <td>
+              {money(l.mrp_minor)}
+              {l.price_limit === "ceiling" && l.ceiling_minor !== null && (
+                <span className="block text-xs text-muted-foreground">
+                  NPPA ceiling {money(l.ceiling_minor)}/unit + GST
+                </span>
+              )}
+            </td>
             <td>{l.quantity_units}</td>
             {discounted && <td>{money(l.list_amount_minor)}</td>}
             {discounted && (
@@ -927,7 +935,10 @@ function Invoice({
           </p>
         )}
         <p className="mt-3 text-xs text-muted-foreground">
-          Schedule classes are as declared by the outlet. NPPA ceiling prices were not checked.
+          Schedule classes are as declared by the outlet.{" "}
+          {sale.nppa_ceiling_checked
+            ? "NPPA ceiling prices were checked against the outlet's declarations."
+            : "NPPA ceiling prices were not checked for every line."}
         </p>
       </article>
       {sale.lines.some((l) => l.prescription_id) && (

@@ -46,6 +46,7 @@ import { useListDetail, useReportState, type FormState } from "@/lib/use-list-de
 import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-field";
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
+import { ProductPriceControlSection } from "./price-control";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 
@@ -116,6 +117,8 @@ export function CataloguePanel({
   timeZone = "UTC",
   countryCode = "",
   canManageTax = false,
+  canDeclarePrice = false,
+  canReviewPrice = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
@@ -124,6 +127,9 @@ export function CataloguePanel({
   countryCode?: string;
   /** pharmacy.tax.manage with editor access: rates are the owner's, not the catalogue editor's. */
   canManageTax?: boolean;
+  /** pharmacy.price_control.declare and .review (#1371): one declares, another approves. */
+  canDeclarePrice?: boolean;
+  canReviewPrice?: boolean;
 }) {
   const scheme = taxScheme(countryCode);
   // The tab, search and filter are the URL (#576 slice 3 D3/D4). Without a
@@ -190,6 +196,8 @@ export function CataloguePanel({
         scheme={scheme}
         writable={writable}
         canManageTax={canManageTax}
+        canDeclarePrice={canDeclarePrice}
+        canReviewPrice={canReviewPrice}
         defaultCurrency={defaultCurrency}
         timeZone={timeZone}
         today={today}
@@ -347,6 +355,8 @@ function OpenProduct({
   scheme,
   writable,
   canManageTax,
+  canDeclarePrice,
+  canReviewPrice,
   defaultCurrency,
   timeZone,
   today,
@@ -357,6 +367,8 @@ function OpenProduct({
   scheme: ReturnType<typeof taxScheme>;
   writable: boolean;
   canManageTax: boolean;
+  canDeclarePrice: boolean;
+  canReviewPrice: boolean;
   defaultCurrency: string;
   timeZone: string;
   today: string;
@@ -424,6 +436,15 @@ function OpenProduct({
         canManage={canManageTax}
         today={today}
         onStateChange={pane.formState("tax")}
+      />
+      <ProductPriceControlSection
+        scope={scope}
+        product={row}
+        today={today}
+        canDeclare={canDeclarePrice}
+        canReview={canReviewPrice}
+        onStateChange={pane.formState("price")}
+        onReviewStateChange={pane.formState("price-review")}
       />
       <ProductHistory scope={scope} product={row} timeZone={timeZone} />
     </div>

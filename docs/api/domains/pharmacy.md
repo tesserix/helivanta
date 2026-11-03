@@ -69,6 +69,22 @@ Until the drug master is loaded, each product's Drugs Rules class (`none|G|H|H1|
 
 Only the **latest** declaration counts, and only once it is approved. If the latest one is still awaiting review or was rejected, the product has no class, so an older approval cannot bypass a stricter reclassification. Later slices call `pharmacy_product_schedule_in_force(tenant, outlet, product)`.
 
+### NPPA ceiling prices (#1371)
+
+Under the Drugs (Prices Control) Order, 2013, the NPPA notifies a ceiling price per unit of dosage, excluding taxes, for scheduled formulations; no one sells to a consumer above the lower of the label and the price list (para 26). Until the drug master carries ceilings, the outlet declares each product's price control with its NPPA order, and a second person approves it ([spec](../../superpowers/specs/2026-11-03-nppa-ceiling-price-design.md)).
+
+| Route                                                  | Behaviour                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT …/catalogue/products/{id}/price-control/{uuidv7}` | Declares `{price_control: controlled, ceiling_minor, order_reference, order_date, effective_from, source}`, or `{price_control: not_controlled, effective_from, source}`. `ceiling_minor` is paise per unit of issue, before GST. Requires `pharmacy.price_control.declare`. Idempotent |
+| `POST …/price-control/{declaration}/review`            | Records `{decision, reason}`. Requires `pharmacy.price_control.review`. The reviewer must not be the declarer (database-enforced; 409 `four_eyes`)                                                                                                                                      |
+| `GET …/catalogue/products/{id}/price-control`          | Returns `{state: undeclared\|blocked\|in_force, today, in_force, reason, history}`                                                                                                                                                                                                      |
+
+- **In force on a day:** none if the product has no declaration (`undeclared`: sold at its MRP alone). Otherwise the latest declaration must be approved, and the approved declaration with the latest start on or before the day is in force; if not, the product is `blocked` and the counter refuses it (409 `not_sellable`), so a pending correction cannot be bypassed. A declaration replaces every earlier one starting on or after its own start, so a correction is never overridden by an older entry dated after it. Only the latest declaration can be reviewed (409 otherwise). A price-control change that lands while a sale is being posted refuses it with 409 `not_sellable`.
+- **At the counter:** a controlled line's list amount is the most whose value before GST, as the counter splits it, is within `ceiling_minor × units`, if that is below the MRP share. The line carries `price_declaration_id`, `ceiling_minor` and `price_limit` (`mrp` or `ceiling`); a discount runs on that list amount.
+- **Database guarantees:** a sale-line trigger refuses a blocked product (`pharmacy_sale_line_price_unknown`), a line naming another declaration or ceiling than the one in force on the sale date (`pharmacy_sale_line_price_source`), and a value before GST above the ceiling (`pharmacy_sale_line_ceiling`). Declarations and reviews are append-only and audited.
+- **Activation:** before an outlet relies on a ceiling, its responsible pharmacist and compliance reviewer confirm the reading of the order, that the catalogue's unit of issue is the order's unit of dosage, and whether old-label stock may be sold during the manufacturer's 45 days (it may not, until they decide).
+- **Not covered:** importing NPPA notifications; ceilings in the drug master; retail prices of new drugs; refunds of past overcharges.
+
 ### Sellable stock (#1386 A3)
 
 Every location is either `quarantine` or `sellable`, fixed when it is created. Receipts and corrections only ever land in quarantine. Stock reaches a sellable location only through a release.
@@ -123,7 +139,7 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 - The taxable value is the remainder.
 - The place of supply is the outlet's GSTIN state.
 - The total is the exact sum of the lines, with no round-off.
-- NPPA ceiling prices (#1371) are not checked, and the invoice reports `nppa_ceiling_checked: false`.
+- For a product with an NPPA ceiling in force, the list amount is the lower of that and the ceiling plus GST (NPPA ceiling prices, below). `nppa_ceiling_checked` is true only when every line's product had a price-control declaration in force.
 
 **Tenders.**
 

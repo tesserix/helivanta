@@ -123,10 +123,10 @@ creates no posting or grant. Deployed [preparation drafts](workforce-postings.md
 reference current structural revisions, while effective postings and operating
 eligibility remain open.
 
-## Unreleased scoped posting choices
+## Scoped posting choices
 
 `GET /v1/organization/hospitals/:hospital/posting-department-choices` is an
-additive candidate read projection for the independently approved
+additive read projection, deployed at `091f2287`, for the independently approved
 `workforce.posting_preparer.v1` hospital assignment. It requires both the
 Organization-owned `organization.posting_choices.read` permission and
 Workforce-owned `workforce.staff_actor.use` through current callback-bound IAM

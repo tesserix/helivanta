@@ -42,6 +42,10 @@ export const LEAVE_REQUEST_STATUSES = {
   rejected: "Rejected",
   cancelled: "Cancelled",
 } as const;
+export const LEAVE_ROUTING_MODES = {
+  hospital: "Hospital leave desk",
+  reporting_line: "Reporting line with escalation",
+} as const;
 const identifier = z
   .string()
   .guid("Choose a valid record.")
@@ -220,6 +224,39 @@ export const leaveSettingsContract = z
   })
   .strict();
 export type LeaveSettings = z.infer<typeof leaveSettingsContract>;
+
+export const leaveRoutingPolicyInputContract = z
+  .object({
+    expected_version: z.number().int().min(0),
+    mode: z.enum(["hospital", "reporting_line"]),
+    escalation_hours: z.number().int().min(1).max(720).optional(),
+    source_reference: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type LeaveRoutingPolicyInput = z.infer<typeof leaveRoutingPolicyInputContract>;
+
+export const leaveRoutingPolicyContract = z
+  .object({
+    version: z.number().int().min(0),
+    mode: z.enum(["hospital", "reporting_line"]),
+    escalation_hours: z.number().int().min(1).max(720).optional(),
+    source_reference: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    reviewed_by_subject: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters.")
+      .optional(),
+    created_at: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+export type LeaveRoutingPolicy = z.infer<typeof leaveRoutingPolicyContract>;
 
 export const staffLeaveAssignmentInputContract = z
   .object({
@@ -525,11 +562,36 @@ export const leaveRosterClashContract = z
   .strict();
 export type LeaveRosterClash = z.infer<typeof leaveRosterClashContract>;
 
+export const leaveRouteStepContract = z
+  .object({
+    level: z.number().int().min(1).max(8),
+    staff_id: identifier,
+    employee_code: z
+      .string()
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    display_name: z.string().refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    opens_at: z.string().datetime({ offset: true }),
+    open: z.boolean(),
+  })
+  .strict();
+export type LeaveRouteStep = z.infer<typeof leaveRouteStepContract>;
+
+export const leaveRequestRoutingContract = z
+  .object({
+    version: z.number().int().min(1),
+    routed: z.boolean(),
+    steps: z.array(leaveRouteStepContract).max(8),
+    fallback: z.enum(["no_eligible_reporting_line"]).optional(),
+  })
+  .strict();
+export type LeaveRequestRouting = z.infer<typeof leaveRequestRoutingContract>;
+
 export const leaveRequestDetailContract = z
   .object({
     request: leaveRequestContract,
     days: z.array(leaveRequestDayContract),
     roster_clashes: z.array(leaveRosterClashContract),
+    routing: leaveRequestRoutingContract.optional(),
   })
   .strict();
 export type LeaveRequestDetail = z.infer<typeof leaveRequestDetailContract>;
@@ -678,6 +740,7 @@ export const leaveReviewRequestContract = z
     status: z.enum(["pending"]),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),
+    route_level: z.number().int().min(1).max(8).optional(),
   })
   .strict();
 export type LeaveReviewRequest = z.infer<typeof leaveReviewRequestContract>;

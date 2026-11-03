@@ -1116,6 +1116,41 @@ an uncertain response, it preserves the exact decision/version/note, freezes edi
 and offers an identical retry. A 200 result refreshes the queue; errors never
 present success. Browser and live two-person acceptance remain required.
 
+### Reporting-line routing (development slice)
+
+Designed in the [routing spec](../superpowers/specs/2026-11-04-leave-reporting-line-routing.md) (#1536).
+
+| Endpoint                                               | Authorization                                             | Body and result                                                                                                                                                                                                                |
+| ------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /workforce/hospitals/{hospital}/hr/leave-routing` | Tenant membership and a hospital reader/manager grant     | Current revision; `{version:0,mode:"hospital"}` when none is saved                                                                                                                                                             |
+| `PUT /workforce/hospitals/{hospital}/hr/leave-routing` | `workforce.leave.configure` and a locked hospital manager | `expected_version`, `mode` (`hospital`/`reporting_line`), `escalation_hours` (1–720, reporting line only), `source_reference`, `reviewed: true`. A stale version returns 409; an identical replay returns the current revision |
+
+Revisions in `workforce_leave_routing_revisions` are append-only and audited as
+`workforce.leave_routing.changed`. Migration `0078_workforce_leave_routing` adds
+an insert trigger on `workforce_leave_requests` that pins `routing_version` and
+`routed` from the revision in force at filing, then writes
+`workforce_leave_route_steps`. It walks the supervision chain, skips ancestors
+who lack active employment and a reviewed login link, and pins at most eight
+levels. Level _k_ opens at `filed_at + (k − 1) × escalation_hours`. The pinned
+columns and steps cannot be changed, so a later chain or policy edit leaves
+filed requests unchanged.
+
+A restrictive RLS policy hides a routed request from a scoped review session
+unless the reviewer's linked staff member holds an open step. Queue, detail and
+decision therefore return 404 out of route. A reviewer who also holds the
+hospital leave desk (`workforce.leave.approve` with manager access) falls back to
+the desk path. A routed request with no eligible step carries the
+`no_eligible_reporting_line` fallback and only the desk can decide it. Requests
+filed before any policy are unrouted and keep hospital-wide review.
+
+Queue rows add `route_level`, the reviewer's own level, which is omitted for
+unrouted requests. The HR request detail adds `routing`, with `version`,
+`routed`, `steps[]` and an optional `fallback`. Decision audit evidence adds
+`route_level` (a level or `desk`) and `routing_version` for routed requests. The
+UI shows the policy on **Leave balances**, the route in HR request review and a
+direct or escalated badge in **Review leave**. Self-service filing (#1132) must
+pin under the same trigger.
+
 ### Request and decision contract
 
 The scoped decision consumer is implemented in the current development slice;

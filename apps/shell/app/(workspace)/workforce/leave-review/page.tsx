@@ -162,8 +162,9 @@ function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: Lea
               {records.items.map((row) => (
                 <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div>
-                    <p className="font-medium">
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
                       {row.display_name} · {row.employee_code}
+                      {row.route_level !== undefined && <RouteBadge level={row.route_level} />}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {row.name} · {row.start_on}–{row.end_on} ·{" "}
@@ -424,5 +425,18 @@ function ReviewDecision({
         </div>
       )}
     </form>
+  );
+}
+
+// The reporting officer reviews directly; higher levels reach the request only after escalation.
+function RouteBadge({ level }: { level: number }) {
+  return level === 1 ? (
+    <span className="rounded-full bg-(--hms-accent-dim) px-2.5 py-0.5 text-xs text-(--hms-accent)">
+      Direct report
+    </span>
+  ) : (
+    <span className="rounded-full bg-(--hms-amber-tint) px-2.5 py-0.5 text-xs text-(--hms-amber)">
+      Escalated · level {level}
+    </span>
   );
 }

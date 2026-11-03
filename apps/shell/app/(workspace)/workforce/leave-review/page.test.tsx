@@ -34,7 +34,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mock({ uncertain = false, emptyFirst = false, unavailable = false, rejected = 0 } = {}) {
+function mock({
+  uncertain = false,
+  emptyFirst = false,
+  unavailable = false,
+  rejected = 0,
+  rows = [row] as Record<string, unknown>[],
+} = {}) {
   const writes: { body: unknown; tenant: string | null }[] = [];
   const reads: string[] = [];
   let done = false;
@@ -79,7 +85,7 @@ function mock({ uncertain = false, emptyFirst = false, unavailable = false, reje
             : page([{ hospital_id: hospital, name: "Synthetic Hospital" }]),
         );
       }
-      if (url.endsWith("/leave-review-requests")) return Response.json(page(done ? [] : [row]));
+      if (url.endsWith("/leave-review-requests")) return Response.json(page(done ? [] : rows));
       if (url.endsWith(`/leave-review-requests/${id}`))
         return Response.json({
           request: { ...row, reason: "Synthetic private reason" },
@@ -180,4 +186,23 @@ it("removes the request and actions while the workspace is changing", async () =
   expect(screen.queryByText(/Synthetic private reason/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve leave" })).not.toBeInTheDocument();
   expect(writes).toHaveLength(0);
+});
+
+it("marks routed requests as direct or escalated and leaves unrouted ones unmarked", async () => {
+  const escalated = "55555555-5555-4555-8555-555555555555";
+  const unrouted = "66666666-6666-4666-8666-666666666666";
+  mock({
+    rows: [
+      { ...row, route_level: 1 },
+      { ...row, id: escalated, display_name: "Synthetic Porter", route_level: 3 },
+      { ...row, id: unrouted, display_name: "Synthetic Clerk" },
+    ],
+  });
+  renderWithProviders(<ReviewLeave />);
+  const item = (name: string) =>
+    screen.getByRole("button", { name: `Review leave for ${name}` }).closest("li")!;
+  await screen.findByRole("button", { name: "Review leave for Synthetic Clerk" });
+  expect(within(item("Synthetic Nurse")).getByText("Direct report")).toBeInTheDocument();
+  expect(within(item("Synthetic Porter")).getByText("Escalated · level 3")).toBeInTheDocument();
+  expect(within(item("Synthetic Clerk")).queryByText(/Direct report|Escalated/)).toBeNull();
 });

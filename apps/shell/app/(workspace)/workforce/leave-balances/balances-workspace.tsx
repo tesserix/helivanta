@@ -5,6 +5,7 @@ import { useApiPagedQuery, usePermissions, type Hospital, type LeaveYear } from 
 import { Field, PageHeading, SelectControl } from "@helivanta/ui";
 import { Failure } from "../roster-policy/policy-ui";
 import { LeaveSettingsPanel, LeaveYearsPanel } from "./years-panel";
+import { LeaveRoutingPanel } from "./routing-panel";
 import { LeaveAssignmentsPanel } from "./assignments-panel";
 import { LeaveBalancesPanel } from "./balances-panel";
 
@@ -69,6 +70,10 @@ function LeaveLedger({ hospital }: { hospital: Hospital }) {
   return (
     <div className="space-y-6">
       <LeaveSettingsPanel
+        hospital={hospital}
+        writable={manager && can("workforce.leave.configure")}
+      />
+      <LeaveRoutingPanel
         hospital={hospital}
         writable={manager && can("workforce.leave.configure")}
       />

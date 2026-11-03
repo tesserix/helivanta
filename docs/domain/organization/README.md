@@ -109,6 +109,15 @@ implementation facts do not establish acceptance of the full target model.
   Workforce retains HR-to-structure observations and non-operating posting
   drafts. Effective postings, department-scoped access and #429's clinical
   reachability criteria remain open; a department row is not membership.
+- Leave approval can follow the reporting line (#1536). A versioned hospital
+  policy and a database trigger pin each request's route at filing from
+  `workforce_enrollment_profile.supervisor_id`. Escalation opens the next level
+  after a customer-entered interval, and a restrictive RLS policy limits scoped
+  reviewers to their own open step
+  ([routing](../../api/workforce.md#reporting-line-routing-development-slice)).
+  The supervisor reference only narrows an IAM leave-review grant and never
+  grants authority. Delegation, acting approvers, sanction thresholds and
+  department-scoped approvers remain open.
 
 ## Open decisions
 

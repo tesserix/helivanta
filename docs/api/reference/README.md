@@ -953,6 +953,8 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/hr/leave-reports/monthly` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/leave-reports/status` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/leave-requests` | `public` | true | false |
+| GET | `/v1/workforce/hospitals/:hospital/hr/leave-routing` | `public` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/hr/leave-routing` | `workforce.leave.configure` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/leave-settings` | `public` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/hr/leave-settings` | `workforce.leave.configure` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/hr/leave-years/:year/close` | `workforce.leave.allocate` | false | false |
@@ -1272,6 +1274,7 @@ Migration table declarations:
 - `0073_workforce_posting_drafts`: `workforce_posting_drafts`, `workforce_posting_draft_revisions`.
 - `0075_workforce_posting_proposals`: `workforce_posting_proposals`, `workforce_posting_proposal_revisions`.
 - `0077_workforce_posting_proposal_inbox_index`: concurrent index `workforce_posting_proposal_inbox` on `workforce_posting_proposals (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
+- `0078_workforce_leave_routing`: `workforce_leave_routing_revisions`, `workforce_leave_route_steps`.
 
 ## workspace
 

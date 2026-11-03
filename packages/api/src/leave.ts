@@ -3,6 +3,7 @@ import {
   leaveConfigInputContract,
   leaveCorrectionInputContract,
   leaveRequestInputContract,
+  leaveRoutingPolicyInputContract,
   leaveSettingsInputContract,
   staffLeaveAssignmentInputContract,
   type LeaveRequestInput,
@@ -113,6 +114,33 @@ export const leaveSettingsSchema = leaveSettingsInputContract.superRefine((value
   if (!value.reviewed)
     ctx.addIssue({ code: "custom", path: ["reviewed"], message: leaveReviewMessage });
 });
+const escalationMessage = "Enter whole hours from 1 to 720.";
+export const leaveRoutingPolicySchema = leaveRoutingPolicyInputContract
+  .extend({
+    escalation_hours: z
+      .number({ error: escalationMessage })
+      .int(escalationMessage)
+      .min(1, escalationMessage)
+      .max(720, escalationMessage)
+      .optional(),
+    source_reference: z
+      .string()
+      .trim()
+      .min(1, "Give the circular or order that sets this policy.")
+      .max(200, "Keep the source reference to 200 characters."),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.reviewed)
+      ctx.addIssue({ code: "custom", path: ["reviewed"], message: leaveReviewMessage });
+    if (value.mode === "reporting_line" && value.escalation_hours === undefined)
+      ctx.addIssue({ code: "custom", path: ["escalation_hours"], message: escalationMessage });
+    if (value.mode === "hospital" && value.escalation_hours !== undefined)
+      ctx.addIssue({
+        code: "custom",
+        path: ["escalation_hours"],
+        message: "Hospital routing takes no escalation interval.",
+      });
+  });
 export const staffLeaveAssignmentSchema = staffLeaveAssignmentInputContract.superRefine(
   (value, ctx) => {
     if (!value.reviewed)

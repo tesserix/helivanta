@@ -379,6 +379,76 @@
         "type": "time"
       }
     ],
+    "leaveRoutingPolicyInput": [
+      {
+        "name": "expected_version",
+        "type": "int",
+        "pointer": true,
+        "min": 0,
+        "binding": "required,gte=0"
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "enum": ["hospital", "reporting_line"],
+        "binding": "required,oneof=hospital reporting_line"
+      },
+      {
+        "name": "escalation_hours",
+        "type": "int",
+        "optional": true,
+        "min": 1,
+        "max": 720,
+        "binding": "omitempty,gte=1,lte=720"
+      },
+      {
+        "name": "source_reference",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text",
+        "binding": "required,max=200"
+      },
+      {
+        "name": "reviewed",
+        "type": "bool",
+        "pointer": true,
+        "binding": "required"
+      }
+    ],
+    "leaveRoutingPolicy": [
+      {
+        "name": "version",
+        "type": "int",
+        "min": 0
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "enum": ["hospital", "reporting_line"]
+      },
+      {
+        "name": "escalation_hours",
+        "type": "int",
+        "optional": true,
+        "min": 1,
+        "max": 720
+      },
+      {
+        "name": "source_reference",
+        "type": "string"
+      },
+      {
+        "name": "reviewed_by_subject",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "created_at",
+        "type": "time",
+        "optional": true
+      }
+    ],
     "staffLeaveAssignmentInput": [
       {
         "name": "expected_version",
@@ -965,6 +1035,56 @@
         "type": "time"
       }
     ],
+    "leaveRouteStep": [
+      {
+        "name": "level",
+        "type": "int",
+        "min": 1,
+        "max": 8
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "employee_code",
+        "type": "string"
+      },
+      {
+        "name": "display_name",
+        "type": "string"
+      },
+      {
+        "name": "opens_at",
+        "type": "time"
+      },
+      {
+        "name": "open",
+        "type": "bool"
+      }
+    ],
+    "leaveRequestRouting": [
+      {
+        "name": "version",
+        "type": "int",
+        "min": 1
+      },
+      {
+        "name": "routed",
+        "type": "bool"
+      },
+      {
+        "name": "steps",
+        "type": "[]leaveRouteStep",
+        "max": 8
+      },
+      {
+        "name": "fallback",
+        "type": "string",
+        "enum": ["no_eligible_reporting_line"],
+        "optional": true
+      }
+    ],
     "leaveRequestDetail": [
       {
         "name": "request",
@@ -977,6 +1097,11 @@
       {
         "name": "roster_clashes",
         "type": "[]leaveRosterClash"
+      },
+      {
+        "name": "routing",
+        "type": "leaveRequestRouting",
+        "optional": true
       }
     ],
     "leaveRequestEvent": [
@@ -1165,8 +1290,16 @@
       }
     ],
     "leaveReviewScope": [
-      { "name": "hospital_id", "type": "uuid" },
-      { "name": "name", "type": "string", "min": 1, "max": 150 }
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 150
+      }
     ],
     "leaveReviewRequest": [
       {
@@ -1240,6 +1373,13 @@
       {
         "name": "created_at",
         "type": "time"
+      },
+      {
+        "name": "route_level",
+        "type": "int",
+        "min": 1,
+        "max": 8,
+        "optional": true
       }
     ]
   },
@@ -1267,5 +1407,9 @@
     "approved": "Approved",
     "rejected": "Rejected",
     "cancelled": "Cancelled"
+  },
+  "routing_modes": {
+    "hospital": "Hospital leave desk",
+    "reporting_line": "Reporting line with escalation"
   }
 }

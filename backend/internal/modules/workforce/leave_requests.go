@@ -637,7 +637,10 @@ func (h *handlers) getLeaveRequest(c *gin.Context) {
 			return err
 		}
 		var err error
-		result, err = loadLeaveRequestDetail(tx, p.TenantID, hospital, staffID, id)
+		if result, err = loadLeaveRequestDetail(tx, p.TenantID, hospital, staffID, id); err != nil {
+			return err
+		}
+		result.Routing, err = loadLeaveRouting(tx, p.TenantID, hospital, id)
 		return err
 	})
 	if err != nil {

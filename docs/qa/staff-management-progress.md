@@ -1,5 +1,39 @@
 # Staff Management delivery tracker
 
+## Shared Staff source boundary and posting races — 2026-11-03
+
+The reusable source seam now has direct real-IAM/PostgreSQL evidence that a valid
+source command cannot be borrowed for a different tenant, subject or hospital,
+used on another owner database, or invoked after its guarded callback completes.
+None of those rejected uses reaches the product callback or creates source-use
+audit evidence; only the original authorized use commits its audit.
+
+Scoped posting retries now run behind observed PostgreSQL supervision-lock
+barriers. Identical concurrent commands return one immutable receipt and history
+revision. Concurrent conflicting intent produces one success and one 409, with
+only one business mutation audit. A source-changing identity edit queued before
+a posting retry commits first; the retry returns 403 without disclosing its
+retained receipt. Restoring the old identity fields still cannot revive the
+reviewed generation. The complementary command-before-source-ending ordering,
+source expiry/remaining assignment and membership revocation matrix, normal
+positive-role browser journeys and production acceptance remain open.
+
+These are acceptance tests for existing owner-guard behavior; no application,
+schema, permission, dependency or production configuration changed in this
+follow-up. The complete `TestPreEmploymentPersonReviewPreservesInactiveJoiner`
+parent passes with `go test -race -v -count=1 -timeout=20m` through the same private
+local runner: final duration **103.248 s**. This includes the earlier fixture
+cases needed to create and independently approve the real digital Staff actor.
+`go vet ./internal/globalapi` and affected Go lint are checked separately.
+
+An unchanged earlier employment-evidence admission scenario returned 503 after
+storage resumed on one intermediate run. Its assertion was not relaxed or
+skipped. Both unchanged subsequent parent runs passed; the intermediate failure
+is retained privately in `/tmp/helivanta-posting-globalapi-employment-admission-failure.log`.
+That intermittent failure is not claimed fixed. Runtime acceptance tags remain
+withheld. CI for `53bbd2ba` passed API/shell builds, Trivy and GitGuardian;
+deployment advancement was skipped. Full Staff Management remains incomplete.
+
 ## Scoped posting workspace candidate — 2026-11-03
 
 PR #1532 now implements the scoped Workforce reader/preparer consumer and

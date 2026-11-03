@@ -2031,6 +2031,10 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { return rollback }), rollback)
 				require.EqualValues(t, 1, sourceAudits(), "downstream rollback removes source-use evidence in the shared root transaction")
 
+				beforeEvidenceBoundary := sourceAudits()
+				assertPostingSourceEvidenceIsCommandBound(t, sourceGuard, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital)}, useSource)
+				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
+
 				for _, migration := range workforce.New().Migrations() {
 					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" {
 						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
@@ -2096,6 +2100,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "GET", failedCommandPath, recipient, nil, 404)
 				require.Equal(t, scopedReceipt, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft, recipient, nil, 200))
 				require.Len(t, call(t, "GET", scopedStaffBase+"/posting-drafts/"+scopedDraft+"/history", recipient, nil, 200)["data"], 1)
+				assertPostingConcurrentCommandsRetainOneRevision(t, db, hospital, scopedStaffBase, recipient, request, postingIntent)
 				choices := call(t, "GET", choicesPath, recipient, nil, 200)
 				uncached := request("GET", choicesPath, recipient, nil, "application/json")
 				require.Equal(t, 200, uncached.Code, uncached.Body.String())
@@ -2136,7 +2141,14 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
 				require.NoError(t, useSource(func(context.Context, authz.StaffActorReference) error { return nil }), "non-identity edits must preserve a current reviewed digital actor")
 				beforeInvalidation := sourceAudits()
-				edit("Synthetic altered identity", "+919000000004")
+				endingEnrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+				endingInput := map[string]any{"expected_version": endingEnrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": "Synthetic altered identity", "work_phone": "+919000000004"}}
+				ending, retained := startSerializedPostingRequests(t, db, hospital, request,
+					postingRaceRequest{"PUT", joinerPath + "/enrollment?hr_intake=v1", manager, endingInput},
+					postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent})
+				finishActivationRequest(t, ending, 200)
+				deniedRetained := finishActivationRequest(t, retained, 403)
+				require.NotContains(t, deniedRetained, "id", "a source change that wins the commit order withholds even a retained command receipt")
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 403)
 				called := false

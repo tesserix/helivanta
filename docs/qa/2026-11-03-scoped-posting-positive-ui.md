@@ -115,9 +115,9 @@ rerun merely to document browser observations.
 
 ## Remaining gates
 
-The remaining account/scope/negative browser matrix, including direct withdrawal
-with isolated administrator/recipient sessions, remains open. Same-session expiry
-is verified below. The earlier
+The remaining account/foreign-scope browser matrix and source-writer verification
+remain open. Same-session expiry and direct withdrawal with isolated
+administrator/recipient sessions are verified below. The earlier
 intermittent evidence-admission failure is still recorded, not claimed fixed.
 PR #1532 remains draft. Effective posting approval, transfers/supervision, contractor
 and exit/rehire lifecycle enforcement, Pharma duties/operating consumers, the
@@ -216,3 +216,66 @@ Additional private artifacts are `scoped-posting-retained-editor-expiry-proof.js
 `scoped-posting-account-change-cleared-ui.png` and
 `scoped-posting-merged-runtime-reader-ui.png`. Credentials remain private and their
 JSON was updated atomically without changing credential values.
+
+## Follow-up: direct withdrawal with isolated browser sessions
+
+A test-only second hostname on the same loopback UI supplied independent browser
+storage: `http://helivanta-admin-qa.localhost:4399`. The exact local OIDC app config
+was captured privately, then its callback/logout/allowed-origin arrays were
+extended for this one hostname. Readback verified every non-origin setting was
+unchanged. Ordinary OIDC/password login returned Admin to the second hostname
+while the original recipient tab retained its identity and open history.
+No production identity provider, credential, security policy or application
+authorization guard changed.
+
+Admin proposed a bounded synthetic preparer assignment; the independent Admin
+reviewed it through current hospital verification and projection to active v5.
+Admin returned to its isolated origin and withdrew it to v6 while the recipient's
+dirty editor remained on the original origin. The department-choice-loading case
+cleared the protected panel before Save could be clicked. That result was retained
+as loading-phase cutoff evidence rather than substituted for a ready editor.
+
+A second independently approved assignment tested the fully loaded case. The
+recipient's current department choices were loaded, a reason was entered, and
+**Save was explicitly observed enabled** before withdrawal. After the isolated
+Admin's UI visibly confirmed withdrawn v6, the recipient clicked Save in its
+unchanged session. The result was **Posting access or your account changed.
+Reopen the workspace to verify current access.** The protected Staff/editor panel
+cleared. Browser console capture did not expose the response status, so this record
+does not invent an HTTP code or claim a particular network/preflight phase.
+
+Read-only SQL confirms the same canonical Pharma Staff v2/epoch1/Inactive, draft
+v3, three distinct retained commands/revisions and three save audits. No failed
+attempt appended a revision. Only the independent Reader assignment remains
+effective; withdrawn/expired preparers retain their history. Reopening the
+workspace showed Reader and immutable v1–v3 history without Edit controls.
+
+The isolated Admin signed out and its tab closed. The original OIDC app config
+was restored and read back exactly, including removal of the test origin. The
+recipient remained signed in and its Reader recovery still passed. Additional
+private artifacts include `scoped-posting-direct-withdrawal-ui-checkpoint.json`,
+`scoped-posting-ready-editor-withdrawal-proof.json`,
+`scoped-posting-ready-withdrawal-enabled-before-ui.png`,
+`scoped-posting-ready-withdrawal-cutoff-ui.png`,
+`scoped-posting-ready-withdrawal-reader-recovery-ui.png` and the OIDC before/restore
+captures. Credential JSON was updated atomically with credentials unchanged.
+
+## Follow-up: membership and current Staff source without posting authority
+
+Admin withdrew the original Reader through normal UI to withdrawn v6, then signed
+out. Fresh recipient login succeeded and Posting preparation displayed **No
+approved posting hospitals on this page**. No protected Staff target, draft
+history or editor was visible. The source was not disabled to manufacture denial:
+read-only verification confirms active Staff v2/epoch2, matching identity epoch,
+current approved person/employment findings and generation, active reviewed login
+link v2, IAM employment basis and ordinary `staff_member` membership.
+
+All six posting assignments remain historical: five withdrawn v6 and one
+active v5 whose deadline has passed. None is currently effective. The canonical
+Pharma target remains Inactive v2/epoch1, with exactly three commands/revisions/save
+audits. Private evidence: `scoped-posting-membership-only-ui.png`,
+`scoped-posting-membership-only-proof.json` and
+`scoped-posting-membership-source-proof.json`. Credential JSON was updated
+atomically without changing credentials. This closes membership-only browser
+denial; foreign-scope/account cases and effective departmental operations remain
+separate acceptance gates.

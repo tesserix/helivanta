@@ -1,5 +1,77 @@
 # Staff Management delivery tracker
 
+## Membership alone grants no posting access — 2026-11-03
+
+Normal Admin UI withdrew the last Reader assignment to v6, preserving ordinary
+membership and the reviewed digital Staff source. Fresh recipient login and
+Posting preparation show **No approved posting hospitals on this page**, with no
+protected Staff target, draft history or editor. Read-only proof verifies active
+Staff v2/epoch2, matching identity epoch, current approved employment/person
+reviews, effective generation, active reviewed link v2 and IAM employment basis.
+Six historical assignments remain: five withdrawn and one active-but-expired;
+zero are currently effective. Canonical Pharma target and three existing
+commands/revisions/save audits remain unchanged. Private credential JSON records
+the acceptance without credential changes. See the [UI proof](2026-11-03-scoped-posting-positive-ui.md#follow-up-membership-and-current-staff-source-without-posting-authority).
+
+## Isolated-session direct withdrawal UI acceptance — 2026-11-03
+
+Direct preparer withdrawal now passes without a recipient logout/account change.
+[Detailed UI proof](2026-11-03-scoped-posting-positive-ui.md#follow-up-direct-withdrawal-with-isolated-browser-sessions)
+records a captured/restored test-only OIDC callback on a second loopback hostname.
+The proposing Admin and independent reviewer used normal login/UI there while the
+recipient retained its original session. Two bounded synthetic assignments were
+independently approved to active v5, then withdrawn to v6 through the proposer UI.
+
+The loading-department case cleared the old panel before Save was available. The
+separate fully loaded case explicitly observed current canonical choices and an
+enabled Save before withdrawal. After withdrawn v6 was visible in Admin UI, Save
+was clicked in the recipient's unchanged session. The access-change cutoff cleared
+protected Staff/editor state and required reopening. No response status was directly
+captured; no exact HTTP status is claimed from the UI text alone.
+
+Read-only persistence still shows one unchanged canonical Pharma Staff target,
+draft v3, three commands/revisions and three save audits. Reader-only discovery and
+v1–v3 history recover without Edit controls. The temporary Admin origin signed out
+and closed; its original OIDC settings were restored exactly. Credentials remain
+private and their JSON checkpoint was updated without changing credential values.
+
+All pushed-head `11cf4101` CI checks pass, including complete Go, web and E2E jobs.
+The [source-writer review](2026-11-03-posting-source-writer-review.md) now maps current
+owner locks, writers and evidence. It identified that earlier source-ending order
+cases exercise retained receipts. Two additional different-target **new draft
+write** cases now pass with exact revision/audit/source-use counts and unchanged
+target versions. The complete parent baseline passed in 329.231s. A temporary
+actor identity-epoch bypass made both new cases return 200 instead of required
+403; source-first created an unauthorized synthetic draft. Exact source bytes
+were restored and hash-verified before final validation. No application binary
+was rebuilt from the mutation.
+The first fixture inherited a retired department and was corrected to active/v0.
+The next fixture left that new department active for the following shared case;
+owner-API retirement cleanup was added without weakening pagination assertions.
+
+A subsequent run failed before assertions because its disposable PostgreSQL
+container exhausted VM disk space while committing a migration. Its log reported
+`pg_wal/xlogtemp: No space left on device`; this was not counted as a product or
+test pass. The task's captured, exited disposable fixtures were reconciled against
+exact container IDs/session labels before cleanup: **213 containers and 79 exclusive
+anonymous volumes** removed, with state retained privately in
+`owned-stopped-test-fixtures-before-cleanup-20261103.json`. Named QA/rehearsal services
+and cached images were preserved. Volume use fell from **16.47 GB to 11.45 GB**.
+All 15 named services, API/gateway readiness, UI login and persisted Staff proof
+were reverified. The private runner now captures and removes its exact disposable
+session fixtures, including startup failures; its durable private copy is
+`shared-staff-foundation-20261102/posting-test-runner.py`. The final complete Global API race suite passed in **363.724s** (22 top-level /
+130 including subtests), zero fallback forwards; its three owned disposable
+fixtures were removed. Scoped vet/lint (0 issues), full Go build, contractdocs
+check, inventory parity (784 registered / 761 unclassified) and whitespace checks
+passed. Private mutation and final-suite logs preserve the negative/positive proof.
+
+Remaining account/foreign-scope browser cases and the earlier intermittent
+evidence-admission observation remain open. Its cause is unproven; neither a
+successful rerun nor disposable-fixture cleanup is claimed as its fix. Full
+Staff, effective departmental posting and Pharma operating lifecycle acceptance
+are not implied by these results.
+
 ## Same-session expiry and refreshed local runtime — 2026-11-03
 
 The normal UI expiry case now passes. Admin proposed a separate synthetic posting

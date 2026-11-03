@@ -1743,7 +1743,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
 	var postingRegistrationPath string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -2015,7 +2015,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
 			require.NoError(t, err)
 			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
-			if scenario == "actor_enforcement" || scenario == "posting_command_first" || scenario == "posting_membership" || scenario == "posting_credential" || scenario == "posting_source_expiry" || scenario == "posting_term_expiry" {
+			if scenario == "actor_enforcement" || strings.HasPrefix(scenario, "posting_") {
 				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 				require.NoError(t, err)
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
@@ -2348,6 +2348,72 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				endingEnrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
 				endingInput := map[string]any{"expected_version": endingEnrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": "Synthetic altered identity", "work_phone": "+919000000004"}}
 				endingRequest := postingRaceRequest{"PUT", joinerPath + "/enrollment?hr_intake=v1", manager, endingInput}
+				if scenario == "posting_new_command_first" || scenario == "posting_new_source_first" {
+					target := uuid.Must(uuid.NewV7()).String()
+					targetLegacyBase := base + "/staff/" + target
+					targetScopedBase := base + "/posting-staff/" + target
+					call(t, "PUT", targetLegacyBase, maker, map[string]any{"employee_code": "SYN-POSTING-" + scenario, "display_name": "Synthetic independent posting target", "job_category": "other", "employment_status": "inactive"}, 200)
+					targetSource := call(t, "GET", targetScopedBase+"/posting-draft-source", recipient, nil, 200)
+					require.Equal(t, target, targetSource["staff_id"])
+					require.NotEqual(t, joiner, target, "ending the actor must not change the independent target's source")
+					currentDepartment, currentRevision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+					currentDepartmentInput := maps.Clone(departmentInput)
+					currentDepartmentInput["expected_version"], currentDepartmentInput["status"] = 0, "active"
+					currentDepartmentInput["code"] = "SYN-N-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-"))
+					call(t, "PUT", organizationBase+"/departments/"+currentDepartment+"/revisions/"+currentRevision, maker, currentDepartmentInput, 200)
+					t.Cleanup(func() {
+						retirement := maps.Clone(currentDepartmentInput)
+						retirement["expected_version"], retirement["status"] = 1, "retired"
+						call(t, "PUT", organizationBase+"/departments/"+currentDepartment+"/revisions/"+uuid.Must(uuid.NewV7()).String(), maker, retirement, 200)
+					})
+					newDraft, newCommand := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+					newCommandPath := targetScopedBase + "/posting-drafts/" + newDraft + "/commands/" + newCommand
+					newIntent := maps.Clone(postingIntent)
+					newIntent["staff_version"], newIntent["employment_epoch"] = targetSource["staff_version"], targetSource["employment_epoch"]
+					newIntent["department_id"], newIntent["department_revision_id"] = currentDepartment, currentRevision
+					newWrite := postingRaceRequest{"PUT", newCommandPath, recipient, newIntent}
+					beforeNewWrite := sourceAudits()
+					expectedSaved := 0
+					var written map[string]any
+					if scenario == "posting_new_command_first" {
+						writing, ending := startSerializedPostingRequests(t, db, hospital, request, newWrite, endingRequest)
+						written = finishActivationRequest(t, writing, 200)
+						require.Equal(t, target, written["staff_id"])
+						require.EqualValues(t, 1, written["version"])
+						require.Equal(t, false, written["grants_access"])
+						finishActivationRequest(t, ending, 200)
+						expectedSaved = 1
+					} else {
+						ending, writing := startSerializedPostingRequests(t, db, hospital, request, endingRequest, newWrite)
+						finishActivationRequest(t, ending, 200)
+						denied := finishActivationRequest(t, writing, 403)
+						require.NotContains(t, denied, "id", "an ended actor cannot create a draft for an otherwise unchanged target")
+					}
+					edit("", "+919000000004")
+					call(t, "PUT", newCommandPath, recipient, newIntent, 403)
+					freshPath := targetScopedBase + "/posting-drafts/" + newDraft + "/commands/" + uuid.Must(uuid.NewV7()).String()
+					freshIntent := maps.Clone(newIntent)
+					freshIntent["expected_version"] = expectedSaved
+					call(t, "PUT", freshPath, recipient, freshIntent, 403)
+					legacyReceiptPath := targetLegacyBase + "/posting-drafts/" + newDraft + "/commands/" + newCommand
+					if expectedSaved == 1 {
+						require.Equal(t, written, call(t, "GET", legacyReceiptPath, maker, nil, 200))
+						require.Len(t, call(t, "GET", targetLegacyBase+"/posting-drafts/"+newDraft+"/history", maker, nil, 200)["data"], 1)
+					} else {
+						call(t, "GET", legacyReceiptPath, maker, nil, 404)
+					}
+					require.Len(t, call(t, "GET", targetLegacyBase+"/posting-drafts", maker, nil, 200)["data"], expectedSaved)
+					unchangedTarget := call(t, "GET", targetLegacyBase+"/posting-draft-source", maker, nil, 200)
+					require.Equal(t, targetSource["staff_version"], unchangedTarget["staff_version"])
+					require.Equal(t, targetSource["employment_epoch"], unchangedTarget["employment_epoch"])
+					require.EqualValues(t, beforeNewWrite+int64(expectedSaved), sourceAudits(), "only a write committed before actor source ending retains successful-use evidence")
+					var saveAudits int64
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Table("workforce_audit").Where("action='workforce.posting_draft.saved' AND resource_id=?", newDraft).Count(&saveAudits).Error
+					}))
+					require.EqualValues(t, expectedSaved, saveAudits)
+					return
+				}
 				retainedRequest := postingRaceRequest{"PUT", scopedCommandPath, recipient, postingIntent}
 				if scenario == "posting_command_first" {
 					retained, ending := startSerializedPostingRequests(t, db, hospital, request, retainedRequest, endingRequest)

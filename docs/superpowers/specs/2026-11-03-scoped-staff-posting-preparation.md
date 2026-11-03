@@ -288,8 +288,14 @@ committed-but-lost response recovered through the original command receipt witho
 duplicate revisions/audits, preparer withdrawal with fresh-session reader-only
 history across reload, and unrelated reviewer denial. Same-session preparer expiry
 also removes a dirty editor while preserving Reader history; separate-tab sign-out
-clears the original editor to login. Direct withdrawal with isolated sessions and
-the remaining account/foreign-scope matrix still prevent full browser acceptance. No
+clears the original editor to login. Direct withdrawal in isolated browser origins
+also passes with a fully loaded editor and enabled Save, access cutoff on the
+retained save attempt, unchanged persistence and Reader recovery. Its test-only
+OIDC configuration was restored exactly. Different-target fresh-write order and actor identity-epoch mutation evidence
+now pass; the complete restored-source Global API race suite passed in 363.724s.
+Membership alone exposes no posting hospitals despite a current reviewed digital
+source. Remaining account/foreign-scope browser and release gates prevent full
+acceptance. No
 effective posting, operating duty or issue #429 completion is claimed.
 
 ### Credential and authorization failure checkpoint (2026-11-03)

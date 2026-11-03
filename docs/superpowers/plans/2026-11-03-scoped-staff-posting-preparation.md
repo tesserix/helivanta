@@ -135,7 +135,14 @@ reader-only discovery/history, and unrelated reviewer denial. One retained
 command produces one revision/audit; the local relay is removed and original
 routing restored. Same-session preparer expiry now removes a real dirty editor
 and preserves Reader history without sending a save request; cross-tab sign-out
-clears the original editor to login. Direct withdrawal with isolated sessions and
-the remaining account/foreign-scope negative matrix remain required. PR #1532
+clears the original editor to login. Direct withdrawal with isolated sessions now
+also passes: fully loaded current choices and enabled Save before withdrawal,
+access cutoff after the retained save click, unchanged draft/audit persistence,
+and Reader history recovery. The temporary origin configuration was restored.
+Different-target fresh-write ordering and actor identity-epoch mutation checks
+now pass with restored source and the complete Global API race suite (363.724s).
+Membership-only normal login also exposes no posting hospitals while all reviewed
+Staff source facts remain current. Remaining account/foreign-scope cases and
+release gates remain required. PR #1532
 stays draft; full acceptance tags and production
 promotion remain withheld pending their distinct gates and named approval.

@@ -55,3 +55,57 @@ export function pharmacyItemSalesPath(scope: PharmacyScope, from: string, to: st
 export function pharmacyReceiptsPath(scope: PharmacyScope, from: string, to: string) {
   return `${pharmacyRoot(scope)}/reports/receipts?${period(from, to)}`;
 }
+
+/** One line of a sale to a registered patient (#1060); every read is audited. */
+export type PharmacyPatientSaleLine = {
+  id: string;
+  sale_date: string;
+  sale_id: string;
+  invoice_number: string;
+  line_number: number;
+  /** The bed, when the sale was billed to an admission. */
+  admission_bed_code: string | null;
+  product_id: string;
+  sku: string;
+  brand_name: string;
+  generic_name: string;
+  pack_size: number;
+  unit_of_issue: string;
+  batch_id: string;
+  lot_number: string;
+  expires_on: string;
+  quantity_units: number;
+  mrp_minor: number;
+  discount_minor: number;
+  amount_minor: number;
+  currency: string;
+  /** Credited back on notes dated up to the period's end. */
+  returned_units: number;
+};
+
+/** A product's units sold and returned over a period, beside its stock now (#1060). */
+export type PharmacyStockSales = {
+  product_id: string;
+  sku: string;
+  brand_name: string;
+  generic_name: string;
+  pack_size: number;
+  unit_of_issue: string;
+  units_sold: number;
+  units_returned: number;
+  on_hand_units: number;
+  sellable_units: number;
+};
+
+export function pharmacyPatientSalesPath(
+  scope: PharmacyScope,
+  patientId: string,
+  from: string,
+  to: string,
+) {
+  return `${pharmacyRoot(scope)}/reports/patient-sales?patient_id=${encodeURIComponent(patientId)}&${period(from, to)}`;
+}
+
+export function pharmacyStockSalesPath(scope: PharmacyScope, from: string, to: string) {
+  return `${pharmacyRoot(scope)}/reports/stock-sales?${period(from, to)}`;
+}

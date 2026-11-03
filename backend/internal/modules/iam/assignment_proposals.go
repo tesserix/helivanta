@@ -49,6 +49,9 @@ var employmentActivationTemplatesSchema string
 //go:embed assignment_staff_posting_templates_generated.sql
 var staffPostingTemplatesSchema string
 
+//go:embed assignment_staff_posting_review_templates_generated.sql
+var staffPostingReviewTemplatesSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`

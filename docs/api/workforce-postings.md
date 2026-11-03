@@ -182,3 +182,23 @@ protection on the same canonical Pharma Staff target. See the
 [local UI proof](../qa/2026-11-03-scoped-posting-positive-ui.md). Exact response-loss
 recovery, role withdrawal and the remaining negative browser matrix still need
 acceptance; these results grant no effective posting or production authority.
+
+## In-development independent review catalog
+
+The isolated independent-review feature appends the closed
+`staff-posting-reviews-v1` catalog and additive IAM
+`0025_iam_staff_posting_review_templates`. It preserves all eight
+`staff-postings-v1` definitions byte-for-byte at the contract level, then adds:
+
+| Template                         | Additional command authority                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `workforce.posting_submitter.v1` | Draft read/preparation, proposal read/submission, current canonical department choices and reviewed Staff actor source use. |
+| `workforce.posting_reviewer.v1`  | Draft/proposal read, independent proposal review, current canonical department choices and reviewed Staff actor source use. |
+
+Neither role grants general profile editing, structure governance, operating IAM,
+clinical or Pharma authority. Reviewer excludes draft preparation and submission;
+submitter excludes independent review. This catalog is not deployed and does not
+prove functioning submission/review consumers. Their candidate command paths and
+remaining gates are in the [independent review specification](../superpowers/specs/2026-11-03-independent-staff-posting-review.md).
+The missing-route owner/Global API tests remain RED until that full vertical
+feature is implemented. No production migration or role activation occurred.

@@ -1730,7 +1730,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		require.Zero(t, reads.Load(), "revoked findings do not reach storage")
 	})
 	var postingRegistrationPath string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "posting_command_first", "posting_membership", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1752,7 +1752,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				return err == nil && standing.AssignmentID != ""
 			}, 10*time.Second, 20*time.Millisecond)
 			recipient := "synthetic-activation-recipient-" + scenario
-			call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 202)
+			recipientMembership := call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 202)
 			require.Eventually(t, func() bool { bindings, err := graph.ListRoles(ctx, recipient); return err == nil && len(bindings) > 0 }, 10*time.Second, 20*time.Millisecond)
 			joiner := uuid.Must(uuid.NewV7()).String()
 			if scenario == "uuid_staff" {
@@ -1991,7 +1991,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			permissions, err := graph.Resolve(ctx, recipient, testutil.TenantA)
 			require.NoError(t, err)
 			require.Empty(t, permissions, "activation must not grant membership roles or business permissions")
-			if scenario == "actor_enforcement" || scenario == "posting_command_first" {
+			if scenario == "actor_enforcement" || scenario == "posting_command_first" || scenario == "posting_membership" {
 				tokens[recipient], err = signer.Mint(recipient, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 				require.NoError(t, err)
 				grant(recipient, "workforce.identity_manager.v1", workforce.PermIdentityChecksManage)
@@ -2130,6 +2130,59 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.NoError(t, sourceErr)
 				require.NotEmpty(t, sourceGrant.AssignmentID)
 				require.Equal(t, scopedReceipt, call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200), "fresh independently approved preparation authority can recover an existing command without mutating its receipt")
+				assertPostingReadsDenied := func() {
+					t.Helper()
+					for _, path := range []string{
+						scopedStaffBase + "/posting-draft-source",
+						scopedStaffBase + "/posting-drafts",
+						scopedStaffBase + "/posting-drafts/" + scopedDraft,
+						scopedCommandPath,
+						scopedStaffBase + "/posting-drafts/" + scopedDraft + "/history",
+						base + "/posting-targets",
+						choicesPath,
+					} {
+						denied := call(t, "GET", path, recipient, nil, 403)
+						require.NotContains(t, denied, "data")
+					}
+				}
+				beforeLinkRevocation := sourceAudits()
+				revokedLink := call(t, "POST", loginPath+"/decision", maker, map[string]any{"expected_version": 2, "decision": "revoke", "reason": "Synthetic reviewed login-link cutoff"}, 200)
+				require.Equal(t, "revoked", revokedLink["status"])
+				stillAssigned, assignmentErr := authority.AuthorizeScope(ctx, preparationRequest)
+				require.NoError(t, assignmentErr)
+				require.NotEmpty(t, stillAssigned.AssignmentID, "login-link cutoff must be checked independently of still-active IAM preparation authority")
+				assertPostingReadsDenied()
+				call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+				require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"])
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+					t.Error("a revoked login link reached the Staff source callback")
+					return nil
+				}), authz.ErrScopedCommandDenied)
+				require.EqualValues(t, beforeLinkRevocation, sourceAudits(), "revoked-link attempts create no successful source-use audit")
+				require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200), "a login-link cutoff preserves the separately authorized historical receipt")
+				call(t, "POST", loginPath+"/decision", checker, map[string]any{"expected_version": revokedLink["version"], "decision": "approve", "reason": "Synthetic old-link replay must not reopen authority"}, 409)
+				replacementLinkID := uuid.Must(uuid.NewV7())
+				replacementLinkPath := joinerPath + "/login-links/" + replacementLinkID.String()
+				call(t, "PUT", replacementLinkPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh reviewed login-link proposal"}, 200)
+				replacementLink := call(t, "POST", replacementLinkPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic replacement link review"}, 200)
+				require.Equal(t, "active", replacementLink["status"])
+				require.Equal(t, scopedReceipt, call(t, "GET", scopedCommandPath, recipient, nil, 200), "a fresh independently approved link can disclose the retained receipt")
+				require.NoError(t, useSource(func(_ context.Context, reference authz.StaffActorReference) error {
+					require.Equal(t, replacementLinkID, reference.LinkID)
+					require.Equal(t, uuid.MustParse(joiner), reference.StaffID)
+					require.Equal(t, uuid.MustParse(activationID), reference.GenerationID)
+					return nil
+				}))
+				links := call(t, "GET", joinerPath+"/login-links", maker, nil, 200)["data"].([]any)
+				require.Len(t, links, 2)
+				for _, entry := range links {
+					row := entry.(map[string]any)
+					if row["id"] == replacementLinkID.String() {
+						require.Equal(t, "active", row["status"])
+					} else {
+						require.Equal(t, "revoked", row["status"])
+					}
+				}
 				choices := call(t, "GET", choicesPath, recipient, nil, 200)
 				uncached := request("GET", choicesPath, recipient, nil, "application/json")
 				require.Equal(t, 200, uncached.Code, uncached.Body.String())
@@ -2169,6 +2222,35 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
 				require.NoError(t, useSource(func(context.Context, authz.StaffActorReference) error { return nil }), "non-identity edits must preserve a current reviewed digital actor")
+				if scenario == "posting_membership" {
+					beforeMembershipRemoval := sourceAudits()
+					removalID := uuid.Must(uuid.NewV7()).String()
+					removal := call(t, "PUT", "/v1/iam/membership-commands/"+removalID, maker, map[string]any{"operation": "remove", "basis_id": recipientMembership["id"], "subject": recipient, "role_key": "staff_member", "expected_membership_epoch": sourceGrant.MembershipEpoch, "reason": "Synthetic posting membership cutoff"}, 202)
+					require.Greater(t, removal["result_membership_epoch"].(float64), float64(sourceGrant.MembershipEpoch))
+					require.Eventually(t, func() bool {
+						member, err := graph.IsMember(ctx, recipient, testutil.TenantA)
+						return err == nil && !member
+					}, 10*time.Second, 20*time.Millisecond)
+					call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 403)
+					require.NoError(t, graph.GrantRole(ctx, testutil.TenantA, recipient, authz.RoleStaffMember))
+					staleMember, staleErr := graph.IsMember(ctx, recipient, testutil.TenantA)
+					require.NoError(t, staleErr)
+					require.True(t, staleMember, "the fixture deliberately retains an obsolete external graph membership")
+					assertPostingReadsDenied()
+					call(t, "PUT", scopedCommandPath, recipient, postingIntent, 403)
+					require.Empty(t, call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"], "the owner filter discloses no hospital when its outer graph gate is deliberately stale")
+					require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error {
+						t.Error("ended membership reached the Staff source callback")
+						return nil
+					}), authz.ErrScopedCommandDenied)
+					call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "staff_member"}, 409)
+					require.EqualValues(t, beforeMembershipRemoval, sourceAudits(), "ended membership creates no successful source-use evidence")
+					require.Equal(t, scopedReceipt, call(t, "GET", joinerPath+"/posting-drafts/"+scopedDraft+"/commands/"+scopedCommand, maker, nil, 200))
+					staleMember, staleErr = graph.IsMember(ctx, recipient, testutil.TenantA)
+					require.NoError(t, staleErr)
+					require.True(t, staleMember, "private disclosure was denied while the obsolete graph membership was still present")
+					return
+				}
 				beforeInvalidation := sourceAudits()
 				endingEnrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
 				endingInput := map[string]any{"expected_version": endingEnrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": "Synthetic altered identity", "work_phone": "+919000000004"}}

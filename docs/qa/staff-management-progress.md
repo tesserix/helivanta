@@ -1,5 +1,45 @@
 # Staff Management delivery tracker
 
+## Shared Staff login-link and membership cutoff — 2026-11-03
+
+Real signed-session/PostgreSQL/OpenFGA cases now cover login-link revocation
+independently of IAM assignment withdrawal. The preparation assignment remains
+current after the link is revoked, but all new protected GET routes and retained
+PUT refuse access: source, list, detail, command receipt, history, Staff choices
+and department choices. Hospital discovery returns no scope. Denied attempts add
+no successful source-use audit. The revoked link cannot be reapproved. A new
+proposal and independent approval create a different active link bound to the
+same canonical Staff ID and reviewed generation; the original link remains
+revoked, and the original immutable posting receipt is unchanged and readable
+under fresh valid authority. A separately authorized administrator retains
+historical receipt access during cutoff.
+
+A third independently reviewed actor now exercises attributable tenant membership
+removal. The retained pre-removal session is refused. The fixture first observes
+normal graph membership removal, then deliberately reinstates only an obsolete
+OpenFGA role tuple (not an IAM membership row). That graph membership is verified
+present both before and after the private requests. Owner scope authorization
+still refuses every protected read/PUT and the old IAM source evidence. With the
+fixture's raw graph outer gate deliberately stale, owner-filtered discovery
+returns no hospital rows. The normal outer gate returns 403 before that stale
+fixture tuple is introduced. Legacy membership regrant is refused, failed uses
+commit no successful source-use audit, and an independent administrator still
+reads retained history. This tests owner defense in depth; it does not redefine
+production middleware's current-membership status contract or prove membership
+recovery/rehire.
+
+No application/schema/catalog/production change was needed. The complete
+`TestPreEmploymentPersonReviewPreservesInactiveJoiner` parent passes with real
+fixtures and race detection: **138.242 s** (previous membership/link run also
+passed at 137.199 s). Exact command: `python3 /tmp/helivanta-posting-test-runner.py
+./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'`
+from `backend/`; the wrapper executes `go test -race -v -count=1 -timeout=20m`.
+Vet and affected Go lint are checked separately. The broader Staff goal remains
+active and incomplete. Source-expiry/remaining credential and lifecycle variants,
+normal browser acceptance, the recorded intermittent evidence-admission failure,
+effective posting approval and product operating duties remain open. No full
+acceptance label, merge or production deployment is claimed.
+
 ## Posting source ordering and preparer downgrade — 2026-11-03
 
 Two independently reviewed digital Staff actors now exercise both PostgreSQL

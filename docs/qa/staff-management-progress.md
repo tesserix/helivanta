@@ -1,5 +1,35 @@
 # Staff Management delivery tracker
 
+## Opening leave balances — 2026-11-04
+
+#1537 (PR #1542, merge `96a47d0b`) lets HR record an opening balance for a staff
+member whose assigned leave structure has no ledger entries yet. Balance reads
+list each balance-tracked type of the structure in force on `as_of` at zero with
+`in_structure`; a correction outside that structure, or dated before any
+assignment, is refused with 400 `invalid_reference`. No routes, permissions,
+events or migrations change.
+
+Local browser acceptance on the `helivanta-dev-*` stack (API and UI built from
+`ccf60518`), Synthetic Staff QA Hospital 20261027:
+
+1. The owner assigned Synthetic Staff Annual Allowance (SYNSTRUCT2026) v1,
+   effective 2026-11-03, to SYN-FULL-UI-20261101. **Leave balances** then listed
+   Synthetic Annual Leave at 0 days with **Correct balance**, whose type picker
+   offered only that structure's types.
+2. The owner recorded a +3 day (6 half-day) opening correction effective
+   2026-11-04; the ledger showed the entry and the balance read 3 days.
+3. The structure entry is not probation-eligible, so the owner recorded start
+   date 2026-01-05 and probation end 2026-06-30, then filed 1 day of annual
+   leave for 2026-12-03.
+4. The hospital leave reviewer, a second person, approved it from **Review
+   leave** with no roster clashes. Read-only SQL shows the correction (+6) and
+   the consumption (−2), leaving 4 half-days, and a decider different from the
+   filer.
+
+CI on PR #1542 passed every required check, including the full `go` coverage
+gate (37m37s) and `e2e`. Screenshots and runtime records stay in the private
+local QA directory. Production promotion awaits named approval.
+
 ## Bounded posting role-catalog prerequisite — 2026-11-04
 
 Following the user's request for smaller releases, the first isolated change adds

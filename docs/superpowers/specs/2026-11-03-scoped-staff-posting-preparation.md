@@ -277,8 +277,12 @@ Candidate migration 0074 preserves one permissive tenant policy, restricts DELET
 and retains legacy Staff write checks. Directory reads cannot broaden exact-target
 draft context. Audit records the checked scoped assignment and digital actor.
 See the [QA ledger](../../qa/staff-management-progress.md) for evidence and open gates.
-Normal sign-in is blocked by Chrome `ERR_BLOCKED_BY_CLIENT`; no browser acceptance,
-effective posting, operating duty or issue #429 completion is claimed.
+The latest local rebuild restores normal browser sign-in. Admin/independent
+reviewer proposal and fresh-link approval work through the UI. Positive scoped
+reader/preparer acceptance remains open: the tested existing source's underlying
+employment review is revoked, so its active assignment and new link correctly
+reveal no posting hospital. No full browser acceptance, effective posting,
+operating duty or issue #429 completion is claimed.
 
 ### Credential and authorization failure checkpoint (2026-11-03)
 

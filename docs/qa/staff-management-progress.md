@@ -1,5 +1,66 @@
 # Staff Management delivery tracker
 
+## Posting department-choice UI cutoff — 2026-11-03
+
+A component regression exposed an access-change propagation gap: after a scoped
+preparer opened the editor, a 403 from the department-choice owner was treated as
+a recoverable outage. The form and enclosing Staff panel remained visible.
+The new assertion failed with `Current departments are unavailable` instead of
+the access-change cutoff. The editor now classifies department errors alongside
+save errors, and latches any editor access change into the enclosing panel.
+It clears the form and Staff label and notifies the workspace exactly once.
+A preparer downgrade therefore requires reopening under fresh discovery; it does
+not keep an old preparation panel or fall back to another route.
+
+A separate recovery test proves a 503 remains an availability failure: saving is
+disabled, a typed reason survives, and retry restores the canonical department
+choice without notifying access loss. All eight focused posting panel/workspace
+tests pass. The full shell suite passes **1,414 tests** in **328.50 s**; shell
+typecheck and full lint pass. These are rendered component/API-boundary tests,
+not normal authenticated browser acceptance.
+
+Commands actually run from the candidate worktree with cached Node 24.22.1:
+
+```sh
+pnpm --filter @helivanta/shell test 'app/(workspace)/workforce/posting-drafts-panel.test.tsx'
+pnpm --filter @helivanta/shell test 'app/(workspace)/workforce/posting-drafts-panel.test.tsx' 'app/(workspace)/workforce/posting-workspace.test.tsx'
+pnpm --filter @helivanta/shell test
+pnpm --filter @helivanta/shell type-check
+pnpm --filter @helivanta/shell lint
+```
+
+The first command was observed red before the fix and green afterward. The full
+suite log is `/tmp/helivanta-posting-shell-access-cutoff-tests.log`. No backend,
+permission, canonical schema or migration changed. Normal-role browser acceptance
+and the broader effective-posting/departmental/Pharma gates remain open.
+
+Local build preflight additionally found the existing UI listener's `.next`
+directory absent, with `/login` returning HTTP 500. It stopped before mutation.
+The owned loopback fixture was rebuilt from source with `next build --webpack`,
+restarted on 127.0.0.1:4399 and verified with login HTTP 200. The production-style
+build passed with the existing webpack export/standalone-tracing warnings; those
+warnings are not claimed resolved. Capture, build/server logs and runtime metadata
+are private under `shared-staff-foundation-20261102/`. Production is unchanged.
+
+Normal browser navigation and sign-in now work; Chrome's prior
+`ERR_BLOCKED_BY_CLIENT` is not a current blocker. Admin and independent reviewer
+sessions completed a short-lived reader proposal and independent approval through
+the UI, reaching active version 5. The recipient still had a revoked historical
+login link. A fresh link was proposed and independently approved through the UI,
+retaining the old revoked link. The recipient's normal session still revealed no
+posting hospital. Read-only SQL established the source reason: its underlying
+employment review is revoked. IAM allows both posting-read and Staff-actor-use;
+identity/employment epochs match, so neither an active assignment, fresh link nor
+an Active Staff snapshot revives that revoked review. No source fact was rewritten
+to force positive acceptance.
+
+The private `posting-reader-ui-checkpoint.json` and the updated existing
+`local-staff-ui-qa.json` retain canonical IDs, observed states and screenshots;
+credentials remain outside Git. All business mutations used normal UI; persistence
+verification was read-only. Positive eligible reader/preparer create/edit/history/
+retry and the full browser matrix remain open. A newly reviewed source is required
+for those positive cases. Draft PR #1532 remains unmerged and no E2E tag is applied.
+
 ## Posting credential cutoff and authorization availability — 2026-11-03
 
 Extended the scoped posting acceptance fixture with administrator credential

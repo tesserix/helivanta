@@ -123,6 +123,9 @@ Workforce exposes separate `/posting-staff/:id` routes and bounded workspace/tar
 discovery; current department choices are guarded by Organization. Migration
 0074 retains the tenant-policy validator and denies scoped Staff writes/deletes.
 SDK/UI tests distinguish reader/preparer behavior and the scoped save path.
-Task 6 remains acceptance work: normal sign-in was blocked by Chrome, so PR #1532
-stays draft and runtime acceptance tags are withheld. The remaining source/commit-
-order/revocation matrix and named production approval remain required.
+Normal-role acceptance remains open. The latest local build restores browser
+sign-in and Admin/independent-reviewer proposal/link approval. The tested reader's
+existing employment review is revoked; its active assignment and fresh link
+correctly reveal no hospital. Positive eligible reader/preparer acceptance needs
+a newly reviewed source. PR #1532 stays draft and runtime acceptance tags remain
+withheld; the remaining matrix and named production approval remain required.

@@ -2,6 +2,30 @@
 
 ## Posting decision validation checkpoint — 2026-11-04
 
+The API/SDK slice is committed and pushed in draft [PR #1544](https://github.com/tesserix/helivanta/pull/1544),
+code commit `80dbc610`, on top of merged documentation `6a09287c`. The full
+restored Global API race suite passed in **411.298s** and removed its three
+owned disposable fixtures. That binary preceded the rebase which inherited
+main's separate Leave change `96a47d0b`; its posting implementation is unchanged.
+The inherited delta is six Leave implementation/test/contract files. Do not
+represent the preceding complete-package results as complete-package execution
+of that inherited delta.
+
+On combined code head `80dbc610`, all **625 SDK tests / 78 files**, API typecheck
+and lint under cached Node **24.11.1**, full Go build, scoped vet/golangci-lint and
+contractdocs check passed again. Cached dependencies were linked with local
+API/config sources and an identical lockfile, without installation. The current
+head's complete Workforce race suite is now running, and combined-head CI is
+pending. Both the staged and committed secret scans passed. Main's complete
+tracker and catalog review rationales were retained through the rebase.
+
+The draft does not request production rollout. Its nine new surfaces remain
+unclassified. Historical-alias proof, protected proposal context, hospital inbox,
+normal reviewer UI, supervision and positive approval remain open, alongside
+broader departmental/lifecycle consumer work. No full Staff completion label is
+warranted.
+
+
 The candidate is now isolated on `codex/scoped-posting-proposals-20261104`, based
 on current main; 1,498 tracked backend/API/contract/script files and all 27 changed
 source hashes matched the tested worktree before the expiry fixture correction.
@@ -26,7 +50,7 @@ expected a timeout message, so its stricter text oracle also failed. Inspection
 confirmed the actual mutation failure at the intended expiry response assertion.
 Original shared-command bytes were restored and SHA256 verified; no production
 clock, timeout or authorization behavior changed. The full restored-source API
-suite is running again; no new full-package pass is claimed yet.
+suite subsequently passed in 411.298s, before the separate Leave rebase noted above.
 
 
 The complete architecture race suite passed in **56.617s**, including migration,

@@ -124,3 +124,14 @@ Moving only the shared source timer one hour late failed with 503 versus expecte
 403, demonstrating the corrected test still detects that protocol regression.
 The original timer bytes were restored and verified. Production runtime code and
 source cutoff semantics were not changed by the fixture correction.
+
+
+The restored full Global API race suite subsequently passed in 411.298s. The
+candidate is committed in draft PR #1544 (`80dbc610`). A rebase preserved main's
+separate Leave change 96a47d0b; only six inherited Leave implementation/test/
+contract files differ from the pre-rebase runtime source, and posting source
+bytes are unchanged. Current-head SDK625, typecheck/lint, Go build, scoped vet/
+lint, contractdocs check and committed secret scan passed. Complete-package
+pre-rebase results are not represented as complete-package runs of those new
+Leave changes. Current-head Workforce and combined CI validation remain pending.
+The API candidate still has no production or normal reviewer UI acceptance.

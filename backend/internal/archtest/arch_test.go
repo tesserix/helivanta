@@ -370,6 +370,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /iam/staff-access-templates":                                                                                      "finite canonical catalogue of three versioned templates, no tenant record collection",
 	"GET /workforce/hospitals/:hospital/identity-staff/:id":                                                                "one current identity review source for an authorized staff UUID",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/schedule":                                   "one product's class in force with its last 50 declarations",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control":                              "one product's NPPA price control in force with its last 50 declarations",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes/:id":                                                  "one credit note: its lines, at most the 200 batch lines of one sale; the list is paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id":                                              "one payment request by id, not a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund":                                       "one immutable full unused-payment refund receipt per request; database primary key, not a collection",

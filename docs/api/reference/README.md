@@ -38,6 +38,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
 | POST | `/v1/iam/subjects/:subject/revoke` | `iam.credential.revoke` | false | false |

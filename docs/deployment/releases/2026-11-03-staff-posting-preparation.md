@@ -95,3 +95,27 @@ remains proposed.
 See [posting contract](../../api/workforce-postings.md), [progress
 tracker](../../qa/staff-management-progress.md) and [effective posting
 plan](../../superpowers/plans/2026-11-02-effective-staff-postings.md).
+
+## Scoped posting-role follow-up candidate — not deployed
+
+The `feat/scoped-posting-actors-20261103` follow-up adds immutable reader/preparer
+catalogs through append-only IAM migration `0024_iam_staff_posting_templates`, a
+bounded assignment-family list, exact SDK/admin catalog support and a shared
+Workforce guard for current reviewed digital Staff eligibility. Earlier catalog
+snapshots and the deployed legacy draft admission above remain unchanged.
+
+The real reviewer/employment workflow exercises successful actor consumption,
+non-identity-edit compatibility, identity-change invalidation and source-use
+audit rollback. Full IAM/Workforce race suites, 596 SDK tests, 1,409 shell tests,
+62 generator/inventory checks, typechecks and affected build/vet/lint passed.
+The [current tracker](../../qa/staff-management-progress.md) records exact commands
+and bootstrap/architecture results. The configured webpack build passed
+with inherited React Hook Form export and external-cache standalone tracing
+warnings; it does not establish a portable deployment artifact.
+
+This candidate is not a release or approval request. Narrow department choices,
+scoped draft consumers and their purpose RLS, bounded discovery, source-ending /
+ordering coverage and normal positive-role browser acceptance remain open.
+No production migration, rollout, new operating permission, acceptance label or
+issue closure was performed for this follow-up. The approved production revision
+and migration above apply only to PR #1524.

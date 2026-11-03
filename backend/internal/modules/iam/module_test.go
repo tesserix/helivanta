@@ -11,7 +11,7 @@ import (
 
 func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	migs := iam.New(nil).Migrations()
-	require.Len(t, migs, 23)
+	require.Len(t, migs, 24)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -40,6 +40,8 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.NotEmpty(t, migs[21].SQL)
 	require.Equal(t, "0023_iam_employment_bases", migs[22].ID)
 	require.NotEmpty(t, migs[22].SQL)
+	require.Equal(t, "0024_iam_staff_posting_templates", migs[23].ID)
+	require.NotEmpty(t, migs[23].SQL)
 }
 
 // TestSystemRolesMatchesAuthzRegistry pins iam.SystemRoles() to

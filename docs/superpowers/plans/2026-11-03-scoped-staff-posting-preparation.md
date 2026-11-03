@@ -100,3 +100,18 @@ operating enforcement; complete Staff audit/export and end-to-end role coverage.
 Each remains a tracked implementation/acceptance obligation after scoped
 preparation, with jurisdictional professional policy reviewed under the relevant
 India primary-source gates before activation.
+
+## Development checkpoint — 2026-11-03
+
+The candidate now contains append-only reader/preparer catalogs, a distinct
+posting assignment list, SDK/admin catalog discovery and a Workforce current
+actor guard. Catalog/projection, unavailable/malformed-catalog UI and historical
+link rejection have local regression evidence in the [tracker](../../qa/staff-management-progress.md).
+The historical-link integration exercises real independent IAM approval rather
+than minting source-use evidence outside IAM. Prior catalogs remain unchanged.
+
+These components do not check off cycles 1–5 or their release gates: guard
+consumer composition, current department choices, posting-purpose
+RLS, discovery, positive digital-actor and command ordering tests, normal scoped
+browser acceptance and production rollout remain unfinished. No standalone
+foundation component is to be merged/deployed as completed posting acceptance.

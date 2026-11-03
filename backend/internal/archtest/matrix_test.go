@@ -188,6 +188,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	authz.StaffActorUse:              {authz.RoleTenantAdmin},
 	organization.PermStructureRead:   {authz.RoleTenantAdmin},
 	organization.PermStructureManage: {authz.RoleTenantAdmin},
 	privacy.PermOfficerManage:        {authz.RoleTenantAdmin},

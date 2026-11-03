@@ -1,5 +1,122 @@
 # Staff Management delivery tracker
 
+## Scoped posting catalogs and actor boundary candidate — 2026-11-03
+
+Work continues in `feat/scoped-posting-actors-20261103`; this is an unmerged,
+unreleased candidate. Full Staff Management and departmental acceptance remain
+incomplete: **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+No completion percentage is inferred from test counts.
+
+- Added append-only IAM migration `0024_iam_staff_posting_templates` from
+  `contracts/staff-access.json`, preserving earlier catalog snapshots. The
+  `staff-postings-v1` catalog introduces distinct hospital posting reader and
+  preparer templates. Both include Workforce's current-actor source-use
+  permission; neither grants operating posting approval or structure management.
+- Real PostgreSQL/OpenFGA catalog/projection tests pass for both complete
+  permission snapshots. The reused projection fixture originally synthesized a
+  single permission; it now reads the full published template. The source-use
+  permission has an explicit Workforce declaration and independent matrix entry.
+  Source use still requires exact current IAM callback evidence: a tenant-wide
+  permission alone cannot consume the guard.
+- SDK posting-family reads previously resolved to `/api/v1undefined`. Both new
+  regression cases reproduced that defect and pass with the explicit bounded
+  posting assignment endpoint. Assignment administration offers the two
+  templates only when the server's exact immutable catalog matches. Four UI
+  regressions were observed failing before implementation; missing, duplicated
+  and broader catalogs remain unavailable.
+- Workforce's candidate actor guard rejects absent IAM evidence and historical
+  reviewed links without digital employment generations. The historical-link
+  test now uses a real independently proposed/approved/projected IAM assignment
+  in bootstrap. An earlier test setup issued evidence directly from Workforce;
+  the architecture gate rejected it and that setup was replaced without widening
+  the issuer allowlist. A resource-contention timeout occurred on the first real
+  fixture run; the subsequent exact test passed. No source-use audit is retained
+  on denial and the historical link remains active for its existing consumers.
+- Canonical generators, contractdocs generation/check, SDK/shell typechecks,
+  596 SDK tests, 45 assignment UI tests, affected Go build/vet/lint and 62
+  template/inventory script tests passed. The full shell suite (1,409 tests), Global API reviewer/employment parent
+  workflow, full IAM/Workforce/bootstrap race suites and architecture checks passed.
+- The configured webpack production build passed using the existing cached
+  dependencies. The first build lacked `API_URL`; the configured Turbopack build
+  then refused dependencies linked outside this worktree. Webpack emitted
+  existing React Hook Form export warnings and warned that 27 external-cache
+  files were omitted from standalone tracing. This build is not evidence of a
+  portable deployment artifact. No dependency download/install was performed.
+- Reviewed source diffs before refreshing 39 pins: IAM adds only the forward
+  catalog migration in its module file; Workforce adds the source-use permission;
+  link/generation helpers preserve existing historical compatibility while
+  exposing current generation deadlines for the new boundary. Inventory remains
+  769 registered surfaces, 746 unclassified, with no additional runtime acceptance.
+
+The owner-provider seam is now registered in production bootstrap and the local
+test harness through the shared typed interface. The complete real reviewer /
+reviewed digital-employment parent workflow passed with successful actor use,
+non-identity-edit compatibility and changed/restored identity rejection under a
+still-live IAM assignment. The success/rollback/denial audit assertions also pass in the complete parent
+workflow rerun. No normal browser journey or posting consumer is implied by
+that boundary test.
+
+Local infrastructure verification: the first broad run found an outdated
+23-migration assertion (fixed to include exact migration 24). Later broad runs
+reported connection refusal and timing failures. A fresh OpenFGA container
+returned HTTP 200 inside the `helivanta-tests` VM but its Mac published port
+refused connections; Lima logged failed SSH forwarding. Restarting only the VM's
+`lima-guestagent` restored fresh fixture health. A diagnostic loopback port also
+collided with the separate withdrawal VM's existing SSH forward, which was left
+untouched. The private sequential runner captures only its own fixture metadata,
+stops its test containers and removes any fallback loopback forward after each
+package. Subsequent successful workflow runs used **zero** fallback forwards.
+Named local QA services, images, volumes and the other VM were preserved. Recovery
+metadata is at `/tmp/helivanta-posting-20261103-test-container-state.json`; runtime
+logs and the temporary runner are under `/tmp/helivanta-posting-*`. No production
+infrastructure was changed. Run the complete
+`TestPreEmploymentPersonReviewPreservesInactiveJoiner` parent: the legacy nested
+activation fixture depends on preparer grants seeded by earlier parent cases.
+
+Commands actually run for this candidate (the private sequential wrapper supplies
+only the local Docker socket, records logs and stops its own fixtures):
+
+```sh
+# backend/; the private runner exports these local fixture settings
+export DOCKER_HOST=unix:///Users/samyakrout/.colima/helivanta-tests/docker.sock
+export TESTCONTAINERS_RYUK_DISABLED=true
+go test -race -v -count=1 -timeout=20m ./pkg/authz
+go test -race -v -count=1 -timeout=20m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'
+go test -race -v -count=1 -timeout=20m ./internal/modules/iam
+go test -race -v -count=1 -timeout=20m ./internal/modules/workforce
+go test -race -v -count=1 -timeout=20m ./internal/bootstrap
+go test -race -v -count=1 -timeout=20m ./internal/archtest
+go run ./cmd/contractdocs
+go run ./cmd/contractdocs -check
+go build ./...
+go vet ./internal/globalapi ./internal/bootstrap ./internal/platform ./internal/modules/iam ./internal/modules/workforce ./pkg/authz
+golangci-lint run ./internal/globalapi/... ./internal/bootstrap/... ./internal/platform/... ./internal/modules/iam/... ./internal/modules/workforce/... ./pkg/authz/...
+
+# repository root; Node 24.22.1 from the existing mise cache
+pnpm --filter @helivanta/api exec vitest run
+pnpm --filter @helivanta/shell test
+pnpm --filter @helivanta/api type-check
+pnpm --filter @helivanta/shell type-check
+pnpm --filter @helivanta/api lint
+pnpm --filter @helivanta/shell lint
+API_URL=http://127.0.0.1:8199 pnpm --filter @helivanta/shell exec next build --webpack
+node --test scripts/staff-template-migrations.test.mjs scripts/staff-operational-access-inventory.test.mjs
+node scripts/generate-staff-access.mjs --check
+node scripts/staff-operational-access-inventory.mjs --check
+git diff --check
+```
+
+Still required before merge/release: compose the registered owner guard in
+both real consumers; narrow current Organization department choices; posting
+read/preparation admission and purpose RLS; bounded hospital/Staff discovery;
+exact SDK projections; real digital-actor positive/negative, source-ending and
+rollback/race coverage; and normal Admin, independent reviewer, preparer and
+reader browser journeys with persistence checks. The existing browser tab is
+still the earlier posting-draft build and logged out; inspecting it does not
+count as acceptance of this candidate. No production rollout or database
+migration was performed. Effective postings, supervision/transfers, contractors,
+suspension/end/resume/rehire and Pharma operating consumers remain parent work.
+
 ## Shared cutoff merged; scoped actor evidence candidate — 2026-11-03
 
 [PR #1530](https://github.com/tesserix/helivanta/pull/1530) merged as

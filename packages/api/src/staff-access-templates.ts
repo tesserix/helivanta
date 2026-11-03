@@ -47,6 +47,27 @@ export const staffAccessTemplates = [
     family: "activation",
     permissions: ["workforce.employment.activate"],
   },
+  {
+    key: "workforce.posting_reader.v1",
+    name: "Staff posting reader",
+    description:
+      "Read hospital Staff posting preparation and retained history using a current reviewed digital Staff actor; cannot edit profiles, prepare postings or grant access.",
+    family: "posting",
+    permissions: ["workforce.posting.read", "workforce.staff_actor.use"],
+  },
+  {
+    key: "workforce.posting_preparer.v1",
+    name: "Staff posting preparer",
+    description:
+      "Prepare non-operating hospital Staff posting drafts against current department choices using a reviewed digital Staff actor; cannot approve employment or postings, manage structure or grant operating access.",
+    family: "posting",
+    permissions: [
+      "workforce.posting.read",
+      "workforce.posting.prepare",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -74,5 +95,15 @@ export const staffAccessTemplateCatalogs = {
     "workforce.hr_intake.v1",
     "workforce.employment_reviewer.v1",
     "workforce.employment_activator.v1",
+  ],
+  "staff-postings-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
   ],
 } as const;

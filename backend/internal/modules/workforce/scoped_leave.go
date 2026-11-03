@@ -51,6 +51,14 @@ type reviewedLeaveActor struct {
 }
 
 func lockReviewedLeaveActor(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) (reviewedLeaveActor, error) {
+	actor, err := lockStaffActorLink(tx, p, hospital)
+	if err != nil {
+		return actor, err
+	}
+	return actor, validateGenerationActor(tx, p, hospital, actor)
+}
+
+func lockStaffActorLink(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) (reviewedLeaveActor, error) {
 	var first, current reviewedLeaveActor
 	if err := tx.Exec(`SELECT set_config('app.workforce_leave_actor_check','authorized',true)`).Error; err != nil {
 		return current, err
@@ -79,9 +87,6 @@ func lockReviewedLeaveActor(tx *gorm.DB, p authn.Principal, hospital uuid.UUID) 
 	}
 	if current != first {
 		return current, gorm.ErrRecordNotFound
-	}
-	if err := validateGenerationActor(tx, p, hospital, current); err != nil {
-		return current, err
 	}
 	return current, nil
 }

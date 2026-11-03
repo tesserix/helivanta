@@ -88,6 +88,63 @@ test("unchanged catalog regenerates and checks without changing public artifacts
   assert.deepEqual(after, before);
 });
 
+test("posting catalogs refuse incomplete, duplicated and expanded reader/preparer authority before writes", async (t) => {
+  for (const [key, permissions] of [
+    ["workforce.posting_reader.v1", ["workforce.posting.read"]],
+    [
+      "workforce.posting_reader.v1",
+      ["workforce.posting.read", "workforce.posting.prepare", "workforce.staff_actor.use"],
+    ],
+    ["workforce.posting_reader.v1", ["workforce.posting.read", "workforce.posting.read"]],
+    [
+      "workforce.posting_preparer.v1",
+      ["workforce.posting.read", "workforce.posting.prepare", "workforce.staff_actor.use"],
+    ],
+    [
+      "workforce.posting_preparer.v1",
+      [
+        "workforce.posting.read",
+        "workforce.posting.prepare",
+        "organization.structure.manage",
+        "workforce.staff_actor.use",
+      ],
+    ],
+    [
+      "workforce.posting_preparer.v1",
+      [
+        "workforce.posting.read",
+        "workforce.posting.prepare",
+        "organization.posting_choices.read",
+        "workforce.staff_actor.use",
+        "workforce.payroll.approve",
+      ],
+    ],
+  ]) {
+    await t.test(`${key}: ${permissions.join(",")}`, async (t) => {
+      const { dir, contract, contractPath } = await fixture(t);
+      const before = await Promise.all(
+        artifacts.map((file) => readFile(path.join(dir, file), "utf8")),
+      );
+      const template = contract.template_migrations
+        .flatMap((migration) => migration.templates)
+        .find((template) => template.key === key);
+      assert.ok(template);
+      template.permissions = permissions;
+      await writeFile(contractPath, JSON.stringify(contract));
+      const result = generate(dir);
+      assert.notEqual(result.status, 0);
+      assert.match(
+        result.stderr,
+        /Posting templates require their exact reader\/preparer and Staff source permissions/,
+      );
+      const after = await Promise.all(
+        artifacts.map((file) => readFile(path.join(dir, file), "utf8")),
+      );
+      assert.deepEqual(after, before);
+    });
+  }
+});
+
 async function extension(contract) {
   const sql = await readFile(
     path.join(root, "backend/internal/modules/iam/testdata/staff_template_append.sql"),

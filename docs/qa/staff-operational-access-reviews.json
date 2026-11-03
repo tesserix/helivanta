@@ -166,7 +166,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -196,12 +196,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -235,7 +235,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -275,12 +275,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -314,7 +314,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -339,12 +339,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -378,7 +378,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -403,12 +403,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -442,7 +442,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -467,12 +467,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -506,7 +506,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -551,12 +551,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -590,7 +590,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -650,12 +650,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -685,11 +685,11 @@
       "registration_sha256": "46cdb47d412ae4d5f87d08e9466a229c7cfe26b5f59747cf1501bb0a51b74e17",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-      "rationale": "Guarded hospital capability discovery under the verified subject’s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations.",
+      "rationale": "Guarded hospital capability discovery under the verified subject\u2019s current reviewed active Staff/login link. The bounded scan preserves filtered empty-page continuation. Preparation requires both scoped HR intake grants; review requires the independent employment permission. Separate guarded checks preserve the existing compound limit and every released capability is audited. No legacy authority or employment activation is inferred. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -704,12 +704,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -743,7 +743,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -763,12 +763,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -798,11 +798,11 @@
       "registration_sha256": "f57280645ede9d20f4ba39e5b79eee2334e96dbb02fa7957a2fbaff188ea70a4",
       "authority_kind": "hospital_operational",
       "resource_scope": "Verified tenant and original caller, current hospital-scoped reviewed actor; findings are additionally bound to one exact Staff source.",
-      "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding’s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations.",
+      "rationale": "A bounded preparer-only candidate scan and second guarded filtering phase require the same original compound scoped HR assignment, reviewed actor link and selected Staff version/epoch. Each approved finding\u2019s exact revision, identity basis, expiry and released evidence/provenance is rechecked before an audited minimal selector projection. Only selected finding evidence metadata is admitted internally; the route returns no files, identity evidence, author profile or capabilities. It does not grant general identity-review or operational authority. The shared admission helper now accepts the owner compound guard and preserves hospital supervision-before-actor lock order. Generation-bound actor reads restore private owner purpose contexts before caller work; current IAM basis rejects stale assignment proposals and bounds effective time. This source review does not establish complete lifecycle acceptance. The shared transaction guard shape lives in pkg/authz alongside the existing scoped guards; module contract packages remain data-only. Source rechecked on 2026-11-02: organization reference migration 0069, publication and consumer wiring are additive; this reviewed route registration and its permissions are unchanged. New organization surfaces remain unclassified and all runtime obligations remain open. Source rechecked for credential correction 0071/0072: only the module migration embed/manifest changed; registered routes, permission declarations and the reviewed actor guard are byte-identical. The new credential guard rejects related-subject decisions and serializes login-link inserts without granting authority. Classification and remaining lifecycle obligations are unchanged. Source rechecked for the local posting-preparation candidate 0073: the module adds six distinct draft routes, workforce.posting.prepare, one ID-only event and closed structural-owner dependency wiring. Every prior route registration, grant and migration record was compared to the preceding inventory and is unchanged; existing handler source pins remain unchanged. New preparation uses a legacy explicit hospital manager/reader and does not reuse or weaken the scoped reviewed-employment actor guards. This is a changed module surface, not a migrations-only pin refresh; new draft routes are separately classified with their own open lifecycle and UI obligations.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -832,12 +832,12 @@
         },
         {
           "path": "backend/internal/modules/workforce/scoped_leave.go",
-          "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+          "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
           "symbol": "func lockReviewedLeaveActor("
         },
         {
           "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-          "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+          "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
           "symbol": "func validateGenerationActor("
         },
         {
@@ -871,7 +871,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "59ce030d423e6c4abbc8cddd2e787ace8ac674e9506f4a15a8a87dd782bac275",
+          "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -895,12 +895,12 @@
       "id": "http iam POST /v1/auth/session/activity",
       "registration_sha256": "32a6b108e5f8d60109a85dac6bd2ad376bcabf21c4870fcdbc6f97d2b022f87b",
       "authority_kind": "mixed",
-      "resource_scope": "Authenticated caller’s own subject and existing tenant claim; no target subject or hospital is accepted.",
+      "resource_scope": "Authenticated caller\u2019s own subject and existing tenant claim; no target subject or hospital is accepted.",
       "rationale": "Activity extends only the signed idle deadline while retaining subject, tenant and original authentication time. Entry credential verification still checks revocation and idle expiry. It does not inspect employment or require tenant membership. Shared governance and operational session use makes this mixed authority, not an employment exemption or a grant.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "59ce030d423e6c4abbc8cddd2e787ace8ac674e9506f4a15a8a87dd782bac275",
+          "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -924,12 +924,12 @@
       "id": "http iam POST /v1/iam/me/sign-out",
       "registration_sha256": "591fcb4cdb5035f951e633928f1261d54eaee7abef6fb09ef9ff36b6d1c218d0",
       "authority_kind": "mixed",
-      "resource_scope": "Authenticated caller’s global credential subject, across every device and tenant; no target subject is accepted.",
+      "resource_scope": "Authenticated caller\u2019s global credential subject, across every device and tenant; no target subject is accepted.",
       "rationale": "Self sign-out writes a global subject revocation watermark and invalidation intent in one transaction, then invalidates the serving replica cache. It remains available after tenant membership removal. This shared credential termination is mixed authority and is unsuitable as a hospital suspension or exit mechanism because its effect crosses hospital and tenant boundaries.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "59ce030d423e6c4abbc8cddd2e787ace8ac674e9506f4a15a8a87dd782bac275",
+          "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -958,7 +958,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -992,7 +992,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1026,7 +1026,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1075,7 +1075,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1109,7 +1109,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1143,7 +1143,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+          "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
           "symbol": "func (*Module) Routes("
         },
         {

@@ -118,3 +118,31 @@ review/effective activation remain open. Migration 0073 and this slice were spec
 Preparing these drafts does not complete effective transfers, supervisor changes, contractors, independent
 posting approvals, Pharma professional duties, standalone employers or operating
 lifecycle enforcement.
+
+## Unreleased scoped-role foundation
+
+The candidate `staff-postings-v1` access catalog is owned by
+`contracts/staff-access.json` and installed by the additive IAM migration
+`0024_iam_staff_posting_templates`. Earlier catalog snapshots are unchanged.
+`GET /v1/iam/posting-assignment-proposals` is the separate bounded posting-family
+list, under the same current proposal-management/review authority as other IAM
+assignment families. The SDK and assignment administration use that endpoint.
+
+The reader snapshot contains `workforce.posting.read` and
+`workforce.staff_actor.use`. The preparer adds `workforce.posting.prepare` and
+`organization.posting_choices.read`. Catalog publication and graph projection
+do not activate either runtime consumer. The currently deployed six draft
+routes above retain their existing preparation permission and explicit hospital
+grant. The candidate source guard additionally requires IAM's exact active
+callback-bound source-use grant, a current reviewed link and effective digital
+employment generation for the same subject and hospital. It constrains the
+shared root command to the earliest owner source end and audits successful use;
+denial rolls back the source-use audit. Historical links without generations
+remain compatible with existing consumers and are refused by this new guard.
+
+The provider is registered in bootstrap and the test harness. Consumer composition,
+narrow department choices, scoped posting-purpose RLS,
+discovery and positive-role browser acceptance remain open. This section
+announces no enabled route, effective posting or production rollout. See the
+[delivery tracker](../qa/staff-management-progress.md) for actual verification
+and remaining release gates.

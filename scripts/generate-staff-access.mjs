@@ -46,6 +46,22 @@ for (const migration of migrations) {
   files.add(migration.file);
   const introducedDefinitions = [];
   for (const template of migration.templates) {
+    if (template?.family === "posting") {
+      const kind = template.key?.match(/^workforce\.posting_(reader|preparer)\.v[1-9][0-9]*$/)?.[1];
+      const permissions = {
+        reader: ["workforce.posting.read", "workforce.staff_actor.use"],
+        preparer: [
+          "workforce.posting.read",
+          "workforce.posting.prepare",
+          "organization.posting_choices.read",
+          "workforce.staff_actor.use",
+        ],
+      }[kind];
+      if (!permissions || JSON.stringify(template.permissions) !== JSON.stringify(permissions))
+        throw new Error(
+          "Posting templates require their exact reader/preparer and Staff source permissions",
+        );
+    }
     if (
       template?.family === "employment" &&
       JSON.stringify(template.permissions) !== JSON.stringify(["workforce.employment.review"])
@@ -66,7 +82,9 @@ for (const migration of migrations) {
       template.key.length > templateLimits.key ||
       !/^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key) ||
       keys.has(template.key) ||
-      !["leave", "identity", "intake", "employment", "activation"].includes(template.family) ||
+      !["leave", "identity", "intake", "employment", "activation", "posting"].includes(
+        template.family,
+      ) ||
       typeof template.name !== "string" ||
       !template.name ||
       template.name.length > templateLimits.name ||
@@ -77,8 +95,12 @@ for (const migration of migrations) {
       (template.family === "intake"
         ? JSON.stringify(template.permissions) !==
           JSON.stringify(["workforce.enrollment.manage", "workforce.documents.manage"])
-        : template.permissions.length !== 1) ||
-      !template.permissions.every((permission) => /^workforce\.[a-z_.]+$/.test(permission))
+        : template.family !== "posting" && template.permissions.length !== 1) ||
+      !template.permissions.every(
+        (permission) =>
+          /^workforce\.[a-z_.]+$/.test(permission) ||
+          (template.family === "posting" && permission === "organization.posting_choices.read"),
+      )
     )
       throw new Error("Invalid declared staff access template");
     keys.add(template.key);

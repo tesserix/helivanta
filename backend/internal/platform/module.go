@@ -44,6 +44,7 @@ type RoleLister interface {
 // Deps is everything a module may depend on. Modules must not reach
 // around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
+	StaffActors          authz.CurrentStaffActorGuard
 	DepartmentReferences authz.DepartmentReferenceGuard
 	ScopedAuthorizer     authz.ScopedAuthorizer
 	OrganizationIdentity *organizationidentity.Client

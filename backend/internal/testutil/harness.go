@@ -321,6 +321,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		scopedAuthorizer = opts.ScopedAuthorizer(db)
 	}
 	deps := platform.Deps{
+		StaffActors:                 platform.StaffActors(opts.Modules, db),
 		DepartmentReferences:        platform.DepartmentReferences(opts.Modules, db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: opts.EmploymentActivationEnabled,

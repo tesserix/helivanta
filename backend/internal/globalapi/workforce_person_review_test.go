@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -1997,6 +1998,37 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "PUT", loginPath, maker, map[string]any{"subject": recipient, "reason": "Synthetic fresh generation login proposal"}, 200)
 				call(t, "POST", loginPath+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic generation login review"}, 200)
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
+				grant(recipient, "workforce.posting_reader.v1", authz.StaffActorUse)
+				sourceRequest := authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: authz.StaffActorUse}
+				sourceGrant, sourceErr := authority.AuthorizeScope(ctx, sourceRequest)
+				require.NoError(t, sourceErr)
+				sourceGuard := platform.StaffActors(modules, db)
+				require.NotNil(t, sourceGuard)
+				useSource := func(callback func(context.Context, authz.StaffActorReference) error) error {
+					return authority.(authz.CompoundScopedCommandGuard).WithScopeGrants(ctx, []authz.ScopeCheck{{Request: sourceRequest, Grant: sourceGrant}}, time.Now(), func(commandCtx context.Context) error {
+						return sourceGuard.WithCurrentStaffActor(commandCtx, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital)}, callback)
+					})
+				}
+				require.NoError(t, useSource(func(_ context.Context, source authz.StaffActorReference) error {
+					require.Equal(t, uuid.MustParse(joiner), source.StaffID)
+					require.NotEqual(t, uuid.Nil, source.LinkID)
+					require.NotEqual(t, uuid.Nil, source.GenerationID)
+					require.Positive(t, source.LinkVersion)
+					require.Positive(t, source.EmploymentEpoch)
+					return nil
+				}))
+				sourceAudits := func() int64 {
+					t.Helper()
+					var count int64
+					require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+						return tx.Table("workforce_audit").Where("action = ?", "workforce.staff_actor.use").Count(&count).Error
+					}))
+					return count
+				}
+				require.EqualValues(t, 1, sourceAudits(), "successful source consumption retains attributable evidence")
+				rollback := errors.New("synthetic downstream command rollback")
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { return rollback }), rollback)
+				require.EqualValues(t, 1, sourceAudits(), "downstream rollback removes source-use evidence in the shared root transaction")
 				call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": recipient, "role_key": "doctor"}, 409)
 				unchangedPermissions, unchangedErr := graph.Resolve(ctx, recipient, testutil.TenantA)
 				require.NoError(t, unchangedErr)
@@ -2007,9 +2039,14 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				}
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 200)
+				require.NoError(t, useSource(func(context.Context, authz.StaffActorReference) error { return nil }), "non-identity edits must preserve a current reviewed digital actor")
 				edit("Synthetic altered identity", "+919000000004")
 				edit("", "+919000000004")
 				call(t, "GET", base+"/identity-staff/"+joiner, recipient, nil, 403)
+				called := false
+				require.ErrorIs(t, useSource(func(context.Context, authz.StaffActorReference) error { called = true; return nil }), authz.ErrScopedCommandDenied)
+				require.False(t, called, "identity changed and restored cannot revive a source guard under a still-live IAM assignment")
+				require.EqualValues(t, 2, sourceAudits(), "denied source consumption retains no new audit evidence")
 				grant(recipient, "workforce.hr_intake.v1", workforce.PermEnrollmentManage)
 				call(t, "PUT", base+"/access/"+recipient, maker, map[string]any{"level": "manager"}, 200)
 				call(t, "GET", joinerPath+"/enrollment", recipient, nil, 403)

@@ -46,6 +46,9 @@ var employmentTemplatesSchema string
 //go:embed assignment_employment_activation_templates_generated.sql
 var employmentActivationTemplatesSchema string
 
+//go:embed assignment_staff_posting_templates_generated.sql
+var staffPostingTemplatesSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`
@@ -320,6 +323,7 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/intake-assignment-proposals", authz.Public, h.listIntake)
 	platform.ListRoute(g, "/employment-assignment-proposals", authz.Public, h.listEmployment)
 	platform.ListRoute(g, "/employment-activation-assignment-proposals", authz.Public, h.listEmploymentActivation)
+	platform.ListRoute(g, "/posting-assignment-proposals", authz.Public, h.listPosting)
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return
@@ -367,6 +371,10 @@ func (h *assignmentProposalHandlers) listEmployment(c *gin.Context, params pagin
 
 func (h *assignmentProposalHandlers) listEmploymentActivation(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
 	return h.listFamily(c, params, "activation")
+}
+
+func (h *assignmentProposalHandlers) listPosting(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "posting")
 }
 
 func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params pagination.Params, family string) ([]assignmentProposal, error) {

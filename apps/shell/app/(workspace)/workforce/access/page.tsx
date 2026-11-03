@@ -124,6 +124,8 @@ function Assignments({ identity }: { identity: Identity }) {
   const catalog = useVerifiedStaffCatalog(scope, "hr-intake-v1");
   const employmentCatalog = useVerifiedStaffCatalog(scope, "employment-v1");
   const activationCatalog = useVerifiedStaffCatalog(scope, "employment-activation-v1");
+  const postingCatalog = useVerifiedStaffCatalog(scope, "staff-postings-v1");
+  const postingSupported = postingCatalog.supported;
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
   const activationSupported = activationCatalog.supported;
@@ -141,19 +143,22 @@ function Assignments({ identity }: { identity: Identity }) {
   const catalogBlocked =
     (family === "intake" && !intakeSupported) ||
     (family === "employment" && !employmentSupported) ||
-    (family === "activation" && !activationSupported);
+    (family === "activation" && !activationSupported) ||
+    (family === "posting" && !postingSupported);
   return (
     <Panel className="space-y-4">
       <p>
         {family === "leave"
           ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
-          : family === "identity"
-            ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
-            : family === "employment"
-              ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
-              : family === "activation"
-                ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
-                : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
+          : family === "posting"
+            ? "Posting readers inspect non-operating drafts at one hospital; preparers can also save drafts and select current departments. Both require a current reviewed digital Staff account. Neither can approve postings, manage structure or grant operating access."
+            : family === "identity"
+              ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
+              : family === "employment"
+                ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
+                : family === "activation"
+                  ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
+                  : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
@@ -179,6 +184,9 @@ function Assignments({ identity }: { identity: Identity }) {
             ...(employmentSupported || family === "employment"
               ? [{ value: "employment", label: "Employment terms review" }]
               : []),
+            ...(postingSupported || family === "posting"
+              ? [{ value: "posting", label: "Staff posting preparation" }]
+              : []),
             ...(activationSupported || family === "activation"
               ? [{ value: "activation", label: "Employment activation" }]
               : []),
@@ -199,6 +207,13 @@ function Assignments({ identity }: { identity: Identity }) {
             ? "Employment review assignments are unavailable in this workspace."
             : ""}
       </p>
+      <p aria-live="polite" className="text-sm text-muted-foreground">
+        {postingCatalog.isPending
+          ? "Checking Staff posting assignments…"
+          : !postingSupported
+            ? "Staff posting assignments are unavailable in this workspace."
+            : ""}
+      </p>
       <div className="flex flex-wrap gap-2">
         <p aria-live="polite" className="w-full text-sm text-muted-foreground">
           {activationCatalog.isPending
@@ -215,6 +230,7 @@ function Assignments({ identity }: { identity: Identity }) {
             void catalog.refetch();
             void employmentCatalog.refetch();
             void activationCatalog.refetch();
+            void postingCatalog.refetch();
           }}
         >
           Refresh assignments

@@ -241,6 +241,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/posting-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/roles",
           "permission": "iam.member.manage",
           "authentication_required": true,
@@ -480,6 +489,11 @@
             "iam_employment_basis_history",
             "iam_assignment_employment_bases"
           ]
+        },
+        {
+          "id": "0024_iam_staff_posting_templates",
+          "sql_sha256": "30a2065d388a08c36f202f84954b8a3d72d9c16bcdbd0d83c264d51581207749",
+          "creates_tables": []
         }
       ]
     },
@@ -8545,6 +8559,10 @@
         }
       ],
       "grants": [
+        {
+          "permission": "workforce.staff_actor.use",
+          "roles": []
+        },
         {
           "permission": "workforce.posting.prepare",
           "roles": []

@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "63008963f86b177d344338d244cadef0a106a57fc4037499fc3d986b109113a5",
+  "registry_sha256": "217bff2d86b7bdb2d399e5a1bc4a370032ca5008c1ae78afcfdad6961e35f6a5",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 768,
-    "unclassified": 745
+    "total": 769,
+    "unclassified": 746
   },
   "entries": [
     {
@@ -2986,6 +2986,22 @@
       "review": null
     },
     {
+      "id": "http iam GET /v1/iam/posting-assignment-proposals",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/posting-assignment-proposals",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http iam GET /v1/iam/roles",
       "kind": "http",
       "module": "iam",
@@ -3040,7 +3056,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "59ce030d423e6c4abbc8cddd2e787ace8ac674e9506f4a15a8a87dd782bac275",
+            "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3084,7 +3100,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "59ce030d423e6c4abbc8cddd2e787ace8ac674e9506f4a15a8a87dd782bac275",
+            "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3144,7 +3160,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "59ce030d423e6c4abbc8cddd2e787ace8ac674e9506f4a15a8a87dd782bac275",
+            "sha256": "f4f0f35a7e6cd84ca1379c1a14fc4468293a929ffe2d207f44cccbbe9c7a0f4d",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -8172,7 +8188,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8187,12 +8203,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -8257,7 +8273,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8277,12 +8293,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -10021,7 +10037,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10051,12 +10067,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -10105,7 +10121,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10145,12 +10161,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -10215,7 +10231,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10275,12 +10291,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -10329,7 +10345,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10374,12 +10390,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -10642,7 +10658,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10691,7 +10707,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10740,7 +10756,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10789,7 +10805,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10838,7 +10854,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11611,7 +11627,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11636,12 +11652,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -11690,7 +11706,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11715,12 +11731,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -11769,7 +11785,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11794,12 +11810,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -12712,7 +12728,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12742,12 +12758,12 @@
           },
           {
             "path": "backend/internal/modules/workforce/scoped_leave.go",
-            "sha256": "8db6f3f46196a250496c377c2993cba790420236252fa07de364d018a3b8fde1",
+            "sha256": "9f012b7d41782fa84526f66a01d654f8b0c06ea8821cb32d4a283f489e51acfd",
             "symbol": "func lockReviewedLeaveActor("
           },
           {
             "path": "backend/internal/modules/workforce/employment_generation_actor.go",
-            "sha256": "642b8822073054e9c087ac2e20cea5cbfa3b66f03e5e50e0b89662e575eb2907",
+            "sha256": "f0e4c43c465377a86ca8e084a0d21385264cd4a4eacf1efb9b13b7aa9eae30cd",
             "symbol": "func validateGenerationActor("
           },
           {
@@ -12894,7 +12910,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "3af4abf9ee63c81633bc089527309d6a8665e2c8eb7b7f1bfdcc47a9a35bcd2f",
+            "sha256": "fad0caa19d27469b1b6ce69a9cae99fa7d7a0943c292191593744a64064112e9",
             "symbol": "func (*Module) Routes("
           },
           {

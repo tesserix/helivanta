@@ -721,6 +721,18 @@ describe("lists open filtered from the overview", () => {
     );
   });
 
+  it("shows service-charge setup on the counter only to a declarer or reviewer (#1388)", async () => {
+    mockPharmacy("editor", 0, "IN", ["pharmacy.service_charge.review"]);
+    const first = renderWorkspace("counter");
+    expect(await screen.findByRole("heading", { name: "Service charges" })).toBeVisible();
+    first.unmount();
+    vi.unstubAllGlobals();
+    mockPharmacy("editor", 0, "IN", ["pharmacy.sale.read"]);
+    renderWorkspace("counter");
+    expect(await screen.findByText(/Selling here needs the pharmacist role/)).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Service charges" })).toBeNull();
+  });
+
   it("opens Expiry & safety at the outlet's recent concerns", async () => {
     nav.search = "tab=recent";
     const fetcher = mockPharmacy("editor", 0, "IN", ["pharmacy.stock.read"]);

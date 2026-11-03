@@ -122,10 +122,22 @@ type saleInput struct {
 	Admission *saleAdmission `json:"admission"`
 	// Required exactly when a line is discounted (B-3 decision 2).
 	DiscountReason *string `json:"discount_reason"`
+	// Service charges (#1388), each its own invoice line.
+	Charges []saleChargeInput `json:"charges" binding:"omitempty,max=5,dive"`
+}
+
+type saleChargeInput struct {
+	ChargeID uuid.UUID `json:"charge_id" binding:"required"`
+	// VersionID is the version the quote priced; a sale requires it, so terms
+	// approved after the quote are refused, not billed unseen.
+	VersionID *uuid.UUID `json:"version_id"`
 }
 
 type saleQuoteInput struct {
-	Lines []saleLineInput `json:"lines" binding:"required,min=1,max=50,dive"`
+	Lines   []saleLineInput   `json:"lines" binding:"required,min=1,max=50,dive"`
+	Charges []saleChargeInput `json:"charges" binding:"omitempty,max=5,dive"`
+	// Channel the charges are priced for; a sale takes it from its admission.
+	Channel *string `json:"channel" binding:"omitempty,oneof=counter ward_delivery"`
 }
 
 func distinctProducts(lines []saleLineInput) bool {
@@ -168,6 +180,12 @@ func (in saleInput) digest() string {
 	}
 	if in.Admission != nil {
 		parts = append(parts, "a", in.Admission.OccupancyID.String())
+	}
+	for _, ch := range in.Charges {
+		parts = append(parts, "sc", ch.ChargeID.String())
+		if ch.VersionID != nil {
+			parts = append(parts, ch.VersionID.String())
+		}
 	}
 	for _, t := range in.Tenders {
 		tendered, reference := "", ""
@@ -249,17 +267,18 @@ type saleRecord struct {
 	PatientID         *uuid.UUID `gorm:"column:patient_id" json:"patient_id"`
 	PatientHospitalID *uuid.UUID `gorm:"column:patient_hospital_id" json:"patient_hospital_id"`
 	// The admission billed and what it was resolved through (#1387).
-	AdmissionID          *uuid.UUID   `gorm:"column:admission_id" json:"admission_id"`
-	AdmissionOccupancyID *uuid.UUID   `gorm:"column:admission_occupancy_id" json:"admission_occupancy_id"`
-	AdmissionBedCode     *string      `gorm:"column:admission_bed_code" json:"admission_bed_code"`
-	AdmissionResolvedAt  *time.Time   `gorm:"column:admission_resolved_at" json:"admission_resolved_at"`
-	DiscountReason       *string      `gorm:"column:discount_reason" json:"discount_reason"`
-	DiscountMinor        int64        `gorm:"-" json:"discount_minor"`
-	CreatedAt            time.Time    `gorm:"column:created_at" json:"created_at"`
-	Lines                []saleLine   `gorm:"-" json:"lines,omitempty"`
-	Tenders              []saleTender `gorm:"-" json:"tenders,omitempty"`
-	ClassOrigin          string       `gorm:"-" json:"class_origin,omitempty"`
-	CeilingChecked       bool         `gorm:"-" json:"nppa_ceiling_checked"`
+	AdmissionID          *uuid.UUID       `gorm:"column:admission_id" json:"admission_id"`
+	AdmissionOccupancyID *uuid.UUID       `gorm:"column:admission_occupancy_id" json:"admission_occupancy_id"`
+	AdmissionBedCode     *string          `gorm:"column:admission_bed_code" json:"admission_bed_code"`
+	AdmissionResolvedAt  *time.Time       `gorm:"column:admission_resolved_at" json:"admission_resolved_at"`
+	DiscountReason       *string          `gorm:"column:discount_reason" json:"discount_reason"`
+	DiscountMinor        int64            `gorm:"-" json:"discount_minor"`
+	CreatedAt            time.Time        `gorm:"column:created_at" json:"created_at"`
+	Lines                []saleLine       `gorm:"-" json:"lines,omitempty"`
+	Charges              []saleChargeLine `gorm:"-" json:"charges"`
+	Tenders              []saleTender     `gorm:"-" json:"tenders,omitempty"`
+	ClassOrigin          string           `gorm:"-" json:"class_origin,omitempty"`
+	CeilingChecked       bool             `gorm:"-" json:"nppa_ceiling_checked"`
 }
 
 func (saleRecord) TableName() string                 { return "pharmacy_sales" }
@@ -848,9 +867,12 @@ func checkCitations(tx *gorm.DB, tenant string, outlet uuid.UUID, today string, 
 	return nil
 }
 
-func saleTotals(lines []saleLine) (total, taxable, half int64) {
+func saleTotals(lines []saleLine, charges []saleChargeLine) (total, taxable, half int64) {
 	for _, l := range lines {
 		total, taxable, half = total+l.AmountMinor, taxable+l.TaxableMinor, half+l.CGSTMinor
+	}
+	for _, ch := range charges {
+		total, taxable, half = total+ch.AmountMinor, taxable+ch.TaxableMinor, half+ch.CGSTMinor
 	}
 	return total, taxable, half
 }
@@ -874,22 +896,35 @@ func (h *catalogueHandlers) postSaleQuote(c *gin.Context) {
 	if !mayDiscount(c, in.Lines) {
 		return
 	}
+	if !distinctCharges(in.Charges) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "each service charge appears once")
+		return
+	}
+	channel := "counter"
+	if in.Channel != nil {
+		channel = *in.Channel
+	}
 	var quote struct {
-		Currency       string     `json:"currency"`
-		TotalMinor     int64      `json:"total_minor"`
-		TaxableMinor   int64      `json:"taxable_minor"`
-		CGSTMinor      int64      `json:"cgst_minor"`
-		SGSTMinor      int64      `json:"sgst_minor"`
-		Lines          []saleLine `json:"lines"`
-		CeilingChecked bool       `json:"nppa_ceiling_checked"`
+		Currency       string           `json:"currency"`
+		TotalMinor     int64            `json:"total_minor"`
+		TaxableMinor   int64            `json:"taxable_minor"`
+		CGSTMinor      int64            `json:"cgst_minor"`
+		SGSTMinor      int64            `json:"sgst_minor"`
+		Lines          []saleLine       `json:"lines"`
+		Charges        []saleChargeLine `json:"charges"`
+		CeilingChecked bool             `json:"nppa_ceiling_checked"`
 	}
 	err := h.transaction(c.Request.Context(), p, outlet, true, func(tx *gorm.DB) error {
 		seller, lines, err := priceSale(tx, p.TenantID, outlet, in.Lines)
 		if err != nil {
 			return err
 		}
-		quote.Currency, quote.Lines = seller.currency, lines
-		quote.TotalMinor, quote.TaxableMinor, quote.CGSTMinor = saleTotals(lines)
+		charges, err := priceCharges(tx, p.TenantID, outlet, seller.today, channel, in.Charges, lines)
+		if err != nil {
+			return err
+		}
+		quote.Currency, quote.Lines, quote.Charges = seller.currency, lines, charges
+		quote.TotalMinor, quote.TaxableMinor, quote.CGSTMinor = saleTotals(lines, charges)
 		quote.CeilingChecked = ceilingChecked(lines)
 		quote.SGSTMinor = quote.CGSTMinor
 		return nil
@@ -921,6 +956,16 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 	if !distinctProducts(in.Lines) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "each product appears on one line")
 		return
+	}
+	if !distinctCharges(in.Charges) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "each service charge appears once")
+		return
+	}
+	for _, ch := range in.Charges {
+		if ch.VersionID == nil {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "a service charge names the version its quote priced")
+			return
+		}
 	}
 	if !in.validTenders() {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "at most one cash tender, with the amount handed over; UPI and card need a reference; verified UPI names its paid payment")
@@ -994,7 +1039,15 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		total, taxable, half := saleTotals(lines)
+		channel := "counter"
+		if stay != nil {
+			channel = "ward_delivery"
+		}
+		charges, err := priceCharges(tx, p.TenantID, outlet, seller.today, channel, in.Charges, lines)
+		if err != nil {
+			return err
+		}
+		total, taxable, half := saleTotals(lines, charges)
 		var paid int64
 		for _, t := range in.Tenders {
 			paid += t.AmountMinor
@@ -1047,6 +1100,14 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 				return err
 			}
 			if err := h.bus.Publish(tx, pharmacycontract.SubjectStockMovementRecorded, events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data}); err != nil {
+				return err
+			}
+		}
+		for _, ch := range charges {
+			if err := tx.Exec(`INSERT INTO pharmacy_sale_charge_lines (tenant_id,outlet_id,sale_id,charge_number,charge_id,version_id,code,name,tax_treatment,sac_code,
+				supply_nature,rate_ppm,amount_minor,taxable_minor,cgst_minor,sgst_minor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id,
+				ch.ChargeNumber, ch.ChargeID, ch.VersionID, ch.Code, ch.Name, ch.TaxTreatment, ch.SACCode, ch.SupplyNature, ch.RatePPM,
+				ch.AmountMinor, ch.TaxableMinor, ch.CGSTMinor, ch.SGSTMinor).Error; err != nil {
 				return err
 			}
 		}
@@ -1109,6 +1170,9 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", "the patient's hospital has not verified this pharmacy")
 	case violated(err, "pharmacy_sale_line_discount_ceiling"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the outlet's discount ceiling changed; price the basket again")
+	case violated(err, "pharmacy_sale_charge_source"), violated(err, "pharmacy_sale_charge_principal"):
+		// A service-charge review landed between pricing and posting (#1388).
+		respond.Error(c, http.StatusConflict, "not_sellable", "a service charge changed; price the basket again")
 	case err != nil:
 		stockError(c, err)
 	case created:
@@ -1137,6 +1201,10 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	}
 	if err := tx.Raw(`SELECT tender_number,kind,amount_minor,tendered_minor,change_minor,reference,payment_request_id FROM pharmacy_sale_tenders
 		WHERE tenant_id=? AND outlet_id=? AND sale_id=? ORDER BY tender_number`, tenant, outlet, id).Scan(&out.Tenders).Error; err != nil {
+		return err
+	}
+	out.Charges = []saleChargeLine{}
+	if err := tx.Raw(saleChargeColumns+` WHERE c.tenant_id=? AND c.outlet_id=? AND c.sale_id=? ORDER BY c.charge_number`, tenant, outlet, id).Scan(&out.Charges).Error; err != nil {
 		return err
 	}
 	// Decision 2: the class on the invoice is the outlet's declaration.

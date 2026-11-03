@@ -110,12 +110,20 @@ function DayRow({ day: d }: { day: PharmacyDailyTotals }) {
           taxable {money(d.sales_taxable_minor)}, CGST {money(d.sales_cgst_minor)}, SGST{" "}
           {money(d.sales_sgst_minor)}; discount {money(d.discount_minor)}; {d.units_sold} units
         </span>
+        <span className="block text-muted-foreground">
+          medicines {money(d.sales_minor - d.service_charges_minor)}, service charges{" "}
+          {money(d.service_charges_minor)}
+        </span>
       </td>
       <td>
         {d.credit_notes} for {money(d.credits_minor)}
         <span className="block text-muted-foreground">
           taxable {money(d.credits_taxable_minor)}, CGST {money(d.credits_cgst_minor)}, SGST{" "}
           {money(d.credits_sgst_minor)}; {d.units_returned} units
+        </span>
+        <span className="block text-muted-foreground">
+          medicines {money(d.credits_minor - d.service_charge_credits_minor)}, service charges{" "}
+          {money(d.service_charge_credits_minor)}
         </span>
       </td>
       <td>{money(d.net_minor)}</td>

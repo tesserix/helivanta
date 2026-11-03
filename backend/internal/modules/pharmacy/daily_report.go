@@ -40,6 +40,12 @@ type dailyRow struct {
 	// Billed to an admission account, and returned to it (#1387): not collected or paid out.
 	AdmissionAccountMinor       int64 `gorm:"column:admission_account_minor" json:"admission_account_minor"`
 	AdmissionAccountRefundMinor int64 `gorm:"column:admission_account_refund_minor" json:"admission_account_refund_minor"`
+	// Service charges inside the sales and credits above (#1388); medicine
+	// revenue is the rest.
+	ServiceChargesMinor              int64 `gorm:"column:service_charges_minor" json:"service_charges_minor"`
+	ServiceChargesTaxableMinor       int64 `gorm:"column:service_charges_taxable_minor" json:"service_charges_taxable_minor"`
+	ServiceChargeCreditsMinor        int64 `gorm:"column:service_charge_credits_minor" json:"service_charge_credits_minor"`
+	ServiceChargeCreditsTaxableMinor int64 `gorm:"column:service_charge_credits_taxable_minor" json:"service_charge_credits_taxable_minor"`
 }
 
 type dailyReport struct {
@@ -74,6 +80,12 @@ const dailyTotals = `WITH
    sum(r.amount_minor) FILTER (WHERE r.kind='admission_account') AS admission_account_refund_minor
   FROM pharmacy_credit_note_refunds r JOIN pharmacy_credit_notes n ON n.tenant_id=r.tenant_id AND n.outlet_id=r.outlet_id AND n.id=r.credit_note_id
   WHERE n.tenant_id=@tenant AND n.outlet_id=@outlet AND n.credit_note_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
+ sc AS (SELECT s.sale_date AS day, s.currency, sum(x.amount_minor) AS service_charges_minor, sum(x.taxable_minor) AS service_charges_taxable_minor
+  FROM pharmacy_sale_charge_lines x JOIN pharmacy_sales s ON s.tenant_id=x.tenant_id AND s.outlet_id=x.outlet_id AND s.id=x.sale_id
+  WHERE s.tenant_id=@tenant AND s.outlet_id=@outlet AND s.sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
+ cc AS (SELECT n.credit_note_date AS day, n.currency, sum(x.amount_minor) AS service_charge_credits_minor, sum(x.taxable_minor) AS service_charge_credits_taxable_minor
+  FROM pharmacy_credit_note_charge_lines x JOIN pharmacy_credit_notes n ON n.tenant_id=x.tenant_id AND n.outlet_id=x.outlet_id AND n.id=x.credit_note_id
+  WHERE n.tenant_id=@tenant AND n.outlet_id=@outlet AND n.credit_note_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  k AS (SELECT day, currency FROM s UNION SELECT day, currency FROM c)
 SELECT to_char(k.day,'YYYY-MM-DD') AS day, k.currency,
  COALESCE(s.sales,0) AS sales, COALESCE(s.sales_minor,0)::bigint AS sales_minor, COALESCE(s.sales_taxable_minor,0)::bigint AS sales_taxable_minor,
@@ -86,10 +98,13 @@ SELECT to_char(k.day,'YYYY-MM-DD') AS day, k.currency,
  COALESCE(st.cash_minor,0)::bigint AS cash_minor, COALESCE(st.upi_minor,0)::bigint AS upi_minor, COALESCE(st.upi_verified_minor,0)::bigint AS upi_verified_minor, COALESCE(st.card_minor,0)::bigint AS card_minor,
  COALESCE(cr.cash_refund_minor,0)::bigint AS cash_refund_minor, COALESCE(cr.upi_refund_minor,0)::bigint AS upi_refund_minor,
  COALESCE(cr.card_refund_minor,0)::bigint AS card_refund_minor,
- COALESCE(st.admission_account_minor,0)::bigint AS admission_account_minor, COALESCE(cr.admission_account_refund_minor,0)::bigint AS admission_account_refund_minor
+ COALESCE(st.admission_account_minor,0)::bigint AS admission_account_minor, COALESCE(cr.admission_account_refund_minor,0)::bigint AS admission_account_refund_minor,
+ COALESCE(sc.service_charges_minor,0)::bigint AS service_charges_minor, COALESCE(sc.service_charges_taxable_minor,0)::bigint AS service_charges_taxable_minor,
+ COALESCE(cc.service_charge_credits_minor,0)::bigint AS service_charge_credits_minor, COALESCE(cc.service_charge_credits_taxable_minor,0)::bigint AS service_charge_credits_taxable_minor
 FROM k
  LEFT JOIN s USING (day, currency) LEFT JOIN sl USING (day, currency) LEFT JOIN st USING (day, currency)
  LEFT JOIN c USING (day, currency) LEFT JOIN cl USING (day, currency) LEFT JOIN cr USING (day, currency)
+ LEFT JOIN sc USING (day, currency) LEFT JOIN cc USING (day, currency)
 ORDER BY k.day, k.currency`
 
 func dailyReportRoutes(s *platform.Router, h *catalogueHandlers) {

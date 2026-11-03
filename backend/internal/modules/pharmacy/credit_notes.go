@@ -37,23 +37,32 @@ type creditNoteLineInput struct {
 	QuarantineLocationID uuid.UUID `json:"quarantine_location_id" binding:"required"`
 }
 
+type creditNoteChargeInput struct {
+	SaleCharge int `json:"sale_charge" binding:"required,min=1,max=5"`
+}
+
 type creditNoteRecipient struct {
 	Name    string `json:"name" binding:"required"`
 	Address string `json:"address" binding:"required"`
 }
 
 type creditNoteInput struct {
-	SaleID    uuid.UUID             `json:"sale_id" binding:"required"`
-	Lines     []creditNoteLineInput `json:"lines" binding:"required,min=1,max=200,dive"`
-	Refunds   []saleTenderInput     `json:"refunds" binding:"required,min=1,max=5,dive"`
-	Reason    string                `json:"reason" binding:"required"`
-	Recipient creditNoteRecipient   `json:"recipient" binding:"required"`
+	SaleID uuid.UUID             `json:"sale_id" binding:"required"`
+	Lines  []creditNoteLineInput `json:"lines" binding:"omitempty,max=200,dive"`
+	// Service charges credited whole (#1388); a note needs lines, charges or both.
+	Charges   []creditNoteChargeInput `json:"charges" binding:"omitempty,max=5,dive"`
+	Refunds   []saleTenderInput       `json:"refunds" binding:"required,min=1,max=5,dive"`
+	Reason    string                  `json:"reason" binding:"required"`
+	Recipient creditNoteRecipient     `json:"recipient" binding:"required"`
 }
 
 func (in creditNoteInput) digest() string {
 	parts := []string{in.SaleID.String(), in.Reason, in.Recipient.Name, in.Recipient.Address}
 	for _, l := range in.Lines {
 		parts = append(parts, "l", strconv.Itoa(l.SaleLine), strconv.FormatInt(l.QuantityUnits, 10), l.QuarantineLocationID.String())
+	}
+	for _, ch := range in.Charges {
+		parts = append(parts, "c", strconv.Itoa(ch.SaleCharge))
 	}
 	for _, t := range in.Refunds {
 		reference := ""
@@ -115,6 +124,7 @@ type creditNote struct {
 	ActorSubject     string             `gorm:"column:actor_subject" json:"actor_subject"`
 	CreatedAt        time.Time          `gorm:"column:created_at" json:"created_at"`
 	Lines            []creditNoteLine   `gorm:"-" json:"lines,omitempty"`
+	Charges          []creditNoteCharge `gorm:"-" json:"charges"`
 	Refunds          []creditNoteRefund `gorm:"-" json:"refunds,omitempty"`
 }
 
@@ -144,6 +154,22 @@ type creditNoteLine struct {
 	TaxableMinor       int64     `gorm:"column:taxable_minor" json:"taxable_minor"`
 	CGSTMinor          int64     `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor          int64     `gorm:"column:sgst_minor" json:"sgst_minor"`
+}
+
+// creditNoteCharge is a service charge credited whole, with the terms it was billed under.
+type creditNoteCharge struct {
+	ChargeNumber int     `gorm:"column:charge_number" json:"charge_number"`
+	SaleCharge   int     `gorm:"column:sale_charge" json:"sale_charge"`
+	Code         string  `gorm:"column:code" json:"code"`
+	Name         string  `gorm:"column:name" json:"name"`
+	TaxTreatment string  `gorm:"column:tax_treatment" json:"tax_treatment"`
+	SACCode      *string `gorm:"column:sac_code" json:"sac_code"`
+	SupplyNature string  `gorm:"column:supply_nature" json:"supply_nature"`
+	RatePPM      int64   `gorm:"column:rate_ppm" json:"rate_ppm"`
+	AmountMinor  int64   `gorm:"column:amount_minor" json:"amount_minor"`
+	TaxableMinor int64   `gorm:"column:taxable_minor" json:"taxable_minor"`
+	CGSTMinor    int64   `gorm:"column:cgst_minor" json:"cgst_minor"`
+	SGSTMinor    int64   `gorm:"column:sgst_minor" json:"sgst_minor"`
 }
 
 type creditNoteRefund struct {
@@ -213,6 +239,18 @@ func (h *catalogueHandlers) putCreditNote(c *gin.Context) {
 		}
 		seen[l.SaleLine] = true
 	}
+	charged := map[int]bool{}
+	for _, ch := range in.Charges {
+		if charged[ch.SaleCharge] {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "each service charge appears once")
+			return
+		}
+		charged[ch.SaleCharge] = true
+	}
+	if len(in.Lines)+len(in.Charges) == 0 {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a return credits medicine lines, service charges or both")
+		return
+	}
 	if !prescriptionText(in.Reason, 200) || len([]rune(in.Reason)) < 5 || !prescriptionText(in.Recipient.Name, 200) ||
 		!prescriptionText(in.Recipient.Address, 500) || !in.validRefunds() {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a return gives a reason of 5 to 200 characters, the name and address of the person refunded, and refunds in cash, to the admission account, or by UPI or card with a reference")
@@ -243,6 +281,8 @@ func (h *catalogueHandlers) putCreditNote(c *gin.Context) {
 	switch {
 	case errors.As(err, &refusal):
 		respond.Error(c, http.StatusConflict, "not_returnable", refusal.reason)
+	case violated(err, "pharmacy_credit_note_charge_once"):
+		respond.Error(c, http.StatusConflict, "not_returnable", "that service charge has already been credited")
 	case creditLineLimit(err):
 		respond.Error(c, http.StatusConflict, "not_returnable", "those units have already been returned; check what is left to return")
 	case err != nil:
@@ -342,6 +382,36 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 		steps = append(steps, built{in: l, productID: sold.ProductID, batchID: sold.BatchID, amount: amount, taxable: tax, half: h})
 		total, taxable, half = total+amount, taxable+tax, half+h
 	}
+	// A service is not returned in part: a charge is credited whole, once.
+	charges := append([]creditNoteChargeInput{}, in.Charges...)
+	sort.Slice(charges, func(i, j int) bool { return charges[i].SaleCharge < charges[j].SaleCharge })
+	type credited struct {
+		saleCharge                  int
+		amount, taxable, cgst, sgst int64
+	}
+	var credits []credited
+	for _, ch := range charges {
+		var rows []struct {
+			Code                                            string
+			AmountMinor, TaxableMinor, CGSTMinor, SGSTMinor int64
+			Credited                                        bool
+		}
+		if err := tx.Raw(`SELECT c.code, c.amount_minor, c.taxable_minor, c.cgst_minor, c.sgst_minor,
+			EXISTS (SELECT 1 FROM pharmacy_credit_note_charge_lines k WHERE k.tenant_id=c.tenant_id AND k.outlet_id=c.outlet_id AND k.sale_id=c.sale_id AND k.sale_charge=c.charge_number) AS credited
+			FROM pharmacy_sale_charge_lines c WHERE c.tenant_id=? AND c.outlet_id=? AND c.sale_id=? AND c.charge_number=? FOR UPDATE OF c`,
+			p.TenantID, outlet, in.SaleID, ch.SaleCharge).Scan(&rows).Error; err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			return errNotReturnable{fmt.Sprintf("the sale has no service charge %d", ch.SaleCharge)}
+		}
+		if rows[0].Credited {
+			return errNotReturnable{"the service charge " + rows[0].Code + " has already been credited"}
+		}
+		r := rows[0]
+		credits = append(credits, credited{saleCharge: ch.SaleCharge, amount: r.AmountMinor, taxable: r.TaxableMinor, cgst: r.CGSTMinor, sgst: r.SGSTMinor})
+		total, taxable, half = total+r.AmountMinor, taxable+r.TaxableMinor, half+r.CGSTMinor
+	}
 	if total == 0 {
 		return errNotReturnable{"these units credit nothing; return more units"}
 	}
@@ -376,7 +446,7 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 		return err
 	}
 	issued := pharmacycontract.CreditNoteIssuedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(), CreditNoteID: id.String(),
-		SaleID: in.SaleID.String(), CreditNoteNumber: numberText, Currency: sale.Currency, TotalMinor: total}
+		SaleID: in.SaleID.String(), CreditNoteNumber: numberText, Currency: sale.Currency, TotalMinor: total, Lines: []pharmacycontract.CreditNoteIssuedLine{}}
 	for i, st := range steps {
 		n := i + 1
 		if err := tx.Exec(`INSERT INTO pharmacy_credit_note_lines (tenant_id,outlet_id,credit_note_id,line_number,sale_id,sale_line,location_id,quantity_units,
@@ -399,6 +469,12 @@ func (h *catalogueHandlers) issueCreditNote(c *gin.Context, tx *gorm.DB, outlet,
 			return err
 		}
 		issued.Lines = append(issued.Lines, pharmacycontract.CreditNoteIssuedLine{ProductID: st.productID.String(), BatchID: st.batchID.String(), QuantityUnits: st.in.QuantityUnits})
+	}
+	for i, cr := range credits {
+		if err := tx.Exec(`INSERT INTO pharmacy_credit_note_charge_lines (tenant_id,outlet_id,credit_note_id,charge_number,sale_id,sale_charge,amount_minor,taxable_minor,cgst_minor,sgst_minor)
+			VALUES (?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, i+1, in.SaleID, cr.saleCharge, cr.amount, cr.taxable, cr.cgst, cr.sgst).Error; err != nil {
+			return err
+		}
 	}
 	for i, t := range in.Refunds {
 		if err := tx.Exec(`INSERT INTO pharmacy_credit_note_refunds (tenant_id,outlet_id,credit_note_id,refund_number,kind,amount_minor,reference) VALUES (?,?,?,?,?,?,?)`,
@@ -444,6 +520,13 @@ func loadCreditNote(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *credi
 		c.quantity_units, c.amount_minor, c.taxable_minor, c.cgst_minor, c.sgst_minor
 		FROM pharmacy_credit_note_lines c JOIN pharmacy_sale_lines s ON s.tenant_id=c.tenant_id AND s.outlet_id=c.outlet_id AND s.sale_id=c.sale_id AND s.line_number=c.sale_line
 		WHERE c.tenant_id=? AND c.outlet_id=? AND c.credit_note_id=? ORDER BY c.line_number`, tenant, outlet, id).Scan(&out.Lines).Error; err != nil {
+		return err
+	}
+	out.Charges = []creditNoteCharge{}
+	if err := tx.Raw(`SELECT k.charge_number, k.sale_charge, c.code, c.name, c.tax_treatment, c.sac_code, c.supply_nature, c.rate_ppm,
+		k.amount_minor, k.taxable_minor, k.cgst_minor, k.sgst_minor
+		FROM pharmacy_credit_note_charge_lines k JOIN pharmacy_sale_charge_lines c ON c.tenant_id=k.tenant_id AND c.outlet_id=k.outlet_id AND c.sale_id=k.sale_id AND c.charge_number=k.sale_charge
+		WHERE k.tenant_id=? AND k.outlet_id=? AND k.credit_note_id=? ORDER BY k.charge_number`, tenant, outlet, id).Scan(&out.Charges).Error; err != nil {
 		return err
 	}
 	return tx.Raw(`SELECT refund_number, kind, amount_minor, reference FROM pharmacy_credit_note_refunds WHERE tenant_id=? AND outlet_id=? AND credit_note_id=? ORDER BY refund_number`,

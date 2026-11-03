@@ -36,6 +36,7 @@ import { StockRegister } from "./stock-register";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
+import { ServiceChargesSetup } from "./service-charges";
 import { Prescriptions } from "./prescriptions";
 import { Returns } from "./returns";
 import { DailyReport } from "./daily-report";
@@ -367,14 +368,28 @@ function OutletPharmacy({
       ) : view === "setup" ? null : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />
       ) : view === "counter" ? (
-        <CounterSale
-          scope={scope}
-          canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
-          canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
-          canDiscount={can("pharmacy.sale.discount")}
-          canRefund={access.data?.level === "editor" && can("pharmacy.sale.return")}
-          canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
-        />
+        <div className="space-y-6">
+          <CounterSale
+            scope={scope}
+            canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
+            canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
+            canDiscount={can("pharmacy.sale.discount")}
+            canRefund={access.data?.level === "editor" && can("pharmacy.sale.return")}
+            canManageDiscount={access.data?.level === "editor" && can("pharmacy.discount.manage")}
+          />
+          {access.data?.level === "editor" &&
+            (can("pharmacy.service_charge.declare") || can("pharmacy.service_charge.review")) && (
+              <ServiceChargesSetup
+                scope={scope}
+                currency={countryProfile(outlet.country_code)?.currency ?? ""}
+                today={new Intl.DateTimeFormat("en-CA", { timeZone: outlet.timezone }).format(
+                  new Date(),
+                )}
+                canDeclare={can("pharmacy.service_charge.declare")}
+                canReview={can("pharmacy.service_charge.review")}
+              />
+            )}
+        </div>
       ) : view === "h1-register" ? (
         <H1Register
           scope={scope}

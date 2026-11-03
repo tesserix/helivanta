@@ -29,6 +29,11 @@ export type PharmacyDailyTotals = {
   /** Billed to an admission account, and returned to it (#1387): not collected or paid out. */
   admission_account_minor: number;
   admission_account_refund_minor: number;
+  /** Service charges inside sales and credits (#1388); medicine revenue is the rest. */
+  service_charges_minor: number;
+  service_charges_taxable_minor: number;
+  service_charge_credits_minor: number;
+  service_charge_credits_taxable_minor: number;
 };
 
 export type PharmacyDailyReport = { from: string; to: string; days: PharmacyDailyTotals[] };

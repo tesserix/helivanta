@@ -731,6 +731,91 @@
       ]
     },
     {
+      "name": "serviceChargeInput",
+      "schema": "pharmacyServiceChargeInputSchema",
+      "fields": [
+        {
+          "name": "code",
+          "type": "string",
+          "min": 2,
+          "max": 20,
+          "trim": true,
+          "upper": true,
+          "pattern": "^[A-Z][A-Z0-9_]{1,19}$"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "min": 1,
+          "max": 80,
+          "trim": true
+        },
+        {
+          "name": "channel",
+          "type": "string",
+          "enum": ["counter", "ward_delivery"]
+        },
+        {
+          "name": "amount_minor",
+          "type": "int64",
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": ["available", "withdrawn"]
+        },
+        {
+          "name": "tax_treatment",
+          "type": "string",
+          "enum": ["own_service", "principal_supply"]
+        },
+        {
+          "name": "sac_code",
+          "type": "string",
+          "min": 6,
+          "max": 6,
+          "trim": true,
+          "pattern": "^99[0-9]{4}$",
+          "optional": true
+        },
+        {
+          "name": "supply_nature",
+          "type": "string",
+          "enum": ["taxable", "nil_rated", "exempt"],
+          "optional": true
+        },
+        {
+          "name": "rate_ppm",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000,
+          "optional": true
+        },
+        {
+          "name": "exemption_basis",
+          "type": "string",
+          "min": 1,
+          "max": 500,
+          "trim": true,
+          "optional": true
+        },
+        {
+          "name": "tax_basis",
+          "type": "string",
+          "min": 5,
+          "max": 500,
+          "trim": true
+        },
+        {
+          "name": "effective_from",
+          "type": "string",
+          "format": "date"
+        }
+      ]
+    },
+    {
       "name": "StockOverviewFields",
       "schema": "pharmacyStockOverviewFieldsSchema",
       "fields": [

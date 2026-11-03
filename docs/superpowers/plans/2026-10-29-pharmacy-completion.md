@@ -3,18 +3,18 @@
 Worktree: `/private/tmp/helivanta-pharmacy-completion`.
 
 - [x] Check accepted main and concurrent work. #1456 fixes registration envelope;
-  #1453 implements ward billing. Do not duplicate either.
+      #1453 implements ward billing. Do not duplicate either.
 - [ ] Unused verified-UPI: immutable scoped refund record, mutually exclusive
-  sale/refund, counter customer/tender hold and recovery tests.
+      sale/refund, counter customer/tender hold and recovery tests.
 - [ ] Prescription-image enforcement: require released evidence for new cited
-  sales, preserve existing invoices, fail closed pending worker rollout.
+      sales, preserve existing invoices, fail closed pending worker rollout.
 - [ ] #1406: prepare and validate least-privilege worker GitOps rollout, including
-  scoped storage/credentials and synthetic acceptance.
+      scoped storage/credentials and synthetic acceptance.
 - [ ] Real browser journey: verified UPI, refused customer switch, complete sale,
-  then return; cover unused refund recovery separately.
+      then return; cover unused refund recovery separately.
 - [ ] #1391: scanned licence evidence before review.
 - [ ] #1371: versioned reviewed NPPA ceiling data and fail-closed scheduled pricing;
-  verify current primary sources and record activation review requirements.
+      verify current primary sources and record activation review requirements.
 
 Each slice gets its own validation and reviewable commit/PR. Do not activate
 unreviewed drug/tax policy or perform real patient/payment transactions.

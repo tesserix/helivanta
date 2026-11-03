@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "63008963f86b177d344338d244cadef0a106a57fc4037499fc3d986b109113a5",
+  "registry_sha256": "bc287e37c291ca7829a5f2038b6e621caf5f819cf2f7211f60e52fd93edf892e",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 768,
-    "unclassified": 745
+    "total": 772,
+    "unclassified": 749
   },
   "entries": [
     {
@@ -6006,6 +6006,38 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/balance",
       "kind": "http",
       "module": "pharmacy",
@@ -6390,6 +6422,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version/review",
+        "permission": "pharmacy.service_charge.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/tax-registrations",
       "kind": "http",
       "module": "pharmacy",
@@ -6734,6 +6782,22 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id",
         "permission": "pharmacy.sale.create",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/service-charges/:charge/versions/:version",
+        "permission": "pharmacy.service_charge.declare",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

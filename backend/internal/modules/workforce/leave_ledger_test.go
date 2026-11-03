@@ -234,8 +234,8 @@ func TestLeaveLedgerPostsCorrectsAndCarriesExactlyOnce(t *testing.T) {
 
 	require.Equal(t, map[string]int{earned: 0, annual: 0}, h.balances(full, "leave_year=2024"))
 	require.Equal(t, map[string]int{earned: 30, annual: 12}, h.balances(full, "leave_year=2024&as_of=2024-12-30"))
-	require.Equal(t, map[string]int{earned: 10}, h.balances(full, "leave_year=2025"), "carry is capped at the structure limit")
-	require.Equal(t, map[string]int{earned: 10}, h.balances(joiner, "leave_year=2025"))
+	require.Equal(t, map[string]int{earned: 10, annual: 0}, h.balances(full, "leave_year=2025"), "carry is capped at the structure limit; annual is listed before its allocation")
+	require.Equal(t, map[string]int{earned: 10, annual: 0}, h.balances(joiner, "leave_year=2025"))
 
 	code, _ = h.correction(full, uuid.NewString(), "corrector", with(correction, map[string]any{"effective_on": "2024-12-15"}))
 	require.Equal(t, 409, code, "closed years take no entries")

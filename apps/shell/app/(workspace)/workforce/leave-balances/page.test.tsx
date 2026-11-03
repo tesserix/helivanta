@@ -26,8 +26,17 @@ const balances = {
   structure_name: "Synthetic Structure",
   active: true,
   created_at: stamp,
-  balances: [{ leave_type_id: casual, code: "SYN-CL", name: "Synthetic Casual", half_days: 6 }],
+  balances: [
+    {
+      leave_type_id: casual,
+      code: "SYN-CL",
+      name: "Synthetic Casual",
+      half_days: 6,
+      in_structure: true,
+    },
+  ],
 };
+const earned = "88888888-8888-4888-8888-888888888888";
 const entry = {
   id: "55555555-5555-4555-8555-555555555555",
   staff_id: staffID,
@@ -74,12 +83,14 @@ function mock({
   posted = 3,
   leaveYear = 2024,
   reject = "",
+  staff = balances,
 }: {
   permissions?: string[];
   configured?: boolean;
   posted?: number;
   leaveYear?: number;
   reject?: string;
+  staff?: typeof balances;
 } = {}) {
   const writes: { method: string; url: string; body: unknown }[] = [];
   vi.stubGlobal(
@@ -106,7 +117,7 @@ function mock({
       else if (url.includes("/runs")) body = page([]);
       else if (url.endsWith("/leave-years"))
         body = page(configured ? [year(posted, leaveYear)] : []);
-      else if (url.includes("leave-balances")) body = page([balances]);
+      else if (url.includes("leave-balances")) body = page([staff]);
       else if (url.includes("leave-ledger")) body = page([entry]);
       if (
         (init?.method === "PUT" || init?.method === "POST") &&
@@ -226,4 +237,58 @@ it("validates a correction and replays the same entry id when a save is retried"
     effective_on: "2025-03-31",
     reason: "Synthetic audit adjustment",
   });
+});
+
+it("offers an opening balance for structure types before the first ledger entry", async () => {
+  mock({
+    staff: {
+      ...balances,
+      balances: [
+        {
+          leave_type_id: casual,
+          code: "SYN-CL",
+          name: "Synthetic Casual",
+          half_days: 0,
+          in_structure: true,
+        },
+        {
+          leave_type_id: earned,
+          code: "SYN-EL",
+          name: "Synthetic Earned",
+          half_days: 4,
+          in_structure: false,
+        },
+      ],
+    },
+  });
+  const { user } = renderWithProviders(<LeaveBalances />);
+  await user.click(await screen.findByRole("button", { name: "Ledger for Synthetic Nurse" }));
+  await user.click(await screen.findByRole("button", { name: "Correct balance" }));
+  const form = screen.getByRole("form", { name: "Correct balance for Synthetic Nurse" });
+  await user.click(within(form).getByRole("combobox", { name: "Leave type" }));
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+    "Synthetic Casual (SYN-CL)",
+  ]);
+});
+
+it("hides corrections when no balance-tracked type is in the assigned structure", async () => {
+  mock({
+    staff: {
+      ...balances,
+      balances: [
+        {
+          leave_type_id: earned,
+          code: "SYN-EL",
+          name: "Synthetic Earned",
+          half_days: 4,
+          in_structure: false,
+        },
+      ],
+    },
+  });
+  const { user } = renderWithProviders(<LeaveBalances />);
+  await user.click(await screen.findByRole("button", { name: "Ledger for Synthetic Nurse" }));
+  const ledger = await screen.findByRole("region", { name: "Leave ledger" });
+  expect(await within(ledger).findByText(/Monthly credit/)).toBeInTheDocument();
+  expect(within(ledger).queryByRole("button", { name: "Correct balance" })).not.toBeInTheDocument();
 });

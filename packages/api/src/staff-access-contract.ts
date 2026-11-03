@@ -23,6 +23,8 @@ export const ProposalInputContract = z
       "workforce.employment_activator.v1",
       "workforce.posting_reader.v1",
       "workforce.posting_preparer.v1",
+      "workforce.posting_submitter.v1",
+      "workforce.posting_reviewer.v1",
     ]),
     reason: z
       .string()

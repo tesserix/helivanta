@@ -494,6 +494,11 @@
           "id": "0024_iam_staff_posting_templates",
           "sql_sha256": "30a2065d388a08c36f202f84954b8a3d72d9c16bcdbd0d83c264d51581207749",
           "creates_tables": []
+        },
+        {
+          "id": "0025_iam_staff_posting_review_templates",
+          "sql_sha256": "db3f21704a581c24c18d68e5bf0a84c6f8959614fed359918b073975a059cf8a",
+          "creates_tables": []
         }
       ]
     },

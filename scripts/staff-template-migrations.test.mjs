@@ -88,8 +88,33 @@ test("unchanged catalog regenerates and checks without changing public artifacts
   assert.deepEqual(after, before);
 });
 
-test("posting catalogs refuse incomplete, duplicated and expanded reader/preparer authority before writes", async (t) => {
+test("posting catalogs refuse incomplete, duplicated and expanded role authority before writes", async (t) => {
   for (const [key, permissions] of [
+    ["workforce.posting_submitter.v1", ["workforce.posting.submit"]],
+    ["workforce.posting_reviewer.v1", ["workforce.posting.review"]],
+    [
+      "workforce.posting_reviewer.v1",
+      [
+        "workforce.posting.read",
+        "workforce.posting.proposal.read",
+        "workforce.posting.review",
+        "workforce.posting.prepare",
+        "organization.posting_choices.read",
+        "workforce.staff_actor.use",
+      ],
+    ],
+    [
+      "workforce.posting_submitter.v1",
+      [
+        "workforce.posting.read",
+        "workforce.posting.prepare",
+        "workforce.posting.proposal.read",
+        "workforce.posting.submit",
+        "workforce.posting.review",
+        "organization.posting_choices.read",
+        "workforce.staff_actor.use",
+      ],
+    ],
     ["workforce.posting_reader.v1", ["workforce.posting.read"]],
     [
       "workforce.posting_reader.v1",
@@ -135,7 +160,7 @@ test("posting catalogs refuse incomplete, duplicated and expanded reader/prepare
       assert.notEqual(result.status, 0);
       assert.match(
         result.stderr,
-        /Posting templates require their exact reader\/preparer and Staff source permissions/,
+        /Posting templates require their exact role and Staff source permissions/,
       );
       const after = await Promise.all(
         artifacts.map((file) => readFile(path.join(dir, file), "utf8")),

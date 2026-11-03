@@ -185,7 +185,11 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	catalogPath := "/v1/iam/staff-access-templates"
 	if strings.HasPrefix(templateKey, "workforce.posting_") {
 		familyPath = "/v1/iam/posting-assignment-proposals?limit=50"
-		catalogPath += "?catalog=staff-postings-v1"
+		catalog := "staff-postings-v1"
+		if templateKey == "workforce.posting_submitter.v1" || templateKey == "workforce.posting_reviewer.v1" {
+			catalog = "staff-posting-reviews-v1"
+		}
+		catalogPath += "?catalog=" + catalog
 	}
 	currentList := call("GET", familyPath, "admin", "", 200)
 	require.Contains(t, currentList.Body.String(), first)

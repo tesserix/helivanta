@@ -345,3 +345,140 @@ func TestAChargeChangedUnderTheSaleIsRefused(t *testing.T) {
 	require.Equal(t, http.StatusConflict, code, out)
 	require.Contains(t, out, "not available today")
 }
+
+func chargeReturn(sale string, charges []int, lines string, refund int64, kind string) string {
+	list := ""
+	for i, c := range charges {
+		if i > 0 {
+			list += ","
+		}
+		list += fmt.Sprintf(`{"sale_charge":%d}`, c)
+	}
+	return fmt.Sprintf(`{"sale_id":%q,"lines":[%s],"charges":[%s],"refunds":[{"kind":%q,"amount_minor":%d}],"reason":"TEST delivery not made",%s}`,
+		sale, lines, list, kind, refund, recipient)
+}
+
+type creditedResp struct {
+	TotalMinor   int64 `json:"total_minor"`
+	TaxableMinor int64 `json:"taxable_minor"`
+	CGSTMinor    int64 `json:"cgst_minor"`
+	Lines        []struct {
+		AmountMinor int64 `json:"amount_minor"`
+	} `json:"lines"`
+	Charges []struct {
+		SaleCharge   int    `json:"sale_charge"`
+		Code         string `json:"code"`
+		AmountMinor  int64  `json:"amount_minor"`
+		TaxableMinor int64  `json:"taxable_minor"`
+		CGSTMinor    int64  `json:"cgst_minor"`
+	} `json:"charges"`
+}
+
+func TestAChargeIsCreditedOnce(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	delivery := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
+	handling := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, handling, principalCharge("HANDLING", "counter", 2000, "2026-11-01"), "approved")
+	code, sale, out := w.postCharged(t, chargedCashSale(p, 2, 9500, delivery, handling))
+	require.Equal(t, http.StatusCreated, code, out)
+
+	// The delivery alone, whole, with no stock moving.
+	res := do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(sale.ID, []int{1}, "", 5000, "cash"))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+	var note creditedResp
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &note))
+	require.Equal(t, []int64{5000, 4238, 381}, []int64{note.TotalMinor, note.TaxableMinor, note.CGSTMinor})
+	require.Empty(t, note.Lines)
+	require.Len(t, note.Charges, 1)
+	require.Equal(t, "DELIVERY", note.Charges[0].Code)
+	units, _ := w.available(t, p)
+	require.Equal(t, int64(28), units, "a credited charge moves no stock")
+	var lines []string
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT (payload->'data'->'lines')::text FROM outbox_events WHERE subject=?`, pharmacycontract.SubjectCreditNoteIssued).Scan(&lines).Error
+	}))
+	require.Equal(t, []string{"[]"}, lines, "the event lists no returned batch")
+
+	// Credited once: again, alone or beside a medicine line, is refused.
+	res = do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(sale.ID, []int{1}, "", 5000, "cash"))
+	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
+	require.Contains(t, res.Body.String(), "already been credited")
+	medicine := fmt.Sprintf(`{"sale_line":1,"quantity_units":1,"quarantine_location_id":%q}`, w.quarantine)
+	res = do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(sale.ID, []int{2}, medicine, 1250+2000, "cash"))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &note))
+	require.Equal(t, int64(3250), note.TotalMinor)
+	require.Len(t, note.Lines, 1)
+	require.Equal(t, 2, note.Charges[0].SaleCharge)
+
+	res = do(w.r, "GET", salePath("/"+sale.ID), "pharmacist", "")
+	require.Equal(t, http.StatusOK, res.Code)
+	require.Contains(t, res.Body.String(), `"credited_minor":5000`)
+	require.Contains(t, res.Body.String(), `"credited_minor":2000`)
+
+	for _, bad := range []string{
+		chargeReturn(sale.ID, nil, "", 0, "cash"),
+		chargeReturn(sale.ID, []int{1, 1}, "", 10000, "cash"),
+		chargeReturn(sale.ID, []int{6}, "", 5000, "cash"),
+	} {
+		res = do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", bad)
+		require.Equal(t, http.StatusBadRequest, res.Code, bad)
+	}
+	res = do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(sale.ID, []int{3}, "", 5000, "cash"))
+	require.Equal(t, http.StatusConflict, res.Code, res.Body.String())
+	require.Contains(t, res.Body.String(), "no service charge 3")
+
+	// The database credits a charge whole, of the note's own sale.
+	err := catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO pharmacy_credit_note_charge_lines (tenant_id,outlet_id,credit_note_id,charge_number,sale_id,sale_charge,amount_minor,taxable_minor,cgst_minor,sgst_minor)
+			SELECT k.tenant_id,k.outlet_id,k.credit_note_id,2,k.sale_id,k.sale_charge,k.amount_minor,k.taxable_minor,k.cgst_minor,k.sgst_minor FROM pharmacy_credit_note_charge_lines k WHERE k.sale_id=? AND k.sale_charge=1`, sale.ID).Error
+	})
+	require.ErrorContains(t, err, "cannot be added to", "an issued credit note is sealed")
+	err = catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		id := uuid.Must(uuid.NewV7())
+		if err := tx.Exec(`INSERT INTO pharmacy_credit_notes SELECT (jsonb_populate_record(NULL::pharmacy_credit_notes, to_jsonb(n) || jsonb_build_object(
+			'id', ?::text, 'sequence_number', n.sequence_number+100, 'credit_note_number', regexp_replace(n.credit_note_number,'[0-9]+$',(n.sequence_number+100)::text),
+			'actor_subject', 'user-editor', 'posted_xact', pg_current_xact_id()::text))).* FROM pharmacy_credit_notes n WHERE n.sale_id=? ORDER BY n.created_at LIMIT 1`, id, sale.ID).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO pharmacy_credit_note_charge_lines (tenant_id,outlet_id,credit_note_id,charge_number,sale_id,sale_charge,amount_minor,taxable_minor,cgst_minor,sgst_minor)
+			SELECT tenant_id,outlet_id,?,1,sale_id,charge_number,amount_minor-1,taxable_minor-1,cgst_minor,sgst_minor FROM pharmacy_sale_charge_lines WHERE sale_id=? AND charge_number=1`, id, sale.ID).Error
+	})
+	require.ErrorContains(t, err, "reverses a charge of its credit note's sale, whole", "part of a charge")
+}
+
+func TestTheDailyReportSeparatesServiceCharges(t *testing.T) {
+	w := newSaleWorld(t, true)
+	p := w.product(t, "TEST-PCM-500", "none")
+	w.shelve(t, p, "2028-06-30", 12500, 30)
+	delivery := uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, delivery, ownCharge("DELIVERY", "counter", 5000, "2026-11-01"), "approved")
+	code, sale, out := w.postCharged(t, chargedCashSale(p, 2, 7500, delivery))
+	require.Equal(t, http.StatusCreated, code, out)
+	code, _, out = w.postCharged(t, chargedCashSale(p, 2, 2500))
+	require.Equal(t, http.StatusCreated, code, out)
+	res := do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(sale.ID, []int{1}, "", 5000, "cash"))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+
+	res = do(w.r, "GET", licencePath("/reports/daily?from=2026-11-01&to=2026-11-01"), "pharmacist", "")
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	var body struct {
+		Days []struct {
+			SalesMinor                       int64 `json:"sales_minor"`
+			CreditsMinor                     int64 `json:"credits_minor"`
+			ServiceChargesMinor              int64 `json:"service_charges_minor"`
+			ServiceChargesTaxableMinor       int64 `json:"service_charges_taxable_minor"`
+			ServiceChargeCreditsMinor        int64 `json:"service_charge_credits_minor"`
+			ServiceChargeCreditsTaxableMinor int64 `json:"service_charge_credits_taxable_minor"`
+		} `json:"days"`
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	require.Len(t, body.Days, 1)
+	d := body.Days[0]
+	require.Equal(t, []int64{10000, 5000, 5000, 4238, 5000, 4238},
+		[]int64{d.SalesMinor, d.CreditsMinor, d.ServiceChargesMinor, d.ServiceChargesTaxableMinor, d.ServiceChargeCreditsMinor, d.ServiceChargeCreditsTaxableMinor},
+		"sales and credits stay invoice totals; the service share is reported beside them")
+}

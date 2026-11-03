@@ -78,17 +78,15 @@ it("withholds a page when cancellation happens during transport", async () => {
 it("preserves authorization outages instead of presenting an empty verified page", async () => {
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: "posting_source_unavailable",
-            message: "Current source unavailable",
-          }),
-          { status: 503 },
-        ),
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "posting_source_unavailable",
+          message: "Current source unavailable",
+        }),
+        { status: 503 },
       ),
+    ),
   );
   await expect(workspace.listStaffPostingReviewScopes(scope)).rejects.toMatchObject({
     code: "posting_source_unavailable",

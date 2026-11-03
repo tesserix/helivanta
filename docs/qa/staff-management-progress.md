@@ -2,6 +2,13 @@
 
 ## Posting decision validation checkpoint — 2026-11-04
 
+The first web CI run for draft #1544 stopped at API formatting in
+`staff-posting-review-workspace.test.ts`. The same package-wide `format:check`
+was reproduced locally, then passed after formatting that one test with cached
+Prettier 3.9.10 under Node 24.11.1. All six tests in the changed file passed.
+The correction changes only test layout; rerun CI remains required.
+
+
 The API/SDK slice is committed and pushed in draft [PR #1544](https://github.com/tesserix/helivanta/pull/1544),
 code commit `80dbc610`, on top of merged documentation `6a09287c`. The full
 restored Global API race suite passed in **411.298s** and removed its three

@@ -83,7 +83,10 @@ race/profile suite subsequently passed in 454.878s, including real OpenFGA outag
 withholding. The current complete Workforce race/profile suite passed in 700.117s
 and the complete architecture race suite in 49.919s. Combined owner/gateway source
 coverage is 12,204/14,672 statements (83.179%); Go's report independently confirms
-83.2% rounded. Exact-head CI remains required. The registry adds exactly
+83.2% rounded. The rebase onto the merged coverage correction retains all 1,418
+tested runtime/contract source hashes exactly and preserves upstream Leave QA
+documentation. Rebased contract/inventory checks and shell lint passed; exact-head
+CI remains required. The registry adds exactly
 one authenticated/membership-required GET with explicit bounded-object rationale.
 The ledger is 794 registered/771 unclassified; all ten proposal surfaces remain
 unclassified, with normal reviewer UI and production acceptance still open.

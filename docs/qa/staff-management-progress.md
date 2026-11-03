@@ -49,8 +49,12 @@ four owned fixtures; the complete architecture race suite passed in **49.919s**,
 removing three. Neither required fallback SSH forwards. Combining the complete
 current Workforce and gateway profiles with the merged source-owner parser gives
 **12,204 / 14,672 statements = 83.179%**; Go's independent report confirms **83.2%**
-rounded. This is code coverage, not Staff feature acceptance. Rebasing onto the
-merged CI correction and exact-head CI remain pending. The pre-context result below is historical evidence,
+rounded. This is code coverage, not Staff feature acceptance. The code is rebased
+onto `a12f6a30` as **`6714efd1`**. All **1,418** tested runtime/contract source
+hashes are byte-identical across that rebase, and the complete upstream opening
+Leave acceptance section was retained alongside the posting history. Rebased
+contractdocs/inventory checks and shell lint passed. Exact-head CI remains pending.
+The pre-context result below is historical evidence,
 not a full-suite run of this addition. Hospital proposal inbox, normal reviewer UI
 and browser acceptance, supervision/root policy, effective departmental postings,
 lifecycle consumers and Pharma duties remain open. Overall acceptance remains

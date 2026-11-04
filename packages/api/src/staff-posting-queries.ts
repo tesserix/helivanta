@@ -11,6 +11,7 @@ import {
   getStaffPostingManagementReviewContext,
   getStaffPostingReviewSource,
   listStaffPostingProposalInbox,
+  listStaffPostingSupervisorChoices,
   staffPostingProposalsKey,
   type StaffPostingInboxScope,
   type StaffPostingProposalScope,
@@ -252,5 +253,30 @@ export function useStaffPostingManagementReviewContext(
         },
         signal,
       ),
+  });
+}
+
+export function useStaffPostingSupervisorChoices(
+  scope: StaffPostingInboxScope,
+  purpose: "submission" | "review",
+  cursor: string | null,
+  state: { enabled: boolean; busy: boolean },
+) {
+  return useQuery({
+    ...options,
+    enabled: state.enabled,
+    refetchInterval: state.busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !state.busy,
+    queryKey: [
+      "workforce",
+      "posting-supervisor-choices",
+      scope.access,
+      scope.tenantId,
+      scope.subject,
+      scope.hospitalId,
+      purpose,
+      cursor,
+    ],
+    queryFn: ({ signal }) => listStaffPostingSupervisorChoices(scope, purpose, cursor, signal),
   });
 }

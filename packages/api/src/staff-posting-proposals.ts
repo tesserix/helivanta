@@ -13,6 +13,7 @@ import {
   StaffPostingProposalContextContract,
   StaffPostingSupervisionContextContract,
   StaffPostingInboxItemContract,
+  StaffPostingSupervisorChoiceContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
   type StaffPostingProposal,
@@ -506,6 +507,57 @@ export async function listStaffPostingProposalInbox(
       )
         throw new Error("The posting proposal inbox order could not be verified.");
     }
+  }
+  return page;
+}
+
+const supervisorChoicePage = z
+  .object({
+    data: z.array(StaffPostingSupervisorChoiceContract).max(8),
+    page: z.object({ has_more: z.boolean(), next_cursor: cursorSchema.nullable() }).strict(),
+  })
+  .strict();
+
+export async function listStaffPostingSupervisorChoices(
+  scope: StaffPostingInboxScope,
+  purpose: "submission" | "review",
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const selected = z.enum(["submission", "review"]).parse(purpose);
+  const query = new URLSearchParams({ purpose: selected, limit: "8" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  signal?.throwIfAborted();
+  const raw = await apiFetch(`${hospitalRoot(scope)}/posting-supervisor-choices?${query}`, {
+    ...enrollmentRequestOptions(scope),
+    signal,
+  });
+  signal?.throwIfAborted();
+  const page = supervisorChoicePage.parse(raw);
+  if (
+    page.page.has_more !== Boolean(page.page.next_cursor) ||
+    (page.page.has_more && page.data.length === 0) ||
+    (cursor !== null && page.page.next_cursor === cursor) ||
+    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length
+  )
+    throw new Error("The supervisor choice page could not be verified.");
+  for (let index = 1; index < page.data.length; index++) {
+    const before = page.data[index - 1],
+      after = page.data[index];
+    const previous = staffPostingInstantMicros(before.created_at),
+      current = staffPostingInstantMicros(after.created_at);
+    if (
+      previous === null ||
+      current === null ||
+      previous < current ||
+      (previous === current && before.id.toLowerCase() <= after.id.toLowerCase())
+    )
+      throw new Error("The supervisor choice page order could not be verified.");
+  }
+
+  for (const choice of page.data) {
+    if (!same(choice.hospital_id, scope.hospitalId))
+      throw new Error("The supervisor choices do not match this hospital.");
   }
   return page;
 }

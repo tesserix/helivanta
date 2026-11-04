@@ -1529,13 +1529,13 @@ it("retains an explicit hospital-management submission through an uncertain resp
     within(form).getByLabelText("Submission rationale"),
     "Synthetic explicit hospital-management responsibility request",
   );
-  await user.click(within(form).getByLabelText("Request hospital management responsibility"));
+  await choosePostingResponsibility(user, form, "hospital_management");
   await user.click(
     within(form).getByLabelText("I examined this draft and the current employment source."),
   );
   await user.click(within(form).getByRole("button", { name: "Request independent review" }));
   await screen.findByRole("button", { name: "Retry exact submission" });
-  expect(within(form).getByLabelText("Request hospital management responsibility")).toBeDisabled();
+  expect(within(form).getByLabelText("Posting responsibility")).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Retry exact submission" }));
   await screen.findByText(
     "Posting proposal submitted for independent review. Operating authority is unchanged.",
@@ -1792,4 +1792,229 @@ it("expires an open approval form at the nominal posting end without another sou
     rendered.unmount();
     vi.useRealTimers();
   }
+});
+
+it("submits a named canonical supervisor reference for a department member", async () => {
+  const supervisor = supervisorChoice();
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("posting-supervisor-choices"))
+        return Response.json({ data: [supervisor], page: { has_more: false, next_cursor: null } });
+      if (init?.method === "PUT") writes.push(String(init.body));
+      return submissionResponse(url, init);
+    }),
+  );
+  const { user, form } = await openSubmission();
+  await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
+  await choosePostingResponsibility(user, form, "department_member");
+  expect(within(form).getByRole("button", { name: "Request independent review" })).toBeDisabled();
+  expect(
+    await within(form).findByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  ).toBeEnabled();
+  await user.click(
+    await within(form).findByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  );
+  expect(within(form).getByRole("button", { name: "Request independent review" })).toBeEnabled();
+  await user.type(
+    within(form).getByLabelText("Submission rationale"),
+    "Synthetic independently reviewed Pharmacy department membership",
+  );
+  await user.click(
+    within(form).getByLabelText("I examined this draft and the current employment source."),
+  );
+  await user.click(within(form).getByRole("button", { name: "Request independent review" }));
+  await screen.findByText(
+    "Posting proposal submitted for independent review. Operating authority is unchanged.",
+  );
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(writes[0]).supervision).toEqual({
+    kind: "department_member",
+    supervisor_staff_id: supervisor.staff.id,
+    supervisor_proposal_id: supervisor.id,
+    supervisor_revision_id: supervisor.revision_id,
+  });
+  expect(JSON.parse(writes[0]).supervision).not.toHaveProperty("display_name");
+});
+
+function supervisorChoice(n = 51, name = "Synthetic Supervisor") {
+  return {
+    id: id(n),
+    revision_id: id(n + 1),
+    hospital_id: hospital,
+    staff: { id: id(n - 1), employee_code: `SYN-SUP-${n}`, display_name: name },
+    kind: "hospital_management" as const,
+    department_id: context.draft.department_id,
+    department_revision_id: context.draft.department_revision_id,
+    starts_at: context.draft.starts_at,
+    ends_at: context.draft.ends_at,
+    eligibility_until: source.eligibility_until,
+    created_at: "2026-11-04T00:00:01Z",
+  };
+}
+
+it("retains an exact supervised department-manager submission through an uncertain response", async () => {
+  const supervisor = supervisorChoice();
+  const writes: { url: string; body: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("posting-supervisor-choices"))
+        return Response.json({ data: [supervisor], page: { has_more: false, next_cursor: null } });
+      if (init?.method === "PUT") {
+        writes.push({ url, body: String(init.body) });
+        if (writes.length === 1) throw new TypeError("Synthetic lost supervised proposal response");
+      }
+      return submissionResponse(url, init);
+    }),
+  );
+  const { user, form } = await openSubmission();
+  await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
+  await choosePostingResponsibility(user, form, "department_supervisor");
+  await user.click(
+    await within(form).findByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  );
+  await user.type(
+    within(form).getByLabelText("Submission rationale"),
+    "Synthetic Pharmacy supervisor under a reviewed hospital manager",
+  );
+  await user.click(
+    within(form).getByLabelText("I examined this draft and the current employment source."),
+  );
+  await user.click(within(form).getByRole("button", { name: "Request independent review" }));
+  await screen.findByRole("button", { name: "Retry exact submission" });
+  expect(within(form).getByLabelText("Posting responsibility")).toBeDisabled();
+  expect(
+    within(form).getByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  ).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Retry exact submission" }));
+  await screen.findByText(
+    "Posting proposal submitted for independent review. Operating authority is unchanged.",
+  );
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+  expect(JSON.parse(writes[0].body).supervision).toEqual({
+    kind: "department_supervisor",
+    supervisor_staff_id: supervisor.staff.id,
+    supervisor_proposal_id: supervisor.id,
+    supervisor_revision_id: supervisor.revision_id,
+  });
+});
+
+it("clears the supervisor selection when paging and excludes the target Staff from choices", async () => {
+  const first = supervisorChoice(),
+    next = supervisorChoice(41, "Synthetic Second Supervisor");
+  const self = {
+    ...supervisorChoice(71, "Synthetic Target Self"),
+    staff: { ...supervisorChoice(71).staff, id: staff },
+  };
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("posting-supervisor-choices"))
+        return Response.json(
+          url.includes("cursor=next")
+            ? { data: [next], page: { has_more: false, next_cursor: null } }
+            : { data: [self, first], page: { has_more: true, next_cursor: "next" } },
+        );
+      if (init?.method === "PUT") writes.push(String(init.body));
+      return submissionResponse(url, init);
+    }),
+  );
+  const { user, form } = await openSubmission();
+  await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
+  await choosePostingResponsibility(user, form, "department_member");
+  await user.click(
+    await within(form).findByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  );
+  expect(
+    within(form).queryByRole("button", { name: "Choose supervisor Synthetic Target Self" }),
+  ).not.toBeInTheDocument();
+  await user.click(within(form).getByRole("button", { name: "More supervisor references" }));
+  await within(form).findByRole("button", {
+    name: "Choose supervisor Synthetic Second Supervisor",
+  });
+  expect(within(form).getByRole("button", { name: "Request independent review" })).toBeDisabled();
+  expect(writes).toHaveLength(0);
+  await user.click(
+    within(form).getByRole("button", { name: "Choose supervisor Synthetic Second Supervisor" }),
+  );
+  expect(within(form).getByRole("button", { name: "Request independent review" })).toBeEnabled();
+});
+
+it("withholds a supervised submission when the candidate page is unavailable", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("posting-supervisor-choices"))
+        return Response.json(
+          { error: "posting_source_unavailable", message: "Synthetic owner outage" },
+          { status: 503 },
+        );
+      if (init?.method === "PUT") writes.push(String(init.body));
+      return submissionResponse(url, init);
+    }),
+  );
+  const { user, form } = await openSubmission();
+  await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
+  await choosePostingResponsibility(user, form, "department_member");
+  await within(form).findByRole("button", { name: "Retry supervisor references" });
+  expect(within(form).getByRole("button", { name: "Request independent review" })).toBeDisabled();
+  expect(within(form).getByLabelText("Posting responsibility")).toBeEnabled();
+  expect(writes).toHaveLength(0);
+});
+
+async function choosePostingResponsibility(
+  user: ReturnType<typeof renderReview>["user"],
+  form: HTMLElement,
+  value: "unspecified" | "hospital_management" | "department_supervisor" | "department_member",
+) {
+  const labels = {
+    unspecified: "Preparation only",
+    hospital_management: "Hospital management",
+    department_supervisor: "Department supervisor",
+    department_member: "Department member",
+  };
+  await user.click(within(form).getByRole("combobox", { name: "Posting responsibility" }));
+  await user.click(await screen.findByRole("option", { name: labels[value] }));
+}
+
+it("clears supervisor disclosure when its scoped read permission is lost", async () => {
+  const changed = vi.fn(),
+    supervisor = supervisorChoice();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("posting-supervisor-choices"))
+        return url.includes("cursor=next")
+          ? Response.json(
+              { error: "forbidden", message: "Synthetic current permission lost" },
+              { status: 403 },
+            )
+          : Response.json({ data: [supervisor], page: { has_more: true, next_cursor: "next" } });
+      return submissionResponse(url, init);
+    }),
+  );
+  const { user, form } = await openSubmission(changed);
+  await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
+  await choosePostingResponsibility(user, form, "department_member");
+  await user.click(
+    await within(form).findByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  );
+  await user.click(within(form).getByRole("button", { name: "More supervisor references" }));
+  await waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+  expect(
+    screen.queryByRole("button", { name: "Choose supervisor Synthetic Supervisor" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Request independent review" }),
+  ).not.toBeInTheDocument();
 });

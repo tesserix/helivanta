@@ -34,6 +34,7 @@ import {
   Palette,
   CreditCard,
   Pill,
+  Receipt,
   ReceiptText,
   Scale,
   Settings,
@@ -169,6 +170,13 @@ export const ZONES: Zone[] = [
         label: "Returns",
         href: "/pharmacy/returns",
         icon: Undo2,
+        permission: "pharmacy.sale.read",
+      },
+      {
+        section: "Dispensing",
+        label: "Sales",
+        href: "/pharmacy/sales",
+        icon: Receipt,
         permission: "pharmacy.sale.read",
       },
       {

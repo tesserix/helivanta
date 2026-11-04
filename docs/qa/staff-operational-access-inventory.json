@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "afa39575b45b3ef8a7416f65f010c5739097c27c138d25aebc32b6fbd0c36121",
+  "registry_sha256": "148a1ecda2930d2bc86b2b4da8a452ad6438fe2d38a6ce8f034587a9ac93c0f9",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 809,
-    "unclassified": 786
+    "total": 812,
+    "unclassified": 789
   },
   "entries": [
     {
@@ -457,6 +457,30 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "name": "pharmacy-bed-occupancy-started",
         "subject": "helivanta.in.medicore.bed_occupancy_started.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer pharmacy pharmacy-encounter-opened helivanta.in.medicore.encounter_opened.v1",
+      "kind": "consumer",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "name": "pharmacy-encounter-opened",
+        "subject": "helivanta.in.medicore.encounter_opened.v1",
+        "after_commit": false
+      },
+      "review": null
+    },
+    {
+      "id": "consumer pharmacy pharmacy-encounter-status-changed helivanta.in.medicore.encounter_status_changed.v1",
+      "kind": "consumer",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "name": "pharmacy-encounter-status-changed",
+        "subject": "helivanta.in.medicore.encounter_status_changed.v1",
         "after_commit": false
       },
       "review": null
@@ -5884,6 +5908,22 @@
         "method": "GET",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download",
         "permission": "pharmacy.licence.evidence.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters",
+        "permission": "pharmacy.sale.create",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

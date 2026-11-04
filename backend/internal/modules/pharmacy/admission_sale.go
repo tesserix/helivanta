@@ -172,6 +172,7 @@ type stayView struct {
 func admissionRoutes(g *platform.Router, deps platform.Deps) {
 	h := &catalogueHandlers{db: deps.DB, bus: deps.Bus}
 	g.GET("/pharmacies/:pharmacy/outlets/:outlet/admission-occupant", PermSaleCreate, h.admissionOccupant)
+	g.GET("/pharmacies/:pharmacy/outlets/:outlet/opd-encounters", PermSaleCreate, h.citableEncounters)
 }
 
 // admissionOccupant resolves a bed or room code to its one open stay, at a

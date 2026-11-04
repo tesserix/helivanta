@@ -91,9 +91,16 @@ Public Global API first RED: 76.820s, expected child approval 200 and actual
 header/source evidence-write failures, rollback and exact retry: 96.935s. Repeated
 Staff under a valid earlier root refusal: 79.476s. Three canonical Staff through
 root/department supervisor/descendant sub-unit member: 73.639s, with immutable
-recovery and no access grant. A full Workforce process reached its original
-10-minute package cap while the current tax test was only 2 seconds old and no
-earlier failure/race was reported. A 20-minute process-envelope rerun is active;
-no business deadline or assertion was relaxed. Build/vet, scoped lint and canonical
-contract/inventory checks pass. Further mutation/direction/depth/source/interval
-proof, full suites and normal UI remain required before this increment is ready.
+recovery and no access grant. The full native Workforce race suite passes in **565.673s** (643 tests/subtests),
+serial architecture in **212.938s** (128 tests/subtests), and serial full Global API
+in **500.724s**. The earlier parallel architecture run was OOM-killed; the serial
+run uses bounded memory without changing business assertions. The grant fixture
+now starts its unchanged 10-second projection polling deadline after proposal
+setup/review and reports permission/template diagnostics. Scoped lint reports
+zero issues. Removing the sibling ancestry predicate was caught (expected 409,
+actual approval 200); the implementation was restored byte for byte. The expanded
+seven-scenario set passes in **137.915s**, retaining original pagination assertions.
+Build/vet and canonical contract/inventory checks pass. Further depth/source/interval
+proof and normal UI remain required before this increment is ready. A newly
+reproduced parent root nominal-end approval gap is being fixed separately; its
+fix must be integrated into shared chain validation before acceptance.

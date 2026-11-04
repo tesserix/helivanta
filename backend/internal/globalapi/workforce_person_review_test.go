@@ -1774,15 +1774,16 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
-				grantContext, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-				defer cancel()
 				proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
 				call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": subject, "template_key": template, "reason": "Synthetic operational activation fixture", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
 				waitForStatus(t, proposal, maker, "pending_review")
 				call(t, "POST", proposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic activation fixture approval"}, 200)
-				require.Eventually(t, func() bool {
+				grantContext, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				defer cancel()
+				require.EventuallyWithT(t, func(collect *assert.CollectT) {
 					standing, err := authority.AuthorizeScope(grantContext, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: permission})
-					return err == nil && standing.AssignmentID != ""
+					assert.NoError(collect, err, "projection polling for %s in %s", template, scenario)
+					assert.NotEmpty(collect, standing.AssignmentID, "permission %s must be projected from %s", permission, template)
 				}, 10*time.Second, 20*time.Millisecond)
 			}
 			if scenario == "posting_supervision" || scenario == "posting_chain_child" || strings.HasPrefix(scenario, "posting_root_") {

@@ -224,8 +224,11 @@ func (h *catalogueHandlers) getPrescription(c *gin.Context) {
 	}
 	var row prescription
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) (err error) {
-		row, err = loadPrescription(tx, p.TenantID, outlet, id)
-		return err
+		if row, err = loadPrescription(tx, p.TenantID, outlet, id); err != nil {
+			return err
+		}
+		// A prescription names its patient: recorded with it (#1555).
+		return auditRegisterRead(c, tx, "prescription", p.TenantID, p.Subject, id, "record_read")
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -241,7 +244,10 @@ func (h *catalogueHandlers) listPrescriptions(c *gin.Context, params pagination.
 	}
 	var rows []prescription
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, params).Select(prescriptionColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error
+		if err := tenantdb.ApplyKeyset(tx, params).Select(prescriptionColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "prescriptions", p.TenantID, p.Subject, outlet, "list_read")
 	})
 	if err != nil {
 		catalogueError(c, err)
@@ -276,12 +282,15 @@ func (h *catalogueHandlers) getOpenPrescriptionLines(c *gin.Context) {
 	}
 	rows := []openPrescriptionLine{}
 	err = h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tx.Raw(`SELECT p.id AS prescription_id, to_char(p.prescribed_on,'YYYY-MM-DD') AS prescribed_on, p.prescriber_name, p.patient_name,
+		if err := tx.Raw(`SELECT p.id AS prescription_id, to_char(p.prescribed_on,'YYYY-MM-DD') AS prescribed_on, p.prescriber_name, p.patient_name,
 			(p.prescriber_address IS NOT NULL AND p.patient_address IS NOT NULL) AS addresses_on_file, q.*
 			FROM pharmacy_prescriptions p
 			JOIN LATERAL (`+prescriptionLinesQuery+` WHERE l.tenant_id=p.tenant_id AND l.outlet_id=p.outlet_id AND l.prescription_id=p.id AND l.product_id=?) q ON true
 			WHERE p.tenant_id=? AND p.outlet_id=? AND q.units_remaining > 0 AND q.dispensings_remaining > 0
-			ORDER BY p.created_at DESC, p.id, q.line_number LIMIT ?`, product, p.TenantID, outlet, maxOpenLines).Scan(&rows).Error
+			ORDER BY p.created_at DESC, p.id, q.line_number LIMIT ?`, product, p.TenantID, outlet, maxOpenLines).Scan(&rows).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "prescriptions", p.TenantID, p.Subject, outlet, "open_lines_read", "product_id", product.String())
 	})
 	if err != nil {
 		catalogueError(c, err)

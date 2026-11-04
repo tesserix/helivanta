@@ -1229,7 +1229,11 @@ func (h *catalogueHandlers) getSale(c *gin.Context) {
 	}
 	var result saleRecord
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return loadSale(tx, p.TenantID, outlet, id, &result)
+		if err := loadSale(tx, p.TenantID, outlet, id, &result); err != nil {
+			return err
+		}
+		// The invoice names its buyer or patient: recorded with it (#1555).
+		return auditRegisterRead(c, tx, "sale", p.TenantID, p.Subject, id, "record_read")
 	})
 	if err != nil {
 		stockError(c, err)
@@ -1245,7 +1249,10 @@ func (h *catalogueHandlers) listSales(c *gin.Context, params pagination.Params) 
 	}
 	var rows []saleRecord
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return tenantdb.ApplyKeyset(tx, params).Select(saleColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error
+		if err := tenantdb.ApplyKeyset(tx, params).Select(saleColumns).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "sales", p.TenantID, p.Subject, outlet, "list_read")
 	})
 	if err != nil {
 		stockError(c, err)

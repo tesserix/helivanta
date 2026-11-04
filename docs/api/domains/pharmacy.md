@@ -312,9 +312,30 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 | `GET …/sales/{id}/summary`                          | One sale's statement: each line with units returned and amount credited, each service charge with amount credited, payments by kind, credit notes with refunds by kind, and the balances `credited_minor`, `net_minor`, `collected_minor`, `refunded_minor`, `admission_billed_minor`, `admission_reversed_minor`. At most 100 credit notes are listed, with `more_credit_notes` when there are more; the totals count every note. Requires `pharmacy.sale.read`; a sale of another outlet is 404 |
 
 - **The summary reconciles.** It is read in one snapshot, so a return posted meanwhile is wholly in or wholly out (tested). Lines and charges make the total; payments settle it; the credit notes credit exactly their lines and charges and are refunded in full. So `net = collected − refunded + (admission billed − admission reversed)` for every sale. The tests prove each identity for a walk-in sale with a credited service charge, a registered patient's sale and an admission sale.
-- **No direct identifiers.** Neither read carries the buyer's name or phone, the patient's id or a credit note's recipient, only who the sale was for as a kind. An admission sale shows its bed code, which with the date points to whoever was in that bed; the reads are not audited, as the invoice read (`GET …/sales/{id}`), which shows more, is not. Whether bed-level reads need an audit record is an open policy question, raised with the invoice-read gap below.
+- **No direct identifiers.** Neither read carries the buyer's name or phone, the patient's id or a credit note's recipient, only who the sale was for as a kind. An admission sale shows its bed code, which with the date points to whoever was in that bed, so a worklist page or summary showing one is recorded (see [audited reads](#audited-reads-1555)).
 - **Credits are as of now.** A sale counts on its own date; its credit notes are every one posted so far, whatever the period.
-- **Not covered:** encounter linkage (slice 2), payer liability split (slice 3, with #1051), sales across outlets, buyer or patient search, CSV export. The existing invoice and sale-list reads return the buyer's name and phone and the patient id without an audit record; that is a gap in those reads, for its own change.
+- **Not covered:** encounter linkage (slice 2), payer liability split (slice 3, with #1051), sales across outlets, buyer or patient search, CSV export.
+
+### Audited reads (#1555)
+
+Every read of a pharmacy record that names or points to a person writes an `audit_events` row in the read's own transaction, after the rows are read: no record, no data. The row holds the filter names, never their values; the audit log line holds the values. A refused read (400, 403, 404) records nothing.
+
+| Read                             | `resource_type`           | `resource_id`    | `action`                                 | When                             |
+| -------------------------------- | ------------------------- | ---------------- | ---------------------------------------- | -------------------------------- |
+| `GET …/sales/{id}`               | `pharmacy_sale`           | the sale         | `record_read`                            | always                           |
+| `GET …/sales`                    | `pharmacy_sales`          | the outlet       | `list_read`                              | every page                       |
+| `GET …/credit-notes/{id}`        | `pharmacy_credit_note`    | the note         | `record_read`                            | always                           |
+| `GET …/credit-notes`             | `pharmacy_credit_notes`   | the outlet       | `list_read` (`sale_id` when given)       | every page                       |
+| `GET …/prescriptions/{id}`       | `pharmacy_prescription`   | the prescription | `record_read`                            | always                           |
+| `GET …/prescriptions`            | `pharmacy_prescriptions`  | the outlet       | `list_read`                              | every page                       |
+| `GET …/prescriptions/open-lines` | `pharmacy_prescriptions`  | the outlet       | `open_lines_read` (`product_id`)         | always                           |
+| `GET …/sales/worklist`           | `pharmacy_sales_worklist` | the outlet       | `list_read` (`from,to,customer,invoice`) | a page showing an admission sale |
+| `GET …/sales/{id}/summary`       | `pharmacy_sale`           | the sale         | `summary_read`                           | an admission sale                |
+
+- **Who opened a record** is one indexed query on `(tenant_id, resource_type, resource_id)`.
+- **The sale summary** reads in one writable REPEATABLE READ snapshot (`tenantdb.WithTenantRecordedSnapshot`), so its statement stays one reading and its audit row commits with it.
+- **An audit store that refuses the row fails the read** with 500 and no body (tested).
+- **Not covered:** the tenant-wide dispense queue (`GET /pharmacy/dispenses…`), which shows patient names from MediCore's visits; auditing it is a dispensing-workflow decision and #1555 stays open for it.
 
 ### Returns as credit notes (#1386 C-1)
 

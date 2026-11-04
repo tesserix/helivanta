@@ -544,7 +544,11 @@ func (h *catalogueHandlers) getCreditNote(c *gin.Context) {
 	}
 	var result creditNote
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
-		return loadCreditNote(tx, p.TenantID, outlet, id, &result)
+		if err := loadCreditNote(tx, p.TenantID, outlet, id, &result); err != nil {
+			return err
+		}
+		// The note names its recipient: recorded with it (#1555).
+		return auditRegisterRead(c, tx, "credit_note", p.TenantID, p.Subject, id, "record_read")
 	})
 	if err != nil {
 		stockError(c, err)
@@ -572,10 +576,15 @@ func (h *catalogueHandlers) listCreditNotes(c *gin.Context, params pagination.Pa
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		q := tenantdb.ApplyKeyset(tx.Table("pharmacy_credit_notes n").Joins("JOIN pharmacy_sales s ON s.tenant_id=n.tenant_id AND s.outlet_id=n.outlet_id AND s.id=n.sale_id"), params).
 			Select(creditNoteColumns).Where("n.tenant_id=? AND n.outlet_id=?", p.TenantID, outlet)
+		filters := []string{}
 		if sale != nil {
 			q = q.Where("n.sale_id=?", *sale)
+			filters = append(filters, "sale_id", sale.String())
 		}
-		return q.Find(&rows).Error
+		if err := q.Find(&rows).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "credit_notes", p.TenantID, p.Subject, outlet, "list_read", filters...)
 	})
 	if err != nil {
 		stockError(c, err)

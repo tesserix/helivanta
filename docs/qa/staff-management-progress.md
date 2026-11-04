@@ -1,5 +1,43 @@
 # Staff Management delivery tracker
 
+
+## Managerial supervision: ancestry prerequisite — 2026-11-04
+
+Candidate `codex/posting-supervision-sources-20261104` adds an optional exact
+ancestor source constraint to Organization's existing guarded callback. Same
+active department/current ancestor paths pass; stale, sibling, upward, retired,
+foreign-hospital and partial references deny. The eight-level owner bound is
+retained. Stable-order SHARE locks and the hospital structural gate survive the
+source callback until outer commit/rollback; a public intermediate move waits
+and a later command sees the committed change even with an unchanged leaf.
+Existing Workforce callers omit the pair and keep their current behavior.
+
+Real RED→GREEN source checks passed. Three deliberate mutations were caught:
+removing ancestry denial admits sibling/upward scope; removing row SHARE locks
+admits competing writes; removing the hospital gate allows a public intermediate
+move before outer commit. Exact original source was restored and SHA256 checked
+after every mutation. Full restored-source race suites pass: Organization
+125.467s, authorization 11.035s and architecture 103.945s. Vet, full Go build,
+scoped lint (zero issues), gofmt and contractdocs check pass with cached tooling.
+No dependencies or images were downloaded; only exact-session fixtures were
+removed after private state capture.
+
+A real 5,000-node hospital with an eight-level chain uses two primary-key probes
+(seed and recursive parent), returning eight ancestry rows. The standalone
+fixture measured planning 0.329ms / execution 0.168ms after normal PostgreSQL
+auto-analysis. Cold fixture statistics initially selected sequential scans;
+normal-statistics fixture warmup is bounded at 90 seconds. This is plan evidence,
+not throughput/SLO acceptance or a planner override. No elevated application role
+or new WithAdmin allowlist entry was added.
+
+See [ADR-0053](../adr/0053-reviewed-managerial-posting-supervision.md) and the
+[owner boundary](../api/organization.md). Preserve #1546's legitimate HR
+reporting-line Leave consumer. This slice changes no route, event, permission,
+OpenFGA model or migration and is not yet merged/deployed. Positive root and
+descendant approval, operational lifecycle/transfer enforcement, normal-role
+browser acceptance and departmental/Pharma consumers remain open. Full Staff
+counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Reporting-line leave routing — 2026-11-04
 
 #1536 lets HR choose who decides leave first. A versioned, reviewed routing

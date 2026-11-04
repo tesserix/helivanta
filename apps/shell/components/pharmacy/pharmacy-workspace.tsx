@@ -378,6 +378,7 @@ function OutletPharmacy({
         <div className="space-y-6">
           <CounterSale
             scope={scope}
+            timeZone={outlet.timezone}
             canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
             canManageProfile={access.data?.level === "editor" && can("pharmacy.tax.manage")}
             canDiscount={can("pharmacy.sale.discount")}

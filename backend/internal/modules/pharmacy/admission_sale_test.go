@@ -29,6 +29,8 @@ type ward struct {
 	t        *testing.T
 	hospital string
 	handle   func(name string, v any) error
+	// handleAt delivers an event published at a given time.
+	handleAt func(name string, v any, at time.Time) error
 }
 
 func newWard(t *testing.T, w saleWorld) ward {
@@ -40,6 +42,9 @@ func newWard(t *testing.T, w saleWorld) ward {
 		"pharmacy-patient-registered":    patientmastercontract.TypePatientRegistered,
 		"pharmacy-bed-occupancy-started": "BedOccupancyStarted",
 		"pharmacy-bed-occupancy-ended":   "BedOccupancyEnded",
+		// MediCore's encounter event types (medicore/encounters.go).
+		"pharmacy-encounter-opened":         "EncounterOpened",
+		"pharmacy-encounter-status-changed": "EncounterStatusChanged",
 	}
 	handle := func(name string, v any) error {
 		data, err := json.Marshal(v)
@@ -53,7 +58,15 @@ func newWard(t *testing.T, w saleWorld) ward {
 			return c.Handle(t.Context(), tx, events.Event{Type: typ, Version: 1, TenantID: testutil.TenantA, Data: data})
 		})
 	}
-	return ward{w: w, t: t, hospital: uuid.NewString(), handle: handle}
+	handleAt := func(name string, v any, at time.Time) error {
+		data, err := json.Marshal(v)
+		require.NoError(t, err)
+		c := consumers[name]
+		return w.db.WithTenant(tenantdb.WithActor(t.Context(), "system:"+name), testutil.TenantA, func(tx *gorm.DB) error {
+			return c.Handle(t.Context(), tx, events.Event{Type: types[name], Version: 1, TenantID: testutil.TenantA, OccurredAt: at, Data: data})
+		})
+	}
+	return ward{w: w, t: t, hospital: uuid.NewString(), handle: handle, handleAt: handleAt}
 }
 
 func (d ward) verify() {

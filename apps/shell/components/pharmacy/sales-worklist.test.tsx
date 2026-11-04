@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders as renderProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
+import { chooseOption } from "../../test/select";
 import type { PharmacySaleSummary } from "@helivanta/api";
 import { SaleStatement, SalesWorklist } from "./sales-worklist";
 
@@ -54,6 +55,7 @@ const row = (over: object) => ({
   sale_date: "2026-11-04",
   customer: "walk_in",
   admission_bed_code: null,
+  linkage: "none",
   currency: "INR",
   total_minor: 7500,
   discount_minor: 0,
@@ -69,6 +71,7 @@ const admitted = row({
   invoice_number: "PH/2627/2",
   customer: "admission",
   admission_bed_code: "B-7",
+  linkage: "admission",
   total_minor: 2500,
   credited_minor: 1250,
   net_minor: 1250,
@@ -81,6 +84,7 @@ const summary: PharmacySaleSummary = {
   sale_date: "2026-11-04",
   customer: "admission",
   admission_bed_code: "B-7",
+  linkage: "admission",
   currency: "INR",
   total_minor: 2500,
   taxable_minor: 2232,
@@ -213,6 +217,23 @@ describe("SalesWorklist", () => {
     await user.click(screen.getByRole("button", { name: "Show sales" }));
     await screen.findByRole("button", { name: "Open invoice PH/2627/3" });
     await waitFor(() => expect(screen.getByRole("button", { name: "Next sale" })).toBeEnabled());
+  });
+
+  it("shows a sale cited to an OPD visit and filters by what sales are linked to", async () => {
+    const fetcher = serve([
+      row({
+        id: "0199e000-0000-7000-8000-000000000204",
+        invoice_number: "PH/2627/4",
+        customer: "patient",
+        linkage: "opd",
+      }),
+    ]);
+    const { user } = renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
+    const item = await screen.findByRole("listitem");
+    expect(item).toHaveTextContent("Registered patient, for an OPD visit");
+    await chooseOption(user, screen.getByRole("combobox", { name: "Linked to" }), "OPD visit");
+    await user.click(screen.getByRole("button", { name: "Show sales" }));
+    await waitFor(() => expect(worklistCalls(fetcher).at(-1)).toContain("&linkage=opd"));
   });
 
   it("reports a failed load", async () => {

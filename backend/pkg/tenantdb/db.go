@@ -216,14 +216,6 @@ func (d *DB) WithTenantSnapshot(ctx context.Context, tenantID string, fn func(tx
 	return d.withTenant(ctx, tenantID, fn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 }
 
-// WithTenantRecordedSnapshot is WithTenantSnapshot for an audited read: one
-// REPEATABLE READ snapshot for every statement, and writable so the read's
-// audit row commits with it or not at all (#1555). Use it for reads whose
-// only write is that insert-only record; anything else belongs in WithTenant.
-func (d *DB) WithTenantRecordedSnapshot(ctx context.Context, tenantID string, fn func(tx *gorm.DB) error) error {
-	return d.withTenant(ctx, tenantID, fn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
-}
-
 func (d *DB) withTenant(ctx context.Context, tenantID string, fn func(tx *gorm.DB) error, opts ...*sql.TxOptions) error {
 	if _, err := uuid.Parse(tenantID); err != nil {
 		return ErrInvalidTenant

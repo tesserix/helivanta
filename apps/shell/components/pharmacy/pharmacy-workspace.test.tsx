@@ -167,6 +167,8 @@ function mockPharmacy(
           history: [],
         }),
       );
+    if (url.endsWith("/category"))
+      return new Response(JSON.stringify({ in_force: null, history: [] }));
     // One product, read by its id: a link or a reload reopens it (#1303 E2).
     if (/\/catalogue\/products\/[0-9a-f-]{36}$/.test(url))
       return new Response(

@@ -390,6 +390,12 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/counted` | `pharmacy.accounts.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant` | `pharmacy.sale.create` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire` | `pharmacy.category.declare` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id` | `pharmacy.category.declare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories` | `pharmacy.catalogue.read` | true | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review` | `pharmacy.category.review` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration` | `pharmacy.category.declare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category` | `pharmacy.catalogue.read` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review` | `pharmacy.price_control.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration` | `pharmacy.price_control.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control` | `pharmacy.catalogue.read` | false | false |
@@ -549,6 +555,7 @@ Migration table declarations:
 - `0030_pharmacy`: `pharmacy_licence_evidence`.
 - `0031_pharmacy`: `pharmacy_service_charges`, `pharmacy_service_charge_versions`, `pharmacy_service_charge_reviews`, `pharmacy_sale_charge_lines`, `pharmacy_credit_note_charge_lines`.
 - `0032_pharmacy`: `pharmacy_opd_encounters`.
+- `0033_pharmacy`: `pharmacy_item_categories`, `pharmacy_product_category_declarations`, `pharmacy_product_category_reviews`.
 
 ## payments
 

@@ -40,6 +40,9 @@ func newWard(t *testing.T, w saleWorld) ward {
 		"pharmacy-patient-registered":    patientmastercontract.TypePatientRegistered,
 		"pharmacy-bed-occupancy-started": "BedOccupancyStarted",
 		"pharmacy-bed-occupancy-ended":   "BedOccupancyEnded",
+		// MediCore's encounter event types (medicore/encounters.go).
+		"pharmacy-encounter-opened":         "EncounterOpened",
+		"pharmacy-encounter-status-changed": "EncounterStatusChanged",
 	}
 	handle := func(name string, v any) error {
 		data, err := json.Marshal(v)

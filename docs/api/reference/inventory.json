@@ -3934,7 +3934,7 @@
         },
         {
           "id": "0033_pharmacy",
-          "sql_sha256": "99d49fc3193acaef616acb5c666af4268a0254f5af1d0fbadf77f2d15453c8b9",
+          "sql_sha256": "22fdae5b035f88d090fbe5bf7a3ca13b2b7591dbda3c2aa2a47a34338e13b4c6",
           "creates_tables": [
             "pharmacy_item_categories",
             "pharmacy_product_category_declarations",

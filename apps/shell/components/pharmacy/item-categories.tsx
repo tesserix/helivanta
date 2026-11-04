@@ -19,23 +19,45 @@ import {
   type PharmacyProductCategoryDeclaration,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  ConfirmDialog,
+  Field,
+  FormSelectField,
+  LoadMore,
+  Panel,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 // Item categories (#988 slice 1): an outlet's categories and subcategories,
 // and each product's category, declared by one person and approved by another.
 
-/** Every category of the outlet: a few dozen, so the pickers load them all. */
+/** The most categories the pickers load: ten pages of a hundred. */
+const MAX_CATEGORY_PAGES = 10;
+
+/**
+ * Every category of the outlet, for the pickers: loaded page by page up to
+ * MAX_CATEGORY_PAGES, and never retried in a loop once a page fails.
+ */
 function useItemCategories(scope: PharmacyScope) {
   const list = useApiPagedQuery<PharmacyItemCategory>(
     pharmacyKey(scope, "item-categories"),
     `${pharmacyItemCategoriesPath(scope)}?limit=100`,
   );
-  const { hasMore, isFetchingMore, loadMore } = list;
+  const { hasMore, isFetchingMore, isError, loadMore, items } = list;
+  const pages = Math.ceil(items.length / 100);
   useEffect(() => {
-    if (hasMore && !isFetchingMore) loadMore();
-  }, [hasMore, isFetchingMore, loadMore]);
+    if (hasMore && !isFetchingMore && !isError && pages < MAX_CATEGORY_PAGES) loadMore();
+  }, [hasMore, isFetchingMore, isError, pages, loadMore]);
   return list;
+}
+
+/** The outlet date after day (YYYY-MM-DD). */
+function nextDay(day: string) {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 const categorySchema = z.object({
@@ -75,14 +97,33 @@ export function ItemCategories({ scope, canEdit }: { scope: PharmacyScope; canEd
       },
     },
   );
+  // Retiring is permanent: it is confirmed first.
+  const [retiring, setRetiring] = useState<PharmacyItemCategory | null>(null);
   const retire = useApiMutation(
     (category: string) =>
       apiFetch<PharmacyItemCategory>(`${pharmacyItemCategoriesPath(scope)}/${category}/retire`, {
         method: "POST",
         body: "{}",
       }),
-    { successToast: "Category retired", invalidate: [pharmacyKey(scope, "item-categories")] },
+    {
+      successToast: "Category retired",
+      invalidate: [pharmacyKey(scope, "item-categories")],
+      onSuccess: () => setRetiring(null),
+    },
   );
+  const retireButton = (c: PharmacyItemCategory) =>
+    canEdit &&
+    !c.retired_at && (
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label={`Retire ${c.name}`}
+        disabled={retire.isPending}
+        onClick={() => setRetiring(c)}
+      >
+        Retire
+      </Button>
+    );
   return (
     <Panel>
       <h3 id="item-categories-heading" className="flex items-center gap-2 font-semibold">
@@ -109,25 +150,21 @@ export function ItemCategories({ scope, canEdit }: { scope: PharmacyScope; canEd
                   <span className="text-muted-foreground">{c.code}</span>
                   {c.retired_at && <span className="text-muted-foreground"> · retired</span>}
                 </span>
-                {canEdit && !c.retired_at && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={`Retire ${c.name}`}
-                    disabled={retire.isPending}
-                    onClick={() => retire.mutate(c.id)}
-                  >
-                    Retire
-                  </Button>
-                )}
+                {retireButton(c)}
               </div>
               {list.items
                 .filter((s) => s.parent_id === c.id)
                 .map((s) => (
-                  <p key={s.id} className="mt-1 pl-4 text-muted-foreground">
-                    {s.name} · {s.code}
-                    {s.retired_at && " · retired"}
-                  </p>
+                  <div
+                    key={s.id}
+                    className="mt-1 flex flex-wrap items-center justify-between gap-2 pl-4 text-muted-foreground"
+                  >
+                    <span>
+                      {s.name} · {s.code}
+                      {s.retired_at && " · retired"}
+                    </span>
+                    {retireButton(s)}
+                  </div>
                 ))}
             </li>
           ))}
@@ -138,6 +175,15 @@ export function ItemCategories({ scope, canEdit }: { scope: PharmacyScope; canEd
         hasMore={list.hasMore}
         isLoading={list.isFetchingMore}
         onClick={list.loadMore}
+      />
+      <ConfirmDialog
+        open={retiring !== null}
+        onOpenChange={(open) => !open && setRetiring(null)}
+        title={retiring ? `Retire ${retiring.name}?` : "Retire this category?"}
+        description="Its products keep it, but no product can newly go in it and it takes no new subcategory. Retiring cannot be undone."
+        confirmLabel="Retire category"
+        busy={retire.isPending}
+        onConfirm={() => retiring && retire.mutate(retiring.id)}
       />
       {canEdit && (
         <form
@@ -207,7 +253,9 @@ export function ProductCategorySection({
   const current = useApiQuery<PharmacyProductCategory>(key, path);
   const categories = useItemCategories(scope);
   const all = categories.items;
-  const pending = current.data?.history.find((d) => d.decision === null);
+  // Only the newest declaration can be approved; an older one pending is superseded.
+  const newest = current.data?.history[0];
+  const pending = newest?.decision === null ? newest : undefined;
   const label = (d: { category_id: string; subcategory_id: string | null }) =>
     [categoryName(all, d.category_id), categoryName(all, d.subcategory_id)]
       .filter(Boolean)
@@ -267,7 +315,9 @@ export function ProductCategorySection({
                   </p>
                   <p className="mt-0.5 text-xs">
                     {d.decision === null
-                      ? "Awaiting review"
+                      ? d.id === pending?.id
+                        ? "Awaiting review"
+                        : "Superseded by a newer declaration; it can only be rejected"
                       : d.decision === "approved"
                         ? `Approved by ${d.reviewed_by}, in force from ${d.in_force_from}: ${d.decision_reason}`
                         : `Rejected by ${d.reviewed_by}: ${d.decision_reason}`}
@@ -302,12 +352,13 @@ function CategoryDeclarationForm({
   invalidate: unknown[][];
   onStateChange?: FormState;
 }) {
+  // Today's sales are already made, so a category takes effect tomorrow at the earliest.
   const form = useZodForm(
-    declarationSchema.refine((v) => v.effective_from >= today, {
+    declarationSchema.refine((v) => v.effective_from > today, {
       path: ["effective_from"],
-      message: "A category takes effect today or later",
+      message: "A category takes effect from tomorrow",
     }),
-    { category_id: "", subcategory_id: "", effective_from: today, reason: "" },
+    { category_id: "", subcategory_id: "", effective_from: nextDay(today), reason: "" },
   );
   // One id per declaration, so a retried submit replays rather than records twice.
   const [id] = useState(() => newPharmacyId());

@@ -36,7 +36,8 @@ DECLARE
 BEGIN
  IF TG_OP='DELETE' THEN RAISE EXCEPTION 'an item category is retired, never deleted' USING ERRCODE='23514'; END IF;
  IF TG_OP='INSERT' AND NEW.parent_id IS NOT NULL THEN
-  SELECT parent_id,retired_at INTO p FROM pharmacy_item_categories WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.parent_id;
+  -- FOR SHARE: a retirement being applied is wholly before or after this.
+  SELECT parent_id,retired_at INTO p FROM pharmacy_item_categories WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.parent_id FOR SHARE;
   IF p.parent_id IS NOT NULL THEN
    RAISE EXCEPTION 'a subcategory belongs to a category, not to another subcategory' USING ERRCODE='23514', CONSTRAINT='pharmacy_item_category_levels';
   END IF;
@@ -91,12 +92,12 @@ DECLARE
  c record;
  s record;
 BEGIN
- SELECT parent_id,retired_at INTO c FROM pharmacy_item_categories WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.category_id;
+ SELECT parent_id,retired_at INTO c FROM pharmacy_item_categories WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.category_id FOR SHARE;
  IF c.parent_id IS NOT NULL OR c.retired_at IS NOT NULL THEN
   RAISE EXCEPTION 'a product goes in a category in use, not a subcategory or a retired category' USING ERRCODE='23514', CONSTRAINT='pharmacy_product_category_live';
  END IF;
  IF NEW.subcategory_id IS NOT NULL THEN
-  SELECT parent_id,retired_at INTO s FROM pharmacy_item_categories WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.subcategory_id;
+  SELECT parent_id,retired_at INTO s FROM pharmacy_item_categories WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.subcategory_id FOR SHARE;
   IF s.parent_id IS DISTINCT FROM NEW.category_id OR s.retired_at IS NOT NULL THEN
    RAISE EXCEPTION 'the subcategory is a live one of that category' USING ERRCODE='23514', CONSTRAINT='pharmacy_product_category_live';
   END IF;
@@ -133,18 +134,34 @@ CREATE TRIGGER pharmacy_product_category_review_audit AFTER INSERT ON pharmacy_p
 CREATE TRIGGER pharmacy_product_category_review_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON pharmacy_product_category_reviews
  FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
 
--- Four eyes, and an approval in force no earlier than its declaration's date.
+-- Four eyes; an approval in force no earlier than its declaration's date;
+-- only the product's newest declaration approved, so an older one left
+-- pending never comes back over a newer decision; and never into a category
+-- or subcategory retired since it was declared (locked, so a retirement being
+-- applied is wholly before or after the approval).
 CREATE FUNCTION pharmacy_product_category_review_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
  d record;
 BEGIN
- SELECT declared_by,effective_from INTO d FROM pharmacy_product_category_declarations
+ SELECT product_id,category_id,subcategory_id,declared_by,effective_from,created_at INTO d FROM pharmacy_product_category_declarations
   WHERE tenant_id=NEW.tenant_id AND outlet_id=NEW.outlet_id AND id=NEW.declaration_id;
  IF lower(btrim(d.declared_by))=lower(btrim(NEW.reviewed_by)) THEN
   RAISE EXCEPTION 'a product category is reviewed by someone other than who declared it' USING ERRCODE='23514', CONSTRAINT='pharmacy_product_category_four_eyes';
  END IF;
+ IF NEW.decision <> 'approved' THEN RETURN NEW; END IF;
  IF NEW.in_force_from < d.effective_from THEN
   RAISE EXCEPTION 'an approval is in force no earlier than its declaration''s date' USING ERRCODE='23514', CONSTRAINT='pharmacy_product_category_in_force';
+ END IF;
+ IF EXISTS (SELECT 1 FROM pharmacy_product_category_declarations n WHERE n.tenant_id=NEW.tenant_id AND n.outlet_id=NEW.outlet_id
+    AND n.product_id=d.product_id AND (n.created_at,n.id) > (d.created_at,NEW.declaration_id)) THEN
+  RAISE EXCEPTION 'a newer category declaration for this product superseded this one' USING ERRCODE='23514', CONSTRAINT='pharmacy_product_category_superseded';
+ END IF;
+ -- Lock first: under READ COMMITTED the check, a later statement, then sees
+ -- any retirement committed while the lock waited.
+ PERFORM 1 FROM pharmacy_item_categories c WHERE c.tenant_id=NEW.tenant_id AND c.outlet_id=NEW.outlet_id AND c.id IN (d.category_id,d.subcategory_id) FOR SHARE;
+ IF EXISTS (SELECT 1 FROM pharmacy_item_categories c WHERE c.tenant_id=NEW.tenant_id AND c.outlet_id=NEW.outlet_id
+    AND c.id IN (d.category_id,d.subcategory_id) AND c.retired_at IS NOT NULL) THEN
+  RAISE EXCEPTION 'a product goes in a category in use, not a retired one' USING ERRCODE='23514', CONSTRAINT='pharmacy_product_category_live';
  END IF;
  RETURN NEW;
 END $$;

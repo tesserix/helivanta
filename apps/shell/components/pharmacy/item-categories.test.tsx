@@ -85,6 +85,18 @@ describe("ItemCategories", () => {
     expect(screen.queryByRole("button", { name: "Add category" })).toBeNull();
   });
 
+  it("asks before retiring, and retires a subcategory too", async () => {
+    const fetcher = serve();
+    const { user } = renderWithProviders(<ItemCategories scope={scope} canEdit />);
+    await screen.findByRole("list", { name: "Item categories" });
+    await user.click(screen.getByRole("button", { name: "Retire Oral" }));
+    expect(writes(fetcher)).toHaveLength(0);
+    await user.click(await screen.findByRole("button", { name: "Retire category" }));
+    await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
+    expect(writes(fetcher)[0]![0]).toContain(`/catalogue/categories/${oral.id}/retire`);
+    expect(screen.queryByRole("button", { name: "Retire Analgesics" })).toBeNull();
+  });
+
   it("adds a subcategory with its code in capitals, under a category in use", async () => {
     const fetcher = serve();
     const { user } = renderWithProviders(<ItemCategories scope={scope} canEdit />);
@@ -174,7 +186,7 @@ describe("ProductCategorySection", () => {
     });
   });
 
-  it("declares a category from today, never a past date, and offers only live ones", async () => {
+  it("declares a category from tomorrow, never today, and offers only live ones", async () => {
     const fetcher = serve();
     const { user } = renderWithProviders(
       <ProductCategorySection
@@ -193,21 +205,84 @@ describe("ProductCategorySection", () => {
     await chooseOption(user, category, "Antibiotics");
     await chooseOption(user, screen.getByRole("combobox", { name: "Subcategory" }), "Oral");
     await user.type(screen.getByLabelText("Why"), "TEST filed with the antibiotics");
-    await user.clear(screen.getByLabelText("In force from"));
-    await user.type(screen.getByLabelText("In force from"), "2026-11-03");
-    await user.click(screen.getByRole("button", { name: "Declare category" }));
-    expect(await screen.findByText("A category takes effect today or later")).toBeVisible();
-    expect(writes(fetcher)).toHaveLength(0);
+    // Defaults to tomorrow: today's sales are already made.
+    expect(screen.getByLabelText("In force from")).toHaveValue("2026-11-05");
     await user.clear(screen.getByLabelText("In force from"));
     await user.type(screen.getByLabelText("In force from"), "2026-11-04");
+    await user.click(screen.getByRole("button", { name: "Declare category" }));
+    expect(await screen.findByText("A category takes effect from tomorrow")).toBeVisible();
+    expect(writes(fetcher)).toHaveLength(0);
+    await user.clear(screen.getByLabelText("In force from"));
+    await user.type(screen.getByLabelText("In force from"), "2026-11-05");
     await user.click(screen.getByRole("button", { name: "Declare category" }));
     await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
     expect(JSON.parse(String(writes(fetcher)[0]![1]?.body))).toEqual({
       category_id: antibiotics.id,
       subcategory_id: oral.id,
-      effective_from: "2026-11-04",
+      effective_from: "2026-11-05",
       reason: "TEST filed with the antibiotics",
     });
+  });
+
+  it("offers no review of an older declaration once a newer one is decided", async () => {
+    serve({
+      productCategory: {
+        in_force: null,
+        history: [
+          {
+            ...pending,
+            id: "0199e000-0000-7000-8000-000000000603",
+            decision: "rejected",
+            decision_reason: "wrong pack",
+            reviewed_by: "user-pharmacist",
+          },
+          pending,
+        ],
+      },
+    });
+    renderWithProviders(
+      <ProductCategorySection
+        scope={scope}
+        product={product}
+        today="2026-11-04"
+        canDeclare={false}
+        canReview
+      />,
+    );
+    await screen.findByRole("list", { name: "Category history" });
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.getByText(/Superseded by a newer declaration/)).toBeVisible();
+  });
+
+  it("reviews only the newest declaration and marks an older pending one superseded", async () => {
+    serve({
+      productCategory: {
+        in_force: null,
+        history: [
+          {
+            ...pending,
+            id: "0199e000-0000-7000-8000-000000000602",
+            category_id: analgesics.id,
+            subcategory_id: null,
+          },
+          pending,
+        ],
+      },
+    });
+    renderWithProviders(
+      <ProductCategorySection
+        scope={scope}
+        product={product}
+        today="2026-11-04"
+        canDeclare={false}
+        canReview
+      />,
+    );
+    const history = await screen.findByRole("list", { name: "Category history" });
+    const [newest, older] = within(history).getAllByRole("listitem");
+    expect(newest).toHaveTextContent("Awaiting review");
+    expect(older).toHaveTextContent("Superseded by a newer declaration; it can only be rejected");
+    expect(screen.getByText(/Awaiting review: Analgesics/)).toBeVisible();
   });
 
   it("drops a subcategory when the category changes", async () => {

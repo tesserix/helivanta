@@ -17,9 +17,10 @@ import (
 )
 
 // A product's category (#988 slice 1): declared with the date it takes
-// effect and a reason, and approved by someone else. An approval is in force
-// from the later of that date and the outlet's date when it was approved, so
-// it never reaches back over sales already made.
+// effect and a reason, and approved by someone else. A category takes effect
+// from tomorrow at the earliest, and an approval from the later of its date
+// and the outlet's next day: today's sales are already made, so no approval
+// ever re-files a sale.
 
 type productCategoryInput struct {
 	CategoryID    uuid.UUID  `json:"category_id" binding:"required"`
@@ -66,19 +67,21 @@ func productCategoryRoutes(s *platform.Router, h *catalogueHandlers) {
 
 var (
 	errUnknownCategory      = errors.New("unknown item category")
-	errEffectiveBeforeToday = errors.New("effective_from before the outlet's today")
+	errEffectiveBeforeToday = errors.New("effective_from not after the outlet's today")
 )
 
 func productCategoryError(c *gin.Context, err error) {
 	switch {
 	case violated(err, "pharmacy_product_category_four_eyes"):
 		respond.Error(c, http.StatusConflict, "four_eyes", "a product's category is reviewed by someone other than who declared it")
+	case violated(err, "pharmacy_product_category_superseded"):
+		respond.Conflict(c, "a newer category declaration for this product superseded this one; review that one")
 	case violated(err, "pharmacy_product_category_live"):
 		respond.Conflict(c, "a product goes in a category in use, and a subcategory only of that category")
 	case errors.Is(err, errUnknownCategory):
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "category_id and subcategory_id are categories at this outlet")
 	case errors.Is(err, errEffectiveBeforeToday):
-		respond.Error(c, http.StatusBadRequest, "invalid_request", "effective_from cannot be before today at the outlet")
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "effective_from is tomorrow or later at the outlet: today's sales are already made")
 	case errors.Is(err, errDeclarationReviewed):
 		respond.Conflict(c, "this declaration has already been reviewed")
 	case errors.Is(err, errStockIdentity):
@@ -138,8 +141,8 @@ func (h *catalogueHandlers) putProductCategory(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		// A date already passed would re-file sales already made.
-		if in.EffectiveFrom < today {
+		// Today or a date passed would re-file sales already made.
+		if in.EffectiveFrom <= today {
 			return errEffectiveBeforeToday
 		}
 		insert := tx.Exec(`INSERT INTO pharmacy_product_category_declarations (id,tenant_id,outlet_id,product_id,category_id,subcategory_id,effective_from,reason,intent_sha256,declared_by)
@@ -208,8 +211,9 @@ func (h *catalogueHandlers) reviewProductCategory(c *gin.Context) {
 			if err != nil {
 				return err
 			}
-			// Never before the outlet's today: an approval does not reach back.
-			from := max(effective[0], today)
+			// Never before the outlet's next day: an approval does not reach
+			// back over sales already made, today's included.
+			from := max(effective[0], nextDay(today))
 			inForce = &from
 		}
 		insert := tx.Exec(`INSERT INTO pharmacy_product_category_reviews (tenant_id,outlet_id,declaration_id,decision,reason,in_force_from,reviewed_by)
@@ -268,4 +272,14 @@ func (h *catalogueHandlers) getProductCategory(c *gin.Context) {
 		current = &inForce[0]
 	}
 	respond.OK(c, gin.H{"in_force": current, "history": history})
+}
+
+// nextDay is the outlet date after day (YYYY-MM-DD).
+func nextDay(day string) string {
+	d, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		// Fail closed: an unreadable date can never be in force.
+		return "9999-12-31"
+	}
+	return d.AddDate(0, 0, 1).Format(time.DateOnly)
 }

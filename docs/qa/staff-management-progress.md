@@ -1,5 +1,40 @@
 # Staff Management delivery tracker
 
+## Cutoff architecture and validation follow-up — 2026-11-05
+
+The complete cutoff administration rerun passes Workforce **587.111s**, IAM
+**451.681s** and Global API **512.034s**. The architecture run was killed during
+typed event discovery (**151.706s**) under concurrent memory pressure; that run
+is a failure, not acceptance. Contract type discovery now first enumerates the
+same complete module set, then type-checks every discovered contract package
+instead of type-checking unrelated module implementations. Discovery/type errors
+and missing packages still fail closed. The targeted field check completes in
+**2.546s** after the corrections below.
+
+The working check exposed missing independent classifications for the five
+`PostingCutoffChangedData` fields. Review checked canonical
+`contracts/workforce-postings.json`, generated contract and the publisher in
+`posting_cutoffs.go`: hospital/Staff/proposal/cutoff identifiers plus monotonic
+version only. Reasons, administrative actor/evidence, placement dates and cutoff
+instants are not broadcast. Staff personal-data restrictions still apply; these
+are not patient/clinical payloads or authority. A synthetic unclassified Staff
+identity field is rejected by the optimized check, then generated source was
+restored byte for byte. No automatic identifier-name classification was added.
+
+Two exact singleton GETs now have documented pagination exceptions: original
+actor cutoff receipt and exact approved-revision current context. History remains
+cursor-paginated. The independently authored permission matrix now includes
+`workforce.posting.cutoff` without adding any legacy business-role grant; actual
+commands still require the closed cutoff assignment plus reviewed Staff actor.
+The four affected static gates pass **2.329s** in this cutoff worktree. The full
+native architecture suite also passes **63.335s**, including actual OpenFGA role/
+permission and cross-tenant checks, HTTP authorization seams and migration RLS
+lint. No static-only run is substituted for those dependency-backed checks.
+
+These changes correct the cutoff candidate's verification gates; they do not
+complete lifecycle-aware approval, product operating enforcement or normal-role
+browser QA. Draft #1574 remains unmerged and no production action occurred.
+
 ## Posting cutoff administration — local verification, 2026-11-05
 
 Draft [#1574](https://github.com/tesserix/helivanta/pull/1574), implementation

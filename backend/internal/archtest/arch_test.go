@@ -350,6 +350,8 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command":           "one original-actor immutable cutoff receipt; cutoff history is separately paginated",
+	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/context":                     "one exact-approved-revision context and at most one current cutoff; history is separately paginated",
 	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context":                             "one exact-version protected proposal/draft context with at most three 500-character reasons; no collection",
 	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-review-source":                                           "one scoped Staff reviewed-generation source; no collection",
 	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal":                                     "one explicitly addressed posting proposal; proposal lists/history remain paginated",

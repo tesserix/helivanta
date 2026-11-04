@@ -47,6 +47,7 @@ import { useStepBackWhenEmpty, useUrlPage } from "@/lib/use-url-page";
 import { CurrencyAmountField, supportedCurrencies } from "./currency-amount-field";
 import { ProductTaxSection, TaxBadge } from "./tax-classification";
 import { ProductPriceControlSection } from "./price-control";
+import { ItemCategories, ProductCategorySection } from "./item-categories";
 
 const searchSchema = z.object({ query: z.string().trim().max(200) });
 
@@ -119,6 +120,8 @@ export function CataloguePanel({
   canManageTax = false,
   canDeclarePrice = false,
   canReviewPrice = false,
+  canDeclareCategory = false,
+  canReviewCategory = false,
 }: {
   scope: PharmacyScope;
   writable: boolean;
@@ -130,6 +133,9 @@ export function CataloguePanel({
   /** pharmacy.price_control.declare and .review (#1371): one declares, another approves. */
   canDeclarePrice?: boolean;
   canReviewPrice?: boolean;
+  /** pharmacy.category.declare and .review (#988): one declares, another approves. */
+  canDeclareCategory?: boolean;
+  canReviewCategory?: boolean;
 }) {
   const scheme = taxScheme(countryCode);
   // The tab, search and filter are the URL (#576 slice 3 D3/D4). Without a
@@ -198,6 +204,8 @@ export function CataloguePanel({
         canManageTax={canManageTax}
         canDeclarePrice={canDeclarePrice}
         canReviewPrice={canReviewPrice}
+        canDeclareCategory={canDeclareCategory}
+        canReviewCategory={canReviewCategory}
         defaultCurrency={defaultCurrency}
         timeZone={timeZone}
         today={today}
@@ -343,6 +351,7 @@ export function CataloguePanel({
           </Panel>
         }
       />
+      <ItemCategories scope={scope} canEdit={canDeclareCategory} />
     </div>
   );
 }
@@ -357,6 +366,8 @@ function OpenProduct({
   canManageTax,
   canDeclarePrice,
   canReviewPrice,
+  canDeclareCategory,
+  canReviewCategory,
   defaultCurrency,
   timeZone,
   today,
@@ -369,6 +380,8 @@ function OpenProduct({
   canManageTax: boolean;
   canDeclarePrice: boolean;
   canReviewPrice: boolean;
+  canDeclareCategory: boolean;
+  canReviewCategory: boolean;
   defaultCurrency: string;
   timeZone: string;
   today: string;
@@ -445,6 +458,15 @@ function OpenProduct({
         canReview={canReviewPrice}
         onStateChange={pane.formState("price")}
         onReviewStateChange={pane.formState("price-review")}
+      />
+      <ProductCategorySection
+        scope={scope}
+        product={row}
+        today={today}
+        canDeclare={canDeclareCategory}
+        canReview={canReviewCategory}
+        onStateChange={pane.formState("category")}
+        onReviewStateChange={pane.formState("category-review")}
       />
       <ProductHistory scope={scope} product={row} timeZone={timeZone} />
     </div>

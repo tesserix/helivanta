@@ -83,7 +83,7 @@ func (h *assignmentAuthority) withScopeGrants(ctx context.Context, checks []auth
 }
 
 func validScopeChecks(checks []authz.ScopeCheck) bool {
-	if len(checks) < 1 || len(checks) > 2 {
+	if len(checks) < 1 || len(checks) > authz.MaxScopedCommandChecks {
 		return false
 	}
 	first := checks[0]
@@ -100,8 +100,10 @@ func validScopeChecks(checks []authz.ScopeCheck) bool {
 		if r.TenantID != first.Request.TenantID || r.Subject != first.Request.Subject || r.HospitalID != first.Request.HospitalID || grant.ScopeEpoch != first.Grant.ScopeEpoch || grant.MembershipEpoch != first.Grant.MembershipEpoch {
 			return false
 		}
-		if i > 0 && (r.Permission == first.Request.Permission || (grant.AssignmentID == first.Grant.AssignmentID && grant != first.Grant)) {
-			return false
+		for _, previous := range checks[:i] {
+			if r.Permission == previous.Request.Permission || grant.AssignmentID == previous.Grant.AssignmentID && grant != previous.Grant {
+				return false
+			}
 		}
 	}
 	return true

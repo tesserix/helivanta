@@ -125,7 +125,29 @@ function Assignments({ identity }: { identity: Identity }) {
   const employmentCatalog = useVerifiedStaffCatalog(scope, "employment-v1");
   const activationCatalog = useVerifiedStaffCatalog(scope, "employment-activation-v1");
   const postingCatalog = useVerifiedStaffCatalog(scope, "staff-postings-v1");
-  const postingSupported = postingCatalog.supported;
+  const postingReviewCatalog = useVerifiedStaffCatalog(scope, "staff-posting-reviews-v1");
+  const postingManagementCatalog = useVerifiedStaffCatalog(scope, "staff-posting-management-v1");
+  const postingCatalogName = postingManagementCatalog.supported
+    ? "staff-posting-management-v1"
+    : postingReviewCatalog.supported
+      ? "staff-posting-reviews-v1"
+      : "staff-postings-v1";
+  const postingSupported =
+    postingCatalog.supported ||
+    postingReviewCatalog.supported ||
+    postingManagementCatalog.supported;
+  const templateKeys =
+    staffAccessTemplateCatalogs[
+      family === "posting"
+        ? postingCatalogName
+        : family === "intake"
+          ? "hr-intake-v1"
+          : family === "employment"
+            ? "employment-v1"
+            : family === "activation"
+              ? "employment-activation-v1"
+              : "legacy-v1"
+    ];
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
   const activationSupported = activationCatalog.supported;
@@ -151,7 +173,7 @@ function Assignments({ identity }: { identity: Identity }) {
         {family === "leave"
           ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
           : family === "posting"
-            ? "Posting readers inspect non-operating drafts at one hospital; preparers can also save drafts and select current departments. Both require a current reviewed digital Staff account. Neither can approve postings, manage structure or grant operating access."
+            ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
             : family === "identity"
               ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
               : family === "employment"
@@ -185,7 +207,7 @@ function Assignments({ identity }: { identity: Identity }) {
               ? [{ value: "employment", label: "Employment terms review" }]
               : []),
             ...(postingSupported || family === "posting"
-              ? [{ value: "posting", label: "Staff posting preparation" }]
+              ? [{ value: "posting", label: "Staff posting access" }]
               : []),
             ...(activationSupported || family === "activation"
               ? [{ value: "activation", label: "Employment activation" }]
@@ -208,7 +230,10 @@ function Assignments({ identity }: { identity: Identity }) {
             : ""}
       </p>
       <p aria-live="polite" className="text-sm text-muted-foreground">
-        {postingCatalog.isPending
+        {!postingSupported &&
+        (postingCatalog.isPending ||
+          postingReviewCatalog.isPending ||
+          postingManagementCatalog.isPending)
           ? "Checking Staff posting assignments…"
           : !postingSupported
             ? "Staff posting assignments are unavailable in this workspace."
@@ -231,6 +256,8 @@ function Assignments({ identity }: { identity: Identity }) {
             void employmentCatalog.refetch();
             void activationCatalog.refetch();
             void postingCatalog.refetch();
+            void postingReviewCatalog.refetch();
+            void postingManagementCatalog.refetch();
           }}
         >
           Refresh assignments
@@ -254,6 +281,7 @@ function Assignments({ identity }: { identity: Identity }) {
           <AssignmentProposalForm
             key={`${family}:${renewal?.id ?? "new"}`}
             family={family}
+            templateKeys={templateKeys}
             renewal={renewal}
             scope={scope}
             onClose={() => setProposing(false)}

@@ -1,0 +1,127 @@
+{
+  "verifiedAt": "2026-11-04T06:03:35.424190+00:00",
+  "revision": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2",
+  "repositoryVisibility": "PUBLIC",
+  "approval": "User explicitly approved this named rollout and 0030_pharmacy in the current session.",
+  "account": "unidevidp@gmail.com",
+  "project": "tesseracthub-480811",
+  "context": "gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke",
+  "namespace": "helivanta",
+  "freight": "ad730a191333c7768f038c0b21f6ba40b4f42328",
+  "promotion": "prod.01m6jj7k38hbjkwy82q5z86pwc.ad730a1",
+  "promotionPhase": "Succeeded",
+  "kargoHealth": "Healthy",
+  "deployments": {
+    "helivanta-api": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    },
+    "helivanta-document-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    },
+    "helivanta-emergency-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    },
+    "helivanta-global-api": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    },
+    "helivanta-pharmacy-evidence-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    },
+    "helivanta-shell": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-shell",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    },
+    "helivanta-supply-evidence-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "09e0f49cd4e1d6759ad293587f6df22d98de5bd2"
+        }
+      ]
+    }
+  },
+  "applications": {
+    "helivanta-api": {
+      "health": "Healthy",
+      "sync": "Synced",
+      "gitopsRevision": "6254bd70f3087e71010e2d32a04f031aa61164aa"
+    },
+    "helivanta-global-api": {
+      "health": "Healthy",
+      "sync": "Synced",
+      "gitopsRevision": "6254bd70f3087e71010e2d32a04f031aa61164aa"
+    },
+    "helivanta-shell": {
+      "health": "Healthy",
+      "sync": "Synced",
+      "gitopsRevision": "6254bd70f3087e71010e2d32a04f031aa61164aa"
+    }
+  },
+  "migrations": {
+    "before": 224,
+    "after": 225,
+    "added": ["0030_pharmacy"],
+    "removed": []
+  },
+  "publicSmoke": {
+    "/": 200,
+    "/login": 200,
+    "/api/v1/workforce/posting-review-scopes_without_auth": 401
+  },
+  "limitations": [
+    "No authenticated root approval UI acceptance.",
+    "Candidate root posting review, IAM 0026 and Workforce 0079/0080 are not deployed.",
+    "Departmental supervision chains and lifecycle enforcement remain incomplete.",
+    "No designated production synthetic Pharma licence acceptance run."
+  ]
+}

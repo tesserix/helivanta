@@ -499,6 +499,11 @@
           "id": "0025_iam_staff_posting_review_templates",
           "sql_sha256": "db3f21704a581c24c18d68e5bf0a84c6f8959614fed359918b073975a059cf8a",
           "creates_tables": []
+        },
+        {
+          "id": "0026_iam_staff_posting_management_templates",
+          "sql_sha256": "6ca5f9f1f92d8a4c7c8e35facff0f6e13cdd4ebdb7e58d3fa1d108fe57e161e3",
+          "creates_tables": []
         }
       ]
     },
@@ -9019,6 +9024,10 @@
         },
         {
           "permission": "workforce.posting.review",
+          "roles": []
+        },
+        {
+          "permission": "workforce.posting.management.review",
           "roles": []
         },
         {

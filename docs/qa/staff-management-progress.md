@@ -1,5 +1,74 @@
 # Staff Management delivery tracker
 
+## Verified posting assignment choices — 2026-11-04
+
+Catalog PR [#1563](https://github.com/tesserix/helivanta/pull/1563) now includes the
+normal Staff access role chooser. A regression proved the old form offered
+submitter/reviewer templates after verifying only the preparation catalog. The
+fixed form intersects choices with exact verified catalogs, supports the new
+management template, falls back safely to older supported roles and blocks a
+retained management renewal retry until its exact catalog returns. Its immutable
+command is preserved through that refresh/retry journey. This does not establish
+navigation-loss or real-account acceptance.
+
+Focused access-page checks pass **46/46**; the full Node 24 shell suite passes
+**1,490 tests / 181 files**, with types and scoped lint. A Webpack production build
+passes with the canonical public OIDC and Global API build configuration; no
+product build configuration was changed. The first missing-API_URL build failed
+before compilation and is not counted as acceptance. SDK **635/78**, generator
+mutation/compatibility **53/53**, Go build/vet/lint and canonical inventory checks
+also pass. Classified source pins retain their authority classifications.
+
+The root increment is committed/pushed separately as `ec49d203`. Its full native
+race suites pass: IAM **459.661s**, Workforce **542.081s**, Global API **454.577s**.
+The first Global API run exposed cancelled cleanup contexts and two synthetic
+departments without cleanup; the corrected run retains exact pagination and
+retirement assertions. Root approval includes stale commands and management
+context/evidence/audit/outbox rollback. Concurrent/source-race and real-account
+reviewer acceptance, supervisor chains and lifecycle consumers remain open.
+
+#1563 stays draft until its expanded UI revision has passed checks. The previously
+approved guard `09e0f49c` remains the verified production revision. No candidate
+0026/0079/0080 migration or root consumer is deployed. Overall counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Guard deployed; management catalog isolated — 2026-11-04
+
+The five-file scoped-command guard [#1561](https://github.com/tesserix/helivanta/pull/1561)
+is merged and deployed as `09e0f49c`. The user explicitly approved that exact
+revision and cumulative `0030_pharmacy`; the successful migration changed the
+ledger **224 → 225**, adding exactly that ID and removing nothing. Kargo promotion
+`prod.01m6jj7k38hbjkwy82q5z86pwc.ad730a1` succeeded. API, Global API, shell and all
+four application workers are ready/updated/available **2/2** at the exact revision;
+all three Argo applications are Synced/Healthy, Kargo is Healthy, public home/login
+return 200 and unauthenticated Staff scope access returns 401. Repository visibility
+remains PUBLIC. See [release evidence](../deployment/releases/2026-11-04-three-scoped-command-grants.json).
+This is prerequisite deployment, not full Staff or positive-review UI acceptance.
+
+The next bounded increment isolates `staff-posting-management-v1`, its single
+new template and `0026_iam_staff_posting_management_templates`. Every previous
+catalog remains unchanged. No authority is automatically assigned, no root approval
+consumer is added and there is no operating/clinical/Pharma activation. The source
+and tests match the candidate IAM package whose complete native race suite passes
+in **459.661s**, including projection recovery; the isolated SDK suite passes
+**635 tests / 78 files**. Canonical generation and operational inventory checks pass
+(**809 surfaces, 786 unclassified**, no runtime acceptance asserted). Classified
+source pins were refreshed only after exact checks proved the Workforce changes
+are a constant/permission registration and the IAM changes are embed/migration
+registration; existing handler bodies and authority classifications are unchanged.
+
+This independent catalog PR is based on `3fd8aadf`, preserving the separately merged
+department-scope guard #1562. Root submission/review UI remains in checkpoint
+`4195e4a0` and its own isolated worktree. Its positive/context/self-denial tests pass
+in 53.252s; a missing management-disclosure-audit mutation is caught (200 instead of
+required 500), exact source is restored and green tests pass in **51.899s**. The full
+Workforce race suite passes in **542.081s**. Global API has been restarted after a
+test-file-list compilation error caused by adding a helper while the prior command
+was running; no Global API full-suite pass is claimed. Its added root evidence/
+audit/outbox rollback checks are included in that run. Real-account reviewer UI, bounded supervisor chains
+and lifecycle enforcement remain open. Counts stay **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## Department-scope guard built — 2026-11-04
 
 ADR-0055 is accepted. Organization now has `authz.DepartmentScopeGuard`, the

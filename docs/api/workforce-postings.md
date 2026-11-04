@@ -204,6 +204,37 @@ or positive approval. The [independent review specification](../superpowers/spec
 retains the complete supervision and lifecycle obligations. Positive approval
 still awaits supervision policy; no operating role is activated by a proposal.
 
+## Separate hospital management review catalog — candidate
+
+The closed `staff-posting-management-v1` catalog appends
+`workforce.posting_management_reviewer.v1`, containing exactly
+`workforce.posting.management.review` and `workforce.staff_actor.use`.
+IAM owns its additive `0026_iam_staff_posting_management_templates` migration;
+Workforce registers the management permission. Default and all previous catalog
+snapshots, including the ten-entry independent-review catalog, remain unchanged.
+Canonical inputs are `contracts/staff-access.json`; generated Go, Zod and SQL must
+remain aligned. The ordinary IAM assignment/review and OpenFGA projection journeys
+apply, with verified tenant/hospital scope, current reviewed Staff source,
+independent assignment review and durable withdrawal/recovery.
+
+This capability is separate from ordinary posting review. Its template cannot
+submit or approve a proposal on its own, edit profiles or structure, or grant
+operating, clinical or Pharma authority. Nothing is automatically assigned.
+The root-approval consumer, supervision/lifecycle enforcement and authenticated
+reviewer UI acceptance remain separate increments. This catalog-only change adds
+no route, event, Workforce migration or activation behavior.
+
+The normal Staff access page requests these closed catalogs through Global API,
+verifies exact definitions and permission sets, and offers only templates from
+the newest supported catalog. An unavailable or malformed management catalog
+falls back to a verified independent-review/preparation catalog; unverified new
+roles are absent. The area is labelled “Staff posting access”. A retained renewal
+whose template loses catalog confirmation cannot submit or retry until its exact
+catalog is restored; restoration preserves the same command ID and payload.
+Catalog metadata and UI gating never replace server authorization or independent
+assignment approval. Real-account acceptance remains pending; component checks
+are not end-to-end approval evidence.
+
 ## Deployed proposal submissions and readiness
 
 The #1544 release implements the following suffixes below
@@ -406,7 +437,6 @@ index. These follow 0075; all three deployed in #1544, advancing the production
 ledger 220→223. #1547 added no migrations. Rollback preserves additive schema and
 history; a compensating change needs separate review. No positive operating
 activation is established by these releases.
-
 
 ## Normal submission UI — candidate, browser acceptance open
 

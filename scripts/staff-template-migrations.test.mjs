@@ -90,6 +90,15 @@ test("unchanged catalog regenerates and checks without changing public artifacts
 
 test("posting catalogs refuse incomplete, duplicated and expanded role authority before writes", async (t) => {
   for (const [key, permissions] of [
+    ["workforce.posting_management_reviewer.v1", ["workforce.posting.management.review"]],
+    [
+      "workforce.posting_management_reviewer.v1",
+      [
+        "workforce.posting.management.review",
+        "workforce.posting.review",
+        "workforce.staff_actor.use",
+      ],
+    ],
     ["workforce.posting_submitter.v1", ["workforce.posting.submit"]],
     ["workforce.posting_reviewer.v1", ["workforce.posting.review"]],
     [

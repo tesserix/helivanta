@@ -221,15 +221,19 @@ func TestScopedLeaveThroughGlobalAPI(t *testing.T) {
 	call("POST", request+"/decision", reviewer, decision, 401)
 	call("GET", "/v1/workforce/leave-review-scopes", reviewer, nil, 401)
 	call("GET", base+"/leave-review-requests", reviewer, nil, 401)
-	freshAuthentication := time.NewTimer(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
-	defer freshAuthentication.Stop()
-	select {
-	case <-freshAuthentication.C:
-	case <-t.Context().Done():
-		t.Fatal(t.Context().Err())
-	}
-	tokens[reviewer], err = signer.Mint(reviewer, testutil.TenantA, time.Now(), time.Now().Add(time.Minute))
+	watermark, err := iam.NewRevocationChecker(db).RevokedAfter(t.Context(), reviewer)
 	require.NoError(t, err)
+	require.False(t, watermark.IsZero())
+	var freshAuthentication time.Time
+	require.Eventually(t, func() bool {
+		freshAuthentication = time.Now().UTC().Truncate(time.Second)
+		return freshAuthentication.After(watermark)
+	}, 3*time.Second, 10*time.Millisecond, "the signed authentication second must be strictly newer than the actual watermark")
+	tokens[reviewer], err = signer.Mint(reviewer, testutil.TenantA, freshAuthentication, time.Now().Add(time.Minute))
+	require.NoError(t, err)
+	freshClaims, err := verifier.Verify(tokens[reviewer])
+	require.NoError(t, err)
+	require.True(t, freshClaims.AuthTime.After(watermark))
 	call("POST", request+"/decision", reviewer, decision, 200)
 
 	hold := func(query string, args ...any) (int, func()) {

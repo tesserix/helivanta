@@ -73,6 +73,22 @@ Private runtime metadata is stored under
 `~/.helivanta/staff-management-20261027/posting-review-ui-20261104/ui-root-approval-runtime.json`;
 credentials and runtime secrets remain outside Git.
 
+## Newly published scope documents checked — 2026-11-04
+
+Reviewed main's proposed ADR-0054 and standalone pharmacy employer specification
+from `b155af06` / #1557. They preserve one Workforce Staff owner and require a typed
+pharmacy employer and outlet target; hospital-owned pharmacy staff remain hospital
+employees. They explicitly remain design only, with ORG-D8 acceptance and ORG-D9
+area/region scope unresolved. The current hospital-management root approval is not
+a standalone pharmacy employer implementation. No synthetic hospital, duplicate
+Pharma Staff master or pharmacy ID substituted into HospitalID was introduced.
+
+Open-issue discovery was refreshed for Staff and related payroll, contractor,
+posting, supervision and Workforce terms. Relevant open stories include #417,
+#418, #429, #434, #118, #1107, #1132 and #1399. This is scope discovery, not a fresh
+acceptance audit of every issue or authorization to close any of them. No issue
+was marked accepted, closed or tagged complete by the focused API checks.
+
 ## Management capability checkpoint — 2026-11-04
 
 Retention checkpoint `376138fa` is committed and pushed. Subsequent local work

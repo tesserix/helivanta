@@ -44,3 +44,10 @@ func SetRxRegisterExportRows(t interface{ Cleanup(func()) }, n int) {
 	rxRegisterExportRows = n
 	t.Cleanup(func() { rxRegisterExportRows = old })
 }
+
+// SetSummaryCreditNotes lowers the credit notes a sale summary lists for one test.
+func SetSummaryCreditNotes(t interface{ Cleanup(func()) }, n int) {
+	was := summaryCreditNotes
+	summaryCreditNotes = n
+	t.Cleanup(func() { summaryCreditNotes = was })
+}

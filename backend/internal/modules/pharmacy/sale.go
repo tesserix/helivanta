@@ -378,6 +378,8 @@ func saleRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/invoice-profile/:id", PermTaxManage, h.putInvoiceProfile)
 	s.GET("/invoice-profile", PermSaleRead, h.getInvoiceProfile)
 	s.GET("/sales/availability", PermSaleRead, h.getSaleAvailability)
+	// Before /sales/:id, so its static paths are never read as an id.
+	salesWorklistRoutes(s, h)
 	s.POST("/sales/quote", PermSaleCreate, h.postSaleQuote)
 	s.PUT("/sales/:id", PermSaleCreate, h.putSale)
 	s.GET("/sales/:id", PermSaleRead, h.getSale)

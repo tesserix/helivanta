@@ -85,6 +85,17 @@ posting reviewer in Workforce and the shell.
   between hint and lock is 409; an admitted command commits before a later
   retirement; 1,001 subtree nodes is 503; self-review still refused.
 
+Decisions settled before code:
+
+- Admission: reviewer routes move from hospital-only `ScopedHospital*`
+  admission to `markScopedPosting`, so every check runs in
+  `scopedPostingTransaction`; the archtest inventory records each route.
+- Target: a hospital grant needs no department. Otherwise the client echoes
+  the row's `department` from the inbox as a hint; authority is the grant, the
+  locked Organization path and RLS binding the row's department to that hint,
+  so a wrong hint is 404 and never discloses. No pre-authorization row read.
+- Workforce migration `0081` (`0079`–`0080` stay reserved for supervision).
+
 ## Task 5: shell
 
 - Access proposal form: "Applies to" with "Whole hospital" or "One department

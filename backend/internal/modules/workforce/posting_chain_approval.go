@@ -26,7 +26,7 @@ func postingApprovalDeadline(row StaffPostingProposal) time.Time {
 	return until
 }
 
-func validatePostingApprovalSource(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource) error {
+func validatePostingApprovalSourceWithLifecycle(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource, lifecycle *postingLifecycleReview) error {
 	if source.StaffVersion != row.StaffVersion || source.EmploymentEpoch != row.EmploymentEpoch {
 		return errPostingProposalConflict
 	}
@@ -34,8 +34,13 @@ func validatePostingApprovalSource(tx *gorm.DB, p authn.Principal, s postingDraf
 	if err != nil {
 		return err
 	}
-	if cutoff != nil {
+	if cutoff != nil && lifecycle == nil {
 		return errPostingLifecycleReviewRequired
+	}
+	if lifecycle != nil {
+		if err := lifecycle.observe(row, cutoff); err != nil {
+			return err
+		}
 	}
 	generation, state, until, err := readPostingTargetGeneration(tx, p, s, row.GenerationID)
 	if err != nil {
@@ -47,7 +52,7 @@ func validatePostingApprovalSource(tx *gorm.DB, p authn.Principal, s postingDraf
 	return nil
 }
 
-func readPostingSupervisor(tx *gorm.DB, p authn.Principal, s postingDraftScope, revision uuid.UUID) (result postingChainSource, err error) {
+func readPostingSupervisor(tx *gorm.DB, p authn.Principal, s postingDraftScope, revision uuid.UUID, lifecycle *postingLifecycleReview) (result postingChainSource, err error) {
 	var previous string
 	if err = tx.Raw(`SELECT jsonb_object_agg(key,COALESCE(current_setting(key,true),''))::text FROM unnest(ARRAY['app.workforce_subject','app.workforce_hospital','app.workforce_posting_staff','app.workforce_posting']) AS key`).Scan(&previous).Error; err != nil {
 		return
@@ -74,7 +79,7 @@ func readPostingSupervisor(tx *gorm.DB, p authn.Principal, s postingDraftScope, 
 		return result, errPostingProposalConflict
 	}
 	result.Intent = *intent
-	if err = validatePostingApprovalSource(tx, p, s, result.Posting, source); err != nil {
+	if err = validatePostingApprovalSourceWithLifecycle(tx, p, s, result.Posting, source, lifecycle); err != nil {
 		return result, err
 	}
 	table := "workforce_posting_management_reviews"
@@ -90,13 +95,17 @@ func readPostingSupervisor(tx *gorm.DB, p authn.Principal, s postingDraftScope, 
 }
 
 func (h *handlers) withSupervisedPostingApproval(ctx context.Context, tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource, intent StaffPostingSupervisionIntent, persist func(*gorm.DB, []postingChainSource) error) error {
+	return h.withSupervisedPostingLifecycleApproval(ctx, tx, p, s, row, source, intent, nil, persist)
+}
+
+func (h *handlers) withSupervisedPostingLifecycleApproval(ctx context.Context, tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource, intent StaffPostingSupervisionIntent, lifecycle *postingLifecycleReview, persist func(*gorm.DB, []postingChainSource) error) error {
 	if h.departmentReferences == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	if intent.Kind != "department_supervisor" && intent.Kind != "department_member" {
 		return errPostingSupervisionRequired
 	}
-	if err := validatePostingApprovalSource(tx, p, s, row, source); err != nil {
+	if err := validatePostingApprovalSourceWithLifecycle(tx, p, s, row, source, lifecycle); err != nil {
 		return err
 	}
 	refs := []authz.DepartmentReference{{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: row.DepartmentID, DepartmentRevision: row.DepartmentRevisionID}}
@@ -115,7 +124,7 @@ func (h *handlers) withSupervisedPostingApproval(ctx context.Context, tx *gorm.D
 			return errPostingProposalConflict
 		}
 		seenStaff[staff], seenPostings[proposal] = true, true
-		ancestor, err := readPostingSupervisor(tx, p, postingDraftScope{hospital: s.hospital, staff: staff, draft: proposal}, *intent.SupervisorRevisionID)
+		ancestor, err := readPostingSupervisor(tx, p, postingDraftScope{hospital: s.hospital, staff: staff, draft: proposal}, *intent.SupervisorRevisionID, lifecycle)
 		if err != nil {
 			return err
 		}
@@ -144,6 +153,12 @@ func (h *handlers) withSupervisedPostingApproval(ctx context.Context, tx *gorm.D
 	commandUntil := postingApprovalDeadline(row)
 	if until.Before(commandUntil) {
 		commandUntil = until
+	}
+	if lifecycle != nil && lifecycle.EffectiveUntil.Before(commandUntil) {
+		commandUntil = lifecycle.EffectiveUntil
+	}
+	if !row.StartsAt.Before(commandUntil) {
+		return errPostingProposalConflict
 	}
 	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, commandUntil); err != nil {
 		return errors.Join(errPostingProposalConflict, err)

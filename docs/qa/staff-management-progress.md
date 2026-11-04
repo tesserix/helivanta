@@ -1,5 +1,52 @@
 # Staff Management delivery tracker
 
+## Lifecycle-aware posting review context — local candidate, 2026-11-05
+
+The next candidate on `codex/posting-lifecycle-review-20261105`, based on cutoff
+draft #1574, adds explicit `lifecycle_review=current` context and the strict
+`getStaffPostingLifecycleReviewContext` SDK helper. Current independent reviewers
+can inspect scheduled ancestor cutoff ID/version/instant separately from nominal
+source pins. Absence is explicit null/version0; administrator rationale and actor
+evidence are not disclosed. One database observation under the existing
+supervision gate bounds the earliest nominal/source/cutoff deadline. Supervised
+contexts retain posting read/review and reviewed actor checks. Management-root
+contexts retain review/actor/management checks without exceeding the existing
+three-permission compound guard. No broad role or owner bypass was added.
+
+Observed RED→GREEN: the real Global API selector first returned400 instead of200
+(**81.033s**). Subsequent cases caught inconsistent UTC projection and acceptance
+of a posting that starts after its supervisor's scheduled cutoff (expected409,
+actual200, **82.078s**); both are corrected. The final real Global API/IAM/
+OpenFGA/Postgres journey passes **89.414s**, including explicit management root,
+scheduled ancestor eligibility, legacy refusal, current cutoff version10,
+pre-start refusal, immediate ending and private-read audit rollback. An
+intervening run failed during IAM grant projection/upstream timeout while the
+architecture process was killed under memory pressure; it did not reach the new
+endpoint and is not counted as acceptance. The guarded permission budget was
+also exercised: a fourth root grant returned503, so root disclosure now uses its
+existing review/actor/management requirements and no ancestor directory.
+
+Full current Workforce passes **483.253s** with race detection. Native
+architecture passes **81.986s** with actual OpenFGA, Postgres, HTTP authorization
+and migration RLS checks. Full SDK passes **705 tests /81 files**; the61 proposal
+tests include explicit mode, exact scope/chain/deadline, malformed/absent cutoff,
+duplicate cutoff identity and old-helper selector refusal. Reviewer/cutoff UI
+compatibility passes **60 tests /2 files** against this worktree's SDK. Selector
+tests, API types/lint/format, Go vet/build/lint, all canonical generator checks,
+contractdocs generation/check and inventory check pass. Script tests pass
+**104** after linking the already cached Expo fixtures; the first fresh-worktree
+run lacked those fixture dependency links. No package install/download occurred.
+Inventory remains **824 registered, 801 unclassified**; no classifications were
+promoted by adding this read mode.
+
+This read does not reserve authority or enable new positive decisions. Exact
+cutoff-vector/deadline-bound approval, immutable lifecycle review evidence and
+reviewer UI integration remain the next implementation step. Actual Pharma/unit
+operating enforcement and normal-account browser QA remain open. No new migration,
+merge, production rollout or release tag occurred; all five reusable Staff
+requirements and **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**
+remain in scope.
+
 ## Cutoff architecture and validation follow-up — 2026-11-05
 
 The complete cutoff administration rerun passes Workforce **587.111s**, IAM

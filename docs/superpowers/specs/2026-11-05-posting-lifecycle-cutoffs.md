@@ -6,6 +6,10 @@ lifecycle-aware positive review envelope and operating consumers remain open.
 Administrative discovery, exact context/history reads and the normal cutoff
 workspace are implemented locally with API/component evidence; normal-account
 browser acceptance remains open. No production migration or rollout has occurred.
+The subsequent local candidate implements an explicit lifecycle-review context
+and SDK verifier; version-bound positive decisions and retained lifecycle review
+evidence still remain open. See the exact selector/envelope in the
+[owner contract](../../api/workforce-postings.md).
 Builds on [ADR-0058](../../adr/0058-retained-posting-cutoffs.md) and all five
 [reusable Staff requirements](2026-11-02-reusable-staff-foundation.md). This work
 does not settle standalone employer scope (ORG-D8), statutory pharmacy policy,

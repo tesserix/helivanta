@@ -39,3 +39,51 @@ as one vertical feature, then integrate actual operating consumers individually.
 
 The shared Staff tracker remains 10 partial, 10 awaiting audit, 1 research and
 0 fully accepted until the respective acceptance criteria actually pass.
+
+## Explicit lifecycle review implementation
+
+Continue on `codex/posting-lifecycle-review-20261105`, based on the cutoff
+administration draft #1574. Preserve the five foundation requirements above.
+
+The context opt-in is `lifecycle_review=current` with `purpose=review` and
+`supervision_context=v1`. It excludes `chain_review`; an explicit
+`management_review=current` additionally selects a management root and requires
+its separate management assignment. Otherwise the selected posting must be
+supervised. Supervised contexts additionally need current posting read authority for ancestor
+summaries. Root contexts retain the existing review/Staff-actor/management three-
+permission guard; they expose no ancestor directory and do not add a fourth grant.
+Both require an independent reviewer. Unknown, repeated, mixed or submission selectors remain invalid.
+
+A separately named lifecycle envelope exposes only each cutoff's immutable ID,
+version and instant, with explicit nulls/version0 for absence. It does not expose
+administrator reasons or actor/access evidence. Selected and ordered ancestor
+nodes preserve nominal source pins. `effective_until` is the earliest nominal,
+source or cutoff deadline across the full checked chain, observed at one database
+instant under the existing supervision lock. A missing owner, stale source,
+unrooted/cyclic/oversized chain, expired cutoff or failed private audit denies;
+there is no positive authority from this read.
+
+Subsequent approval must bind every selected/ancestor observation, recheck the
+same owners and deadlines while holding current locks, and retain normalized
+lifecycle evidence atomically with the unchanged approval receipt/audit/outbox.
+An immutable replay returns its original receipt before dynamic source checks.
+Never enable lifecycle-aware approval by simply removing legacy refusal.
+
+Positive approval follows this read contract as a separate implementation step:
+use a bounded ordered vector of observed cutoff versions (selected node then
+immutable supervisor chain), plus the exact effective deadline. The selected
+proposal version/revision and its retained supervision links already pin canonical
+Staff/proposal/revision identities. Avoid repeating32 full identity tuples in the
+4 KiB command. Recompute the vector/deadline from owner data under the same locks;
+any new cutoff or earlier effective deadline conflicts, even when approval would
+otherwise still be temporally eligible. The original authorized command replay
+must retain its exact original normalized input and historical receipt.
+
+Retain a separate normalized lifecycle review header and ordered source rows,
+with explicit absence and exact cutoff ID/version/instant, atomically with the
+approval, audit and existing identifier-only outbox. Do not alter old proposal
+receipts, nominal source deadlines, chain-source evidence or closed IAM catalogs.
+A candidate next Workforce migration must be reallocated against the registry
+before implementing it, with forced scope/purpose RLS, immutable history,
+composite foreign keys and DB guards for complete contiguous source evidence.
+This paragraph is an implementation plan, not an activated approval API.

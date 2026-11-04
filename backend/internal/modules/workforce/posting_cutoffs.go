@@ -26,6 +26,8 @@ var errPostingCutoffConflict = errors.New("posting cutoff intent changed")
 var errPostingLifecycleReviewRequired = errors.New("posting cutoff requires lifecycle-aware review")
 
 type postingRetainedCutoff struct {
+	ID                 uuid.UUID
+	RecordedAt         time.Time
 	Version            int64
 	ExpectedRevisionID uuid.UUID
 	CutoffAt           time.Time
@@ -40,7 +42,7 @@ func readPostingRetainedCutoff(tx *gorm.DB, p authn.Principal, s postingDraftSco
 		return nil, authz.ErrScopedAuthorizationUnavailable
 	}
 	var out postingRetainedCutoff
-	err := postingCutoffQuery(tx, p, s).Select("version,expected_revision_id,cutoff_at").Order("version DESC").Take(&out).Error
+	err := postingCutoffQuery(tx, p, s).Select("id,version,expected_revision_id,cutoff_at,recorded_at").Order("version DESC").Take(&out).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

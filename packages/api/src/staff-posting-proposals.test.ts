@@ -974,8 +974,8 @@ function chainReviewFixture() {
   };
   const context = {
     purpose: "review",
-    proposal: receipt,
-    draft,
+    proposal: { ...receipt },
+    draft: { ...draft },
     draft_reason: "Synthetic selected draft rationale",
     submission_reason: "Synthetic selected submission rationale",
     decision_reason: null,
@@ -1124,4 +1124,191 @@ it("accepts omitted nominal ends and recovers the exact supervised approval", as
       api.decideStaffPostingSupervisedProposal(scope, receipt.id, command, input, selected),
     ).rejects.toThrow();
   }
+});
+
+function lifecycleReviewFixture() {
+  const legacy = chainReviewFixture();
+  return {
+    context: legacy.context,
+    supervision: legacy.supervision,
+    cutoff: { id: null as string | null, version: 0, cutoff_at: null as string | null },
+    chain: legacy.chain.map((node) => ({
+      ...node,
+      cutoff: {
+        id: id(101) as string | null,
+        version: 1,
+        cutoff_at: "2026-11-04T03:00:00Z" as string | null,
+      },
+    })),
+    checked_at: legacy.checked_at,
+    effective_until: "2026-11-04T03:00:00Z",
+  };
+}
+
+it("loads explicit lifecycle review with per-node cutoff observations and the earliest effective deadline", async () => {
+  const api = await import("./staff-posting-proposals");
+  const view = lifecycleReviewFixture();
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  expect(
+    await api.getStaffPostingLifecycleReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+      mode: "supervised",
+    }),
+  ).toEqual(view);
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining("supervision_context=v1&lifecycle_review=current"),
+    expect.anything(),
+  );
+});
+
+it.each([
+  "missing cutoff",
+  "false absence",
+  "missing cutoff instant",
+  "wrong id",
+  "expired",
+  "wrong deadline",
+  "foreign hospital",
+  "wrong ancestor revision",
+  "cycle",
+  "missing root",
+  "private reason",
+  "unobserved selected cutoff",
+])("withholds %s in lifecycle review", async (kind) => {
+  const api = await import("./staff-posting-proposals");
+  const view = lifecycleReviewFixture();
+  const parent = view.chain[0];
+  switch (kind) {
+    case "missing cutoff":
+      Reflect.deleteProperty(parent, "cutoff");
+      break;
+    case "false absence":
+      parent.cutoff.version = 0;
+      break;
+    case "missing cutoff instant":
+      parent.cutoff.cutoff_at = null;
+      break;
+    case "wrong id":
+      parent.cutoff.id = scope.hospitalId;
+      break;
+    case "expired":
+      view.checked_at = view.effective_until;
+      break;
+    case "wrong deadline":
+      view.effective_until = receipt.eligibility_until;
+      break;
+    case "foreign hospital":
+      parent.posting.hospital_id = id(102);
+      break;
+    case "wrong ancestor revision":
+      parent.posting.revision_id = id(103);
+      break;
+    case "cycle":
+      parent.posting.staff.id = scope.staffId;
+      break;
+    case "missing root":
+      parent.supervision.kind = "department_supervisor";
+      break;
+    case "private reason":
+      Object.assign(parent.cutoff, { reason: "Private administrative reason" });
+      break;
+    case "unobserved selected cutoff":
+      view.cutoff = { id: id(104), version: 1, cutoff_at: "2026-11-04T02:00:00Z" };
+      break;
+  }
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  await expect(
+    api.getStaffPostingLifecycleReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+      mode: "supervised",
+    }),
+  ).rejects.toThrow();
+});
+
+it("does not silently accept lifecycle selectors through legacy SDK context helpers", async () => {
+  const api = await import("./staff-posting-proposals");
+  await expect(
+    api.getStaffPostingChainReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+      ...{ lifecycle_review: "current" },
+    }),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
+it("requires explicit management mode for a root lifecycle context", async () => {
+  const api = await import("./staff-posting-proposals");
+  const view = lifecycleReviewFixture();
+  view.chain = [];
+  view.supervision.kind = "hospital_management";
+  for (const key of ["supervisor_staff_id", "supervisor_proposal_id", "supervisor_revision_id"])
+    Reflect.deleteProperty(view.supervision, key);
+  view.effective_until = receipt.ends_at ?? receipt.eligibility_until;
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  await expect(
+    api.getStaffPostingLifecycleReviewContext(scope, receipt.id, {
+      ...request,
+      mode: "hospital_management",
+    }),
+  ).resolves.toEqual(view);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    expect.stringContaining("lifecycle_review=current&management_review=current"),
+    expect.anything(),
+  );
+  await expect(
+    api.getStaffPostingLifecycleReviewContext(scope, receipt.id, {
+      ...request,
+      mode: "supervised",
+    }),
+  ).rejects.toThrow();
+});
+
+it("refuses a cutoff identity reused by different canonical ancestors", async () => {
+  const api = await import("./staff-posting-proposals");
+  const view = lifecycleReviewFixture();
+  const root = structuredClone(view.chain[0]);
+  root.posting.id = id(105);
+  root.posting.revision_id = id(106);
+  root.posting.staff.id = id(107);
+  view.chain[0].posting.kind = "department_supervisor";
+  view.chain[0].supervision = {
+    kind: "department_supervisor",
+    ...{
+      supervisor_staff_id: root.posting.staff.id,
+      supervisor_proposal_id: root.posting.id,
+      supervisor_revision_id: root.posting.revision_id,
+    },
+  };
+  view.chain.push(root);
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  await expect(
+    api.getStaffPostingLifecycleReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+      mode: "supervised",
+    }),
+  ).rejects.toThrow();
+  root.cutoff.id = id(108);
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  await expect(
+    api.getStaffPostingLifecycleReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+      mode: "supervised",
+    }),
+  ).resolves.toEqual(view);
 });

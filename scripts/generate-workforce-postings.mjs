@@ -10,6 +10,11 @@ const contract = JSON.parse(
 );
 const models = emitModels(contract.models);
 const validation = `
+const validPostingCutoffObservation = (value:{id:string|null;version:number;cutoff_at:string|null},ctx:z.RefinementCtx) => {
+ const lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ const instant=value.cutoff_at===null?null:staffPostingInstantMicros(value.cutoff_at);
+ if(value.version===0?(value.id!==null||value.cutoff_at!==null):(value.id===null||!z.uuidv7().safeParse(value.id).success||instant===null||instant<=lower||instant>upper))ctx.addIssue({code:"custom",path:["version"],message:"The observed posting cutoff could not be verified."});
+};
 const validPostingCutoffInput = (value:{expected_revision_id:string;mode:string;cutoff_at?:string|null;reason:string},ctx:z.RefinementCtx) => {
  if(!z.uuidv7().safeParse(value.expected_revision_id).success)ctx.addIssue({code:"custom",path:["expected_revision_id"],message:"Choose the exact approved posting revision."});
  if(/\\p{Cc}/u.test(value.reason))ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
@@ -100,6 +105,10 @@ const validReviewSource = (value:{generation_id:string|null;generation_state:str
 };
 `;
 const refined = models.ts
+  .replace(
+    /(export const StaffPostingCutoffObservationContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validPostingCutoffObservation);",
+  )
   .replace(
     /(export const StaffPostingCutoffContextContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
     "$1.superRefine(validPostingCutoffContext);",

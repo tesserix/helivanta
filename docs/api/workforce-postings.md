@@ -49,6 +49,32 @@ enforcement and release remain unfinished.
 Do not treat these owner endpoints as complete departmental or Pharma authority.
 See [ADR-0058](../adr/0058-retained-posting-cutoffs.md).
 
+The next local candidate adds `lifecycle_review=current` to the existing proposal
+context query, together with exact version/revision, `purpose=review` and
+`supervision_context=v1`. It excludes `chain_review`. Supervised review retains
+current posting read/review and reviewed actor authority. A management root
+additionally selects `management_review=current` and retains the existing
+review/actor/management compound guard; it exposes no ancestor directory and
+does not require a fourth grant. Missing or mismatched supervision, non-pending
+proposals and non-independent reviewers are refused.
+
+`StaffPostingLifecycleReviewContext` is a separate strict envelope. Each selected
+or ancestor cutoff exposes only `{id,version,cutoff_at}`; absence is explicit
+null/version0. Ordered named ancestors retain their nominal posting/source pins.
+`checked_at` is one database observation under the existing supervision gate;
+`effective_until` is the earliest nominal/source/cutoff deadline across the full
+chain, in UTC. A selected start at/after that deadline, an elapsed cutoff, stale
+owner, unavailable Organization or failed private read audit prevents disclosure.
+The response remains bounded at128 KiB/32 nodes including the selected posting.
+
+`getStaffPostingLifecycleReviewContext` explicitly selects supervised or
+management-root mode and verifies exact scope/revision, ordered linkage, unique
+Staff/postings/cutoff identities, cutoff absence/presence, bounded current clock
+and the computed minimum. Legacy SDK helpers reject lifecycle selectors and keep
+their previous envelopes. This context does not reserve authority or enable a
+new approval mode: version-bound positive lifecycle approval, immutable review
+evidence, its reviewer UI and actual operating consumers remain open.
+
 The local candidate now also adds `GET /v1/workforce/posting-cutoff-scopes`
 (at most20 admitted hospitals per filtered page), and `GET` at the proposal's
 `cutoffs/context` and `cutoffs/history` paths. Both require an exact

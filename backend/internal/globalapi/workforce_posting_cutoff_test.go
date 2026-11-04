@@ -1,6 +1,7 @@
 package globalapi
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -38,6 +39,11 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 		return root, pending
 	}
 	parentRoot, parentPending := prepare(rootTemplate, reviewer, map[string]any{"kind": "hospital_management"})
+	rootLifecycleSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current&management_review=current", parentPending["revision_id"])
+	rootLifecycle := call(t, "GET", parentRoot+rootLifecycleSelector, administrator, nil, 200)
+	require.Empty(t, rootLifecycle["chain"])
+	require.EqualValues(t, 0, rootLifecycle["cutoff"].(map[string]any)["version"])
+	require.Equal(t, "hospital_management", rootLifecycle["supervision"].(map[string]any)["kind"])
 	parent := call(t, "PUT", parentRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_version": 1, "expected_revision_id": parentPending["revision_id"], "decision": "approve", "reason": "Independent synthetic root for retained ancestor cutoff", "sources_examined": true, "hospital_management_reviewed": true}, 200)
 	childRoot, child := prepare(childTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
 	selector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&chain_review=current", child["revision_id"])
@@ -55,6 +61,48 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, before, postingRootApprovalEffects(t, db, tenant, reviewer), "failed cutoff-context reads and approval retain no actor use, approval audit or event")
 	require.Equal(t, child, call(t, "GET", childRoot, reviewer, nil, 200))
 	call(t, "GET", decisionPath, reviewer, nil, 404)
+	lifecycleSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", child["revision_id"])
+	lifecycle := call(t, "GET", childRoot+lifecycleSelector, reviewer, nil, 200)
+	require.Equal(t, child, lifecycle["context"].(map[string]any)["proposal"])
+	require.Equal(t, cutoff["cutoff_at"], lifecycle["effective_until"], "live eligibility includes the retained ancestor cutoff without rewriting nominal source pins")
+	selectedCutoff := lifecycle["cutoff"].(map[string]any)
+	require.EqualValues(t, 0, selectedCutoff["version"])
+	require.Nil(t, selectedCutoff["id"])
+	require.Nil(t, selectedCutoff["cutoff_at"])
+	lifecycleChain := lifecycle["chain"].([]any)
+	require.Len(t, lifecycleChain, 1)
+	ancestor := lifecycleChain[0].(map[string]any)
+	require.Equal(t, parent["id"], ancestor["posting"].(map[string]any)["id"])
+	ancestorCutoff := ancestor["cutoff"].(map[string]any)
+	require.Equal(t, cutoff["id"], ancestorCutoff["id"])
+	require.Equal(t, cutoff["version"], ancestorCutoff["version"])
+	require.Equal(t, cutoff["cutoff_at"], ancestorCutoff["cutoff_at"])
+	require.Len(t, ancestorCutoff, 3, "reviewers do not receive cutoff administrator rationale or actor evidence")
+	call(t, "GET", childRoot+lifecycleSelector, submitter, nil, 403)
+	applyLifecycleFault := func(sql string) {
+		require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_lifecycle_context_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+	}
+	clearLifecycleFault := func() {
+		applyLifecycleFault("ALTER TABLE workforce_audit DROP CONSTRAINT IF EXISTS synthetic_lifecycle_context_audit")
+	}
+	t.Cleanup(clearLifecycleFault)
+	beforeLifecycleFault := postingRootApprovalEffects(t, db, tenant, reviewer)
+	applyLifecycleFault("ALTER TABLE workforce_audit ADD CONSTRAINT synthetic_lifecycle_context_audit CHECK(action<>'workforce.posting_proposal.context_read_lifecycle_review') NOT VALID")
+	failedLifecycle := call(t, "GET", childRoot+lifecycleSelector, reviewer, nil, 500)
+	require.NotContains(t, failedLifecycle, "context")
+	require.NotContains(t, failedLifecycle, "chain")
+	require.Equal(t, beforeLifecycleFault, postingRootApprovalEffects(t, db, tenant, reviewer), "a failed private lifecycle disclosure rolls back actor-use evidence")
+	clearLifecycleFault()
+	futureTemplate := map[string]any{}
+	for key, value := range childTemplate {
+		futureTemplate[key] = value
+	}
+	cutoffInstant, err := time.Parse(time.RFC3339Nano, cutoff["cutoff_at"].(string))
+	require.NoError(t, err)
+	futureTemplate["starts_at"] = cutoffInstant.Add(time.Minute).Format(time.RFC3339Nano)
+	futureRoot, futureChild := prepare(futureTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
+	futureSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", futureChild["revision_id"])
+	call(t, "GET", futureRoot+futureSelector, reviewer, nil, 409)
 	rejected := call(t, "PUT", childRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": child["revision_id"], "decision": "reject", "reason": "Independent rejection remains available after an ancestor cutoff", "sources_examined": true}, 200)
 	require.Equal(t, "rejected", rejected["status"])
 	receipts := []map[string]any{cutoff}
@@ -79,4 +127,13 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, false, last["page"].(map[string]any)["has_more"])
 	call(t, "GET", historyPath+"&cursor="+cursor, reviewer, nil, 400)
 	call(t, "GET", parentRoot+"/cutoffs/history?expected_revision_id="+parentPending["revision_id"].(string)+"&cursor="+cursor, administrator, nil, 400)
+	currentChildRoot, currentChild := prepare(childTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
+	currentSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", currentChild["revision_id"])
+	currentView := call(t, "GET", currentChildRoot+currentSelector, reviewer, nil, 200)
+	require.Equal(t, receipts[9]["cutoff_at"], currentView["effective_until"])
+	require.EqualValues(t, 10, currentView["chain"].([]any)[0].(map[string]any)["cutoff"].(map[string]any)["version"])
+	call(t, "PUT", parentRoot+"/cutoffs/commands/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_revision_id": parent["revision_id"], "expected_cutoff_version": 10, "mode": "immediate", "reason": "Synthetic ending blocks new lifecycle review without deleting approvals", "sources_examined": true}, 200)
+	beforeEndedContext := postingRootApprovalEffects(t, db, tenant, reviewer)
+	call(t, "GET", currentChildRoot+currentSelector, reviewer, nil, 409)
+	require.Equal(t, beforeEndedContext, postingRootApprovalEffects(t, db, tenant, reviewer))
 }

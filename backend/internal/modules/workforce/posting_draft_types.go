@@ -152,6 +152,7 @@ type StaffPostingProposalContextRequest struct {
 	SupervisionContext *string   `json:"supervision_context,omitempty"`
 	ManagementReview   *string   `json:"management_review,omitempty"`
 	ChainReview        *string   `json:"chain_review,omitempty"`
+	LifecycleReview    *string   `json:"lifecycle_review,omitempty"`
 }
 
 type StaffPostingProposalContext struct {
@@ -210,4 +211,25 @@ type StaffPostingCutoffContext struct {
 	Proposal  StaffPostingProposal `json:"proposal"`
 	Cutoff    *StaffPostingCutoff  `json:"cutoff"`
 	CheckedAt time.Time            `json:"checked_at"`
+}
+
+type StaffPostingCutoffObservation struct {
+	ID       *uuid.UUID `json:"id"`
+	Version  int64      `json:"version"`
+	CutoffAt *time.Time `json:"cutoff_at"`
+}
+
+type StaffPostingLifecycleChainNode struct {
+	Posting     StaffPostingSupervisorChoice  `json:"posting"`
+	Supervision StaffPostingSupervisionIntent `json:"supervision"`
+	Cutoff      StaffPostingCutoffObservation `json:"cutoff"`
+}
+
+type StaffPostingLifecycleReviewContext struct {
+	Context        StaffPostingProposalContext      `json:"context"`
+	Supervision    StaffPostingSupervisionIntent    `json:"supervision"`
+	Cutoff         StaffPostingCutoffObservation    `json:"cutoff"`
+	Chain          []StaffPostingLifecycleChainNode `json:"chain"`
+	CheckedAt      time.Time                        `json:"checked_at"`
+	EffectiveUntil time.Time                        `json:"effective_until"`
 }

@@ -122,17 +122,28 @@ func TestARefusedReadRecordsNothing(t *testing.T) {
 // An audit row that cannot be written withholds the data.
 func TestAReadWhoseRecordFailsReturnsNothing(t *testing.T) {
 	w := newWorkWorld(t)
+	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
+	g := w.product(t, "TEST-G-DRUG", "G")
+	rx := w.prescribe(t, g, 10, 1, false)
+	var note string
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT id::text FROM pharmacy_credit_notes WHERE sale_id=? ORDER BY created_at LIMIT 1`, w.walkIn).Scan(&note).Error
+	}))
 	pharmacy.SetReadRecordFault(t)
 	for _, path := range []string{
 		"/sales/" + w.walkIn,
 		"/sales",
+		"/credit-notes/" + note,
+		"/prescriptions/" + rx,
+		"/prescriptions",
+		"/prescriptions/open-lines?product_id=" + g,
 		"/credit-notes",
 		"/sales/" + w.admitted + "/summary",
 		"/sales/worklist?from=2026-11-01&to=2026-11-02",
 	} {
 		res := do(w.r, "GET", licencePath(path), "pharmacist", "")
 		require.Equal(t, http.StatusInternalServerError, res.Code, path+res.Body.String())
-		for _, leaked := range []string{"TEST Walk In", "9800000001", "B-7", "invoice_number"} {
+		for _, leaked := range []string{"TEST Walk In", "9800000001", "B-7", "invoice_number", "TEST Ravi Kumar", "patient_name"} {
 			require.False(t, strings.Contains(res.Body.String(), leaked), fmt.Sprintf("%s leaked %s", path, leaked))
 		}
 	}

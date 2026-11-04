@@ -17,9 +17,9 @@ import (
 
 // The sales worklist and each sale's summary (#987 slice 1). Both read
 // posted, insert-only records afresh. Neither carries the buyer's name or
-// phone or the patient's id, only who the sale was for as a kind and an
-// admission's bed code; like the invoice read, which shows more, neither is
-// audited (spec decision 3).
+// phone or the patient's id, only who the sale was for as a kind; an
+// admission sale's bed code points to its occupant, so a read showing one
+// is audited (#1555).
 
 func salesWorklistRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/sales/worklist", PermSaleRead, h.listSalesWorklist)
@@ -110,7 +110,9 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 		}
 		// A bed code with its date points to the bed's occupant, so a page
 		// showing an admission sale is recorded (#1555); others carry no one.
-		for _, r := range rows {
+		// Only the rows the page shows: ListRoute reads one more to see if
+		// there is a next page and drops it.
+		for _, r := range rows[:min(len(rows), params.Limit)] {
 			if r.Customer == "admission" {
 				return auditRegisterRead(c, tx, "sales_worklist", p.TenantID, p.Subject, outlet, "list_read",
 					"from", orAll(since), "to", orAll(until), "customer", orAll(customer), "invoice", orAll(invoice))

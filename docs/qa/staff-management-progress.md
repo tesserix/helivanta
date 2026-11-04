@@ -1,6 +1,6 @@
 # Staff Management delivery tracker
 
-## Protected current-chain reviewer workflow — 2026-11-04
+## Protected current-chain reviewer workflow — 2026-11-05
 
 Draft [#1570](https://github.com/tesserix/helivanta/pull/1570), commit `c35a24cb`,
 on branch `codex/posting-chain-review-context-20261104` extends draft #1569.
@@ -30,16 +30,44 @@ existing sequential employment-download capacity setup (expected503, actual200);
 no full API pass is claimed. A separate fixture-only branch starts its four reads
 concurrently using an atomic bounded media barrier; the focused real API case
 passes **48.779s** with the capacity subtest **1.73s**. Production limits/timeouts
-are unchanged. Full Workforce race is running separately. Full SDK passes
-**682 tests**. Full web checks restarted after restoring missing ignored E2E/script
-cached tool links and the E2E canonical API alias; no dependencies were downloaded.
+are unchanged. Full Workforce native race passes **653 tests/subtests / 710.636s**. Full SDK passes
+**682 tests**. Full web checks pass **28 tasks / 7m20.165s**, including **1,524 shell tests /
+182 files / 379.95s**, SDK682 and required lint/types/format checks, after restoring
+ignored E2E/script cached tool links and the canonical E2E API alias. No dependency
+download occurred. Architecture passes **128 tests / 291.253s**.
 Production Webpack build, scoped Go vet, full backend build, scoped Go lint
 (zero issues), canonical generation/check, contractdocs generation/check and
 operational inventory check pass. The first combined web run stopped on the shared-Panel lint gate; source now uses
-`Panel as="li"` and the complete run has restarted. Browser binding/real-account,
+`Panel as="li"` and the complete rerun passed. Browser binding/real-account,
 operating consumers and lifecycle acceptance remain open. Nothing is merged or
 released for this candidate. Counts remain **10 partial, 10 awaiting audit,
 1 research, 0 fully accepted**.
+
+The capacity correction is independently reviewable in draft
+[#1571](https://github.com/tesserix/helivanta/pull/1571), commit `a79c4d9c`.
+Current-ancestor source cutoff acceptance passes **104.445s**: changing an
+intermediate supervisor identity blocks current-chain disclosure and a new member
+approval, leaves the target source current, commits no failed-read/approval actor
+use, retains the pending receipt/history and permits independent rejection.
+A private Go build overlay removing only ancestor validation fails the new
+assertion (**125.119s**, expected409/actual200). The actual source is never edited
+(SHA256 `6180a7bcdbc64e726477f96c60112e3a8fb986f978cf4c2966ed6ef152f24ce8`).
+A broader initial overlay failed an existing root deadline assertion first; it is
+not counted as proof of the new ancestor assertion. Normal-source acceptance is
+extended to restoring the original identity fields without reviving the old
+review epoch; the final focused run passes **81.053s**. Its first expanded run
+(**79.876s**) reached the intended denial but failed an audit-counter assertion
+because two successful inspection reads were inside the rollback-count interval.
+Those successful reads now follow that interval; all denial/rollback assertions
+remain. Historical approved source rows remain unchanged, the target source stays
+current, both changed/restored ancestor reads and new approvals fail409 without
+actor-use/approval evidence, the pending proposal has no decision receipt and one
+history row, and independent rejection remains available.
+
+At the user's reconnect request the QA tab was claimed, automation reset, and a
+fresh browser ID rebound. Inventory/claim work, but page inspection, screenshot and
+explicit-timeout read-only DOM evaluation still fail with timeoutMs. No browser
+acceptance, account membership expansion or runtime cutover is claimed.
 
 ## Canonical supervisor discovery and submission — 2026-11-04
 

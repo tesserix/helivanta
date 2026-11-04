@@ -2270,7 +2270,17 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					require.NotEmpty(t, postingRootApprover, "include the preceding independent root-approval scenario")
 					grant(postingRootReviewer, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
-					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation)
+					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, func() func() {
+						initial := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+						originalProfile := initial["profile"].(map[string]any)
+						setIdentity := func(givenName, phone any) {
+							current := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+							changed := call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{"expected_version": current["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": givenName, "work_phone": phone}}, 200)
+							require.Equal(t, givenName, changed["profile"].(map[string]any)["given_name"])
+						}
+						setIdentity("Synthetic Changed Supervisor Identity", "+919000000004")
+						return func() { setIdentity(originalProfile["given_name"], originalProfile["work_phone"]) }
+					})
 					return
 				}
 				if scenario == "posting_root_dept_first" {

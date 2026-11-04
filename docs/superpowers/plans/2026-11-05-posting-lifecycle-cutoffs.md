@@ -163,3 +163,40 @@ renewed-examination checkbox assertion. Source is restored byte for byte
 the same focused assertion passes after restoration. Logs:
 `/tmp/helivanta-lifecycle-review-ui-reset-mutation-final-20261105.log` and
 `/tmp/helivanta-lifecycle-review-ui-reset-restored-final-20261105.log`.
+
+## Local runtime activation — 2026-11-05
+
+UI candidate `1846565c` is pushed in draft PR #1577. The approved disposable local
+fixture now runs that source on loopback-only ports: UI4398 → Global API8198 →
+product API8398. Runtime records and binaries are under the existing private
+`~/.helivanta/staff-management-20261027/posting-review-ui-20261104/` directory.
+No installs/downloads, credential changes or production actions were used.
+
+Before migration, a full custom-format backup and sorted 230-entry ledger were
+captured. A compiled-registry probe compared canonical IDs/SQL hashes against the
+ledger and detected an additional existing `0033_pharmacy` migration. Its SQL was
+reviewed: additive item categories, review policy/assignments, indexes and tenant
+RLS, without rewriting existing Staff records. The exact seven pending migrations
+were checked before application: `0033_pharmacy`,
+`0027_iam_staff_posting_cutoff_templates`,
+`0081_workforce_posting_chain_approvals`,
+`0082_workforce_posting_supervisor_choices`,
+`0083_workforce_posting_supervisor_choice_index`,
+`0084_workforce_posting_cutoffs`, `0085_workforce_posting_lifecycle_reviews`.
+The canonical migration runner applies them successfully; the ledger is237,
+with exactly those seven additions and no removals. Backup, hashes and both
+ledgers remain private for local recovery and later release planning.
+
+Current API/Global binaries were built from the candidate using cached Go with
+`GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off`; local-only source overlays change the
+listener address to127.0.0.1 and do not replace auth/business behavior. The UI was
+rebuilt with its existing registered public sign-in client and Global API origin.
+An intermediate owner-origin build was discarded without being served. The final
+compiled client ID and `/api/:path*` rewrite were checked before switching the UI.
+
+Owner/Global health and UI login return200. Staff and cutoff-discovery requests
+through UI4398 → Global8198 → owner8398 return401 without authentication. These
+probes verify health, routing and denied anonymous access, not positive-role UI
+acceptance. The browser bridge still fails DOM, screenshots and navigation;
+no reviewer/admin acceptance is claimed. Historical proof, operating consumers,
+all five reusable Staff requirements and production release remain open.

@@ -26,12 +26,30 @@ regression passed again. No mutation remains active.
 
 Reconnection reclaimed the existing QA tab, but DOM reads, screenshots and fresh
 tab navigation still fail through the browser connection. No normal-role browser
-acceptance is counted. The local QA runtime also needs the candidate backend and
-migrations before that acceptance. Historical lifecycle-proof presentation,
-actual Pharma/unit operating guards, standalone-employer decisions and deployment
-remain open. All five reusable Staff requirements remain in scope; counts remain
+acceptance is counted. The local QA runtime now runs candidate `1846565c`:
+UI `4398` → Global API `8198` → product owner `8398`, all loopback-only, using
+the existing registered sign-in client. Owner/Global health and login return
+200; unauthenticated Staff and cutoff discovery through the UI return 401.
+These HTTP probes do not establish normal-role UI acceptance.
+
+The approved local fixture was backed up before applying seven canonical pending
+migrations; the ledger advances **230 → 237**, with no earlier entries removed.
+The pending set was checked against the actual compiled registry: IAM0027;
+Workforce0081–0085; and the existing additive `0033_pharmacy` category tables,
+review policy and RLS migration. SQL hashes, before/after ledgers, runtime hashes
+and probes are retained privately beneath
+`~/.helivanta/staff-management-20261027/posting-review-ui-20261104/`.
+The backup is `lifecycle-local-before-migrations-20261105.dump`; its hash is in
+`lifecycle-local-backup-manifest-20261105.json`. No installs, downloads,
+credential changes or production mutations occurred. The UI sign-in build was
+checked against the fixture client and its rewrite against the Global API;
+an intermediate owner-origin build was discarded without starting it.
+
+Historical lifecycle-proof presentation, actual Pharma/unit operating guards,
+standalone-employer decisions and deployment remain open. All five reusable Staff requirements remain in scope; counts remain
 **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. No production
-migration, merge, rollout or release tag occurred in this increment.
+migration, merge, rollout or release tag occurred in this increment. UI code is
+pushed as `1846565c`, draft PR [#1577](https://github.com/tesserix/helivanta/pull/1577).
 
 ## Positive lifecycle approval and immutable proof — local candidate, 2026-11-05
 

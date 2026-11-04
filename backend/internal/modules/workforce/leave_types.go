@@ -97,6 +97,23 @@ type leaveSettings struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
+type leaveRoutingPolicyInput struct {
+	ExpectedVersion *int   `json:"expected_version" binding:"required,gte=0"`
+	Mode            string `json:"mode" binding:"required,oneof=hospital reporting_line"`
+	EscalationHours *int   `json:"escalation_hours,omitempty" binding:"omitempty,gte=1,lte=720"`
+	SourceReference string `json:"source_reference" binding:"required,max=200"`
+	Reviewed        *bool  `json:"reviewed" binding:"required"`
+}
+
+type leaveRoutingPolicy struct {
+	Version           int        `json:"version"`
+	Mode              string     `json:"mode"`
+	EscalationHours   *int       `json:"escalation_hours,omitempty"`
+	SourceReference   string     `json:"source_reference"`
+	ReviewedBySubject *string    `json:"reviewed_by_subject,omitempty"`
+	CreatedAt         *time.Time `json:"created_at,omitempty"`
+}
+
 type staffLeaveAssignmentInput struct {
 	ExpectedVersion     *int64    `json:"expected_version" binding:"required,gte=0"`
 	StructureRevisionID uuid.UUID `json:"structure_revision_id" binding:"required"`
@@ -256,10 +273,27 @@ type leaveRosterClash struct {
 	EndsAt     time.Time `json:"ends_at"`
 }
 
+type leaveRouteStep struct {
+	Level        int       `json:"level"`
+	StaffID      uuid.UUID `json:"staff_id"`
+	EmployeeCode string    `json:"employee_code"`
+	DisplayName  string    `json:"display_name"`
+	OpensAt      time.Time `json:"opens_at"`
+	Open         bool      `json:"open"`
+}
+
+type leaveRequestRouting struct {
+	Version  int              `json:"version"`
+	Routed   bool             `json:"routed"`
+	Steps    []leaveRouteStep `json:"steps"`
+	Fallback *string          `json:"fallback,omitempty"`
+}
+
 type leaveRequestDetail struct {
-	Request       leaveRequest       `json:"request"`
-	Days          []leaveRequestDay  `json:"days"`
-	RosterClashes []leaveRosterClash `json:"roster_clashes"`
+	Request       leaveRequest         `json:"request"`
+	Days          []leaveRequestDay    `json:"days"`
+	RosterClashes []leaveRosterClash   `json:"roster_clashes"`
+	Routing       *leaveRequestRouting `json:"routing,omitempty"`
 }
 
 type leaveRequestEvent struct {
@@ -338,4 +372,5 @@ type leaveReviewRequest struct {
 	Status       string    `json:"status"`
 	Version      int64     `json:"version"`
 	CreatedAt    time.Time `json:"created_at"`
+	RouteLevel   *int      `json:"route_level,omitempty"`
 }

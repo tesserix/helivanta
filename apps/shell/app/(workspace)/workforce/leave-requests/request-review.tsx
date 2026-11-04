@@ -17,6 +17,7 @@ import { ConfirmDialog, Field, useZodForm } from "@helivanta/ui";
 import { Failure, inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeLeave } from "./requests-workspace";
+import { LeaveRouteSection } from "./route-section";
 
 const noteSchema = leaveCancelInputContract.pick({ note: true });
 type Action = "approve" | "reject" | "withdraw" | "revoke";
@@ -107,6 +108,7 @@ export function LeaveRequestReview({
               </ul>
             )}
           </section>
+          {detail.data.routing && <LeaveRouteSection routing={detail.data.routing} />}
           {!detail.isFetching &&
             !history.isPending &&
             !history.isError &&

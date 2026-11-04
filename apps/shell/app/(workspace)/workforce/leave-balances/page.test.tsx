@@ -114,6 +114,8 @@ function mock({
               { year_start_month: 4, reviewed_by_subject: "synthetic-owner", created_at: stamp },
             ]
           : [404, { error: "not_found", message: "leave settings not found" }];
+      else if (url.endsWith("/leave-routing"))
+        body = { version: 0, mode: "hospital", source_reference: "" };
       else if (url.includes("/runs")) body = page([]);
       else if (url.endsWith("/leave-years"))
         body = page(configured ? [year(posted, leaveYear)] : []);

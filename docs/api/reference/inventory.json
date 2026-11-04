@@ -6895,6 +6895,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/hr/leave-routing",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/hr/leave-routing",
+          "permission": "workforce.leave.configure",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/hr/leave-settings",
           "permission": "public",
           "authentication_required": true,
@@ -9962,6 +9980,14 @@
                 }
               ]
             }
+          ]
+        },
+        {
+          "id": "0078_workforce_leave_routing",
+          "sql_sha256": "9da33ef802a47a4320d29c59aec8953406bc3e5edb12b6c76fc2fe1762ae6933",
+          "creates_tables": [
+            "workforce_leave_routing_revisions",
+            "workforce_leave_route_steps"
           ]
         }
       ]

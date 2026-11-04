@@ -34,6 +34,9 @@ func prepareLeaveReview(tx *gorm.DB, c *gin.Context, p authn.Principal, hospital
 			return nil, err
 		}
 	}
+	if legacy && decides {
+		return deskRouteEvidence(tx, p, hospital, staffID, requestID)
+	}
 	if legacy {
 		return []byte("{}"), nil
 	}
@@ -102,10 +105,35 @@ func prepareScopedLeaveReview(tx *gorm.DB, p authn.Principal, hospital, staffID,
 	if actor.StaffID == staffID {
 		return nil, errLeaveSelfDecision
 	}
+	var ledger string
+	if err := tx.Raw(`SELECT COALESCE(current_setting('app.workforce_leave_ledger',true),'')`).Scan(&ledger).Error; err != nil {
+		return nil, err
+	}
 	if err := tx.Exec(`SELECT set_config('app.workforce_leave_review_staff',?,true),set_config('app.workforce_leave_review_request',?,true),set_config('app.workforce_leave_review','authorized',true),set_config('app.workforce_leave_ledger','authorized',true)`, staffID.String(), requestID.String()).Error; err != nil {
 		return nil, err
 	}
-	return json.Marshal(map[string]any{"assignment_id": grant.AssignmentID, "assignment_version": grant.Version, "scope_epoch": grant.ScopeEpoch, "membership_epoch": grant.MembershipEpoch, "actor_staff_id": actor.StaffID, "actor_link_id": actor.ID, "actor_link_version": actor.Version})
+	// Out of route: clear the scoped flags so a desk manager falls back to the desk path.
+	var route struct {
+		Routed         bool
+		RoutingVersion *int
+		RouteLevel     *int
+	}
+	found := tx.Raw(`SELECT r.routed,r.routing_version,(SELECT s.level::int FROM workforce_leave_route_steps s WHERE (s.tenant_id,s.hospital_id,s.request_id)=(r.tenant_id,r.hospital_id,r.id) AND s.staff_id=? AND s.opens_at<=now()) AS route_level
+ FROM workforce_leave_requests r WHERE r.tenant_id=? AND r.hospital_id=? AND r.id=? AND r.staff_id=?`, actor.StaffID, p.TenantID, hospital, requestID, staffID).Scan(&route)
+	if found.Error != nil {
+		return nil, found.Error
+	}
+	if found.RowsAffected == 0 || route.Routed && route.RouteLevel == nil {
+		if err := tx.Exec(`SELECT set_config('app.workforce_leave_review','',true),set_config('app.workforce_leave_review_staff','',true),set_config('app.workforce_leave_review_request','',true),set_config('app.workforce_leave_ledger',?,true)`, ledger).Error; err != nil {
+			return nil, err
+		}
+		return nil, gorm.ErrRecordNotFound
+	}
+	evidence := map[string]any{"assignment_id": grant.AssignmentID, "assignment_version": grant.Version, "scope_epoch": grant.ScopeEpoch, "membership_epoch": grant.MembershipEpoch, "actor_staff_id": actor.StaffID, "actor_link_id": actor.ID, "actor_link_version": actor.Version}
+	if route.Routed {
+		evidence["route_level"], evidence["routing_version"] = *route.RouteLevel, *route.RoutingVersion
+	}
+	return json.Marshal(evidence)
 }
 
 func reviewedLeaveStanding(tx *gorm.DB, c *gin.Context, p authn.Principal, r leaveRequestRow) (bool, error) {

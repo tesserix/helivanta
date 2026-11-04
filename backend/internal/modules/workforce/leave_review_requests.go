@@ -54,7 +54,7 @@ func (h *handlers) listLeaveReviewRequests(c *gin.Context, page pagination.Param
 	}
 	rows := []leaveReviewRequest{}
 	err := h.withLeaveReviewRead(c, p, hospital, "queue", uuid.Nil, uuid.Nil, func(tx *gorm.DB, actor reviewedLeaveActor, grant authz.ScopeGrant) error {
-		if e := tenantdb.ApplyKeyset(tx, page).Table(leaveRequestView).Select("id,staff_id,employee_code,display_name,code,name,leave_year,unit,start_on,end_on,session,minutes,half_days,status,version,created_at").Where("tenant_id=? AND hospital_id=? AND status='pending' AND staff_id<>? AND requested_by_subject<>?", p.TenantID, hospital, actor.StaffID, p.Subject).Find(&rows).Error; e != nil {
+		if e := tenantdb.ApplyKeyset(tx, page).Table(leaveRequestView).Select("id,staff_id,employee_code,display_name,code,name,leave_year,unit,start_on,end_on,session,minutes,half_days,status,version,created_at,(SELECT s.level::int FROM workforce_leave_route_steps s WHERE (s.tenant_id,s.hospital_id,s.request_id)=(v.tenant_id,v.hospital_id,v.id) AND s.staff_id=?) AS route_level", actor.StaffID).Where("tenant_id=? AND hospital_id=? AND status='pending' AND staff_id<>? AND requested_by_subject<>?", p.TenantID, hospital, actor.StaffID, p.Subject).Find(&rows).Error; e != nil {
 			return e
 		}
 		for _, row := range rows[:min(len(rows), page.Limit)] {

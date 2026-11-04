@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/organization"
@@ -98,8 +99,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		tokens[subject], err = signer.Mint(subject, testutil.TenantA, time.Now(), time.Now().Add(time.Hour))
 		require.NoError(t, err)
 	}
-	request := func(method, path, subject string, body []byte, contentType string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest(method, path, bytes.NewReader(body))
+	requestWithContext := func(ctx context.Context, method, path, subject string, body []byte, contentType string) *httptest.ResponseRecorder {
+		r := httptest.NewRequestWithContext(ctx, method, path, bytes.NewReader(body))
 		r.Header.Set("Authorization", "Bearer "+tokens[subject])
 		r.Header.Set("Content-Type", contentType)
 		r.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
@@ -107,6 +108,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		w := httptest.NewRecorder()
 		gateway.ServeHTTP(w, r)
 		return w
+	}
+	request := func(method, path, subject string, body []byte, contentType string) *httptest.ResponseRecorder {
+		return requestWithContext(ctx, method, path, subject, body, contentType)
 	}
 	pausedDownload := func(t *testing.T, contentPath string, mutate func()) *httptest.ResponseRecorder {
 		t.Helper()
@@ -146,11 +150,26 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			body, err = json.Marshal(input)
 			require.NoError(t, err)
 		}
-		w := request(method, path, subject, body, "application/json")
+		w := requestWithContext(t.Context(), method, path, subject, body, "application/json")
 		require.Equal(t, status, w.Code, "%s %s: %s", method, path, w.Body.String())
 		var out map[string]any
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &out))
 		return out
+	}
+	waitForStatus := func(t *testing.T, path, subject, status string) {
+		t.Helper()
+		pollContext, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		require.EventuallyWithT(t, func(collect *assert.CollectT) {
+			response := requestWithContext(pollContext, "GET", path, subject, nil, "application/json")
+			if !assert.Equal(collect, http.StatusOK, response.Code, "GET %s: %s", path, response.Body.String()) {
+				return
+			}
+			var receipt map[string]any
+			if assert.NoError(collect, json.Unmarshal(response.Body.Bytes(), &receipt)) {
+				assert.Equal(collect, status, receipt["status"])
+			}
+		}, 10*time.Second, 20*time.Millisecond)
 	}
 	for _, member := range []struct{ subject, role string }{{maker, "tenant_admin"}, {checker, "tenant_admin"}, {manager, "staff_member"}, {reviewer, "staff_member"}} {
 		call(t, "POST", "/v1/iam/members", maker, map[string]any{"subject": member.subject, "role_key": member.role}, 202)
@@ -182,7 +201,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		linked := call(t, "POST", link+"/decision", checker, map[string]any{"expected_version": 1, "decision": "approve", "reason": "Independent synthetic officer identity"}, 200)
 		proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
 		call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": officer.subject, "template_key": officer.template, "reason": "Synthetic independent person review", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-		require.Eventually(t, func() bool { return call(t, "GET", proposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+		waitForStatus(t, proposal, maker, "pending_review")
 		call(t, "POST", proposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent scoped officer assignment"}, 200)
 		require.Eventually(t, func() bool {
 			grant, e := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: officer.subject, HospitalID: hospital, Permission: officer.permission})
@@ -337,7 +356,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -719,7 +738,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		proposalID := uuid.Must(uuid.NewV7()).String()
 		proposal := "/v1/iam/assignment-proposals/" + proposalID
 		call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": manager, "template_key": "workforce.hr_intake.v1", "reason": "Synthetic scoped employment preparation", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-		require.Eventually(t, func() bool { return call(t, "GET", proposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+		waitForStatus(t, proposal, maker, "pending_review")
 		call(t, "POST", proposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic employment preparer authority"}, 200)
 		for _, permission := range []authz.Permission{workforce.PermEnrollmentManage, workforce.PermDocumentManage} {
 			require.Eventually(t, func() bool {
@@ -859,7 +878,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		adminProposalID := uuid.Must(uuid.NewV7()).String()
 		adminProposal := "/v1/iam/assignment-proposals/" + adminProposalID
 		call(t, "PUT", adminProposal, maker, map[string]any{"hospital_id": hospital, "subject": maker, "template_key": "workforce.hr_intake.v1", "reason": "Synthetic scoped Staff Admin preparation", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-		require.Eventually(t, func() bool { return call(t, "GET", adminProposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+		waitForStatus(t, adminProposal, maker, "pending_review")
 		call(t, "POST", adminProposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic scoped admin authority"}, 200)
 		for _, permission := range []authz.Permission{workforce.PermEnrollmentManage, workforce.PermDocumentManage} {
 			require.Eventually(t, func() bool {
@@ -994,7 +1013,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			roleID := uuid.Must(uuid.NewV7()).String()
 			rolePath := "/v1/iam/assignment-proposals/" + roleID
 			call(t, "PUT", rolePath, maker, map[string]any{"hospital_id": hospital, "subject": target, "template_key": "workforce.employment_reviewer.v1", "reason": "Synthetic independent employment terms reviewer", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-			require.Eventually(t, func() bool { return call(t, "GET", rolePath, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+			waitForStatus(t, rolePath, maker, "pending_review")
 			call(t, "POST", rolePath+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic reviewer authority"}, 200)
 			require.Eventually(t, func() bool {
 				grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: target, HospitalID: hospital, Permission: authz.Permission("workforce.employment.review")})
@@ -1205,7 +1224,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			activationID := uuid.Must(uuid.NewV7()).String()
 			activationProposal := "/v1/iam/assignment-proposals/" + activationID
 			call(t, "PUT", activationProposal, maker, map[string]any{"hospital_id": hospital, "subject": manager, "template_key": "workforce.employment_activator.v1", "reason": "Synthetic separate activation authority", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-			require.Eventually(t, func() bool { return call(t, "GET", activationProposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+			waitForStatus(t, activationProposal, maker, "pending_review")
 			call(t, "POST", activationProposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic activator assignment"}, 200)
 			require.Eventually(t, func() bool {
 				grant, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: manager, HospitalID: hospital, Permission: workforce.PermEmploymentActivate})
@@ -1506,7 +1525,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		replacementID := uuid.Must(uuid.NewV7()).String()
 		replacement := "/v1/iam/assignment-proposals/" + replacementID
 		call(t, "PUT", replacement, maker, map[string]any{"hospital_id": hospital, "subject": reviewer, "template_key": "workforce.identity_reviewer.v1", "reason": "Synthetic replacement reviewer assignment", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-		require.Eventually(t, func() bool { return call(t, "GET", replacement, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+		waitForStatus(t, replacement, maker, "pending_review")
 		denied := pausedDownload(t, evidencePath, func() {
 			old := call(t, "GET", officers[reviewer].AssignmentPath, maker, nil, 200)
 			call(t, "POST", officers[reviewer].AssignmentPath+"/decision", maker, map[string]any{"expected_version": old["version"], "decision": "withdraw", "reason": "Synthetic withdrawal during private storage I/O"}, 200)
@@ -1747,20 +1766,23 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	})
 	var postingRegistrationPath string
 	var postingSubmitter string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	var postingRootReviewer string
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
+				grantContext, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				defer cancel()
 				proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
 				call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "subject": subject, "template_key": template, "reason": "Synthetic operational activation fixture", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
-				require.Eventually(t, func() bool { return call(t, "GET", proposal, maker, nil, 200)["status"] == "pending_review" }, 10*time.Second, 20*time.Millisecond)
+				waitForStatus(t, proposal, maker, "pending_review")
 				call(t, "POST", proposal+"/decision", checker, map[string]any{"expected_version": 2, "decision": "approve", "reason": "Independent synthetic activation fixture approval"}, 200)
 				require.Eventually(t, func() bool {
-					standing, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: permission})
+					standing, err := authority.AuthorizeScope(grantContext, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: permission})
 					return err == nil && standing.AssignmentID != ""
 				}, 10*time.Second, 20*time.Millisecond)
 			}
-			if scenario == "posting_supervision" {
+			if scenario == "posting_supervision" || strings.HasPrefix(scenario, "posting_root_") {
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{generationMigration}))
 				for _, needed := range []struct {
 					subject, template string
@@ -2141,7 +2163,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" {
 						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
 					}
 				}
@@ -2163,7 +2185,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if postingRegistrationPath == "" {
 					postingRegistrationPath = organizationBase + "/registrations/" + uuid.Must(uuid.NewV7()).String()
 					call(t, "PUT", postingRegistrationPath, maker, map[string]any{"reason": "Synthetic scoped posting department setup"}, 200)
-					require.Eventually(t, func() bool { return call(t, "GET", postingRegistrationPath, maker, nil, 200)["status"] == "verified" }, 10*time.Second, 20*time.Millisecond)
+					waitForStatus(t, postingRegistrationPath, maker, "verified")
 				}
 				departmentID, departmentRevision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
@@ -2210,12 +2232,25 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					require.EqualValues(t, beforeExpiry, sourceAudits(), "post-expiry attempts retain no successful source-use audit")
 					return
 				}
-				if scenario == "posting_submission" || scenario == "posting_supervision" {
+				if scenario == "posting_submission" || scenario == "posting_supervision" || strings.HasPrefix(scenario, "posting_root_") {
 					postingIntent["ends_at"] = sourceCutoff.UTC().Format(time.RFC3339Nano)
 				}
 				scopedReceipt := call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200)
 				require.Equal(t, "draft", scopedReceipt["status"])
 				require.Equal(t, false, scopedReceipt["grants_access"])
+				if scenario == "posting_root_reviewer" {
+					grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
+					postingRootReviewer = recipient
+					return
+				}
+				if scenario == "posting_root_approval" {
+					require.NotEmpty(t, postingRootReviewer, "include the preceding reviewed root-reviewer scenario in a focused run")
+					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
+					assertPostingRootApproval(t, call, scopedStaffBase, recipient, postingRootReviewer, scopedDraft, scopedReceipt, scopedSource, generation, func() {
+						grant(postingRootReviewer, "workforce.posting_management_reviewer.v1", workforce.PermPostingManagementReview)
+					})
+					return
+				}
 				if scenario == "posting_supervision" {
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					assertPostingSupervisionRetention(t, ctx, db, call, scopedStaffBase, recipient, maker, scopedDraft, scopedReceipt, scopedSource, generation)

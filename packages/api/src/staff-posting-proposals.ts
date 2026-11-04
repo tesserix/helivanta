@@ -207,7 +207,10 @@ function verifiedDecision(
     !same(row.command_id, command) ||
     same(row.revision_id, selected.revision_id) ||
     row.version !== selected.version + 1 ||
-    row.status !== (input.decision === "reject" ? "rejected" : "withdrawn") ||
+    row.status !==
+      ({ approve: "approved", reject: "rejected", withdraw: "withdrawn" } as const)[
+        input.decision
+      ] ||
     row.draft_version !== selected.draft_version ||
     row.staff_version !== selected.staff_version ||
     row.employment_epoch !== selected.employment_epoch ||
@@ -243,7 +246,7 @@ async function postingDecisionRequest(
     !same(pending.revision_id, intent.expected_revision_id)
   )
     throw new Error("Choose the exact pending posting proposal revision before deciding.");
-  if (intent.decision === "approve")
+  if (intent.decision === "approve" && intent.hospital_management_reviewed !== true)
     throw new Error("Posting approval requires the supervision policy.");
   const raw = await apiFetch(path, {
     ...enrollmentRequestOptions(scope),

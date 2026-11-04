@@ -458,7 +458,8 @@ lost. Historical rows are not backfilled or reinterpreted. New creation-transact
 defaults apply only to future revisions; the migration does not rewrite historical
 rows with a volatile default. Revisions and intent cannot be updated or removed.
 There is no destructive down migration; rollback preserves the additive schema
-and audit history. Old head/revision guards still refuse positive approval.
+and audit history. Migration0079 alone retains the old positive-approval denial;
+the candidate root approval extension below is separate.
 
 An authorized submitter or independent reviewer can explicitly request:
 
@@ -493,3 +494,34 @@ withdrawal, membership revocation, dependency failure, wrong subject/hospital an
 compound command guards. This capability is not yet connected to positive
 approval or normal UI. Full IAM suite acceptance is pending test-VM recovery;
 source schema generation and focused success are not deployment acceptance.
+
+### Hospital-management root approval — unpublished candidate
+
+Candidate migration `0080_workforce_posting_root_approvals` admits only an
+independent approval of retained `hospital_management` intent. It records immutable,
+forced-RLS management evidence against the initial and approved revisions, current
+reviewer Staff/login/generation, and separate current ordinary-review and
+management-review assignments. Both assignments remain callback-bound through
+commit; the shared IAM/authz guard accepts at most three distinct exact checks.
+The explicit decision field `hospital_management_reviewed=true` selects the extra
+management check before Workforce locks. Missing authority denies403; omitted or
+false attestation retains409 `posting_supervision_required` and consumes no command.
+The SDK permits an explicit attested approval and validates an `approved` receipt;
+the released review UI still requires a separate implementation and acceptance.
+
+The target's locked Staff version, employment epoch, reviewed generation, nominal
+interval and effective cutoff must still match. Organization holds the current
+exact active department/ancestry gate until commit. The transition preserves the
+proposal's source pins, adds the management evidence, head, revision, audit and
+identifier-only outbox in one transaction. Missing internal evidence fails commit;
+no operating, clinical, IAM or profile-supervisor authority is granted.
+Non-root and legacy omitted-intent positive decisions remain denied pending chain
+implementation. There is no historical backfill or destructive rollback.
+
+Real Global API/PostgreSQL/OpenFGA tests pass for independent root approval,
+missing management authority, missing attestation, pending-state preservation,
+exact retry, changed-intent conflict and retained history (54.953s, race enabled).
+These focused tests do not establish complete negative/race coverage, normal UI
+acceptance, lifecycle enforcement or production deployment. The full IAM recovery
+failure and the remaining obligations are tracked in
+[Staff progress](../qa/staff-management-progress.md).

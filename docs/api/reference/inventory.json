@@ -10023,6 +10023,13 @@
           "creates_tables": [
             "workforce_posting_supervision_intents"
           ]
+        },
+        {
+          "id": "0080_workforce_posting_root_approvals",
+          "sql_sha256": "ad45e9b8c5ec9a8718f9d386d4377d7c02826742ebf1c6b7545b1a05143deb59",
+          "creates_tables": [
+            "workforce_posting_management_reviews"
+          ]
         }
       ]
     },

@@ -84,8 +84,12 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	if in.Decision == "withdraw" {
 		permission = PermPostingSubmit
 	}
+	var additional []authz.Permission
+	if in.Decision == "approve" && in.HospitalManagementReviewed != nil && *in.HospitalManagementReviewed {
+		additional = []authz.Permission{PermPostingManagementReview}
+	}
 	var out StaffPostingProposal
-	err = h.scopedPostingTransaction(c, p, s, true, permission, func(ctx context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
+	err = h.scopedPostingTransaction(c, p, s, true, permission, func(ctx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
 		if err := postingProposalDecisionContext(tx, s, in.Decision, in.ExpectedRevisionID); err != nil {
 			return err
 		}
@@ -117,45 +121,61 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		if err := authorizePostingProposalDecider(tx, p, s, in.Decision); err != nil {
 			return err
 		}
+		persist := func(current *gorm.DB) error {
+			out, err = h.recordPostingDecision(current, p, s, row, in, fingerprint)
+			return err
+		}
 		if in.Decision == "approve" {
-			return errPostingSupervisionRequired
+			if len(additional) == 0 {
+				return errPostingSupervisionRequired
+			}
+			return h.withRootPostingApproval(ctx, tx, p, s, row, source, persist)
 		}
-		revision, err := uuid.NewV7()
-		if err != nil {
-			return err
-		}
-		status := "rejected"
-		if in.Decision == "withdraw" {
-			status = "withdrawn"
-		}
-		if err := tx.Exec(`INSERT INTO workforce_posting_proposal_revisions(tenant_id,hospital_id,staff_id,proposal_id,id,command_id,expected_version,version,status,draft_id,draft_revision_id,draft_version,generation_id,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,eligibility_until,reason,actor_subject,sources_examined,input_hash)
- SELECT tenant_id,hospital_id,staff_id,proposal_id,?,?,version,version+1,?,draft_id,draft_revision_id,draft_version,generation_id,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,eligibility_until,?,?,true,? FROM workforce_posting_proposal_revisions WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND proposal_id=? AND id=?`, revision, s.command, status, in.Reason, p.Subject, fingerprint, p.TenantID, s.hospital, s.staff, s.draft, row.RevisionID).Error; err != nil {
-			return err
-		}
-		updated := tx.Exec(`UPDATE workforce_posting_proposals SET revision_id=?,version=version+1,status=? WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND revision_id=? AND version=? AND status='pending'`, revision, status, p.TenantID, s.hospital, s.staff, s.draft, row.RevisionID, row.Version)
-		if updated.Error != nil {
-			return updated.Error
-		}
-		if updated.RowsAffected != 1 {
-			return errPostingProposalConflict
-		}
-		out, err = postingProposalResult(tx, p, s, revision)
-		if err != nil {
-			return err
-		}
-		if err := postingProposalAudit(tx, p, s, status, out.Version); err != nil {
-			return err
-		}
-		payload, err := json.Marshal(workforcecontract.PostingProposalChangedData{HospitalID: s.hospital, StaffID: s.staff, ProposalID: s.draft, RevisionID: revision, Version: out.Version, Status: out.Status})
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, workforcecontract.SubjectPostingProposalChanged, events.Event{Type: workforcecontract.SubjectPostingProposalChanged, Version: 1, TenantID: p.TenantID, Data: payload})
-	})
+		return persist(tx)
+	}, additional...)
 	if err != nil {
 		respondPostingProposalError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
 	respond.OK(c, out)
+}
+
+func (h *handlers) recordPostingDecision(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, in StaffPostingDecisionInput, fingerprint string) (StaffPostingProposal, error) {
+	revision, err := uuid.NewV7()
+	if err != nil {
+		return StaffPostingProposal{}, err
+	}
+	status := map[string]string{"approve": "approved", "reject": "rejected", "withdraw": "withdrawn"}[in.Decision]
+	if err := tx.Exec(`INSERT INTO workforce_posting_proposal_revisions(tenant_id,hospital_id,staff_id,proposal_id,id,command_id,expected_version,version,status,draft_id,draft_revision_id,draft_version,generation_id,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,eligibility_until,reason,actor_subject,sources_examined,input_hash)
+ SELECT tenant_id,hospital_id,staff_id,proposal_id,?,?,version,version+1,?,draft_id,draft_revision_id,draft_version,generation_id,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,eligibility_until,?,?,true,? FROM workforce_posting_proposal_revisions WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND proposal_id=? AND id=?`, revision, s.command, status, in.Reason, p.Subject, fingerprint, p.TenantID, s.hospital, s.staff, s.draft, row.RevisionID).Error; err != nil {
+		return StaffPostingProposal{}, err
+	}
+	if status == "approved" {
+		if err := recordPostingManagementReview(tx, p, s, revision, row.RevisionID); err != nil {
+			return StaffPostingProposal{}, err
+		}
+	}
+	updated := tx.Exec(`UPDATE workforce_posting_proposals SET revision_id=?,version=version+1,status=? WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND id=? AND revision_id=? AND version=? AND status='pending'`, revision, status, p.TenantID, s.hospital, s.staff, s.draft, row.RevisionID, row.Version)
+	if updated.Error != nil {
+		return StaffPostingProposal{}, updated.Error
+	}
+	if updated.RowsAffected != 1 {
+		return StaffPostingProposal{}, errPostingProposalConflict
+	}
+	out, err := postingProposalResult(tx, p, s, revision)
+	if err != nil {
+		return StaffPostingProposal{}, err
+	}
+	if err := postingProposalAudit(tx, p, s, status, out.Version); err != nil {
+		return StaffPostingProposal{}, err
+	}
+	payload, err := json.Marshal(workforcecontract.PostingProposalChangedData{HospitalID: s.hospital, StaffID: s.staff, ProposalID: s.draft, RevisionID: revision, Version: out.Version, Status: out.Status})
+	if err != nil {
+		return StaffPostingProposal{}, err
+	}
+	if err := h.bus.Publish(tx, workforcecontract.SubjectPostingProposalChanged, events.Event{Type: workforcecontract.SubjectPostingProposalChanged, Version: 1, TenantID: p.TenantID, Data: payload}); err != nil {
+		return StaffPostingProposal{}, err
+	}
+	return out, nil
 }

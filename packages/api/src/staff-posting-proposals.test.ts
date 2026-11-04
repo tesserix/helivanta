@@ -598,6 +598,39 @@ it("retains the exact non-operating decision command and verifies its immutable 
   }
 });
 
+it("retains an explicitly attested management approval and rejects a different terminal result", async () => {
+  const api = await import("./staff-posting-proposals");
+  const selected = StaffPostingProposalContract.parse(receipt);
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: id(7),
+    decision: "approve" as const,
+    reason: "Synthetic independent hospital management review",
+    sources_examined: true,
+    hospital_management_reviewed: true,
+  };
+  const approved = {
+    ...receipt,
+    revision_id: id(10),
+    command_id: id(9),
+    version: 2,
+    status: "approved",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  expect(await api.decideStaffPostingProposal(scope, id(6), id(9), decision, selected)).toEqual(
+    approved,
+  );
+  expect(await api.getStaffPostingDecisionReceipt(scope, id(6), id(9), decision, selected)).toEqual(
+    approved,
+  );
+  for (const status of ["withdrawn", "rejected"]) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...approved, status });
+    await expect(
+      api.getStaffPostingDecisionReceipt(scope, id(6), id(9), decision, selected),
+    ).rejects.toThrow();
+  }
+});
+
 it("refuses changed pending source, false confirmation and unsupported approval before sending", async () => {
   const api = await import("./staff-posting-proposals");
   const selected = StaffPostingProposalContract.parse(receipt);

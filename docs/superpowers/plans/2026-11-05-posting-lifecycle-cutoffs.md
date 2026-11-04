@@ -1,8 +1,10 @@
 # Posting cutoff implementation plan
 
 Status: owner command/receipt, administrative discovery/context/history and cutoff
-workspace implemented locally. Lifecycle-aware positive review, operating
-consumers and complete vertical acceptance remain open. Follow
+workspace implemented locally. Explicit lifecycle context, positive owner
+decisions and immutable review evidence now have local API/SDK acceptance.
+Reviewer UI integration, operating consumers and complete vertical acceptance
+remain open. Follow
 [the specification](../specs/2026-11-05-posting-lifecycle-cutoffs.md) and
 [ADR-0058](../../adr/0058-retained-posting-cutoffs.md). Deliver the owner workflow
 as one vertical feature, then integrate actual operating consumers individually.
@@ -87,3 +89,33 @@ A candidate next Workforce migration must be reallocated against the registry
 before implementing it, with forced scope/purpose RLS, immutable history,
 composite foreign keys and DB guards for complete contiguous source evidence.
 This paragraph is an implementation plan, not an activated approval API.
+
+## Positive lifecycle decision implementation
+
+Continue on `codex/posting-lifecycle-decisions-20261105`, based on draft #1575.
+Candidate Workforce0085 is available in the inspected registry. The additive
+`lifecycle_review` decision field contains `cutoff_versions` (selected first,
+then exact retained chain order;1–32 safe integers, first0) and `effective_until`.
+Only approval permits it. Normalize the instant to UTC PostgreSQL microseconds
+before fingerprinting; replay checks the original fingerprint before current
+source/deadline validation. Older decision inputs keep byte-compatible normalized
+JSON by omitting the absent field. Legacy commands still refuse retained cutoffs.
+
+Reserve review/actor/read for supervised lifecycle commands and
+review/actor/management for roots, retaining the maximum three scoped checks.
+Require exact current version vector and recomputed minimum deadline while all
+source, supervision and Organization locks are held. Keep nominal proposal,
+management-review and chain-source records unchanged. Add immutable normalized
+review/source tables with scoped RLS, exact actor/grant provenance and complete
+ordered source evidence. Database deferred checks require retained lifecycle
+proof when a command explicitly opts in or any ancestor has a cutoff, so omitting
+application persistence cannot silently create an approval through ended sources.
+
+Recovery for lifecycle approval replays the exact original PUT. A plain historical
+proposal GET has no cutoff-vector evidence and must not be treated as proof of
+that input. Do not invent a replacement command or reject a committed replay
+because its formerly reviewed deadline has since elapsed. No new permission,
+IAM catalog, event or runtime service is needed. This is a forward-only local
+migration candidate; no production migration or rollout is authorized by the
+local implementation. Full source-ending enforcement and actual Pharma consumers
+remain part of the original five requirements.

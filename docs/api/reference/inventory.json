@@ -10361,6 +10361,14 @@
           "creates_tables": [
             "workforce_posting_cutoffs"
           ]
+        },
+        {
+          "id": "0085_workforce_posting_lifecycle_reviews",
+          "sql_sha256": "a7e8dd832a1b4e197915b391b74ced7b8a6467bf8514c2f63b9f09225437d620",
+          "creates_tables": [
+            "workforce_posting_lifecycle_reviews",
+            "workforce_posting_lifecycle_sources"
+          ]
         }
       ]
     },

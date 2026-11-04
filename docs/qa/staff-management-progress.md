@@ -1,5 +1,62 @@
 # Staff Management delivery tracker
 
+## Positive lifecycle approval and immutable proof — local candidate, 2026-11-05
+
+The next candidate on `codex/posting-lifecycle-decisions-20261105` builds on
+draft #1575. The explicit approval input pins the selected absence and every
+ordered ancestor cutoff version plus the exact effective deadline. Current
+review/actor/read or review/actor/management checks stay within the existing
+three-permission guard. Actor/assignment provenance and exact observations are
+retained atomically with the unchanged approval receipt, audit and identifier-
+only event. Candidate Workforce **0085** persists immutable, forced scope/purpose-
+RLS review/source tables and complete-proof/deadline database constraints.
+Legacy absent-input fingerprint material and old receipt shapes are preserved;
+legacy approval still refuses retained cutoffs. Explicit null observations are
+invalid, and offset/submicrosecond instants normalize before fingerprinting.
+
+The real Global API/IAM/OpenFGA/Postgres approval first failed400 as expected
+(**82.311s**); root and scheduled-child positive approval then passed **85.761s**.
+Expanded evidence/failure coverage passes **87.272s**. The complete actual API
+journey passes **108.064s**, including both PostgreSQL-lock-controlled cutoff/
+approval orderings, actual expiry, exact committed replay after expiry versus
+uncommitted expired refusal, independent rejection, stale version/deadline
+refusal and renewed examination. A three-Staff/two-ancestor chain exercises a
+changed far-root cutoff. Review/source/audit/outbox faults and suppressed
+ancestor/entire proof prevent approval; even suppressing the opt-in marker cannot
+approve through an ancestor cutoff without proof. Retained proof matches real
+actor, source, grant and cutoff facts and is hidden from foreign tenant/hospital
+RLS frames. Internal purpose-scoped SQL probes inspect storage only and are not
+counted as normal-role UI acceptance.
+
+Canonical null-decoding tests exposed null counters becoming zero through an
+existing custom decoder; the canonical decoder now rejects them. A first wrapper
+attempt was bypassed by that embedded custom decoder and was removed. Legacy
+normalized JSON and equivalent UTC/microsecond replay material have explicit
+compatibility tests. The SDK requires the examined context and an exact PUT for
+new approval/recovery; legacy decision/receipt helpers reject lifecycle input.
+Client account abort withholds in-flight responses. Proposal SDK tests pass
+**76**; full SDK passes **720 /81 files**, reviewer/cutoff UI compatibility **60
+/2 files**, and scripts **104**. Current API types, scoped Go vet/build/lint,
+canonical generation/check, contractdocs generation/check and inventory checks
+pass. Source review refreshes22 changed pins across16 existing classifications;
+inventory remains **824 registered, 801 unclassified**, with no promotion.
+
+Full native Workforce passes **470.924s**. The first full Global API run failed
+**513.778s** solely in `TestScopedLeaveThroughGlobalAPI`: the fresh-login step
+returned401 after revocation. Posting lifecycle cases passed within that run.
+The leave fixture now checks its signed whole authentication second against the
+actual stored watermark and verifies the newly minted token; production auth and
+revocation rules are unchanged. Repeated focused validation passes **3 runs /69.759s**. The complete Global
+API/architecture rerun is pending; the failed broad run is not acceptance.
+
+Browser ownership can be reclaimed for the existing local QA tab, but explicit
+timeout DOM/control calls still fail and a bounded locator times out. No actual
+reviewer/admin browser acceptance is counted. Reviewer UI integration,
+historical proof presentation, normal-role browser QA, actual Pharma/unit
+operating guards and deployment remain open. No production migration, rollout,
+merge or release tag occurred. All five reusable Staff requirements remain in
+scope; counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Lifecycle-aware posting review context — local candidate, 2026-11-05
 
 The next candidate on `codex/posting-lifecycle-review-20261105`, based on cutoff

@@ -24,6 +24,7 @@ import {
   type StaffPostingProposal,
   type StaffPostingProposalInput,
   type StaffPostingDecisionInput,
+  type StaffPostingLifecycleReviewContext,
   type StaffPostingProposalContextRequest,
   type StaffPostingCutoffInput,
 } from "./staff-postings-contract";
@@ -381,9 +382,17 @@ async function postingDecisionRequest(
   method: "PUT" | "GET",
   signal?: AbortSignal,
   supervised = false,
+  lifecycle = false,
 ) {
   const path = `${root(scope)}/${commandId.parse(proposal)}/decisions/${commandId.parse(command)}`;
   const intent = StaffPostingDecisionInputContract.parse(input);
+  if (intent.lifecycle_review !== undefined && !lifecycle)
+    throw new Error("Use the explicit lifecycle approval command.");
+  if (
+    lifecycle &&
+    (method !== "PUT" || intent.lifecycle_review === undefined || intent.decision !== "approve")
+  )
+    throw new Error("Recover lifecycle approval by replaying its exact original PUT.");
   const pending = verifiedProposal(selected, scope, proposal);
   if (
     pending.status !== "pending" ||
@@ -398,12 +407,14 @@ async function postingDecisionRequest(
     throw new Error("A supervised approval cannot claim hospital management review.");
   if (!supervised && intent.decision === "approve" && intent.hospital_management_reviewed !== true)
     throw new Error("Posting approval requires the supervision policy.");
+  signal?.throwIfAborted();
   const raw = await apiFetch(path, {
     ...enrollmentRequestOptions(scope),
     method,
     ...(method === "PUT" ? { body: JSON.stringify(intent) } : {}),
     signal,
   });
+  signal?.throwIfAborted();
   return verifiedDecision(raw, scope, proposal, command, intent, pending);
 }
 
@@ -843,6 +854,18 @@ export async function getStaffPostingLifecycleReviewContext(
     }),
   );
   signal?.throwIfAborted();
+  return verifiedPostingLifecycleContext(view, scope, proposal, request);
+}
+
+function verifiedPostingLifecycleContext(
+  view: StaffPostingLifecycleReviewContext,
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  request: PostingContextSelection & {
+    purpose: "review";
+    mode: "supervised" | "hospital_management";
+  },
+) {
   verifiedPostingContext(view.context, scope, proposal, request);
   if (view.context.proposal.status !== "pending" || view.cutoff.version !== 0)
     throw new Error("Choose a pending posting with no retained local cutoff.");
@@ -896,4 +919,46 @@ export async function getStaffPostingLifecycleReviewContext(
   )
     throw new Error("The current lifecycle deadline could not be verified.");
   return view;
+}
+
+export async function decideStaffPostingLifecycleProposal(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  rawInput: StaffPostingDecisionInput,
+  selected: StaffPostingLifecycleReviewContext,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const input = StaffPostingDecisionInputContract.parse(rawInput);
+  if (input.decision !== "approve" || input.lifecycle_review === undefined)
+    throw new Error("Approve using the exact examined lifecycle observations.");
+  const view = StaffPostingLifecycleReviewContextContract.parse(selected);
+  const mode =
+    view.supervision.kind === "hospital_management" ? "hospital_management" : "supervised";
+  verifiedPostingLifecycleContext(view, scope, proposal, {
+    purpose: "review",
+    expected_version: input.expected_version,
+    expected_revision_id: input.expected_revision_id,
+    mode,
+  });
+  const versions = [view.cutoff.version, ...view.chain.map((node) => node.cutoff.version)];
+  if (
+    versions.length !== input.lifecycle_review.cutoff_versions.length ||
+    versions.some((version, index) => version !== input.lifecycle_review!.cutoff_versions[index]) ||
+    staffPostingInstantMicros(view.effective_until) !==
+      staffPostingInstantMicros(input.lifecycle_review.effective_until)
+  )
+    throw new Error("Re-examine the exact current lifecycle observations before approval.");
+  return postingDecisionRequest(
+    scope,
+    proposal,
+    command,
+    input,
+    view.context.proposal,
+    "PUT",
+    signal,
+    mode === "supervised",
+    true,
+  );
 }

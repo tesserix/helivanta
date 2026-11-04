@@ -116,13 +116,19 @@ type StaffPostingProposal struct {
 	RecordedAt           time.Time  `json:"recorded_at"`
 }
 
+type StaffPostingLifecycleReviewInput struct {
+	CutoffVersions []int64   `json:"cutoff_versions"`
+	EffectiveUntil time.Time `json:"effective_until"`
+}
+
 type StaffPostingDecisionInput struct {
-	ExpectedVersion            *int64    `json:"expected_version" binding:"required"`
-	ExpectedRevisionID         uuid.UUID `json:"expected_revision_id"`
-	Decision                   string    `json:"decision"`
-	Reason                     string    `json:"reason" binding:"required,max=500"`
-	SourcesExamined            *bool     `json:"sources_examined" binding:"required"`
-	HospitalManagementReviewed *bool     `json:"hospital_management_reviewed,omitempty"`
+	ExpectedVersion            *int64                            `json:"expected_version" binding:"required"`
+	ExpectedRevisionID         uuid.UUID                         `json:"expected_revision_id"`
+	Decision                   string                            `json:"decision"`
+	Reason                     string                            `json:"reason" binding:"required,max=500"`
+	SourcesExamined            *bool                             `json:"sources_examined" binding:"required"`
+	HospitalManagementReviewed *bool                             `json:"hospital_management_reviewed,omitempty"`
+	LifecycleReview            *StaffPostingLifecycleReviewInput `json:"lifecycle_review,omitempty"`
 }
 
 type StaffPostingReviewSource struct {

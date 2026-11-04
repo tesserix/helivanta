@@ -43,9 +43,9 @@ Existing approval receipts/status/intervals remain unchanged. Current legacy
 chain context and new approval refuse any retained ancestor cutoff with409
 `posting_lifecycle_review_required`; rejection and exact historical receipt
 recovery remain available. The reviewer UI rechecks this conflict while retaining
-the command/rationale/attestations. Positive lifecycle-aware review with explicit
-cutoff observations, concurrency/deadline acceptance, operating-consumer
-enforcement and release remain unfinished.
+the command/rationale/attestations. Explicit lifecycle context and positive approval are implemented in local
+candidates; reviewer UI integration, operating-consumer enforcement and release
+remain unfinished.
 Do not treat these owner endpoints as complete departmental or Pharma authority.
 See [ADR-0058](../adr/0058-retained-posting-cutoffs.md).
 
@@ -71,9 +71,60 @@ The response remains bounded at128 KiB/32 nodes including the selected posting.
 management-root mode and verifies exact scope/revision, ordered linkage, unique
 Staff/postings/cutoff identities, cutoff absence/presence, bounded current clock
 and the computed minimum. Legacy SDK helpers reject lifecycle selectors and keep
-their previous envelopes. This context does not reserve authority or enable a
-new approval mode: version-bound positive lifecycle approval, immutable review
-evidence, its reviewer UI and actual operating consumers remain open.
+their previous envelopes. This context does not reserve authority. The subsequent
+candidate adds the explicit approval mode below; its reviewer UI and actual
+operating consumers remain open.
+
+The existing decision PUT accepts an optional `lifecycle_review` only for
+`decision=approve`. Its `cutoff_versions` vector contains the selected pending
+posting's absence (`0`) followed by the exact immutable ancestor order, with
+1–32 safe integers. `effective_until` must equal the owner's recomputed earliest
+nominal/source/cutoff deadline. Each vector element must match the current owner
+fact, including ancestors with no cutoff. A changed version conflicts even when
+the supplied deadline is updated, and a changed deadline conflicts even when
+versions are updated. Reviewer examination and root management attestation remain
+explicit; supervised approval reserves existing review/actor/read grants and
+root approval reserves existing review/actor/management grants.
+
+Example additional decision member:
+
+```json
+{
+  "lifecycle_review": {
+    "cutoff_versions": [0, 0, 2],
+    "effective_until": "2027-01-01T00:00:00Z"
+  }
+}
+```
+
+Omitting this member preserves legacy normalized fingerprint material and
+legacy refusal through retained cutoffs. Explicit null envelopes/counters are
+invalid. Effective instants normalize to UTC PostgreSQL microseconds before
+fingerprinting. Exact authorized command replay returns its retained original
+receipt before current source/deadline checks, including after actual expiry;
+changed input at that command ID conflicts. New commands using expired or stale
+observations cannot approve. Independent rejection remains available without
+lifecycle approval observations.
+
+Candidate Workforce migration `0085_workforce_posting_lifecycle_reviews` adds
+immutable, forced scope/purpose-RLS review and ordered-source records. These
+retain actual reviewer Staff/link/generation, primary/support assignment
+provenance, database check/deadline and exact cutoff observations. They supplement
+existing management/chain proof without rewriting nominal proposal or source
+deadlines. Database guards verify the ordered references and latest cutoff facts;
+deferred constraints require complete proof and the exact minimum, including
+when an ancestor has a cutoff even if the application opt-in marker is absent.
+Approval, evidence, audit and existing identifier-only outbox share one atomic
+transaction. This migration is persisted in source and exercised on local test
+databases; no production application is claimed.
+
+`decideStaffPostingLifecycleProposal` requires the examined lifecycle context,
+checks its scope/chain/vector/deadline and sends the exact decision PUT. Recovery
+uses that same PUT and retained command/input/context. A plain historical receipt
+GET has no lifecycle-vector evidence and cannot verify that input; legacy SDK
+decision/receipt helpers therefore reject lifecycle observations. Client account
+abort prevents disclosure of an in-flight response. No new permission, IAM
+snapshot, published event or runtime service is introduced.
 
 The local candidate now also adds `GET /v1/workforce/posting-cutoff-scopes`
 (at most20 admitted hospitals per filtered page), and `GET` at the proposal's

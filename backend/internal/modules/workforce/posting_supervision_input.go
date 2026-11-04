@@ -30,14 +30,35 @@ func (in *StaffPostingSupervisionIntent) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON refuses an explicitly null management attestation.
+// UnmarshalJSON refuses explicitly null review attestations.
 func (in *StaffPostingDecisionInput) UnmarshalJSON(data []byte) error {
 	type input StaffPostingDecisionInput
 	var decoded input
-	if err := decodePostingNonNullObject(data, &decoded, "hospital_management_reviewed"); err != nil {
+	if err := decodePostingNonNullObject(data, &decoded, "hospital_management_reviewed", "lifecycle_review"); err != nil {
 		return err
 	}
 	*in = StaffPostingDecisionInput(decoded)
+	return nil
+}
+
+func (in *StaffPostingLifecycleReviewInput) UnmarshalJSON(data []byte) error {
+	type input StaffPostingLifecycleReviewInput
+	var decoded input
+	if err := decodePostingNonNullObject(data, &decoded, "cutoff_versions", "effective_until"); err != nil {
+		return err
+	}
+	var raw struct {
+		CutoffVersions []json.RawMessage `json:"cutoff_versions"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, version := range raw.CutoffVersions {
+		if bytes.Equal(bytes.TrimSpace(version), []byte("null")) {
+			return errors.New("posting cutoff versions cannot be null")
+		}
+	}
+	*in = StaffPostingLifecycleReviewInput(decoded)
 	return nil
 }
 

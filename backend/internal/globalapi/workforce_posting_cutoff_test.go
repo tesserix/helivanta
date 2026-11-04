@@ -26,7 +26,7 @@ func postingCutoffEffects(t *testing.T, db *tenantdb.DB, tenant, actor string) [
 	return counts
 }
 
-func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, hospitalBase, submitter, reviewer, administrator string, rootTemplate, childTemplate map[string]any) {
+func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, submitter, reviewer, administrator, thirdStaff string, rootTemplate, childTemplate map[string]any) {
 	t.Helper()
 	prepare := func(template map[string]any, maker string, supervision map[string]any) (string, map[string]any) {
 		base := fmt.Sprintf("%s/posting-staff/%s", hospitalBase, template["staff_id"])
@@ -38,13 +38,23 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 		pending := call(t, "PUT", root+"/commands/"+uuid.Must(uuid.NewV7()).String(), maker, map[string]any{"expected_version": 0, "draft_id": draft, "draft_revision_id": drafted["revision_id"], "draft_version": drafted["version"], "generation_id": source["generation_id"], "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "reason": "Synthetic exact source pins for retained-cutoff acceptance", "sources_examined": true, "supervision": supervision}, 200)
 		return root, pending
 	}
+	assertPostingLifecycleCutoffRaces(t, db, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
+	assertPostingLifecycleExpiredReplay(t, db, tenant, call, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
+	assertPostingLifecycleFarAncestor(t, db, tenant, call, prepare, rootTemplate, childTemplate, thirdStaff, submitter, reviewer, administrator)
 	parentRoot, parentPending := prepare(rootTemplate, reviewer, map[string]any{"kind": "hospital_management"})
 	rootLifecycleSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current&management_review=current", parentPending["revision_id"])
 	rootLifecycle := call(t, "GET", parentRoot+rootLifecycleSelector, administrator, nil, 200)
 	require.Empty(t, rootLifecycle["chain"])
 	require.EqualValues(t, 0, rootLifecycle["cutoff"].(map[string]any)["version"])
 	require.Equal(t, "hospital_management", rootLifecycle["supervision"].(map[string]any)["kind"])
-	parent := call(t, "PUT", parentRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_version": 1, "expected_revision_id": parentPending["revision_id"], "decision": "approve", "reason": "Independent synthetic root for retained ancestor cutoff", "sources_examined": true, "hospital_management_reviewed": true}, 200)
+	parent := call(t, "PUT", parentRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_version": 1, "expected_revision_id": parentPending["revision_id"], "decision": "approve", "reason": "Independent synthetic root for retained ancestor cutoff", "sources_examined": true, "hospital_management_reviewed": true, "lifecycle_review": map[string]any{"cutoff_versions": []int{0}, "effective_until": rootLifecycle["effective_until"]}}, 200)
+	rootProof := readRetainedPostingLifecycleProof(t, db, tenant, tenant, parent["hospital_id"].(string), parent["staff_id"].(string), parent["id"].(string))
+	require.Len(t, rootProof.Headers, 1)
+	require.Len(t, rootProof.Sources, 1)
+	require.Equal(t, administrator, rootProof.Headers[0].ReviewerSubject)
+	require.Equal(t, "workforce.posting.management.review", rootProof.Headers[0].SupportPermission)
+	require.NotEqual(t, rootProof.Headers[0].ReviewAssignmentID, rootProof.Headers[0].SupportAssignmentID)
+	require.EqualValues(t, 0, rootProof.Sources[0].CutoffVersion)
 	childRoot, child := prepare(childTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
 	selector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&chain_review=current", child["revision_id"])
 	call(t, "GET", childRoot+selector, reviewer, nil, 200)
@@ -79,6 +89,45 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, cutoff["cutoff_at"], ancestorCutoff["cutoff_at"])
 	require.Len(t, ancestorCutoff, 3, "reviewers do not receive cutoff administrator rationale or actor evidence")
 	call(t, "GET", childRoot+lifecycleSelector, submitter, nil, 403)
+	approvedChildRoot, approvedChild := prepare(childTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
+	approvedChildSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", approvedChild["revision_id"])
+	approvedChildContext := call(t, "GET", approvedChildRoot+approvedChildSelector, reviewer, nil, 200)
+	approvedChildDecision := map[string]any{"expected_version": 1, "expected_revision_id": approvedChild["revision_id"], "decision": "approve", "reason": "Independent review binds the scheduled ancestor cutoff", "sources_examined": true, "lifecycle_review": map[string]any{"cutoff_versions": []int{0, 1}, "effective_until": approvedChildContext["effective_until"]}}
+	assertPostingLifecycleInputRefusals(t, call, db, tenant, approvedChildRoot, reviewer, approvedChildDecision)
+	assertPostingLifecycleApprovalFaults(t, call, db, tenant, approvedChildRoot, reviewer, approvedChild, approvedChildDecision)
+	approvedChildCommand := approvedChildRoot + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	approvedChildReceipt := call(t, "PUT", approvedChildCommand, reviewer, approvedChildDecision, 200)
+	require.Equal(t, "approved", approvedChildReceipt["status"])
+	require.Equal(t, approvedChild["eligibility_until"], approvedChildReceipt["eligibility_until"], "the computed lifecycle deadline does not overwrite nominal source pins")
+	require.Equal(t, approvedChildReceipt, call(t, "PUT", approvedChildCommand, reviewer, approvedChildDecision, 200))
+	retainedProof := readRetainedPostingLifecycleProof(t, db, tenant, tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string))
+	require.Len(t, retainedProof.Headers, 1)
+	require.Len(t, retainedProof.Sources, 2)
+	header := retainedProof.Headers[0]
+	require.Equal(t, approvedChild["revision_id"], header.InitialRevisionID.String())
+	require.Equal(t, reviewer, header.ReviewerSubject)
+	require.Equal(t, parent["staff_id"], header.ReviewerStaffID.String())
+	require.Equal(t, parent["generation_id"], header.ReviewerGenerationID.String())
+	require.NotEqual(t, uuid.Nil, header.ReviewerLinkID)
+	require.NotEqual(t, uuid.Nil, header.ReviewAssignmentID)
+	require.Positive(t, header.ReviewAssignmentVersion)
+	require.Positive(t, header.SupportAssignmentVersion)
+	require.Equal(t, "workforce.posting.read", header.SupportPermission)
+	require.EqualValues(t, 2, header.SourceCount)
+	require.True(t, header.CheckedAt.Before(header.CreatedAt))
+	require.Equal(t, cutoff["cutoff_at"], header.EffectiveUntil.UTC().Format(time.RFC3339Nano))
+	require.Nil(t, retainedProof.Sources[0].CutoffID)
+	require.Nil(t, retainedProof.Sources[0].CutoffAt)
+	require.Zero(t, retainedProof.Sources[0].CutoffVersion)
+	require.Equal(t, cutoff["id"], retainedProof.Sources[1].CutoffID.String())
+	require.EqualValues(t, 1, retainedProof.Sources[1].CutoffVersion)
+	require.Equal(t, parent["revision_id"], retainedProof.Sources[1].SourceRevisionID.String())
+	foreignProof := readRetainedPostingLifecycleProof(t, db, uuid.Must(uuid.NewV7()).String(), tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string))
+	require.Empty(t, foreignProof.Headers)
+	require.Empty(t, foreignProof.Sources)
+	siblingProof := readRetainedPostingLifecycleProof(t, db, tenant, tenant, uuid.Must(uuid.NewV7()).String(), approvedChild["staff_id"].(string), approvedChild["id"].(string))
+	require.Empty(t, siblingProof.Headers)
+	require.Empty(t, siblingProof.Sources)
 	applyLifecycleFault := func(sql string) {
 		require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_lifecycle_context_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
 	}
@@ -108,10 +157,26 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	receipts := []map[string]any{cutoff}
 	deadline, err := time.Parse(time.RFC3339Nano, cutoff["cutoff_at"].(string))
 	require.NoError(t, err)
+	staleRoot, stalePending := prepare(childTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
+	staleSelector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", stalePending["revision_id"])
+	staleContext := call(t, "GET", staleRoot+staleSelector, reviewer, nil, 200)
 	for version := 2; version <= 10; version++ {
 		instant := deadline.Add(-time.Duration(version-1) * 5 * time.Second).Format(time.RFC3339Nano)
 		row := call(t, "PUT", parentRoot+"/cutoffs/commands/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_revision_id": parent["revision_id"], "expected_cutoff_version": version - 1, "mode": "scheduled", "cutoff_at": instant, "reason": "Synthetic bounded retained cutoff history", "sources_examined": true}, 200)
 		receipts = append(receipts, row)
+		if version == 2 {
+			for _, staleObservation := range []map[string]any{
+				{"cutoff_versions": []int{0, 1}, "effective_until": row["cutoff_at"]},
+				{"cutoff_versions": []int{0, 2}, "effective_until": staleContext["effective_until"]},
+			} {
+				before := postingRootApprovalEffects(t, db, tenant, reviewer)
+				call(t, "PUT", staleRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": stalePending["revision_id"], "decision": "approve", "reason": "A changed version or deadline requires renewed examination", "sources_examined": true, "lifecycle_review": staleObservation}, 409)
+				require.Equal(t, before, postingRootApprovalEffects(t, db, tenant, reviewer))
+			}
+			renewed := call(t, "GET", staleRoot+staleSelector, reviewer, nil, 200)
+			fresh := call(t, "PUT", staleRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": stalePending["revision_id"], "decision": "approve", "reason": "New examination binds both updated observation and deadline", "sources_examined": true, "lifecycle_review": map[string]any{"cutoff_versions": []int{0, 2}, "effective_until": renewed["effective_until"]}}, 200)
+			require.Equal(t, "approved", fresh["status"])
+		}
 	}
 	historyPath := parentRoot + "/cutoffs/history?expected_revision_id=" + parent["revision_id"].(string) + "&limit=8"
 	first := call(t, "GET", historyPath, administrator, nil, 200)
@@ -136,4 +201,15 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	beforeEndedContext := postingRootApprovalEffects(t, db, tenant, reviewer)
 	call(t, "GET", currentChildRoot+currentSelector, reviewer, nil, 409)
 	require.Equal(t, beforeEndedContext, postingRootApprovalEffects(t, db, tenant, reviewer))
+	beforeReplay := postingRootApprovalEffects(t, db, tenant, reviewer)
+	require.Equal(t, approvedChildReceipt, call(t, "PUT", approvedChildCommand, reviewer, approvedChildDecision, 200), "a committed lifecycle command replays before current source-ending checks")
+	afterReplay := postingRootApprovalEffects(t, db, tenant, reviewer)
+	require.Equal(t, beforeReplay[1:], afterReplay[1:], "replay creates no additional approval audit or event")
+	require.Equal(t, retainedProof, readRetainedPostingLifecycleProof(t, db, tenant, tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string)))
+	changedReplay := map[string]any{}
+	for key, value := range approvedChildDecision {
+		changedReplay[key] = value
+	}
+	changedReplay["lifecycle_review"] = map[string]any{"cutoff_versions": []int{0, 2}, "effective_until": approvedChildContext["effective_until"]}
+	call(t, "PUT", approvedChildCommand, reviewer, changedReplay, 409)
 }

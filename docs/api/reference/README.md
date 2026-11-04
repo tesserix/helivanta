@@ -1313,6 +1313,7 @@ Migration table declarations:
 - `0081_workforce_posting_chain_approvals`: `workforce_posting_chain_reviews`, `workforce_posting_chain_sources`.
 - `0083_workforce_posting_supervisor_choice_index`: concurrent index `workforce_posting_supervisor_choice_order` on `workforce_posting_supervision_intents (tenant_id, hospital_id, kind, created_at DESC, proposal_id DESC)`.
 - `0084_workforce_posting_cutoffs`: `workforce_posting_cutoffs`.
+- `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
 
 ## workspace
 

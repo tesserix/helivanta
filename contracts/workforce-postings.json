@@ -445,6 +445,18 @@
         "type": "time"
       }
     ],
+    "StaffPostingLifecycleReviewInput": [
+      {
+        "name": "cutoff_versions",
+        "type": "[]int64",
+        "min": 1,
+        "max": 32
+      },
+      {
+        "name": "effective_until",
+        "type": "time"
+      }
+    ],
     "StaffPostingDecisionInput": [
       {
         "name": "expected_version",
@@ -481,6 +493,11 @@
       {
         "name": "hospital_management_reviewed",
         "type": "bool",
+        "optional": true
+      },
+      {
+        "name": "lifecycle_review",
+        "type": "StaffPostingLifecycleReviewInput",
         "optional": true
       }
     ],

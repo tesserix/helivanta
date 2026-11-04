@@ -3,6 +3,7 @@ import {
   StaffPostingProposalInputContract,
   StaffPostingDecisionInputContract,
   StaffPostingProposalContract,
+  StaffPostingLifecycleReviewContextContract,
 } from "./staff-postings-contract";
 
 vi.mock("./client", () => ({ apiFetch: vi.fn() }));
@@ -1128,7 +1129,7 @@ it("accepts omitted nominal ends and recovers the exact supervised approval", as
 
 function lifecycleReviewFixture() {
   const legacy = chainReviewFixture();
-  return {
+  return StaffPostingLifecycleReviewContextContract.parse({
     context: legacy.context,
     supervision: legacy.supervision,
     cutoff: { id: null as string | null, version: 0, cutoff_at: null as string | null },
@@ -1142,7 +1143,7 @@ function lifecycleReviewFixture() {
     })),
     checked_at: legacy.checked_at,
     effective_until: "2026-11-04T03:00:00Z",
-  };
+  });
 }
 
 it("loads explicit lifecycle review with per-node cutoff observations and the earliest effective deadline", async () => {
@@ -1311,4 +1312,135 @@ it("refuses a cutoff identity reused by different canonical ancestors", async ()
       mode: "supervised",
     }),
   ).resolves.toEqual(view);
+});
+
+function lifecycleDecisionFixture() {
+  const view = lifecycleReviewFixture();
+  const command = id(131);
+  const input = {
+    expected_version: 1,
+    expected_revision_id: view.context.proposal.revision_id,
+    decision: "approve" as const,
+    reason: "Independently examined lifecycle observations",
+    sources_examined: true as const,
+    lifecycle_review: { cutoff_versions: [0, 1], effective_until: view.effective_until },
+  };
+  const approved = {
+    ...view.context.proposal,
+    revision_id: id(130),
+    command_id: command,
+    version: 2,
+    status: "approved" as const,
+    recorded_at: "2026-11-04T01:30:00Z",
+  };
+  return { view, command, input, approved };
+}
+
+it("uses the exact lifecycle approval PUT for recovery even after the observed deadline", async () => {
+  const api = await import("./staff-posting-proposals");
+  const { view, command, input, approved } = lifecycleDecisionFixture();
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  expect(
+    await api.decideStaffPostingLifecycleProposal(scope, receipt.id, command, input, view),
+  ).toEqual(approved);
+  expect(
+    await api.decideStaffPostingLifecycleProposal(scope, receipt.id, command, input, view),
+  ).toEqual(approved);
+  expect(apiFetch).toHaveBeenCalledTimes(2);
+  for (const call of vi.mocked(apiFetch).mock.calls) {
+    expect(call[0]).toContain(`/decisions/${command}`);
+    expect(call[1]).toMatchObject({ method: "PUT", body: JSON.stringify(input) });
+  }
+});
+
+it.each([
+  "wrong versions",
+  "missing versions",
+  "wrong deadline",
+  "foreign context",
+  "unverified chain",
+  "wrong management mode",
+])("refuses %s before issuing a lifecycle approval", async (kind) => {
+  const api = await import("./staff-posting-proposals");
+  const { view, command, input, approved } = lifecycleDecisionFixture();
+  if (kind === "wrong versions") input.lifecycle_review.cutoff_versions = [0, 0];
+  if (kind === "missing versions") input.lifecycle_review.cutoff_versions = [0];
+  if (kind === "wrong deadline")
+    input.lifecycle_review.effective_until = "2026-11-04T03:00:00.000001Z";
+  if (kind === "foreign context") view.context.proposal.hospital_id = id(132);
+  if (kind === "unverified chain") view.chain[0].posting.revision_id = id(133);
+  const body =
+    kind === "wrong management mode" ? { ...input, hospital_management_reviewed: true } : input;
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  await expect(
+    api.decideStaffPostingLifecycleProposal(scope, receipt.id, command, body, view),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
+it("rejects lifecycle input in every legacy decision and historical receipt helper", async () => {
+  const api = await import("./staff-posting-proposals");
+  const { view, command, input, approved } = lifecycleDecisionFixture();
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  for (const helper of [
+    api.decideStaffPostingSupervisedProposal,
+    api.getStaffPostingSupervisedDecisionReceipt,
+  ])
+    await expect(
+      helper(scope, receipt.id, command, input, view.context.proposal),
+    ).rejects.toThrow();
+  for (const helper of [api.decideStaffPostingProposal, api.getStaffPostingDecisionReceipt])
+    await expect(
+      helper(
+        scope,
+        receipt.id,
+        command,
+        { ...input, hospital_management_reviewed: true },
+        view.context.proposal,
+      ),
+    ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
+it.each([
+  { cutoff_versions: [1], effective_until: "2027-01-01T00:00:00Z" },
+  { cutoff_versions: [0, -1], effective_until: "2027-01-01T00:00:00Z" },
+  { cutoff_versions: [0, 9007199254740991], effective_until: "2027-01-01T00:00:00Z" },
+  { cutoff_versions: [0, null], effective_until: "2027-01-01T00:00:00Z" },
+  { cutoff_versions: [0], effective_until: "0001-01-01T00:00:00Z" },
+])(
+  "rejects malformed lifecycle observations at the canonical decision boundary",
+  (lifecycle_review) => {
+    const { input } = lifecycleDecisionFixture();
+    expect(
+      StaffPostingDecisionInputContract.safeParse({ ...input, lifecycle_review }).success,
+    ).toBe(false);
+  },
+);
+
+it("does not attach lifecycle approval observations to independent rejection", () => {
+  const { input } = lifecycleDecisionFixture();
+  expect(
+    StaffPostingDecisionInputContract.safeParse({ ...input, decision: "reject" }).success,
+  ).toBe(false);
+});
+
+it("withholds a lifecycle decision response after an account abort", async () => {
+  const api = await import("./staff-posting-proposals");
+  const { view, command, input, approved } = lifecycleDecisionFixture();
+  const controller = new AbortController();
+  vi.mocked(apiFetch).mockImplementation(async () => {
+    controller.abort();
+    return approved;
+  });
+  await expect(
+    api.decideStaffPostingLifecycleProposal(
+      scope,
+      receipt.id,
+      command,
+      input,
+      view,
+      controller.signal,
+    ),
+  ).rejects.toThrow();
 });

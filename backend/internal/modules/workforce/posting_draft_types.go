@@ -47,16 +47,24 @@ type StaffPostingTarget struct {
 	DisplayName  string    `json:"display_name"`
 }
 
+type StaffPostingSupervisionIntent struct {
+	Kind                 string     `json:"kind"`
+	SupervisorStaffID    *uuid.UUID `json:"supervisor_staff_id,omitempty"`
+	SupervisorProposalID *uuid.UUID `json:"supervisor_proposal_id,omitempty"`
+	SupervisorRevisionID *uuid.UUID `json:"supervisor_revision_id,omitempty"`
+}
+
 type StaffPostingProposalInput struct {
-	ExpectedVersion *int64    `json:"expected_version" binding:"required"`
-	DraftID         uuid.UUID `json:"draft_id"`
-	DraftRevisionID uuid.UUID `json:"draft_revision_id"`
-	DraftVersion    *int64    `json:"draft_version" binding:"required"`
-	GenerationID    uuid.UUID `json:"generation_id"`
-	StaffVersion    *int64    `json:"staff_version" binding:"required"`
-	EmploymentEpoch *int64    `json:"employment_epoch" binding:"required"`
-	Reason          string    `json:"reason" binding:"required,max=500"`
-	SourcesExamined *bool     `json:"sources_examined" binding:"required"`
+	ExpectedVersion *int64                         `json:"expected_version" binding:"required"`
+	DraftID         uuid.UUID                      `json:"draft_id"`
+	DraftRevisionID uuid.UUID                      `json:"draft_revision_id"`
+	DraftVersion    *int64                         `json:"draft_version" binding:"required"`
+	GenerationID    uuid.UUID                      `json:"generation_id"`
+	StaffVersion    *int64                         `json:"staff_version" binding:"required"`
+	EmploymentEpoch *int64                         `json:"employment_epoch" binding:"required"`
+	Reason          string                         `json:"reason" binding:"required,max=500"`
+	SourcesExamined *bool                          `json:"sources_examined" binding:"required"`
+	Supervision     *StaffPostingSupervisionIntent `json:"supervision,omitempty"`
 }
 
 type StaffPostingProposal struct {
@@ -84,11 +92,12 @@ type StaffPostingProposal struct {
 }
 
 type StaffPostingDecisionInput struct {
-	ExpectedVersion    *int64    `json:"expected_version" binding:"required"`
-	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
-	Decision           string    `json:"decision"`
-	Reason             string    `json:"reason" binding:"required,max=500"`
-	SourcesExamined    *bool     `json:"sources_examined" binding:"required"`
+	ExpectedVersion            *int64    `json:"expected_version" binding:"required"`
+	ExpectedRevisionID         uuid.UUID `json:"expected_revision_id"`
+	Decision                   string    `json:"decision"`
+	Reason                     string    `json:"reason" binding:"required,max=500"`
+	SourcesExamined            *bool     `json:"sources_examined" binding:"required"`
+	HospitalManagementReviewed *bool     `json:"hospital_management_reviewed,omitempty"`
 }
 
 type StaffPostingReviewSource struct {

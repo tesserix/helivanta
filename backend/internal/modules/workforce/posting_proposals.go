@@ -153,7 +153,7 @@ func postingProposalAuditRecord(tx *gorm.DB, p authn.Principal, hospital, resour
 func validPostingProposalInput(in *StaffPostingProposalInput) bool {
 	in.Reason = strings.TrimSpace(in.Reason)
 	validVersion := func(v *int64) bool { return v != nil && *v >= 1 && *v <= 9007199254740990 }
-	return in.ExpectedVersion != nil && *in.ExpectedVersion == 0 && postingV7(in.DraftID) && postingV7(in.DraftRevisionID) && postingV7(in.GenerationID) && validVersion(in.DraftVersion) && validVersion(in.StaffVersion) && validVersion(in.EmploymentEpoch) && in.SourcesExamined != nil && *in.SourcesExamined && validPostingReason(in.Reason)
+	return in.ExpectedVersion != nil && *in.ExpectedVersion == 0 && postingV7(in.DraftID) && postingV7(in.DraftRevisionID) && postingV7(in.GenerationID) && validVersion(in.DraftVersion) && validVersion(in.StaffVersion) && validVersion(in.EmploymentEpoch) && in.SourcesExamined != nil && *in.SourcesExamined && validPostingReason(in.Reason) && validPostingSupervisionIntent(in.Supervision)
 }
 
 func (h *handlers) putPostingProposal(c *gin.Context) {

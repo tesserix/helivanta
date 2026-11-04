@@ -35,9 +35,15 @@ const validProposalSubmission = (value:{draft_id:string;draft_revision_id:string
  for(const key of ["draft_id","draft_revision_id","generation_id"] as const) if(!z.uuidv7().safeParse(value[key]).success) ctx.addIssue({code:"custom",path:[key],message:"Choose the exact reviewed source revision."});
  if(/\\p{Cc}/u.test(value.reason)) ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
 };
-const validProposalDecision = (value:{expected_revision_id:string;reason:string},ctx:z.RefinementCtx) => {
+const validSupervisionIntent = (value:{kind:string;supervisor_staff_id?:string;supervisor_proposal_id?:string;supervisor_revision_id?:string},ctx:z.RefinementCtx) => {
+ const staff=value.supervisor_staff_id!==undefined,proposal=value.supervisor_proposal_id!==undefined,revision=value.supervisor_revision_id!==undefined;
+ if(value.kind==="hospital_management"?(staff||proposal||revision):(!staff||!proposal||!revision))ctx.addIssue({code:"custom",path:["supervisor_proposal_id"],message:"Hospital management is an explicit root; other postings require the canonical Staff member and exact supervisor proposal and revision."});
+ for(const key of ["supervisor_proposal_id","supervisor_revision_id"] as const)if(value[key]!==undefined&&!z.uuidv7().safeParse(value[key]).success)ctx.addIssue({code:"custom",path:[key],message:"Choose the exact approved supervisor proposal and revision."});
+};
+const validProposalDecision = (value:{expected_revision_id:string;reason:string;decision:string;hospital_management_reviewed?:boolean},ctx:z.RefinementCtx) => {
  if(!z.uuidv7().safeParse(value.expected_revision_id).success)ctx.addIssue({code:"custom",path:["expected_revision_id"],message:"Choose the exact pending proposal revision."});
  if(/\\p{Cc}/u.test(value.reason))ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
+ if(value.hospital_management_reviewed===true&&value.decision!=="approve")ctx.addIssue({code:"custom",path:["hospital_management_reviewed"],message:"Hospital management review applies only to approval."});
 };
 const validProposal = (value:{id:string;revision_id:string;command_id:string;draft_id:string;draft_revision_id:string;generation_id:string;department_id:string;department_revision_id:string;starts_at:string;ends_at:string|null;eligibility_until:string;grants_access:boolean},ctx:z.RefinementCtx) => {
  validPosting(value,ctx);
@@ -61,6 +67,10 @@ const validReviewSource = (value:{generation_id:string|null;generation_state:str
 };
 `;
 const refined = models.ts
+  .replace(
+    /(export const StaffPostingSupervisionIntentContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validSupervisionIntent);",
+  )
   .replace(
     /(export const StaffPostingDraft(?:Input)?Contract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
     "$1.superRefine(validPosting);",

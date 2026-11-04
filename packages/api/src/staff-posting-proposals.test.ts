@@ -68,6 +68,130 @@ const receipt = {
 };
 afterEach(() => vi.resetAllMocks());
 
+it("retains an explicit hospital management intent without changing legacy submissions", () => {
+  expect(StaffPostingProposalInputContract.parse(input)).toEqual(input);
+  const supervision = { kind: "hospital_management" };
+  expect(StaffPostingProposalInputContract.parse({ ...input, supervision })).toEqual({
+    ...input,
+    supervision,
+  });
+});
+
+it("pins supervisor lookup to its canonical Staff path", () => {
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: scope.staffId,
+    supervisor_proposal_id: id(20),
+    supervisor_revision_id: id(21),
+  };
+  expect(StaffPostingProposalInputContract.parse({ ...input, supervision })).toEqual({
+    ...input,
+    supervision,
+  });
+  const missingStaff = { ...supervision, supervisor_staff_id: undefined };
+  expect(
+    StaffPostingProposalInputContract.safeParse({ ...input, supervision: missingStaff }).success,
+  ).toBe(false);
+});
+
+it("requires a complete Staff and supervisor reference only for non-root posting intent", () => {
+  for (const kind of ["department_supervisor", "department_member"]) {
+    const supervision = {
+      kind,
+      supervisor_staff_id: scope.staffId,
+      supervisor_proposal_id: id(20),
+      supervisor_revision_id: id(21),
+    };
+    expect(StaffPostingProposalInputContract.parse({ ...input, supervision })).toEqual({
+      ...input,
+      supervision,
+    });
+    for (const invalid of [
+      { kind, supervisor_staff_id: scope.staffId },
+      { kind, supervisor_staff_id: scope.staffId, supervisor_proposal_id: id(20) },
+      { kind, supervisor_staff_id: scope.staffId, supervisor_revision_id: id(21) },
+      { kind, supervisor_proposal_id: id(20), supervisor_revision_id: id(21) },
+    ]) {
+      expect(
+        StaffPostingProposalInputContract.safeParse({ ...input, supervision: invalid }).success,
+      ).toBe(false);
+    }
+  }
+  for (const reference of [
+    { supervisor_staff_id: scope.staffId },
+    { supervisor_proposal_id: id(20) },
+    { supervisor_revision_id: id(21) },
+    { supervisor_proposal_id: id(20), supervisor_revision_id: id(21) },
+  ]) {
+    expect(
+      StaffPostingProposalInputContract.safeParse({
+        ...input,
+        supervision: { kind: "hospital_management", ...reference },
+      }).success,
+    ).toBe(false);
+  }
+});
+
+it("requires UUIDv7 supervisor references and rejects null or unrecognized supervision fields", () => {
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: scope.staffId,
+    supervisor_proposal_id: id(20),
+    supervisor_revision_id: id(21),
+  };
+  for (const field of ["supervisor_proposal_id", "supervisor_revision_id"]) {
+    for (const value of [scope.hospitalId, "00000000-0000-0000-0000-000000000000", null]) {
+      expect(
+        StaffPostingProposalInputContract.safeParse({
+          ...input,
+          supervision: { ...supervision, [field]: value },
+        }).success,
+      ).toBe(false);
+    }
+  }
+  for (const invalid of [null, { ...supervision, grants_access: true }, { kind: "clinical" }]) {
+    expect(
+      StaffPostingProposalInputContract.safeParse({ ...input, supervision: invalid }).success,
+    ).toBe(false);
+  }
+});
+
+it("accepts hospital management review attestation only for approval", () => {
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: id(7),
+    decision: "approve",
+    reason: "Synthetic hospital management appointment review",
+    sources_examined: true,
+  };
+  expect(StaffPostingDecisionInputContract.parse(decision)).toEqual(decision);
+  expect(
+    StaffPostingDecisionInputContract.parse({ ...decision, hospital_management_reviewed: true }),
+  ).toEqual({ ...decision, hospital_management_reviewed: true });
+  for (const action of ["reject", "withdraw"]) {
+    expect(
+      StaffPostingDecisionInputContract.safeParse({
+        ...decision,
+        decision: action,
+        hospital_management_reviewed: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      StaffPostingDecisionInputContract.parse({
+        ...decision,
+        decision: action,
+        hospital_management_reviewed: false,
+      }),
+    ).toEqual({ ...decision, decision: action, hospital_management_reviewed: false });
+  }
+  expect(
+    StaffPostingDecisionInputContract.safeParse({
+      ...decision,
+      hospital_management_reviewed: null,
+    }).success,
+  ).toBe(false);
+});
+
 it("discovers bounded hospital proposal rows with original account headers", async () => {
   const api = await import("./staff-posting-proposals");
   const staff = {

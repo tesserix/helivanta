@@ -40,6 +40,14 @@ func authorizePostingProposalDecider(tx *gorm.DB, p authn.Principal, s postingDr
 
 func validPostingDecisionInput(in *StaffPostingDecisionInput) bool {
 	in.Reason = strings.TrimSpace(in.Reason)
+	if in.HospitalManagementReviewed != nil {
+		if *in.HospitalManagementReviewed && in.Decision != "approve" {
+			return false
+		}
+		if !*in.HospitalManagementReviewed {
+			in.HospitalManagementReviewed = nil
+		}
+	}
 	return in.ExpectedVersion != nil && *in.ExpectedVersion >= 1 && *in.ExpectedVersion <= 9007199254740989 &&
 		postingV7(in.ExpectedRevisionID) && (in.Decision == "approve" || in.Decision == "reject" || in.Decision == "withdraw") &&
 		in.SourcesExamined != nil && *in.SourcesExamined && validPostingReason(in.Reason)

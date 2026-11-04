@@ -20,9 +20,9 @@ hospital needs to see pharmacy sales against its OPD visits, and what #1051
 - `encounter_opened.v1`: `{encounter_id, hospital_id, patient_id}`, when an
   OPD encounter opens with status `arrived`. References only.
 - `encounter_status_changed.v1`: `{encounter_id, hospital_id, from_status,
-  to_status, version}`, for every transition, in the transaction that records
+to_status, version}`, for every transition, in the transaction that records
   it. Legal moves: `arrived → in_consultation | left_without_being_seen |
-  cancelled`, `in_consultation → closed`. `closed`,
+cancelled`, `in_consultation → closed`. `closed`,
   `left_without_being_seen` and `cancelled` are terminal.
 - Encounters are OPD only (`department='OPD'`). Casualty is the emergency
   module's (`case_received`, `case_closed`), a separate contract.
@@ -30,10 +30,11 @@ hospital needs to see pharmacy sales against its OPD visits, and what #1051
 ## Decisions (agreed 2026-11-04)
 
 1. **Pharmacy keeps its own projection** `pharmacy_opd_encounters`
-   `(tenant, encounter_id, hospital_id, patient_id, status, version)`, fed by
+   `(tenant, encounter_id, hospital_id, patient_id, opened_at, status, version)`, fed by
    two consumers, exactly as `pharmacy_bed_occupancies` is fed for
-   admissions. Either event may arrive first: an `opened` fills the hospital
-   and patient; a `status_changed` sets the status only if its `version` is
+   admissions. Either event may arrive first: an `opened` fills the patient and
+   `opened_at`, the time MediCore published it (the envelope's `occurred_at`),
+   which orders and tells apart a patient's visits however late they arrive; a `status_changed` sets the status only if its `version` is
    higher than the one held. Replays and stale events change nothing; a
    conflicting replay (different patient or hospital for one id) is refused
    and retried, never overwritten. No patient name is held.
@@ -46,10 +47,10 @@ hospital needs to see pharmacy sales against its OPD visits, and what #1051
      verified the pharmacy (the B-2c rule already enforced on the sale);
    - is `arrived`, `in_consultation` or `closed`. `cancelled` and
      `left_without_being_seen` are refused: the visit did not happen.
-   A closed encounter is allowed because patients collect medicines after the
-   consultation ends. There is no time limit after closing (agreed
-   2026-11-04: there is no source for one); the worklist shows the link for
-   anyone to question, and a limit can be added as a reviewed outlet setting.
+     A closed encounter is allowed because patients collect medicines after the
+     consultation ends. There is no time limit after closing (agreed
+     2026-11-04: there is no source for one); the worklist shows the link for
+     anyone to question, and a limit can be added as a reviewed outlet setting.
 3. **Ordering.** The sale takes the projection row `FOR SHARE`, so a status
    change being applied is wholly before or after the sale; the check runs in
    the trigger, so no code path can post a sale against a refused encounter.
@@ -58,7 +59,7 @@ hospital needs to see pharmacy sales against its OPD visits, and what #1051
 4. **What the counter sees.** After the pharmacist confirms the registered
    patient (the existing audited MRN lookup), the counter lists that
    patient's citable encounters at that hospital, newest first, from
-   `GET …/registered-patients/{patient}/encounters?hospital_id=` (needs
+   `GET …/outlets/:outlet/opd-encounters?patient_id=&hospital_id=` (needs
    `pharmacy.sale.create`; audited, as it is a read about one patient). The
    pharmacist picks one or none: citing is optional, because OTC purchases
    by a registered patient need not be for a visit.

@@ -10,8 +10,8 @@ export type PharmacySaleLinkage = "admission" | "opd" | "none";
 export type PharmacyOPDEncounter = {
   encounter_id: string;
   status: "arrived" | "in_consultation" | "closed";
-  /** When the pharmacy received it. */
-  received_at: string;
+  /** When MediCore opened it: what tells a patient's visits apart. */
+  opened_at: string;
 };
 
 /** One sale in the worklist (#987). */

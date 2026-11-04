@@ -1185,9 +1185,8 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 	case violated(err, "pharmacy_sale_admission_tendered"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "a sale billed to an admission is paid by the admission account alone")
 	case violated(err, "pharmacy_sale_encounter_unknown"):
-		respond.Error(c, http.StatusConflict, "not_sellable", "the pharmacy has not received that visit; find the patient's visits again")
-	case violated(err, "pharmacy_sale_encounter_other"):
-		respond.Error(c, http.StatusConflict, "not_sellable", "that visit is not this patient's at this hospital")
+		// One answer for unknown and another patient's: it says nothing of whose a visit is.
+		respond.Error(c, http.StatusConflict, "not_sellable", "that is not a visit of this patient the pharmacy has received; find the patient's visits again")
 	case violated(err, "pharmacy_sale_encounter_status"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "that visit was cancelled, or the patient left without being seen")
 	case violated(err, "pharmacy_sale_registered_patient"):

@@ -220,11 +220,14 @@ const visitStatus: Record<PharmacyOPDEncounter["status"], string> = {
 export function CounterVisit({
   scope,
   patient,
+  timeZone,
   value,
   onChange,
 }: {
   scope: PharmacyScope;
   patient: CounterPatient;
+  /** The outlet's time zone; the browser's when not given. */
+  timeZone?: string;
   /** The chosen encounter id; empty is none. */
   value: string;
   onChange: (encounterId: string) => void;
@@ -259,7 +262,7 @@ export function CounterVisit({
             { value: "", label: "Not for a visit" },
             ...rows.map((v) => ({
               value: v.encounter_id,
-              label: `Visit received ${new Date(v.received_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}, ${visitStatus[v.status]}`,
+              label: `Visit opened ${new Date(v.opened_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", ...(timeZone ? { timeZone } : {}) })}, ${visitStatus[v.status]}`,
             })),
           ]}
         />

@@ -28,13 +28,14 @@ var errInvalidEncounterEvent = errors.New("invalid OPD encounter event")
 type heldOPDEncounter struct {
 	HospitalID uuid.UUID  `gorm:"column:hospital_id"`
 	PatientID  *uuid.UUID `gorm:"column:patient_id"`
+	OpenedAt   *time.Time `gorm:"column:opened_at"`
 	Status     string     `gorm:"column:status"`
 	Version    int        `gorm:"column:version"`
 }
 
 func heldEncounter(tx *gorm.DB, tenant string, encounter uuid.UUID) (heldOPDEncounter, error) {
 	var h heldOPDEncounter
-	err := tx.Raw(`SELECT hospital_id,patient_id,status,version FROM pharmacy_opd_encounters WHERE tenant_id=? AND encounter_id=?`, tenant, encounter).Scan(&h).Error
+	err := tx.Raw(`SELECT hospital_id,patient_id,opened_at,status,version FROM pharmacy_opd_encounters WHERE tenant_id=? AND encounter_id=?`, tenant, encounter).Scan(&h).Error
 	return h, err
 }
 
@@ -45,14 +46,16 @@ func opdEncounterConsumers() []events.Consumer {
 			return errInvalidEncounterEvent
 		}
 		ids, ok := parseIDs(d.EncounterID, d.HospitalID, d.PatientID)
-		if !ok {
+		// The bus stamps every publication; one without is not MediCore's.
+		if !ok || evt.OccurredAt.IsZero() {
 			return errInvalidEncounterEvent
 		}
+		openedAt := evt.OccurredAt.UTC().Truncate(time.Microsecond)
 		// An encounter opens arrived at version 1 (medicore/encounters.go); a
 		// status that arrived first is newer and is kept.
-		if err := tx.Exec(`INSERT INTO pharmacy_opd_encounters (tenant_id,encounter_id,hospital_id,patient_id,status,version) VALUES (?,?,?,?,'arrived',1)
- ON CONFLICT (tenant_id,encounter_id) DO UPDATE SET patient_id=EXCLUDED.patient_id WHERE pharmacy_opd_encounters.patient_id IS NULL
-  AND pharmacy_opd_encounters.hospital_id=EXCLUDED.hospital_id`, evt.TenantID, ids[0], ids[1], ids[2]).Error; err != nil {
+		if err := tx.Exec(`INSERT INTO pharmacy_opd_encounters (tenant_id,encounter_id,hospital_id,patient_id,opened_at,status,version) VALUES (?,?,?,?,?,'arrived',1)
+ ON CONFLICT (tenant_id,encounter_id) DO UPDATE SET patient_id=EXCLUDED.patient_id,opened_at=EXCLUDED.opened_at WHERE pharmacy_opd_encounters.patient_id IS NULL
+  AND pharmacy_opd_encounters.hospital_id=EXCLUDED.hospital_id`, evt.TenantID, ids[0], ids[1], ids[2], openedAt).Error; err != nil {
 			return err
 		}
 		h, err := heldEncounter(tx, evt.TenantID, ids[0])
@@ -61,7 +64,7 @@ func opdEncounterConsumers() []events.Consumer {
 		}
 		// Fail closed: a replay naming another patient or hospital is never
 		// taken as this encounter; the bus retries and it is investigated.
-		if h.HospitalID != ids[1] || h.PatientID == nil || *h.PatientID != ids[2] {
+		if h.HospitalID != ids[1] || h.PatientID == nil || *h.PatientID != ids[2] || h.OpenedAt == nil || !h.OpenedAt.Equal(openedAt) {
 			return errors.New("a replayed OPD encounter differs from the one recorded")
 		}
 		return nil
@@ -99,7 +102,7 @@ const maxCitableEncounters = 20
 type citableEncounter struct {
 	EncounterID uuid.UUID `gorm:"column:encounter_id" json:"encounter_id"`
 	Status      string    `gorm:"column:status" json:"status"`
-	ReceivedAt  time.Time `gorm:"column:received_at" json:"received_at"`
+	OpenedAt    time.Time `gorm:"column:opened_at" json:"opened_at"`
 }
 
 // citableEncounters lists a registered patient's OPD visits a sale may cite,
@@ -132,9 +135,9 @@ func (h *catalogueHandlers) citableEncounters(c *gin.Context) {
 		if known == 0 {
 			return gorm.ErrRecordNotFound
 		}
-		if err := tx.Raw(`SELECT encounter_id,status,received_at FROM pharmacy_opd_encounters
+		if err := tx.Raw(`SELECT encounter_id,status,opened_at FROM pharmacy_opd_encounters
  WHERE tenant_id=? AND patient_id=? AND hospital_id=? AND status IN ('arrived','in_consultation','closed')
- ORDER BY received_at DESC, encounter_id DESC LIMIT ?`, p.TenantID, patient, hospital, maxCitableEncounters).Scan(&found).Error; err != nil {
+ ORDER BY opened_at DESC, encounter_id DESC LIMIT ?`, p.TenantID, patient, hospital, maxCitableEncounters).Scan(&found).Error; err != nil {
 			return err
 		}
 		return auditRegisterRead(c, tx, "opd_encounters", p.TenantID, p.Subject, outlet, "patient_visits_read",

@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"           //nolint:depguard // external test feeding the consumer its published contract
-	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract" //nolint:depguard // external test feeding the consumer its published contract
+	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract" //nolint:depguard // external test feeding the consumer its published contract
+	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module //nolint:depguard // external test feeding the consumer its published contract
 )
 
 // #987 slice 2: pharmacy's projection of MediCore's OPD encounters.
@@ -19,14 +21,16 @@ import (
 type opd struct {
 	d                         ward
 	encounter, patient, place string
+	// openedAt is when MediCore published the opening.
+	openedAt time.Time
 }
 
 func (d ward) newOPD(patient string) opd {
-	return opd{d: d, encounter: uuid.NewString(), patient: patient, place: d.hospital}
+	return opd{d: d, encounter: uuid.NewString(), patient: patient, place: d.hospital, openedAt: time.Date(2026, 11, 1, 4, 0, 0, 0, time.UTC)}
 }
 
 func (o opd) opened() error {
-	return o.d.handle("pharmacy-encounter-opened", medicorecontract.EncounterOpenedData{EncounterID: o.encounter, HospitalID: o.place, PatientID: o.patient})
+	return o.d.handleAt("pharmacy-encounter-opened", medicorecontract.EncounterOpenedData{EncounterID: o.encounter, HospitalID: o.place, PatientID: o.patient}, o.openedAt)
 }
 
 func (o opd) moved(from, to string, version int) error {
@@ -78,6 +82,12 @@ func TestTheOPDEncounterProjectionTakesEventsInAnyOrder(t *testing.T) {
 	require.Equal(t, "cancelled", *h.Status, "the opening does not undo a later status")
 	require.Equal(t, 2, *h.Version)
 
+	var opened time.Time
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT opened_at FROM pharmacy_opd_encounters WHERE encounter_id=?`, b.encounter).Scan(&opened).Error
+	}))
+	require.True(t, opened.Equal(b.openedAt), "the opening fills when the visit opened")
+
 	// An older status arriving last changes nothing; redelivery is idempotent.
 	require.NoError(t, a.moved("arrived", "in_consultation", 2))
 	require.NoError(t, a.opened())
@@ -103,6 +113,11 @@ func TestAConflictingEncounterEventIsRefused(t *testing.T) {
 	require.Error(t, a.moved("arrived", "closed", 2), "one version, one status")
 	require.Error(t, a.moved("arrived", "nonsense", 3), "a status MediCore never publishes")
 	require.Error(t, d.handle("pharmacy-encounter-opened", medicorecontract.EncounterOpenedData{EncounterID: "nope", HospitalID: d.hospital, PatientID: a.patient}))
+	require.Error(t, d.handle("pharmacy-encounter-opened", medicorecontract.EncounterOpenedData{EncounterID: uuid.NewString(), HospitalID: d.hospital, PatientID: a.patient}),
+		"an opening without its publication time")
+	later := a
+	later.openedAt = a.openedAt.Add(time.Hour)
+	require.Error(t, later.opened(), "one encounter, one opening time")
 	h := a.held(t)
 	require.Equal(t, a.patient, *h.PatientID)
 	require.Equal(t, "in_consultation", *h.Status)
@@ -184,8 +199,8 @@ func TestASaleCannotCiteAnEncounterThatIsNotItsPatientsVisit(t *testing.T) {
 		require.Contains(t, out, reason, why)
 	}
 	const (
-		unknown      = "the pharmacy has not received that visit"
-		notTheirs    = "that visit is not this patient's at this hospital"
+		unknown      = "that is not a visit of this patient the pharmacy has received"
+		notTheirs    = unknown
 		didNotHappen = "that visit was cancelled, or the patient left without being seen"
 	)
 	cancelled := w.d.newOPD(w.patient)
@@ -208,6 +223,14 @@ func TestASaleCannotCiteAnEncounterThatIsNotItsPatientsVisit(t *testing.T) {
 	elsewhere.place = uuid.NewString()
 	require.NoError(t, elsewhere.opened())
 	refused("another hospital's", encounterSale(w.product, w.patient, w.d.hospital, elsewhere.encounter), notTheirs)
+	// A hospital that has not verified the pharmacy is refused before any
+	// visit is read, so the answer says nothing about the visit.
+	unverified := newWard(t, w.saleWorld)
+	stranger := unverified.register(t)
+	theirs := unverified.newOPD(stranger)
+	require.NoError(t, theirs.opened())
+	refused("unverified hospital", encounterSale(w.product, stranger, unverified.hospital, theirs.encounter), "the patient's hospital has not verified this pharmacy")
+	refused("unverified hospital, unknown visit", encounterSale(w.product, stranger, unverified.hospital, uuid.NewString()), "the patient's hospital has not verified this pharmacy")
 
 	// Only a registered patient's sale may cite a visit.
 	visit := w.d.newOPD(w.patient)
@@ -254,8 +277,9 @@ func TestTheDatabaseRefusesAnAdmissionSaleCitingAVisit(t *testing.T) {
 
 type citableResp struct {
 	Data []struct {
-		EncounterID string `json:"encounter_id"`
-		Status      string `json:"status"`
+		EncounterID string    `json:"encounter_id"`
+		Status      string    `json:"status"`
+		OpenedAt    time.Time `json:"opened_at"`
 	} `json:"data"`
 }
 
@@ -271,15 +295,19 @@ func citable(t *testing.T, w encounterWorld, who, query string) (int, citableRes
 
 func TestTheCounterListsAPatientsCitableVisits(t *testing.T) {
 	w := newEncounterWorld(t)
+	// Delivered in the reverse of when they opened, as a replayed backlog
+	// may be: the list follows the visits, not their delivery.
+	latest := w.d.newOPD(w.patient)
+	latest.openedAt = time.Date(2026, 11, 1, 9, 30, 0, 0, time.UTC)
+	require.NoError(t, latest.opened())
 	first := w.d.newOPD(w.patient)
+	first.openedAt = time.Date(2026, 10, 28, 5, 0, 0, 0, time.UTC)
 	require.NoError(t, first.opened())
 	require.NoError(t, first.moved("arrived", "in_consultation", 2))
 	require.NoError(t, first.moved("in_consultation", "closed", 3))
 	cancelled := w.d.newOPD(w.patient)
 	require.NoError(t, cancelled.opened())
 	require.NoError(t, cancelled.moved("arrived", "cancelled", 2))
-	latest := w.d.newOPD(w.patient)
-	require.NoError(t, latest.opened())
 	someoneElse := w.d.newOPD(w.d.register(t))
 	require.NoError(t, someoneElse.opened())
 
@@ -291,7 +319,8 @@ func TestTheCounterListsAPatientsCitableVisits(t *testing.T) {
 		got = append(got, e.EncounterID+":"+e.Status)
 	}
 	require.Equal(t, []string{latest.encounter + ":arrived", first.encounter + ":closed"}, got,
-		"this patient's visits a sale may cite, newest first; not a cancelled one or another patient's")
+		"this patient's visits a sale may cite, newest opened first; not a cancelled one or another patient's")
+	require.True(t, body.Data[1].OpenedAt.Equal(first.openedAt), "when the visit opened, not when it was delivered")
 	var reads []string
 	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT resource_type||':'||action||':'||array_to_string(changed_fields,',') FROM audit_events WHERE resource_type='pharmacy_opd_encounters'`).Scan(&reads).Error
@@ -346,4 +375,14 @@ func TestTheWorklistShowsHowEachSaleIsLinked(t *testing.T) {
 	res = do(w.r, "GET", salePath("/"+body.Data[2].ID+"/summary"), "pharmacist", "")
 	require.Contains(t, res.Body.String(), `"linkage":"opd"`)
 	require.NotContains(t, res.Body.String(), visit.encounter, "nor does the summary")
+}
+
+func TestAVisitsReadWhoseRecordFailsReturnsNothing(t *testing.T) {
+	w := newEncounterWorld(t)
+	visit := w.d.newOPD(w.patient)
+	require.NoError(t, visit.opened())
+	pharmacy.SetReadRecordFault(t)
+	code, _, out := citable(t, w, "pharmacist", "patient_id="+w.patient+"&hospital_id="+w.d.hospital)
+	require.Equal(t, http.StatusInternalServerError, code, out)
+	require.NotContains(t, out, visit.encounter, "no record, no data")
 }

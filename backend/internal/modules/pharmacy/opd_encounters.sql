@@ -10,13 +10,16 @@ CREATE TABLE pharmacy_opd_encounters (
  encounter_id uuid NOT NULL,
  hospital_id uuid NOT NULL,
  patient_id uuid,
+ -- When MediCore published the opening: what tells a patient's visits apart
+ -- and orders them, whenever the pharmacy received them.
+ opened_at timestamptz,
  status text NOT NULL CHECK (status IN ('arrived','in_consultation','closed','left_without_being_seen','cancelled')),
  version integer NOT NULL CHECK (version >= 1),
- -- When the pharmacy first heard of it: the counter lists newest first.
  received_at timestamptz NOT NULL DEFAULT clock_timestamp(),
- PRIMARY KEY (tenant_id,encounter_id)
+ PRIMARY KEY (tenant_id,encounter_id),
+ CONSTRAINT pharmacy_opd_encounter_opened CHECK ((patient_id IS NULL) = (opened_at IS NULL))
 );
-CREATE INDEX pharmacy_opd_encounter_patient ON pharmacy_opd_encounters (tenant_id,patient_id,hospital_id,received_at DESC) WHERE patient_id IS NOT NULL;
+CREATE INDEX pharmacy_opd_encounter_patient ON pharmacy_opd_encounters (tenant_id,patient_id,hospital_id,opened_at DESC) WHERE patient_id IS NOT NULL;
 ALTER TABLE pharmacy_opd_encounters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_opd_encounters FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pharmacy_opd_encounters USING (hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
@@ -27,7 +30,7 @@ CREATE FUNCTION pharmacy_opd_encounter_guard() RETURNS trigger LANGUAGE plpgsql 
 BEGIN
  IF TG_OP='DELETE' THEN RAISE EXCEPTION 'encounter history is retained' USING ERRCODE='23514'; END IF;
  IF (NEW.tenant_id,NEW.encounter_id,NEW.hospital_id,NEW.received_at) IS DISTINCT FROM (OLD.tenant_id,OLD.encounter_id,OLD.hospital_id,OLD.received_at)
-  OR (OLD.patient_id IS NOT NULL AND NEW.patient_id IS DISTINCT FROM OLD.patient_id)
+  OR (OLD.patient_id IS NOT NULL AND (NEW.patient_id,NEW.opened_at) IS DISTINCT FROM (OLD.patient_id,OLD.opened_at))
   OR NEW.version < OLD.version
   OR (NEW.version = OLD.version AND NEW.status IS DISTINCT FROM OLD.status) THEN
   RAISE EXCEPTION 'an encounter''s identity is fixed and its status moves forward' USING ERRCODE='23514';
@@ -46,23 +49,23 @@ ALTER TABLE pharmacy_sales
 -- The cited encounter must be this patient's, at this patient's hospital,
 -- and a visit that happened (#987 slice 2 decision 2). Checked here so no
 -- code path can post a sale against another's visit. FOR SHARE orders the
--- sale wholly before or after a status change being applied.
-CREATE FUNCTION pharmacy_sale_encounter_citable() RETURNS trigger LANGUAGE plpgsql AS $$
+-- sale wholly before or after a status change being applied. Triggers run
+-- in name order: "patient_visit" follows "patient_affiliated", so a hospital
+-- that has not verified the pharmacy is refused before any visit is read,
+-- and an unknown visit and another patient's give one answer.
+CREATE FUNCTION pharmacy_sale_patient_visit_citable() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
  e record;
 BEGIN
  IF NEW.encounter_id IS NULL THEN RETURN NEW; END IF;
  SELECT hospital_id,patient_id,status INTO e FROM pharmacy_opd_encounters
   WHERE tenant_id=NEW.tenant_id AND encounter_id=NEW.encounter_id FOR SHARE;
- IF NOT FOUND OR e.patient_id IS NULL THEN
-  RAISE EXCEPTION 'the encounter is not known to the pharmacy' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_unknown';
- END IF;
- IF e.patient_id IS DISTINCT FROM NEW.patient_id OR e.hospital_id IS DISTINCT FROM NEW.patient_hospital_id THEN
-  RAISE EXCEPTION 'the encounter is not this patient''s at this hospital' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_other';
+ IF NOT FOUND OR e.patient_id IS NULL OR e.patient_id IS DISTINCT FROM NEW.patient_id OR e.hospital_id IS DISTINCT FROM NEW.patient_hospital_id THEN
+  RAISE EXCEPTION 'the encounter is not a visit of this patient that the pharmacy has received' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_unknown';
  END IF;
  IF e.status NOT IN ('arrived','in_consultation','closed') THEN
   RAISE EXCEPTION 'the encounter was cancelled or the patient left without being seen' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_status';
  END IF;
  RETURN NEW;
 END $$;
-CREATE TRIGGER pharmacy_sale_encounter_citable BEFORE INSERT ON pharmacy_sales FOR EACH ROW EXECUTE FUNCTION pharmacy_sale_encounter_citable();
+CREATE TRIGGER pharmacy_sale_patient_visit_citable BEFORE INSERT ON pharmacy_sales FOR EACH ROW EXECUTE FUNCTION pharmacy_sale_patient_visit_citable();

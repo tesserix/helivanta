@@ -17,7 +17,7 @@ encounter it serves; the database refuses any other.
 ## Task 1: projection (`backend/internal/modules/pharmacy/opd_encounters.go`, `.sql`)
 
 - `pharmacy_opd_encounters (tenant_id, encounter_id, hospital_id, patient_id
-  NULL, status NULL, version int NULL)`; consumers `pharmacy-encounter-opened`
+NULL, opened_at NULL, status, version, received_at)`; consumers `pharmacy-encounter-opened`
   and `pharmacy-encounter-status-changed`.
 - Tests first: opened then status; status then opened; stale version ignored;
   replay idempotent; a conflicting replay (other patient or hospital) errors;
@@ -36,7 +36,7 @@ encounter it serves; the database refuses any other.
 
 ## Task 3: counter read, worklist, shell
 
-- `GET …/registered-patients/{patient}/encounters?hospital_id=`
+- `GET …/outlets/:outlet/opd-encounters?patient_id=&hospital_id=`
   (`pharmacy.sale.create`; audited; citable only; newest first; bounded).
 - Worklist and summary: `linkage` (`admission`,`opd`,`none`) and a worklist
   `linkage` filter.

@@ -412,12 +412,13 @@ A sale may be billed to the admission occupying a bed instead of collected at th
 
 A registered patient's counter sale may cite the OPD encounter it serves. See the [design](../../superpowers/specs/2026-11-04-pharmacy-opd-encounter-link-design.md). MediCore's encounter contract is consumed as published; MediCore does not change.
 
-- **Pharmacy's copy of OPD encounters.** `pharmacy_opd_encounters` holds the encounter, hospital, patient id, status and version, and when the pharmacy received it; no name. It is fed by `pharmacy-encounter-opened` (`encounter_opened.v1`) and `pharmacy-encounter-status-changed` (`encounter_status_changed.v1`). Either may arrive first; a status moves only with a newer version; a replay naming another patient or hospital, or the same version with another status, is refused and retried, never overwritten.
-- **Find.** `GET …/outlets/:outlet/opd-encounters?patient_id=&hospital_id=` needs `pharmacy.sale.create`. It lists the patient's citable visits (`arrived`, `in_consultation`, `closed`), newest first, at most 20, only for a patient the pharmacy has received at a hospital that has verified it (otherwise `404`). Every answer is audited.
+- **Pharmacy's copy of OPD encounters.** `pharmacy_opd_encounters` holds the encounter, hospital, patient id, status and version, and `opened_at`, when MediCore published the opening (the envelope's `occurred_at`); no name. A patient's visits are ordered and told apart by `opened_at`, so a replayed or delayed delivery cannot make them look alike. It is fed by `pharmacy-encounter-opened` (`encounter_opened.v1`) and `pharmacy-encounter-status-changed` (`encounter_status_changed.v1`). Either may arrive first; a status moves only with a newer version; a replay naming another patient or hospital, or the same version with another status, is refused and retried, never overwritten.
+- **Find.** `GET …/outlets/:outlet/opd-encounters?patient_id=&hospital_id=` needs `pharmacy.sale.create`. It lists the patient's citable visits (`arrived`, `in_consultation`, `closed`) with `opened_at`, newest opened first, at most 20, only for a patient the pharmacy has received at a hospital that has verified it (otherwise `404`). Every answer is audited.
 - **Post.** The sale carries `encounter: {encounter_id}` with `patient`; never with `admission` or a walk-in buyer (`400`). The database refuses, as `409 not_sellable` with the reason, an encounter that:
-  - the pharmacy has not received, or has not yet seen opened;
-  - is not this patient's at this patient's hospital;
+  - the pharmacy has not received, has not yet seen opened, or is not this patient's at this patient's hospital (one answer for all three, so a refusal says nothing about whose a visit is);
   - was `cancelled` or `left_without_being_seen`.
+
+  The hospital-verification check runs before the visit is read, so a hospital that has not verified the pharmacy is refused first.
 
   A `closed` encounter is citable, as patients collect medicines after the consultation; there is no time limit (agreed 2026-11-04). The sale takes the encounter row `FOR SHARE`, so a status change is wholly before or after it. A later cancellation does not undo a posted sale. The intent digest covers the encounter.
 

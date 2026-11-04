@@ -3854,7 +3854,7 @@
         },
         {
           "id": "0032_pharmacy",
-          "sql_sha256": "149bdb304b2af5934ad59e1237662f3f48bcc762f8d36eb566c196920e064bd8",
+          "sql_sha256": "80a006ba3f0e2d9769223669b52132643079a3b58664d8a77e0d1d7a966d9abd",
           "creates_tables": [
             "pharmacy_opd_encounters"
           ]

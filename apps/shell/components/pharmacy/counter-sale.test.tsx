@@ -75,7 +75,7 @@ function fixture(
     /** The outlet's service charges (#1388); "fail" answers 500. */
     serviceCharges?: PharmacyServiceCharge[] | "fail";
     /** The confirmed patient's citable OPD visits (#987); "fail" answers 500. */
-    visits?: { encounter_id: string; status: string; received_at: string }[] | "fail";
+    visits?: { encounter_id: string; status: string; opened_at: string }[] | "fail";
   } = {},
 ) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -675,10 +675,10 @@ describe("CounterSale", () => {
   it("cites the confirmed patient's OPD visit when the pharmacist picks one (#987)", async () => {
     const visit = "0199e000-0000-7000-8000-0000000000e1";
     const fetcher = fixture({
-      visits: [{ encounter_id: visit, status: "closed", received_at: "2026-11-04T05:00:00Z" }],
+      visits: [{ encounter_id: visit, status: "closed", opened_at: "2026-11-04T05:00:00Z" }],
     });
     const { user } = renderWithProviders(
-      <CounterSale scope={scope} canSell canManageProfile={false} />,
+      <CounterSale scope={scope} timeZone="Asia/Kolkata" canSell canManageProfile={false} />,
     );
     await basketOfEight(user);
     await user.click(screen.getByRole("button", { name: "Price basket" }));
@@ -694,7 +694,8 @@ describe("CounterSale", () => {
     await user.click(await screen.findByRole("button", { name: "This is the patient" }));
     const visits = await screen.findByRole("combobox", { name: "For the OPD visit" });
     expect(visits).toHaveTextContent("Not for a visit");
-    await chooseOption(user, visits, /consultation over/);
+    // When the visit opened, in the outlet's time zone (05:00 UTC is 10:30 IST).
+    await chooseOption(user, visits, /Visit opened 4 Nov 2026, 10:30 am, consultation over/);
     await user.click(screen.getByRole("button", { name: "Post sale" }));
     await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
     const put = fetcher.mock.calls.find(
@@ -711,7 +712,7 @@ describe("CounterSale", () => {
         {
           encounter_id: "0199e000-0000-7000-8000-0000000000e1",
           status: "arrived",
-          received_at: "2026-11-04T05:00:00Z",
+          opened_at: "2026-11-04T05:00:00Z",
         },
       ],
     });

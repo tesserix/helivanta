@@ -38,6 +38,7 @@ import { VerifiedUpi } from "./verified-upi";
  */
 export function CounterSale({
   scope,
+  timeZone,
   canSell,
   canManageProfile,
   canDiscount = false,
@@ -45,6 +46,8 @@ export function CounterSale({
   canRefund = false,
 }: {
   scope: PharmacyScope;
+  /** The outlet's time zone, for when a visit opened. */
+  timeZone?: string;
   canSell: boolean;
   canManageProfile: boolean;
   /** Holds pharmacy.sale.discount, which a tenant administrator assigns (#1386 B-3). */
@@ -85,7 +88,14 @@ export function CounterSale({
       )}
       {canManageDiscount && <DiscountCeilingForm scope={scope} />}
       {canSell ? (
-        current && <Counter scope={scope} canDiscount={canDiscount} canRefund={canRefund} />
+        current && (
+          <Counter
+            scope={scope}
+            timeZone={timeZone}
+            canDiscount={canDiscount}
+            canRefund={canRefund}
+          />
+        )
       ) : (
         <p className="text-sm text-muted-foreground">
           Selling here needs the pharmacist role; you can record the outlet&apos;s invoice details.
@@ -191,10 +201,12 @@ const lineSchema = z.object({
 
 function Counter({
   scope,
+  timeZone,
   canDiscount,
   canRefund,
 }: {
   scope: PharmacyScope;
+  timeZone?: string;
   canDiscount: boolean;
   canRefund: boolean;
 }) {
@@ -485,6 +497,7 @@ function Counter({
           <Totals sale={quote} />
           <TenderForm
             scope={scope}
+            timeZone={timeZone}
             quote={quote}
             basket={basket}
             chargeChannel={chargeChannel}
@@ -700,6 +713,7 @@ const tenderSchema = z
 
 function TenderForm({
   scope,
+  timeZone,
   quote,
   basket,
   chargeChannel,
@@ -711,6 +725,7 @@ function TenderForm({
   onUncertain,
 }: {
   scope: PharmacyScope;
+  timeZone?: string;
   quote: PharmacySaleQuote;
   basket: BasketLine[];
   /** Ward-delivery charges bill an admission; counter charges never do. */
@@ -988,6 +1003,7 @@ function TenderForm({
                 key={patient.patient_id}
                 scope={scope}
                 patient={patient}
+                timeZone={timeZone}
                 value={form.watch("encounter_id")}
                 onChange={(next) => form.setValue("encounter_id", next, { shouldValidate: false })}
               />

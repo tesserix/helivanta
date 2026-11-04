@@ -24,7 +24,7 @@ func (g *staffActorGuard) WithCurrentStaffActor(ctx context.Context, scope authz
 	if err != nil || tenant == uuid.Nil || tenant.String() != scope.TenantID || scope.HospitalID == uuid.Nil || !validLoginSubject(scope.Subject) || action == nil || g.db == nil || !g.db.GuardedCommandActive(ctx) {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), Permission: authz.StaffActorUse}
+	request := authz.ScopeRequest{TenantID: scope.TenantID, Subject: scope.Subject, HospitalID: scope.HospitalID.String(), Permission: authz.StaffActorUse, DepartmentPath: scope.DepartmentPath}
 	grant, ok := authz.ScopedCommandGrant(ctx, request)
 	if !ok || grant.AssignmentID == "" {
 		return authz.ErrScopedAuthorizationUnavailable

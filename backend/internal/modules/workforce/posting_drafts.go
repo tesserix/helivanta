@@ -28,7 +28,7 @@ var errPostingDraftConflict = errors.New("posting draft intent or source changed
 
 const postingDraftProjection = "d.id,r.id AS revision_id,d.hospital_id,d.staff_id,r.version,r.staff_version,r.employment_epoch,r.department_id,r.department_revision_id,r.starts_at,r.ends_at,d.created_at,r.created_at AS recorded_at"
 
-type postingDraftScope struct{ hospital, staff, draft, command uuid.UUID }
+type postingDraftScope struct{ hospital, staff, draft, command, department uuid.UUID }
 
 func (r StaffPostingDraft) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 

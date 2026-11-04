@@ -1,5 +1,5 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   listStaffPostingScopes,
   listStaffPostingTargets,
@@ -66,17 +66,52 @@ export function useStaffPostingHistory(
     queryFn: ({ signal }) => listStaffPostingDraftHistory(scope, draft!, cursor, signal),
   });
 }
-export function useStaffPostingDepartmentChoices(scope: StaffPostingScope, cursor: string | null) {
+export function useStaffPostingDepartmentChoices(
+  scope: StaffPostingScope & { department?: string },
+  cursor: string | null,
+) {
   return useQuery({
     gcTime: 0,
     staleTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
-    queryKey: [...staffPostingsKey(scope), "departments", cursor],
+    queryKey: [...staffPostingsKey(scope), "departments", scope.department ?? null, cursor],
     queryFn: ({ signal }) =>
       scope.access === "scoped"
-        ? listPostingDepartmentChoices(scope, scope.hospitalId, cursor, signal)
+        ? listPostingDepartmentChoices(scope, scope.hospitalId, cursor, signal, scope.department)
         : listOrganizationDepartments(scope, scope.hospitalId, cursor, signal),
+  });
+}
+
+// Names come from each covered department's first choices page; an unnamed row keeps its reference.
+export function useStaffPostingReviewDepartmentNames(
+  scope: StaffPostingInboxScope,
+  departments: readonly string[],
+) {
+  const hints: (string | undefined)[] = departments.length > 0 ? [...departments] : [undefined];
+  return useQueries({
+    queries: hints.map((department) => ({
+      gcTime: 0,
+      staleTime: 0,
+      retry: false as const,
+      refetchOnWindowFocus: false,
+      queryKey: [
+        "workforce",
+        "posting-review-departments",
+        scope.tenantId,
+        scope.subject,
+        scope.hospitalId,
+        department ?? null,
+      ],
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        listPostingDepartmentChoices(scope, scope.hospitalId, null, signal, department),
+    })),
+    combine: (results) =>
+      new Map(
+        results.flatMap(
+          (result) => result.data?.data.map((row) => [row.id, row.name] as const) ?? [],
+        ),
+      ),
   });
 }
 
@@ -142,6 +177,7 @@ export function useStaffPostingProposalInbox(
       scope.tenantId,
       scope.subject,
       scope.hospitalId,
+      scope.department ?? null,
       status,
       cursor,
     ],

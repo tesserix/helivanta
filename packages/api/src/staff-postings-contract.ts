@@ -405,6 +405,7 @@ export const StaffPostingReviewHospitalScopeContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     can_submit: z.boolean(),
     can_review: z.boolean(),
+    departments: z.array(identifier).max(50),
   })
   .strict();
 export type StaffPostingReviewHospitalScope = z.infer<

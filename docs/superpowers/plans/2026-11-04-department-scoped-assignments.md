@@ -42,8 +42,9 @@ posting reviewer in Workforce and the shell.
 ## Task 2: two-owner verification
 
 - `put` validates the template against the chosen scope and publishes both the
-  Workforce scope request and `iam.assignment.department_scope_requested` in
-  one transaction.
+  Workforce scope request and
+  `helivanta.in.iam.assignment_department_scope_requested.v1` in one
+  transaction.
 - Organization consumer `department_assignment_verifications.go` follows
   `department_observations.go` for the strict envelope and audit, but answers
   from current structure without its own table (Organization has no
@@ -99,9 +100,10 @@ Decisions settled before code:
 ## Task 5: shell
 
 - Access proposal form: "Applies to" with "Whole hospital" or "One department
-  and its sub-units", department `SelectControl` from posting choices,
-  templates filtered by scope. Review, history and access list show the
-  department name.
+  and its sub-units", department `FormSelectField` from the Organization
+  department list (active, already effective nodes; readable 403), templates
+  filtered by scope. Review and the access list show the department name;
+  history inherits the immutable card scope.
 - Posting review inbox shows each row's department and the covered
   departments in the header; retired and unavailable states per the spec.
 - Vitest with `renderWithProviders` for each changed panel.

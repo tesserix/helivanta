@@ -56,7 +56,7 @@ func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
 	h := &handlers{db: deps.DB, bus: deps.Bus, scopeAuthority: deps.ScopedAuthorizer, staffActors: deps.StaffActors}
 	g := r.Group("/organization")
-	platform.ScopedHospitalListRoute(g, "/hospitals/:hospital/posting-department-choices", PermPostingChoicesRead, "hospital", h.listPostingDepartmentChoices)
+	platform.HandlerScopedQueryListRoute(g, "/hospitals/:hospital/posting-department-choices", PermPostingChoicesRead, "hospital", []platform.QueryFilter{{Key: "department"}}, 50, h.listPostingDepartmentChoices)
 	platform.ListRoute(g, "/hospitals", PermStructureRead, h.list)
 	g.PUT("/hospitals/:hospital/registrations/:request", PermStructureManage, h.put)
 	g.GET("/hospitals/:hospital/registrations/:request", PermStructureRead, h.get)

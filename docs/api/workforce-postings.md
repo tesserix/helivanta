@@ -438,6 +438,62 @@ ledger 220→223. #1547 added no migrations. Rollback preserves additive schema 
 history; a compensating change needs separate review. No positive operating
 activation is established by these releases.
 
+## Department posting review (#429 slice 1) — candidate, not released
+
+[ADR-0055](../adr/0055-department-scoped-assignments.md) and the
+[specification](../superpowers/specs/2026-11-04-department-scoped-assignments.md)
+add one department-scoped role. The closed `staff-department-posting-reviews-v1`
+catalog is the management catalog plus `workforce.department_posting_reviewer.v1`,
+which carries the five permissions of `workforce.posting_reviewer.v1` and
+`scope_kinds: ["department"]`. Every earlier template declares `["hospital"]`.
+IAM migrations `0027_iam_department_posting_review_templates` and
+`0028_iam_department_assignment_scope` install the template and the department
+columns, paired checks, immutable scope and append-only verifications. Department
+rows are hidden unless `app.assignment_department_scope` is `enabled`, so
+rolled-back code fails closed.
+
+A department proposal stays `pending_scope` until Workforce and Organization both
+answer the current request (`helivanta.in.iam.assignment_department_scope_requested.v1`
+and `helivanta.in.organization.assignment_department_verified.v1`). Either refusal
+is `scope_rejected`. An approval enters `pending_decision_scope` and re-asks both
+owners; a department retired in between returns it to `pending_review`. The grant covers the
+department and its current sub-units only. Organization's path, not a posting or
+HR category, decides membership.
+
+Admission moves to the handler for the inbox, review source and decision receipt
+(`ScopeKind: "department"` in the route inventory). `scopedPostingTransaction`
+reads the target path from Organization, asks IAM for hospital or department
+grants on that path, holds `WithinCurrentDepartment` for each department grant
+and binds the department in Workforce SQL context through migration
+`0082_workforce_department_posting_scope`. `authz.AdmitHandlerScope` releases a
+response only after the fully guarded success, so no route can skip the check.
+
+The inbox and protected review routes accept one optional `department`, echoed
+from the inbox row or the `departments` list in
+`GET /v1/workforce/posting-review-scopes`. A hospital grant may omit it. A
+department grant must send it; the inbox lists only that department's current
+subtree, at most 1,000 nodes. Inbox cursors bind to both status and department.
+`GET /v1/organization/hospitals/:hospital/posting-department-choices` accepts the
+same hint and returns only that subtree.
+
+| Case | Status |
+| --- | --- |
+| Unknown, retired or foreign department, or outside every held subtree | 404 |
+| Department held with read but without the requested permission | 403 |
+| Path moved between the hint read and the lock | 409 `department_scope_changed` |
+| IAM, OpenFGA or Organization unavailable, or subtree over 1,000 nodes | 503 |
+
+Audit rows record `scope_kind` and `department_id` with the assignment epochs.
+Self-review and submitter separation are unchanged. The shell's access form
+offers "Whole hospital" or "One department and its sub-units", with templates
+filtered by scope and only active, effective departments. Records show the
+department name. The inbox offers a department selector and reports retired or
+moved departments instead of locking the review account.
+
+Not covered: other department-scoped templates, outlet scope (#418),
+standalone pharmacy employers (#19), production release and normal-account
+browser acceptance.
+
 ## Normal submission UI — candidate, browser acceptance open
 
 The next UI slice adds submission from the normal posting review workspace only

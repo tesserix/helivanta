@@ -12,6 +12,8 @@ const StaffActorUse Permission = "workforce.staff_actor.use"
 type StaffActorScope struct {
 	TenantID, Subject string
 	HospitalID        uuid.UUID
+	// DepartmentPath must equal the path the caller's StaffActorUse check was authorized with.
+	DepartmentPath []string
 }
 
 // StaffActorReference is attributable source data, never reusable authorization.

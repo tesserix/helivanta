@@ -19,7 +19,7 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 	if len(c.Request.URL.RawQuery) <= 1024 {
 		query, err = url.ParseQuery(c.Request.URL.RawQuery)
 	}
-	valid := len(c.Request.URL.RawQuery) <= 1024 && err == nil && (len(query) >= 3 && len(query) <= 5)
+	valid := len(c.Request.URL.RawQuery) <= 1024 && err == nil && (len(query) >= 3 && len(query) <= 6)
 	for _, key := range []string{"purpose", "expected_version", "expected_revision_id"} {
 		valid = valid && len(query[key]) == 1
 	}
@@ -34,6 +34,9 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 		in.ManagementReview = &value
 	}
 	fields := 3
+	if _, exists := query["department"]; exists {
+		fields++
+	}
 	if in.SupervisionContext != nil {
 		fields++
 	}

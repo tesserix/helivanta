@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
+	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
@@ -51,7 +52,22 @@ func (h *handlers) postingProposalScope(c *gin.Context) (authn.Principal, postin
 			return p, s, false
 		}
 	}
-	return p, s, true
+	s.department, ok = postingDepartmentHint(c)
+	return p, s, ok
+}
+
+// postingDepartmentHint is the row department echoed from the inbox; it is never authority by itself.
+func postingDepartmentHint(c *gin.Context) (uuid.UUID, bool) {
+	values, present := c.Request.URL.Query()["department"]
+	if !present {
+		return uuid.Nil, true
+	}
+	id, err := uuid.Parse(values[0])
+	if len(values) != 1 || err != nil || !postingV7(id) || id.String() != values[0] {
+		respond.Error(c, 400, "invalid_request", "Choose one department from the posting review inbox.")
+		return uuid.Nil, false
+	}
+	return id, true
 }
 
 func respondPostingProposalError(c *gin.Context, err error) {
@@ -60,6 +76,11 @@ func respondPostingProposalError(c *gin.Context, err error) {
 	}
 	var pg *pgconn.PgError
 	switch {
+	case errors.Is(err, errDepartmentScopeChanged):
+		respond.Error(c, 409, "department_scope_changed", "The department structure changed. Reload the posting review inbox.")
+	case errors.Is(err, authz.ErrDepartmentSubtreeLimit):
+		requestid.Logger(c).WarnContext(c.Request.Context(), "posting review unavailable", "reason", "department_subtree_limit")
+		respond.Error(c, 503, "posting_source_unavailable", "The current posting source is unavailable. Retry when the source is available.")
 	case errors.Is(err, errPostingSupervisionRequired):
 		respond.Error(c, 409, "posting_supervision_required", "The required posting supervision policy is not available. No approval was recorded.")
 	case errors.Is(err, errPostingProposalConflict), errors.Is(err, authz.ErrDepartmentReferenceChanged), errors.As(err, &pg) && (pg.Code == "23505" || pg.ConstraintName == "workforce_posting_proposal_guard"):
@@ -148,7 +169,7 @@ func postingProposalAuditRecord(tx *gorm.DB, p authn.Principal, hospital, resour
 	if err != nil {
 		return err
 	}
-	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,?::jsonb || jsonb_build_object('version',?::bigint,'assignment_id',current_setting('app.workforce_posting_assignment',true),'assignment_version',current_setting('app.workforce_posting_assignment_version',true)::bigint,'scope_epoch',current_setting('app.workforce_posting_scope_epoch',true)::bigint,'membership_epoch',current_setting('app.workforce_posting_membership_epoch',true)::bigint,'actor_staff_id',current_setting('app.workforce_posting_actor',true),'actor_link_id',current_setting('app.workforce_posting_link',true),'actor_generation_id',current_setting('app.workforce_posting_generation',true)))`, p.TenantID, hospital, p.Subject, "workforce.posting_proposal."+action, resource, string(payload), version).Error
+	return tx.Exec(`INSERT INTO workforce_audit(tenant_id,hospital_id,actor_subject,action,resource_id,changes) VALUES(?,?,?,?,?,?::jsonb || jsonb_build_object('version',?::bigint,'assignment_id',current_setting('app.workforce_posting_assignment',true),'assignment_version',current_setting('app.workforce_posting_assignment_version',true)::bigint,'scope_epoch',current_setting('app.workforce_posting_scope_epoch',true)::bigint,'membership_epoch',current_setting('app.workforce_posting_membership_epoch',true)::bigint,'actor_staff_id',current_setting('app.workforce_posting_actor',true),'actor_link_id',current_setting('app.workforce_posting_link',true),'actor_generation_id',current_setting('app.workforce_posting_generation',true),'scope_kind',NULLIF(current_setting('app.workforce_posting_scope_kind',true),''),'department_id',NULLIF(current_setting('app.workforce_posting_department_scope',true),'')))`, p.TenantID, hospital, p.Subject, "workforce.posting_proposal."+action, resource, string(payload), version).Error
 }
 
 func validPostingProposalInput(in *StaffPostingProposalInput) bool {

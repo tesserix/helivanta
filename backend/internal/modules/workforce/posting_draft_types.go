@@ -114,10 +114,11 @@ type StaffPostingReviewSource struct {
 }
 
 type StaffPostingReviewHospitalScope struct {
-	HospitalID uuid.UUID `json:"hospital_id"`
-	Name       string    `json:"name"`
-	CanSubmit  bool      `json:"can_submit"`
-	CanReview  bool      `json:"can_review"`
+	HospitalID  uuid.UUID   `json:"hospital_id"`
+	Name        string      `json:"name"`
+	CanSubmit   bool        `json:"can_submit"`
+	CanReview   bool        `json:"can_review"`
+	Departments []uuid.UUID `json:"departments"`
 }
 
 type StaffPostingProposalContextRequest struct {

@@ -461,6 +461,11 @@
       {
         "name": "can_review",
         "type": "bool"
+      },
+      {
+        "name": "departments",
+        "type": "[]uuid",
+        "max": 50
       }
     ],
     "StaffPostingProposalContextRequest": [

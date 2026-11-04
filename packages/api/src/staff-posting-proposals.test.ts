@@ -917,3 +917,78 @@ it("permits an open-ended placement while keeping its reviewed source cutoff dis
     }),
   ).toEqual(longPlacement);
 });
+
+it("scopes department review reads and decisions to the proposal's own department", async () => {
+  const api = await import("./staff-posting-proposals");
+  const department = { ...scope, department: receipt.department_id };
+  const proposalRoot = `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-proposals`;
+  vi.mocked(apiFetch).mockResolvedValue({ data: [], page: { has_more: false, next_cursor: null } });
+  await api.listStaffPostingProposalInbox(department, "pending");
+  expect(vi.mocked(apiFetch).mock.calls[0]![0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/posting-proposal-inbox?status=pending&limit=8&department=${receipt.department_id}`,
+  );
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic retained preparation rationale",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  vi.mocked(apiFetch).mockResolvedValue(context);
+  await api.getStaffPostingProposalContext(department, receipt.id, request);
+  expect(vi.mocked(apiFetch).mock.calls[1]![0]).toBe(
+    `${proposalRoot}/${receipt.id}/context?purpose=review&expected_version=1&expected_revision_id=${receipt.revision_id}&department=${receipt.department_id}`,
+  );
+  vi.mocked(apiFetch).mockResolvedValue({
+    ...context,
+    proposal: { ...receipt, department_id: id(40) },
+    draft: { ...draft, department_id: id(40) },
+  });
+  await expect(
+    api.getStaffPostingProposalContext(department, receipt.id, request),
+  ).rejects.toThrow();
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+    decision: "reject" as const,
+    reason: "Synthetic department correction",
+    sources_examined: true,
+  };
+  const rejected = {
+    ...receipt,
+    revision_id: id(10),
+    command_id: id(9),
+    version: 2,
+    status: "rejected",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(rejected);
+  await api.decideStaffPostingProposal(
+    department,
+    receipt.id,
+    id(9),
+    decision,
+    StaffPostingProposalContract.parse(receipt),
+  );
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toBe(
+    `${proposalRoot}/${receipt.id}/decisions/${id(9)}?department=${receipt.department_id}`,
+  );
+  vi.mocked(apiFetch).mockResolvedValue({ hospital_id: scope.hospitalId, staff_id: scope.staffId });
+  await api.getStaffPostingReviewSource(department).catch(() => undefined);
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-review-source?department=${receipt.department_id}`,
+  );
+  const calls = vi.mocked(apiFetch).mock.calls.length;
+  for (const invalid of [scope.hospitalId, "", receipt.department_id.toUpperCase()]) {
+    await expect(
+      api.listStaffPostingProposalInbox({ ...scope, department: invalid }, "pending"),
+    ).rejects.toThrow();
+  }
+  expect(vi.mocked(apiFetch).mock.calls).toHaveLength(calls);
+  expect(api.staffPostingProposalsKey(department)).toContain(receipt.department_id);
+});

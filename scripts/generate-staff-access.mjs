@@ -66,7 +66,8 @@ for (const migration of migrations) {
       );
     if (
       scopeAware &&
-      (template.scope_kinds.includes("department") || departmentReviewer.test(template.key ?? "")) &&
+      (template.scope_kinds.includes("department") ||
+        departmentReviewer.test(template.key ?? "")) &&
       !(
         departmentReviewer.test(template.key ?? "") &&
         JSON.stringify(template.scope_kinds) === JSON.stringify(["department"])

@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
 import { NavigationGuardProvider } from "@helivanta/ui";
-import "@/test/select";
+import { chooseOption } from "@/test/select";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { act, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { PostingProposalDecision } from "./posting-proposal-decision";
@@ -106,7 +106,13 @@ function submissionResponse(url: string, init?: RequestInit): Response {
   if (url.includes("posting-review-scopes"))
     return Response.json({
       data: [
-        { hospital_id: hospital, name: "Synthetic Hospital", can_submit: true, can_review: false },
+        {
+          hospital_id: hospital,
+          name: "Synthetic Hospital",
+          can_submit: true,
+          can_review: false,
+          departments: [],
+        },
       ],
       page: { has_more: false, next_cursor: null },
     });
@@ -129,7 +135,13 @@ function reviewerResponse(url: string, supervision: unknown, visible = true): Re
   if (url.includes("posting-review-scopes"))
     return Response.json({
       data: [
-        { hospital_id: hospital, name: "Synthetic Hospital", can_submit: false, can_review: true },
+        {
+          hospital_id: hospital,
+          name: "Synthetic Hospital",
+          can_submit: false,
+          can_review: true,
+          departments: [],
+        },
       ],
       page: { has_more: false, next_cursor: null },
     });
@@ -231,6 +243,7 @@ it("clears a retained submission when fresh admission loses submit capability bu
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -364,6 +377,7 @@ it("does not expose submission controls or Staff discovery to a reviewer-only as
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -652,6 +666,7 @@ it("submits an exact prepared draft only after examining current sources and ent
               name: "Synthetic Hospital",
               can_submit: true,
               can_review: false,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -728,6 +743,7 @@ it("discovers reviewer hospitals and opens only the selected exact-head protecte
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -775,6 +791,143 @@ it("discovers reviewer hospitals and opens only the selected exact-head protecte
   expect(screen.queryByText(context.draft_reason)).not.toBeInTheDocument();
 });
 
+function departmentReviewerFetch(paths: string[], inbox: (hint: string | null) => Response) {
+  const page = { has_more: false, next_cursor: null };
+  return vi.fn(async (url: string) => {
+    paths.push(url);
+    const hint = new URL(url, "http://localhost").searchParams.get("department");
+    if (url.includes("posting-review-scopes"))
+      return Response.json({
+        data: [
+          {
+            hospital_id: hospital,
+            name: "Synthetic Hospital",
+            can_submit: false,
+            can_review: true,
+            departments: [proposal.department_id, id(9)],
+          },
+        ],
+        page,
+      });
+    if (url.includes("posting-department-choices"))
+      return Response.json({
+        data: [
+          hint === id(9)
+            ? {
+                ...department,
+                id: id(9),
+                revision_id: id(10),
+                code: "SYN-ICU",
+                name: "Synthetic ICU",
+              }
+            : department,
+        ],
+        page,
+      });
+    if (url.includes("posting-proposal-inbox")) return inbox(hint);
+    if (url.includes("posting-review-source")) return Response.json(source);
+    if (url.includes("/context?")) return postingContextResponse(url, context);
+    throw new Error(`Unexpected request: ${url}`);
+  });
+}
+
+it("scopes a department reviewer's inbox and protected reads to the chosen department", async () => {
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    departmentReviewerFetch(paths, (hint) =>
+      Response.json({
+        data:
+          hint === proposal.department_id
+            ? [
+                {
+                  proposal,
+                  staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+                  is_submitter: false,
+                },
+              ]
+            : [],
+        page: { has_more: false, next_cursor: null },
+      }),
+    ),
+  );
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={() => {}} />,
+  );
+  expect(await screen.findByText(/Reviewer · Department scope/)).toBeInTheDocument();
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  expect(
+    await screen.findByText(
+      "Covers Synthetic Pharmacy, Synthetic ICU and their current sub-units.",
+    ),
+  ).toBeInTheDocument();
+  expect(await screen.findByText("Department: Synthetic Pharmacy")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Open proposal for Synthetic Staff" }));
+  await screen.findByText(context.draft_reason);
+  const hinted = `department=${proposal.department_id}`;
+  for (const route of ["posting-proposal-inbox", "/context?"])
+    expect(paths.filter((path) => path.includes(route))).not.toHaveLength(0);
+  for (const path of paths.filter(
+    (path) => path.includes("posting-proposal-inbox") || path.includes("/context?"),
+  ))
+    expect(path).toContain(hinted);
+  await chooseOption(user, screen.getByLabelText("Department"), "Synthetic ICU");
+  await waitFor(() =>
+    expect(paths.at(-1)).toEqual(expect.stringContaining(`posting-proposal-inbox`)),
+  );
+  expect(paths.at(-1)).toContain(`department=${id(9)}`);
+  expect(screen.queryByText(context.draft_reason)).not.toBeInTheDocument();
+  expect(await screen.findByText(/No \w+ proposals on this page/)).toBeInTheDocument();
+});
+
+it("reports a retired review department instead of locking the whole review account", async () => {
+  const changed = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    departmentReviewerFetch([], () =>
+      Response.json(
+        { error: "not_found", message: "Posting department not found." },
+        { status: 404 },
+      ),
+    ),
+  );
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={changed} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  expect(
+    await screen.findByText("Department retired. This access no longer applies."),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Recheck review departments" })).toBeEnabled();
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it("asks for a reload when the department structure moves under the inbox", async () => {
+  vi.stubGlobal(
+    "fetch",
+    departmentReviewerFetch([], () =>
+      Response.json(
+        { error: "department_scope_changed", message: "The department structure changed." },
+        { status: 409 },
+      ),
+    ),
+  );
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={() => {}} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  expect(
+    await screen.findByText(/The department structure changed. Reload the posting proposals./),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Retry proposals" })).toBeInTheDocument();
+});
+
 for (const status of [403, 503]) {
   it(`withholds protected rationale on ${status} and locks access only for current-authority denial`, async () => {
     const changed = vi.fn();
@@ -789,6 +942,7 @@ for (const status of [403, 503]) {
                 name: "Synthetic Hospital",
                 can_submit: false,
                 can_review: true,
+                departments: [],
               },
             ],
             page: { has_more: false, next_cursor: null },
@@ -847,6 +1001,7 @@ it("discards selected rationale when the original account changes", async () => 
                     name: "Synthetic Hospital",
                     can_submit: false,
                     can_review: true,
+                    departments: [],
                   },
                 ]
               : [],
@@ -903,6 +1058,7 @@ it("rejects the exact selected proposal only after mandatory rationale and sourc
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -993,6 +1149,7 @@ it("lets the original submitter withdraw using submission context and preserves 
               name: "Synthetic Hospital",
               can_submit: true,
               can_review: false,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -1105,6 +1262,7 @@ it("withholds a decision when the current employment-source owner is unavailable
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -1158,6 +1316,7 @@ it("keeps an unconfirmed command after a missing receipt and retries only its or
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -1243,6 +1402,7 @@ it("clears private rationale when a missing-receipt context recheck confirms rev
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },
@@ -1315,6 +1475,7 @@ it("requires guarded management context and explicit attestation before root app
               name: "Synthetic Hospital",
               can_submit: false,
               can_review: true,
+              departments: [],
             },
           ],
           page: { has_more: false, next_cursor: null },

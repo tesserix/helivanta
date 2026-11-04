@@ -67,20 +67,41 @@ func ScopedHospitalListRoute[T Keyed](r *Router, path string, permission authz.P
 	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlers(path, h)...)
 }
 
+// QueryFilter is one cursor-bound list filter and its normalized default.
+type QueryFilter struct{ Key, Default string }
+
 // ScopedHospitalQueryListRoute binds new cursors to the caller, hospital and one normalized filter.
 func ScopedHospitalQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam, queryKey, queryDefault string, maxLimit int, h ListHandler[T]) {
-	if queryKey == "" || queryKey == "cursor" || queryKey == "limit" || maxLimit < 1 || maxLimit > pagination.MaxLimit {
+	scope := queryCursorScope(hospitalParam, []QueryFilter{{Key: queryKey, Default: queryDefault}}, maxLimit)
+	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
+}
+
+// HandlerScopedQueryListRoute binds cursors to the caller, hospital and every filter; the handler proves hospital or department authority.
+func HandlerScopedQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, filters []QueryFilter, maxLimit int, h ListHandler[T]) {
+	scope := queryCursorScope(hospitalParam, filters, maxLimit)
+	r.handleHandlerScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
+}
+
+func queryCursorScope(scopeParam string, filters []QueryFilter, maxLimit int) func(*gin.Context, authn.Principal) string {
+	valid := scopeParam != "" && len(filters) > 0 && maxLimit >= 1 && maxLimit <= pagination.MaxLimit
+	for _, filter := range filters {
+		valid = valid && filter.Key != "" && filter.Key != "cursor" && filter.Key != "limit"
+	}
+	if !valid {
 		panic("platform: scoped query list requires a domain filter")
 	}
-	scope := func(c *gin.Context, p authn.Principal) string {
-		value := c.Query(queryKey)
-		if value == "" {
-			value = queryDefault
+	return func(c *gin.Context, p authn.Principal) string {
+		key := p.Subject + "\x00" + c.FullPath() + "\x00" + strings.ToLower(c.Param(scopeParam))
+		for _, filter := range filters {
+			value := c.Query(filter.Key)
+			if value == "" {
+				value = filter.Default
+			}
+			key += "\x00" + value
 		}
-		digest := sha256.Sum256([]byte(p.Subject + "\x00" + c.FullPath() + "\x00" + strings.ToLower(c.Param(hospitalParam)) + "\x00" + value))
+		digest := sha256.Sum256([]byte(key))
 		return hex.EncodeToString(digest[:])
 	}
-	r.handleHospitalScope("GET", path, permission, hospitalParam, true, listHandlersWithScope(path, h, scope, maxLimit)...)
 }
 
 // ScopedHospitalProjectionListRoute preserves list envelopes and legacy admission for opt-in scope consumers.

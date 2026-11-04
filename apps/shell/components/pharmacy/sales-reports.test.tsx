@@ -9,6 +9,7 @@ import {
   ReceiptsRegister,
   StockSales,
 } from "./sales-reports";
+import { chooseOption } from "../../test/select";
 
 const scope = {
   tenantId: "11111111-1111-1111-1111-111111111111",
@@ -77,9 +78,11 @@ describe("ItemSales", () => {
     const fetcher = serve([item]);
     renderWithProviders(<ItemSales scope={scope} period={period} />);
     await screen.findByRole("table", { name: "Sales by item" });
-    expect(String(fetcher.mock.calls[0]![0])).toContain(
-      "/reports/items?from=2026-11-01&to=2026-11-15",
-    );
+    expect(
+      fetcher.mock.calls.some(([url]) =>
+        String(url).includes("/reports/items?from=2026-11-01&to=2026-11-15"),
+      ),
+    ).toBe(true);
     const row = screen.getByRole("row", { name: /TEST Paracetamol/ });
     expect(row).toHaveTextContent("TEST-PCM-500, pack of 10 tablet");
     expect(row).toHaveTextContent("7 units for INR 88.50");
@@ -236,9 +239,11 @@ describe("StockSales", () => {
     ]);
     renderWithProviders(<StockSales scope={scope} period={period} />);
     await screen.findByRole("table", { name: "Sales and stock" });
-    expect(String(fetcher.mock.calls[0]![0])).toContain(
-      "/reports/stock-sales?from=2026-11-01&to=2026-11-15",
-    );
+    expect(
+      fetcher.mock.calls.some(([url]) =>
+        String(url).includes("/reports/stock-sales?from=2026-11-01&to=2026-11-15"),
+      ),
+    ).toBe(true);
     const row = screen.getByRole("row", { name: /TEST Paracetamol/ });
     expect(row).toHaveTextContent("TEST-PCM-500, pack of 10 tablet");
     expect(row).toHaveTextContent("721958");
@@ -252,5 +257,102 @@ describe("StockSales", () => {
     serve("fail");
     renderWithProviders(<StockSales scope={scope} period={period} />);
     expect(await screen.findByText("Could not load sales and stock.")).toBeVisible();
+  });
+});
+
+describe("the category filter (#988)", () => {
+  const category = (over: object) => ({
+    id: crypto.randomUUID(),
+    parent_id: null,
+    code: "ANTI",
+    name: "Antibiotics",
+    retired_at: null,
+    created_by: "user-editor",
+    created_at: "2026-11-01T05:00:00Z",
+    ...over,
+  });
+  const antibiotics = category({ id: "0199e000-0000-7000-8000-000000000501" });
+  const oral = category({
+    id: "0199e000-0000-7000-8000-000000000502",
+    parent_id: antibiotics.id,
+    code: "ORAL",
+    name: "Oral",
+  });
+  const analgesics = category({
+    id: "0199e000-0000-7000-8000-000000000503",
+    code: "ANAL",
+    name: "Analgesics",
+    retired_at: "2026-11-02T05:00:00Z",
+  });
+
+  function serveWithCategories(permissions: string[]) {
+    const page = (data: unknown[]) =>
+      new Response(JSON.stringify({ data, page: { next_cursor: null, has_more: false } }));
+    const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) => {
+      if (url.endsWith("permissions"))
+        return new Response(
+          JSON.stringify({ tenant_id: scope.tenantId, subject: "TEST-reader", data: permissions }),
+        );
+      if (url.includes("/catalogue/categories")) return page([antibiotics, oral, analgesics]);
+      return page([item]);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    return fetcher;
+  }
+  const reports = (fetcher: ReturnType<typeof serveWithCategories>, part: string) =>
+    fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes(part));
+
+  it("cuts sales by item by a category, then a subcategory, and drops it with the category", async () => {
+    const fetcher = serveWithCategories(["pharmacy.catalogue.read", "pharmacy.sale.read"]);
+    const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    const picker = await screen.findByRole("combobox", { name: "Category" });
+    expect(screen.queryByRole("combobox", { name: "Subcategory" })).toBeNull();
+    await user.click(picker);
+    expect(screen.getByRole("option", { name: "Analgesics (ANAL), retired" })).toBeVisible();
+    await user.keyboard("{Escape}");
+    await chooseOption(user, picker, "Antibiotics (ANTI)");
+    await waitFor(() =>
+      expect(reports(fetcher, "/reports/items").at(-1)).toContain(`&category_id=${antibiotics.id}`),
+    );
+    await chooseOption(user, screen.getByRole("combobox", { name: "Subcategory" }), "Oral (ORAL)");
+    await waitFor(() =>
+      expect(reports(fetcher, "/reports/items").at(-1)).toContain(
+        `&category_id=${antibiotics.id}&subcategory_id=${oral.id}`,
+      ),
+    );
+    await chooseOption(user, picker, "Analgesics (ANAL), retired");
+    await waitFor(() =>
+      expect(reports(fetcher, "/reports/items").at(-1)).toMatch(
+        new RegExp(`&category_id=${analgesics.id}$`),
+      ),
+    );
+    expect(screen.queryByRole("combobox", { name: "Subcategory" })).toBeNull();
+    await chooseOption(user, picker, "All categories");
+    await waitFor(() =>
+      expect(reports(fetcher, "/reports/items").at(-1)).toMatch(/to=2026-11-15$/),
+    );
+  });
+
+  it("cuts sales and stock by a category, and offers no picker without catalogue read", async () => {
+    const fetcher = serveWithCategories(["pharmacy.catalogue.read", "pharmacy.stock.read"]);
+    const { user, unmount } = renderWithProviders(<StockSales scope={scope} period={period} />);
+    await chooseOption(
+      user,
+      await screen.findByRole("combobox", { name: "Category" }),
+      "Antibiotics (ANTI)",
+    );
+    await waitFor(() =>
+      expect(reports(fetcher, "/reports/stock-sales").at(-1)).toContain(
+        `&category_id=${antibiotics.id}`,
+      ),
+    );
+    unmount();
+    // Not the last session's cached permissions: this reader never held catalogue read.
+    localStorage.clear();
+    const without = serveWithCategories(["pharmacy.stock.read"]);
+    renderWithProviders(<StockSales scope={scope} period={period} />);
+    await screen.findByRole("table", { name: "Sales and stock" });
+    expect(screen.queryByRole("combobox", { name: "Category" })).toBeNull();
+    expect(reports(without, "/catalogue/categories")).toHaveLength(0);
   });
 });

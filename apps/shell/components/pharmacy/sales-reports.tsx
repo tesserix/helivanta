@@ -13,19 +13,99 @@ import {
   type PharmacyPatientSaleLine,
   type PharmacyReceipt,
   type PharmacyReceiptKind,
+  type PharmacyReportCategory,
   type PharmacyScope,
   type PharmacyStockSales,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure } from "@helivanta/ui";
+import { Field, LoadMore, RequestFailure, SelectControl } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
 import { formatPharmacyMoney } from "./currency-amount-field";
+import { useItemCategories } from "./item-categories";
 import type { Period } from "./period";
+
+/**
+ * The item category, then subcategory, a report is cut by (#988). Retired
+ * categories are offered: past sales were made under them. Only for catalogue
+ * readers, who can list the categories; the API enforces nothing new.
+ */
+function CategoryFilter(props: {
+  scope: PharmacyScope;
+  id: string;
+  value: PharmacyReportCategory;
+  onChange: (value: PharmacyReportCategory) => void;
+}) {
+  const { can } = usePermissions();
+  return can("pharmacy.catalogue.read") ? <CategoryPickers {...props} /> : null;
+}
+
+function CategoryPickers({
+  scope,
+  id,
+  value,
+  onChange,
+}: {
+  scope: PharmacyScope;
+  id: string;
+  value: PharmacyReportCategory;
+  onChange: (value: PharmacyReportCategory) => void;
+}) {
+  const categories = useItemCategories(scope);
+  if (categories.isError)
+    return <RequestFailure message="Could not load the categories." retry={categories.retry} />;
+  const label = (c: { code: string; name: string; retired_at: string | null }) =>
+    `${c.name} (${c.code})${c.retired_at ? ", retired" : ""}`;
+  const subs = categories.items.filter((c) => value.categoryId && c.parent_id === value.categoryId);
+  return (
+    <div className="mt-2 grid gap-4 sm:grid-cols-2">
+      <Field id={`${id}-category`} label="Category">
+        <SelectControl
+          id={`${id}-category`}
+          value={value.categoryId ?? "all"}
+          // A subcategory belongs to one category: changing it drops the subcategory.
+          onValueChange={(v) => onChange(v === "all" ? {} : { categoryId: v })}
+          options={[
+            { value: "all", label: "All categories" },
+            ...categories.items
+              .filter((c) => c.parent_id === null)
+              .map((c) => ({ value: c.id, label: label(c) })),
+          ]}
+        />
+      </Field>
+      {value.categoryId && subs.length > 0 && (
+        <Field id={`${id}-subcategory`} label="Subcategory">
+          <SelectControl
+            id={`${id}-subcategory`}
+            value={value.subcategoryId ?? "all"}
+            onValueChange={(v) =>
+              onChange({
+                categoryId: value.categoryId,
+                ...(v === "all" ? {} : { subcategoryId: v }),
+              })
+            }
+            options={[
+              { value: "all", label: "All subcategories" },
+              ...subs.map((c) => ({ value: c.id, label: label(c) })),
+            ]}
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
 
 /** Sales by item over the period (#1060): sold, returned and net per product. */
 export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
+  const [category, setCategory] = useState<PharmacyReportCategory>({});
   const items = useApiPagedQuery<PharmacyItemSales>(
-    pharmacyKey(scope, "item-sales", period.from, period.to),
-    pharmacyItemSalesPath(scope, period.from, period.to),
+    pharmacyKey(
+      scope,
+      "item-sales",
+      period.from,
+      period.to,
+      category.categoryId ?? "",
+      category.subcategoryId ?? "",
+    ),
+    pharmacyItemSalesPath(scope, period.from, period.to, category),
   );
   return (
     <section className="mt-6" aria-labelledby="item-sales-heading">
@@ -33,15 +113,18 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
         Sales by item
       </h4>
       <p className="mt-1 text-sm text-muted-foreground">
-        Medicines only; service charges are in the daily totals above.
+        Medicines only; service charges are in the daily totals above. A sale counts under the
+        category its item had on the sale date, and a return under its sale&apos;s.
       </p>
+      <CategoryFilter scope={scope} id="item-sales" value={category} onChange={setCategory} />
       {items.isError ? (
         <RequestFailure message="Could not load sales by item." retry={items.retry} />
       ) : items.isPending ? (
         <p role="status">Loading sales by item…</p>
       ) : items.items.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          No items sold or returned from {period.from} to {period.to}.
+          No items sold or returned{category.categoryId && " in this category"} from {period.from}{" "}
+          to {period.to}.
         </p>
       ) : (
         <table className="mt-2 w-full text-sm" aria-label="Sales by item">
@@ -297,9 +380,17 @@ export function PatientSaleLines({
 
 /** Each product's sales over the period beside its stock now (#1060, legacy 755). */
 export function StockSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
+  const [category, setCategory] = useState<PharmacyReportCategory>({});
   const rows = useApiPagedQuery<PharmacyStockSales>(
-    pharmacyKey(scope, "stock-sales", period.from, period.to),
-    pharmacyStockSalesPath(scope, period.from, period.to),
+    pharmacyKey(
+      scope,
+      "stock-sales",
+      period.from,
+      period.to,
+      category.categoryId ?? "",
+      category.subcategoryId ?? "",
+    ),
+    pharmacyStockSalesPath(scope, period.from, period.to, category),
   );
   return (
     <section className="mt-6" aria-labelledby="stock-sales-heading">
@@ -307,15 +398,21 @@ export function StockSales({ scope, period }: { scope: PharmacyScope; period: Pe
         Sales and stock
       </h4>
       <p className="mt-1 text-sm text-muted-foreground">
-        Units sold and returned in the period, beside the stock held now.
+        Units sold and returned in the period, beside the stock held now. By category, a product is
+        listed under its category today, with only the sales made while it was in it.
       </p>
+      <CategoryFilter scope={scope} id="stock-sales" value={category} onChange={setCategory} />
 
       {rows.isError ? (
         <RequestFailure message="Could not load sales and stock." retry={rows.retry} />
       ) : rows.isPending ? (
         <p role="status">Loading sales and stock…</p>
       ) : rows.items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">No product has held stock yet.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {category.categoryId
+            ? "No product in this category today has held stock."
+            : "No product has held stock yet."}
+        </p>
       ) : (
         <table className="mt-2 w-full text-sm" aria-label="Sales and stock">
           <thead className="text-left text-muted-foreground">

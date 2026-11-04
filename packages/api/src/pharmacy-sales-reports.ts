@@ -48,8 +48,24 @@ export type PharmacyReceipt = {
 const period = (from: string, to: string) =>
   `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
-export function pharmacyItemSalesPath(scope: PharmacyScope, from: string, to: string) {
-  return `${pharmacyRoot(scope)}/reports/items?${period(from, to)}`;
+/**
+ * An item category, and optionally one of its subcategories, to cut sales by
+ * item and sales and stock by (#988). A sale counts under the category in
+ * force on its sale date; sales and stock lists products by today's.
+ */
+export type PharmacyReportCategory = { categoryId?: string; subcategoryId?: string };
+
+const byCategory = ({ categoryId, subcategoryId }: PharmacyReportCategory = {}) =>
+  (categoryId ? `&category_id=${encodeURIComponent(categoryId)}` : "") +
+  (categoryId && subcategoryId ? `&subcategory_id=${encodeURIComponent(subcategoryId)}` : "");
+
+export function pharmacyItemSalesPath(
+  scope: PharmacyScope,
+  from: string,
+  to: string,
+  category?: PharmacyReportCategory,
+) {
+  return `${pharmacyRoot(scope)}/reports/items?${period(from, to)}${byCategory(category)}`;
 }
 
 export function pharmacyReceiptsPath(scope: PharmacyScope, from: string, to: string) {
@@ -106,6 +122,11 @@ export function pharmacyPatientSalesPath(
   return `${pharmacyRoot(scope)}/reports/patient-sales?patient_id=${encodeURIComponent(patientId)}&${period(from, to)}`;
 }
 
-export function pharmacyStockSalesPath(scope: PharmacyScope, from: string, to: string) {
-  return `${pharmacyRoot(scope)}/reports/stock-sales?${period(from, to)}`;
+export function pharmacyStockSalesPath(
+  scope: PharmacyScope,
+  from: string,
+  to: string,
+  category?: PharmacyReportCategory,
+) {
+  return `${pharmacyRoot(scope)}/reports/stock-sales?${period(from, to)}${byCategory(category)}`;
 }

@@ -26,31 +26,32 @@ const proposal = {
 };
 afterEach(() => vi.unstubAllGlobals());
 
-it.each(["workforce.posting_reader.v1", "workforce.posting_preparer.v1"])(
-  "reads %s through the bounded posting assignment list",
-  async (template_key) => {
-    const posting = { ...proposal, input: { ...input, template_key } };
-    const fetch = vi
-      .fn()
-      .mockResolvedValue(
-        Response.json({ data: [posting], page: { has_more: false, next_cursor: null } }),
-      );
-    vi.stubGlobal("fetch", fetch);
-    const result = await listStaffAssignments(
-      { tenantId, subject: "reviewer" },
-      { family: "posting", cursor: "opaque+/=" },
+it.each([
+  "workforce.posting_reader.v1",
+  "workforce.posting_preparer.v1",
+  "workforce.posting_management_reviewer.v1",
+])("reads %s through the bounded posting assignment list", async (template_key) => {
+  const posting = { ...proposal, input: { ...input, template_key } };
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json({ data: [posting], page: { has_more: false, next_cursor: null } }),
     );
-    expect(result.data).toEqual([posting]);
-    const [url, options] = fetch.mock.calls[0]!;
-    const parsed = new URL(url, "https://example.invalid");
-    expect(parsed.pathname).toBe("/api/v1/iam/posting-assignment-proposals");
-    expect(parsed.searchParams.get("limit")).toBe("50");
-    expect(parsed.searchParams.get("cursor")).toBe("opaque+/=");
-    expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenantId);
-    expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe("reviewer");
-    expect(options.cache).toBe("no-store");
-  },
-);
+  vi.stubGlobal("fetch", fetch);
+  const result = await listStaffAssignments(
+    { tenantId, subject: "reviewer" },
+    { family: "posting", cursor: "opaque+/=" },
+  );
+  expect(result.data).toEqual([posting]);
+  const [url, options] = fetch.mock.calls[0]!;
+  const parsed = new URL(url, "https://example.invalid");
+  expect(parsed.pathname).toBe("/api/v1/iam/posting-assignment-proposals");
+  expect(parsed.searchParams.get("limit")).toBe("50");
+  expect(parsed.searchParams.get("cursor")).toBe("opaque+/=");
+  expect(new Headers(options.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenantId);
+  expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe("reviewer");
+  expect(options.cache).toBe("no-store");
+});
 
 it("keeps activation assignments in their own bounded list", async () => {
   const activation = {

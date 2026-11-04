@@ -1,5 +1,42 @@
 # Staff Management delivery tracker
 
+## Guard deployed; management catalog isolated — 2026-11-04
+
+The five-file scoped-command guard [#1561](https://github.com/tesserix/helivanta/pull/1561)
+is merged and deployed as `09e0f49c`. The user explicitly approved that exact
+revision and cumulative `0030_pharmacy`; the successful migration changed the
+ledger **224 → 225**, adding exactly that ID and removing nothing. Kargo promotion
+`prod.01m6jj7k38hbjkwy82q5z86pwc.ad730a1` succeeded. API, Global API, shell and all
+four application workers are ready/updated/available **2/2** at the exact revision;
+all three Argo applications are Synced/Healthy, Kargo is Healthy, public home/login
+return 200 and unauthenticated Staff scope access returns 401. Repository visibility
+remains PUBLIC. See [release evidence](../deployment/releases/2026-11-04-three-scoped-command-grants.json).
+This is prerequisite deployment, not full Staff or positive-review UI acceptance.
+
+The next bounded increment isolates `staff-posting-management-v1`, its single
+new template and `0026_iam_staff_posting_management_templates`. Every previous
+catalog remains unchanged. No authority is automatically assigned, no root approval
+consumer is added and there is no operating/clinical/Pharma activation. The source
+and tests match the candidate IAM package whose complete native race suite passes
+in **459.661s**, including projection recovery; the isolated SDK suite passes
+**635 tests / 78 files**. Canonical generation and operational inventory checks pass
+(**809 surfaces, 786 unclassified**, no runtime acceptance asserted). Classified
+source pins were refreshed only after exact checks proved the Workforce changes
+are a constant/permission registration and the IAM changes are embed/migration
+registration; existing handler bodies and authority classifications are unchanged.
+
+This independent catalog PR is based on `3fd8aadf`, preserving the separately merged
+department-scope guard #1562. Root submission/review UI remains in checkpoint
+`4195e4a0` and its own isolated worktree. Its positive/context/self-denial tests pass
+in 53.252s; a missing management-disclosure-audit mutation is caught (200 instead of
+required 500), exact source is restored and green tests pass in **51.899s**. The full
+Workforce race suite passes in **542.081s**. Global API has been restarted after a
+test-file-list compilation error caused by adding a helper while the prior command
+was running; no Global API full-suite pass is claimed. Its added root evidence/
+audit/outbox rollback checks are included in that run. Real-account reviewer UI, bounded supervisor chains
+and lifecycle enforcement remain open. Counts stay **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## Department-scope guard built — 2026-11-04
 
 ADR-0055 is accepted. Organization now has `authz.DepartmentScopeGuard`, the

@@ -97,6 +97,14 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
   },
+  {
+    key: "workforce.posting_management_reviewer.v1",
+    name: "Staff posting management reviewer",
+    description:
+      "Attest hospital management intent alongside a separate independent posting reviewer assignment; no submission, operating or clinical authority.",
+    family: "posting",
+    permissions: ["workforce.posting.management.review", "workforce.staff_actor.use"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -146,5 +154,18 @@ export const staffAccessTemplateCatalogs = {
     "workforce.posting_preparer.v1",
     "workforce.posting_submitter.v1",
     "workforce.posting_reviewer.v1",
+  ],
+  "staff-posting-management-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
+    "workforce.posting_submitter.v1",
+    "workforce.posting_reviewer.v1",
+    "workforce.posting_management_reviewer.v1",
   ],
 } as const;

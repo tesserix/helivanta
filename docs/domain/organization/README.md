@@ -121,7 +121,7 @@ implementation facts do not establish acceptance of the full target model.
 
 ## Open decisions
 
-Agents must not settle these silently. Record the decision in an ADR before building on it. [ADR-0044](../../adr/0044-organization-structure-and-access-defaults.md) accepted ORG-D1, ORG-D3, ORG-D4 and ORG-D7 as recommended.
+Agents must not settle these silently. Record the decision in an ADR before building on it. [ADR-0044](../../adr/0044-organization-structure-and-access-defaults.md) accepted ORG-D1, ORG-D3, ORG-D4 and ORG-D7 as recommended. [ADR-0054](../../adr/0054-typed-employing-establishments.md) proposes ORG-D8.
 
 | ID     | Decision                                                                                                                   | Recommendation                                                                                                                                       |
 | ------ | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -132,6 +132,8 @@ Agents must not settle these silently. Record the decision in an ADR before buil
 | ORG-D5 | Who may publish a workflow that changes a clinical or medication process                                                   | A tenant clinical-governance approver in addition to the workflow publisher                                                                          |
 | ORG-D6 | Whether tenants may define new permissions                                                                                 | No. Tenants compose templates from platform-declared permissions; new actions arrive with code                                                       |
 | ORG-D7 | How a tenant with a single owner satisfies second-person approval for privileged grants, and how owner access is recovered | Accepted: Require two owners for multi-hospital tenants; single-owner grants notify every owner and enter review, and recovery uses verified support |
+| ORG-D8 | Who employs staff of a pharmacy business that is not part of a hospital, and what their postings reference                 | Proposed (ADR-0054): an independent or chain pharmacy organization is a typed Workforce establishment; postings reference its Pharma outlets         |
+| ORG-D9 | How a multi-branch employer groups branches into areas or regions for supervision                                          | Open. Until decided, area managers hold establishment-root management and no area-scoped authority exists                                            |
 
 ## Accepted Staff lifecycle migration policy
 

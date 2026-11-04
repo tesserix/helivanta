@@ -1,5 +1,25 @@
 # Staff Management delivery tracker
 
+## Standalone pharmacy employer design proposed — 2026-11-04
+
+[ADR-0054](../adr/0054-typed-employing-establishments.md) and its
+[specification](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md)
+propose how a standalone pharmacy employs staff (#19). The `independent` or
+`chain` pharmacy organization becomes a typed Workforce establishment, and staff
+are posted to its Pharma outlets. A hospital-run pharmacy stays
+hospital-employed.
+
+Source checks behind the decision:
+
+- 126 of 132 Workforce tables key on `hospital_id`.
+- IAM scope kinds are `hospital` and `staff` only.
+- Pharma organization and outlet rows are immutable.
+
+This is documentation only and awaits product-owner acceptance. No migration,
+route, permission or event is added. ORG-D8 is proposed; ORG-D9 (area and
+region grouping) stays open. Counts remain **10 partial, 10 awaiting audit, 1
+research, 0 fully accepted**.
+
 ## Reviewer terminal decisions deployed — 2026-11-04
 
 [#1547](https://github.com/tesserix/helivanta/pull/1547) merged as `e7588e65` after

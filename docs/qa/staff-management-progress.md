@@ -15,8 +15,14 @@ The real Global API root-reviewer/root-approval/chain trio passes in **88.713s**
 ended root/child approvals conflict, pending state and committed effects remain
 unchanged, no receipt is created, and independent rejection succeeds. Existing
 root-to-supervisor-to-descendant-member approvals, rollback and exact recovery
-remain in that passing run. Go vet/scoped lint pass. Final full native suites
-are running; no migration was added or rewritten for this deadline fix. The root
+remain in that passing run. Go vet/scoped lint/build pass. The final full native Global API race suite
+passes **488.094s / 166 tests and subtests** at the shared-fix source `b172333b`.
+The focused Workforce posting race suite passes **11.055s / 74 tests and
+subtests**. Canonical generation, contractdocs, operational inventory and staged
+secret checks pass. Cached Node dependencies were reused without installation;
+no dependency download was needed. Earlier full Workforce/architecture results
+above precede this deadline fix. Current source is unchanged by subsequent
+parent/documentation merges; no migration was added or rewritten for this deadline fix. The root
 branch includes current main and its independent Pharmacy0033 migration; no newer
 production rollout is approved. Independent-account UI, canonical supervisor
 choices/protected chain context, further lifecycle/operating consumers and final
@@ -43,7 +49,7 @@ Types, full shell lint, scoped Go lint/vet/build, staged secret scan and
 contractdocs check pass. Current main's independent Pharmacy changes are integrated
 with regenerated contract/inventory checks (**818 surfaces / 795 unclassified**),
 without granting additional runtime acceptance. Root/chain candidates remain
-unmerged and undeployed. Supervisor chain validation must receive the same fix. Actual independent-account browser
+unmerged and undeployed. Supervisor chain validation now shares the deadline check recorded above. Actual independent-account browser
 acceptance and operating/lifecycle enforcement remain open. Overall counts remain
 **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 

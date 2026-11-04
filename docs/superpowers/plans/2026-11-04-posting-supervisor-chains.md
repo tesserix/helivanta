@@ -107,4 +107,45 @@ is followed by a passing root/reviewer/chain trio (88.713s). Commands constrain
 commit by nominal end without rewriting retained source-cutoff evidence. The
 first merge run caught a missing explicit root expiry check (403 instead of409);
 that integration error was corrected before the successful child regression.
-Final full native suites remain pending after this change.
+The final full native Global API race suite passes **488.094s /166 tests and
+subtests**, and the focused Workforce posting race suite passes **11.055s /74
+tests and subtests** at the shared-fix source `b172333b`. Current build/vet/scoped
+lint, contractdocs, canonical Workforce generator, inventory and secret checks
+pass. The focused command is `go test -race -count=1 -timeout=20m -json
+./internal/modules/workforce -run Posting`; the full Global API command uses the
+same flags without `-run`. Existing full Workforce and architecture evidence
+above belongs to the preceding integrated source; it was not rerun in full for
+the nominal-end fix. UI acceptance and further chain contract/lifecycle coverage
+remain open.
+
+
+## Next UI slice: source-verified constraints
+
+`posting_inbox.go` provides a bounded approved-proposal inbox with canonical Staff
+labels, but its public receipt omits supervision intent and includes ordinary
+members. It cannot be relabeled as an eligible-supervisor picker. Discovery must
+identify retained root/department-supervisor references as hints; the selected
+chain still needs current owner validation against the exact child revision.
+
+`posting_context.go` is private decision context, and its existing strict v1 shape
+must remain compatible. Do not fetch an ancestor's private decision context to
+construct a chain: its submitter/reviewer independence is unrelated to the child,
+and ancestor rationale is not needed for disclosure. New chain review projection
+must explicitly version/select its wire contract and disclose only bounded
+canonical Staff/posting/scope/interval/source evidence (at most32 postings).
+
+`organization/posting_choices.go` is an active current-head directory with strict
+50-item pagination and no ID/revision lookup. Organization remains the owner of
+department labels. The current ancestry guard provides IDs, not names; a UUID or
+ancestry hint does not authorize name disclosure. Resolve a bounded owner label
+projection before promising a complete named chain. Do not query Organization
+storage from Workforce, silently page without bounds, or fabricate missing labels.
+
+Existing closed submitter/reviewer templates already carry posting.read and
+organization.posting_choices.read. Staff labels must additionally require current
+posting.read alongside the appropriate preparation/review capability and Staff
+actor use, rather than assuming role templates or ordinary approval imply read
+authority. No new role expansion is currently justified. Actual positive-role
+browser acceptance remains required after the projection and picker are built.
+These are research constraints; no new endpoint or production policy is approved
+by this note.

@@ -14,8 +14,8 @@ expiry, a click crossing the end boundary, and receipt recovery after an uncerta
 approval. Existing source mismatch and unknown-outcome behavior remain covered.
 The full native Global API race suite for the root-fix binary passes in
 **603.998s**; it was compiled from `5f48b0f9` before integrating newer main.
-The full shell run passes **1,505 tests**; it overlapped main reconciliation,
-so a stable-source rerun is required before claiming exact-revision evidence.
+A preliminary shell run passed 1,505 tests while main was reconciled; the
+stable-source rerun at `2fbe5130` passes **1,514 tests / 182 files** in **373.59s**.
 Types, full shell lint, scoped Go lint/vet/build, staged secret scan and
 contractdocs check pass. Current main's independent Pharmacy changes are integrated
 with regenerated contract/inventory checks (**818 surfaces / 795 unclassified**),

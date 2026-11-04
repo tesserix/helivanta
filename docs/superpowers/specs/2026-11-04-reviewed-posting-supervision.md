@@ -88,6 +88,25 @@ No extra Staff personal evidence or ancestor private rationale is copied into a
 public receipt/event. Context exposes only bounded, necessary chain references,
 current state, reviewed department identities and source cutoffs.
 
+Management approval readiness uses the same retained envelope with the additional
+explicit selector `management_review=current`. It is legal only with
+`supervision_context=v1` and `purpose=review`. The request reserves ordinary
+review, current Staff actor use and management review together before Workforce
+locks; missing permission returns 403 and dependency failure returns 503. It
+performs the same exact-version, purpose and independence checks and audits
+`context_read_management_review` before disclosure. There is no new response
+field, grant identifier or copied Staff evidence. Default and supervision-only
+reads retain their existing two-check admission and strict shapes.
+
+The SDK exposes a separate management-context getter and cache key. Existing
+getters reject supplied management flags rather than silently discarding them.
+The reviewer UI obtains this guarded view before offering the management
+attestation form; approval still rechecks all three permissions and current
+sources at commit. A successful readiness read never grants an operating role.
+The inherited 50 peak requests/s, 80:20 read/write, 20KiB response cap and p99
+below 500ms remain unmeasured planning targets. The existing 1024-byte query budget
+and bounded envelope apply; there is no additional service, cache or datastore.
+
 A new optional decision attestation `hospital_management_reviewed` is false when
 omitted and may be true only on approval. A true attestation selects the extra
 management assignment before any Workforce row locks. The stored intent is

@@ -6,7 +6,8 @@ import { Field, Panel, SelectControl, useConfirmLeave } from "@helivanta/ui";
 import {
   useStaffPostingReviewScopes,
   useStaffPostingProposalInbox,
-  useStaffPostingProposalContext,
+  useStaffPostingSupervisionContext,
+  useStaffPostingManagementReviewContext,
   type EnrollmentRequestScope,
   type StaffPostingInboxScope,
   type StaffPostingInboxItem,
@@ -285,9 +286,11 @@ function HospitalPostingReviews({
           onCompleted={(row) => {
             setSelected(null);
             setNotice(
-              row.status === "rejected"
-                ? "Posting proposal rejected."
-                : "Posting proposal withdrawn.",
+              row.status === "approved"
+                ? "Posting proposal approved."
+                : row.status === "rejected"
+                  ? "Posting proposal rejected."
+                  : "Posting proposal withdrawn.",
             );
             void inbox.refetch();
           }}
@@ -343,12 +346,20 @@ function PostingProposalDetail({
   onClose: () => void;
   onContextChanged: () => void;
 }) {
-  const context = useStaffPostingProposalContext(
+  const [managementReview, setManagementReview] = useState(false);
+  const supervision = useStaffPostingSupervisionContext(
     { ...scope, staffId: item.staff.id },
     item.proposal,
     item.is_submitter ? "submission" : "review",
     busy,
   );
+  const management = useStaffPostingManagementReviewContext(
+    { ...scope, staffId: item.staff.id },
+    item.proposal,
+    managementReview,
+    busy,
+  );
+  const context = managementReview ? management : supervision;
   const confirmLeave = useConfirmLeave();
   const cutoff = useStaffAccessCutoff([context.error], onContextChanged);
   return (
@@ -370,35 +381,95 @@ function PostingProposalDetail({
         </div>
       ) : (
         <>
+          <Panel as="div" className="space-y-2">
+            <h4 className="font-medium">Managerial responsibility</h4>
+            <p>
+              {context.data.supervision
+                ? (
+                    {
+                      hospital_management: "Hospital management",
+                      department_supervisor: "Department supervisor",
+                      department_member: "Department member",
+                    } as const
+                  )[context.data.supervision.kind]
+                : "Not specified"}
+            </p>
+            {context.data.supervision &&
+              context.data.supervision.kind !== "hospital_management" && (
+                <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                  <div className="min-w-0">
+                    <dt className="text-muted-foreground">Requested supervisor Staff</dt>
+                    <dd className="break-all">{context.data.supervision.supervisor_staff_id}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-muted-foreground">Requested supervisor posting</dt>
+                    <dd className="break-all">{context.data.supervision.supervisor_proposal_id}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-muted-foreground">Requested supervisor revision</dt>
+                    <dd className="break-all">{context.data.supervision.supervisor_revision_id}</dd>
+                  </div>
+                </dl>
+              )}
+            {context.data.supervision?.kind === "hospital_management" && (
+              <p className="text-sm text-muted-foreground">
+                Independent management review is required. Approval does not grant operating or
+                clinical access.
+              </p>
+            )}
+            {action === "reject" &&
+              item.proposal.status === "pending" &&
+              context.data.supervision?.kind === "hospital_management" &&
+              !managementReview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setManagementReview(true)}
+                >
+                  Review hospital management approval
+                </Button>
+              )}
+            {managementReview && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => setManagementReview(false)}
+              >
+                Back to proposal review
+              </Button>
+            )}
+          </Panel>
           <dl className="grid gap-4 sm:grid-cols-2">
             <div>
               <dt className="text-sm text-muted-foreground">Draft rationale</dt>
-              <dd className="break-words">{context.data.draft_reason}</dd>
+              <dd className="break-words">{context.data.context.draft_reason}</dd>
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Submission rationale</dt>
-              <dd className="break-words">{context.data.submission_reason}</dd>
+              <dd className="break-words">{context.data.context.submission_reason}</dd>
             </div>
-            {context.data.decision_reason && (
+            {context.data.context.decision_reason && (
               <div>
                 <dt className="text-sm text-muted-foreground">Decision rationale</dt>
-                <dd className="break-words">{context.data.decision_reason}</dd>
+                <dd className="break-words">{context.data.context.decision_reason}</dd>
               </div>
             )}
             <div>
               <dt className="text-sm text-muted-foreground">Submitted department reference</dt>
-              <dd className="break-all">{context.data.proposal.department_id}</dd>
+              <dd className="break-all">{context.data.context.proposal.department_id}</dd>
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Submitted department revision</dt>
-              <dd className="break-all">{context.data.proposal.department_revision_id}</dd>
+              <dd className="break-all">{context.data.context.proposal.department_revision_id}</dd>
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">Proposed placement (UTC)</dt>
               <dd>
-                {new Date(context.data.proposal.starts_at).toISOString()} ·{" "}
-                {context.data.proposal.ends_at
-                  ? new Date(context.data.proposal.ends_at).toISOString()
+                {new Date(context.data.context.proposal.starts_at).toISOString()} ·{" "}
+                {context.data.context.proposal.ends_at
+                  ? new Date(context.data.context.proposal.ends_at).toISOString()
                   : "Ongoing"}
               </dd>
             </div>
@@ -407,13 +478,14 @@ function PostingProposalDetail({
       )}
       {context.data && !cutoff && (
         <PostingProposalDecision
+          key={managementReview ? "management" : "ordinary"}
           scope={{ ...scope, staffId: item.staff.id }}
-          proposal={context.data.proposal}
+          proposal={context.data.context.proposal}
           contextAvailable={context.isSuccess && !context.isFetching}
           onContextRecheck={() => {
             void context.refetch();
           }}
-          action={action}
+          action={managementReview ? "approve" : action}
           busy={busy}
           onBusy={onBusy}
           onCompleted={onCompleted}

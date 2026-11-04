@@ -125,6 +125,7 @@ type StaffPostingProposalContextRequest struct {
 	ExpectedVersion    *int64    `json:"expected_version"`
 	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
 	SupervisionContext *string   `json:"supervision_context,omitempty"`
+	ManagementReview   *string   `json:"management_review,omitempty"`
 }
 
 type StaffPostingProposalContext struct {

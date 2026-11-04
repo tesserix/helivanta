@@ -7,6 +7,8 @@ import {
 } from "./staff-posting-workspace";
 import {
   getStaffPostingProposalContext,
+  getStaffPostingSupervisionContext,
+  getStaffPostingManagementReviewContext,
   getStaffPostingReviewSource,
   listStaffPostingProposalInbox,
   staffPostingProposalsKey,
@@ -187,5 +189,68 @@ export function useStaffPostingReviewSource(scope: StaffPostingProposalScope, bu
     refetchOnWindowFocus: !busy,
     queryKey: [...staffPostingProposalsKey(scope), "review-source"],
     queryFn: ({ signal }) => getStaffPostingReviewSource(scope, signal),
+  });
+}
+
+export function useStaffPostingSupervisionContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  purpose: "review" | "submission",
+  busy = false,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "supervision-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+      purpose,
+    ],
+    queryFn: ({ signal }) =>
+      getStaffPostingSupervisionContext(
+        scope,
+        proposal.id,
+        { purpose, expected_version: proposal.version, expected_revision_id: proposal.revision_id },
+        signal,
+      ),
+  });
+}
+
+export function useStaffPostingManagementReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  enabled: boolean,
+  busy = false,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    enabled,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "management-review-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+      "review",
+    ],
+    queryFn: ({ signal }) =>
+      getStaffPostingManagementReviewContext(
+        scope,
+        proposal.id,
+        {
+          purpose: "review",
+          expected_version: proposal.version,
+          expected_revision_id: proposal.revision_id,
+        },
+        signal,
+      ),
   });
 }

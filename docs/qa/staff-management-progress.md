@@ -1,5 +1,47 @@
 # Staff Management delivery tracker
 
+## Incremental management review UI checkpoint — 2026-11-04
+
+Prerequisite [#1559](https://github.com/tesserix/helivanta/pull/1559) is merged
+as `5cc7fa4c`; every required check, including full Go coverage, passed.
+The five-file guard [#1561](https://github.com/tesserix/helivanta/pull/1561)
+is merged as `09e0f49c` after every GitHub check passed. Its final isolated native
+Linux integration pair passes with the race detector in **46.496s**, preserving
+all nine existing QA services. Its exact-session fixtures were reaped normally.
+No VM restart or broad cleanup was needed. The first
+native attempt stopped before tests because two Linux-only modules were absent
+from the cache; those exact pinned modules were cached before the offline rerun.
+
+The candidate adds normal hospital-management submission and approval controls,
+retained supervisor references, explicit management attestation and a separately
+guarded management-context read. Default context envelopes remain compatible;
+the management selector requires review purpose and supervision opt-in. It checks
+three current scoped grants before Workforce locks and audits private disclosure.
+Approval continues to report `grants_access=false`. Department-chain approval and
+operating/lifecycle enforcement are separate remaining increments.
+
+Observed RED→GREEN checks cover selector validation, SDK management-context
+transport, accidental selector discard, missing approval/submission controls and
+supervisor references. Candidate validation passed: SDK 647 tests/78 files,
+shell 1,477 tests/180 files, focused reviewer/submission 33 tests, focused Go
+input/selector race checks, types, scoped lint, Go build/vet and contractdocs.
+The isolated frontend production build passed with a build-only Turbopack root
+override for external cached dependency symlinks; that override is not product
+source and must not be committed. Extended real-service approval/context and
+fully entitled self-denial assertions now pass with real dependencies and the race
+detector in **53.252s**. This includes unchanged bounded context, separate grant
+admission, missing attestation, fully entitled self-denial, terminal context denial
+and exact-command retry. The full candidate IAM race suite is now running to
+resolve the earlier projection-recovery failure; no full-suite pass is claimed.
+
+Read-only production discovery confirms account `unidevidp@gmail.com`, project
+`tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+API, Global API and shell remain ready 2/2 at `f4799d63`; Kargo reports Healthy.
+This is existing deployment health, not deployment of the candidate. The public
+repository remains PUBLIC. No new production promotion or migration has occurred
+at this checkpoint. Real-account browser acceptance remains pending sign-in.
+Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## Root approval API checkpoint — 2026-11-04
 
@@ -197,8 +239,6 @@ root approval; exact supervisor/descendant approval; normal selection/review UI;
 current-source lifecycle and transfer enforcement; every departmental/Pharma
 consumer and standalone employer acceptance. #417/#418/#429 remain OPEN. Full
 Staff counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
-
-
 
 ## Merged posting increments and next input checkpoint — 2026-11-04
 

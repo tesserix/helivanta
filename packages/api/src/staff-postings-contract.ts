@@ -417,6 +417,7 @@ export const StaffPostingProposalContextRequestContract = z
     expected_version: z.number().int().min(1).max(9007199254740990),
     expected_revision_id: identifier,
     supervision_context: z.enum(["v1"]).optional(),
+    management_review: z.enum(["current"]).optional(),
   })
   .strict();
 export type StaffPostingProposalContextRequest = z.infer<

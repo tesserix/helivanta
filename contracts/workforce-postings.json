@@ -485,6 +485,12 @@
         "type": "string",
         "enum": ["v1"],
         "optional": true
+      },
+      {
+        "name": "management_review",
+        "type": "string",
+        "enum": ["current"],
+        "optional": true
       }
     ],
     "StaffPostingProposalContext": [

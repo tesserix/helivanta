@@ -407,7 +407,6 @@ ledger 220→223. #1547 added no migrations. Rollback preserves additive schema 
 history; a compensating change needs separate review. No positive operating
 activation is established by these releases.
 
-
 ## Normal submission UI — candidate, browser acceptance open
 
 The next UI slice adds submission from the normal posting review workspace only
@@ -475,7 +474,8 @@ the envelope and all existing nested source checks. Its legacy context getter
 rejects the new transport selector rather than silently discarding it.
 
 This branch is unfinished and is not a production release or normal UI acceptance.
-Root-management capability, positive approval, normal selection/review UI,
+Root-management capability, positive approval and normal selection/review UI are
+implemented in the candidate described below. Real-account browser acceptance,
 operating lifecycle consumers and full Staff acceptance remain open.
 
 ### Separate management-review capability — unpublished candidate
@@ -492,7 +492,8 @@ assignment. All old SQL files, definition digests and catalogs remain frozen.
 The focused real OpenFGA scope/projection test covers durable acknowledgement,
 withdrawal, membership revocation, dependency failure, wrong subject/hospital and
 compound command guards. This capability is not yet connected to positive
-approval or normal UI. Full IAM suite acceptance is pending test-VM recovery;
+approval or normal UI in the released application. The candidate below connects
+both. Full IAM suite acceptance is pending;
 source schema generation and focused success are not deployment acceptance.
 
 ### Hospital-management root approval — unpublished candidate
@@ -506,8 +507,8 @@ commit; the shared IAM/authz guard accepts at most three distinct exact checks.
 The explicit decision field `hospital_management_reviewed=true` selects the extra
 management check before Workforce locks. Missing authority denies403; omitted or
 false attestation retains409 `posting_supervision_required` and consumes no command.
-The SDK permits an explicit attested approval and validates an `approved` receipt;
-the released review UI still requires a separate implementation and acceptance.
+The SDK permits an explicit attested approval and validates an `approved` receipt.
+The candidate review UI described below requires separate browser acceptance.
 
 The target's locked Staff version, employment epoch, reviewed generation, nominal
 interval and effective cutoff must still match. Organization holds the current
@@ -525,3 +526,34 @@ These focused tests do not establish complete negative/race coverage, normal UI
 acceptance, lifecycle enforcement or production deployment. The full IAM recovery
 failure and the remaining obligations are tracked in
 [Staff progress](../qa/staff-management-progress.md).
+
+### Normal management review UI — unpublished candidate
+
+Submission explicitly offers hospital management responsibility and retains that
+typed intent with its immutable command through uncertain outcomes and exact
+retry. Omitted legacy intent remains compatible but cannot be approved. Review
+shows the retained responsibility and, for non-root requests, the requested
+supervisor Staff/posting/revision references.
+
+Only pending hospital-management intent offers the management approval action.
+Before showing its form, the client requests the bounded supervision envelope
+with `purpose=review`, `supervision_context=v1` and
+`management_review=current`, retaining the exact proposal version/revision.
+The last selector is invalid without the first two. Duplicate, unknown, empty or
+extra selectors return 400. The owner reserves ordinary review, current Staff
+actor and separate management-review authority before taking Workforce locks;
+the callback must contain the exact management grant. Self/submitter review is
+denied. Terminal or non-management intent cannot supply this context.
+
+The response shape is unchanged. Its private disclosure audit records
+`context_read_management_review` and the current management assignment ID/version;
+these are not added to the public envelope. The SDK exposes a separate
+`getStaffPostingManagementReviewContext` and rejects management selectors in its
+ordinary getters. Query state is pinned to the current account, hospital and
+proposal revision, with no retained cache lifetime.
+
+Approval requires a matching current employment source, source-examination
+attestation, explicit independent management-review attestation and rationale.
+An uncertain command retains its exact payload for receipt recovery/retry.
+Denied or unavailable context offers no approval form. Component/SDK checks do
+not establish real-account browser, deployment or lifecycle acceptance.

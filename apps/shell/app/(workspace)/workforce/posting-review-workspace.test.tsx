@@ -88,6 +88,13 @@ function renderReview(ui: ReactElement) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
+function postingContextResponse(url: string, value: unknown, supervision: unknown = null) {
+  const query = new URL(url, "http://localhost").searchParams;
+  return Response.json(
+    query.get("supervision_context") === "v1" ? { context: value, supervision } : value,
+  );
+}
+
 function submissionResponse(url: string, init?: RequestInit): Response {
   if (init?.method === "PUT")
     return Response.json({
@@ -117,6 +124,45 @@ function submissionResponse(url: string, init?: RequestInit): Response {
     page: { has_more: false, next_cursor: null },
   });
 }
+function reviewerResponse(url: string, supervision: unknown, visible = true): Response {
+  if (url.includes("posting-review-scopes"))
+    return Response.json({
+      data: [
+        { hospital_id: hospital, name: "Synthetic Hospital", can_submit: false, can_review: true },
+      ],
+      page: { has_more: false, next_cursor: null },
+    });
+  if (url.includes("posting-proposal-inbox"))
+    return Response.json({
+      data: visible
+        ? [
+            {
+              proposal,
+              staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+              is_submitter: false,
+            },
+          ]
+        : [],
+      page: { has_more: false, next_cursor: null },
+    });
+  if (url.endsWith("posting-review-source")) return Response.json(source);
+  if (url.includes("/context?")) return postingContextResponse(url, context, supervision);
+  throw new Error(`Unexpected request: ${url}`);
+}
+
+async function openReviewer() {
+  const rendered = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={() => {}} />,
+  );
+  await rendered.user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await rendered.user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  return rendered;
+}
+
 async function openSubmission(onContextChanged = () => {}, ui?: ReactElement) {
   const rendered = renderReview(
     ui ?? <StaffPostingReviewWorkspace scope={scope} onContextChanged={onContextChanged} />,
@@ -696,7 +742,7 @@ it("discovers reviewer hospitals and opens only the selected exact-head protecte
           ],
           page: { has_more: false, next_cursor: null },
         });
-      if (url.includes("/context?")) return Response.json(context);
+      if (url.includes("/context?")) return postingContextResponse(url, context);
       throw new Error(`Unexpected request: ${url}`);
     }),
   );
@@ -816,7 +862,7 @@ it("discards selected rationale when the original account changes", async () => 
           ],
           page: { has_more: false, next_cursor: null },
         });
-      return Response.json(context);
+      return postingContextResponse(url, context);
     }),
   );
   function AccountHarness() {
@@ -874,7 +920,7 @@ it("rejects the exact selected proposal only after mandatory rationale and sourc
           page: { has_more: false, next_cursor: null },
         });
       if (url.endsWith("posting-review-source")) return Response.json(source);
-      if (url.includes("/context?")) return Response.json(context);
+      if (url.includes("/context?")) return postingContextResponse(url, context);
       if (init?.method === "PUT" && url.includes("/decisions/")) {
         const input = JSON.parse(String(init.body));
         writes.push({ url, input });
@@ -964,7 +1010,8 @@ it("lets the original submitter withdraw using submission context and preserves 
           page: { has_more: false, next_cursor: null },
         });
       if (url.endsWith("posting-review-source")) return Response.json(source);
-      if (url.includes("/context?")) return Response.json({ ...context, purpose: "submission" });
+      if (url.includes("/context?"))
+        return postingContextResponse(url, { ...context, purpose: "submission" });
       if (url.includes("/decisions/")) {
         if (init?.method === "PUT") {
           receipt = {
@@ -1077,7 +1124,7 @@ it("withholds a decision when the current employment-source owner is unavailable
           { error: "unavailable", message: "Synthetic unavailable source" },
           { status: 503 },
         );
-      return Response.json(context);
+      return postingContextResponse(url, context);
     }),
   );
   const { user } = renderReview(
@@ -1130,7 +1177,7 @@ it("keeps an unconfirmed command after a missing receipt and retries only its or
       if (url.endsWith("posting-review-source")) return Response.json(source);
       if (url.includes("/context?")) {
         contextReads++;
-        return Response.json(context);
+        return postingContextResponse(url, context);
       }
       if (url.includes("/decisions/")) {
         decisions.push({
@@ -1214,7 +1261,7 @@ it("clears private rationale when a missing-receipt context recheck confirms rev
       if (url.includes("/context?")) {
         contextReads++;
         return contextReads === 1
-          ? Response.json(context)
+          ? postingContextResponse(url, context)
           : Response.json(
               { error: "forbidden", message: "Synthetic revoked context" },
               { status: 403 },
@@ -1249,4 +1296,250 @@ it("clears private rationale when a missing-receipt context recheck confirms rev
   expect(screen.queryByText(context.submission_reason)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Retry exact decision" })).not.toBeInTheDocument();
   expect(changed).toHaveBeenCalledTimes(1);
+});
+
+it("requires guarded management context and explicit attestation before root approval", async () => {
+  const writes: { url: string; input: Record<string, unknown> }[] = [];
+  const guardedReads: string[] = [];
+  let approved = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("posting-review-scopes"))
+        return Response.json({
+          data: [
+            {
+              hospital_id: hospital,
+              name: "Synthetic Hospital",
+              can_submit: false,
+              can_review: true,
+            },
+          ],
+          page: { has_more: false, next_cursor: null },
+        });
+      if (url.includes("posting-proposal-inbox"))
+        return Response.json({
+          data: approved
+            ? []
+            : [
+                {
+                  proposal,
+                  staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+                  is_submitter: false,
+                },
+              ],
+          page: { has_more: false, next_cursor: null },
+        });
+      if (url.endsWith("posting-review-source")) return Response.json(source);
+      if (url.includes("/context?")) {
+        const query = new URL(url, "http://localhost").searchParams;
+        if (query.has("management_review")) guardedReads.push(url);
+        return Response.json(
+          query.has("supervision_context")
+            ? { context, supervision: { kind: "hospital_management" } }
+            : context,
+        );
+      }
+      if (init?.method === "PUT" && url.includes("/decisions/")) {
+        writes.push({ url, input: JSON.parse(String(init.body)) });
+        approved = true;
+        return Response.json({
+          ...proposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(9),
+          command_id: url.split("/").at(-1),
+          recorded_at: "2026-11-04T01:00:00Z",
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }),
+  );
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={() => {}} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Review hospital management approval" }),
+  );
+  await screen.findByRole("button", { name: "Approve proposal" });
+  expect(guardedReads).toHaveLength(1);
+  expect(guardedReads[0]).toContain("supervision_context=v1&management_review=current");
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Independent synthetic management responsibility review",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  expect(writes).toHaveLength(0);
+  await user.click(
+    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByText("Posting proposal approved.");
+  expect(writes).toHaveLength(1);
+  expect(writes[0].input).toEqual({
+    expected_version: 1,
+    expected_revision_id: proposal.revision_id,
+    decision: "approve",
+    reason: "Independent synthetic management responsibility review",
+    sources_examined: true,
+    hospital_management_reviewed: true,
+  });
+});
+
+it.each([403, 503])(
+  "withholds management approval and private context when its guarded read returns %s",
+  async (status) => {
+    const writes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (init?.method === "PUT") writes.push(url);
+        if (url.includes("management_review=current"))
+          return Response.json(
+            {
+              error: status === 403 ? "forbidden" : "unavailable",
+              message: "Synthetic management authority unavailable",
+            },
+            { status },
+          );
+        return reviewerResponse(url, { kind: "hospital_management" });
+      }),
+    );
+    const { user } = await openReviewer();
+    await user.click(
+      await screen.findByRole("button", { name: "Review hospital management approval" }),
+    );
+    await screen.findByText(
+      status === 403
+        ? "Staff access changed. Reopen Staff to verify your current workspace."
+        : /The selected proposal could not be verified/,
+    );
+    expect(
+      screen.queryByLabelText("I independently reviewed the hospital management responsibility."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve proposal" })).not.toBeInTheDocument();
+    expect(screen.queryByText(context.draft_reason)).not.toBeInTheDocument();
+    expect(writes).toHaveLength(0);
+  },
+);
+
+it.each([
+  null,
+  {
+    kind: "department_member",
+    supervisor_staff_id: id(21),
+    supervisor_proposal_id: id(22),
+    supervisor_revision_id: id(23),
+  },
+])("does not offer root approval for an omitted or non-root intent", async (supervision) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => reviewerResponse(url, supervision)),
+  );
+  await openReviewer();
+  await screen.findByText("Managerial responsibility");
+  if (supervision) {
+    expect(await screen.findByText(supervision.supervisor_staff_id)).toBeInTheDocument();
+    expect(screen.getByText(supervision.supervisor_proposal_id)).toBeInTheDocument();
+    expect(screen.getByText(supervision.supervisor_revision_id)).toBeInTheDocument();
+  }
+  expect(
+    screen.queryByRole("button", { name: "Review hospital management approval" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Approve proposal" })).not.toBeInTheDocument();
+});
+
+it("retains the exact management attestation and command through an uncertain approval", async () => {
+  const writes: { url: string; body: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PUT") {
+        writes.push({ url, body: String(init.body) });
+        if (writes.length === 1) throw new TypeError("Synthetic lost approval response");
+        return Response.json({
+          ...proposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(9),
+          command_id: url.split("/").at(-1),
+          recorded_at: "2026-11-04T01:00:00Z",
+        });
+      }
+      return reviewerResponse(url, { kind: "hospital_management" });
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(
+    await screen.findByRole("button", { name: "Review hospital management approval" }),
+  );
+  await screen.findByText("The current employment source matches this submission.");
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Synthetic independent root management review",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(
+    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByRole("button", { name: "Retry exact decision" });
+  expect(
+    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+  ).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Back to proposal review" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
+  await screen.findByText("Posting proposal approved.");
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+  expect(JSON.parse(writes[0].body).hospital_management_reviewed).toBe(true);
+});
+
+it("retains an explicit hospital-management submission through an uncertain response", async () => {
+  const writes: { url: string; body: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        writes.push({ url, body: String(init.body) });
+        if (writes.length === 1)
+          throw new TypeError("Synthetic lost management submission response");
+      }
+      return submissionResponse(url, init);
+    }),
+  );
+  const { user, form } = await openSubmission();
+  await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
+  await user.type(
+    within(form).getByLabelText("Submission rationale"),
+    "Synthetic explicit hospital-management responsibility request",
+  );
+  await user.click(within(form).getByLabelText("Request hospital management responsibility"));
+  await user.click(
+    within(form).getByLabelText("I examined this draft and the current employment source."),
+  );
+  await user.click(within(form).getByRole("button", { name: "Request independent review" }));
+  await screen.findByRole("button", { name: "Retry exact submission" });
+  expect(within(form).getByLabelText("Request hospital management responsibility")).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Retry exact submission" }));
+  await screen.findByText(
+    "Posting proposal submitted for independent review. Operating authority is unchanged.",
+  );
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+  expect(JSON.parse(writes[0].body).supervision).toEqual({ kind: "hospital_management" });
 });

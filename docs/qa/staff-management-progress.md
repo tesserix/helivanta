@@ -1,5 +1,42 @@
 # Staff Management delivery tracker
 
+## Reviewer terminal decisions deployed — 2026-11-04
+
+[#1547](https://github.com/tesserix/helivanta/pull/1547) merged as `e7588e65` after
+all required checks passed and is now deployed through Kargo. Independent
+rejection, original-submitter withdrawal and retained-command recovery are live.
+Seven deployments are 2/2; all 14 application containers match signed images with
+zero restarts; Argo is Synced/Healthy. The migration ledger is unchanged at 223.
+The [release record](../deployment/releases/2026-11-04-posting-decisions.md)
+contains exact source, Freight/Promotion, digests and smoke evidence. This
+supersedes earlier candidate/draft/undeployed statements for this slice only.
+
+Normal submission UI is under development on top of the released reviewer slice.
+Its first test failed at the missing submission action, then passed with mandatory
+rationale/attestation and exact source/account pins. Further tests exposed inline
+canonical-validation and pagination selection defects; both were corrected.
+Current 26 focused checks pass, including future generations, source outages,
+changed/missing generations, missing-receipt reauthorization, exact retry,
+reviewer-only denial and account-change cancellation. Removing the draft/current
+Staff-version predicate makes the changed-generation test fail; original source
+was restored and hashed. Exact active department names/revisions are checked
+through bounded Organization choices, including empty continuation pages. New
+RED→GREEN checks cover loss of submit authority with retained read access and
+admission503 without losing the immutable command. Receipt404 rechecks current
+hospital admission as well as draft, department and employment sources.
+
+The final full shell suite passes **1,457 tests /177 files (326.64s)**; SDK passes
+633 /78 files, with SDK source hashes unchanged since that run. Types, lint,
+package format and the final registered-client webpack build pass. The isolated
+UI restarted with readiness200 on loopback4398. No dependency was downloaded,
+identity/assignment fabricated, API/model/permission changed or migration added.
+Candidate branch: `codex/posting-submission-ui-20261104`. It is not deployed and
+normal real-account UI acceptance is still open.
+
+Authenticated normal browser acceptance still needs owner sign-in. Supervision,
+positive effective approval and departmental/Pharma lifecycle consumers remain
+open. Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Reporting-line leave routing — 2026-11-04
 
 #1536 lets HR choose who decides leave first. A versioned, reviewed routing
@@ -49,9 +86,10 @@ See the [release evidence](../deployment/releases/2026-11-04-posting-proposals.m
 This checkpoint supersedes earlier draft/unmerged/undeployed statements for the
 #1544 slice only; historical validation notes below are retained.
 
-Independent rejection and submitter withdrawal UI are implemented separately in
-[#1547](https://github.com/tesserix/helivanta/pull/1547), with nine reviewer tests,
-1,440 shell tests and 633 SDK tests passing locally. Exact-head CI is in progress.
+Independent rejection and submitter withdrawal UI subsequently shipped in
+[#1547](https://github.com/tesserix/helivanta/pull/1547); see the newer deployment
+checkpoint above. Its nine reviewer tests, 1,440 shell tests and 633 SDK tests
+passed locally, and all exact-head CI checks passed before merge.
 The isolated local runtime is ready with a registered OIDC client; normal browser
 acceptance remains at owner sign-in. Earlier Temporal/readiness setup blockers
 are resolved. No new IdP app or grant was created to bypass that sign-in.

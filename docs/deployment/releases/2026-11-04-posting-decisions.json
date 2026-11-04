@@ -1,0 +1,57 @@
+{
+  "source": "e7588e65c7507144c361fb34b6c866ac88a6a07b",
+  "pr": 1547,
+  "freight": "30bf8bac6ab5e9a834897995494db74d8bf32535",
+  "promotion": "prod.01m6hv877kavh7g8drw4w4z5s7.30bf8ba",
+  "promotion_phase": "Succeeded",
+  "migrations_before": 223,
+  "migrations_after": 223,
+  "added_migrations": [],
+  "removed_migrations": [],
+  "image_digests": {
+    "api": "sha256:cb574e71b8cbb8c9383e7287d7ed1c5b9c374526e5dc16c7b8c3d606419d97b9",
+    "shell": "sha256:7ed61039e59c6abfa047c55884aa0746bb1f4791f37fc2c25ba15cba72510549"
+  },
+  "application_deployments": 7,
+  "ready_replicas_per_deployment": 2,
+  "ready_application_containers": 14,
+  "application_container_restarts": 0,
+  "argo": [
+    {
+      "name": "helivanta-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-global-api",
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    {
+      "name": "helivanta-shell",
+      "sync": "Synced",
+      "health": "Healthy"
+    }
+  ],
+  "public_smoke": [
+    {
+      "path": "/",
+      "status": 200,
+      "via_global_api": false
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "via_global_api": false
+    },
+    {
+      "path": "/api/v1/workforce/posting-review-scopes",
+      "status": 401,
+      "via_global_api": true
+    }
+  ],
+  "authenticated_browser_acceptance": "pending_owner_sign_in",
+  "full_staff_management_accepted": false,
+  "migration_job": "helivanta-api-migrate-wsbpq",
+  "migration_exit_code": 0
+}

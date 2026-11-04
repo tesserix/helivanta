@@ -1,6 +1,9 @@
 # Independent departmental Staff posting review
 
-Status: implementation candidate; no operating authority or production rollout.
+Status: #1544 proposal/inbox and #1547 reviewer terminal-decision slices are
+merged and deployed. Normal submission UI is a candidate; authenticated browser
+acceptance, effective supervision/approval and lifecycle consumers remain open.
+No operating authority follows from the deployed proposals.
 Continues the [effective posting specification](2026-11-02-effective-staff-postings.md)
 and its complete parent obligations. Depends on scoped preparation PR #1532.
 This specification pins the next command boundary; adding it does not implement it.

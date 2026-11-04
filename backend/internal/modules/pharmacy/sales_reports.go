@@ -199,8 +199,8 @@ var stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic
 // force for product on day matches it; rel holds the tenant and outlet. Its
 // arguments are salesReportFilter.categoryArgs.
 func categoryOn(rel, product, day string) string {
-	return `(?::uuid IS NULL OR EXISTS (SELECT 1 FROM pharmacy_product_category_on(` + rel + `.tenant_id, ` + rel + `.outlet_id, ` + product + `, ` + day + `) k
-  WHERE k.category_id=?::uuid AND (?::uuid IS NULL OR k.subcategory_id=?::uuid)))`
+	return `(?::uuid IS NULL OR EXISTS (SELECT 1 FROM pharmacy_product_category_on(` + rel + `.tenant_id, ` + rel + `.outlet_id, ` + product + `, ` + day + `) pc
+  WHERE pc.category_id=?::uuid AND (?::uuid IS NULL OR pc.subcategory_id=?::uuid)))`
 }
 
 var receiptKinds = map[string]bool{"cash": true, "upi": true, "upi_verified": true, "card": true, "admission_account": true}

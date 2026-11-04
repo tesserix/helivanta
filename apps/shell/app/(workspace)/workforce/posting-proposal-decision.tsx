@@ -48,6 +48,20 @@ export function PostingProposalDecision({
   onCompleted: (row: StaffPostingProposal) => void;
   onContextChanged: () => void;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  const endsAt = proposal.ends_at === null ? null : Date.parse(proposal.ends_at);
+  useEffect(() => {
+    if (endsAt === null) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const current = Date.now();
+      setNow(current);
+      if (current < endsAt) timer = setTimeout(tick, Math.min(endsAt - current, 60_000));
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [endsAt]);
+  const ended = endsAt !== null && now >= endsAt;
   const [retained, setRetained] = useState<Command | null>(null);
   const original = useRef<Command | null>(null);
   const active = useRef<AbortController | null>(null);
@@ -132,7 +146,8 @@ export function PostingProposalDecision({
     source.data.generation_id === proposal.generation_id &&
     source.data.staff_version === proposal.staff_version &&
     source.data.employment_epoch === proposal.employment_epoch;
-  const available = contextAvailable && sourceAvailable && (action !== "approve" || matches);
+  const available =
+    contextAvailable && sourceAvailable && (action !== "approve" || (matches && !ended));
   return (
     <section
       className="space-y-4 border-t border-border pt-4"
@@ -166,6 +181,7 @@ export function PostingProposalDecision({
           </p>
         </>
       )}
+      {ended && <p role="alert">This posting has ended. A new approval cannot be recorded.</p>}
       {action && proposal.status === "pending" && (
         <form
           noValidate
@@ -174,6 +190,10 @@ export function PostingProposalDecision({
           onSubmit={(event) => {
             void form.handleSubmit((values) => {
               if (original.current || save.isPending || !available) return;
+              if (action === "approve" && endsAt !== null && Date.now() >= endsAt) {
+                setNow(Date.now());
+                return;
+              }
               if (action === "approve" && !values.hospital_management_reviewed) {
                 form.setError("hospital_management_reviewed", {
                   message: "Confirm your independent hospital management review.",
@@ -256,8 +276,17 @@ export function PostingProposalDecision({
               <>
                 <Button
                   type="button"
-                  disabled={save.isPending || (action === "approve" && sourceAvailable && !matches)}
-                  onClick={() => save.mutate({ command: retained, recover: false })}
+                  disabled={
+                    save.isPending ||
+                    (action === "approve" && (ended || (sourceAvailable && !matches)))
+                  }
+                  onClick={() => {
+                    if (action === "approve" && endsAt !== null && Date.now() >= endsAt) {
+                      setNow(Date.now());
+                      return;
+                    }
+                    save.mutate({ command: retained, recover: false });
+                  }}
                 >
                   Retry exact decision
                 </Button>

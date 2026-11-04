@@ -29,11 +29,15 @@ func (h *handlers) withRootPostingApproval(ctx context.Context, tx *gorm.DB, p a
 	if err != nil {
 		return err
 	}
+	approvalUntil := row.EligibilityUntil
+	if row.EndsAt != nil && row.EndsAt.Before(approvalUntil) {
+		approvalUntil = *row.EndsAt
+	}
 	if (state != "effective" && state != "not_started") || generation.EmploymentEpoch != row.EmploymentEpoch || row.StartsAt.Before(generation.StartsAt) || !row.StartsAt.Before(until) || until.Before(row.EligibilityUntil) ||
-		generation.EndsAt != nil && (row.EndsAt == nil || row.EndsAt.After(*generation.EndsAt)) || !time.Now().Before(row.EligibilityUntil) {
+		generation.EndsAt != nil && (row.EndsAt == nil || row.EndsAt.After(*generation.EndsAt)) || !time.Now().Before(approvalUntil) {
 		return errPostingProposalConflict
 	}
-	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, row.EligibilityUntil); err != nil {
+	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, approvalUntil); err != nil {
 		return errors.Join(errPostingProposalConflict, err)
 	}
 	ref := authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: row.DepartmentID, DepartmentRevision: row.DepartmentRevisionID, AncestorID: row.DepartmentID, AncestorRevision: row.DepartmentRevisionID}

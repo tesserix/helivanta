@@ -3,6 +3,7 @@ import { NavigationGuardProvider } from "@helivanta/ui";
 import "@/test/select";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { act, fireEvent, screen, within, waitFor } from "@testing-library/react";
+import { PostingProposalDecision } from "./posting-proposal-decision";
 import { StaffPostingReviewWorkspace } from "./posting-review-workspace";
 
 const scope = {
@@ -1606,4 +1607,189 @@ it("rechecks a changed employment source after an approval conflict without disc
   expect(screen.getByRole("button", { name: "Recover decision receipt" })).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
   expect(writes).toHaveLength(1);
+});
+
+it("blocks a new approval of an ended posting despite current employment", async () => {
+  const endsAt = new Date(Date.now() - 60_000).toISOString();
+  const startsAt = new Date(Date.now() - 120_000).toISOString();
+  const endedProposal = { ...proposal, starts_at: startsAt, ends_at: endsAt };
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PUT") {
+        writes.push(String(init.body));
+        return Response.json({
+          ...endedProposal,
+          status: "rejected",
+          version: 2,
+          revision_id: id(20),
+          command_id: url.split("/").at(-1),
+        });
+      }
+      if (url.includes("posting-proposal-inbox"))
+        return Response.json({
+          data: [
+            {
+              proposal: endedProposal,
+              staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+              is_submitter: false,
+            },
+          ],
+          page: { has_more: false, next_cursor: null },
+        });
+      if (url.includes("/context?"))
+        return postingContextResponse(
+          url,
+          {
+            ...context,
+            proposal: endedProposal,
+            draft: { ...context.draft, starts_at: startsAt, ends_at: endsAt },
+          },
+          { kind: "hospital_management" },
+        );
+      return reviewerResponse(url, { kind: "hospital_management" });
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(
+    await screen.findByRole("button", { name: "Review hospital management approval" }),
+  );
+  await screen.findByText("The current employment source matches this submission.");
+  expect(screen.getByRole("button", { name: "Approve proposal" })).toBeDisabled();
+  expect(
+    screen.getByText("This posting has ended. A new approval cannot be recorded."),
+  ).toBeVisible();
+  expect(writes).toHaveLength(0);
+});
+
+it("disables an uncertain approval when its posting ends while preserving receipt recovery", async () => {
+  const current = Date.now();
+  const startsAt = new Date(current - 120_000).toISOString();
+  const endsAt = new Date(current + 60_000).toISOString();
+  const timedProposal = { ...proposal, starts_at: startsAt, ends_at: endsAt };
+  const writes: string[] = [];
+  let recovered = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PUT") {
+        writes.push(String(init.body));
+        throw new TypeError("Synthetic lost approval response before nominal end");
+      }
+      if (url.includes("/decisions/")) {
+        recovered = true;
+        return Response.json({
+          ...timedProposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(20),
+          command_id: url.split("/").at(-1),
+        });
+      }
+      if (url.includes("posting-proposal-inbox"))
+        return Response.json({
+          data: [
+            {
+              proposal: timedProposal,
+              staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+              is_submitter: false,
+            },
+          ],
+          page: { has_more: false, next_cursor: null },
+        });
+      if (url.includes("/context?"))
+        return postingContextResponse(
+          url,
+          {
+            ...context,
+            proposal: timedProposal,
+            draft: { ...context.draft, starts_at: startsAt, ends_at: endsAt },
+          },
+          { kind: "hospital_management" },
+        );
+      return reviewerResponse(url, { kind: "hospital_management" });
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(
+    await screen.findByRole("button", { name: "Review hospital management approval" }),
+  );
+  await screen.findByText("The current employment source matches this submission.");
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Synthetic independent timed appointment review",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(
+    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByRole("button", { name: "Retry exact decision" });
+  expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeEnabled();
+  const endedClock = vi.spyOn(Date, "now").mockReturnValue(current + 60_000);
+  try {
+    await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
+    expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeDisabled();
+    expect(writes).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Recover decision receipt" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Recover decision receipt" }));
+    await screen.findByText("Posting proposal approved.");
+    expect(recovered).toBe(true);
+    expect(writes).toHaveLength(1);
+  } finally {
+    endedClock.mockRestore();
+  }
+});
+
+it("expires an open approval form at the nominal posting end without another source read", async () => {
+  vi.useFakeTimers();
+  const current = Date.now();
+  let sourceReads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      sourceReads++;
+      return Response.json(source);
+    }),
+  );
+  const rendered = renderReview(
+    <PostingProposalDecision
+      scope={{ ...scope, hospitalId: hospital, staffId: staff, access: "scoped" }}
+      proposal={{
+        ...proposal,
+        status: "pending",
+        ends_at: new Date(current + 30_000).toISOString(),
+      }}
+      action="approve"
+      busy={false}
+      onBusy={() => {}}
+      onCompleted={() => {}}
+      onContextChanged={() => {}}
+      contextAvailable
+      onContextRecheck={() => {}}
+    />,
+  );
+  try {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(screen.getByRole("button", { name: "Approve proposal" })).toBeEnabled();
+    const before = sourceReads;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(29_999);
+    });
+    expect(screen.getByRole("button", { name: "Approve proposal" })).toBeDisabled();
+    expect(
+      screen.getByText("This posting has ended. A new approval cannot be recorded."),
+    ).toBeVisible();
+    expect(sourceReads).toBe(before);
+  } finally {
+    rendered.unmount();
+    vi.useRealTimers();
+  }
 });

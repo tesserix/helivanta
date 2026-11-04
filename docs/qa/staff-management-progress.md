@@ -1,5 +1,22 @@
 # Staff Management delivery tracker
 
+## Nominal posting end regression — 2026-11-04
+
+The root candidate's real Global API regression reproduced a new approval of an
+already ended nominal posting (expected409, actual approved200), despite a current
+employment source. The UI likewise left Approve enabled. The fix denies new
+approval at/after nominal end and constrains guarded commit to the earlier of the
+source cutoff and nominal end, preserving stored source/interval evidence.
+The focused native Global API race pair passes in **62.642s**: conflict preserves
+pending state, creates no receipt or committed effects, and independent rejection
+still succeeds. Reviewer workspace checks pass **37/37**, including open-form
+expiry, a click crossing the end boundary, and receipt recovery after an uncertain
+approval. Existing source mismatch and unknown-outcome behavior remain covered.
+Full suites are running; this candidate is not merged or deployed. Supervisor
+chain validation must receive the same fix. Actual independent-account browser
+acceptance and operating/lifecycle enforcement remain open. Overall counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Catalog merged and local QA runtime repaired — 2026-11-04
 
 [#1563](https://github.com/tesserix/helivanta/pull/1563) is merged as

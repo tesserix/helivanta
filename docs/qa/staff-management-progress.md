@@ -1,5 +1,37 @@
 # Staff Management delivery tracker
 
+
+## Merged posting increments and next input checkpoint — 2026-11-04
+
+[#1550](https://github.com/tesserix/helivanta/pull/1550) merged as `baea2e3a`
+(normal proposal submission UI). [#1551](https://github.com/tesserix/helivanta/pull/1551)
+merged as `a7798a8a` (current ancestry source guard). Both exact-head PR checks
+and their merged signed-image workflows passed. The baea shell-signing attempt
+first hit a Rekor duplicate-entry409; its normal failed-job rerun succeeded.
+Neither slice adds a migration or operating permission.
+
+Current production was rechecked as `f4799d63`: API, Global API and shell are
+updated/ready2/2, with224 applied migrations including Leave routing0078 from a
+concurrent rollout. These two posting increments have not been promoted. Exact
+Kargo rollout approval for baea is pending; it adds no migration to this baseline.
+
+Input checkpoint `8ebc30f3` is pushed on
+`codex/posting-supervision-approval-20261104`, based on merged a779. Full Workforce
+race suite770.324s and all638 SDK tests/78 files pass, as do Go vet/build/lint,
+canonical and contractdocs checks, SDK types/lint/format, shell types and source
+inventory checks (799 registered /776 unclassified). Removing strict decoding
+failed across proposal, nested intent and decision input; exact source was
+restored and hashed. No dependency/image download was needed for the offline
+input work; four owned fixtures were captured then removed and forwards released.
+
+This is an unfinished feature checkpoint, not an independently releasable input
+extension: retained supervision metadata, current root-management capability,
+positive root/descendant approval and normal UI remain under development. The
+[next contract](../superpowers/specs/2026-11-04-reviewed-posting-supervision.md)
+and plan retain lifecycle/transfer, contractors, standalone employers and all
+departmental/Pharma consumers. No full Staff acceptance is claimed; counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Reviewer terminal decisions deployed — 2026-11-04
 
 [#1547](https://github.com/tesserix/helivanta/pull/1547) merged as `e7588e65` after

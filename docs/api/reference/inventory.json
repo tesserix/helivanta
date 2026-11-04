@@ -10157,6 +10157,14 @@
           "creates_tables": [
             "workforce_posting_management_reviews"
           ]
+        },
+        {
+          "id": "0081_workforce_posting_chain_approvals",
+          "sql_sha256": "9219266b38c29c0fb91341fda9ea69a075bee0765fca5175b50221c1c47a5539",
+          "creates_tables": [
+            "workforce_posting_chain_reviews",
+            "workforce_posting_chain_sources"
+          ]
         }
       ]
     },

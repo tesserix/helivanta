@@ -98,7 +98,7 @@ func (h *handlers) scopedPostingTransaction(c *gin.Context, p authn.Principal, s
 						management = check.Grant
 					}
 				}
-				if err := tx.Exec(`SELECT set_config('app.workforce_posting_management_assignment',?,true),set_config('app.workforce_posting_management_assignment_version',?,true),set_config('app.workforce_posting_management_scope_epoch',?,true),set_config('app.workforce_posting_management_membership_epoch',?,true),set_config('app.workforce_posting_root_approval','',true)`, management.AssignmentID, strconv.FormatInt(management.Version, 10), strconv.FormatInt(management.ScopeEpoch, 10), strconv.FormatInt(management.MembershipEpoch, 10)).Error; err != nil {
+				if err := tx.Exec(`SELECT set_config('app.workforce_posting_management_assignment',?,true),set_config('app.workforce_posting_management_assignment_version',?,true),set_config('app.workforce_posting_management_scope_epoch',?,true),set_config('app.workforce_posting_management_membership_epoch',?,true),set_config('app.workforce_posting_root_approval','',true),set_config('app.workforce_posting_chain_approval','',true),set_config('app.workforce_posting_chain_until','',true)`, management.AssignmentID, strconv.FormatInt(management.Version, 10), strconv.FormatInt(management.ScopeEpoch, 10), strconv.FormatInt(management.MembershipEpoch, 10)).Error; err != nil {
 					return err
 				}
 

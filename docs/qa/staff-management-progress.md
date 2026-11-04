@@ -1,5 +1,50 @@
 # Staff Management delivery tracker
 
+## Supervisor-chain approval increment in development — 2026-11-04
+
+The separate `codex/posting-supervisor-chains-20261104` worktree builds on root
+candidate #1565 without expanding that PR. Workforce resolves exact canonical
+Staff/proposal/approved-revision references, restores selected-child RLS context,
+checks current Staff version/employment epoch/generation, nominal intervals,
+source cutoffs, repeats and a 32-posting bound, and holds Organization's current
+reference/ancestry callbacks through commit. It adds no role, product access or
+private product employee master. Candidate `0081_workforce_posting_chain_approvals`
+retains immutable per-hop evidence with forced RLS, composite references, indexes
+and deferred chain/link/interval completeness checks. Earlier migrations are unchanged.
+
+A genuine public Global API RED returned 409 `posting_supervision_required`
+(**76.820s**) for a valid child under an independently approved root. The first
+implemented path passes with real dependencies and race detection in **76.240s**.
+Evidence failure checks pass in **96.935s**: injected header/source-write failure
+preserves pending/history, creates no receipt and commits no actor-use/approval
+audit/event; the same command then succeeds with one approval audit and event.
+Repeated canonical Staff under its own valid earlier root is refused with 409,
+while independent withdrawal remains possible; that expanded pair passes in
+**79.476s**. The three-Staff root/supervisor/member descendant-sub-unit journey passes in
+**73.639s**, including exact recovery and `grants_access=false`. Its initial fixture
+used a root-only `department` kind with a parent; Organization correctly rejected
+it and the fixture was corrected to the required `sub_unit`, without weakening
+validation. The full Workforce suite reached the package-wide 10-minute cap while
+the latest tax test had run for only 2 seconds; no earlier test failure or race
+was reported. A 20-minute process-budget rerun logs per-test progress. Business
+command deadlines and all assertions are unchanged; no full-suite pass is claimed.
+
+Go build, vet, scoped lint and contractdocs generation/check pass. Inventory is
+**812 surfaces / 789 unclassified**. Existing handler bodies were proved unchanged
+before refreshing the registration pins; existing grant/actor admission was proved
+byte-identical except for two additional purpose resets before refreshing that
+source pin. Classification and runtime-acceptance claims were not broadened.
+The initial phased-upgrade fixture applied 0081 before its older posting dependencies;
+its explicit migration phases were corrected. A fault-probe cleanup-context mistake
+was caught and the probe explicitly stopped before the corrected successful run.
+
+This increment is not deployed or exposed by a normal supervisor-selection UI.
+Complete source/direction/depth/interval/concurrency mutation proof, supervisor
+choices/protected context, independent-account UI acceptance, operational consumers,
+full lifecycle enforcement and exact rollout approval remain required. See the
+[implementation plan](../superpowers/plans/2026-11-04-posting-supervisor-chains.md).
+Overall counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Catalog merged and local QA runtime repaired — 2026-11-04
 
 [#1563](https://github.com/tesserix/helivanta/pull/1563) is merged as

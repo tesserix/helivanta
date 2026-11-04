@@ -1296,6 +1296,7 @@ Migration table declarations:
 - `0078_workforce_leave_routing`: `workforce_leave_routing_revisions`, `workforce_leave_route_steps`.
 - `0079_workforce_posting_supervision_intents`: `workforce_posting_supervision_intents`.
 - `0080_workforce_posting_root_approvals`: `workforce_posting_management_reviews`.
+- `0081_workforce_posting_chain_approvals`: `workforce_posting_chain_reviews`, `workforce_posting_chain_sources`.
 
 ## workspace
 

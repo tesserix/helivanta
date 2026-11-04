@@ -22,16 +22,8 @@ func (h *handlers) withRootPostingApproval(ctx context.Context, tx *gorm.DB, p a
 	if h.departmentReferences == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	if source.StaffVersion != row.StaffVersion || source.EmploymentEpoch != row.EmploymentEpoch {
-		return errPostingProposalConflict
-	}
-	generation, state, until, err := readPostingTargetGeneration(tx, p, s, row.GenerationID)
-	if err != nil {
+	if err := validatePostingApprovalSource(tx, p, s, row, source); err != nil {
 		return err
-	}
-	if (state != "effective" && state != "not_started") || generation.EmploymentEpoch != row.EmploymentEpoch || row.StartsAt.Before(generation.StartsAt) || !row.StartsAt.Before(until) || until.Before(row.EligibilityUntil) ||
-		generation.EndsAt != nil && (row.EndsAt == nil || row.EndsAt.After(*generation.EndsAt)) || !time.Now().Before(row.EligibilityUntil) {
-		return errPostingProposalConflict
 	}
 	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, row.EligibilityUntil); err != nil {
 		return errors.Join(errPostingProposalConflict, err)

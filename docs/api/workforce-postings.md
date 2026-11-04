@@ -578,3 +578,42 @@ attestation, explicit independent management-review attestation and rationale.
 An uncertain command retains its exact payload for receipt recovery/retry.
 Denied or unavailable context offers no approval form. Component/SDK checks do
 not establish real-account browser, deployment or lifecycle acceptance.
+
+## Supervisor-chain approval candidate (not released)
+
+The separate supervisor-chain worktree extends the root-review candidate #1565.
+It is not deployed, exposed by a normal supervisor-selection UI, or accepted as
+full Staff/Pharma operating activation. The first real Global API root-to-child
+case passed with the race detector in 76.240s after an observed 409
+`posting_supervision_required` before implementation.
+
+Workforce resolves the initial intent's exact same-tenant/hospital canonical
+Staff/proposal/approved-revision key. It restores selected-child RLS purpose before
+writing. Each ancestor must be its current approved head with retained review
+evidence, unchanged Staff version/employment epoch/generation and current reviewed
+source cutoff. Only hospital management or a department supervisor may supervise.
+A member, self-link, repeated Staff/posting, missing root or chain exceeding 32
+postings including the child cannot authorize approval. Nominal parent intervals
+contain child intervals; the earliest source cutoff is separately retained without
+rewriting ongoing nominal terms.
+
+Organization's existing current-reference/ancestry callback remains authoritative
+through commit. A root covers its own hospital; department supervisors cover only
+their exact department and current descendants. Workforce never reads Organization
+or IAM tables or creates a product-specific Staff master. Ordinary scoped posting
+review and current Staff actor use are required before owner locks. Root approval
+still requires its separate management capability/attestation; a root-only
+attestation does not reclassify a non-root request.
+
+Candidate `0081_workforce_posting_chain_approvals` adds immutable chain-review and
+per-hop source evidence with forced tenant/selected-child RLS, composite source
+references, bounded hops, indexes and deferred completeness/interval/link checks.
+Approval revision, head, all required source evidence, audit and existing canonical
+event commit atomically. No old migration is modified. Default/v1 contexts,
+public receipt fields, events and IAM/OpenFGA templates remain unchanged;
+`grants_access` remains false. The immutable command retry reauthorizes and returns
+its original receipt without rebasing supervision or duplicating approval effects.
+
+Canonical supervisor choices, protected reviewed-chain context, UI acceptance,
+remaining negative/concurrency/lifecycle tests and independent rollout approval
+are still required. See the [increment plan](../superpowers/plans/2026-11-04-posting-supervisor-chains.md).

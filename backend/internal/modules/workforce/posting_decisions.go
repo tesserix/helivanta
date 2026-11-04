@@ -121,11 +121,28 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		if err := authorizePostingProposalDecider(tx, p, s, in.Decision); err != nil {
 			return err
 		}
+		var chain []postingChainSource
 		persist := func(current *gorm.DB) error {
-			out, err = h.recordPostingDecision(current, p, s, row, in, fingerprint)
+			out, err = h.recordPostingDecision(current, p, s, row, in, fingerprint, chain)
 			return err
 		}
 		if in.Decision == "approve" {
+			intent, readErr := readPostingSupervisionIntent(tx, p.TenantID, s)
+			if readErr != nil {
+				return readErr
+			}
+			if intent == nil {
+				return errPostingSupervisionRequired
+			}
+			if intent.Kind != "hospital_management" {
+				if len(additional) != 0 {
+					return errPostingSupervisionRequired
+				}
+				return h.withSupervisedPostingApproval(ctx, tx, p, s, row, source, *intent, func(current *gorm.DB, verified []postingChainSource) error {
+					chain = verified
+					return persist(current)
+				})
+			}
 			if len(additional) == 0 {
 				return errPostingSupervisionRequired
 			}
@@ -141,7 +158,7 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	respond.OK(c, out)
 }
 
-func (h *handlers) recordPostingDecision(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, in StaffPostingDecisionInput, fingerprint string) (StaffPostingProposal, error) {
+func (h *handlers) recordPostingDecision(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, in StaffPostingDecisionInput, fingerprint string, chain []postingChainSource) (StaffPostingProposal, error) {
 	revision, err := uuid.NewV7()
 	if err != nil {
 		return StaffPostingProposal{}, err
@@ -152,7 +169,11 @@ func (h *handlers) recordPostingDecision(tx *gorm.DB, p authn.Principal, s posti
 		return StaffPostingProposal{}, err
 	}
 	if status == "approved" {
-		if err := recordPostingManagementReview(tx, p, s, revision, row.RevisionID); err != nil {
+		if len(chain) == 0 {
+			if err := recordPostingManagementReview(tx, p, s, revision, row.RevisionID); err != nil {
+				return StaffPostingProposal{}, err
+			}
+		} else if err := recordPostingChainReview(tx, p, s, revision, row.RevisionID, chain); err != nil {
 			return StaffPostingProposal{}, err
 		}
 	}

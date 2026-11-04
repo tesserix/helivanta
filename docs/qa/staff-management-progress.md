@@ -47,7 +47,14 @@ returned401 after revocation. Posting lifecycle cases passed within that run.
 The leave fixture now checks its signed whole authentication second against the
 actual stored watermark and verifies the newly minted token; production auth and
 revocation rules are unchanged. Repeated focused validation passes **3 runs /69.759s**. The complete Global
-API/architecture rerun is pending; the failed broad run is not acceptance.
+API rerun then failed **514.542s** only in the two existing posting expiry
+fixtures: safe cancellation occurred about100–123ms before their asserted exact
+cutoff. The probe now keeps the audit gate held until PostgreSQL actually reaches
+the cutoff, releases it, then requires denial/no saved audit; this catches writes
+that could otherwise resume after expiry without relying on cancellation timing.
+Both expiry cases with their real onboarding prerequisites pass **175.9s**.
+No production deadline or authorization rule was weakened. The next full Global
+API/architecture rerun remains pending; neither failed broad run is acceptance.
 
 Browser ownership can be reclaimed for the existing local QA tab, but explicit
 timeout DOM/control calls still fail and a bounded locator times out. No actual

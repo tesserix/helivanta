@@ -74,20 +74,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function serve(rows: unknown[] | "fail") {
+function serve(rows: unknown[] | "fail", permissions: string[] = []) {
   const fetcher = vi.fn(async (url: string) =>
-    // The item and receipt panels (#1060) have their own tests.
-    !url.includes("/reports/daily")
-      ? new Response(JSON.stringify({ data: [], page: { next_cursor: null, has_more: false } }))
-      : rows === "fail"
-        ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
-        : new Response(
-            JSON.stringify({
-              from: "2026-11-01",
-              to: "2026-11-15",
-              days: url.includes("from=2026-11-01&to=2026-11-15") ? rows : [],
-            }),
-          ),
+    url.includes("/iam/me/permissions")
+      ? new Response(JSON.stringify({ data: permissions }))
+      : // The sales report panels (#1060) have their own tests.
+        !url.includes("/reports/daily")
+        ? new Response(JSON.stringify({ data: [], page: { next_cursor: null, has_more: false } }))
+        : rows === "fail"
+          ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
+          : new Response(
+              JSON.stringify({
+                from: "2026-11-01",
+                to: "2026-11-15",
+                days: url.includes("from=2026-11-01&to=2026-11-15") ? rows : [],
+              }),
+            ),
   );
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
@@ -127,6 +129,32 @@ describe("DailyReport", () => {
       await screen.findByText("No sales or returns from 2026-11-01 to 2026-11-15."),
     ).toBeVisible();
     expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("shows sales and stock only to staff who may read stock", async () => {
+    serve(days, ["pharmacy.sale.read", "pharmacy.stock.read"]);
+    const { unmount } = renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    expect(await screen.findByRole("heading", { name: "Sales and stock" })).toBeVisible();
+    unmount();
+    serve(days, ["pharmacy.sale.read"]);
+    renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    await screen.findByRole("table", { name: "Daily sales" });
+    expect(screen.getByRole("heading", { name: "Patient-wise sales" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Sales and stock" })).toBeNull();
+  });
+
+  it("offers the patient lookup only to staff who may look patients up", async () => {
+    serve(days, ["pharmacy.sale.read", "patient.pharmacy-lookup"]);
+    const { unmount } = renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    expect(await screen.findByText(/No hospital has verified this pharmacy yet/)).toBeVisible();
+    unmount();
+    serve(days, ["pharmacy.sale.read"]);
+    renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    await screen.findByRole("table", { name: "Daily sales" });
+    expect(
+      screen.getByText("Finding a patient needs patient lookup, which pharmacists hold."),
+    ).toBeVisible();
+    expect(screen.queryByText(/No hospital has verified this pharmacy yet/)).toBeNull();
   });
 
   it("reports a failed load with a retry", async () => {

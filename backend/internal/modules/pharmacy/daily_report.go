@@ -111,6 +111,8 @@ func dailyReportRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/reports/daily", PermSaleRead, h.dailyReport)
 	platform.ListRoute(s, "/reports/items", PermSaleRead, h.listItemSales)
 	platform.ListRoute(s, "/reports/receipts", PermSaleRead, h.listReceipts)
+	platform.ListRoute(s, "/reports/patient-sales", PermSaleRead, h.listPatientSales)
+	platform.ListRoute(s, "/reports/stock-sales", PermStockRead, h.listStockSales)
 }
 
 // dailyReport holds totals only, no patient, prescriber or buyer detail, so

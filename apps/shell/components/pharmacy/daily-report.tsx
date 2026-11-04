@@ -6,6 +6,7 @@ import {
   pharmacyDailyReportPath,
   pharmacyKey,
   useApiQuery,
+  usePermissions,
   type PharmacyDailyReport,
   type PharmacyDailyTotals,
   type PharmacyScope,
@@ -13,7 +14,7 @@ import {
 import { Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { periodSchema, type Period } from "./period";
-import { ItemSales, ReceiptsRegister } from "./sales-reports";
+import { ItemSales, PatientSales, ReceiptsRegister, StockSales } from "./sales-reports";
 
 /**
  * The daily sales report (#1386 C-3, #1060): posted sales and credit notes
@@ -22,6 +23,7 @@ import { ItemSales, ReceiptsRegister } from "./sales-reports";
 export function DailyReport({ scope, today }: { scope: PharmacyScope; today: string }) {
   const [period, setPeriod] = useState<Period>({ from: today.slice(0, 8) + "01", to: today });
   const form = useZodForm(periodSchema, period);
+  const { can } = usePermissions();
   return (
     <Panel>
       <h3 className="font-semibold">Daily sales</h3>
@@ -48,6 +50,11 @@ export function DailyReport({ scope, today }: { scope: PharmacyScope; today: str
       <Days scope={scope} period={period} />
       <ItemSales scope={scope} period={period} />
       <ReceiptsRegister scope={scope} period={period} />
+
+      <PatientSales scope={scope} period={period} />
+
+      {/* Stock read is its own grant; the API refuses it otherwise. */}
+      {can("pharmacy.stock.read") && <StockSales scope={scope} period={period} />}
     </Panel>
   );
 }

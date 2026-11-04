@@ -290,7 +290,19 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **One row per product never mixes currencies or packs:** a stocked product cannot change either.
 - **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
 - **Not audited.** No patient, prescriber or buyer appears.
-- **Not covered:** average purchase cost and margin, patient-wise sales, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), category and clinician filters, CSV export.
+- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), category and clinician filters, CSV export. Patient-wise sales and the sales stock report follow.
+
+### Patient-wise sales and the sales stock report (#1060)
+
+| Route                                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/reports/patient-sales?patient_id=&from=&to=` | Paged, oldest first: every line of a sale to that registered patient dated in the period (at most 366 outlet days): date, invoice and line, the admission's bed code when billed to an admission, product, batch lot and expiry, units, MRP, discount, amount, and units returned on credit notes dated up to `to`. `patient_id` is required (400 without it). Requires `pharmacy.sale.read`. Every page is audited |
+| `GET …/reports/stock-sales?from=&to=`               | Paged, oldest product first: every product that has ever held stock, with units sold and returned in the period (by sale and credit-note date, as sales by item counts them) units on hand now, and units a sale may take today. Requires `pharmacy.stock.read`                                                                                                                                                     |
+
+- **One patient at a time.** The pharmacy holds only the patient's id, so the screen finds the patient through the audited MRN lookup first and reads nothing before. That lookup needs `patient.pharmacy-lookup`, which only pharmacists hold; the screen tells anyone else so. Walk-in buyers are not patients and are not listed.
+- **Audited in the read.** Each patient-wise page writes an `audit_events` row (`pharmacy_patient_sales`, `report_read`, with the period and patient id) in the read's transaction, so no data leaves without its record.
+- **Stock is now, whatever the period.** On hand is every movement of the product. Sellable uses the counter's own rule (`pharmacy_sellable_buckets`): a sellable shelf, an MRP, unexpired on the outlet's date, and no safety incident. So a recalled or expired batch on the shelf is on hand but not sellable, as are returns in quarantine. The panel shows only to staff holding `pharmacy.stock.read`.
+- **Not covered:** service charges on a patient's sale (medicine lines only; the daily report has the charges); purchase amount (442) and the last vendor (755), since purchase cost waits for approved formulas and a receipt records no supplier; a list across patients; stock as of a past date (the stock register has it); batch-level stock in this report; CSV export.
 
 ### Returns as credit notes (#1386 C-1)
 

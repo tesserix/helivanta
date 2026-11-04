@@ -1,7 +1,14 @@
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { ItemSales, ReceiptsRegister } from "./sales-reports";
+import { waitFor } from "@testing-library/react";
+import {
+  ItemSales,
+  PatientSaleLines,
+  PatientSales,
+  ReceiptsRegister,
+  StockSales,
+} from "./sales-reports";
 
 const scope = {
   tenantId: "11111111-1111-1111-1111-111111111111",
@@ -134,5 +141,116 @@ describe("ReceiptsRegister", () => {
     serve("fail");
     renderWithProviders(<ReceiptsRegister scope={scope} period={period} />);
     expect(await screen.findByText("Could not load receipts and refunds.")).toBeVisible();
+  });
+});
+
+const patient = {
+  patient_id: "0199e000-0000-7000-8000-000000000301",
+  hospital_id: "0199e000-0000-7000-8000-000000000302",
+  name: "TEST Asha Rao",
+};
+
+const line = (over: object) => ({
+  id: crypto.randomUUID(),
+  sale_date: "2026-11-01",
+  sale_id: "0199e000-0000-7000-8000-000000000201",
+  invoice_number: "PH/2627/1",
+  line_number: 1,
+  admission_bed_code: null,
+  product_id: item.product_id,
+  sku: "TEST-PCM-500",
+  brand_name: "TEST Paracetamol",
+  generic_name: "TEST paracetamol",
+  pack_size: 10,
+  unit_of_issue: "tablet",
+  batch_id: "0199e000-0000-7000-8000-000000000401",
+  lot_number: "TEST-LOT-1",
+  expires_on: "2028-06-30",
+  quantity_units: 5,
+  mrp_minor: 12500,
+  discount_minor: 0,
+  amount_minor: 6250,
+  currency: "INR",
+  returned_units: 2,
+  ...over,
+});
+
+describe("PatientSales", () => {
+  it("reads nothing until a patient is found", async () => {
+    const fetcher = serve([]);
+    renderWithProviders(<PatientSales scope={scope} period={period} />);
+    await waitFor(() => expect(fetcher).toHaveBeenCalled());
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes("/reports/patient-sales"))).toBe(
+      false,
+    );
+  });
+
+  it("lists the patient's purchases by batch, with the bed for an admission", async () => {
+    const fetcher = serve([
+      line({}),
+      line({ invoice_number: "PH/2627/2", admission_bed_code: "B-7", returned_units: 0 }),
+    ]);
+    renderWithProviders(<PatientSaleLines scope={scope} period={period} patient={patient} />);
+    await screen.findByRole("table", { name: "Purchases by TEST Asha Rao" });
+    expect(String(fetcher.mock.calls[0]![0])).toContain(
+      `/reports/patient-sales?patient_id=${patient.patient_id}&from=2026-11-01&to=2026-11-15`,
+    );
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("PH/2627/1, line 1");
+    expect(rows[0]).toHaveTextContent("TEST-LOT-1expires 2028-06-30");
+    expect(rows[0]).toHaveTextContent("INR 62.50MRP INR 125.00 a pack; discount INR 0.00");
+    expect(rows[0]).not.toHaveTextContent("admission");
+    expect(rows[1]).toHaveTextContent("admission, bed B-7");
+  });
+
+  it("says when the patient bought nothing and reports a failed load", async () => {
+    serve([]);
+    const { unmount } = renderWithProviders(
+      <PatientSaleLines scope={scope} period={period} patient={patient} />,
+    );
+    expect(
+      await screen.findByText("TEST Asha Rao bought nothing from 2026-11-01 to 2026-11-15."),
+    ).toBeVisible();
+    unmount();
+    serve("fail");
+    renderWithProviders(<PatientSaleLines scope={scope} period={period} patient={patient} />);
+    expect(await screen.findByText("Could not load the patient's purchases.")).toBeVisible();
+  });
+});
+
+describe("StockSales", () => {
+  it("sets each product's sales beside its stock", async () => {
+    const fetcher = serve([
+      {
+        product_id: item.product_id,
+        sku: "TEST-PCM-500",
+        brand_name: "TEST Paracetamol",
+        generic_name: "TEST paracetamol",
+        pack_size: 10,
+        unit_of_issue: "tablet",
+        units_sold: 7,
+        units_returned: 2,
+        on_hand_units: 195,
+        sellable_units: 8,
+      },
+    ]);
+    renderWithProviders(<StockSales scope={scope} period={period} />);
+    await screen.findByRole("table", { name: "Sales and stock" });
+    expect(String(fetcher.mock.calls[0]![0])).toContain(
+      "/reports/stock-sales?from=2026-11-01&to=2026-11-15",
+    );
+    const row = screen.getByRole("row", { name: /TEST Paracetamol/ });
+    expect(row).toHaveTextContent("TEST-PCM-500, pack of 10 tablet");
+    expect(row).toHaveTextContent("721958");
+  });
+
+  it("says when nothing has held stock and reports a failed load", async () => {
+    serve([]);
+    const { unmount } = renderWithProviders(<StockSales scope={scope} period={period} />);
+    expect(await screen.findByText("No product has held stock yet.")).toBeVisible();
+    unmount();
+    serve("fail");
+    renderWithProviders(<StockSales scope={scope} period={period} />);
+    expect(await screen.findByText("Could not load sales and stock.")).toBeVisible();
   });
 });

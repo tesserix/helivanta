@@ -12,8 +12,15 @@ pending state, creates no receipt or committed effects, and independent rejectio
 still succeeds. Reviewer workspace checks pass **37/37**, including open-form
 expiry, a click crossing the end boundary, and receipt recovery after an uncertain
 approval. Existing source mismatch and unknown-outcome behavior remain covered.
-Full suites are running; this candidate is not merged or deployed. Supervisor
-chain validation must receive the same fix. Actual independent-account browser
+The full native Global API race suite for the root-fix binary passes in
+**603.998s**; it was compiled from `5f48b0f9` before integrating newer main.
+The full shell run passes **1,505 tests**; it overlapped main reconciliation,
+so a stable-source rerun is required before claiming exact-revision evidence.
+Types, full shell lint, scoped Go lint/vet/build, staged secret scan and
+contractdocs check pass. Current main's independent Pharmacy changes are integrated
+with regenerated contract/inventory checks (**818 surfaces / 795 unclassified**),
+without granting additional runtime acceptance. Root/chain candidates remain
+unmerged and undeployed. Supervisor chain validation must receive the same fix. Actual independent-account browser
 acceptance and operating/lifecycle enforcement remain open. Overall counts remain
 **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 

@@ -5,11 +5,11 @@ import { spawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { createEvidenceScanner } from "./lib/e2e-evidence-scanner.mjs";
 
 if (process.env.HELIVANTA_ENV !== "dev" || process.env.HELIVANTA_E2E !== "1")
   throw new Error("Evidence fixture requires explicit dev E2E mode");
@@ -46,6 +46,7 @@ let connected = false;
 let shuttingDown = false;
 let ready = false;
 let wroteEnvironment = false;
+let startupStage = "listener admission";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function cleanup() {
@@ -92,76 +93,7 @@ for (const signal of ["SIGINT", "SIGTERM"])
     void cleanup().finally(() => process.exit(0));
   });
 
-function scannerVersion() {
-  const now = new Date();
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `ClamAV 1.5.4/1/${days[now.getUTCDay()]} ${months[now.getUTCMonth()]} ${String(now.getUTCDate()).padStart(2, " ")} ${now.toISOString().slice(11, 19)} ${now.getUTCFullYear()}\0`;
-}
-const scanner = net.createServer((socket) => {
-  socket.setTimeout(15_000, () => socket.destroy());
-  socket.on("error", () => {});
-  let buffer = Buffer.alloc(0),
-    command = false,
-    size = 0,
-    frames = 0;
-  const content = [];
-  socket.on("data", (part) => {
-    buffer = Buffer.concat([buffer, part]);
-    if (!command) {
-      const end = buffer.indexOf(0);
-      if (end < 0) {
-        if (buffer.length > 32) socket.destroy();
-        return;
-      }
-      const name = buffer.subarray(0, end).toString();
-      buffer = buffer.subarray(end + 1);
-      if (name === "zVERSION") {
-        socket.end(scannerVersion());
-        return;
-      }
-      if (name !== "zINSTREAM") {
-        socket.destroy();
-        return;
-      }
-      command = true;
-    }
-    while (buffer.length >= 4) {
-      const length = buffer.readUInt32BE();
-      if (length > 10 * 1024 * 1024 || size + length > 10 * 1024 * 1024 || frames > 1024) {
-        socket.destroy();
-        return;
-      }
-      if (buffer.length < length + 4) return;
-      buffer = buffer.subarray(4);
-      if (!length) {
-        socket.end(
-          Buffer.concat(content).includes(Buffer.from("EICAR"))
-            ? "stream: TEST-signature FOUND\0"
-            : "stream: OK\0",
-        );
-        return;
-      }
-      content.push(buffer.subarray(0, length));
-      size += length;
-      frames++;
-      buffer = buffer.subarray(length);
-    }
-  });
-});
+const scanner = createEvidenceScanner();
 const health = http.createServer((request, response) => {
   response.writeHead(ready && request.url === "/healthz" ? 200 : 503, {
     "Content-Type": "application/json",
@@ -193,7 +125,18 @@ async function main() {
       "gcs",
       "fsouza/fake-gcs-server:1.54.0",
       `${port + 1}:4443`,
-      ["-scheme", "http", "-port", "4443", "-external-url", storage],
+      [
+        "-scheme",
+        "http",
+        "-port",
+        "4443",
+        "-external-url",
+        storage,
+        // The Go storage client reads via the XML public path. Its emulator
+        // Host must be admitted as well as the JSON API's external URL.
+        "-public-host",
+        new URL(storage).host,
+      ],
     ],
     [
       "temporal",
@@ -202,6 +145,7 @@ async function main() {
       ["server", "start-dev", "--ip", "0.0.0.0"],
     ],
   ]) {
+    startupStage = `test ${kind} container`;
     const name = `helivanta-e2e-evidence-${kind}-${process.pid}`;
     execFileSync(
       "docker",
@@ -216,10 +160,11 @@ async function main() {
         image,
         ...args,
       ],
-      { stdio: "ignore" },
+      { stdio: ["ignore", "ignore", "inherit"] },
     );
     containers.push(name);
   }
+  startupStage = "test storage readiness";
   await waitFor(
     async () => (await fetch(storage + "/storage/v1/b", { signal: AbortSignal.timeout(2000) })).ok,
   );
@@ -231,6 +176,7 @@ async function main() {
     });
     if (!response.ok) throw new Error("Synthetic bucket setup unavailable");
   }
+  startupStage = "restricted test role admission";
   await client.connect();
   connected = true;
   const role = await client.query(
@@ -258,10 +204,12 @@ async function main() {
     HELIVANTA_E2E_EVIDENCE_PID: String(process.pid),
   };
   const binary = path.join(temporary, "pharmacy-evidence-worker");
+  startupStage = "restricted worker build";
   execFileSync("go", ["build", "-o", binary, "./cmd/pharmacy-evidence-worker"], {
     cwd: path.join(root, "backend"),
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "inherit"],
   });
+  startupStage = "restricted worker readiness";
   worker = spawn(binary, [], {
     cwd: root,
     env: {
@@ -271,7 +219,7 @@ async function main() {
       PHARMACY_EVIDENCE_WORKER_DATABASE_URL: workerDatabase.toString(),
       PORT: String(port + 4),
     },
-    stdio: "ignore",
+    stdio: ["ignore", "inherit", "inherit"],
   });
   worker.once("exit", () => {
     ready = false;
@@ -296,7 +244,9 @@ async function main() {
 try {
   await main();
 } catch {
-  process.stderr.write("Evidence fixture bootstrap failed; dependency payloads withheld\n");
+  process.stderr.write(
+    `Evidence fixture bootstrap failed at ${startupStage}; dependency payloads withheld\n`,
+  );
   await cleanup();
   process.exitCode = 1;
 }

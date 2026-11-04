@@ -1,3 +1,6 @@
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
+
 -- Existing immutable decisions retain NULL evidence references. New decisions
 -- pin the exact released file after owner scope and independence checks.
 ALTER TABLE pharmacy_outlet_licence_reviews

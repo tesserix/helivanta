@@ -14,7 +14,9 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/attachments"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -26,6 +28,9 @@ import (
 func newDiscountWorld(t *testing.T) saleWorld {
 	t.Helper()
 	pharmacy.SetClock(t, func() time.Time { return time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC) })
+	cloud := testinfra.NewGCSProtocol(t)
+	files, err := attachments.NewGCS(cloud.Client, cloud.Quarantine, cloud.Released)
+	require.NoError(t, err)
 	r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 		Tokens: map[string]string{"editor": testutil.TenantA, "pharmacist": testutil.TenantA, "manager": testutil.TenantA, "owner": testutil.TenantA, "clerk": testutil.TenantA},
 		Perms: map[string][]authz.Permission{
@@ -34,13 +39,13 @@ func newDiscountWorld(t *testing.T) saleWorld {
 			"manager":    append(append([]authz.Permission{}, salePerms...), "pharmacy.sale.discount"),
 			"owner":      {"pharmacy.catalogue.read", "pharmacy.access.manage", "pharmacy.sale.read", "pharmacy.discount.manage"},
 			"clerk":      {"pharmacy.catalogue.read", "pharmacy.stock.read", "pharmacy.sale.read"},
-		}, Modules: []platform.Module{pharmacy.New()},
+		}, Modules: []platform.Module{pharmacy.New()}, Documents: files, PharmacyEvidenceEnabled: true,
 	})
 	seedPharmacyOutlet(t, r)
 	for _, s := range []string{"user-editor", "user-pharmacist", "user-manager", "user-owner", "user-clerk"} {
 		grantCatalogue(t, r, s, "editor")
 	}
-	w := saleWorld{r: r, db: db, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
+	w := saleWorld{r: r, db: db, files: files, taxFrom: "2026-11-01", quarantine: uuid.Must(uuid.NewV7()).String(), sellable: uuid.Must(uuid.NewV7()).String()}
 	require.Equal(t, 200, do(r, "PUT", stockPath("locations/"+w.quarantine), "editor", `{"code":"TEST-Q","name":"TEST Quarantine"}`).Code)
 	require.Equal(t, 200, do(r, "PUT", stockPath("locations/"+w.sellable), "editor", `{"code":"TEST-SHELF","name":"TEST Shelf","stock_status":"sellable"}`).Code)
 	w.licence(t)

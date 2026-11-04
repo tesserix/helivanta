@@ -55,7 +55,7 @@ An outlet may sell only while it holds an approved licence that is valid on the 
 | `GET …/licences`                           | Cursor page of licences with their decision                                                                                                                                                                                                                                                                                |
 | `GET …/licence-status`                     | `{in_force, today, licence, reason}`, judged on the outlet's date                                                                                                                                                                                                                                                          |
 
-Later slices call `pharmacy_outlet_licence_in_force(tenant, outlet, day)` inside their own transactions. Not covered yet: uploading the licence document (the reviewer checks the original) and renewal notices.
+Later slices call `pharmacy_outlet_licence_in_force(tenant, outlet, day)` inside their own transactions. Private evidence and independent review behavior are described below.
 
 ### Declared schedule class (#1386 A2)
 
@@ -694,7 +694,7 @@ acceptance remain separate gates. The consumer still grants no dispensing or
 hospital affiliation authority; sales independently require current verified
 scope and all existing stock/financial controls.
 
-### Outlet licence image processing (#1391, processing slice)
+### Outlet licence images, independent review and renewal advice (#1391)
 
 Pharmacy owns one immutable PNG/JPEG evidence image (up to 10 MiB) per outlet
 licence declaration. `PUT /licences/:id/evidence/:file` records the exact filename,
@@ -720,10 +720,31 @@ attempt and closed lifecycle status. Licence numbers, registration details,
 filenames, hashes and bytes are excluded from events and Temporal history.
 Existing prescription paths and completed licence decisions are preserved.
 
-This processing slice does **not** enforce clean evidence at the licence-review
-boundary. The review gate, user interface and renewal advice are the next slice;
-#1391 remains open until they and their browser/worker acceptance are complete.
-Deploy and accept this worker capability before enabling that gate.
+New `POST /licences/:id/review` decisions require available evidence for that exact
+declaration. Both the handler and INSERT trigger enforce the requirement and
+serialize on the declaration; absence, pending scan, rejection or scan error
+returns `409 licence_evidence_required`. Independent review still returns
+`409 four_eyes` for the author, and an existing completed decision remains
+immutable (`409`). The decision pins the released file and generation; responses
+add nullable `reviewed_evidence_file_id`. Historical decisions keep a null proof
+reference and remain effective under their original outlet-date rules.
+
+The setup UI provides declaration entry, exact-image upload, terminal scan status,
+recovery, authorized download and independent review. It carries no public file
+URLs and does not show self-review. The SDK derives declaration/review/renewal
+fields from `contracts/pharmacy.json` and rejects wrong-scope command receipts.
+
+`GET /licences/renewals` is a cursor-paged catalogue read under the current outlet
+grant. Each notice carries the declaration ID, declared dates, outlet time zone,
+local date, observation instant, exact calendar days remaining and one of
+`not_yet_valid`, `expired`, `expires_today`, `renewal_due_30`, `renewal_due_90`,
+`renewal_due_180` or `current`. These reuse SupplyConnect's operational reminder
+bands; they are not statutory deadlines, issuer verification or operating authority.
+
+Deploy and accept the matching worker capability before enabling the review gate.
+#1391 remains open until browser and designated synthetic production worker
+acceptance are complete. The local GCS/scanner protocol fixtures do not establish
+production ClamAV signature coverage or regulatory approval.
 
 ### Reviewed hospital department relationships (unreleased candidate)
 

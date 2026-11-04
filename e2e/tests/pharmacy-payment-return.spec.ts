@@ -1,15 +1,145 @@
 import { expect, test } from "@playwright/test";
+import path from "node:path";
+import { readFileSync } from "node:fs";
 import type {
   PharmacyCounterPayment,
   PharmacyCreditNote,
   PharmacySale,
   PharmacyStockPosition,
+  PharmacyLicence,
 } from "@helivanta/api";
-import { choose, collectUpi, owner, provider, readyCounter } from "./support/pharmacy-counter";
-import { uuidv7 } from "./support/pharmacy";
+import {
+  choose,
+  collectUpi,
+  owner,
+  provider,
+  readyCounter,
+  temporaryPharmacyOwner,
+} from "./support/pharmacy-counter";
+import { newOutlet, uuidv7 } from "./support/pharmacy";
+import { login, specAdmin, specPharmacist } from "./support/login";
 
 // Only this synthetic-provider spec trusts its ephemeral loopback certificate.
 test.use({ ignoreHTTPSErrors: true });
+
+test("a licence is entered, scanned, privately downloaded and reviewed by a separate owner", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(150_000);
+  await login(page, specAdmin());
+  const { outlet, stamp } = await newOutlet(page);
+  await page.goto("/pharmacy/setup");
+  await page.getByRole("button", { name: "Open TEST-OVW", exact: true }).click();
+  const pane = page.getByRole("region", { name: "Outlet TEST Overview Outlet" });
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const until = new Date(`${today}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + 14);
+  const number = `TEST-UI-${stamp}`;
+  for (const [label, value] of [
+    ["Form label", "TEST Form 20"],
+    ["Licence number", number],
+    ["Issuing authority", "TEST Drug Controller"],
+    ["Valid from", today],
+    ["Valid until", until.toISOString().slice(0, 10)],
+    ["Pharmacist name", "TEST Responsible Pharmacist"],
+    ["Pharmacist registration", "TEST Registration"],
+  ]) {
+    await pane.getByLabel(label!, { exact: true }).fill(value!);
+  }
+  const recorded = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" && response.url().includes(`${outlet}/licences/`),
+  );
+  await pane.getByRole("button", { name: "Record licence declaration", exact: true }).click();
+  const response = await recorded;
+  expect(response.status()).toBe(201);
+  const licence = (await response.json()) as PharmacyLicence;
+  const declaration = pane.locator("details").filter({ hasText: number });
+  await declaration.locator("summary").click();
+  await expect(
+    declaration.getByText("Another authorized owner must review this declaration.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(declaration.getByText(/Renewal due within 30 days/)).toBeVisible();
+  const context = await browser.newContext({
+    baseURL: new URL(page.url()).origin,
+    ignoreHTTPSErrors: true,
+  });
+  const reviewer = await context.newPage();
+  let release: (() => Promise<void>) | undefined;
+  try {
+    await login(reviewer, specPharmacist());
+    release = await temporaryPharmacyOwner(page, reviewer);
+    const me = await owner<{ subject: string; tenant_id: string }>(
+      reviewer,
+      "GET",
+      "/iam/me/permissions",
+    );
+    await owner(page, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
+      level: "editor",
+    });
+    const open = async () => {
+      await reviewer.goto(
+        `/pharmacy/setup?pharmacy=${outlet.split("/").at(-3)}&outlet=${outlet.split("/").at(-1)}&open=${outlet.split("/").at(-1)}`,
+      );
+      const record = reviewer.locator("details").filter({ hasText: number });
+      await record.locator("summary").click();
+      return record;
+    };
+    const record = await open();
+    await expect(
+      record.getByRole("button", { name: "Record independent licence review", exact: true }),
+    ).toBeDisabled();
+    const refused = await reviewer.request.post(`/api/v1${outlet}/licences/${licence.id}/review`, {
+      data: { decision: "approved", reason: "TEST no scan cannot approve" },
+    });
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toMatchObject({ error: "licence_evidence_required" });
+    const imagePath = path.resolve(__dirname, "../fixtures/licence-test-page.png");
+    await declaration
+      .getByLabel("Licence image (PNG or JPEG, up to 10 MiB)", { exact: true })
+      .setInputFiles(imagePath);
+    await declaration.getByRole("button", { name: "Upload licence image", exact: true }).click();
+    await expect(declaration.getByText(/Clean scan complete/)).toBeVisible({ timeout: 45_000 });
+    await reviewer.reload();
+    const scanned = reviewer.locator("details").filter({ hasText: number });
+    await scanned.locator("summary").click();
+    await expect(scanned.getByText(/Clean scan complete/)).toBeVisible();
+    const downloaded = reviewer.waitForEvent("download");
+    await scanned.getByRole("button", { name: "Download licence image", exact: true }).click();
+    const download = await downloaded;
+    expect(download.suggestedFilename()).toBe("licence-test-page.png");
+    expect(readFileSync((await download.path())!)).toEqual(readFileSync(imagePath));
+    await scanned
+      .getByLabel("Licence review reason", { exact: true })
+      .fill("TEST original details and private released image checked independently");
+    await scanned
+      .getByRole("button", { name: "Record independent licence review", exact: true })
+      .click();
+    await expect(scanned.locator("summary")).toContainText("Approved");
+    const retained = await owner<{ data: PharmacyLicence[] }>(
+      reviewer,
+      "GET",
+      `${outlet}/licences`,
+    );
+    expect(retained.data.find((item) => item.id === licence.id)).toMatchObject({
+      decision: "approved",
+      reviewed_by: me.subject,
+      reviewed_evidence_file_id: expect.any(String),
+    });
+    await expect(
+      scanned.getByRole("button", { name: "Record independent licence review", exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    try {
+      await release?.();
+    } finally {
+      await context.close();
+    }
+  }
+});
 
 test("a pharmacist uses verified UPI once, cannot switch customer, and returns stock to quarantine", async ({
   page,

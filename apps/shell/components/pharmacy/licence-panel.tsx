@@ -77,6 +77,7 @@ export function LicencePanel({
     const parsed = pharmacyLicenceRenewalNoticeSchema.safeParse(value);
     return parsed.success ? [parsed.data] : [];
   });
+  const invalidNotice = notices.length !== renewals.items.length;
   return (
     <Panel className="space-y-5">
       <div>
@@ -95,7 +96,7 @@ export function LicencePanel({
         <p role="status">Loading licences…</p>
       ) : (
         <>
-          {renewals.isError && (
+          {(renewals.isError || invalidNotice) && (
             <RequestFailure message="Renewal advice is unavailable." retry={renewals.retry} />
           )}
           {licences.items.length === 0 && (

@@ -1,6 +1,7 @@
 package pharmacy_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -249,4 +250,100 @@ func TestTheDatabaseRefusesAnAdmissionSaleCitingAVisit(t *testing.T) {
 		return tx.Exec(`INSERT INTO pharmacy_sales SELECT * FROM copied`).Error
 	})
 	require.ErrorContains(t, err, "pharmacy_sale_encounter_patient_sale")
+}
+
+type citableResp struct {
+	Data []struct {
+		EncounterID string `json:"encounter_id"`
+		Status      string `json:"status"`
+	} `json:"data"`
+}
+
+func citable(t *testing.T, w encounterWorld, who, query string) (int, citableResp, string) {
+	t.Helper()
+	res := do(w.r, "GET", licencePath("/opd-encounters?"+query), who, "")
+	var body citableResp
+	if res.Code == http.StatusOK {
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &body))
+	}
+	return res.Code, body, res.Body.String()
+}
+
+func TestTheCounterListsAPatientsCitableVisits(t *testing.T) {
+	w := newEncounterWorld(t)
+	first := w.d.newOPD(w.patient)
+	require.NoError(t, first.opened())
+	require.NoError(t, first.moved("arrived", "in_consultation", 2))
+	require.NoError(t, first.moved("in_consultation", "closed", 3))
+	cancelled := w.d.newOPD(w.patient)
+	require.NoError(t, cancelled.opened())
+	require.NoError(t, cancelled.moved("arrived", "cancelled", 2))
+	latest := w.d.newOPD(w.patient)
+	require.NoError(t, latest.opened())
+	someoneElse := w.d.newOPD(w.d.register(t))
+	require.NoError(t, someoneElse.opened())
+
+	query := "patient_id=" + w.patient + "&hospital_id=" + w.d.hospital
+	code, body, out := citable(t, w, "pharmacist", query)
+	require.Equal(t, http.StatusOK, code, out)
+	got := []string{}
+	for _, e := range body.Data {
+		got = append(got, e.EncounterID+":"+e.Status)
+	}
+	require.Equal(t, []string{latest.encounter + ":arrived", first.encounter + ":closed"}, got,
+		"this patient's visits a sale may cite, newest first; not a cancelled one or another patient's")
+	var reads []string
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT resource_type||':'||action||':'||array_to_string(changed_fields,',') FROM audit_events WHERE resource_type='pharmacy_opd_encounters'`).Scan(&reads).Error
+	}))
+	require.Equal(t, []string{"pharmacy_opd_encounters:patient_visits_read:patient_id,hospital_id"}, reads, "a read about one patient is recorded")
+
+	for _, bad := range []string{"", "patient_id=" + w.patient, "patient_id=nope&hospital_id=" + w.d.hospital} {
+		code, _, out := citable(t, w, "pharmacist", bad)
+		require.Equal(t, http.StatusBadRequest, code, bad+out)
+	}
+	code, _, _ = citable(t, w, "pharmacist", "patient_id="+w.patient+"&hospital_id="+uuid.NewString())
+	require.Equal(t, http.StatusNotFound, code, "a hospital that has not verified the pharmacy")
+	code, _, _ = citable(t, w, "pharmacist", "patient_id="+uuid.NewString()+"&hospital_id="+w.d.hospital)
+	require.Equal(t, http.StatusNotFound, code, "a patient the pharmacy has not received")
+	code, _, _ = citable(t, w, "clerk", query)
+	require.Equal(t, http.StatusForbidden, code, "the counter's own read")
+	code, _, _ = citable(t, w, "foreign", query)
+	require.Equal(t, http.StatusNotFound, code)
+	require.NoError(t, catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT resource_type FROM audit_events WHERE resource_type='pharmacy_opd_encounters'`).Scan(&reads).Error
+	}))
+	require.Len(t, reads, 1, "refused reads record nothing")
+}
+
+func TestTheWorklistShowsHowEachSaleIsLinked(t *testing.T) {
+	w := newEncounterWorld(t)
+	visit := w.d.newOPD(w.patient)
+	require.NoError(t, visit.opened())
+	code, _, out := w.sell(t, encounterSale(w.product, w.patient, w.d.hospital, visit.encounter))
+	require.Equal(t, http.StatusCreated, code, out)
+	code, _, out = w.sell(t, encounterSale(w.product, w.patient, w.d.hospital, ""))
+	require.Equal(t, http.StatusCreated, code, out)
+	stay := w.d.admit("R-1", "B-7")
+	res := do(w.r, "PUT", salePath("/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", admittedSale(w.product, stay.occupancy))
+	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+
+	code, body, out := reportPage[workRow](t, w.saleWorld, "pharmacist", "/sales/worklist?from=2026-11-01&to=2026-11-01")
+	require.Equal(t, http.StatusOK, code, out)
+	got := []string{}
+	for _, r := range body.Data {
+		got = append(got, r.Linkage)
+	}
+	require.Equal(t, []string{"admission", "none", "opd"}, got, "newest first")
+	require.NotContains(t, out, visit.encounter, "the worklist names no visit")
+	for linkage, n := range map[string]int{"opd": 1, "admission": 1, "none": 1} {
+		_, one, out := reportPage[workRow](t, w.saleWorld, "pharmacist", "/sales/worklist?from=2026-11-01&to=2026-11-01&linkage="+linkage)
+		require.Len(t, one.Data, n, linkage+out)
+		require.Equal(t, linkage, one.Data[0].Linkage)
+	}
+	code, _, _ = reportPage[workRow](t, w.saleWorld, "pharmacist", "/sales/worklist?from=2026-11-01&to=2026-11-01&linkage=ipd")
+	require.Equal(t, http.StatusBadRequest, code)
+	res = do(w.r, "GET", salePath("/"+body.Data[2].ID+"/summary"), "pharmacist", "")
+	require.Contains(t, res.Body.String(), `"linkage":"opd"`)
+	require.NotContains(t, res.Body.String(), visit.encounter, "nor does the summary")
 }

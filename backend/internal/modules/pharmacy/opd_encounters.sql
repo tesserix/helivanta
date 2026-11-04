@@ -12,9 +12,11 @@ CREATE TABLE pharmacy_opd_encounters (
  patient_id uuid,
  status text NOT NULL CHECK (status IN ('arrived','in_consultation','closed','left_without_being_seen','cancelled')),
  version integer NOT NULL CHECK (version >= 1),
+ -- When the pharmacy first heard of it: the counter lists newest first.
+ received_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  PRIMARY KEY (tenant_id,encounter_id)
 );
-CREATE INDEX pharmacy_opd_encounter_patient ON pharmacy_opd_encounters (tenant_id,patient_id,hospital_id) WHERE patient_id IS NOT NULL;
+CREATE INDEX pharmacy_opd_encounter_patient ON pharmacy_opd_encounters (tenant_id,patient_id,hospital_id,received_at DESC) WHERE patient_id IS NOT NULL;
 ALTER TABLE pharmacy_opd_encounters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_opd_encounters FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pharmacy_opd_encounters USING (hms_tenant_visible(tenant_id) AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid) WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid);
@@ -24,7 +26,7 @@ CREATE POLICY tenant_isolation ON pharmacy_opd_encounters USING (hms_tenant_visi
 CREATE FUNCTION pharmacy_opd_encounter_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF TG_OP='DELETE' THEN RAISE EXCEPTION 'encounter history is retained' USING ERRCODE='23514'; END IF;
- IF (NEW.tenant_id,NEW.encounter_id,NEW.hospital_id) IS DISTINCT FROM (OLD.tenant_id,OLD.encounter_id,OLD.hospital_id)
+ IF (NEW.tenant_id,NEW.encounter_id,NEW.hospital_id,NEW.received_at) IS DISTINCT FROM (OLD.tenant_id,OLD.encounter_id,OLD.hospital_id,OLD.received_at)
   OR (OLD.patient_id IS NOT NULL AND NEW.patient_id IS DISTINCT FROM OLD.patient_id)
   OR NEW.version < OLD.version
   OR (NEW.version = OLD.version AND NEW.status IS DISTINCT FROM OLD.status) THEN

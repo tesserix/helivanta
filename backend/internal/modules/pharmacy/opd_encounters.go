@@ -4,9 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	"github.com/tesserix/helivanta/internal/platform/respond"
 
 	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract"
 	"github.com/tesserix/helivanta/pkg/events"
@@ -85,4 +90,59 @@ func opdEncounterConsumers() []events.Consumer {
 		}
 		return nil
 	}}}
+}
+
+// maxCitableEncounters bounds the counter's list: a patient's recent visits,
+// not their history.
+const maxCitableEncounters = 20
+
+type citableEncounter struct {
+	EncounterID uuid.UUID `gorm:"column:encounter_id" json:"encounter_id"`
+	Status      string    `gorm:"column:status" json:"status"`
+	ReceivedAt  time.Time `gorm:"column:received_at" json:"received_at"`
+}
+
+// citableEncounters lists a registered patient's OPD visits a sale may cite,
+// newest first, at a hospital that has verified this outlet's pharmacy. It is
+// a read about one patient, so every answer is audited.
+func (h *catalogueHandlers) citableEncounters(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	patient, perr := uuid.Parse(c.Query("patient_id"))
+	hospital, herr := uuid.Parse(c.Query("hospital_id"))
+	if perr != nil || herr != nil || patient == uuid.Nil || hospital == uuid.Nil {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "patient_id and hospital_id are required")
+		return
+	}
+	found := []citableEncounter{}
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		// Fail closed: an unverified hospital or a patient the pharmacy has
+		// not received is not found, as the sale itself would refuse it.
+		var known int64
+		if err := tx.Raw(`SELECT count(*) FROM pharmacy_registered_patients r
+ JOIN pharmacy_outlets o ON o.tenant_id=r.tenant_id AND o.id=?
+ JOIN pharmacy_hospital_affiliations a ON a.tenant_id=o.tenant_id AND a.pharmacy_id=o.pharmacy_id AND a.hospital_id=r.hospital_id
+ WHERE r.tenant_id=? AND r.patient_id=? AND r.hospital_id=?
+  AND (SELECT v.kind FROM pharmacy_affiliation_verifications v WHERE v.tenant_id=a.tenant_id AND v.affiliation_id=a.id ORDER BY v.sequence DESC LIMIT 1)='accepted'`,
+			outlet, p.TenantID, patient, hospital).Scan(&known).Error; err != nil {
+			return err
+		}
+		if known == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := tx.Raw(`SELECT encounter_id,status,received_at FROM pharmacy_opd_encounters
+ WHERE tenant_id=? AND patient_id=? AND hospital_id=? AND status IN ('arrived','in_consultation','closed')
+ ORDER BY received_at DESC, encounter_id DESC LIMIT ?`, p.TenantID, patient, hospital, maxCitableEncounters).Scan(&found).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "opd_encounters", p.TenantID, p.Subject, outlet, "patient_visits_read",
+			"patient_id", patient.String(), "hospital_id", hospital.String())
+	})
+	if err != nil {
+		catalogueError(c, err)
+		return
+	}
+	respond.OK(c, gin.H{"data": found})
 }

@@ -33,6 +33,7 @@ type saleWorkRow struct {
 	SaleDate             string    `gorm:"column:sale_date" json:"sale_date"`
 	Customer             string    `gorm:"column:customer" json:"customer"`
 	BedCode              *string   `gorm:"column:admission_bed_code" json:"admission_bed_code"`
+	Linkage              string    `gorm:"column:linkage" json:"linkage"`
 	Currency             string    `gorm:"column:currency" json:"currency"`
 	TotalMinor           int64     `gorm:"column:total_minor" json:"total_minor"`
 	DiscountMinor        int64     `gorm:"column:discount_minor" json:"discount_minor"`
@@ -48,12 +49,16 @@ func (r saleWorkRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID
 // its registered patient, so admission is decided first.
 const saleCustomer = `CASE WHEN s.admission_id IS NOT NULL THEN 'admission' WHEN s.patient_id IS NOT NULL THEN 'patient' ELSE 'walk_in' END`
 
+// saleLinkage is what the sale is linked to, as a kind only (#987 slice 2):
+// the admission billed, the OPD visit cited, or neither. Never the id.
+const saleLinkage = `CASE WHEN s.admission_id IS NOT NULL THEN 'admission' WHEN s.encounter_id IS NOT NULL THEN 'opd' ELSE 'none' END`
+
 // saleWorkRows is one row per sale of the outlet dated in [since, until], or
 // the one invoice asked for, with every credit note posted so far. What is
 // still on the admission account is what was billed to it less what its
 // credit notes reversed (#1387).
 const saleWorkRows = `(SELECT s.id, s.created_at, s.invoice_number, to_char(s.sale_date,'YYYY-MM-DD') AS sale_date, ` + saleCustomer + ` AS customer,
- s.admission_bed_code, s.currency, s.total_minor,
+ s.admission_bed_code, ` + saleLinkage + ` AS linkage, s.currency, s.total_minor,
  (SELECT COALESCE(sum(l.discount_minor),0) FROM pharmacy_sale_lines l WHERE l.tenant_id=s.tenant_id AND l.outlet_id=s.outlet_id AND l.sale_id=s.id)::bigint AS discount_minor,
  (SELECT COALESCE(sum(l.quantity_units),0) FROM pharmacy_sale_lines l WHERE l.tenant_id=s.tenant_id AND l.outlet_id=s.outlet_id AND l.sale_id=s.id)::bigint AS units,
  c.credited::bigint AS credited_minor, (s.total_minor - c.credited)::bigint AS net_minor,
@@ -64,16 +69,19 @@ const saleWorkRows = `(SELECT s.id, s.created_at, s.invoice_number, to_char(s.sa
  CROSS JOIN LATERAL (SELECT COALESCE(sum(n.total_minor),0) AS credited FROM pharmacy_credit_notes n WHERE n.tenant_id=s.tenant_id AND n.outlet_id=s.outlet_id AND n.sale_id=s.id) c
  WHERE s.tenant_id=? AND s.outlet_id=?
   AND (?::text IS NOT NULL OR s.sale_date BETWEEN ?::date AND ?::date) AND (?::text IS NULL OR s.invoice_number=?::text)
-  AND (?::text IS NULL OR ` + saleCustomer + `=?::text)) e`
+  AND (?::text IS NULL OR ` + saleCustomer + `=?::text)
+  AND (?::text IS NULL OR ` + saleLinkage + `=?::text)) e`
 
 var saleCustomers = map[string]bool{"walk_in": true, "patient": true, "admission": true}
+
+var saleLinkages = map[string]bool{"admission": true, "opd": true, "none": true}
 
 func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.Params) ([]saleWorkRow, error) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
 		return nil, nil
 	}
-	var invoice, customer *string
+	var invoice, customer, linkage *string
 	// An invoice is found exactly, without a period; otherwise the period
 	// bounds the read, as every pharmacy report's does.
 	var since, until *string
@@ -97,6 +105,13 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 		}
 		customer = &v
 	}
+	if v := c.Query("linkage"); v != "" {
+		if !saleLinkages[v] {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "linkage is admission, opd or none")
+			return nil, nil
+		}
+		linkage = &v
+	}
 	var rows []saleWorkRow
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
 		// Correlated sums per row; a large outlet gets a clean failure, as
@@ -104,7 +119,7 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyOrderedKeyset(tx.Table(saleWorkRows, p.TenantID, outlet, invoice, since, until, invoice, invoice, customer, customer), params,
+		if err := tenantdb.ApplyOrderedKeyset(tx.Table(saleWorkRows, p.TenantID, outlet, invoice, since, until, invoice, invoice, customer, customer, linkage, linkage), params,
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).Find(&rows).Error; err != nil {
 			return err
 		}
@@ -115,7 +130,7 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 		for _, r := range rows[:min(len(rows), params.Limit)] {
 			if r.Customer == "admission" {
 				return auditRegisterRead(c, tx, "sales_worklist", p.TenantID, p.Subject, outlet, "list_read",
-					"from", orAll(since), "to", orAll(until), "customer", orAll(customer), "invoice", orAll(invoice))
+					"from", orAll(since), "to", orAll(until), "customer", orAll(customer), "invoice", orAll(invoice), "linkage", orAll(linkage))
 			}
 		}
 		return nil
@@ -180,6 +195,7 @@ type saleSummary struct {
 	SaleDate               string              `gorm:"column:sale_date" json:"sale_date"`
 	Customer               string              `gorm:"column:customer" json:"customer"`
 	BedCode                *string             `gorm:"column:admission_bed_code" json:"admission_bed_code"`
+	Linkage                string              `gorm:"column:linkage" json:"linkage"`
 	Currency               string              `gorm:"column:currency" json:"currency"`
 	TotalMinor             int64               `gorm:"column:total_minor" json:"total_minor"`
 	TaxableMinor           int64               `gorm:"column:taxable_minor" json:"taxable_minor"`
@@ -242,7 +258,7 @@ func (h *catalogueHandlers) getSaleSummary(c *gin.Context) {
 }
 
 func loadSaleSummary(tx *gorm.DB, tenant string, outlet, id uuid.UUID, s *saleSummary) error {
-	res := tx.Raw(`SELECT s.id, s.invoice_number, to_char(s.sale_date,'YYYY-MM-DD') AS sale_date, `+saleCustomer+` AS customer, s.admission_bed_code,
+	res := tx.Raw(`SELECT s.id, s.invoice_number, to_char(s.sale_date,'YYYY-MM-DD') AS sale_date, `+saleCustomer+` AS customer, s.admission_bed_code, `+saleLinkage+` AS linkage,
  s.currency, s.total_minor, s.taxable_minor, s.cgst_minor, s.sgst_minor FROM pharmacy_sales s WHERE s.tenant_id=? AND s.outlet_id=? AND s.id=?`, tenant, outlet, id).Scan(s)
 	if res.Error != nil {
 		return res.Error

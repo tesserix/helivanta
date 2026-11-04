@@ -2792,6 +2792,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters",
+          "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -3603,6 +3612,16 @@
           "name": "pharmacy-bed-occupancy-ended",
           "subject": "helivanta.in.medicore.bed_occupancy_ended.v1",
           "after_commit": false
+        },
+        {
+          "name": "pharmacy-encounter-opened",
+          "subject": "helivanta.in.medicore.encounter_opened.v1",
+          "after_commit": false
+        },
+        {
+          "name": "pharmacy-encounter-status-changed",
+          "subject": "helivanta.in.medicore.encounter_status_changed.v1",
+          "after_commit": false
         }
       ],
       "broadcasts": [],
@@ -3831,6 +3850,13 @@
             "pharmacy_service_charge_reviews",
             "pharmacy_sale_charge_lines",
             "pharmacy_credit_note_charge_lines"
+          ]
+        },
+        {
+          "id": "0032_pharmacy",
+          "sql_sha256": "149bdb304b2af5934ad59e1237662f3f48bcc762f8d36eb566c196920e064bd8",
+          "creates_tables": [
+            "pharmacy_opd_encounters"
           ]
         }
       ]

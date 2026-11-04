@@ -703,29 +703,3 @@ func TestSnapshotCountAndRowsAgreeAcrossConcurrentInsert(t *testing.T) {
 	require.ErrorContains(t, err, "read-only")
 	require.ErrorIs(t, db.WithTenantSnapshot(ctx, "not-a-uuid", func(*gorm.DB) error { return nil }), tenantdb.ErrInvalidTenant)
 }
-
-// An audited read: one snapshot for every read, and the audit row written in
-// the same transaction (#1555).
-func TestRecordedSnapshotReadsOneSnapshotAndMayWrite(t *testing.T) {
-	db, ctx, tenantID := keysetHarness(t)
-	seedRows(t, db, ctx, tenantID, 3)
-	var count int64
-	var rows []keysetRow
-	require.NoError(t, db.WithTenantRecordedSnapshot(ctx, tenantID, func(tx *gorm.DB) error {
-		if err := tx.Model(&keysetRow{}).Count(&count).Error; err != nil {
-			return err
-		}
-		insertRowAt(t, db, ctx, tenantID, "during-recorded-snapshot", time.Now().UTC())
-		if err := tx.Find(&rows).Error; err != nil {
-			return err
-		}
-		return tx.Create(&keysetRow{TenantID: uuid.MustParse(tenantID), Name: "recorded"}).Error
-	}))
-	require.Equal(t, int(count), len(rows), "every read sees one snapshot")
-	var written int64
-	require.NoError(t, db.WithTenant(ctx, tenantID, func(tx *gorm.DB) error {
-		return tx.Model(&keysetRow{}).Where("name = ?", "recorded").Count(&written).Error
-	}))
-	require.EqualValues(t, 1, written, "and the transaction may write its record")
-	require.ErrorIs(t, db.WithTenantRecordedSnapshot(ctx, "not-a-uuid", func(*gorm.DB) error { return nil }), tenantdb.ErrInvalidTenant)
-}

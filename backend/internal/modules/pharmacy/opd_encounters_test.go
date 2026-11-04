@@ -14,6 +14,10 @@ import (
 	medicorecontract "github.com/tesserix/helivanta/internal/modules/medicore/contract" //nolint:depguard // external test feeding the consumer its published contract
 	patientmastercontract "github.com/tesserix/helivanta/internal/modules/patientmaster/contract"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module //nolint:depguard // external test feeding the consumer its published contract
+	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/events"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // #987 slice 2: pharmacy's projection of MediCore's OPD encounters.
@@ -385,4 +389,48 @@ func TestAVisitsReadWhoseRecordFailsReturnsNothing(t *testing.T) {
 	code, _, out := citable(t, w, "pharmacist", "patient_id="+w.patient+"&hospital_id="+w.d.hospital)
 	require.Equal(t, http.StatusInternalServerError, code, out)
 	require.NotContains(t, out, visit.encounter, "no record, no data")
+}
+
+// A cancellation being applied orders a sale citing the visit after it: the
+// sale waits on the encounter row (FOR SHARE) and is then refused, never
+// posted against a visit that was cancelled before it committed.
+func TestASaleWaitsForACancellationBeingApplied(t *testing.T) {
+	w := newEncounterWorld(t)
+	visit := w.d.newOPD(w.patient)
+	require.NoError(t, visit.opened())
+	var changed events.Consumer
+	for _, c := range pharmacy.New().Consumers(platform.Deps{}) {
+		if c.Name == "pharmacy-encounter-status-changed" {
+			changed = c
+		}
+	}
+	data, err := json.Marshal(medicorecontract.EncounterStatusChangedData{EncounterID: visit.encounter, HospitalID: w.d.hospital, FromStatus: "arrived", ToStatus: "cancelled", Version: 2})
+	require.NoError(t, err)
+	type posted struct {
+		code int
+		out  string
+	}
+	done := make(chan posted, 1)
+	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(t.Context(), "system:pharmacy-encounter-status-changed"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := changed.Handle(t.Context(), tx, events.Event{Type: "EncounterStatusChanged", Version: 1, TenantID: testutil.TenantA, Data: data}); err != nil {
+			return err
+		}
+		go func() {
+			code, _, out := w.sell(t, encounterSale(w.product, w.patient, w.d.hospital, visit.encounter))
+			done <- posted{code, out}
+		}()
+		select {
+		case p := <-done:
+			t.Errorf("the sale finished while the cancellation was uncommitted: %d %s", p.code, p.out)
+		case <-time.After(500 * time.Millisecond):
+		}
+		return nil
+	}))
+	select {
+	case p := <-done:
+		require.Equal(t, http.StatusConflict, p.code, p.out)
+		require.Contains(t, p.out, "that visit was cancelled, or the patient left without being seen")
+	case <-time.After(10 * time.Second):
+		t.Fatal("the sale never finished")
+	}
 }

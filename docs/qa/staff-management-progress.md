@@ -33,9 +33,7 @@ The 23 operational-access reviews pinned to `router.go`, Workforce/IAM `module.g
 byte-identical. Workforce `Routes` changes only the posting-review registrations
 and dependency wiring, `authorityCandidates` also returns scope kind and department
 while every caller binds the kind, and `DepartmentReferences` keeps the same
-fail-closed owner binding. No reviewed route's authority changed. Refreshing
-those pins needs maintainer approval and is not in this candidate yet, so
-`staff-operational-access-inventory.mjs --check` fails until it lands.
+fail-closed owner binding. No reviewed route's authority changed. With maintainer approval the 23 pins were refreshed and each review gained a dated #429 recheck note; only hashes and that note changed, and `staff-operational-access-inventory.mjs --check` passes (820 surfaces, 797 unclassified).
 
 Department leave review, clinical department reach, outlet scope (#418),
 standalone employers (#19) and real-account browser acceptance remain open. Counts

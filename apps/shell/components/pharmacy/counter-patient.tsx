@@ -5,14 +5,18 @@ import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
+  pharmacyKey,
+  pharmacyOPDEncountersPath,
   pharmacyPatientLookupSchema,
   useApiMutation,
   useApiPagedQuery,
+  useApiQuery,
   type PharmacyHospitalAffiliation,
   type PharmacyPatientLookupResult,
+  type PharmacyOPDEncounter,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
+import { Field, FormSelectField, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
 
 export type CounterPatient = { patient_id: string; hospital_id: string; name: string };
 
@@ -197,6 +201,69 @@ function LookupForm({
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+const visitStatus: Record<PharmacyOPDEncounter["status"], string> = {
+  arrived: "arrived",
+  in_consultation: "in consultation",
+  closed: "consultation over",
+};
+
+/**
+ * The confirmed patient's OPD visit the sale serves (#987), from the visits a
+ * sale may cite: their own, at that hospital, not cancelled. Optional: a
+ * registered patient may buy medicines that are for no visit. The lookup is
+ * audited; it runs only once the patient is confirmed.
+ */
+export function CounterVisit({
+  scope,
+  patient,
+  value,
+  onChange,
+}: {
+  scope: PharmacyScope;
+  patient: CounterPatient;
+  /** The chosen encounter id; empty is none. */
+  value: string;
+  onChange: (encounterId: string) => void;
+}) {
+  const visits = useApiQuery<{ data: PharmacyOPDEncounter[] }>(
+    pharmacyKey(scope, "opd-encounters", patient.patient_id, patient.hospital_id),
+    pharmacyOPDEncountersPath(scope, patient.patient_id, patient.hospital_id),
+  );
+  if (visits.isError)
+    return (
+      <RequestFailure
+        message="Could not load the patient's visits. The sale can go ahead without one."
+        retry={visits.refetch}
+      />
+    );
+  if (visits.isPending) return <p role="status">Loading the patient's visits…</p>;
+  const rows = visits.data.data;
+  if (rows.length === 0)
+    return (
+      <p className="mt-3 text-sm text-muted-foreground">
+        No OPD visit of this patient to cite; the sale is for no visit.
+      </p>
+    );
+  return (
+    <div className="mt-3">
+      <Field id="counter-visit" label="For the OPD visit">
+        <SelectControl
+          id="counter-visit"
+          value={value}
+          onValueChange={onChange}
+          options={[
+            { value: "", label: "Not for a visit" },
+            ...rows.map((v) => ({
+              value: v.encounter_id,
+              label: `Visit received ${new Date(v.received_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}, ${visitStatus[v.status]}`,
+            })),
+          ]}
+        />
+      </Field>
     </div>
   );
 }

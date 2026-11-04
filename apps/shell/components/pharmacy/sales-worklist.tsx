@@ -11,6 +11,7 @@ import {
   useApiPagedQuery,
   useApiQuery,
   type PharmacySaleCustomer,
+  type PharmacySaleLinkage,
   type PharmacySaleSummary,
   type PharmacySaleWorkRow,
   type PharmacySalesWorklistFilter,
@@ -30,6 +31,12 @@ import { useListDetail } from "@/lib/use-list-detail";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { periodSchema } from "./period";
 
+export const linkageLabel: Record<PharmacySaleLinkage, string> = {
+  admission: "Admission",
+  opd: "OPD visit",
+  none: "No visit",
+};
+
 export const customerLabel: Record<PharmacySaleCustomer, string> = {
   walk_in: "Walk-in",
   patient: "Registered patient",
@@ -47,6 +54,7 @@ const kindLabel: Record<string, string> = {
 const filterSchema = periodSchema.and(
   z.object({
     customer: z.enum(["all", "walk_in", "patient", "admission"]),
+    linkage: z.enum(["all", "admission", "opd", "none"]),
     // Invoice numbers are stored in capitals, at most 16 characters.
     invoice: z.string().trim().toUpperCase().max(16, "An invoice number is at most 16 characters"),
   }),
@@ -64,10 +72,14 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
     from: today,
     to: today,
     customer: "all",
+    linkage: "all",
     invoice: "",
   });
   const apply = (v: FilterValues) => {
-    const customer = v.customer === "all" ? {} : { customer: v.customer };
+    const customer = {
+      ...(v.customer === "all" ? {} : { customer: v.customer }),
+      ...(v.linkage === "all" ? {} : { linkage: v.linkage }),
+    };
     // An invoice number is found exactly, whatever the period.
     setFilter(
       v.invoice ? { invoice: v.invoice, ...customer } : { from: v.from, to: v.to, ...customer },
@@ -124,6 +136,18 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
               { value: "admission", label: customerLabel.admission },
             ]}
           />
+          <FormSelectField
+            control={form.control}
+            name="linkage"
+            id="sales-linkage"
+            label="Linked to"
+            options={[
+              { value: "all", label: "Anything" },
+              { value: "admission", label: linkageLabel.admission },
+              { value: "opd", label: linkageLabel.opd },
+              { value: "none", label: linkageLabel.none },
+            ]}
+          />
           <Field
             id="sales-invoice"
             label="Invoice number"
@@ -169,8 +193,9 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
                         </p>
                         <p className="mt-0.5">
                           {customerLabel[s.customer]}
-                          {s.admission_bed_code && `, bed ${s.admission_bed_code}`} · {s.units}{" "}
-                          units · {money(s.total_minor)}
+                          {s.admission_bed_code && `, bed ${s.admission_bed_code}`}
+                          {s.linkage === "opd" && ", for an OPD visit"} · {s.units} units ·{" "}
+                          {money(s.total_minor)}
                         </p>
                         <p className="mt-0.5 text-muted-foreground">
                           {s.credited_minor > 0
@@ -227,7 +252,7 @@ function SaleSummaryPane({
         title={s ? `Invoice ${s.invoice_number}` : "Sale"}
         subtitle={
           s
-            ? `${s.sale_date} · ${customerLabel[s.customer]}${s.admission_bed_code ? `, bed ${s.admission_bed_code}` : ""}`
+            ? `${s.sale_date} · ${customerLabel[s.customer]}${s.admission_bed_code ? `, bed ${s.admission_bed_code}` : ""}${s.linkage === "opd" ? ", for an OPD visit" : ""}`
             : undefined
         }
         noun="sale"

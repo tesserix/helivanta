@@ -39,6 +39,15 @@ open. Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepte
 
 ## Reporting-line leave routing — 2026-11-04
 
+[#1546](https://github.com/tesserix/helivanta/pull/1546) merged as `f4799d63` and
+is deployed through Kargo. The ledger grew 223→224 with exactly
+`0078_workforce_leave_routing`; read-only checks confirm forced RLS, enabled
+triggers, the restrictive review policy and function bodies matching committed
+SQL. Seven deployments are 2/2, all 14 containers match signed digests with zero
+restarts, and Argo is Synced/Healthy. See the
+[release record](../deployment/releases/2026-11-04-leave-routing.md). Production
+authenticated acceptance still needs owner sign-in.
+
 #1536 lets HR choose who decides leave first. A versioned, reviewed routing
 policy (`hospital` or `reporting_line` with an escalation interval) is pinned to
 each request when it is filed; a reporting-line request gets one step per
@@ -72,7 +81,8 @@ the #1536 branch), Synthetic Staff QA Hospital 20261027:
    `route_level` `desk`, and no audit row for the refused read.
 
 Screenshots and runtime records stay in the private local QA directory.
-Production promotion awaits named approval.
+The owner approved and created the production promotion; see the release
+record above.
 
 ## Incremental production release — 2026-11-04
 

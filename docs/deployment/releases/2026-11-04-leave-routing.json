@@ -1,0 +1,57 @@
+{
+  "source": "f4799d63acfd58f05dc8901346ffba636b751f4c",
+  "pr": 1546,
+  "issue": 1536,
+  "freight": "df0c93cd9a7c4e238356b67b4f205f2fc1a767a1",
+  "promotion": "prod.01m6j1pxzcrgtx292yncjqn86d.df0c93c",
+  "promotion_phase": "Succeeded",
+  "migrations_before": 223,
+  "migrations_after": 224,
+  "added_migrations": ["0078_workforce_leave_routing"],
+  "removed_migrations": [],
+  "forced_rls_tables": [
+    "workforce_leave_routing_revisions",
+    "workforce_leave_route_steps"
+  ],
+  "enabled_triggers": 5,
+  "restrictive_policy": "leave_route_review_guard",
+  "validated_constraints": [
+    "workforce_leave_request_routing",
+    "workforce_leave_request_routing_revision"
+  ],
+  "reviewer_index_valid": true,
+  "reviewer_index_ready": true,
+  "functions_matching_committed_sql": [
+    "workforce_pin_leave_route",
+    "workforce_leave_route_reviewer",
+    "workforce_leave_request_routing_pinned"
+  ],
+  "existing_leave_requests": 0,
+  "routing_revisions": 0,
+  "image_digests": {
+    "api": "sha256:a584f987707b383fa940c1ff3e0508402279b65957d14bb4c0b5e934d15ef464",
+    "shell": "sha256:35a6a0982ae9dc2177830d0aa31145f6086ff849f5945cea280c0362fcd9127c"
+  },
+  "application_deployments": 7,
+  "ready_replicas_per_deployment": 2,
+  "ready_application_containers": 14,
+  "application_container_restarts": 0,
+  "argo": [
+    { "name": "helivanta-api", "sync": "Synced", "health": "Healthy" },
+    { "name": "helivanta-global-api", "sync": "Synced", "health": "Healthy" },
+    { "name": "helivanta-shell", "sync": "Synced", "health": "Healthy" }
+  ],
+  "public_smoke": [
+    { "path": "/", "status": 200, "via_global_api": false },
+    { "path": "/login", "status": 200, "via_global_api": false },
+    {
+      "path": "/api/v1/workforce/hospitals/00000000-0000-4000-8000-000000000001/hr/leave-routing",
+      "status": 401,
+      "via_global_api": true
+    }
+  ],
+  "authenticated_browser_acceptance": "pending_owner_sign_in",
+  "full_staff_management_accepted": false,
+  "migration_job": "helivanta-api-migrate-lzrzt",
+  "migration_exit_code": 0
+}

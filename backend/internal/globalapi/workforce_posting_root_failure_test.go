@@ -2,7 +2,10 @@ package globalapi
 
 import (
 	"context"
+	"encoding/json"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -46,4 +49,28 @@ func assertPostingRootApprovalRollback(t *testing.T, db *tenantdb.DB, tenant, re
 		call(t, "GET", path, reviewer, nil, 404)
 		require.Len(t, call(t, "GET", root+"/history", reviewer, nil, 200)["data"], 1)
 	}
+}
+
+func assertConcurrentPostingRootApproval(t *testing.T, request func(context.Context) *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	start := make(chan struct{})
+	responses := make(chan *httptest.ResponseRecorder, 2)
+	for range 2 {
+		go func() { <-start; responses <- request(ctx) }()
+	}
+	close(start)
+	var receipts [2]map[string]any
+	for i := range receipts {
+		select {
+		case response := <-responses:
+			require.Equal(t, 200, response.Code, response.Body.String())
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &receipts[i]))
+		case <-ctx.Done():
+			t.Fatal("concurrent root approval did not complete within the existing request budget")
+		}
+	}
+	require.Equal(t, receipts[0], receipts[1], "concurrent exact commands retain one immutable approval")
+	return receipts[0]
 }

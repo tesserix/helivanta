@@ -1,16 +1,21 @@
 package globalapi
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
-func assertPostingRootApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, base, submitter, reviewer, draft string, receipt, source, generation map[string]any, enableManagement, enableSubmitterReview func()) {
+func assertPostingRootApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request func(context.Context, string, string, string, []byte, string) *httptest.ResponseRecorder, base, submitter, reviewer, draft string, receipt, source, generation map[string]any, enableManagement, enableSubmitterReview func()) {
 	t.Helper()
 	root := base + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
 	command := root + "/commands/" + uuid.Must(uuid.NewV7()).String()
@@ -42,7 +47,20 @@ func assertPostingRootApproval(t *testing.T, db *tenantdb.DB, tenant string, cal
 		call(t, "GET", path, reviewer, nil, 404)
 	}
 	assertPostingRootApprovalRollback(t, db, tenant, reviewer, root, path, decision, pending, call)
-	approved := call(t, "PUT", path, reviewer, decision, 200)
+	eventCount := func() int64 {
+		var count int64
+		require.NoError(t, db.WithTenant(t.Context(), tenant, func(tx *gorm.DB) error {
+			return tx.Table("outbox_events").Where("subject=?", workforcecontract.SubjectPostingProposalChanged).Count(&count).Error
+		}))
+		return count
+	}
+	beforeEvents := eventCount()
+	body, err := json.Marshal(decision)
+	require.NoError(t, err)
+	approved := assertConcurrentPostingRootApproval(t, func(ctx context.Context) *httptest.ResponseRecorder {
+		return request(ctx, "PUT", path, reviewer, body, "application/json")
+	})
+	require.Equal(t, beforeEvents+1, eventCount(), "concurrent approvals must publish only one canonical decision event")
 	require.Equal(t, "approved", approved["status"])
 	terminal := fmt.Sprintf("?purpose=review&expected_version=2&expected_revision_id=%s&supervision_context=v1&management_review=current", approved["revision_id"])
 	call(t, "GET", root+"/context"+terminal, reviewer, nil, 409)

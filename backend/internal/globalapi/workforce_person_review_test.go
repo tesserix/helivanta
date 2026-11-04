@@ -2246,7 +2246,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if scenario == "posting_root_approval" {
 					require.NotEmpty(t, postingRootReviewer, "include the preceding reviewed root-reviewer scenario in a focused run")
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
-					assertPostingRootApproval(t, db, testutil.TenantA, call, scopedStaffBase, recipient, postingRootReviewer, scopedDraft, scopedReceipt, scopedSource, generation, func() {
+					assertPostingRootApproval(t, db, testutil.TenantA, call, requestWithContext, scopedStaffBase, recipient, postingRootReviewer, scopedDraft, scopedReceipt, scopedSource, generation, func() {
 						grant(postingRootReviewer, "workforce.posting_management_reviewer.v1", workforce.PermPostingManagementReview)
 					}, func() {
 						grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)

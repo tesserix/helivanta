@@ -2,6 +2,12 @@
 
 ## Root approval backend validation complete — 2026-11-04
 
+Concurrent exact approval now passes with real dependencies and the race detector
+in **55.198s**: two simultaneous requests return the same immutable approval and
+produce exactly one canonical decision event. The existing evidence/audit/outbox
+faults, stale commands, self denial and terminal context checks remain in that pair.
+Other source/structure race orderings and real-account acceptance remain open.
+
 The affected native Linux suites now pass with the race detector: **IAM 459.661s,
 Workforce 542.081s and Global API 454.577s**. Global API includes independent root
 approval, fully entitled self/submitter denial, stale decisions, management-context

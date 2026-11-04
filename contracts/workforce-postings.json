@@ -556,6 +556,55 @@
         "pointer": true,
         "nullable": true
       }
+    ],
+    "StaffPostingSupervisorChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff",
+        "type": "StaffPostingTarget"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["hospital_management", "department_supervisor"]
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time",
+        "optional": true,
+        "nullable": true
+      },
+      {
+        "name": "eligibility_until",
+        "type": "time"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
     ]
   },
   "events": {

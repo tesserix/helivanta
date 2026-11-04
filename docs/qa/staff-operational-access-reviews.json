@@ -166,7 +166,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -235,7 +235,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -314,7 +314,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -378,7 +378,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -442,7 +442,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -506,7 +506,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -590,7 +590,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -689,7 +689,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -743,7 +743,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -802,7 +802,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -958,7 +958,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1002,7 +1002,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1046,7 +1046,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1105,7 +1105,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1149,7 +1149,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {
@@ -1193,7 +1193,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/workforce/module.go",
-          "sha256": "b21256a031e6f9f164ce4d95ccbe1ee4c3bb22eb5bb1b6035e06206ac2933167",
+          "sha256": "88d66c24994bae910087ccfbae7de34afd88602266ef792531e621d221b721b9",
           "symbol": "func (*Module) Routes("
         },
         {

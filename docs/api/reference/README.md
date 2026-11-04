@@ -1093,6 +1093,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal` | `workforce.posting.proposal.read` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source` | `workforce.posting.proposal.read` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-supervisor-choices` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-targets` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
@@ -1304,6 +1305,7 @@ Migration table declarations:
 - `0079_workforce_posting_supervision_intents`: `workforce_posting_supervision_intents`.
 - `0080_workforce_posting_root_approvals`: `workforce_posting_management_reviews`.
 - `0081_workforce_posting_chain_approvals`: `workforce_posting_chain_reviews`, `workforce_posting_chain_sources`.
+- `0083_workforce_posting_supervisor_choice_index`: concurrent index `workforce_posting_supervisor_choice_order` on `workforce_posting_supervision_intents (tenant_id, hospital_id, kind, created_at DESC, proposal_id DESC)`.
 
 ## workspace
 

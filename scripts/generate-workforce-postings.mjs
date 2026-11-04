@@ -31,6 +31,16 @@ const validPosting = (value: {department_id:string; department_revision_id:strin
  if(value.reason && /\\p{Cc}/u.test(value.reason)) ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
 };
 
+const validSupervisorChoice = (value: Parameters<typeof validPosting>[0] & {id:string;revision_id:string;staff:{id:string};eligibility_until:string;created_at:string},ctx:z.RefinementCtx) => {
+ validPosting(value,ctx);
+ for(const key of ["id","revision_id"] as const) if(!z.uuidv7().safeParse(value[key]).success)ctx.addIssue({code:"custom",path:[key],message:"Choose a canonical approved posting reference."});
+ if(value.staff.id==="00000000-0000-0000-0000-000000000000")ctx.addIssue({code:"custom",path:["staff","id"],message:"Choose a canonical Staff identity."});
+ const start=staffPostingInstantMicros(value.starts_at),until=staffPostingInstantMicros(value.eligibility_until),created=staffPostingInstantMicros(value.created_at);
+ const lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ if(start===null||until===null||until<=start||until>upper)ctx.addIssue({code:"custom",path:["eligibility_until"],message:"The reviewed source cutoff must cover the nominal start."});
+ if(created===null||created<=lower||created>upper)ctx.addIssue({code:"custom",path:["created_at"],message:"The retained intent creation time is invalid."});
+};
+
 const validProposalSubmission = (value:{draft_id:string;draft_revision_id:string;generation_id:string;reason:string},ctx:z.RefinementCtx) => {
  for(const key of ["draft_id","draft_revision_id","generation_id"] as const) if(!z.uuidv7().safeParse(value[key]).success) ctx.addIssue({code:"custom",path:[key],message:"Choose the exact reviewed source revision."});
  if(/\\p{Cc}/u.test(value.reason)) ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
@@ -67,6 +77,10 @@ const validReviewSource = (value:{generation_id:string|null;generation_state:str
 };
 `;
 const refined = models.ts
+  .replace(
+    /(export const StaffPostingSupervisorChoiceContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validSupervisorChoice);",
+  )
   .replace(
     /(export const StaffPostingSupervisionIntentContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
     "$1.superRefine(validSupervisionIntent);",

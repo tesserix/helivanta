@@ -356,7 +356,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -2167,14 +2167,25 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" {
-						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
+						if migration.ID == "0082_workforce_posting_supervisor_choices" {
+							applySupervisorDiscoveryMigration(t, db, ctx, migration)
+						} else {
+							require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
+						}
 					}
 				}
 				postingScopes := call(t, "GET", "/v1/workforce/posting-scopes", recipient, nil, 200)["data"].([]any)
 				require.Len(t, postingScopes, 1)
 				require.Equal(t, hospital, postingScopes[0].(map[string]any)["hospital_id"])
 				require.Equal(t, false, postingScopes[0].(map[string]any)["can_prepare"])
+				t.Run("supervisor discovery requires its current submission or review purpose", func(t *testing.T) {
+					for _, purpose := range []string{"submission", "review"} {
+						denied := call(t, "GET", "/v1/workforce/hospitals/"+hospital+"/posting-supervisor-choices?purpose="+purpose, recipient, nil, 403)
+						require.NotContains(t, denied, "data", "an eligible scoped reader cannot substitute for the purpose capability")
+					}
+				})
+
 				postingTargets := call(t, "GET", base+"/posting-targets?limit=50", recipient, nil, 200)["data"].([]any)
 				require.NotEmpty(t, postingTargets)
 				for _, target := range postingTargets {

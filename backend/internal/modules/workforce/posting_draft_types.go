@@ -147,3 +147,17 @@ type StaffPostingSupervisionContext struct {
 	Context     StaffPostingProposalContext    `json:"context"`
 	Supervision *StaffPostingSupervisionIntent `json:"supervision"`
 }
+
+type StaffPostingSupervisorChoice struct {
+	ID                   uuid.UUID          `json:"id"`
+	RevisionID           uuid.UUID          `json:"revision_id"`
+	HospitalID           uuid.UUID          `json:"hospital_id"`
+	Staff                StaffPostingTarget `json:"staff"`
+	Kind                 string             `json:"kind"`
+	DepartmentID         uuid.UUID          `json:"department_id"`
+	DepartmentRevisionID uuid.UUID          `json:"department_revision_id"`
+	StartsAt             time.Time          `json:"starts_at"`
+	EndsAt               *time.Time         `json:"ends_at,omitempty"`
+	EligibilityUntil     time.Time          `json:"eligibility_until"`
+	CreatedAt            time.Time          `json:"created_at"`
+}

@@ -50,6 +50,49 @@ const validPosting = (
     ctx.addIssue({ code: "custom", path: ["reason"], message: "Remove control characters." });
 };
 
+const validSupervisorChoice = (
+  value: Parameters<typeof validPosting>[0] & {
+    id: string;
+    revision_id: string;
+    staff: { id: string };
+    eligibility_until: string;
+    created_at: string;
+  },
+  ctx: z.RefinementCtx,
+) => {
+  validPosting(value, ctx);
+  for (const key of ["id", "revision_id"] as const)
+    if (!z.uuidv7().safeParse(value[key]).success)
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "Choose a canonical approved posting reference.",
+      });
+  if (value.staff.id === "00000000-0000-0000-0000-000000000000")
+    ctx.addIssue({
+      code: "custom",
+      path: ["staff", "id"],
+      message: "Choose a canonical Staff identity.",
+    });
+  const start = staffPostingInstantMicros(value.starts_at),
+    until = staffPostingInstantMicros(value.eligibility_until),
+    created = staffPostingInstantMicros(value.created_at);
+  const lower = staffPostingInstantMicros("0001-01-01T00:00:00Z")!,
+    upper = staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+  if (start === null || until === null || until <= start || until > upper)
+    ctx.addIssue({
+      code: "custom",
+      path: ["eligibility_until"],
+      message: "The reviewed source cutoff must cover the nominal start.",
+    });
+  if (created === null || created <= lower || created > upper)
+    ctx.addIssue({
+      code: "custom",
+      path: ["created_at"],
+      message: "The retained intent creation time is invalid.",
+    });
+};
+
 const validProposalSubmission = (
   value: { draft_id: string; draft_revision_id: string; generation_id: string; reason: string },
   ctx: z.RefinementCtx,
@@ -468,3 +511,21 @@ export const StaffPostingSupervisionContextContract = z
   })
   .strict();
 export type StaffPostingSupervisionContext = z.infer<typeof StaffPostingSupervisionContextContract>;
+
+export const StaffPostingSupervisorChoiceContract = z
+  .object({
+    id: identifier,
+    revision_id: identifier,
+    hospital_id: identifier,
+    staff: StaffPostingTargetContract,
+    kind: z.enum(["hospital_management", "department_supervisor"]),
+    department_id: identifier,
+    department_revision_id: identifier,
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }).nullable().optional(),
+    eligibility_until: z.string().datetime({ offset: true }),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine(validSupervisorChoice);
+export type StaffPostingSupervisorChoice = z.infer<typeof StaffPostingSupervisorChoiceContract>;

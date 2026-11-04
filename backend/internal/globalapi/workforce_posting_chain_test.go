@@ -21,6 +21,7 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	parentRoot := parentBase + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
 	parentPending := call(t, "PUT", parentRoot+"/commands/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 0, "draft_id": parentDraft, "draft_revision_id": parentReceipt["revision_id"], "draft_version": parentReceipt["version"], "generation_id": parentSource["generation_id"], "staff_version": parentSource["staff_version"], "employment_epoch": parentSource["employment_epoch"], "reason": "Synthetic explicit canonical root to supervise a separate Staff posting", "sources_examined": true, "supervision": map[string]any{"kind": "hospital_management"}}, 200)
 	parentApproved := call(t, "PUT", parentRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), rootApprover, map[string]any{"expected_version": 1, "expected_revision_id": parentPending["revision_id"], "decision": "approve", "reason": "Independent synthetic root management appointment for a supervised department", "sources_examined": true, "hospital_management_reviewed": true}, 200)
+	assertPostingSupervisorRootChoice(t, call, childReceipt["hospital_id"].(string), submitter, reviewer, supervisorStaff, parentApproved)
 	newChildDraft := func(reason string) (string, map[string]any) {
 		id := uuid.Must(uuid.NewV7()).String()
 		row := call(t, "PUT", childBase+"/posting-drafts/"+id+"/commands/"+uuid.Must(uuid.NewV7()).String(), submitter, map[string]any{"expected_version": 0, "staff_version": childSource["staff_version"], "employment_epoch": childSource["employment_epoch"], "department_id": childReceipt["department_id"], "department_revision_id": childReceipt["department_revision_id"], "starts_at": childReceipt["starts_at"], "ends_at": childReceipt["ends_at"], "reason": reason}, 200)
@@ -96,4 +97,5 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	require.Equal(t, approved, call(t, "GET", path, reviewer, nil, 200))
 	require.Equal(t, []any{approved, pending}, call(t, "GET", childRoot+"/history?limit=2", reviewer, nil, 200)["data"])
 	assertPostingDepartmentMember(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, organizationMaker, approved)
+	assertPostingSupervisorChoiceContinuation(t, db, tenant, call, childReceipt["hospital_id"].(string), submitter, reviewer, approved, selfRootApproved)
 }

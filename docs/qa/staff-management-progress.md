@@ -15,17 +15,32 @@ or unavailable access. See the
 [history plan](../superpowers/plans/2026-11-05-posting-lifecycle-history.md) and
 [ADR-0059](../adr/0059-retained-posting-lifecycle-history.md).
 
-Owner/API/SDK code is pushed as `e1fd098f`, draft
-[PR#1578](https://github.com/tesserix/helivanta/pull/1578); the UI follows separately.
+Owner/API/SDK source is pushed in draft
+[PR#1578](https://github.com/tesserix/helivanta/pull/1578): code `e1fd098f`,
+query-plan test cleanup `84a0939e`. UI code `6d541321` and its parent-sync merge
+`626a1bf4` are in draft [PR#1579](https://github.com/tesserix/helivanta/pull/1579).
 
-Expanded real Global API history coverage passes117.648s; SDK **737 /81 files**;
-reviewer UI **59 /12.04s**; scoped web checks **9 /19.994s**. Full/final verification
-is still running and will be recorded in the plan. The candidate is not yet
-served by the local QA runtime, and normal-role browser acceptance is not counted.
-Historical presentation is implemented locally, with its browser acceptance open.
-All five parent Staff requirements, actual Pharma/unit operating consumers,
-standalone employers and deployment remain open. Counts stay **10 partial,
-10 awaiting audit,1 research,0 fully accepted**. No production action occurred.
+Final local evidence: **737 SDK /81 files**, **1,554 shell /183 files /337.56s**,
+**60 focused reviewer /17.83s**, scoped web checks **9 /31.343s**, full Global API
+**551.827s**, Workforce **597.668s**, architecture **84.921s**, final production
+build and root script tests **94** pass. CI exposed two existing plan-cursor
+cleanup issues; the fix preserves the 100,000-row EXPLAIN assertions, passes
+**5.793s**, and unfiltered repository-wide Go lint reports **0 issues**. Go vet/
+build, canonical and contractdocs checks, inventory and secret scans pass.
+Inventory remains **824 registered /801 unclassified**; no promotion. CI is
+rerunning after the fix and no green CI result is inferred before it completes.
+
+The local history candidate is active on loopback UI4398 → Global8198 → owner8398,
+using immutable frontend6d541321 and backend e1fd098f. Health/login return200;
+anonymous Staff/cutoff/history reads through UI return401. The database ledger
+stays237, with no migration in this increment. No business Staff records,
+credentials or production state changed. Normal-role browser control still fails;
+HTTP/unit evidence does not count as admin/reviewer UI acceptance.
+
+Historical presentation is implemented and locally tested; browser acceptance,
+actual Pharma/unit operating consumers, standalone employers and production
+release remain open. All five parent requirements remain in scope. Counts stay
+**10 partial,10 awaiting audit,1 research,0 fully accepted**.
 
 ## Reviewer lifecycle UI — local increment, 2026-11-05
 

@@ -1,7 +1,7 @@
 # ADR-0059: Retained posting lifecycle history
 
-Date: 2026-11-05. Status: implemented locally; full checks and normal-role browser acceptance
-remain release gates. Not production accepted.
+Date: 2026-11-05. Status: implemented and fully checked locally; CI and normal-role browser
+acceptance remain release gates. Not production accepted.
 
 ## Context and boundaries
 

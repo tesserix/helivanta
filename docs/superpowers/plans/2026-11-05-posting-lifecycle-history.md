@@ -128,11 +128,38 @@ reviewer tests pass **60 /17.83s** and scoped API/UI/shell web checks pass
 **9 /31.343s**. The final production Webpack build, using the existing fixture
 sign-in client and Global API8198, passes. The earlier complete shell run passes
 **1,553 /183 files /377.54s**, before the added precise-time test; the final
-complete shell run is still live and no final result is inferred from that
-previous run. Final architecture passes **84.921s**. Exact final full Workforce
-and Global API runs remain live.
+complete shell run passes **1,554 /183 files /337.56s**. Final architecture
+passes **84.921s**, full Workforce **597.668s** and full Global API **551.827s**.
+The SDK was rerun after the UI hook landed and still passes **737 /81 files**;
+all root script tests pass **94**, with no skips.
 
-The existing UI1846565c remains served from the cached immutable artifact;
-neither candidate activation nor normal-role browser acceptance is claimed yet.
+The history candidate now runs locally from immutable UI artifact `6d541321`
+with owner/Global source `e1fd098f`. The later owner commit `84a0939e` changes
+only query-plan test cleanup and its evidence; merge `626a1bf4` carries that fix
+into the UI PR. It changes no served application behavior. Anonymous Staff,
+cutoff and recorded-history requests through UI4398 return401, health/login200,
+and the local migration ledger remains237. Normal-role browser acceptance is
+still not claimed.
 All five parent requirements and the owner/consumer/standalone release gates
 remain open. No production actions occurred.
+
+## Remaining consumer scope confirmed from source
+
+The shared `PharmacyStaffSource` renders the canonical Workforce `StaffDirectory`
+and explicitly states that no outlet assignment is implied
+(`apps/shell/components/pharmacy/staff-source.tsx`). It creates no independent
+Staff master. The legacy dispense handler in
+`backend/internal/modules/pharmacy/dispenses.go` still changes tenant-scoped rows
+with visit/patient snapshots and no hospital/outlet reference. An outlet guard
+alone cannot cover it, and neither a selected hospital nor common ownership can
+supply trusted lineage. These are current source facts, not a new activation.
+
+The next implementation must establish verified product-unit references and
+current posting/Staff/credential checks through the product commit, retaining
+independent IAM authority and fail-closed source endings. Existing Workforce
+approvals and history are not that operating guard. Relevant proposed domain
+criteria are IN-PH-02/04/06 and the five reusable Staff requirements. Pharma
+professional policy still needs jurisdiction/service-specific qualified review;
+no statutory rule or clinical authority is activated by this history change.
+Standalone employer representation remains under ADR0054, without fabricated
+hospital records. No item is removed from the full parent objective.

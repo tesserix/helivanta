@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { z } from "zod";
+import { Button, Input } from "@tesserix/web";
 import {
   pharmacyItemSalesPath,
   pharmacyKey,
   pharmacyPatientSalesPath,
+  pharmacyPrescribersPath,
   pharmacyReceiptsPath,
   pharmacyStockSalesPath,
   useApiPagedQuery,
+  useApiQuery,
   usePermissions,
   type PharmacyItemSales,
+  type PharmacyItemSalesLines,
+  type PharmacyPrescribers,
   type PharmacyPatientSaleLine,
   type PharmacyReceipt,
   type PharmacyReceiptKind,
@@ -17,7 +23,7 @@ import {
   type PharmacyScope,
   type PharmacyStockSales,
 } from "@helivanta/api";
-import { Field, LoadMore, RequestFailure, SelectControl } from "@helivanta/ui";
+import { Field, LoadMore, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { useItemCategories } from "./item-categories";
@@ -94,8 +100,109 @@ function CategoryPickers({
 }
 
 /** Sales by item over the period (#1060): sold, returned and net per product. */
+const lotSchema = z.object({
+  lot: z.string().trim().max(100, "A lot number is at most 100 characters"),
+});
+
+/** The lot sales by item is cut by (#1060), applied when submitted. */
+function LotFilter({ onChange }: { onChange: (lot: string | undefined) => void }) {
+  const form = useZodForm(lotSchema, { lot: "" });
+  return (
+    <form
+      noValidate
+      className="mt-2 flex flex-wrap items-end gap-4"
+      onSubmit={form.handleSubmit((v) => onChange(v.lot || undefined))}
+    >
+      <Field id="item-sales-lot" label="Lot number" error={form.formState.errors.lot?.message}>
+        <Input id="item-sales-lot" {...form.register("lot")} />
+      </Field>
+      <Button type="submit" variant="outline">
+        Apply lot
+      </Button>
+    </form>
+  );
+}
+
+type Prescriber = NonNullable<PharmacyItemSalesLines["prescriber"]>;
+const prescriberValue = (p: Prescriber) =>
+  JSON.stringify([p.prescriber_registration, p.prescriber_council]);
+
+/**
+ * The prescriber sales by item is cut by (#1060), chosen from the period's
+ * prescribers. Only for prescription readers: the API refuses anyone else,
+ * and every list and every filtered page is recorded.
+ */
+function PrescriberFilter(props: {
+  scope: PharmacyScope;
+  period: Period;
+  value: Prescriber | undefined;
+  onChange: (value: Prescriber | undefined) => void;
+}) {
+  const { can } = usePermissions();
+  return can("pharmacy.prescription.read") ? <PrescriberPicker {...props} /> : null;
+}
+
+function PrescriberPicker({
+  scope,
+  period,
+  value,
+  onChange,
+}: {
+  scope: PharmacyScope;
+  period: Period;
+  value: Prescriber | undefined;
+  onChange: (value: Prescriber | undefined) => void;
+}) {
+  const list = useApiQuery<PharmacyPrescribers>(
+    pharmacyKey(scope, "prescribers", period.from, period.to),
+    pharmacyPrescribersPath(scope, period.from, period.to),
+  );
+  if (list.isError)
+    return (
+      <RequestFailure message="Could not load the prescribers." retry={() => void list.refetch()} />
+    );
+  const prescribers = list.data?.data ?? [];
+  const options = prescribers.map((p) => ({
+    value: prescriberValue(p),
+    label: `${p.prescriber_name} (${p.prescriber_registration}, ${p.prescriber_council})`,
+  }));
+  // A prescriber chosen for another period stays chosen, and named.
+  if (value && !options.some((o) => o.value === prescriberValue(value)))
+    options.unshift({
+      value: prescriberValue(value),
+      label: `${value.prescriber_registration}, ${value.prescriber_council}`,
+    });
+  return (
+    <div className="mt-2">
+      <Field id="item-sales-prescriber" label="Prescriber">
+        <SelectControl
+          id="item-sales-prescriber"
+          value={value ? prescriberValue(value) : "all"}
+          disabled={list.isPending}
+          onValueChange={(v) => {
+            if (v === "all") return onChange(undefined);
+            const [prescriber_registration, prescriber_council] = JSON.parse(v) as [string, string];
+            onChange({ prescriber_registration, prescriber_council });
+          }}
+          options={[
+            { value: "all", label: "All sales, with or without a prescription" },
+            ...options,
+          ]}
+        />
+      </Field>
+      {list.data?.more && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          More than 200 prescribers in this period; choose a shorter period to see them all.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
   const [category, setCategory] = useState<PharmacyReportCategory>({});
+  const [lines, setLines] = useState<PharmacyItemSalesLines>({});
+  const filtered = Boolean(category.categoryId || lines.lotNumber || lines.prescriber);
   const items = useApiPagedQuery<PharmacyItemSales>(
     pharmacyKey(
       scope,
@@ -104,8 +211,10 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
       period.to,
       category.categoryId ?? "",
       category.subcategoryId ?? "",
+      lines.lotNumber ?? "",
+      lines.prescriber ? prescriberValue(lines.prescriber) : "",
     ),
-    pharmacyItemSalesPath(scope, period.from, period.to, category),
+    pharmacyItemSalesPath(scope, period.from, period.to, category, lines),
   );
   return (
     <section className="mt-6" aria-labelledby="item-sales-heading">
@@ -117,14 +226,21 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
         category its item had on the sale date, and a return under its sale&apos;s.
       </p>
       <CategoryFilter scope={scope} id="item-sales" value={category} onChange={setCategory} />
+      <LotFilter onChange={(lotNumber) => setLines((l) => ({ ...l, lotNumber }))} />
+      <PrescriberFilter
+        scope={scope}
+        period={period}
+        value={lines.prescriber}
+        onChange={(prescriber) => setLines((l) => ({ ...l, prescriber }))}
+      />
       {items.isError ? (
         <RequestFailure message="Could not load sales by item." retry={items.retry} />
       ) : items.isPending ? (
         <p role="status">Loading sales by item…</p>
       ) : items.items.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          No items sold or returned{category.categoryId && " in this category"} from {period.from}{" "}
-          to {period.to}.
+          No items sold or returned{filtered && " for these filters"} from {period.from} to{" "}
+          {period.to}.
         </p>
       ) : (
         <table className="mt-2 w-full text-sm" aria-label="Sales by item">

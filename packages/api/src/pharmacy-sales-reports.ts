@@ -59,13 +59,44 @@ const byCategory = ({ categoryId, subcategoryId }: PharmacyReportCategory = {}) 
   (categoryId ? `&category_id=${encodeURIComponent(categoryId)}` : "") +
   (categoryId && subcategoryId ? `&subcategory_id=${encodeURIComponent(subcategoryId)}` : "");
 
+/** A prescriber, as written on prescriptions: a registration is unique only within its council. */
+export type PharmacyPrescriber = {
+  prescriber_name: string;
+  prescriber_registration: string;
+  prescriber_council: string;
+};
+
+/**
+ * What else sales by item is cut by (#1060): one lot, matched in any case,
+ * and one prescriber, which needs prescription read and is audited.
+ */
+export type PharmacyItemSalesLines = {
+  lotNumber?: string;
+  prescriber?: Pick<PharmacyPrescriber, "prescriber_registration" | "prescriber_council">;
+};
+
+const byLines = ({ lotNumber, prescriber }: PharmacyItemSalesLines = {}) =>
+  (lotNumber ? `&lot_number=${encodeURIComponent(lotNumber)}` : "") +
+  (prescriber
+    ? `&prescriber_registration=${encodeURIComponent(prescriber.prescriber_registration)}` +
+      `&prescriber_council=${encodeURIComponent(prescriber.prescriber_council)}`
+    : "");
+
 export function pharmacyItemSalesPath(
   scope: PharmacyScope,
   from: string,
   to: string,
   category?: PharmacyReportCategory,
+  lines?: PharmacyItemSalesLines,
 ) {
-  return `${pharmacyRoot(scope)}/reports/items?${period(from, to)}${byCategory(category)}`;
+  return `${pharmacyRoot(scope)}/reports/items?${period(from, to)}${byCategory(category)}${byLines(lines)}`;
+}
+
+/** The prescribers on prescriptions sold against in the period: at most 200, and `more` beyond. */
+export type PharmacyPrescribers = { data: PharmacyPrescriber[]; more: boolean };
+
+export function pharmacyPrescribersPath(scope: PharmacyScope, from: string, to: string) {
+  return `${pharmacyRoot(scope)}/reports/prescribers?${period(from, to)}`;
 }
 
 export function pharmacyReceiptsPath(scope: PharmacyScope, from: string, to: string) {

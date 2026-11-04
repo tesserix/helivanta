@@ -621,3 +621,53 @@ its original receipt without rebasing supervision or duplicating approval effect
 Canonical supervisor choices, protected reviewed-chain context, UI acceptance,
 remaining negative/concurrency/lifecycle tests and independent rollout approval
 are still required. See the [increment plan](../superpowers/plans/2026-11-04-posting-supervisor-chains.md).
+
+
+## Canonical supervisor reference discovery (candidate)
+
+`GET /v1/workforce/hospitals/:hospital/posting-supervisor-choices` is routed through
+Global API. Require one explicit `purpose=submission|review`; optional limit is1–8
+and cursor is at most2048bytes within a4096byte query budget. Reject repeated or
+unknown selectors, an excessive limit, and cursors from another account, hospital,
+route or purpose. Existing expected-account and scoped hospital admission apply.
+
+The server holds current posting.read, posting.submit (submission purpose) or
+posting.review (review purpose), and eligible Staff actor use through query/audit
+commit. Broad administration does not substitute. Scope dependency failures return
+503, permission failure403, malformed selection/cursor400; an audit-write failure
+returns500 without a page or committed actor-use evidence. Responses are no-store.
+
+`StaffPostingSupervisorChoice` in contracts/workforce-postings.json is generated
+into the owner Go type and SDK Zod contract. Each reference contains canonical
+approved proposal ID/current revision, hospital, canonical Staff ID/code/name,
+retained hospital_management or department_supervisor kind, reviewed department
+reference, nominal interval, retained source cutoff and immutable intent creation
+time. `created_at` is the intent time used with proposal ID for keyset continuation.
+Ordinary members, pending/rejected proposals and private rationale/evidence are
+excluded. Eight choices plus a2048byte cursor fit a20KiB escaped JSON budget.
+
+These references are discovery hints. Historical or source-stale approved records
+may appear; selected-chain context and approval must revalidate every current
+source, nominal interval and Organization ancestry. This endpoint grants no access
+and supplies no independent clinical or professional authority. Organization
+continues to own department names; reviewed department IDs are references rather
+than name-disclosure permission or current ancestry proof.
+
+The SDK binds the original expected tenant/subject and hospital, validates v7
+posting/revision/department references, non-nil Staff identity, source/interval
+bounds, ordering, duplicates and continuation metadata. Its query key includes the
+account, hospital, purpose and cursor; cache retention is disabled. Submission
+uses the shared responsibility selector and named supervisor choices; paging clears
+selection, self Staff is excluded, unavailable choices block new supervised
+submission, and 403 cuts off disclosure. Exact uncertain-command retries retain
+the same supervision IDs and command body. Existing omitted-intent API behavior
+and explicit hospital-management review remain compatible.
+
+Candidate migrations0082_workforce_posting_supervisor_choices and
+0083_workforce_posting_supervisor_choice_index extend the existing permissive read
+predicates, preserve exact write checks and guard old UPDATE/DELETE visibility.
+The concurrent index supports two fixed kind-specific probes, merged to at most
+18 internal rows and one final nine-row continuation probe. Canonical supervisor
+selection does not replace the still-required protected chain reviewer UI or
+operating/lifecycle enforcement. ADR0056 records scope and acceptance limits;
+production exposure and the exact migration rollout remain pending.

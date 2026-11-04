@@ -1,5 +1,49 @@
 # Staff Management delivery tracker
 
+## Canonical supervisor discovery and submission — 2026-11-04
+
+Candidate branch codex/posting-supervisor-discovery-20261104 is stacked on #1567.
+Workforce remains the Staff owner: new department/Pharma postings choose canonical
+Staff/proposal/revision references instead of a copied employee master. The new
+supervisor-choices projection holds current read + submit/review + Staff actor
+capabilities, discloses bounded canonical labels and reviewed references, excludes
+members/pending/rejected intents and records audit atomically with the read.
+Existing permissive RLS policy count remains one; write checks and prior write
+visibility are preserved with restrictive guards. New candidate migrations0082
+and0083 are persisted in source; no production application is approved or done.
+
+The submission UI uses the shared responsibility selector and named supervisor
+choices for department supervisor/member intentions. It excludes the target Staff,
+clears selection on paging, withholds submission on owner failure, cuts off stale
+read permission, and freezes the exact selected references on uncertain retries.
+It shows retained appointment/scope references and cutoff; it does not promise
+present eligibility. Current-chain protected reviewer context and operating /
+lifecycle consumers remain required work.
+
+Final local evidence: Global API full native race **526.154s**; Workforce full
+native race **587.931s / 646 tests and subtests**; shell **1,519 tests / 182 files,
+353.80s**; SDK **667 tests**; focused reviewer UI **42 tests**; production Webpack
+build, types and lint pass. Architecture passes **157.635s / 128 tests** after the
+planner fixture was corrected to use the approved tenant database pool.
+
+The final 100,000-posting planner fixture passes **6.535s**, using the real query,
+index and scoped read policies: **108.630ms** first / **150.569ms** continuation,
+nine rows each, index **10,526,720 bytes**. Reduced relation shapes make this
+planning evidence, not production throughput, p99 or independent-account
+acceptance. Discovery-context UPDATE/DELETE attempts affect zero rows. Deliberately
+removing the DELETE guard deletes **1,298** synthetic intent rows; the test catches
+it. SQL was restored byte-for-byte (SHA256
+`41d3b6129c10192477fb45f7d895a7b93f45a494a8cd0b94947f69bf10933d0a`).
+The real migration/purpose/policy run passes **75.136s**, including unchanged write
+checks, one permissive policy per table, pagination, cursor binding and audit
+rollback. Inventory remains **819 registered / 796 unclassified**; prior
+classifications are preserved. Root #1565 and chain #1567 CI checks are green.
+
+Normal QA browser binding still fails with the tool's `timeoutMs` error after
+reconnection. No independent reviewer UI acceptance, merge, deployment, issue
+closure or full-completion claim is made for this candidate.
+Overall counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Shared nominal-end enforcement — 2026-11-04
 
 The chain integration first exposed a lost explicit root deadline validation:

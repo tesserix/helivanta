@@ -2018,3 +2018,156 @@ it("clears supervisor disclosure when its scoped read permission is lost", async
     screen.queryByRole("button", { name: "Request independent review" }),
   ).not.toBeInTheDocument();
 });
+
+it("requires current named chain review before approving a departmental posting", async () => {
+  const parent = supervisorChoice();
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: parent.staff.id,
+    supervisor_proposal_id: parent.id,
+    supervisor_revision_id: parent.revision_id,
+  };
+  const writes: Record<string, unknown>[] = [];
+  let complete = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("chain_review=current"))
+        return Response.json({
+          context,
+          supervision,
+          chain: [{ posting: parent, supervision: { kind: "hospital_management" } }],
+          checked_at: source.checked_at,
+          eligibility_until: source.eligibility_until,
+        });
+      if (init?.method === "PUT" && url.includes("/decisions/")) {
+        writes.push(JSON.parse(String(init.body)));
+        complete = true;
+        return Response.json({
+          ...proposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(99),
+          command_id: url.split("/").at(-1),
+          recorded_at: "2026-11-04T01:00:00Z",
+        });
+      }
+      return reviewerResponse(url, supervision, !complete);
+    }),
+  );
+  const { user } = await openReviewer();
+  expect(screen.queryByRole("button", { name: "Approve proposal" })).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  expect(await screen.findByText("Synthetic Supervisor")).toBeInTheDocument();
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Independent current chain review for the department member",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  expect(writes).toHaveLength(0);
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByText("Posting proposal approved.");
+  expect(writes).toEqual([
+    {
+      expected_version: 1,
+      expected_revision_id: proposal.revision_id,
+      decision: "approve",
+      reason: "Independent current chain review for the department member",
+      sources_examined: true,
+    },
+  ]);
+});
+
+it.each([403, 503, 409])(
+  "withholds departmental approval when current chain review returns %s",
+  async (status) => {
+    const parent = supervisorChoice();
+    const supervision = {
+      kind: "department_member",
+      supervisor_staff_id: parent.staff.id,
+      supervisor_proposal_id: parent.id,
+      supervisor_revision_id: parent.revision_id,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("chain_review=current"))
+          return Response.json(
+            {
+              error: status === 403 ? "forbidden" : "posting_proposal_conflict",
+              message: "Synthetic chain unavailable",
+            },
+            { status },
+          );
+        return reviewerResponse(url, supervision);
+      }),
+    );
+    const { user } = await openReviewer();
+    await user.click(
+      await screen.findByRole("button", { name: "Review supervisor chain approval" }),
+    );
+    if (status === 403) await screen.findByText(/access changed/i);
+    else {
+      await screen.findByText(/selected proposal could not be verified/i);
+      await user.click(screen.getByRole("button", { name: "Back to proposal review" }));
+      await screen.findByRole("button", { name: "Reject proposal" });
+    }
+    expect(screen.queryByRole("button", { name: "Approve proposal" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Synthetic Supervisor")).not.toBeInTheDocument();
+  },
+);
+
+it("retains the exact supervised approval without adding a management attestation", async () => {
+  const parent = supervisorChoice();
+  const supervision = {
+    kind: "department_supervisor",
+    supervisor_staff_id: parent.staff.id,
+    supervisor_proposal_id: parent.id,
+    supervisor_revision_id: parent.revision_id,
+  };
+  const writes: { url: string; body: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("chain_review=current"))
+        return Response.json({
+          context,
+          supervision,
+          chain: [{ posting: parent, supervision: { kind: "hospital_management" } }],
+          checked_at: source.checked_at,
+          eligibility_until: source.eligibility_until,
+        });
+      if (init?.method === "PUT" && url.includes("/decisions/")) {
+        writes.push({ url, body: String(init.body) });
+        throw new TypeError("Synthetic response lost after supervised command");
+      }
+      return reviewerResponse(url, supervision);
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  await screen.findByText("Synthetic Supervisor");
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Independent chain attestation for uncertain command recovery",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await user.click(await screen.findByRole("button", { name: "Retry exact decision" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual(writes[0]);
+  expect(JSON.parse(writes[0].body)).not.toHaveProperty("hospital_management_reviewed");
+  expect(
+    screen.getByLabelText("I independently reviewed the current supervisor chain."),
+  ).toBeDisabled();
+});

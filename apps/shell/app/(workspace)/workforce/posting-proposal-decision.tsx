@@ -9,6 +9,8 @@ import {
   StaffPostingDecisionInputContract,
   decideStaffPostingProposal,
   getStaffPostingDecisionReceipt,
+  decideStaffPostingSupervisedProposal,
+  getStaffPostingSupervisedDecisionReceipt,
   newStaffPostingId,
   useApiMutation,
   useStaffPostingReviewSource,
@@ -24,6 +26,7 @@ const formSchema = z.object({
   reason: StaffPostingDecisionInputContract.shape.reason,
   sources_examined: StaffPostingDecisionInputContract.shape.sources_examined,
   hospital_management_reviewed: z.boolean(),
+  chain_reviewed: z.boolean(),
 });
 type Command = { id: string; input: StaffPostingDecisionInput };
 
@@ -37,7 +40,11 @@ export function PostingProposalDecision({
   onContextChanged,
   contextAvailable,
   onContextRecheck,
+  approvalKind = "hospital_management",
+  approvalUntil,
 }: {
+  approvalKind?: "hospital_management" | "supervised";
+  approvalUntil?: string;
   contextAvailable: boolean;
   onContextRecheck: () => void;
   scope: StaffPostingProposalScope;
@@ -49,7 +56,10 @@ export function PostingProposalDecision({
   onContextChanged: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const endsAt = proposal.ends_at === null ? null : Date.parse(proposal.ends_at);
+  const deadlines = [proposal.ends_at, approvalUntil]
+    .filter((value): value is string => value != null)
+    .map((value) => Date.parse(value));
+  const endsAt = deadlines.length ? Math.min(...deadlines) : null;
   useEffect(() => {
     if (endsAt === null) return;
     let timer: ReturnType<typeof setTimeout>;
@@ -70,12 +80,21 @@ export function PostingProposalDecision({
     reason: "",
     sources_examined: false,
     hospital_management_reviewed: false,
+    chain_reviewed: false,
   });
   const save = useApiMutation(
     async ({ command, recover }: { command: Command; recover: boolean }) => {
       const controller = new AbortController();
       active.current = controller;
-      const row = await (recover ? getStaffPostingDecisionReceipt : decideStaffPostingProposal)(
+      const decide =
+        approvalKind === "supervised"
+          ? decideStaffPostingSupervisedProposal
+          : decideStaffPostingProposal;
+      const receipt =
+        approvalKind === "supervised"
+          ? getStaffPostingSupervisedDecisionReceipt
+          : getStaffPostingDecisionReceipt;
+      const row = await (recover ? receipt : decide)(
         scope,
         proposal.id,
         command.id,
@@ -181,7 +200,13 @@ export function PostingProposalDecision({
           </p>
         </>
       )}
-      {ended && <p role="alert">This posting has ended. A new approval cannot be recorded.</p>}
+      {ended && (
+        <p role="alert">
+          {approvalUntil
+            ? "The checked supervisor chain has expired. Recheck its sources."
+            : "This posting has ended. A new approval cannot be recorded."}
+        </p>
+      )}
       {action && proposal.status === "pending" && (
         <form
           noValidate
@@ -194,16 +219,27 @@ export function PostingProposalDecision({
                 setNow(Date.now());
                 return;
               }
-              if (action === "approve" && !values.hospital_management_reviewed) {
-                form.setError("hospital_management_reviewed", {
-                  message: "Confirm your independent hospital management review.",
-                });
+              if (
+                action === "approve" &&
+                !(approvalKind === "supervised"
+                  ? values.chain_reviewed
+                  : values.hospital_management_reviewed)
+              ) {
+                form.setError(
+                  approvalKind === "supervised" ? "chain_reviewed" : "hospital_management_reviewed",
+                  {
+                    message:
+                      approvalKind === "supervised"
+                        ? "Confirm your independent current supervisor chain review."
+                        : "Confirm your independent hospital management review.",
+                  },
+                );
                 return;
               }
               const parsed = StaffPostingDecisionInputContract.safeParse({
                 reason: values.reason,
                 sources_examined: values.sources_examined,
-                ...(action === "approve"
+                ...(action === "approve" && approvalKind === "hospital_management"
                   ? { hospital_management_reviewed: values.hospital_management_reviewed }
                   : {}),
                 decision: action,
@@ -251,7 +287,7 @@ export function PostingProposalDecision({
                 {...form.register("sources_examined")}
               />
             </Field>
-            {action === "approve" && (
+            {action === "approve" && approvalKind === "hospital_management" && (
               <Field
                 id="posting-management-reviewed"
                 label="I independently reviewed the hospital management responsibility."
@@ -261,6 +297,19 @@ export function PostingProposalDecision({
                   id="posting-management-reviewed"
                   type="checkbox"
                   {...form.register("hospital_management_reviewed")}
+                />
+              </Field>
+            )}
+            {action === "approve" && approvalKind === "supervised" && (
+              <Field
+                id="posting-chain-reviewed"
+                label="I independently reviewed the current supervisor chain."
+                error={form.formState.errors.chain_reviewed?.message}
+              >
+                <input
+                  id="posting-chain-reviewed"
+                  type="checkbox"
+                  {...form.register("chain_reviewed")}
                 />
               </Field>
             )}

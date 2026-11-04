@@ -461,6 +461,7 @@ export const StaffPostingProposalContextRequestContract = z
     expected_revision_id: identifier,
     supervision_context: z.enum(["v1"]).optional(),
     management_review: z.enum(["current"]).optional(),
+    chain_review: z.enum(["current"]).optional(),
   })
   .strict();
 export type StaffPostingProposalContextRequest = z.infer<
@@ -529,3 +530,22 @@ export const StaffPostingSupervisorChoiceContract = z
   .strict()
   .superRefine(validSupervisorChoice);
 export type StaffPostingSupervisorChoice = z.infer<typeof StaffPostingSupervisorChoiceContract>;
+
+export const StaffPostingChainNodeContract = z
+  .object({
+    posting: StaffPostingSupervisorChoiceContract,
+    supervision: StaffPostingSupervisionIntentContract,
+  })
+  .strict();
+export type StaffPostingChainNode = z.infer<typeof StaffPostingChainNodeContract>;
+
+export const StaffPostingChainReviewContextContract = z
+  .object({
+    context: StaffPostingProposalContextContract,
+    supervision: StaffPostingSupervisionIntentContract,
+    chain: z.array(StaffPostingChainNodeContract).min(1).max(31),
+    checked_at: z.string().datetime({ offset: true }),
+    eligibility_until: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StaffPostingChainReviewContext = z.infer<typeof StaffPostingChainReviewContextContract>;

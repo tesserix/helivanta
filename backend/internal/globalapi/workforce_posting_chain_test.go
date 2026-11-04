@@ -68,6 +68,34 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	pending := call(t, "PUT", childRoot+"/commands/"+uuid.Must(uuid.NewV7()).String(), submitter, map[string]any{"expected_version": 0, "draft_id": childDraft, "draft_revision_id": childReceipt["revision_id"], "draft_version": childReceipt["version"], "generation_id": generation["id"], "staff_version": childSource["staff_version"], "employment_epoch": childSource["employment_epoch"], "reason": "Synthetic department supervisor reporting to an exact approved root", "sources_examined": true, "supervision": intent}, 200)
 	selector := fmt.Sprintf("?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1", pending["revision_id"])
 	require.Equal(t, intent, call(t, "GET", childRoot+"/context"+selector, reviewer, nil, 200)["supervision"])
+	chainView := call(t, "GET", childRoot+"/context"+selector+"&chain_review=current", reviewer, nil, 200)
+	require.Equal(t, intent, chainView["supervision"])
+	nodes := chainView["chain"].([]any)
+	require.Len(t, nodes, 1)
+	rootNode := nodes[0].(map[string]any)
+	require.Equal(t, "hospital_management", rootNode["supervision"].(map[string]any)["kind"])
+	rootPosting := rootNode["posting"].(map[string]any)
+	require.Equal(t, parentApproved["id"], rootPosting["id"])
+	require.Equal(t, supervisorStaff, rootPosting["staff"].(map[string]any)["id"])
+	require.NotEmpty(t, rootPosting["staff"].(map[string]any)["display_name"])
+	require.NotContains(t, rootPosting, "reason")
+	require.NotContains(t, rootPosting, "draft_reason")
+
+	call(t, "GET", childRoot+"/context"+selector+"&chain_review=current", submitter, nil, 403)
+	call(t, "GET", childRoot+"/context"+selector+"&chain_review=current&management_review=current", reviewer, nil, 400)
+	beforeReadFault := postingRootApprovalEffects(t, db, tenant, reviewer)
+	applyReadFault := func(sql string) {
+		require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_chain_context_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+	}
+	clearReadFault := func() {
+		applyReadFault("ALTER TABLE workforce_audit DROP CONSTRAINT IF EXISTS synthetic_chain_context_read")
+	}
+	t.Cleanup(clearReadFault)
+	applyReadFault("ALTER TABLE workforce_audit ADD CONSTRAINT synthetic_chain_context_read CHECK(action<>'workforce.posting_proposal.context_read_chain_review') NOT VALID")
+	failedRead := call(t, "GET", childRoot+"/context"+selector+"&chain_review=current", reviewer, nil, 500)
+	require.NotContains(t, failedRead, "chain")
+	require.Equal(t, beforeReadFault, postingRootApprovalEffects(t, db, tenant, reviewer), "failed read audit also rolls back Staff actor-use evidence")
+	clearReadFault()
 	path := childRoot + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	decision := map[string]any{"expected_version": 1, "expected_revision_id": pending["revision_id"], "decision": "approve", "reason": "Independent department appointment under the reviewed canonical root", "sources_examined": true}
 	for _, table := range []string{"workforce_posting_chain_reviews", "workforce_posting_chain_sources"} {

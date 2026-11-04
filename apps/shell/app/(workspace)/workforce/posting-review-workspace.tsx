@@ -8,6 +8,7 @@ import {
   useStaffPostingProposalInbox,
   useStaffPostingSupervisionContext,
   useStaffPostingManagementReviewContext,
+  useStaffPostingChainReviewContext,
   type EnrollmentRequestScope,
   type StaffPostingInboxScope,
   type StaffPostingInboxItem,
@@ -346,7 +347,9 @@ function PostingProposalDetail({
   onClose: () => void;
   onContextChanged: () => void;
 }) {
-  const [managementReview, setManagementReview] = useState(false);
+  const [approvalReview, setApprovalReview] = useState<"management" | "chain" | null>(null);
+  const managementReview = approvalReview === "management";
+  const chainReview = approvalReview === "chain";
   const supervision = useStaffPostingSupervisionContext(
     { ...scope, staffId: item.staff.id },
     item.proposal,
@@ -359,7 +362,13 @@ function PostingProposalDetail({
     managementReview,
     busy,
   );
-  const context = managementReview ? management : supervision;
+  const chain = useStaffPostingChainReviewContext(
+    { ...scope, staffId: item.staff.id },
+    item.proposal,
+    chainReview,
+    busy,
+  );
+  const context = chainReview ? chain : managementReview ? management : supervision;
   const confirmLeave = useConfirmLeave();
   const cutoff = useStaffAccessCutoff([context.error], onContextChanged);
   return (
@@ -425,17 +434,76 @@ function PostingProposalDetail({
                   type="button"
                   variant="outline"
                   disabled={busy}
-                  onClick={() => setManagementReview(true)}
+                  onClick={() => setApprovalReview("management")}
                 >
                   Review hospital management approval
                 </Button>
               )}
-            {managementReview && (
+            {action === "reject" &&
+              item.proposal.status === "pending" &&
+              context.data.supervision &&
+              context.data.supervision.kind !== "hospital_management" &&
+              !chainReview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setApprovalReview("chain")}
+                >
+                  Review supervisor chain approval
+                </Button>
+              )}
+            {chainReview && chain.isSuccess && !chain.isFetching && (
+              <section aria-label="Current supervisor chain" className="space-y-3">
+                <h4 className="font-medium">Current supervisor chain</h4>
+                <p className="text-sm text-muted-foreground">
+                  Checked {new Date(chain.data.checked_at).toISOString()} (UTC). Approval rechecks
+                  every source; this view grants no operating access.
+                </p>
+                <ol className="space-y-3">
+                  {chain.data.chain.map(({ posting }) => (
+                    <Panel as="li" key={posting.id} className="text-sm">
+                      <p className="font-medium">{posting.staff.display_name}</p>
+                      <p>
+                        {posting.staff.employee_code} ·{" "}
+                        {posting.kind === "hospital_management"
+                          ? "Hospital management"
+                          : "Department supervisor"}
+                      </p>
+                      <p>
+                        {new Date(posting.starts_at).toISOString()} ·{" "}
+                        {posting.ends_at ? new Date(posting.ends_at).toISOString() : "Ongoing"}{" "}
+                        (UTC)
+                      </p>
+                      <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground">Posting reference</dt>
+                          <dd className="break-all">{posting.id}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground">Reviewed revision</dt>
+                          <dd className="break-all">{posting.revision_id}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground">Department reference</dt>
+                          <dd className="break-all">{posting.department_id}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Source cutoff (UTC)</dt>
+                          <dd>{new Date(posting.eligibility_until).toISOString()}</dd>
+                        </div>
+                      </dl>
+                    </Panel>
+                  ))}
+                </ol>
+              </section>
+            )}
+            {approvalReview && (
               <Button
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={() => setManagementReview(false)}
+                onClick={() => setApprovalReview(null)}
               >
                 Back to proposal review
               </Button>
@@ -476,16 +544,28 @@ function PostingProposalDetail({
           </dl>
         </>
       )}
+      {approvalReview && (context.isError || context.isPending) && !cutoff && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={() => setApprovalReview(null)}
+        >
+          Back to proposal review
+        </Button>
+      )}
       {context.data && !cutoff && (
         <PostingProposalDecision
-          key={managementReview ? "management" : "ordinary"}
+          key={approvalReview ?? "ordinary"}
           scope={{ ...scope, staffId: item.staff.id }}
           proposal={context.data.context.proposal}
           contextAvailable={context.isSuccess && !context.isFetching}
           onContextRecheck={() => {
             void context.refetch();
           }}
-          action={managementReview ? "approve" : action}
+          action={approvalReview ? "approve" : action}
+          approvalKind={chainReview ? "supervised" : "hospital_management"}
+          approvalUntil={chainReview ? chain.data?.eligibility_until : undefined}
           busy={busy}
           onBusy={onBusy}
           onCompleted={onCompleted}

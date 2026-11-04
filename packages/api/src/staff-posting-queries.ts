@@ -9,6 +9,7 @@ import {
   getStaffPostingProposalContext,
   getStaffPostingSupervisionContext,
   getStaffPostingManagementReviewContext,
+  getStaffPostingChainReviewContext,
   getStaffPostingReviewSource,
   listStaffPostingProposalInbox,
   listStaffPostingSupervisorChoices,
@@ -278,5 +279,39 @@ export function useStaffPostingSupervisorChoices(
       cursor,
     ],
     queryFn: ({ signal }) => listStaffPostingSupervisorChoices(scope, purpose, cursor, signal),
+  });
+}
+
+export function useStaffPostingChainReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  enabled: boolean,
+  busy = false,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    enabled,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "chain-review-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+      "review",
+    ],
+    queryFn: ({ signal }) =>
+      getStaffPostingChainReviewContext(
+        scope,
+        proposal.id,
+        {
+          purpose: "review",
+          expected_version: proposal.version,
+          expected_revision_id: proposal.revision_id,
+        },
+        signal,
+      ),
   });
 }

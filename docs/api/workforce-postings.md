@@ -671,3 +671,41 @@ The concurrent index supports two fixed kind-specific probes, merged to at most
 selection does not replace the still-required protected chain reviewer UI or
 operating/lifecycle enforcement. ADR0056 records scope and acceptance limits;
 production exposure and the exact migration rollout remain pending.
+
+## Protected current-chain review (candidate)
+
+The existing protected context route accepts an exclusive `chain_review=current`
+selector with `purpose=review`, `supervision_context=v1` and the exact pending
+version/revision. It cannot be combined with `management_review`. Legacy context
+and management envelopes remain unchanged. Missing, duplicate, unknown or mixed
+selectors return400. Only a pending explicit department supervisor/member intent
+can be examined this way.
+
+The server holds current hospital-scoped posting.read + posting.review and current
+Staff actor authority, including independent-target/submitter checks. It reuses
+the approval validator for all current ancestor heads, retained reviews, Staff
+versions/employment generations, nominal intervals, source cutoffs, repeated-node
+and depth limits, and current Organization ancestry. This does not grant operating
+access. It returns `StaffPostingChainReviewContext`: selected proposal context,
+retained intent, ordered immediate-parent-to-root nodes (`posting` supervisor-choice
+projection plus `supervision`), `checked_at` and the earliest nominal/source
+`eligibility_until`. At most31 ancestors/128KiB; labels are one batch of exact
+composite owner keys. Ancestor rationale/evidence/login/grants are excluded.
+
+Current source/ancestry conflicts withhold the view with409; unavailable critical
+authority/source503, missing capability403, hidden object404. Audit failure
+withholds all content and rolls back actor-use evidence. `context_read_chain_review`
+records the selected target/version and bounded ancestor count, without copied
+private source payloads. No business approval receipt or event is created by this
+read. The snapshot reserves no authority: approval independently revalidates.
+
+The SDK has a separate getter/hook and supervised command/receipt helpers. It
+validates every exact link, scope, unique Staff/posting, root/depth, interval and
+cutoff, while legacy helpers retain their management-only approval constraint.
+The UI shows named canonical supervisors, kind, intervals and reference IDs, then
+requires source and chain examination plus rationale. Departmental commands omit
+hospital_management_reviewed; root commands still require it. Uncertain commands
+retain identical IDs/body and usable receipt recovery. Ordinary rejection remains
+available after a chain-read conflict. No migration or permission expansion is
+introduced. ADR0057 records rationale and acceptance limits; real-account browser,
+operating/lifecycle and production acceptance remain open.

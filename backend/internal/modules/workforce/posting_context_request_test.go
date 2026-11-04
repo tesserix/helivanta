@@ -47,3 +47,31 @@ func TestPostingManagementContextRequiresExplicitReviewOptIn(t *testing.T) {
 		})
 	}
 }
+
+func TestPostingChainContextRequiresExclusiveReviewOptIn(t *testing.T) {
+	base := "purpose=review&expected_version=1&expected_revision_id=019a0000-0000-7000-8000-000000000001"
+	for _, tc := range []struct {
+		name, query string
+		valid       bool
+	}{
+		{"current chain", base + "&supervision_context=v1&chain_review=current", true},
+		{"missing supervision", base + "&chain_review=current", false},
+		{"mixed mode", base + "&supervision_context=v1&chain_review=current&management_review=current", false},
+		{"repeated", base + "&supervision_context=v1&chain_review=current&chain_review=current", false},
+		{"unknown", base + "&supervision_context=v1&chain_review=all", false},
+		{"submission", "purpose=submission&expected_version=1&expected_revision_id=019a0000-0000-7000-8000-000000000001&supervision_context=v1&chain_review=current", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Request = httptest.NewRequest("GET", "/context?"+tc.query, nil)
+			in, ok := postingContextRequest(c)
+			require.Equal(t, tc.valid, ok, response.Body.String())
+			if ok {
+				require.Equal(t, "current", *in.ChainReview)
+			} else {
+				require.Equal(t, 400, response.Code)
+			}
+		})
+	}
+}

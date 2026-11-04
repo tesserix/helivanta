@@ -2,6 +2,7 @@ package workforce
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 
@@ -33,11 +34,19 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 		value := query.Get("management_review")
 		in.ManagementReview = &value
 	}
+	if values, exists := query["chain_review"]; exists {
+		valid = valid && len(values) == 1 && values[0] == "current" && in.SupervisionContext != nil && in.ManagementReview == nil && query.Get("purpose") == "review"
+		value := query.Get("chain_review")
+		in.ChainReview = &value
+	}
 	fields := 3
 	if in.SupervisionContext != nil {
 		fields++
 	}
 	if in.ManagementReview != nil {
+		fields++
+	}
+	if in.ChainReview != nil {
 		fields++
 	}
 	valid = valid && len(query) == fields
@@ -72,13 +81,20 @@ func (h *handlers) getPostingProposalContext(c *gin.Context) {
 	if in.Purpose == "submission" {
 		permission, decision = PermPostingSubmit, "withdraw"
 	}
+	if in.ChainReview != nil {
+		decision = "approve"
+	}
 	var additional []authz.Permission
 	if in.ManagementReview != nil {
 		additional = []authz.Permission{PermPostingManagementReview}
 	}
+	if in.ChainReview != nil {
+		additional = []authz.Permission{PermPostingRead}
+	}
 	out := StaffPostingProposalContext{Purpose: in.Purpose}
 	var supervision *StaffPostingSupervisionIntent
-	err := h.scopedPostingTransaction(c, p, s, true, permission, func(commandCtx context.Context, tx *gorm.DB, _ EmploymentPeriodSource) error {
+	var chainView StaffPostingChainReviewContext
+	err := h.scopedPostingTransaction(c, p, s, true, permission, func(commandCtx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
 		if err := postingProposalDecisionContext(tx, s, decision, in.ExpectedRevisionID); err != nil {
 			return err
 		}
@@ -127,6 +143,26 @@ func (h *handlers) getPostingProposalContext(c *gin.Context) {
 				return errPostingSupervisionRequired
 			}
 		}
+		if in.ChainReview != nil {
+			if supervision == nil || supervision.Kind == "hospital_management" || out.Proposal.Status != "pending" {
+				return errPostingSupervisionRequired
+			}
+			return h.withSupervisedPostingApproval(commandCtx, tx, p, s, out.Proposal, source, *supervision, func(current *gorm.DB, sources []postingChainSource) error {
+				var err error
+				chainView, err = postingChainReviewView(current, p, s, out, *supervision, sources)
+				if err != nil {
+					return err
+				}
+				encoded, err := json.Marshal(chainView)
+				if err != nil {
+					return err
+				}
+				if len(encoded) > 128*1024 {
+					return authz.ErrScopedAuthorizationUnavailable
+				}
+				return postingProposalAuditRecord(current, p, s.hospital, s.draft, "context_read_chain_review", out.Proposal.Version, map[string]any{"ancestors": len(sources)})
+			})
+		}
 		if in.ManagementReview != nil {
 			grant, current := authz.ScopedCommandGrant(commandCtx, authz.ScopeRequest{TenantID: p.TenantID, Subject: p.Subject, HospitalID: s.hospital.String(), Permission: PermPostingManagementReview})
 			if !current {
@@ -138,6 +174,10 @@ func (h *handlers) getPostingProposalContext(c *gin.Context) {
 	}, additional...)
 	if err != nil {
 		respondPostingProposalError(c, err)
+		return
+	}
+	if in.ChainReview != nil {
+		respond.OK(c, chainView)
 		return
 	}
 	if in.SupervisionContext != nil {

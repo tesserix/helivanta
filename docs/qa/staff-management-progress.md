@@ -1,5 +1,38 @@
 # Staff Management delivery tracker
 
+## Protected current-chain reviewer workflow — 2026-11-04
+
+Candidate branch `codex/posting-chain-review-context-20261104` extends draft #1569.
+The reviewer can separately request a current named immediate-parent-to-root chain,
+then approve a department supervisor/member without claiming root management
+review. Workforce remains the canonical Staff owner; Organization ancestry and IAM
+assignments/OpenFGA acknowledgement remain required. Existing approval-source,
+cycle/depth/interval guards are reused; ancestor private rationale is excluded.
+No new migration, permission bundle or production activation is introduced.
+
+Observed red: real Global API chain selector returned400 instead of200 (**77.924s**).
+The first implementation returned503 because a label lookup retained write-context
+GUCs; switching only the bounded lookup to the existing read context and restoring
+it made the run pass **76.600s**. Expanded real API checks pass **78.368s**: one/two
+ancestor chains, submitter denial, mixed-selector rejection, sibling ancestry denial
+and read-audit rollback with no committed actor-use evidence. Existing approval,
+immutable history and receipt assertions remain in that run.
+
+Focused SDK passes **45 tests**, including canonical linkage, foreign/self/malformed/
+expired chains, omitted nominal ends and exact supervised receipt recovery. Focused
+reviewer UI passes **47 tests**, including explicit confirmation, unavailable reads,
+return to rejection and identical uncertain retries. The100,000-row planner fixture
+passes **9.386s**; nine composite-key chain labels use the existing intent primary
+key and execute in **2.153ms**. This is reduced-fixture planning evidence, not a
+production SLO. Full native Global API/Workforce and full web checks are running.
+Production Webpack build, scoped Go vet, full backend build, scoped Go lint
+(zero issues), canonical generation/check, contractdocs generation/check and
+operational inventory check pass. The first combined web run stopped on the shared-Panel lint gate; source now uses
+`Panel as="li"` and the complete run has restarted. Browser binding/real-account,
+operating consumers and lifecycle acceptance remain open. Nothing is merged or
+released for this candidate. Counts remain **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## Canonical supervisor discovery and submission — 2026-11-04
 
 Draft [#1569](https://github.com/tesserix/helivanta/pull/1569) on branch

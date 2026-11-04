@@ -491,6 +491,12 @@
         "type": "string",
         "enum": ["current"],
         "optional": true
+      },
+      {
+        "name": "chain_review",
+        "type": "string",
+        "enum": ["current"],
+        "optional": true
       }
     ],
     "StaffPostingProposalContext": [
@@ -603,6 +609,40 @@
       },
       {
         "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "StaffPostingChainNode": [
+      {
+        "name": "posting",
+        "type": "StaffPostingSupervisorChoice"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent"
+      }
+    ],
+    "StaffPostingChainReviewContext": [
+      {
+        "name": "context",
+        "type": "StaffPostingProposalContext"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent"
+      },
+      {
+        "name": "chain",
+        "type": "[]StaffPostingChainNode",
+        "min": 1,
+        "max": 31
+      },
+      {
+        "name": "checked_at",
+        "type": "time"
+      },
+      {
+        "name": "eligibility_until",
         "type": "time"
       }
     ]

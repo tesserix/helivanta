@@ -12,6 +12,7 @@ import {
   StaffPostingProposalContextRequestContract,
   StaffPostingProposalContextContract,
   StaffPostingSupervisionContextContract,
+  StaffPostingChainReviewContextContract,
   StaffPostingInboxItemContract,
   StaffPostingSupervisorChoiceContract,
   staffPostingInstantMicros,
@@ -237,6 +238,7 @@ async function postingDecisionRequest(
   selected: StaffPostingProposal,
   method: "PUT" | "GET",
   signal?: AbortSignal,
+  supervised = false,
 ) {
   const path = `${root(scope)}/${commandId.parse(proposal)}/decisions/${commandId.parse(command)}`;
   const intent = StaffPostingDecisionInputContract.parse(input);
@@ -247,7 +249,12 @@ async function postingDecisionRequest(
     !same(pending.revision_id, intent.expected_revision_id)
   )
     throw new Error("Choose the exact pending posting proposal revision before deciding.");
-  if (intent.decision === "approve" && intent.hospital_management_reviewed !== true)
+  if (
+    supervised &&
+    (intent.decision !== "approve" || intent.hospital_management_reviewed !== undefined)
+  )
+    throw new Error("A supervised approval cannot claim hospital management review.");
+  if (!supervised && intent.decision === "approve" && intent.hospital_management_reviewed !== true)
     throw new Error("Posting approval requires the supervision policy.");
   const raw = await apiFetch(path, {
     ...enrollmentRequestOptions(scope),
@@ -337,12 +344,13 @@ export async function getStaffPostingReviewSource(
 
 type PostingContextSelection = Omit<
   StaffPostingProposalContextRequest,
-  "supervision_context" | "management_review"
+  "supervision_context" | "management_review" | "chain_review"
 >;
 
 const legacyContextRequest = StaffPostingProposalContextRequestContract.omit({
   supervision_context: true,
   management_review: true,
+  chain_review: true,
 });
 
 export async function getStaffPostingProposalContext(
@@ -560,4 +568,97 @@ export async function listStaffPostingSupervisorChoices(
       throw new Error("The supervisor choices do not match this hospital.");
   }
   return page;
+}
+
+export async function decideStaffPostingSupervisedProposal(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingDecisionInput,
+  selected: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  return postingDecisionRequest(scope, proposal, command, input, selected, "PUT", signal, true);
+}
+
+export async function getStaffPostingSupervisedDecisionReceipt(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingDecisionInput,
+  selected: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  return postingDecisionRequest(scope, proposal, command, input, selected, "GET", signal, true);
+}
+
+export async function getStaffPostingChainReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: PostingContextSelection & { purpose: "review" },
+  signal?: AbortSignal,
+) {
+  const request = legacyContextRequest.extend({ purpose: z.literal("review") }).parse(rawRequest);
+  signal?.throwIfAborted();
+  const params = new URLSearchParams({
+    purpose: "review",
+    expected_version: String(request.expected_version),
+    expected_revision_id: request.expected_revision_id,
+    supervision_context: "v1",
+    chain_review: "current",
+  });
+  const view = StaffPostingChainReviewContextContract.parse(
+    await apiFetch(`${root(scope)}/${commandId.parse(proposal)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  signal?.throwIfAborted();
+  verifiedPostingContext(view.context, scope, proposal, request);
+  if (view.context.proposal.status !== "pending" || view.supervision.kind === "hospital_management")
+    throw new Error("Choose a pending supervised posting for current chain review.");
+  const seenStaff = new Set([scope.staffId.toLowerCase()]);
+  const seenPostings = new Set([proposal.toLowerCase()]);
+  let child: { starts_at: string; ends_at?: string | null } = view.context.proposal;
+  let intent = view.supervision;
+  let until = staffPostingInstantMicros(view.context.proposal.eligibility_until)!;
+  if (child.ends_at != null && staffPostingInstantMicros(child.ends_at)! < until)
+    until = staffPostingInstantMicros(child.ends_at)!;
+  for (const [index, node] of view.chain.entries()) {
+    const parent = node.posting;
+    if (
+      !same(parent.hospital_id, scope.hospitalId) ||
+      !same(parent.staff.id, intent.supervisor_staff_id ?? "") ||
+      !same(parent.id, intent.supervisor_proposal_id ?? "") ||
+      !same(parent.revision_id, intent.supervisor_revision_id ?? "") ||
+      seenStaff.has(parent.staff.id.toLowerCase()) ||
+      seenPostings.has(parent.id.toLowerCase()) ||
+      parent.kind !== node.supervision.kind ||
+      staffPostingInstantMicros(child.starts_at)! < staffPostingInstantMicros(parent.starts_at)! ||
+      (parent.ends_at != null &&
+        (child.ends_at == null ||
+          staffPostingInstantMicros(child.ends_at)! >
+            staffPostingInstantMicros(parent.ends_at)!)) ||
+      (index === view.chain.length - 1) !== (node.supervision.kind === "hospital_management")
+    )
+      throw new Error("The current supervisor chain is disconnected, repeated or out of scope.");
+    seenStaff.add(parent.staff.id.toLowerCase());
+    seenPostings.add(parent.id.toLowerCase());
+    for (const deadline of [parent.eligibility_until, parent.ends_at])
+      if (deadline != null && staffPostingInstantMicros(deadline)! < until)
+        until = staffPostingInstantMicros(deadline)!;
+    child = parent;
+    intent = node.supervision;
+  }
+  const checked = staffPostingInstantMicros(view.checked_at),
+    cutoff = staffPostingInstantMicros(view.eligibility_until);
+  if (
+    checked === null ||
+    checked <= staffPostingInstantMicros("0001-01-01T00:00:00Z")! ||
+    cutoff !== until ||
+    checked >= until ||
+    staffPostingInstantMicros(view.context.proposal.starts_at)! >= until
+  )
+    throw new Error("The checked supervisor chain cutoff could not be verified.");
+  return view;
 }

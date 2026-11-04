@@ -97,6 +97,26 @@ func TestPostingSupervisorChoiceQueryUsesBoundedIndexedProbes(t *testing.T) {
 			t.Logf("%s: 100000 synthetic postings, indexed manager probes, rows=%d execution_ms=%.3f", name, plan[0].Plan.ActualRows, plan[0].ExecutionTime)
 			require.NoError(t, postingSupervisorChoiceQuery(tx, principal, hospital, page).Find(&data).Error)
 			require.Len(t, data, 9)
+			if name == "first" {
+				keys := make([][]any, 0, len(data))
+				for _, row := range data {
+					keys = append(keys, []any{row.StaffID, row.ID})
+				}
+				var labels []postingChainLabel
+				labelStatement := postingChainLabelQuery(tx.Session(&gorm.Session{DryRun: true}), principal, hospital, keys).Find(&labels).Statement
+				labelRows, labelErr := tx.Statement.ConnPool.QueryContext(t.Context(), "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+labelStatement.SQL.String(), labelStatement.Vars...)
+				require.NoError(t, labelErr)
+				require.True(t, labelRows.Next())
+				var labelRaw []byte
+				require.NoError(t, labelRows.Scan(&labelRaw))
+				require.NoError(t, labelRows.Close())
+				require.Contains(t, string(labelRaw), "workforce_posting_supervision_intents_pkey")
+				require.NoError(t, json.Unmarshal(labelRaw, &plan))
+				require.Equal(t, 9, plan[0].Plan.ActualRows)
+				require.NoError(t, postingChainLabelQuery(tx, principal, hospital, keys).Find(&labels).Error)
+				require.Len(t, labels, 9)
+				t.Logf("exact current-chain labels: 100000 intents,9 composite keys,rows=%d execution_ms=%.3f", plan[0].Plan.ActualRows, plan[0].ExecutionTime)
+			}
 			page.After = &pagination.Cursor{TenantID: principal.TenantID, CreatedAt: data[7].CreatedAt, ID: data[7].ID}
 		}
 		for _, table := range []string{"workforce_posting_supervision_intents", "workforce_posting_proposal_revisions", "workforce_posting_proposals"} {

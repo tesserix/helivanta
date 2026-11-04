@@ -126,6 +126,7 @@ type StaffPostingProposalContextRequest struct {
 	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
 	SupervisionContext *string   `json:"supervision_context,omitempty"`
 	ManagementReview   *string   `json:"management_review,omitempty"`
+	ChainReview        *string   `json:"chain_review,omitempty"`
 }
 
 type StaffPostingProposalContext struct {
@@ -160,4 +161,17 @@ type StaffPostingSupervisorChoice struct {
 	EndsAt               *time.Time         `json:"ends_at,omitempty"`
 	EligibilityUntil     time.Time          `json:"eligibility_until"`
 	CreatedAt            time.Time          `json:"created_at"`
+}
+
+type StaffPostingChainNode struct {
+	Posting     StaffPostingSupervisorChoice  `json:"posting"`
+	Supervision StaffPostingSupervisionIntent `json:"supervision"`
+}
+
+type StaffPostingChainReviewContext struct {
+	Context          StaffPostingProposalContext   `json:"context"`
+	Supervision      StaffPostingSupervisionIntent `json:"supervision"`
+	Chain            []StaffPostingChainNode       `json:"chain"`
+	CheckedAt        time.Time                     `json:"checked_at"`
+	EligibilityUntil time.Time                     `json:"eligibility_until"`
 }

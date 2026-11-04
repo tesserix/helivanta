@@ -917,3 +917,211 @@ it("permits an open-ended placement while keeping its reviewed source cutoff dis
     }),
   ).toEqual(longPlacement);
 });
+
+it("submits a departmental approval without claiming hospital management review", async () => {
+  const api = await import("./staff-posting-proposals");
+  const command = id(90);
+  const selected = StaffPostingProposalContract.parse(receipt);
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: selected.revision_id,
+    decision: "approve" as const,
+    reason: "Independent review of the current canonical supervisor chain",
+    sources_examined: true,
+  };
+  const approved = {
+    ...receipt,
+    revision_id: id(91),
+    command_id: command,
+    version: 2,
+    status: "approved",
+    recorded_at: "2026-11-03T03:00:00Z",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  expect(
+    await api.decideStaffPostingSupervisedProposal(scope, receipt.id, command, decision, selected),
+  ).toEqual(approved);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining(`/decisions/${command}`),
+    expect.objectContaining({ method: "PUT", body: JSON.stringify(decision) }),
+  );
+});
+
+it("loads the exact protected supervisor chain without fetching ancestor private contexts", async () => {
+  const api = await import("./staff-posting-proposals");
+  const view = chainReviewFixture();
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  expect(
+    await api.getStaffPostingChainReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+    }),
+  ).toEqual(view);
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining("supervision_context=v1&chain_review=current"),
+    expect.anything(),
+  );
+});
+
+function chainReviewFixture() {
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: id(81),
+    supervisor_proposal_id: id(82),
+    supervisor_revision_id: id(83),
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic selected draft rationale",
+    submission_reason: "Synthetic selected submission rationale",
+    decision_reason: null,
+  };
+  return {
+    context,
+    supervision,
+    chain: [
+      {
+        posting: {
+          id: id(82),
+          revision_id: id(83),
+          hospital_id: scope.hospitalId,
+          staff: {
+            id: id(81),
+            employee_code: "SYN-ROOT",
+            display_name: "Synthetic independent supervisor",
+          },
+          kind: "hospital_management",
+          department_id: id(84),
+          department_revision_id: id(85),
+          starts_at: receipt.starts_at,
+          ends_at: receipt.ends_at,
+          eligibility_until: receipt.eligibility_until,
+          created_at: receipt.created_at,
+        },
+        supervision: { kind: "hospital_management" },
+      },
+    ],
+    checked_at: "2026-11-04T01:00:00Z",
+    eligibility_until: receipt.ends_at,
+  };
+}
+
+it.each([
+  "foreign hospital",
+  "wrong revision",
+  "self Staff",
+  "ordinary member",
+  "missing root",
+  "early cutoff",
+  "late cutoff",
+  "expired check",
+  "late parent start",
+  "short parent interval",
+  "private ancestor reason",
+  "depth overflow",
+])("withholds %s in protected chain review", async (kind) => {
+  const api = await import("./staff-posting-proposals");
+  const view = chainReviewFixture();
+  const parent = view.chain[0];
+  switch (kind) {
+    case "foreign hospital":
+      parent.posting.hospital_id = id(97);
+      break;
+    case "wrong revision":
+      parent.posting.revision_id = id(96);
+      break;
+    case "self Staff":
+      parent.posting.staff.id = scope.staffId;
+      view.supervision.supervisor_staff_id = scope.staffId;
+      break;
+    case "ordinary member":
+      parent.posting.kind = "department_member";
+      break;
+    case "missing root":
+      parent.supervision.kind = "department_supervisor";
+      break;
+    case "early cutoff":
+      view.eligibility_until = "2026-11-04T02:00:00Z";
+      break;
+    case "late cutoff":
+      view.eligibility_until = "2026-11-06T00:00:00Z";
+      break;
+    case "expired check":
+      view.checked_at = view.eligibility_until;
+      break;
+    case "late parent start":
+      parent.posting.starts_at = "2026-11-04T01:00:00Z";
+      break;
+    case "short parent interval":
+      parent.posting.ends_at = "2026-11-04T02:00:00Z";
+      break;
+    case "private ancestor reason":
+      Object.assign(parent.posting, { reason: "Synthetic private ancestor rationale" });
+      break;
+    case "depth overflow":
+      view.chain = Array.from({ length: 32 }, () => parent);
+      break;
+  }
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  await expect(
+    api.getStaffPostingChainReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+    }),
+  ).rejects.toThrow();
+});
+
+it("accepts omitted nominal ends and recovers the exact supervised approval", async () => {
+  const api = await import("./staff-posting-proposals");
+  const view = chainReviewFixture();
+  Reflect.deleteProperty(view.chain[0].posting, "ends_at");
+  Object.assign(view.context.proposal, { ends_at: null });
+  Object.assign(view.context.draft, { ends_at: null });
+  view.eligibility_until = receipt.eligibility_until;
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  await expect(
+    api.getStaffPostingChainReviewContext(scope, receipt.id, {
+      purpose: "review",
+      expected_version: 1,
+      expected_revision_id: receipt.revision_id,
+    }),
+  ).resolves.toEqual(view);
+  const command = id(90),
+    selected = StaffPostingProposalContract.parse(receipt);
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+    decision: "approve" as const,
+    reason: "Independent supervised approval receipt recovery",
+    sources_examined: true,
+  };
+  const approved = {
+    ...receipt,
+    revision_id: id(91),
+    command_id: command,
+    version: 2,
+    status: "approved",
+    recorded_at: "2026-11-03T03:00:00Z",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  await expect(
+    api.getStaffPostingSupervisedDecisionReceipt(scope, receipt.id, command, decision, selected),
+  ).resolves.toEqual(approved);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    expect.stringContaining(`/decisions/${command}`),
+    expect.objectContaining({ method: "GET" }),
+  );
+  for (const input of [
+    { ...decision, hospital_management_reviewed: true },
+    { ...decision, decision: "reject" as const },
+  ]) {
+    await expect(
+      api.decideStaffPostingSupervisedProposal(scope, receipt.id, command, input, selected),
+    ).rejects.toThrow();
+  }
+});

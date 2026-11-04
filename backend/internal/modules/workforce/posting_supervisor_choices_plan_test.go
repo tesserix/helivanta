@@ -2,34 +2,32 @@ package workforce
 
 import (
 	"encoding/json"
-	"strings"
-	"testing"
-
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"strings"
+	"testing"
 )
 
 func TestPostingSupervisorChoiceQueryUsesBoundedIndexedProbes(t *testing.T) {
 	appDSN, ownerDSN, _ := testinfra.StartPostgres(t)
-	owner, err := gorm.Open(postgres.Open(ownerDSN), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := tenantdb.Open(appDSN, ownerDSN)
 	require.NoError(t, err)
-	pool, err := owner.DB()
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, pool.Close()) })
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, db.Migrate(t.Context(), tenantdb.Migrations()))
+	apply := func(id, sql string) {
+		require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_supervisor_plan_" + id, SQL: sql}}))
+	}
 	// Reduced relation shapes isolate planner behavior; real scope, migrations and audit are tested through Global API.
-	require.NoError(t, owner.Exec(`
+	apply("relations", `
  CREATE TABLE workforce_staff(tenant_id uuid,hospital_id uuid,id uuid,employee_code text,display_name text,PRIMARY KEY(tenant_id,hospital_id,id));
  CREATE TABLE workforce_posting_proposals(tenant_id uuid,hospital_id uuid,staff_id uuid,id uuid,revision_id uuid,version bigint,status text,PRIMARY KEY(tenant_id,id));
  CREATE TABLE workforce_posting_proposal_revisions(tenant_id uuid,hospital_id uuid,staff_id uuid,proposal_id uuid,id uuid,version bigint,department_id uuid,department_revision_id uuid,starts_at timestamptz,ends_at timestamptz,eligibility_until timestamptz,PRIMARY KEY(tenant_id,id));
  CREATE TABLE workforce_posting_supervision_intents(tenant_id uuid,hospital_id uuid,staff_id uuid,proposal_id uuid,kind text,created_at timestamptz,PRIMARY KEY(tenant_id,hospital_id,staff_id,proposal_id));
- CREATE FUNCTION hms_tenant_visible(t uuid) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT t=NULLIF(current_setting('app.tenant_id',true),'')::uuid$$;
  CREATE TEMP TABLE synthetic_placements AS SELECT
  CASE WHEN n%7<3 THEN '11111111-1111-4111-8111-111111111111' ELSE '99999999-9999-4999-8999-999999999999' END::uuid AS tenant_id,
  CASE WHEN n%3=0 THEN '22222222-2222-4222-8222-222222222222' ELSE '88888888-8888-4888-8888-888888888888' END::uuid AS hospital_id,
@@ -44,37 +42,29 @@ func TestPostingSupervisorChoiceQueryUsesBoundedIndexedProbes(t *testing.T) {
  INSERT INTO workforce_posting_proposal_revisions SELECT tenant_id,hospital_id,staff_id,id,id,2,'019a0000-0000-7000-8000-000000000007','019a0000-0000-7000-8000-000000000008','2026-10-01T00:00:00Z',NULL,'2028-01-01T00:00:00Z' FROM synthetic_placements;
  INSERT INTO workforce_posting_supervision_intents SELECT tenant_id,hospital_id,staff_id,id,kind,created_at FROM synthetic_placements;
  DROP TABLE synthetic_placements;
- `).Error)
-	db, err := tenantdb.Open(appDSN, ownerDSN)
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
+ `)
+	scoped := scopedPostingsSchema[strings.Index(scopedPostingsSchema, "CREATE FUNCTION workforce_scoped_posting_context"):]
+	scoped = scoped[:strings.Index(scoped, "$$;")+3]
+	apply("scoped_context", scoped)
+	proposalContext := postingProposalsSchema[strings.Index(postingProposalsSchema, "CREATE FUNCTION workforce_posting_proposal_context"):]
+	proposalContext = proposalContext[:strings.Index(proposalContext, "$$;")+3]
+	apply("proposal_context", proposalContext)
+	for _, table := range []string{"workforce_posting_proposals", "workforce_posting_proposal_revisions", "workforce_posting_supervision_intents"} {
+		apply("predecessor_"+table, "CREATE POLICY tenant_isolation ON "+table+" USING(hms_tenant_visible(tenant_id) AND workforce_posting_proposal_context(tenant_id,hospital_id,staff_id,false)) WITH CHECK(workforce_posting_proposal_context(tenant_id,hospital_id,staff_id,true))")
+	}
 	for _, migration := range New().Migrations() {
-		if migration.ID == "0083_workforce_posting_supervisor_choice_index" {
+		if migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
 			require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{migration}))
 		}
 	}
-	scoped := scopedPostingsSchema[strings.Index(scopedPostingsSchema, "CREATE FUNCTION workforce_scoped_posting_context"):]
-	scoped = scoped[:strings.Index(scoped, "$$;")+3]
-	require.NoError(t, owner.Exec(scoped).Error)
-	proposalContext := postingProposalsSchema[strings.Index(postingProposalsSchema, "CREATE FUNCTION workforce_posting_proposal_context"):]
-	proposalContext = proposalContext[:strings.Index(proposalContext, "$$;")+3]
-	require.NoError(t, owner.Exec(proposalContext).Error)
-	for _, table := range []string{"workforce_posting_proposals", "workforce_posting_proposal_revisions", "workforce_posting_supervision_intents"} {
-		require.NoError(t, owner.Exec("CREATE POLICY tenant_isolation ON "+table+" USING(hms_tenant_visible(tenant_id) AND workforce_posting_proposal_context(tenant_id,hospital_id,staff_id,false)) WITH CHECK(workforce_posting_proposal_context(tenant_id,hospital_id,staff_id,true))").Error)
-	}
-
-	require.NoError(t, owner.Transaction(func(tx *gorm.DB) error { return tx.Exec(postingSupervisorChoicesSchema).Error }))
-	require.NoError(t, owner.Exec(`ALTER TABLE workforce_staff ENABLE ROW LEVEL SECURITY;ALTER TABLE workforce_staff FORCE ROW LEVEL SECURITY;
+	apply("rls_and_statistics", `ALTER TABLE workforce_staff ENABLE ROW LEVEL SECURITY;ALTER TABLE workforce_staff FORCE ROW LEVEL SECURITY;
  ALTER TABLE workforce_posting_proposals ENABLE ROW LEVEL SECURITY;ALTER TABLE workforce_posting_proposals FORCE ROW LEVEL SECURITY;
  ALTER TABLE workforce_posting_proposal_revisions ENABLE ROW LEVEL SECURITY;ALTER TABLE workforce_posting_proposal_revisions FORCE ROW LEVEL SECURITY;
  ALTER TABLE workforce_posting_supervision_intents ENABLE ROW LEVEL SECURITY;ALTER TABLE workforce_posting_supervision_intents FORCE ROW LEVEL SECURITY;
  CREATE POLICY fixture_staff_directory ON workforce_staff FOR SELECT USING(hms_tenant_visible(tenant_id) AND workforce_scoped_posting_context(tenant_id,hospital_id,NULLIF(current_setting('app.workforce_posting_actor',true),'')::uuid,false) AND current_setting('app.workforce_posting_directory',true)='read');
  GRANT SELECT ON workforce_staff TO hms_app;
  GRANT SELECT,UPDATE,DELETE ON workforce_posting_proposals,workforce_posting_proposal_revisions,workforce_posting_supervision_intents TO hms_app;
- ANALYZE workforce_staff;ANALYZE workforce_posting_proposals;ANALYZE workforce_posting_proposal_revisions;ANALYZE workforce_posting_supervision_intents;`).Error)
-	var indexBytes int64
-	require.NoError(t, owner.Raw("SELECT pg_relation_size('workforce_posting_supervisor_choice_order')").Scan(&indexBytes).Error)
-	t.Logf("100000 synthetic intent index bytes=%d", indexBytes)
+ ANALYZE workforce_staff;ANALYZE workforce_posting_proposals;ANALYZE workforce_posting_proposal_revisions;ANALYZE workforce_posting_supervision_intents;`)
 	principal := authn.Principal{TenantID: "11111111-1111-4111-8111-111111111111", Subject: "synthetic-planner"}
 	hospital := uuid.MustParse("22222222-2222-4222-8222-222222222222")
 	require.NoError(t, db.WithTenant(t.Context(), principal.TenantID, func(tx *gorm.DB) error {
@@ -82,6 +72,9 @@ func TestPostingSupervisorChoiceQueryUsesBoundedIndexedProbes(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		var indexBytes int64
+		require.NoError(t, tx.Raw("SELECT pg_relation_size('workforce_posting_supervisor_choice_order')").Scan(&indexBytes).Error)
+		t.Logf("100000 synthetic intent index bytes=%d", indexBytes)
 		page := pagination.Params{Limit: 8}
 		for _, name := range []string{"first", "continuation"} {
 			var data []postingSupervisorChoiceRecord

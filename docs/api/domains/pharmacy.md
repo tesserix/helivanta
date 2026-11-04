@@ -334,7 +334,7 @@ Every read of a pharmacy record that names or points to a person writes an `audi
 
 - **Who opened a record** is one indexed query on `(tenant_id, resource_type, resource_id)`.
 - **The sale summary** reads in one writable REPEATABLE READ snapshot (`tenantdb.WithTenantRecordedSnapshot`), so its statement stays one reading and its audit row commits with it.
-- **An audit store that refuses the row fails the read** with 500 and no body (tested).
+- **An audit store that refuses the row fails the read** with 500 and no data (tested through a test seam standing for that refusal).
 - **Not covered:** the tenant-wide dispense queue (`GET /pharmacy/dispenses…`), which shows patient names from MediCore's visits; auditing it is a dispensing-workflow decision and #1555 stays open for it.
 
 ### Returns as credit notes (#1386 C-1)

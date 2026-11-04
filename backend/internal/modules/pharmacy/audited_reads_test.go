@@ -122,12 +122,7 @@ func TestARefusedReadRecordsNothing(t *testing.T) {
 // An audit row that cannot be written withholds the data.
 func TestAReadWhoseRecordFailsReturnsNothing(t *testing.T) {
 	w := newWorkWorld(t)
-	require.NoError(t, w.db.WithAdmin(t.Context(), func(tx *gorm.DB) error {
-		return tx.Exec(`CREATE FUNCTION test_refuse_read_record() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN RAISE EXCEPTION 'TEST audit store unavailable'; END $$;
-CREATE TRIGGER test_refuse_read_record BEFORE INSERT ON audit_events FOR EACH ROW
- WHEN (NEW.action IN ('record_read','list_read','open_lines_read','summary_read')) EXECUTE FUNCTION test_refuse_read_record();`).Error
-	}))
+	pharmacy.SetReadRecordFault(t)
 	for _, path := range []string{
 		"/sales/" + w.walkIn,
 		"/sales",

@@ -1767,7 +1767,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingRegistrationPath string
 	var postingSubmitter string
 	var postingRootReviewer string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -2191,7 +2191,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
 				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-P-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-")), "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
 				call(t, "PUT", departmentPath, maker, departmentInput, 200)
-				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || scenario == "posting_root_reviewer" || scenario == "posting_root_approval" {
+				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || strings.HasPrefix(scenario, "posting_root_") {
 					t.Cleanup(func() {
 						departmentInput["expected_version"], departmentInput["status"] = 1, "retired"
 						retirementPath := organizationBase + "/departments/" + departmentID + "/revisions/" + uuid.Must(uuid.NewV7()).String()
@@ -2241,6 +2241,19 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if scenario == "posting_root_reviewer" {
 					grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
 					postingRootReviewer = recipient
+					return
+				}
+				if scenario == "posting_root_source_first" {
+					require.NotEmpty(t, postingRootReviewer, "include the preceding reviewed root-reviewer scenario")
+					standing, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootReviewer, HospitalID: hospital, Permission: workforce.PermPostingManagementReview})
+					require.NoError(t, err)
+					require.NotEmpty(t, standing.AssignmentID, "include the preceding independently entitled root-approval scenario")
+					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
+					assertPostingRootSourceFirst(t, db, testutil.TenantA, call, scopedStaffBase, recipient, postingRootReviewer, scopedDraft, scopedReceipt, scopedSource, generation, func() {
+						enrollment := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+						changed := call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{"expected_version": enrollment["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": "Synthetic Changed Identity", "work_phone": "+919000000004"}}, 200)
+						require.Equal(t, "Synthetic Changed Identity", changed["profile"].(map[string]any)["given_name"])
+					})
 					return
 				}
 				if scenario == "posting_root_approval" {

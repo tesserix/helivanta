@@ -78,6 +78,14 @@ export function PostingProposalDecision({
       onError: (error) => {
         if (error instanceof ApiError && error.status === 404 && error.code === "not_found")
           onContextRecheck();
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          error.code === "posting_proposal_conflict"
+        ) {
+          void source.refetch();
+          onContextRecheck();
+        }
       },
       onSuccess: (row) => {
         original.current = null;
@@ -248,7 +256,7 @@ export function PostingProposalDecision({
               <>
                 <Button
                   type="button"
-                  disabled={save.isPending}
+                  disabled={save.isPending || (action === "approve" && sourceAvailable && !matches)}
                   onClick={() => save.mutate({ command: retained, recover: false })}
                 >
                   Retry exact decision

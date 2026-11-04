@@ -1,5 +1,31 @@
 # Staff Management delivery tracker
 
+## Integrated source-change and retry proof — 2026-11-04
+
+The integrated root candidate passes the full native Global API race suite in
+**499.503s**, including an actual scoped HR-intake identity change after pending
+submission. The stale approval returns 409, preserves the pending head/history,
+creates no receipt and commits no Staff-use/approval audit or proposal event.
+Independent rejection remains possible. Concurrent exact approvals retain one
+immutable receipt, one approval audit and one canonical event.
+
+A UI regression was observed failing before the fix. After a source conflict,
+the form refreshes source and protected context, retains rationale, attestation
+and immutable command, disables approval retry when a successful source read
+proves a mismatch, and preserves receipt recovery and unknown-outcome retry.
+Focused reviewer checks pass **34/34**; the full shell suite passes **1,498 tests**,
+SDK **647/78**, API/shell types, scoped JS/Go lint, formatting and the Webpack
+production build pass. The build uses canonical public production configuration;
+this is build evidence, not deployment or browser acceptance.
+
+Browser saved-login autofill succeeded through the normal Helivanta QA form,
+without extracting credentials. The old local runtime then returned 500 because
+its callback client manifest and 500 page were absent. A separate candidate local
+build is being prepared with the existing registered QA OIDC client. No credential
+rotation or production change occurred. Real-account reviewer acceptance, further
+structure/source ordering proofs, supervisor chains and lifecycle consumers stay
+open. Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Root approval backend validation complete — 2026-11-04
 
 Concurrent exact approval now passes with real dependencies and the race detector

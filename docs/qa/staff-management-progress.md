@@ -2,7 +2,8 @@
 
 ## Canonical supervisor discovery and submission — 2026-11-04
 
-Candidate branch codex/posting-supervisor-discovery-20261104 is stacked on #1567.
+Draft [#1569](https://github.com/tesserix/helivanta/pull/1569) on branch
+`codex/posting-supervisor-discovery-20261104` is stacked on #1567.
 Workforce remains the Staff owner: new department/Pharma postings choose canonical
 Staff/proposal/revision references instead of a copied employee master. The new
 supervisor-choices projection holds current read + submit/review + Staff actor
@@ -38,6 +39,9 @@ The real migration/purpose/policy run passes **75.136s**, including unchanged wr
 checks, one permissive policy per table, pagination, cursor binding and audit
 rollback. Inventory remains **819 registered / 796 unclassified**; prior
 classifications are preserved. Root #1565 and chain #1567 CI checks are green.
+Final approved-pool fixture verification reran scoped `go vet`, `go build ./...`
+and `go run ./cmd/contractdocs -check`; all pass. Scoped `golangci-lint run`
+reports zero issues after that fixture correction. PR #1569 CI is running.
 
 Normal QA browser binding still fails with the tool's `timeoutMs` error after
 reconnection. No independent reviewer UI acceptance, merge, deployment, issue

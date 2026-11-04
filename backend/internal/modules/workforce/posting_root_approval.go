@@ -25,7 +25,11 @@ func (h *handlers) withRootPostingApproval(ctx context.Context, tx *gorm.DB, p a
 	if err := validatePostingApprovalSource(tx, p, s, row, source); err != nil {
 		return err
 	}
-	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, row.EligibilityUntil); err != nil {
+	approvalUntil := row.EligibilityUntil
+	if row.EndsAt != nil && row.EndsAt.Before(approvalUntil) {
+		approvalUntil = *row.EndsAt
+	}
+	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, approvalUntil); err != nil {
 		return errors.Join(errPostingProposalConflict, err)
 	}
 	ref := authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: row.DepartmentID, DepartmentRevision: row.DepartmentRevisionID, AncestorID: row.DepartmentID, AncestorRevision: row.DepartmentRevisionID}

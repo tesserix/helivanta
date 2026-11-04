@@ -532,7 +532,11 @@ The SDK permits an explicit attested approval and validates an `approved` receip
 The candidate review UI described below requires separate browser acceptance.
 
 The target's locked Staff version, employment epoch, reviewed generation, nominal
-interval and effective cutoff must still match. Organization holds the current
+interval and effective cutoff must still match. A new approval at or after the
+nominal `ends_at` returns409 `posting_proposal_conflict`. The shared command's
+commit deadline is the earlier of its reviewed source cutoff and nominal end;
+stored nominal terms and source cutoff are not rewritten. Exact receipt recovery
+and independent rejection remain available after nominal end. Organization holds the current
 exact active department/ancestry gate until commit. The transition preserves the
 proposal's source pins, adds the management evidence, head, revision, audit and
 identifier-only outbox in one transaction. Missing internal evidence fails commit;

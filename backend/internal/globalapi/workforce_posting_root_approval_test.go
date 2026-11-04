@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -67,4 +68,18 @@ func assertPostingRootApproval(t *testing.T, db *tenantdb.DB, tenant string, cal
 	require.Equal(t, approved, call(t, "GET", root, reviewer, nil, 200))
 	history := call(t, "GET", root+"/history?limit=2", reviewer, nil, 200)["data"].([]any)
 	require.Equal(t, []any{approved, pending}, history)
+	pastDraft := uuid.Must(uuid.NewV7()).String()
+	pastReceipt := call(t, "PUT", base+"/posting-drafts/"+pastDraft+"/commands/"+uuid.Must(uuid.NewV7()).String(), submitter, map[string]any{"expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "department_id": receipt["department_id"], "department_revision_id": receipt["department_revision_id"], "starts_at": time.Now().UTC().Add(-5 * time.Minute).Format(time.RFC3339), "ends_at": time.Now().UTC().Add(-time.Minute).Format(time.RFC3339), "reason": "Synthetic historical preparation whose nominal posting interval has ended"}, 200)
+	pastRoot := base + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
+	pastPending := call(t, "PUT", pastRoot+"/commands/"+uuid.Must(uuid.NewV7()).String(), submitter, map[string]any{"expected_version": 0, "draft_id": pastDraft, "draft_revision_id": pastReceipt["revision_id"], "draft_version": pastReceipt["version"], "generation_id": generation["id"], "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "reason": "Synthetic ended nominal root with otherwise current employment sources", "sources_examined": true, "supervision": map[string]any{"kind": "hospital_management"}}, 200)
+	pastPath := pastRoot + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	beforePast := postingRootApprovalEffects(t, db, tenant, reviewer)
+	ended := call(t, "PUT", pastPath, reviewer, map[string]any{"expected_version": 1, "expected_revision_id": pastPending["revision_id"], "decision": "approve", "reason": "An ended nominal appointment cannot receive a new approval", "sources_examined": true, "hospital_management_reviewed": true}, 409)
+	require.Equal(t, "posting_proposal_conflict", ended["error"])
+	require.Equal(t, beforePast, postingRootApprovalEffects(t, db, tenant, reviewer))
+	require.Equal(t, pastPending, call(t, "GET", pastRoot, reviewer, nil, 200))
+	call(t, "GET", pastPath, reviewer, nil, 404)
+	rejectedPast := call(t, "PUT", pastRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": pastPending["revision_id"], "decision": "reject", "reason": "Independent rejection of the synthetic ended appointment", "sources_examined": true}, 200)
+	require.Equal(t, "rejected", rejectedPast["status"])
+
 }

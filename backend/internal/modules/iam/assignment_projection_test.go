@@ -499,6 +499,36 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	}, 20*time.Second, 100*time.Millisecond)
 	writer.projected.Clear()
 	third := approve()
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		diagnosticContext, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 5*time.Second)
+		defer cancel()
+		err := db.WithTenant(diagnosticContext, testutil.TenantA, func(tx *gorm.DB) error {
+			if err := tx.Exec(`SELECT set_config('app.assignment_access','authorized',true)`).Error; err != nil {
+				return err
+			}
+			var state struct {
+				Epoch, AcknowledgedEpoch, Proposals, Active, Pending, Unpublished, Processed int64
+			}
+			if err := tx.Raw(`SELECT e.epoch,e.acknowledged_epoch,
+ (SELECT count(*) FROM iam_assignment_proposals p WHERE p.hospital_id=e.hospital_id AND p.subject=e.subject) AS proposals,
+ (SELECT count(*) FROM iam_assignment_proposals p WHERE p.hospital_id=e.hospital_id AND p.subject=e.subject AND p.status='active') AS active,
+ (SELECT count(*) FROM iam_assignment_proposals p WHERE p.hospital_id=e.hospital_id AND p.subject=e.subject AND p.status='approved_pending_activation') AS pending,
+ (SELECT count(*) FROM outbox_events o WHERE o.published_at IS NULL) AS unpublished,
+ (SELECT count(*) FROM processed_events p WHERE p.consumer='iam-assignment-projection') AS processed
+ FROM iam_assignment_scope_epochs e WHERE e.hospital_id=? AND e.subject=?`, hospital, "user-target").Scan(&state).Error; err != nil {
+				return err
+			}
+			_, projected := writer.projected.Load(third)
+			t.Logf("projection recovery diagnostic: epoch=%d ack=%d proposals=%d active=%d pending=%d unpublished=%d processed=%d fresh_graph_write=%t", state.Epoch, state.AcknowledgedEpoch, state.Proposals, state.Active, state.Pending, state.Unpublished, state.Processed, projected)
+			return nil
+		})
+		if err != nil {
+			t.Logf("projection recovery diagnostic unavailable: %v", err)
+		}
+	})
 	require.EventuallyWithT(t, func(c *assert.CollectT) { epoch(c, 5, 5) }, 20*time.Second, 100*time.Millisecond)
 	writer.projected.Range(func(key, _ any) bool { require.Equal(t, third, key); return true })
 	_, projected := writer.projected.Load(third)

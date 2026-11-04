@@ -425,6 +425,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review` | `pharmacy.licence.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content` | `pharmacy.prescription.record` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download` | `pharmacy.prescription.read` | false | false |
@@ -520,6 +521,8 @@ Subscriptions:
 - `pharmacy-patient-registered` ← `helivanta.in.patientmaster.registered.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-started` ← `helivanta.in.medicore.bed_occupancy_started.v1`; after-commit hook: false.
 - `pharmacy-bed-occupancy-ended` ← `helivanta.in.medicore.bed_occupancy_ended.v1`; after-commit hook: false.
+- `pharmacy-encounter-opened` ← `helivanta.in.medicore.encounter_opened.v1`; after-commit hook: false.
+- `pharmacy-encounter-status-changed` ← `helivanta.in.medicore.encounter_status_changed.v1`; after-commit hook: false.
 
 Migration table declarations:
 
@@ -545,6 +548,7 @@ Migration table declarations:
 - `0029_pharmacy`: `pharmacy_product_price_declarations`, `pharmacy_product_price_reviews`.
 - `0030_pharmacy`: `pharmacy_licence_evidence`.
 - `0031_pharmacy`: `pharmacy_service_charges`, `pharmacy_service_charge_versions`, `pharmacy_service_charge_reviews`, `pharmacy_sale_charge_lines`, `pharmacy_credit_note_charge_lines`.
+- `0032_pharmacy`: `pharmacy_opd_encounters`.
 
 ## payments
 

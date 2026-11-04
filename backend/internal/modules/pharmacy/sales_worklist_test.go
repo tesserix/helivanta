@@ -23,6 +23,7 @@ type workRow struct {
 	InvoiceNumber     string  `json:"invoice_number"`
 	SaleDate          string  `json:"sale_date"`
 	Customer          string  `json:"customer"`
+	Linkage           string  `json:"linkage"`
 	BedCode           *string `json:"admission_bed_code"`
 	Currency          string  `json:"currency"`
 	TotalMinor        int64   `json:"total_minor"`

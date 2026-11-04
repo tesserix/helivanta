@@ -306,31 +306,32 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 
 ### The sales worklist and sale summary (#987 slice 1)
 
-| Route                                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET …/sales/worklist?from=&to=&customer=&invoice=` | Paged, newest first: one row per sale dated in the period (at most 366 outlet days), or the one sale with `invoice` exactly (no period needed). Each row: invoice, date, `customer` (`walk_in`, `patient` or `admission`, with the bed code for an admission), total, discount, units, credited so far, net, and what is still on the admission account. `customer` narrows to one kind. Requires `pharmacy.sale.read`                                                                            |
-| `GET …/sales/{id}/summary`                          | One sale's statement: each line with units returned and amount credited, each service charge with amount credited, payments by kind, credit notes with refunds by kind, and the balances `credited_minor`, `net_minor`, `collected_minor`, `refunded_minor`, `admission_billed_minor`, `admission_reversed_minor`. At most 100 credit notes are listed, with `more_credit_notes` when there are more; the totals count every note. Requires `pharmacy.sale.read`; a sale of another outlet is 404 |
+| Route                                                        | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/sales/worklist?from=&to=&customer=&linkage=&invoice=` | Paged, newest first: one row per sale dated in the period (at most 366 outlet days), or the one sale with `invoice` exactly (no period needed). Each row: invoice, date, `customer` (`walk_in`, `patient` or `admission`, with the bed code for an admission), `linkage` (`admission`, `opd` or `none`: what the sale is linked to, never its id), total, discount, units, credited so far, net, and what is still on the admission account. `customer` and `linkage` narrow to one kind each. Requires `pharmacy.sale.read` |
+| `GET …/sales/{id}/summary`                                   | One sale's statement: each line with units returned and amount credited, each service charge with amount credited, payments by kind, credit notes with refunds by kind, and the balances `credited_minor`, `net_minor`, `collected_minor`, `refunded_minor`, `admission_billed_minor`, `admission_reversed_minor`. At most 100 credit notes are listed, with `more_credit_notes` when there are more; the totals count every note. Requires `pharmacy.sale.read`; a sale of another outlet is 404                            |
 
 - **The summary reconciles.** It is read in one snapshot, so a return posted meanwhile is wholly in or wholly out (tested). Lines and charges make the total; payments settle it; the credit notes credit exactly their lines and charges and are refunded in full. So `net = collected − refunded + (admission billed − admission reversed)` for every sale. The tests prove each identity for a walk-in sale with a credited service charge, a registered patient's sale and an admission sale.
 - **No direct identifiers.** Neither read carries the buyer's name or phone, the patient's id or a credit note's recipient, only who the sale was for as a kind. An admission sale shows its bed code, which with the date points to whoever was in that bed, so a worklist page or summary showing one is recorded (see [audited reads](#audited-reads-1555)).
 - **Credits are as of now.** A sale counts on its own date; its credit notes are every one posted so far, whatever the period.
-- **Not covered:** encounter linkage (slice 2), payer liability split (slice 3, with #1051), sales across outlets, buyer or patient search, CSV export.
+- **Not covered:** payer liability split (slice 3, with #1051), casualty sales, sales across outlets, buyer or patient search, CSV export. OPD encounter linkage is slice 2, below.
 
 ### Audited reads (#1555)
 
 Every read of a pharmacy record that names or points to a person writes an `audit_events` row in the read's own transaction, after the rows are read: no record, no data. The row holds the filter names, never their values; the audit log line holds the values. A refused read (400, 403, 404) records nothing.
 
-| Read                             | `resource_type`           | `resource_id`    | `action`                                 | When                             |
-| -------------------------------- | ------------------------- | ---------------- | ---------------------------------------- | -------------------------------- |
-| `GET …/sales/{id}`               | `pharmacy_sale`           | the sale         | `record_read`                            | always                           |
-| `GET …/sales`                    | `pharmacy_sales`          | the outlet       | `list_read`                              | every page                       |
-| `GET …/credit-notes/{id}`        | `pharmacy_credit_note`    | the note         | `record_read`                            | always                           |
-| `GET …/credit-notes`             | `pharmacy_credit_notes`   | the outlet       | `list_read` (`sale_id` when given)       | every page                       |
-| `GET …/prescriptions/{id}`       | `pharmacy_prescription`   | the prescription | `record_read`                            | always                           |
-| `GET …/prescriptions`            | `pharmacy_prescriptions`  | the outlet       | `list_read`                              | every page                       |
-| `GET …/prescriptions/open-lines` | `pharmacy_prescriptions`  | the outlet       | `open_lines_read` (`product_id`)         | always                           |
-| `GET …/sales/worklist`           | `pharmacy_sales_worklist` | the outlet       | `list_read` (`from,to,customer,invoice`) | a page showing an admission sale |
-| `GET …/sales/{id}/summary`       | `pharmacy_sale`           | the sale         | `summary_read`                           | an admission sale                |
+| Read                             | `resource_type`           | `resource_id`    | `action`                                         | When                             |
+| -------------------------------- | ------------------------- | ---------------- | ------------------------------------------------ | -------------------------------- |
+| `GET …/sales/{id}`               | `pharmacy_sale`           | the sale         | `record_read`                                    | always                           |
+| `GET …/sales`                    | `pharmacy_sales`          | the outlet       | `list_read`                                      | every page                       |
+| `GET …/credit-notes/{id}`        | `pharmacy_credit_note`    | the note         | `record_read`                                    | always                           |
+| `GET …/credit-notes`             | `pharmacy_credit_notes`   | the outlet       | `list_read` (`sale_id` when given)               | every page                       |
+| `GET …/prescriptions/{id}`       | `pharmacy_prescription`   | the prescription | `record_read`                                    | always                           |
+| `GET …/prescriptions`            | `pharmacy_prescriptions`  | the outlet       | `list_read`                                      | every page                       |
+| `GET …/prescriptions/open-lines` | `pharmacy_prescriptions`  | the outlet       | `open_lines_read` (`product_id`)                 | always                           |
+| `GET …/sales/worklist`           | `pharmacy_sales_worklist` | the outlet       | `list_read` (`from,to,customer,invoice,linkage`) | a page showing an admission sale |
+| `GET …/sales/{id}/summary`       | `pharmacy_sale`           | the sale         | `summary_read`                                   | an admission sale                |
+| `GET …/opd-encounters`           | `pharmacy_opd_encounters` | the outlet       | `patient_visits_read` (`patient_id,hospital_id`) | always                           |
 
 - **Who opened a record** is one indexed query on `(tenant_id, resource_type, resource_id)`.
 - **The sale summary** reads in one writable REPEATABLE READ snapshot (`tenantdb.WithTenantRecordedSnapshot`), so its statement stays one reading and its audit row commits with it.
@@ -406,6 +407,24 @@ A sale may be billed to the admission occupying a bed instead of collected at th
 
 - **Daily report.** It shows `admission_account_minor` and `admission_account_refund_minor`, billed and returned to admission accounts rather than collected or paid out, so sales still reconcile to tenders.
 - **Returns.** A credit note on an admitted sale refunds only through `admission_account`, and publishes `admission_charge_reversed.v1`. A wrong-bed sale is corrected by a full credit note and a new sale. Migration `0027_pharmacy`.
+
+### A sale linked to its OPD encounter (#987 slice 2)
+
+A registered patient's counter sale may cite the OPD encounter it serves. See the [design](../../superpowers/specs/2026-11-04-pharmacy-opd-encounter-link-design.md). MediCore's encounter contract is consumed as published; MediCore does not change.
+
+- **Pharmacy's copy of OPD encounters.** `pharmacy_opd_encounters` holds the encounter, hospital, patient id, status and version, and `opened_at`, when MediCore published the opening (the envelope's `occurred_at`); no name. A patient's visits are ordered and told apart by `opened_at`, so a replayed or delayed delivery cannot make them look alike. It is fed by `pharmacy-encounter-opened` (`encounter_opened.v1`) and `pharmacy-encounter-status-changed` (`encounter_status_changed.v1`). Either may arrive first; a status moves only with a newer version; a replay naming another patient or hospital, or the same version with another status, is refused and retried, never overwritten.
+- **Find.** `GET …/outlets/:outlet/opd-encounters?patient_id=&hospital_id=` needs `pharmacy.sale.create`. It lists the patient's citable visits (`arrived`, `in_consultation`, `closed`) with `opened_at`, newest opened first, at most 20, only for a patient the pharmacy has received at a hospital that has verified it (otherwise `404`). Every answer is audited.
+- **Post.** The sale carries `encounter: {encounter_id}` with `patient`; never with `admission` or a walk-in buyer (`400`). The database refuses, as `409 not_sellable` with the reason, an encounter that:
+  - the pharmacy has not received, has not yet seen opened, or is not this patient's at this patient's hospital (one answer for all three, so a refusal says nothing about whose a visit is);
+  - was `cancelled` or `left_without_being_seen`.
+
+  The hospital-verification check runs before the visit is read, so a hospital that has not verified the pharmacy is refused first.
+
+  A `closed` encounter is citable, as patients collect medicines after the consultation; there is no time limit (agreed 2026-11-04). The sale takes the encounter row `FOR SHARE`, so a status change is wholly before or after it. A later cancellation does not undo a posted sale. The intent digest covers the encounter.
+
+- **Read.** The invoice read carries `encounter_id` (audited, #1555). The worklist and summary show only `linkage`.
+- **Events.** `sale_posted.v1` is unchanged: publishing the link to hospital billing belongs to #1051.
+- **Not covered:** casualty sales (the emergency module's contract), changing a posted sale's link (a credit note and a new sale), linking sales posted before this change. Migration `0032_pharmacy`.
 
 ### Registered patients at the counter (#1386 B-2c)
 

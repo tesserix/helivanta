@@ -67,7 +67,7 @@ func TestEachPersonalReadIsRecordedOnce(t *testing.T) {
 		{"/prescriptions/" + rx, "pharmacy_prescription", rx, "record_read", ""},
 		{"/prescriptions", "pharmacy_prescriptions", pharmaOutlet, "list_read", ""},
 		{"/prescriptions/open-lines?product_id=" + g, "pharmacy_prescriptions", pharmaOutlet, "open_lines_read", "product_id"},
-		{"/sales/worklist?from=2026-11-01&to=2026-11-02", "pharmacy_sales_worklist", pharmaOutlet, "list_read", "from,to,customer,invoice"},
+		{"/sales/worklist?from=2026-11-01&to=2026-11-02", "pharmacy_sales_worklist", pharmaOutlet, "list_read", "from,to,customer,invoice,linkage"},
 		{"/sales/" + w.admitted + "/summary", "pharmacy_sale", w.admitted, "summary_read", ""},
 	}
 	for i, r := range reads {

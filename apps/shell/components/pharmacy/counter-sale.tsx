@@ -25,7 +25,7 @@ import {
   type PharmacyServiceCharge,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
-import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
+import { CounterPatientLookup, CounterVisit, type CounterPatient } from "./counter-patient";
 import { CounterAdmissionLookup, type CounterAdmission } from "./counter-admission";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 import { VerifiedUpi } from "./verified-upi";
@@ -38,6 +38,7 @@ import { VerifiedUpi } from "./verified-upi";
  */
 export function CounterSale({
   scope,
+  timeZone,
   canSell,
   canManageProfile,
   canDiscount = false,
@@ -45,6 +46,8 @@ export function CounterSale({
   canRefund = false,
 }: {
   scope: PharmacyScope;
+  /** The outlet's time zone, for when a visit opened. */
+  timeZone?: string;
   canSell: boolean;
   canManageProfile: boolean;
   /** Holds pharmacy.sale.discount, which a tenant administrator assigns (#1386 B-3). */
@@ -85,7 +88,14 @@ export function CounterSale({
       )}
       {canManageDiscount && <DiscountCeilingForm scope={scope} />}
       {canSell ? (
-        current && <Counter scope={scope} canDiscount={canDiscount} canRefund={canRefund} />
+        current && (
+          <Counter
+            scope={scope}
+            timeZone={timeZone}
+            canDiscount={canDiscount}
+            canRefund={canRefund}
+          />
+        )
       ) : (
         <p className="text-sm text-muted-foreground">
           Selling here needs the pharmacist role; you can record the outlet&apos;s invoice details.
@@ -191,10 +201,12 @@ const lineSchema = z.object({
 
 function Counter({
   scope,
+  timeZone,
   canDiscount,
   canRefund,
 }: {
   scope: PharmacyScope;
+  timeZone?: string;
   canDiscount: boolean;
   canRefund: boolean;
 }) {
@@ -485,6 +497,7 @@ function Counter({
           <Totals sale={quote} />
           <TenderForm
             scope={scope}
+            timeZone={timeZone}
             quote={quote}
             basket={basket}
             chargeChannel={chargeChannel}
@@ -641,6 +654,8 @@ const tenderSchema = z
     // Or bills the sale to the admission in a bed (#1387), collecting nothing.
     customer: z.enum(["walk_in", "patient", "admission"]),
     patient_id: z.string(),
+    // The patient's OPD visit the sale serves (#987); empty is none.
+    encounter_id: z.string(),
     occupancy_id: z.string(),
     // The walk-in buyer is optional on every sale (#1386 B-2b decision 7).
     buyer_name: z.string().trim().max(200, "At most 200 characters"),
@@ -698,6 +713,7 @@ const tenderSchema = z
 
 function TenderForm({
   scope,
+  timeZone,
   quote,
   basket,
   chargeChannel,
@@ -709,6 +725,7 @@ function TenderForm({
   onUncertain,
 }: {
   scope: PharmacyScope;
+  timeZone?: string;
   quote: PharmacySaleQuote;
   basket: BasketLine[];
   /** Ward-delivery charges bill an admission; counter charges never do. */
@@ -730,6 +747,7 @@ function TenderForm({
     total: quote.total_minor,
     customer: chargeChannel === "ward_delivery" ? "admission" : "walk_in",
     patient_id: "",
+    encounter_id: "",
     occupancy_id: "",
     buyer_name: "",
     buyer_phone: "",
@@ -748,6 +766,8 @@ function TenderForm({
   const choosePatient = (next: CounterPatient | null) => {
     setPatient(next);
     form.setValue("patient_id", next?.patient_id ?? "", { shouldValidate: false });
+    // Another patient's visit is never carried over.
+    form.setValue("encounter_id", "", { shouldValidate: false });
     if (next) form.clearErrors("patient_id");
   };
   const { setValue, clearErrors } = form;
@@ -797,7 +817,12 @@ function TenderForm({
           ],
           ...(values.discounted ? { discount_reason: values.discount_reason } : {}),
           ...(values.customer === "patient" && patient
-            ? { patient: { patient_id: patient.patient_id, hospital_id: patient.hospital_id } }
+            ? {
+                patient: { patient_id: patient.patient_id, hospital_id: patient.hospital_id },
+                ...(values.encounter_id
+                  ? { encounter: { encounter_id: values.encounter_id } }
+                  : {}),
+              }
             : {}),
           ...(values.customer === "admission" && admission
             ? { admission: { occupancy_id: admission.occupancy_id } }
@@ -972,6 +997,16 @@ function TenderForm({
               <p className="mt-1 text-sm text-destructive">
                 {form.formState.errors.patient_id.message}
               </p>
+            )}
+            {patient && (
+              <CounterVisit
+                key={patient.patient_id}
+                scope={scope}
+                patient={patient}
+                timeZone={timeZone}
+                value={form.watch("encounter_id")}
+                onChange={(next) => form.setValue("encounter_id", next, { shouldValidate: false })}
+              />
             )}
           </div>
         ) : (

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,23 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	proposeChild := func(root, draft string, receipt map[string]any, intent map[string]any) map[string]any {
 		return call(t, "PUT", root+"/commands/"+uuid.Must(uuid.NewV7()).String(), submitter, map[string]any{"expected_version": 0, "draft_id": draft, "draft_revision_id": receipt["revision_id"], "draft_version": receipt["version"], "generation_id": generation["id"], "staff_version": childSource["staff_version"], "employment_epoch": childSource["employment_epoch"], "reason": "Synthetic bounded canonical supervision intent", "sources_examined": true, "supervision": intent}, 200)
 	}
+	pastDraft := uuid.Must(uuid.NewV7()).String()
+	pastStart, err := time.Parse(time.RFC3339Nano, childReceipt["starts_at"].(string))
+	require.NoError(t, err)
+	pastEnd := pastStart.Add(time.Microsecond)
+	require.True(t, time.Now().After(pastEnd))
+	pastReceipt := call(t, "PUT", childBase+"/posting-drafts/"+pastDraft+"/commands/"+uuid.Must(uuid.NewV7()).String(), submitter, map[string]any{"expected_version": 0, "staff_version": childSource["staff_version"], "employment_epoch": childSource["employment_epoch"], "department_id": childReceipt["department_id"], "department_revision_id": childReceipt["department_revision_id"], "starts_at": pastStart.Format(time.RFC3339Nano), "ends_at": pastEnd.Format(time.RFC3339Nano), "reason": "Synthetic ended child inside a current supervisor interval"}, 200)
+	pastRoot := childBase + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
+	pastPending := proposeChild(pastRoot, pastDraft, pastReceipt, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": supervisorStaff, "supervisor_proposal_id": parentApproved["id"], "supervisor_revision_id": parentApproved["revision_id"]})
+	pastPath := pastRoot + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	beforePast := postingRootApprovalEffects(t, db, tenant, reviewer)
+	pastDenied := call(t, "PUT", pastPath, reviewer, map[string]any{"expected_version": 1, "expected_revision_id": pastPending["revision_id"], "decision": "approve", "reason": "A current supervisor cannot authorize an already ended child posting", "sources_examined": true}, 409)
+	require.Equal(t, "posting_proposal_conflict", pastDenied["error"])
+	require.Equal(t, beforePast, postingRootApprovalEffects(t, db, tenant, reviewer))
+	require.Equal(t, pastPending, call(t, "GET", pastRoot, reviewer, nil, 200))
+	call(t, "GET", pastPath, reviewer, nil, 404)
+	pastRejected := call(t, "PUT", pastRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": pastPending["revision_id"], "decision": "reject", "reason": "Independent rejection of the ended child posting", "sources_examined": true}, 200)
+	require.Equal(t, "rejected", pastRejected["status"])
 	selfRootDraft, selfRootReceipt := newChildDraft("Synthetic separate root to prove repeated Staff refusal")
 	selfRoot := childBase + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
 	selfRootPending := proposeChild(selfRoot, selfRootDraft, selfRootReceipt, map[string]any{"kind": "hospital_management"})

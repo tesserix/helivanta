@@ -18,6 +18,14 @@ type postingChainSource struct {
 	Intent  StaffPostingSupervisionIntent
 }
 
+func postingApprovalDeadline(row StaffPostingProposal) time.Time {
+	until := row.EligibilityUntil
+	if row.EndsAt != nil && row.EndsAt.Before(until) {
+		until = *row.EndsAt
+	}
+	return until
+}
+
 func validatePostingApprovalSource(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource) error {
 	if source.StaffVersion != row.StaffVersion || source.EmploymentEpoch != row.EmploymentEpoch {
 		return errPostingProposalConflict
@@ -26,7 +34,7 @@ func validatePostingApprovalSource(tx *gorm.DB, p authn.Principal, s postingDraf
 	if err != nil {
 		return err
 	}
-	if (state != "effective" && state != "not_started") || generation.EmploymentEpoch != row.EmploymentEpoch || row.StartsAt.Before(generation.StartsAt) || !row.StartsAt.Before(until) || until.Before(row.EligibilityUntil) || generation.EndsAt != nil && (row.EndsAt == nil || row.EndsAt.After(*generation.EndsAt)) || !time.Now().Before(row.EligibilityUntil) {
+	if (state != "effective" && state != "not_started") || generation.EmploymentEpoch != row.EmploymentEpoch || row.StartsAt.Before(generation.StartsAt) || !row.StartsAt.Before(until) || until.Before(row.EligibilityUntil) || generation.EndsAt != nil && (row.EndsAt == nil || row.EndsAt.After(*generation.EndsAt)) || !time.Now().Before(postingApprovalDeadline(row)) {
 		return errPostingProposalConflict
 	}
 	return nil
@@ -126,7 +134,11 @@ func (h *handlers) withSupervisedPostingApproval(ctx context.Context, tx *gorm.D
 	if !rooted || !row.StartsAt.Before(until) {
 		return errPostingProposalConflict
 	}
-	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, until); err != nil {
+	commandUntil := postingApprovalDeadline(row)
+	if until.Before(commandUntil) {
+		commandUntil = until
+	}
+	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, commandUntil); err != nil {
 		return errors.Join(errPostingProposalConflict, err)
 	}
 	var hold func(context.Context, int) error

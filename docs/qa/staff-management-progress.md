@@ -1,5 +1,28 @@
 # Staff Management delivery tracker
 
+## Shared nominal-end enforcement — 2026-11-04
+
+The chain integration first exposed a lost explicit root deadline validation:
+the guard canceled an already ended command and returned403 instead of409.
+Restoring explicit validation made that root regression pass. The distinct ended
+child regression then reproduced an erroneous approval under a current valid root
+(expected409, actual200; **75.714s**). The shared validator now rejects nominally
+ended target and ancestor postings; root and chain commands use the same nominal
+end calculation. Chain commit also intersects all ancestor source cutoffs while
+retaining the independent source-cutoff evidence unchanged.
+
+The real Global API root-reviewer/root-approval/chain trio passes in **88.713s**:
+ended root/child approvals conflict, pending state and committed effects remain
+unchanged, no receipt is created, and independent rejection succeeds. Existing
+root-to-supervisor-to-descendant-member approvals, rollback and exact recovery
+remain in that passing run. Go vet/scoped lint pass. Final full native suites
+are running; no migration was added or rewritten for this deadline fix. The root
+branch includes current main and its independent Pharmacy0033 migration; no newer
+production rollout is approved. Independent-account UI, canonical supervisor
+choices/protected chain context, further lifecycle/operating consumers and final
+suite/release gates remain open. Counts remain **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## Nominal posting end regression — 2026-11-04
 
 The root candidate's real Global API regression reproduced a new approval of an

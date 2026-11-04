@@ -101,6 +101,10 @@ zero issues. Removing the sibling ancestry predicate was caught (expected 409,
 actual approval 200); the implementation was restored byte for byte. The expanded
 seven-scenario set passes in **137.915s**, retaining original pagination assertions.
 Build/vet and canonical contract/inventory checks pass. Further depth/source/interval
-proof and normal UI remain required before this increment is ready. A newly
-reproduced parent root nominal-end approval gap is being fixed separately; its
-fix must be integrated into shared chain validation before acceptance.
+proof and normal UI remain required before this increment is ready. Root nominal-end validation is integrated into the shared target/ancestor
+validator. A distinct ended-child RED (75.714s, expected409/actual approved200)
+is followed by a passing root/reviewer/chain trio (88.713s). Commands constrain
+commit by nominal end without rewriting retained source-cutoff evidence. The
+first merge run caught a missing explicit root expiry check (403 instead of409);
+that integration error was corrected before the successful child regression.
+Final full native suites remain pending after this change.

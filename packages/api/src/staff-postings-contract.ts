@@ -702,7 +702,7 @@ export const StaffPostingProposalContextRequestContract = z
     supervision_context: z.enum(["v1"]).optional(),
     management_review: z.enum(["current"]).optional(),
     chain_review: z.enum(["current"]).optional(),
-    lifecycle_review: z.enum(["current"]).optional(),
+    lifecycle_review: z.enum(["current", "recorded"]).optional(),
   })
   .strict();
 export type StaffPostingProposalContextRequest = z.infer<
@@ -846,4 +846,52 @@ export const StaffPostingLifecycleReviewContextContract = z
   .strict();
 export type StaffPostingLifecycleReviewContext = z.infer<
   typeof StaffPostingLifecycleReviewContextContract
+>;
+
+export const StaffPostingLifecycleHistorySourceContract = z
+  .object({
+    hop: z.number().int().min(0).max(31),
+    staff_id: identifier,
+    proposal_id: identifier,
+    revision_id: identifier,
+    cutoff: StaffPostingCutoffObservationContract,
+  })
+  .strict();
+export type StaffPostingLifecycleHistorySource = z.infer<
+  typeof StaffPostingLifecycleHistorySourceContract
+>;
+
+export const StaffPostingLifecycleHistoryRecordContract = z
+  .object({
+    revision_id: identifier,
+    initial_revision_id: identifier,
+    reviewer_staff_id: identifier,
+    reviewer_link_id: identifier,
+    reviewer_generation_id: identifier,
+    review_assignment_id: identifier,
+    review_assignment_version: z.number().int().min(1).max(9007199254740990),
+    scope_epoch: z.number().int().min(1).max(9007199254740990),
+    membership_epoch: z.number().int().min(1).max(9007199254740990),
+    support_permission: z.enum(["workforce.posting.read", "workforce.posting.management.review"]),
+    support_assignment_id: identifier,
+    support_assignment_version: z.number().int().min(1).max(9007199254740990),
+    checked_at: z.string().datetime({ offset: true }),
+    effective_until: z.string().datetime({ offset: true }),
+    source_count: z.number().int().min(1).max(32),
+    sources: z.array(StaffPostingLifecycleHistorySourceContract).min(1).max(32),
+  })
+  .strict();
+export type StaffPostingLifecycleHistoryRecord = z.infer<
+  typeof StaffPostingLifecycleHistoryRecordContract
+>;
+
+export const StaffPostingLifecycleHistoryContextContract = z
+  .object({
+    context: StaffPostingProposalContextContract,
+    supervision: StaffPostingSupervisionIntentContract.nullable(),
+    review: StaffPostingLifecycleHistoryRecordContract.nullable(),
+  })
+  .strict();
+export type StaffPostingLifecycleHistoryContext = z.infer<
+  typeof StaffPostingLifecycleHistoryContextContract
 >;

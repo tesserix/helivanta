@@ -2,6 +2,7 @@ package globalapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 )
 
 type retainedPostingLifecycleHeader struct {
+	RevisionID               uuid.UUID
 	InitialRevisionID        uuid.UUID
 	ReviewerSubject          string
 	ReviewerStaffID          uuid.UUID
@@ -56,7 +58,28 @@ func readRetainedPostingLifecycleProof(t *testing.T, db *tenantdb.DB, requestTen
 		if err := tx.Table("workforce_posting_lifecycle_reviews").Where("tenant_id=? AND proposal_id=?", ownerTenant, proposal).Find(&out.Headers).Error; err != nil {
 			return err
 		}
-		return tx.Table("workforce_posting_lifecycle_sources").Where("tenant_id=? AND proposal_id=?", ownerTenant, proposal).Order("hop").Find(&out.Sources).Error
+		if err := tx.Table("workforce_posting_lifecycle_sources").Where("tenant_id=? AND proposal_id=?", ownerTenant, proposal).Order("hop").Find(&out.Sources).Error; err != nil {
+			return err
+		}
+		if len(out.Headers) == 1 {
+			for _, query := range []struct{ name, sql string }{
+				{"header", `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT revision_id,initial_revision_id,effective_until FROM workforce_posting_lifecycle_reviews WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND proposal_id=? AND revision_id=?`},
+				{"sources", `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT hop,source_staff_id,source_proposal_id,source_revision_id,cutoff_id,cutoff_version,cutoff_at FROM workforce_posting_lifecycle_sources WHERE tenant_id=? AND hospital_id=? AND staff_id=? AND proposal_id=? AND revision_id=? ORDER BY hop LIMIT 33`},
+			} {
+				var plan string
+				if err := tx.Raw(query.sql, ownerTenant, hospital, staff, proposal, out.Headers[0].RevisionID).Scan(&plan).Error; err != nil {
+					return err
+				}
+				var nodes []map[string]any
+				if err := json.Unmarshal([]byte(plan), &nodes); err != nil {
+					return err
+				}
+				require.NotEmpty(t, nodes)
+				root := nodes[0]["Plan"].(map[string]any)
+				t.Logf("Small-fixture lifecycle %s plan: operator=%v estimated_rows=%v actual_rows=%v elapsed_ms=%v", query.name, root["Node Type"], root["Plan Rows"], root["Actual Rows"], root["Actual Total Time"])
+			}
+		}
+		return nil
 	})
 	require.NoError(t, err)
 	return out

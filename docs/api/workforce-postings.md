@@ -142,7 +142,7 @@ even after the current context changes, becomes unavailable or its deadline
 elapses. Only the owner can distinguish committed replay from an expired new
 command. Account/scope changes clear private state and abort in-flight requests.
 Component coverage and a production build do not establish normal-account browser
-acceptance or historical lifecycle-proof presentation; those remain open.
+acceptance or historical lifecycle-proof browser acceptance; that remains open.
 
 The local candidate now also adds `GET /v1/workforce/posting-cutoff-scopes`
 (at most20 admitted hospitals per filtered page), and `GET` at the proposal's
@@ -871,3 +871,56 @@ retain identical IDs/body and usable receipt recovery. Ordinary rejection remain
 available after a chain-read conflict. No migration or permission expansion is
 introduced. ADR0057 records rationale and acceptance limits; real-account browser,
 operating/lifecycle and production acceptance remain open.
+
+## Retained lifecycle approval history — local candidate
+
+The existing protected proposal context endpoint additionally accepts
+`purpose=review&expected_version=2&expected_revision_id=<approved-revision>&supervision_context=v1&lifecycle_review=recorded`.
+This mode is exclusive of current `management_review` and `chain_review`; repeated,
+mixed or unknown selectors are400. The exact head must be approved; pending or
+stale selections conflict409. Legacy selectors and strict receipts keep their
+existing shapes. The canonical envelope is
+`StaffPostingLifecycleHistoryContext`, described by
+[ADR-0059](../adr/0059-retained-posting-lifecycle-history.md).
+
+The response contains the existing authorized proposal context, nullable retained
+supervision, and `review`. A non-null review holds its exact approval/initial
+revision, original reviewer Staff/link/generation, review/support assignment
+versions/epochs, examination instant, original effective deadline, source count
+and1–32 ordered observations. Each source carries its hop, canonical Staff/
+proposal/revision reference and the originally observed cutoff ID/version/instant.
+No current names, login subject, identity files or credential records are added.
+The selected source is hop0 and retains its original absence/version0; later
+cutoff commands do not replace that observation. Sources and their provenance
+come only from immutable Workforce0085 records. No product-owned Staff copy,
+current-state reconstruction or operating authorization is introduced.
+
+`review:null` explicitly means retained lifecycle proof is unavailable for that
+approval. This can include older approvals and must not be shown as a successful
+current-source check. A non-null header with missing/inconsistent source rows is
+an error and is not released. Responses are bounded at128KiB and `no-store`.
+
+Disclosure uses current independent `workforce.posting.review` plus reviewed
+Staff actor use and verified session/tenant/hospital/object purpose. Historical
+management support does not grant a new management permission to the reader.
+Self/contributor exclusions remain in force. Reads do not require the target or
+its original sources to become operational again, and do not apply current
+cutoffs to the saved historical deadline. A read and its
+`context_read_lifecycle_history` audit commit together; a failed audit withholds
+all context/evidence and rolls back actor-use evidence. No event is emitted.
+
+The SDK's `getStaffPostingLifecycleHistoryContext(scope, approved, signal)`
+verifies the exact approved snapshot, original selected revision, source count,
+ordering/uniqueness, supervisor pin, provenance policy, cutoff bounds and supported
+calendar. It accepts an elapsed historical deadline and checks account abort
+before and after the read. This view cannot be used as current approval
+examination or command recovery; recovery still uses the exact original PUT.
+
+The reviewer workspace routes approved selections to retained history, with the
+original rationale and source/provenance references, explicitly warning that the
+record does not establish current operating authority. Unknown proof is visible
+as unavailable; current observations are never substituted. Access rechecks hide
+cached private evidence while pending or unavailable;403 clears it and account
+changes abort its request. Normal-role browser acceptance, actual departmental/
+Pharma operating consumers and production release remain separate open gates.
+No migration, permission, event, dependency or new service is added by this mode.

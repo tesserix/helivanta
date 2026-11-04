@@ -55,8 +55,11 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, "workforce.posting.management.review", rootProof.Headers[0].SupportPermission)
 	require.NotEqual(t, rootProof.Headers[0].ReviewAssignmentID, rootProof.Headers[0].SupportAssignmentID)
 	require.EqualValues(t, 0, rootProof.Sources[0].CutoffVersion)
+	assertPostingLifecycleHistory(t, call, parentRoot, administrator, parent, rootProof)
+	call(t, "GET", postingLifecycleHistoryPath(parentRoot, parent), reviewer, nil, 403)
 	childRoot, child := prepare(childTemplate, submitter, map[string]any{"kind": "department_supervisor", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
 	selector := fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&chain_review=current", child["revision_id"])
+	call(t, "GET", postingLifecycleHistoryPath(childRoot, child), reviewer, nil, 409)
 	call(t, "GET", childRoot+selector, reviewer, nil, 200)
 	path := parentRoot + "/cutoffs/commands/" + uuid.Must(uuid.NewV7()).String()
 	input := map[string]any{"expected_revision_id": parent["revision_id"], "expected_cutoff_version": 0, "mode": "scheduled", "cutoff_at": time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano), "reason": "Synthetic scheduled ancestor ending requires explicit lifecycle review", "sources_examined": true}
@@ -122,6 +125,8 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, cutoff["id"], retainedProof.Sources[1].CutoffID.String())
 	require.EqualValues(t, 1, retainedProof.Sources[1].CutoffVersion)
 	require.Equal(t, parent["revision_id"], retainedProof.Sources[1].SourceRevisionID.String())
+	retainedHistory := assertPostingLifecycleHistory(t, call, approvedChildRoot, reviewer, approvedChildReceipt, retainedProof)
+	assertPostingLifecycleHistoryFailures(t, db, tenant, call, approvedChildRoot, reviewer, submitter, approvedChildReceipt, retainedProof)
 	foreignProof := readRetainedPostingLifecycleProof(t, db, uuid.Must(uuid.NewV7()).String(), tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string))
 	require.Empty(t, foreignProof.Headers)
 	require.Empty(t, foreignProof.Sources)
@@ -206,6 +211,7 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	afterReplay := postingRootApprovalEffects(t, db, tenant, reviewer)
 	require.Equal(t, beforeReplay[1:], afterReplay[1:], "replay creates no additional approval audit or event")
 	require.Equal(t, retainedProof, readRetainedPostingLifecycleProof(t, db, tenant, tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string)))
+	require.Equal(t, retainedHistory, assertPostingLifecycleHistory(t, call, approvedChildRoot, reviewer, approvedChildReceipt, retainedProof), "history retains original cutoff versions and deadlines after the ancestor ends")
 	changedReplay := map[string]any{}
 	for key, value := range approvedChildDecision {
 		changedReplay[key] = value

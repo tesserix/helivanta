@@ -239,3 +239,36 @@ type StaffPostingLifecycleReviewContext struct {
 	CheckedAt      time.Time                        `json:"checked_at"`
 	EffectiveUntil time.Time                        `json:"effective_until"`
 }
+
+type StaffPostingLifecycleHistorySource struct {
+	Hop        int64                         `json:"hop"`
+	StaffID    uuid.UUID                     `json:"staff_id"`
+	ProposalID uuid.UUID                     `json:"proposal_id"`
+	RevisionID uuid.UUID                     `json:"revision_id"`
+	Cutoff     StaffPostingCutoffObservation `json:"cutoff"`
+}
+
+type StaffPostingLifecycleHistoryRecord struct {
+	RevisionID               uuid.UUID                            `json:"revision_id"`
+	InitialRevisionID        uuid.UUID                            `json:"initial_revision_id"`
+	ReviewerStaffID          uuid.UUID                            `json:"reviewer_staff_id"`
+	ReviewerLinkID           uuid.UUID                            `json:"reviewer_link_id"`
+	ReviewerGenerationID     uuid.UUID                            `json:"reviewer_generation_id"`
+	ReviewAssignmentID       uuid.UUID                            `json:"review_assignment_id"`
+	ReviewAssignmentVersion  int64                                `json:"review_assignment_version"`
+	ScopeEpoch               int64                                `json:"scope_epoch"`
+	MembershipEpoch          int64                                `json:"membership_epoch"`
+	SupportPermission        string                               `json:"support_permission"`
+	SupportAssignmentID      uuid.UUID                            `json:"support_assignment_id"`
+	SupportAssignmentVersion int64                                `json:"support_assignment_version"`
+	CheckedAt                time.Time                            `json:"checked_at"`
+	EffectiveUntil           time.Time                            `json:"effective_until"`
+	SourceCount              int64                                `json:"source_count"`
+	Sources                  []StaffPostingLifecycleHistorySource `json:"sources"`
+}
+
+type StaffPostingLifecycleHistoryContext struct {
+	Context     StaffPostingProposalContext         `json:"context"`
+	Supervision *StaffPostingSupervisionIntent      `json:"supervision"`
+	Review      *StaffPostingLifecycleHistoryRecord `json:"review"`
+}

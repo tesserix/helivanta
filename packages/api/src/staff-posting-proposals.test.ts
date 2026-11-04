@@ -1444,3 +1444,203 @@ it("withholds a lifecycle decision response after an account abort", async () =>
     ),
   ).rejects.toThrow();
 });
+
+function lifecycleHistoryFixture() {
+  const current = lifecycleReviewFixture();
+  const approved = {
+    ...current.context.proposal,
+    revision_id: id(150),
+    command_id: id(151),
+    version: 2,
+    status: "approved" as const,
+    recorded_at: "2026-11-04T02:00:00Z",
+  };
+  return {
+    context: {
+      ...current.context,
+      proposal: approved,
+      decision_reason: "Independent historical review",
+    },
+    supervision: current.supervision,
+    review: {
+      revision_id: approved.revision_id,
+      initial_revision_id: current.context.proposal.revision_id,
+      reviewer_staff_id: id(152),
+      reviewer_link_id: id(153),
+      reviewer_generation_id: id(154),
+      review_assignment_id: id(155),
+      review_assignment_version: 3,
+      scope_epoch: 2,
+      membership_epoch: 4,
+      support_permission: "workforce.posting.read",
+      support_assignment_id: id(156),
+      support_assignment_version: 2,
+      checked_at: current.checked_at,
+      effective_until: current.effective_until,
+      source_count: 2,
+      sources: [
+        {
+          hop: 0,
+          staff_id: scope.staffId,
+          proposal_id: receipt.id,
+          revision_id: receipt.revision_id,
+          cutoff: current.cutoff,
+        },
+        ...current.chain.map((node, index) => ({
+          hop: index + 1,
+          staff_id: node.posting.staff.id,
+          proposal_id: node.posting.id,
+          revision_id: node.posting.revision_id,
+          cutoff: node.cutoff,
+        })),
+      ],
+    },
+  };
+}
+
+it("loads exact recorded approval evidence even after its original deadline elapsed", async () => {
+  const api = await import("./staff-posting-proposals");
+  const history = lifecycleHistoryFixture();
+  vi.mocked(apiFetch).mockResolvedValue(history);
+  expect(await api.getStaffPostingLifecycleHistoryContext(scope, history.context.proposal)).toEqual(
+    history,
+  );
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining(
+      "expected_version=2&expected_revision_id=" +
+        id(150) +
+        "&supervision_context=v1&lifecycle_review=recorded",
+    ),
+    expect.anything(),
+  );
+});
+
+it("represents unavailable retained proof explicitly without reconstructing a current context", async () => {
+  const api = await import("./staff-posting-proposals");
+  const history = lifecycleHistoryFixture();
+  vi.mocked(apiFetch).mockResolvedValue({ ...history, review: null });
+  const view = await api.getStaffPostingLifecycleHistoryContext(scope, history.context.proposal);
+  expect(view.review).toBeNull();
+  expect(apiFetch).toHaveBeenCalledTimes(1);
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.stringContaining("lifecycle_review=recorded"),
+    expect.anything(),
+  );
+});
+
+it.each([
+  [
+    "different approval",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.revision_id = id(201);
+    },
+  ],
+  [
+    "changed original source",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.initial_revision_id = id(202);
+    },
+  ],
+  [
+    "another hospital",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.context.proposal.hospital_id = id(203);
+    },
+  ],
+  [
+    "self approval",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.reviewer_staff_id = scope.staffId;
+    },
+  ],
+  [
+    "incomplete observations",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.source_count = 3;
+    },
+  ],
+  [
+    "reordered observations",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.sources.reverse();
+    },
+  ],
+  [
+    "repeated Staff",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.sources[1].staff_id = scope.staffId;
+    },
+  ],
+  [
+    "another supervisor",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.sources[1].proposal_id = id(204);
+    },
+  ],
+  [
+    "newer selected cutoff",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.sources[0].cutoff = { id: id(205), version: 1, cutoff_at: v.review.effective_until };
+    },
+  ],
+  [
+    "deadline beyond observed cutoff",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.sources[1].cutoff.cutoff_at = v.review.checked_at;
+    },
+  ],
+  [
+    "examination after deadline",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.checked_at = v.review.effective_until;
+    },
+  ],
+  [
+    "wrong support policy",
+    (v: ReturnType<typeof lifecycleHistoryFixture>) => {
+      v.review.support_permission = "workforce.posting.management.review";
+    },
+  ],
+])("rejects retained history with %s", async (_name, corrupt) => {
+  const api = await import("./staff-posting-proposals");
+  const history = lifecycleHistoryFixture();
+  const selected = structuredClone(history.context.proposal);
+  corrupt(history);
+  vi.mocked(apiFetch).mockResolvedValue(history);
+  await expect(api.getStaffPostingLifecycleHistoryContext(scope, selected)).rejects.toThrow();
+});
+
+it("does not request historical approval evidence for a pending proposal", async () => {
+  const api = await import("./staff-posting-proposals");
+  await expect(api.getStaffPostingLifecycleHistoryContext(scope, receipt as never)).rejects.toThrow(
+    /approved/,
+  );
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
+it("withholds retained history after the account request is aborted", async () => {
+  const api = await import("./staff-posting-proposals");
+  const history = lifecycleHistoryFixture();
+  const controller = new AbortController();
+  vi.mocked(apiFetch).mockImplementation(async () => {
+    controller.abort();
+    return history;
+  });
+  await expect(
+    api.getStaffPostingLifecycleHistoryContext(scope, history.context.proposal, controller.signal),
+  ).rejects.toThrow();
+  expect(apiFetch).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({ signal: controller.signal }),
+  );
+});
+
+it("rejects a retained examination timestamp outside the owner's supported calendar", async () => {
+  const api = await import("./staff-posting-proposals");
+  const history = lifecycleHistoryFixture();
+  history.review.checked_at = "0000-01-01T00:00:00Z";
+  vi.mocked(apiFetch).mockResolvedValue(history);
+  await expect(
+    api.getStaffPostingLifecycleHistoryContext(scope, history.context.proposal),
+  ).rejects.toThrow();
+});

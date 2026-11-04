@@ -1,5 +1,29 @@
 # Staff Management delivery tracker
 
+## Retained posting approval history — local candidate, 2026-11-05
+
+The next increment implements an exclusive recorded-history context through the
+same Workforce owner. It exposes bounded immutable lifecycle source/cutoff
+observations and original review provenance under current independent review
+and Staff actor admission. It preserves old context/receipt shapes, explicit
+null for unavailable proof, source count/order, original deadlines after an
+ancestor ending, and atomic disclosure auditing. No migration/permission/event.
+The SDK checks exact approved snapshot, proof bindings, calendar and account
+abort. The UI uses a separate history reader with explicit historical wording,
+reuses the rationale component and clears/withholds cached evidence on changed
+or unavailable access. See the
+[history plan](../superpowers/plans/2026-11-05-posting-lifecycle-history.md) and
+[ADR-0059](../adr/0059-retained-posting-lifecycle-history.md).
+
+Expanded real Global API history coverage passes117.648s; SDK **737 /81 files**;
+reviewer UI **59 /12.04s**; scoped web checks **9 /19.994s**. Full/final verification
+is still running and will be recorded in the plan. The candidate is not yet
+served by the local QA runtime, and normal-role browser acceptance is not counted.
+Historical presentation is implemented locally, with its browser acceptance open.
+All five parent Staff requirements, actual Pharma/unit operating consumers,
+standalone employers and deployment remain open. Counts stay **10 partial,
+10 awaiting audit,1 research,0 fully accepted**. No production action occurred.
+
 ## Reviewer lifecycle UI — local increment, 2026-11-05
 
 Branch `codex/posting-lifecycle-review-ui-20261105`, based on backend decision

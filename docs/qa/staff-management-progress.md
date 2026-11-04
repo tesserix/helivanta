@@ -89,6 +89,28 @@ posting, supervision and Workforce terms. Relevant open stories include #417,
 acceptance audit of every issue or authorization to close any of them. No issue
 was marked accepted, closed or tagged complete by the focused API checks.
 
+## Incremental prerequisite PRs — 2026-11-04
+
+- [#1559](https://github.com/tesserix/helivanta/pull/1559), `ff6c51d7`:
+  three-file opt-in local PostgreSQL fixture budget. Full local testinfra race
+  validation passed; web, end-to-end, image, script and security CI passed. The
+  required Go coverage job is still running, and GitHub refused the authorized
+  admin merge while required checks were pending.
+- Draft [#1561](https://github.com/tesserix/helivanta/pull/1561), `e955fd6d`:
+  five-file three-check IAM/authz guard, stacked on #1559. It uses existing
+  posting-reviewer/identity-manager/identity-reviewer templates in its integration
+  test, removing the new management catalog dependency. Isolated build/vet/lint
+  and Gitleaks pass; isolated real IAM integration is still in progress and not
+  accepted. No migration, route, new capability catalog or UI action is added.
+  Rebase/retarget onto main after the parent merges. It remains draft until
+  validation and required CI pass.
+
+The shared local VM was subsequently observed with 78MB available and Docker
+storage 97% full (881MB free). Only owned test fixtures are cleaned up. No unrelated
+container, volume or cached image was pruned. The pending local 6GB restart request
+has not been approved or performed. These prerequisites do not close a Staff
+story or establish production or browser acceptance.
+
 ## Management capability checkpoint — 2026-11-04
 
 Retention checkpoint `376138fa` is committed and pushed. Subsequent local work

@@ -26,7 +26,7 @@ import (
 
 func TestCompoundAssignmentCommand(t *testing.T)        { exerciseCompoundAssignmentCommand(t, false) }
 func TestThreePermissionAssignmentCommand(t *testing.T) { exerciseCompoundAssignmentCommand(t, true) }
-func exerciseCompoundAssignmentCommand(t *testing.T, management bool) {
+func exerciseCompoundAssignmentCommand(t *testing.T, triple bool) {
 	t.Helper()
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
@@ -81,8 +81,8 @@ func exerciseCompoundAssignmentCommand(t *testing.T, management bool) {
 		permission authz.Permission
 	}
 	roles := []reservedRole{{"workforce.identity_manager.v1", "workforce.identity_checks.manage"}, {"workforce.identity_reviewer.v1", "workforce.identity_checks.review"}}
-	if management {
-		roles = append([]reservedRole{{"workforce.posting_management_reviewer.v1", "workforce.posting.management.review"}}, roles...)
+	if triple {
+		roles = append([]reservedRole{{"workforce.posting_reviewer.v1", "workforce.posting.review"}}, roles...)
 	}
 	for _, role := range roles {
 		propose(role.template, time.Now().UTC().Add(time.Hour))

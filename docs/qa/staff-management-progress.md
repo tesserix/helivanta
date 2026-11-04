@@ -19,6 +19,10 @@ move before outer commit. Exact original source was restored and SHA256 checked
 after every mutation. Full restored-source race suites pass: Organization
 125.467s, authorization 11.035s and architecture 103.945s. Vet, full Go build,
 scoped lint (zero issues), gofmt and contractdocs check pass with cached tooling.
+Existing Workforce posting race checks also pass in 16.759s. CI correctly caught
+the changed guard source pin; both callers were reviewed and its hash/rationale
+updated without changing classifications. All 15 inventory tests and regenerated
+checks pass: 797 registered surfaces /774 still unclassified.
 No dependencies or images were downloaded; only exact-session fixtures were
 removed after private state capture.
 

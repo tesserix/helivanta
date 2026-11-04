@@ -24,7 +24,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestCompoundAssignmentCommand(t *testing.T) {
+func TestCompoundAssignmentCommand(t *testing.T)        { exerciseCompoundAssignmentCommand(t, false) }
+func TestThreePermissionAssignmentCommand(t *testing.T) { exerciseCompoundAssignmentCommand(t, true) }
+func exerciseCompoundAssignmentCommand(t *testing.T, triple bool) {
+	t.Helper()
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	router, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
@@ -72,14 +75,16 @@ func TestCompoundAssignmentCommand(t *testing.T) {
 		call("POST", path+"/decision", "reviewer", `{"expected_version":2,"decision":"approve","reason":"Independent synthetic review"}`, 200)
 		return id
 	}
-	checks := make([]authz.ScopeCheck, 0, 2)
-	for _, role := range []struct {
+	checks := make([]authz.ScopeCheck, 0, 3)
+	type reservedRole struct {
 		template   string
 		permission authz.Permission
-	}{
-		{"workforce.identity_manager.v1", "workforce.identity_checks.manage"},
-		{"workforce.identity_reviewer.v1", "workforce.identity_checks.review"},
-	} {
+	}
+	roles := []reservedRole{{"workforce.identity_manager.v1", "workforce.identity_checks.manage"}, {"workforce.identity_reviewer.v1", "workforce.identity_checks.review"}}
+	if triple {
+		roles = append([]reservedRole{{"workforce.posting_reviewer.v1", "workforce.posting.review"}}, roles...)
+	}
+	for _, role := range roles {
 		propose(role.template, time.Now().UTC().Add(time.Hour))
 		checks = append(checks, authz.ScopeCheck{Request: authz.ScopeRequest{TenantID: testutil.TenantA, Subject: "user-target", HospitalID: hospital, Permission: role.permission}})
 	}
@@ -132,7 +137,32 @@ func TestCompoundAssignmentCommand(t *testing.T) {
 		alter func([]authz.ScopeCheck) []authz.ScopeCheck
 	}{
 		{"empty", func(v []authz.ScopeCheck) []authz.ScopeCheck { return nil }},
-		{"too_many", func(v []authz.ScopeCheck) []authz.ScopeCheck { return append(v, v[0]) }},
+		{"too_many", func(v []authz.ScopeCheck) []authz.ScopeCheck {
+			for len(v) < 4 {
+				extra := v[0]
+				extra.Request.Permission = []authz.Permission{"workforce.posting.read", "workforce.posting.submit"}[len(v)-2]
+				v = append(v, extra)
+			}
+			return v
+		}},
+		{"duplicate_nonfirst", func(v []authz.ScopeCheck) []authz.ScopeCheck {
+			if len(v) == 3 {
+				v[2] = v[1]
+			} else {
+				v[1] = v[0]
+			}
+			return v
+		}},
+		{"conflicting_nonfirst", func(v []authz.ScopeCheck) []authz.ScopeCheck {
+			if len(v) == 3 {
+				v[2].Grant = v[1].Grant
+				v[2].Grant.Version++
+			} else {
+				v[1].Grant = v[0].Grant
+				v[1].Grant.Version++
+			}
+			return v
+		}},
 		{"duplicate_permission", func(v []authz.ScopeCheck) []authz.ScopeCheck { v[1] = v[0]; return v }},
 		{"foreign_tenant", func(v []authz.ScopeCheck) []authz.ScopeCheck { v[1].Request.TenantID = testutil.TenantB; return v }},
 		{"foreign_hospital", func(v []authz.ScopeCheck) []authz.ScopeCheck { v[1].Request.HospitalID = uuid.NewString(); return v }},

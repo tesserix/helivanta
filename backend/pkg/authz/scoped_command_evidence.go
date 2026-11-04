@@ -16,7 +16,7 @@ type scopedCommandEvidence struct {
 
 // WithScopedCommandEvidence is the IAM-only issuer after locking current authority.
 func WithScopedCommandEvidence(ctx context.Context, checks []ScopeCheck, action func(context.Context) error) error {
-	if action == nil || len(checks) < 1 || len(checks) > 2 {
+	if action == nil || len(checks) < 1 || len(checks) > MaxScopedCommandChecks {
 		return ErrScopedAuthorizationUnavailable
 	}
 	if err := ctx.Err(); err != nil {

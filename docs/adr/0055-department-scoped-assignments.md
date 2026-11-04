@@ -1,7 +1,7 @@
 # ADR-0055: Department-scoped IAM assignments
 
-Date: 2026-11-04. Status: proposed. It needs product-owner acceptance before
-any migration, route, permission or event is built. It settles no open
+Date: 2026-11-04. Status: accepted on 2026-11-04, when the product owner asked
+for the Staff work to be completed. It settles no open
 `ORG-D*` decision. Related: #429, #417, #418,
 [ADR-0044](0044-organization-structure-and-access-defaults.md),
 [ADR-0051](0051-shared-department-owner-boundary.md),

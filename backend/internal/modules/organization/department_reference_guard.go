@@ -18,7 +18,7 @@ type departmentReferenceGuard struct{ db *tenantdb.DB }
 // Matches the persisted hierarchy limit in departments.sql.
 const departmentReferenceMaxDepth = 8
 
-const departmentAncestryQuery = `WITH RECURSIVE ancestry AS (
+const departmentAncestryCTE = `WITH RECURSIVE ancestry AS (
  SELECT id,parent_id,status,ARRAY[id] AS path,1 AS depth
  FROM organization_departments WHERE tenant_id=? AND hospital_id=? AND id=?
  UNION ALL
@@ -29,7 +29,9 @@ const departmentAncestryQuery = `WITH RECURSIVE ancestry AS (
  ) p ON true
  WHERE a.depth<? AND NOT (p.id=ANY(a.path))
 )
-SELECT COALESCE(bool_or(id=?),false)
+`
+
+const departmentAncestryQuery = departmentAncestryCTE + `SELECT COALESCE(bool_or(id=?),false)
  AND COALESCE(bool_or(parent_id IS NULL),false)
  AND COALESCE(bool_and(status='active'),false) FROM ancestry`
 

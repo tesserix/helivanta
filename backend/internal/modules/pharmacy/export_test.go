@@ -44,3 +44,18 @@ func SetRxRegisterExportRows(t interface{ Cleanup(func()) }, n int) {
 	rxRegisterExportRows = n
 	t.Cleanup(func() { rxRegisterExportRows = old })
 }
+
+// SetSummaryCreditNotes lowers the credit notes a sale summary lists for one test.
+func SetSummaryCreditNotes(t interface{ Cleanup(func()) }, n int) {
+	was := summaryCreditNotes
+	summaryCreditNotes = n
+	t.Cleanup(func() { summaryCreditNotes = was })
+}
+
+// SetSummaryMidRead runs fn between a sale summary's line read and the rest,
+// for one test: where a concurrent return would land.
+func SetSummaryMidRead(t interface{ Cleanup(func()) }, fn func()) {
+	was := summaryMidRead
+	summaryMidRead = fn
+	t.Cleanup(func() { summaryMidRead = was })
+}

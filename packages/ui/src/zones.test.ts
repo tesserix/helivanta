@@ -260,6 +260,7 @@ describe("zone icons and sections", () => {
       [undefined, "Overview", "/pharmacy"],
       ["Dispensing", "Counter sale", "/pharmacy/counter"],
       ["Dispensing", "Returns", "/pharmacy/returns"],
+      ["Dispensing", "Sales", "/pharmacy/sales"],
       ["Dispensing", "Daily sales", "/pharmacy/daily-report"],
       ["Dispensing", "H1 register", "/pharmacy/h1-register"],
       ["Dispensing", "Prescription register", "/pharmacy/prescription-register"],

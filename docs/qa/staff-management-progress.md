@@ -1,5 +1,24 @@
 # Staff Management delivery tracker
 
+## Retained posting cutoff design checkpoint — 2026-11-05
+
+Source inspection confirms approved postings have no retained command to bring
+their cutoff forward. [ADR-0058](../adr/0058-retained-posting-cutoffs.md), the
+[specification](../superpowers/specs/2026-11-05-posting-lifecycle-cutoffs.md) and
+[plan](../superpowers/plans/2026-11-05-posting-lifecycle-cutoffs.md) record the next
+vertical slice: scoped administrative authority, immediate/scheduled shortening,
+immutable replay/history, stale-target revocation, ancestor deadline propagation,
+explicit client compatibility and cutoff-aware rollback. Workforce remains the
+canonical Staff owner. No new endpoint, template, migration or live enforcement
+has been implemented by this documentation checkpoint; no production action was
+performed. Candidate migration numbers must be rechecked before allocation.
+
+A reconnect to the existing local QA tab still failed on page inspection; the
+isolated in-app browser fallback is unavailable. No normal-role browser acceptance
+is counted. At this checkpoint #1570's web, E2E, scripts and security checks pass;
+Go is still pending. Its already recorded local test results are unchanged.
+Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Protected current-chain reviewer workflow — 2026-11-05
 
 Draft [#1570](https://github.com/tesserix/helivanta/pull/1570), commit `c35a24cb`,

@@ -2,7 +2,8 @@
 
 ## Protected current-chain reviewer workflow — 2026-11-04
 
-Candidate branch `codex/posting-chain-review-context-20261104` extends draft #1569.
+Draft [#1570](https://github.com/tesserix/helivanta/pull/1570), commit `c35a24cb`,
+on branch `codex/posting-chain-review-context-20261104` extends draft #1569.
 The reviewer can separately request a current named immediate-parent-to-root chain,
 then approve a department supervisor/member without claiming root management
 review. Workforce remains the canonical Staff owner; Organization ancestry and IAM
@@ -24,7 +25,14 @@ reviewer UI passes **47 tests**, including explicit confirmation, unavailable re
 return to rejection and identical uncertain retries. The100,000-row planner fixture
 passes **9.386s**; nine composite-key chain labels use the existing intent primary
 key and execute in **2.153ms**. This is reduced-fixture planning evidence, not a
-production SLO. Full native Global API/Workforce and full web checks are running.
+production SLO. The full native Global API run failed in **586.654s** at the
+existing sequential employment-download capacity setup (expected503, actual200);
+no full API pass is claimed. A separate fixture-only branch starts its four reads
+concurrently using an atomic bounded media barrier; the focused real API case
+passes **48.779s** with the capacity subtest **1.73s**. Production limits/timeouts
+are unchanged. Full Workforce race is running separately. Full SDK passes
+**682 tests**. Full web checks restarted after restoring missing ignored E2E/script
+cached tool links and the E2E canonical API alias; no dependencies were downloaded.
 Production Webpack build, scoped Go vet, full backend build, scoped Go lint
 (zero issues), canonical generation/check, contractdocs generation/check and
 operational inventory check pass. The first combined web run stopped on the shared-Panel lint gate; source now uses

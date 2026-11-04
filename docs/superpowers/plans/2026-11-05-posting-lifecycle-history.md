@@ -49,7 +49,11 @@ pending approval/recovery remains on its current lifecycle path.
 - Initial scoped Go lint catches an unchecked row-close error and two unchanged
   baseline `sqlclosecheck` findings in `posting_supervisor_choices_plan_test.go`.
   The history reader now propagates deferred close errors. Lint with
-  `--new-from-rev d80b6eaf` passes0 issues. No suppression or test skip is added.
+  `--new-from-rev d80b6eaf` passes0 issues. CI later exposes those same two baseline cursor-cleanup findings. The
+  plan test now defers checked cleanup and drains the single EXPLAIN result
+  before the next query. The 100,000-row actual plan regression passes
+  **5.793s** and unfiltered repository-wide `golangci-lint run ./...` passes
+  **0 issues**. No suppression or test skip is added.
 - Final scoped owner/API checks pass **136.702s**, including the corrected
   deferred row-close handling and EXPLAIN(ANALYZE,BUFFERS) probes for both indexed
   history queries under the actual small-fixture RLS frame. Sample header/source
@@ -89,9 +93,12 @@ The focused API race script is
 
 ## Local environment and remaining gates
 
-The existing local UI1846565c was copied into a21MiB immutable cached standalone
-artifact before further builds and remains healthy on4398 → Global8198 → owner8398.
-The history candidate is not yet activated there. The local database ledger237
+The original local UI1846565c was copied into a21MiB immutable cached standalone
+artifact before further builds. The local history candidate now runs UI6d541321
+→ Global/owner e1fd098f on loopback4398 →8198 →8398. Health/login return200;
+anonymous Staff, cutoff and recorded-history requests through the UI return401.
+Runtime hashes, prior processes and immutable artifacts are retained privately
+under the existing fixture directory. These are HTTP probes, not UI acceptance. The local database ledger237
 and its prior230-entry backup are unchanged by this increment. The final build
 uses the fixture's existing registered public sign-in client and Global API
 origin, without installs, downloads or credential changes.

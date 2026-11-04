@@ -186,7 +186,7 @@ func TestTheSalesWorklistShowsEachSaleAndWhatRemains(t *testing.T) {
 
 func TestTheSalesWorklistIsBoundedAndScoped(t *testing.T) {
 	w := newWorkWorld(t)
-	for _, bad := range []string{"/sales/worklist", worklistPath + "&customer=vip", "/sales/worklist?from=2025-10-31&to=2026-11-01", "/sales/worklist?from=2026-11-02&to=2026-11-01"} {
+	for _, bad := range []string{"/sales/worklist", worklistPath + "&customer=vip", "/sales/worklist?invoice=ABCD%2F2627%2F123456789", "/sales/worklist?from=2025-10-31&to=2026-11-01", "/sales/worklist?from=2026-11-02&to=2026-11-01"} {
 		code, _, out := reportPage[workRow](t, w.saleWorld, "pharmacist", bad)
 		require.Equal(t, http.StatusBadRequest, code, bad+out)
 	}
@@ -302,4 +302,30 @@ func TestASaleSummaryListsBoundedCreditNotesButCountsThemAll(t *testing.T) {
 	_, s, _ = saleSummary(t, w.saleWorld, "pharmacist", w.patient)
 	require.Len(t, s.CreditNotes, 3)
 	require.False(t, s.MoreCreditNotes)
+}
+
+func TestASaleSummaryIsOneReading(t *testing.T) {
+	w := newWorkWorld(t)
+	// A return posted while the summary is being read must not show in part.
+	once := false
+	pharmacy.SetSummaryMidRead(t, func() {
+		if once {
+			return
+		}
+		once = true
+		code, _, out := w.returnUnits(t, returnBody(w.patient, 1, w.quarantine, 1250))
+		require.Equal(t, http.StatusCreated, code, out)
+	})
+	code, s, out := saleSummary(t, w.saleWorld, "pharmacist", w.patient)
+	require.Equal(t, http.StatusOK, code, out)
+	require.True(t, once)
+	var lineCredits int64
+	for _, l := range s.Lines {
+		lineCredits += l.CreditedMinor
+	}
+	require.Equal(t, s.CreditedMinor, lineCredits, "the lines and the totals are one reading")
+	require.Equal(t, s.NetMinor, s.CollectedMinor-s.RefundedMinor)
+	require.EqualValues(t, 2500, s.CreditedMinor, "as it stood when the read began")
+	_, after, _ := saleSummary(t, w.saleWorld, "pharmacist", w.patient)
+	require.EqualValues(t, 3750, after.CreditedMinor, "the next read sees the return")
 }

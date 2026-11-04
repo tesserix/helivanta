@@ -51,3 +51,11 @@ func SetSummaryCreditNotes(t interface{ Cleanup(func()) }, n int) {
 	summaryCreditNotes = n
 	t.Cleanup(func() { summaryCreditNotes = was })
 }
+
+// SetSummaryMidRead runs fn between a sale summary's line read and the rest,
+// for one test: where a concurrent return would land.
+func SetSummaryMidRead(t interface{ Cleanup(func()) }, fn func()) {
+	was := summaryMidRead
+	summaryMidRead = fn
+	t.Cleanup(func() { summaryMidRead = was })
+}

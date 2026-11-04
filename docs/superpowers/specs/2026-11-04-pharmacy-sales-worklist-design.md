@@ -35,10 +35,14 @@ what is still owed.
 
    `customer` narrows to one kind; `invoice` finds one invoice number exactly
    (no period needed then, still bounded to the outlet).
-3. **No personal data in either read.** Rows and summaries carry no buyer
-   name or phone and no patient id, only the kind and bed code. So neither is
-   audited, and anyone who needs the person opens the invoice through the
-   existing `GET …/sales/{id}`, as today.
+
+3. **No direct identifiers in either read.** Rows and summaries carry no
+   buyer name or phone and no patient id, only the kind and bed code. A bed
+   code with a date still points to its occupant. Neither read is audited,
+   matching the invoice read, which shows more; whether bed-level reads need
+   an audit record is raised with the invoice-read gap below. Anyone who
+   needs the person opens the invoice through the existing
+   `GET …/sales/{id}`, as today.
 4. **The summary.** `GET …/sales/{id}/summary` is the statement for one sale:
    - each medicine line: units sold and returned, amount charged and credited;
    - each service charge: amount charged and credited;
@@ -58,7 +62,8 @@ what is still owed.
    and its tenders, and a credit note's total equal to its lines plus charges
    and its refunds. The summary states both and the tests prove them, so
    `net_minor = (collected_minor − refunded_minor) + (admission_billed_minor −
-   admission_reversed_minor)` always.
+admission_reversed_minor)` always.
+
 5. **Who may see them.** `pharmacy.sale.read` with the outlet grant, like the
    invoice read. A sale of another outlet is 404.
 6. **The screen.** A "Sales" page in PharmaConnect: the worklist with period,

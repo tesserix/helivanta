@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders as renderProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
+import type { PharmacySaleSummary } from "@helivanta/api";
 import { SaleStatement, SalesWorklist } from "./sales-worklist";
 
 const scope = {
@@ -74,7 +75,7 @@ const admitted = row({
   admission_outstanding_minor: 1250,
 });
 
-const summary = {
+const summary: PharmacySaleSummary = {
   id: admitted.id,
   invoice_number: "PH/2627/2",
   sale_date: "2026-11-04",
@@ -158,7 +159,7 @@ describe("SalesWorklist", () => {
     const fetcher = serve([]);
     const { user } = renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
     await screen.findByText("No sales from 2026-11-04 to 2026-11-04.");
-    await user.type(screen.getByLabelText("Invoice number"), "PH/2627/9");
+    await user.type(screen.getByLabelText("Invoice number"), " ph/2627/9 ");
     await user.click(screen.getByRole("button", { name: "Show sales" }));
     expect(await screen.findByText("No sale with invoice PH/2627/9.")).toBeVisible();
     expect(worklistCalls(fetcher).at(-1)).toContain("/sales/worklist?invoice=PH%2F2627%2F9");
@@ -173,6 +174,45 @@ describe("SalesWorklist", () => {
     expect(screen.getByText("On the admission account").nextSibling).toHaveTextContent(
       "INR 12.50 (billed INR 25.00, reversed INR 12.50)",
     );
+  });
+
+  it("refuses an invoice number longer than any issued, without asking the server", async () => {
+    const fetcher = serve([]);
+    const { user } = renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
+    await screen.findByText("No sales from 2026-11-04 to 2026-11-04.");
+    const calls = worklistCalls(fetcher).length;
+    await user.type(screen.getByLabelText("Invoice number"), "ABCD/2627/123456789");
+    await user.click(screen.getByRole("button", { name: "Show sales" }));
+    expect(await screen.findByText("An invoice number is at most 16 characters")).toBeVisible();
+    expect(worklistCalls(fetcher)).toHaveLength(calls);
+  });
+
+  it("steps through the new rows after the filter changes with a sale open", async () => {
+    const third = row({ id: "0199e000-0000-7000-8000-000000000203", invoice_number: "PH/2627/3" });
+    let calls = 0;
+    // The second filter's rows arrive a moment later, as a real load does.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<(url: string) => Promise<Response>>(async (url) => {
+        if (url.includes("/summary")) return new Response(JSON.stringify(summary));
+        calls += 1;
+        if (calls > 1) await new Promise((r) => setTimeout(r, 30));
+        return new Response(
+          JSON.stringify({
+            data: calls > 1 ? [admitted, third] : [admitted],
+            page: { next_cursor: null, has_more: false },
+          }),
+        );
+      }),
+    );
+    const { user } = renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
+    await user.click(await screen.findByRole("button", { name: "Open invoice PH/2627/2" }));
+    await screen.findByRole("table", { name: "Lines and charges" });
+    await user.clear(screen.getByLabelText("From"));
+    await user.type(screen.getByLabelText("From"), "2026-11-01");
+    await user.click(screen.getByRole("button", { name: "Show sales" }));
+    await screen.findByRole("button", { name: "Open invoice PH/2627/3" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Next sale" })).toBeEnabled());
   });
 
   it("reports a failed load", async () => {

@@ -45,7 +45,11 @@ const kindLabel: Record<string, string> = {
 };
 
 const filterSchema = periodSchema.and(
-  z.object({ customer: z.enum(["all", "walk_in", "patient", "admission"]), invoice: z.string() }),
+  z.object({
+    customer: z.enum(["all", "walk_in", "patient", "admission"]),
+    // Invoice numbers are stored in capitals, at most 16 characters.
+    invoice: z.string().trim().toUpperCase().max(16, "An invoice number is at most 16 characters"),
+  }),
 );
 type FilterValues = z.infer<typeof filterSchema>;
 
@@ -66,9 +70,7 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
     const customer = v.customer === "all" ? {} : { customer: v.customer };
     // An invoice number is found exactly, whatever the period.
     setFilter(
-      v.invoice.trim()
-        ? { invoice: v.invoice.trim(), ...customer }
-        : { from: v.from, to: v.to, ...customer },
+      v.invoice ? { invoice: v.invoice, ...customer } : { from: v.from, to: v.to, ...customer },
     );
   };
   const sales = useApiPagedQuery<PharmacySaleWorkRow>(
@@ -81,7 +83,8 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
     fallbackName: "this sale",
     newName: "this sale",
     headingId: "sales-worklist-heading",
-    snapshotKey: JSON.stringify(filter),
+    // Undefined while the new filter's rows load, so stepping is retaken from them.
+    snapshotKey: sales.isPending ? undefined : JSON.stringify(filter),
   });
   const { detail, paneRef, rowProps, openProps } = pane;
   const record = detail.openId ? (
@@ -121,7 +124,11 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
               { value: "admission", label: customerLabel.admission },
             ]}
           />
-          <Field id="sales-invoice" label="Invoice number">
+          <Field
+            id="sales-invoice"
+            label="Invoice number"
+            error={form.formState.errors.invoice?.message}
+          >
             <Input id="sales-invoice" placeholder="Any" {...form.register("invoice")} />
           </Field>
           <Button type="submit" variant="outline">

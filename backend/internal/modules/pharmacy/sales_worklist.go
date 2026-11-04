@@ -17,8 +17,9 @@ import (
 
 // The sales worklist and each sale's summary (#987 slice 1). Both read
 // posted, insert-only records afresh. Neither carries the buyer's name or
-// phone or the patient's id, only who the sale was for as a kind, so neither
-// is audited; the invoice read is where the person is.
+// phone or the patient's id, only who the sale was for as a kind and an
+// admission's bed code; like the invoice read, which shows more, neither is
+// audited (spec decision 3).
 
 func salesWorklistRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/sales/worklist", PermSaleRead, h.listSalesWorklist)
@@ -98,6 +99,11 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 	}
 	var rows []saleWorkRow
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		// Correlated sums per row; a large outlet gets a clean failure, as
+		// the stock overview does, not a held connection.
+		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
+			return err
+		}
 		return tenantdb.ApplyOrderedKeyset(tx.Table(saleWorkRows, p.TenantID, outlet, invoice, since, until, invoice, invoice, customer, customer), params,
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).Find(&rows).Error
 	})
@@ -148,6 +154,9 @@ type kindAmount struct {
 // test can reach the bound.
 var summaryCreditNotes = 100
 
+// summaryMidRead is a test seam between a summary's reads; a no-op otherwise.
+var summaryMidRead = func() {}
+
 // saleSummary is one sale's statement. The database holds a sale's total to
 // its lines and charges and to its tenders, and a credit note's total to its
 // lines and charges and to its refunds, so net always equals what was kept
@@ -186,8 +195,22 @@ func (h *catalogueHandlers) getSaleSummary(c *gin.Context) {
 	if !ok {
 		return
 	}
+	pharmacy := currentPharmacy(c.Request.Context())
+	if pharmacy == uuid.Nil {
+		respond.NotFound(c, "pharmacy resource")
+		return
+	}
 	var s saleSummary
-	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+	// One snapshot for every read, so a return posted meanwhile is wholly in
+	// or wholly out and the statement's identities hold in the response, not
+	// only in the database. A read-only snapshot needs no lock on the grant.
+	err := h.db.WithTenantSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+		if _, err := outletAccess(tx, p, outlet, pharmacy, false); err != nil {
+			return err
+		}
+		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
+			return err
+		}
 		return loadSaleSummary(tx, p.TenantID, outlet, id, &s)
 	})
 	if err != nil {
@@ -215,6 +238,7 @@ func loadSaleSummary(tx *gorm.DB, tenant string, outlet, id uuid.UUID, s *saleSu
  WHERE l.tenant_id=? AND l.outlet_id=? AND l.sale_id=? ORDER BY l.line_number`, tenant, outlet, id, tenant, outlet, id).Scan(&s.Lines).Error; err != nil {
 		return err
 	}
+	summaryMidRead()
 	if err := tx.Raw(`SELECT g.charge_number, g.code, g.name, g.amount_minor, COALESCE(r.amount,0)::bigint AS credited_minor
  FROM pharmacy_sale_charge_lines g
  LEFT JOIN (SELECT sale_charge, sum(amount_minor) AS amount FROM pharmacy_credit_note_charge_lines

@@ -37,3 +37,16 @@ This plan is not implementation or production acceptance.
    push, merge after checks and request the exact new migration/rollout approval.
    Preserve full lifecycle/transfer, employer-scope and departmental/Pharma
    enforcement obligations in the shared tracker; continue those next.
+
+## API checkpoint — 2026-11-04
+
+The root independent approval pair and missing-management/missing-attestation
+cases pass with real Global API, PostgreSQL and OpenFGA dependencies (54.953s,
+race enabled). The final real two/three-check IAM pair passes in 47.776s; full authz
+passes in 6.842s. These complete part of step 4 only. The fully entitled target/submitter
+case is written but two runs failed in earlier fixture setup, before its assertion.
+The full IAM recovery failure, remaining negative/concurrency coverage, UI,
+supervisor chains, lifecycle consumers and deployment gates remain open.
+Progress, exact failures and the isolated fixture PR are recorded in
+`docs/qa/staff-management-progress.md`. No step is marked fully accepted by this
+checkpoint.

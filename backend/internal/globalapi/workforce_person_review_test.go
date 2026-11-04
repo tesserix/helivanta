@@ -2248,6 +2248,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					assertPostingRootApproval(t, call, scopedStaffBase, recipient, postingRootReviewer, scopedDraft, scopedReceipt, scopedSource, generation, func() {
 						grant(postingRootReviewer, "workforce.posting_management_reviewer.v1", workforce.PermPostingManagementReview)
+					}, func() {
+						grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
+						grant(recipient, "workforce.posting_management_reviewer.v1", workforce.PermPostingManagementReview)
 					})
 					return
 				}

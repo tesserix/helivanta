@@ -8,17 +8,25 @@ real PostgreSQL and OpenFGA (race enabled, 54.118s). It verifies approval of ret
 hospital-management intent by an independent active reviewer, exact-command replay,
 conflicting-command rejection and retained revision history. The approved receipt
 continues to report `grants_access=false`. This is API evidence, not browser or
-production acceptance. Missing management authority returns403; omitted attestation returns409. Both
+production acceptance. Missing management authority returns 403; omitted attestation returns 409. Both
 leave the proposal pending and preserve the command for later authorized use. The
 expanded pair passes in 54.953s, with real dependencies and race enabled.
+
+An additional target/submitter test now grants all three review permissions before
+asserting 403 and unchanged pending state. This assertion is **not yet verified**:
+two runs failed earlier in fixture setup (504 on an existing forbidden draft
+request; then 503 on reviewer activation-source and graph-authority polling).
+The diagnostic run recorded no PostgreSQL wait samples. No timeout was extended,
+error ignored or security assertion relaxed. These failures do not establish a
+root cause; the proposed 6GB local VM restart remains pending approval.
 
 The first positive run exposed the compound IAM/authz guard's two-check ceiling.
 The candidate fix permits at most three distinct exact checks, compares every
 previous grant for conflicting snapshots, and leaves the employment-basis
 consumer's explicit two-check contract unchanged. Real two/three-permission IAM
 integration tests pass in 48.190s; authz evidence race tests pass in 2.140s. The full authz race suite also passes
-in 6.842s after the final guard changes. A separate
-fixture failure came from fatal assertions inside asynchronous status polling;
+in 6.842s after the final guard changes. The final real two/three-check IAM
+pair passes in 47.776s. A separate fixture failure came from fatal assertions inside asynchronous status polling;
 the candidate test fix uses cancellable requests and collected assertions.
 
 An opt-in 16MB PostgreSQL fixture buffer budget preserves the default 128MB,
@@ -28,7 +36,8 @@ It is isolated in [#1559](https://github.com/tesserix/helivanta/pull/1559),
 commit `ff6c51d7`. The full testinfra race suite passes in 17.457s with Ryuk enabled,
 including concurrent reaper reuse and independent cleanup. Build/vet/lint and
 Gitleaks pass. The authorized admin merge was attempted, but GitHub refused
-while three required checks were in progress; no rules were changed. Colima needs the internal socket override; a
+while three required checks were in progress; no rules were changed. Web and
+end-to-end CI subsequently passed; Go coverage is still pending. Colima needs the internal socket override; a
 monitoring script also raced normal reaper cleanup, so the accepted full run used
 Go directly with the correct socket. No skipped regression supplied acceptance.
 

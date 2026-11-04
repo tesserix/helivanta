@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertPostingRootApproval(t *testing.T, call func(*testing.T, string, string, string, any, int) map[string]any, base, submitter, reviewer, draft string, receipt, source, generation map[string]any, enableManagement func()) {
+func assertPostingRootApproval(t *testing.T, call func(*testing.T, string, string, string, any, int) map[string]any, base, submitter, reviewer, draft string, receipt, source, generation map[string]any, enableManagement, enableSubmitterReview func()) {
 	t.Helper()
 	root := base + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
 	command := root + "/commands/" + uuid.Must(uuid.NewV7()).String()
@@ -27,6 +27,9 @@ func assertPostingRootApproval(t *testing.T, call func(*testing.T, string, strin
 	delete(unattested, "hospital_management_reviewed")
 	call(t, "PUT", path, reviewer, unattested, 409)
 	require.Equal(t, pending, call(t, "GET", root, reviewer, nil, 200), "missing explicit attestation cannot consume a decision command")
+	enableSubmitterReview()
+	call(t, "PUT", path, submitter, decision, 403)
+	require.Equal(t, pending, call(t, "GET", root, reviewer, nil, 200), "a fully entitled target/submitter still cannot approve their own proposal")
 	approved := call(t, "PUT", path, reviewer, decision, 200)
 	require.Equal(t, "approved", approved["status"])
 	require.Equal(t, float64(2), approved["version"])

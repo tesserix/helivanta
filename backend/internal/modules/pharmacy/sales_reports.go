@@ -347,7 +347,8 @@ func reportCategory(c *gin.Context, args *salesReportFilter) bool {
 
 var prescriberRegistration = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9/ .-]{0,39}$`)
 
-// boundedText is s trimmed, when it is 1 to max characters with no control
+// boundedText is s trimmed as the batch and prescription APIs trim what they
+// store (strings.TrimSpace), when it is 1 to max characters with no control
 // character.
 func boundedText(s string, max int) (string, bool) {
 	s = strings.TrimSpace(s)

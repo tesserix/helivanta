@@ -308,7 +308,7 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **They reconcile.** Items plus the daily report's service charges equal its sales and credits, including credited charges; receipts per day and kind equal its tenders and refunds. The tests prove this for cash, UPI and card receipts and cash refunds; verified-UPI and admission-account rows use the same joins but are not separately exercised.
 - **One row per product never mixes currencies or packs:** a stocked product cannot change either.
 - **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
-- **Not audited.** No patient, prescriber or buyer appears.
+- **Not audited**, except sales by item filtered by prescriber (see below): no patient, prescriber or buyer appears.
 - **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), CSV export. Patient-wise sales and the sales stock report follow.
 
 ### Patient-wise sales and the sales stock report (#1060)

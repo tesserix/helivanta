@@ -99,7 +99,6 @@ function CategoryPickers({
   );
 }
 
-/** Sales by item over the period (#1060): sold, returned and net per product. */
 const lotSchema = z.object({
   lot: z.string().trim().max(100, "A lot number is at most 100 characters"),
 });
@@ -199,6 +198,7 @@ function PrescriberPicker({
   );
 }
 
+/** Sales by item over the period (#1060): sold, returned and net per product. */
 export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
   const [category, setCategory] = useState<PharmacyReportCategory>({});
   const [lines, setLines] = useState<PharmacyItemSalesLines>({});

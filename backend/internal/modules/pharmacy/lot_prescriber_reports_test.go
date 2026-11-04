@@ -169,3 +169,25 @@ func TestThePrescribersOfAPeriod(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", licencePath("/reports/prescribers?from=2026-11-01&to=2026-11-01"), "foreign", "").Code)
 	require.Equal(t, http.StatusBadRequest, do(w.r, "GET", licencePath("/reports/prescribers?from=2026-11-02&to=2026-11-01"), "pharmacist", "").Code)
 }
+
+// A lot is found by the text it was entered with: the batch API stores it
+// trimmed and in capitals, and the filter trims the same way.
+func TestALotIsFoundAsEntered(t *testing.T) {
+	w := newLotWorld(t)
+	lot := "test-nbsp-1\u00a0"
+	batch := uuid.Must(uuid.NewV7()).String()
+	res := do(w.r, "PUT", stockPath("batches/"+batch), "editor", fmt.Sprintf(`{"product_id":%q,"lot_number":%q,"expires_on":"2028-03-31","mrp_minor":12500}`, w.o, lot))
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	res = do(w.r, "PUT", stockPath("movements/"+uuid.Must(uuid.NewV7()).String()), "editor",
+		fmt.Sprintf(`{"location_id":%q,"batch_id":%q,"kind":"receipt","quantity_units":100,"reason":"TEST receipt","source_reference":"TEST-GRN-NBSP"}`, w.quarantine, batch))
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	res = do(w.r, "PUT", stockPath("releases/"+uuid.Must(uuid.NewV7()).String()), "pharmacist",
+		fmt.Sprintf(`{"batch_id":%q,"from_location_id":%q,"to_location_id":%q,"quantity_units":3,"reason":"TEST shelved"}`, batch, w.quarantine, w.sellable))
+	require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+	// The earliest expiry sells first: this lot.
+	code, _, out := w.sell(t, cashSale(w.o, 2, 2500, 2500))
+	require.Equal(t, http.StatusCreated, code, out)
+	code, rows, out := w.items(t, "pharmacist", "&lot_number="+url.QueryEscape(lot))
+	require.Equal(t, http.StatusOK, code, out)
+	require.Equal(t, []soldReturned{{w.o, 2, 0}}, itemTotals(rows))
+}

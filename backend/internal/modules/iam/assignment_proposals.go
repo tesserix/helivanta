@@ -96,6 +96,13 @@ func assignmentDepartmentAccess(tx *gorm.DB) error {
 	return tx.Exec(`SELECT set_config('app.assignment_department_scope','enabled',true)`).Error
 }
 
+func departmentAwareAccess(tx *gorm.DB) error {
+	if err := assignmentAccess(tx); err != nil {
+		return err
+	}
+	return assignmentDepartmentAccess(tx)
+}
+
 // proposalScopeKind binds the template to the chosen scope; an unknown template allows none.
 func proposalScopeKind(in ProposalInput) (string, bool) {
 	kind := "hospital"
@@ -348,10 +355,7 @@ func proposalScopeConsumer(deps platform.Deps) events.Consumer {
 // lockPendingProposal reports current only for a pending proposal still waiting on this request.
 func lockPendingProposal(tx *gorm.DB, tenant string, id, request, hospital uuid.UUID) (assignmentProposal, bool, error) {
 	var row assignmentProposal
-	if err := assignmentAccess(tx); err != nil {
-		return row, false, err
-	}
-	if err := assignmentDepartmentAccess(tx); err != nil {
+	if err := departmentAwareAccess(tx); err != nil {
 		return row, false, err
 	}
 	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id=? AND id=?", tenant, id).Take(&row).Error

@@ -49,10 +49,7 @@ func assignmentAdministrator(tx *gorm.DB, tenant, subject string) (bool, error) 
 
 // assignmentAccessFor serves the proposal API, whose every route carries the scope kind and department.
 func assignmentAccessFor(tx *gorm.DB, p authn.Principal) error {
-	if err := assignmentAccess(tx); err != nil {
-		return err
-	}
-	if err := assignmentDepartmentAccess(tx); err != nil {
+	if err := departmentAwareAccess(tx); err != nil {
 		return err
 	}
 	allowed, err := assignmentAdministrator(tx, p.TenantID, p.Subject)

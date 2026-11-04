@@ -13,7 +13,7 @@ var assignmentActivationSchema string
 
 func (h *assignmentProjection) activate(ctx context.Context, tenant string, snapshot assignmentSnapshot, epoch int64) error {
 	return h.db.WithTenant(ctx, tenant, func(tx *gorm.DB) error {
-		if err := assignmentAccess(tx); err != nil {
+		if err := departmentAwareAccess(tx); err != nil {
 			return err
 		}
 		if err := tx.Exec(`SELECT set_config('app.assignment_projected_version',?,true),set_config('app.assignment_activation_epoch',?,true)`, strconv.FormatInt(snapshot.Version, 10), strconv.FormatInt(epoch, 10)).Error; err != nil {

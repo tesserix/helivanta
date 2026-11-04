@@ -39,6 +39,7 @@ func TestScopedCommandEvidenceMatchesOnlyItsImmutableCheckedScope(t *testing.T) 
 			func(r *authz.ScopeRequest) { r.HospitalID = "00000000-0000-4000-8000-000000000005" },
 			func(r *authz.ScopeRequest) { r.Subject = checks[0].Request.Subject },
 			func(r *authz.ScopeRequest) { r.Permission = "workforce.enrollment.manage" },
+			func(r *authz.ScopeRequest) { r.DepartmentPath = []string{"019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab"} },
 		} {
 			other := request
 			change(&other)
@@ -66,7 +67,7 @@ func TestScopedCommandEvidenceCannotStripRootCancellation(t *testing.T) {
 
 func commandEvidenceFixture() (authz.ScopeRequest, authz.ScopeGrant) {
 	return authz.ScopeRequest{TenantID: "00000000-0000-4000-8000-000000000001", Subject: "synthetic-current-staff", HospitalID: "00000000-0000-4000-8000-000000000002", Permission: "workforce.identity_checks.manage"},
-		authz.ScopeGrant{AssignmentID: "00000000-0000-4000-8000-000000000003", Version: 2, ScopeEpoch: 3, MembershipEpoch: 4}
+		authz.ScopeGrant{AssignmentID: "00000000-0000-4000-8000-000000000003", Version: 2, ScopeEpoch: 3, MembershipEpoch: 4, ScopeKind: "hospital"}
 }
 
 func TestScopedCommandEvidenceCarriesThreeExactReservationsAndRejectsFour(t *testing.T) {
@@ -97,4 +98,25 @@ func TestScopedCommandEvidenceCarriesThreeExactReservationsAndRejectsFour(t *tes
 	called := false
 	require.ErrorIs(t, authz.WithScopedCommandEvidence(t.Context(), checks, func(context.Context) error { called = true; return nil }), authz.ErrScopedAuthorizationUnavailable)
 	require.False(t, called)
+}
+
+func TestScopedCommandEvidenceBindsTheCheckedDepartmentPath(t *testing.T) {
+	request, grant := commandEvidenceFixture()
+	request.DepartmentPath = []string{"019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab", "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaac"}
+	grant.ScopeKind, grant.DepartmentID = "department", request.DepartmentPath[1]
+	checks := []authz.ScopeCheck{{Request: request, Grant: grant}}
+	issued := append([]string(nil), request.DepartmentPath...)
+	require.NoError(t, authz.WithScopedCommandEvidence(t.Context(), checks, func(ctx context.Context) error {
+		checks[0].Request.DepartmentPath[0] = "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaad"
+		got, ok := authz.ScopedCommandGrant(ctx, authz.ScopeRequest{TenantID: request.TenantID, Subject: request.Subject, HospitalID: request.HospitalID, Permission: request.Permission, DepartmentPath: issued})
+		require.True(t, ok, "a caller mutating its path after issue cannot change the checked scope")
+		require.Equal(t, grant, got)
+		for _, path := range [][]string{nil, issued[:1], issued[1:], {issued[1], issued[0]}} {
+			other := request
+			other.DepartmentPath = path
+			_, ok := authz.ScopedCommandGrant(ctx, other)
+			require.False(t, ok, "only the exact checked path matches")
+		}
+		return nil
+	}))
 }

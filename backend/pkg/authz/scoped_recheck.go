@@ -42,7 +42,8 @@ func validateScopeGrant(grant ScopeGrant) error {
 		return nil
 	}
 	id, err := uuid.Parse(grant.AssignmentID)
-	if err != nil || id.Version() != 7 || id.String() != grant.AssignmentID || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 {
+	// Route-level hospital evidence must never carry a department grant.
+	if err != nil || id.Version() != 7 || id.String() != grant.AssignmentID || grant.Version <= 0 || grant.ScopeEpoch <= 0 || grant.MembershipEpoch <= 0 || grant.ScopeKind != "hospital" || grant.DepartmentID != "" {
 		return ErrScopedAuthorizationUnavailable
 	}
 	return nil

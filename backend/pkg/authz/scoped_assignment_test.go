@@ -56,6 +56,30 @@ func TestScopedAssignmentIsolation(t *testing.T) {
 	require.False(t, allowed)
 }
 
+func TestDepartmentScopedAssignmentIsDistinctFromItsHospital(t *testing.T) {
+	ctx := t.Context()
+	client, err := NewClient(ctx, testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
+	require.NoError(t, err)
+	a := syntheticScopedAssignment()
+	a.ScopeKind, a.ScopeID = "department", "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab"
+	require.NoError(t, client.GrantTenantRole(ctx, a.TenantID, RoleStaffMember))
+	require.NoError(t, client.GrantRole(ctx, a.TenantID, a.Subject, RoleStaffMember))
+	require.NoError(t, client.ProjectScopedAssignment(ctx, a))
+	allowed, err := client.CheckScopedAssignment(ctx, a, a.Subject, a.Permissions[0])
+	require.NoError(t, err)
+	require.True(t, allowed)
+	for name, changed := range map[string]ScopedAssignment{
+		"hospital":   func() ScopedAssignment { v := a; v.ScopeKind, v.ScopeID = "hospital", a.HospitalID; return v }(),
+		"department": func() ScopedAssignment { v := a; v.ScopeID = "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaac"; return v }(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			allowed, err := client.CheckScopedAssignment(ctx, changed, a.Subject, a.Permissions[0])
+			require.NoError(t, err)
+			require.False(t, allowed, "a department grant never reads as another scope")
+		})
+	}
+}
+
 func syntheticScopedAssignment() ScopedAssignment {
 	return ScopedAssignment{
 		TenantID:   "11111111-1111-4111-8111-111111111111",
@@ -73,6 +97,8 @@ func TestScopedAssignmentRejectsMalformedInput(t *testing.T) {
 		"nil hospital":         func(a *ScopedAssignment) { a.HospitalID = "00000000-0000-0000-0000-000000000000" },
 		"unknown scope":        func(a *ScopedAssignment) { a.ScopeKind = "everything" },
 		"mismatched hospital":  func(a *ScopedAssignment) { a.ScopeKind = "hospital" },
+		"hospital department":  func(a *ScopedAssignment) { a.ScopeKind, a.ScopeID = "department", a.HospitalID },
+		"non-v7 department":    func(a *ScopedAssignment) { a.ScopeKind = "department" },
 		"invalid staff":        func(a *ScopedAssignment) { a.ScopeID = "staff:other" },
 		"old command ID":       func(a *ScopedAssignment) { a.ID = a.TenantID },
 		"no revision":          func(a *ScopedAssignment) { a.Version = 0 },

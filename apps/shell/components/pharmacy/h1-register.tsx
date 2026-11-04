@@ -124,9 +124,12 @@ function Entries({ scope, period }: { scope: PharmacyScope; period: Period }) {
 /** An audited register CSV download; download fetches it for the shown filter. */
 export function RegisterExport({
   label,
+  noun = "register",
   download: fetchFile,
 }: {
   label: string;
+  /** What the file is, as the button and a failure name it. */
+  noun?: string;
   download: (signal: AbortSignal) => Promise<{ blob: Blob; filename: string }>;
 }) {
   const controller = useRef<AbortController | null>(null);
@@ -160,7 +163,7 @@ export function RegisterExport({
         setError(
           cause instanceof ApiError
             ? cause.message
-            : "Could not download the register CSV. Try again.",
+            : `Could not download the ${noun} CSV. Try again.`,
         );
     } finally {
       if (!current.signal.aborted) {
@@ -172,7 +175,7 @@ export function RegisterExport({
   return (
     <div className="space-y-1">
       <Button variant="outline" disabled={pending} onClick={download}>
-        {pending ? "Preparing CSV…" : "Download register CSV"}
+        {pending ? "Preparing CSV…" : `Download ${noun} CSV`}
       </Button>
       <p role="status" aria-label={label} className="text-sm text-muted-foreground">
         {message}

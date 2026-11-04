@@ -344,7 +344,7 @@ func (*Module) Consumers(deps platform.Deps) []events.Consumer {
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {
-	h := &handlers{staffActors: deps.StaffActors, departmentReferences: deps.DepartmentReferences, employmentActivationEnabled: deps.EmploymentActivationEnabled, scopeAuthority: deps.ScopedAuthorizer, db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit, roles: deps.Roles, employmentEvidenceSlots: make(chan struct{}, maxEmploymentEvidenceDownloads)}
+	h := &handlers{staffActors: deps.StaffActors, departmentReferences: deps.DepartmentReferences, departmentScopes: deps.DepartmentScopes, employmentActivationEnabled: deps.EmploymentActivationEnabled, scopeAuthority: deps.ScopedAuthorizer, db: deps.DB, bus: deps.Bus, documents: deps.Documents, transit: deps.Transit, roles: deps.Roles, employmentEvidenceSlots: make(chan struct{}, maxEmploymentEvidenceDownloads)}
 	platform.FilteredListRoute(r.Group("/workforce"), "/leave-review-scopes", authz.Public, 20, h.leaveReviewScopeCandidates, h.authorizedLeaveReviewScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/hr-intake-scopes", authz.Public, 20, h.hrIntakeScopeCandidates, h.authorizedHRIntakeScopes)
 	platform.FilteredListRoute(r.Group("/workforce"), "/employment-review-scopes", authz.Public, 20, h.employmentReviewScopeCandidates, h.authorizedEmploymentReviewScopes)

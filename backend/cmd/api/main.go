@@ -400,6 +400,7 @@ func run() error {
 	deps := platform.Deps{
 		StaffActors:                 platform.StaffActors(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),
+		DepartmentScopes:            platform.DepartmentScopes(registry.All(), db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: cfg.EmploymentActivationEnabled,
 		ProxyClinicalCaptureEnabled: cfg.ProxyClinicalCaptureEnabled,

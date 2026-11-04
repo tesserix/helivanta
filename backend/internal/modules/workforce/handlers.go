@@ -30,6 +30,7 @@ import (
 type handlers struct {
 	staffActors                 authz.CurrentStaffActorGuard
 	departmentReferences        authz.DepartmentReferenceGuard
+	departmentScopes            authz.DepartmentScopeGuard
 	employmentActivationEnabled bool
 	scopeAuthority              authz.ScopedAuthorizer
 	roles                       platform.RoleLister

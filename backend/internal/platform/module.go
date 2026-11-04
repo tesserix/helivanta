@@ -46,6 +46,7 @@ type RoleLister interface {
 type Deps struct {
 	StaffActors          authz.CurrentStaffActorGuard
 	DepartmentReferences authz.DepartmentReferenceGuard
+	DepartmentScopes     authz.DepartmentScopeGuard
 	ScopedAuthorizer     authz.ScopedAuthorizer
 	OrganizationIdentity *organizationidentity.Client
 	DB                   *tenantdb.DB

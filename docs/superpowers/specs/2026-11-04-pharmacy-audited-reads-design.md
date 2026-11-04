@@ -34,9 +34,8 @@ address, and nothing records who looked.
    | `GET …/sales/{id}/summary`       | `pharmacy_sale`           | the sale         | `summary_read`    |
 
    A record read is recorded against the record, so "who opened this
-   invoice" is one query on the existing `(tenant_id, resource_type,
-resource_id)` index; a list page is recorded against the outlet, with its
-   filter names.
+   invoice" is one query on the existing audit index by resource; a list page
+   is recorded against the outlet, with its filter names.
 
 3. **Always, not when a row happens to name someone**, for the sale,
    credit-note and prescription reads: nearly every row names or points to a

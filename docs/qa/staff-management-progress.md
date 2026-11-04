@@ -1,5 +1,38 @@
 # Staff Management delivery tracker
 
+## Reviewer lifecycle UI — local increment, 2026-11-05
+
+Branch `codex/posting-lifecycle-review-ui-20261105`, based on backend decision
+candidate `7b6158dd`, integrates explicit lifecycle review for root and supervised
+approvals. Reviewers see the effective deadline, database check time and named
+ancestors with distinct placement/source/retained-cutoff facts. Required checks
+bind to the current observation, reset after changes and preserve rationale.
+Uncertain outcomes retain a copy of the original context/input/command and use
+the same exact approval PUT for recovery, including after changed/unavailable
+context or elapsed eligibility. Account changes clear private state and abort
+in-flight requests. No new permission, API route, migration or dependency.
+
+The final backend Global API run passes **576.322s** and native architecture
+passes **63.674s**, with no failed cases. Full SDK passes **720 /81 files**;
+the final shell suite passes **1,548 /183 files /324.82s**, and the final focused
+reviewer suite passes **54 /11.39s**. All API/UI/shell type, lint and format checks
+pass **9 tasks /22.754s**; the final production Webpack build and affected-document
+format checks pass. The staged secret scan finds no leaks. The checkbox lint
+correction keeps ref writes in event handlers without lint suppression. No
+production deadline or authorization rule changed.
+A deliberate mutation disabled the final examination reset; the renewed-review
+assertion failed as intended. The source was restored byte for byte and that
+regression passed again. No mutation remains active.
+
+Reconnection reclaimed the existing QA tab, but DOM reads, screenshots and fresh
+tab navigation still fail through the browser connection. No normal-role browser
+acceptance is counted. The local QA runtime also needs the candidate backend and
+migrations before that acceptance. Historical lifecycle-proof presentation,
+actual Pharma/unit operating guards, standalone-employer decisions and deployment
+remain open. All five reusable Staff requirements remain in scope; counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. No production
+migration, merge, rollout or release tag occurred in this increment.
+
 ## Positive lifecycle approval and immutable proof — local candidate, 2026-11-05
 
 The next candidate on `codex/posting-lifecycle-decisions-20261105` builds on
@@ -17,7 +50,7 @@ invalid, and offset/submicrosecond instants normalize before fingerprinting.
 The real Global API/IAM/OpenFGA/Postgres approval first failed400 as expected
 (**82.311s**); root and scheduled-child positive approval then passed **85.761s**.
 Expanded evidence/failure coverage passes **87.272s**. The complete actual API
-journey passes **108.064s**, including both PostgreSQL-lock-controlled cutoff/
+journey passes **108.139s**, including both PostgreSQL-lock-controlled cutoff/
 approval orderings, actual expiry, exact committed replay after expiry versus
 uncommitted expired refusal, independent rejection, stale version/deadline
 refusal and renewed examination. A three-Staff/two-ancestor chain exercises a
@@ -53,13 +86,15 @@ cutoff. The probe now keeps the audit gate held until PostgreSQL actually reache
 the cutoff, releases it, then requires denial/no saved audit; this catches writes
 that could otherwise resume after expiry without relying on cancellation timing.
 Both expiry cases with their real onboarding prerequisites pass **175.9s**.
-No production deadline or authorization rule was weakened. The next full Global
-API/architecture rerun remains pending; neither failed broad run is acceptance.
+No production deadline or authorization rule was weakened. The final full Global
+API rerun passes **576.322s** and native architecture passes **63.674s**, with no
+failed cases. Neither earlier failed broad run is acceptance.
 
 Browser ownership can be reclaimed for the existing local QA tab, but explicit
 timeout DOM/control calls still fail and a bounded locator times out. No actual
-reviewer/admin browser acceptance is counted. Reviewer UI integration,
-historical proof presentation, normal-role browser QA, actual Pharma/unit
+reviewer/admin browser acceptance is counted. Reviewer UI integration is now
+implemented locally in the increment above. Historical proof presentation,
+normal-role browser QA, actual Pharma/unit
 operating guards and deployment remain open. No production migration, rollout,
 merge or release tag occurred. All five reusable Staff requirements remain in
 scope; counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.

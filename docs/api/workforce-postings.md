@@ -44,8 +44,8 @@ chain context and new approval refuse any retained ancestor cutoff with409
 `posting_lifecycle_review_required`; rejection and exact historical receipt
 recovery remain available. The reviewer UI rechecks this conflict while retaining
 the command/rationale/attestations. Explicit lifecycle context and positive approval are implemented in local
-candidates; reviewer UI integration, operating-consumer enforcement and release
-remain unfinished.
+candidates; the reviewer UI is integrated locally. Normal-role browser acceptance,
+operating-consumer enforcement and release remain unfinished.
 Do not treat these owner endpoints as complete departmental or Pharma authority.
 See [ADR-0058](../adr/0058-retained-posting-cutoffs.md).
 
@@ -72,8 +72,8 @@ management-root mode and verifies exact scope/revision, ordered linkage, unique
 Staff/postings/cutoff identities, cutoff absence/presence, bounded current clock
 and the computed minimum. Legacy SDK helpers reject lifecycle selectors and keep
 their previous envelopes. This context does not reserve authority. The subsequent
-candidate adds the explicit approval mode below; its reviewer UI and actual
-operating consumers remain open.
+candidate adds the explicit approval mode below; normal-role browser acceptance
+and actual operating consumers remain open.
 
 The existing decision PUT accepts an optional `lifecycle_review` only for
 `decision=approve`. Its `cutoff_versions` vector contains the selected pending
@@ -125,6 +125,24 @@ GET has no lifecycle-vector evidence and cannot verify that input; legacy SDK
 decision/receipt helpers therefore reject lifecycle observations. Client account
 abort prevents disclosure of an in-flight response. No new permission, IAM
 snapshot, published event or runtime service is introduced.
+
+The local `/workforce/posting-reviews` workspace now uses explicit lifecycle
+context for both management-root and supervised approvals, without falling back
+to legacy approval when that context is unavailable. It shows the effective
+deadline, database observation and named ancestors, distinguishing nominal
+placement, employment/source limits and retained cutoff/version. Opaque references
+remain available in expandable details. This view grants no operating access.
+
+The decision retains a copy of its examined context with the exact vector,
+deadline, rationale and command ID. Changed observations reset both examination
+checks while preserving rationale; submission also verifies that both checks
+belong to the current observation. Manual recheck is available. An uncertain
+approval offers **Recover or replay approval**, using the identical original PUT
+even after the current context changes, becomes unavailable or its deadline
+elapses. Only the owner can distinguish committed replay from an expired new
+command. Account/scope changes clear private state and abort in-flight requests.
+Component coverage and a production build do not establish normal-account browser
+acceptance or historical lifecycle-proof presentation; those remain open.
 
 The local candidate now also adds `GET /v1/workforce/posting-cutoff-scopes`
 (at most20 admitted hospitals per filtered page), and `GET` at the proposal's

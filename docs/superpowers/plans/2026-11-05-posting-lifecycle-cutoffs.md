@@ -119,3 +119,47 @@ IAM catalog, event or runtime service is needed. This is a forward-only local
 migration candidate; no production migration or rollout is authorized by the
 local implementation. Full source-ending enforcement and actual Pharma consumers
 remain part of the original five requirements.
+
+## Reviewer lifecycle UI implementation
+
+The local `codex/posting-lifecycle-review-ui-20261105` increment consumes the
+explicit lifecycle SDK for root and supervised approval. Named ancestor cards
+separate nominal/source intervals from retained endings; effective deadline and
+server check time are explicit. Required examination belongs to the current
+observation, resets after changed observations and retains rationale. Uncertain
+approvals retain an independent copy of exact original context/input/command;
+recovery replays the same PUT after changed/unavailable context or elapsed
+eligibility. Scope/account transitions clear private state and abort requests.
+No route, permission, wire schema, event, migration or dependency is added here.
+
+Full native backend validation on parent `7b6158dd` passes Global API **576.322s**
+and architecture **63.674s**, with no failed cases. Full Workforce previously
+passed **470.924s**. The leave reauthentication and expiry gate corrections are
+fixture changes; production revocation/deadline rules remain unchanged. Browser
+reconnection still cannot read/control the local QA page, including a fresh tab;
+no normal-role browser acceptance is claimed. Keep historical proof presentation,
+actual Pharma/unit guards and all five reusable Staff requirements open.
+
+Final frontend validation: shell **1,548 tests /183 files /324.82s**; focused
+reviewer **54 /11.39s**; SDK **720 /81 files**; API/UI/shell type/lint/format
+**9 tasks /22.754s**; final production Webpack build, affected Markdown formatting
+and staged Gitleaks scan pass. Commands actually run include:
+
+```sh
+pnpm --filter @helivanta/shell test -- 'app/(workspace)/workforce/posting-review-workspace.test.tsx'
+pnpm --filter @helivanta/shell exec vitest run 'app/(workspace)/workforce/posting-review-workspace.test.tsx'
+pnpm turbo lint type-check format:check --filter=@helivanta/api --filter=@helivanta/ui --filter=@helivanta/shell
+API_URL=http://localhost:8398 pnpm --filter @helivanta/shell exec next build --webpack
+gitleaks stdin --redact --config .gitleaks.toml < /tmp/helivanta-lifecycle-review-ui-staged-20261105.patch
+```
+
+The first command forwarded a literal `--` and ran the complete shell suite;
+the second explicitly ran the intended reviewer file. No tests were skipped in
+either run. Prior SDK full-suite command was `pnpm --filter @helivanta/api test`.
+
+Final reset mutation: disabling the observation-reset effect fails the existing
+renewed-examination checkbox assertion. Source is restored byte for byte
+(SHA-256 `01332ab5f1f7e0d1c18a44580d86c9d443c944951cbca3f90c4c81099cae802b`);
+the same focused assertion passes after restoration. Logs:
+`/tmp/helivanta-lifecycle-review-ui-reset-mutation-final-20261105.log` and
+`/tmp/helivanta-lifecycle-review-ui-reset-restored-final-20261105.log`.

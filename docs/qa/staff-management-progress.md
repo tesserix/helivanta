@@ -2,7 +2,8 @@
 
 ## Posting cutoff administration — local verification, 2026-11-05
 
-The cutoff candidate now implements bounded admitted-hospital discovery,
+Draft [#1574](https://github.com/tesserix/helivanta/pull/1574), implementation
+commit `d5ec15e4`, now implements bounded admitted-hospital discovery,
 exact-approved-revision context and eight-receipt history pages. Current cutoff
 authority plus a reviewed Staff actor protect each disclosure; failed private
 read audits roll back actor-use evidence. The normal
@@ -22,8 +23,9 @@ private-read audit faults. Component coverage passes12 cutoff-workspace tests,
 that substituted a new command ID failed the identity assertion; the original
 source was restored before verification.
 
-Current full SDK passes **689 tests /81 files**, shared UI **280 /27 files** and
-scripts **104**. API/UI/shell types, lint and formatting pass **9 tasks /52.621s**.
+Current full SDK passes **689 tests /81 files**, shared UI **280 /27 files**,
+shell **1,542 /183 files /358.68s** and scripts **104**. API/UI/shell types, lint
+and formatting pass **9 tasks /52.621s**.
 The production Webpack build passes and includes the new route; its first
 invocation lacked required `API_URL` and failed before compilation. The rerun
 uses local Global API origin `http://localhost:8398`. Existing build warnings
@@ -39,11 +41,11 @@ unavailable test (expected503, actual409) and IAM's exact migration manifest
 precedence; the focused regression passes4.695s. The manifest preserves all prior
 IDs and adds0027; its focused test passes1.185s. The new complete native owner,
 Global API and architecture rerun is pending at this checkpoint; the earlier
-failed run is not counted as a pass. Full shell verification is also pending.
+failed run is not counted as a pass.
 
 Browser reconnection found the existing local QA tab, but DOM inspection,
-screenshot and a fresh-tab attempt all failed with the same browser adapter
-error. No normal-account UI acceptance is counted. PR #1570 remains draft with
+screenshot, fresh-tab and reset/rebind attempts all failed with the same browser
+adapter error. No normal-account UI acceptance is counted. PR #1570 remains draft with
 all exact-head CI checks passing; repository visibility was rechecked as PUBLIC.
 Lifecycle-aware positive review, concurrency/deadline acceptance, actual
 departmental/Pharma operating consumers, normal-role browser acceptance and

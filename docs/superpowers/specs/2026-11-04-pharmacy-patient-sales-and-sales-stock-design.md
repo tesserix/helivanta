@@ -19,7 +19,7 @@ to run out show on one page (legacy SALES STOCK REPORT, 755).
 2. **Patient-wise sales is one registered patient at a time.**
    `GET …/reports/patient-sales?patient_id=&from=&to=` requires `patient_id`.
    The screen finds the patient through the existing audited MRN lookup
-   (`CounterPatientLookup`, as the prescription register does), so a
+   (`CounterPatientLookup`, as the counter sale does), so a
    pharmacist never sees a list of every patient's purchases. The pharmacy
    holds only the patient's id (patientmaster owns name and MRN), so a
    period-wide list across patients would be ids nobody can read and a bulk
@@ -36,13 +36,17 @@ to run out show on one page (legacy SALES STOCK REPORT, 755).
    (`pharmacy_patient_sales`, `report_read`, with the period and patient id),
    in the read's transaction: no audit row, no data. Permission is
    `pharmacy.sale.read` with the outlet grant: it already shows every sale
-   with its patient.
+   with its patient. Finding the patient also needs patientmaster's
+   `patient.pharmacy-lookup`, which only pharmacists hold, so the screen
+   offers the lookup only to them and tells anyone else why.
 5. **The sales stock report.** `GET …/reports/stock-sales?from=&to=` gives one
    row per product of the outlet that has ever held stock (a sale takes
    stock, so this is every product sold too): SKU, brand, generic name, pack size, unit of issue; units
    sold and returned in the period (sale and credit-note dates, so they equal
-   sales by item); units on hand now, in total and on sellable shelves (the
-   sum of the product's stock movements). Permission is `pharmacy.stock.read`
+   sales by item); units on hand now (the sum of the product's stock
+   movements), and units a sale may take today, through the counter's own
+   rule (`pharmacy_sellable_buckets`): on a sellable shelf, priced, unexpired
+   on the outlet's date and with no safety incident. Permission is `pharmacy.stock.read`
    with the outlet grant: it already lists the sale and return movements.
    Not audited: no patient, prescriber, buyer or money.
 6. **Bounds.** A period is at most 366 outlet days (`outletPeriod`). Both are
@@ -53,6 +57,8 @@ to run out show on one page (legacy SALES STOCK REPORT, 755).
 - Purchase amount (442) and the last vendor (755): purchase cost waits for
   the approved cost and margin formulas, and a receipt records no supplier.
 - Walk-in buyers' purchases, and a list across patients.
+- Service charges billed on a patient's sale: patient-wise sales lists
+  medicine lines only; the daily report shows the charges.
 - Stock as of a past date (the stock register covers that), and batch-level
   stock in the sales stock report.
 - CSV export of either report.

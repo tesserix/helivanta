@@ -8,6 +8,7 @@ import {
   pharmacyReceiptsPath,
   pharmacyStockSalesPath,
   useApiPagedQuery,
+  usePermissions,
   type PharmacyItemSales,
   type PharmacyPatientSaleLine,
   type PharmacyReceipt,
@@ -184,6 +185,9 @@ export function ReceiptsRegister({ scope, period }: { scope: PharmacyScope; peri
  */
 export function PatientSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
   const [patient, setPatient] = useState<CounterPatient | null>(null);
+  // The lookup is patientmaster's and pharmacists' alone; offering it to
+  // anyone else would be a search that is always refused.
+  const { can } = usePermissions();
   return (
     <section className="mt-6" aria-labelledby="patient-sales-heading">
       <h4 id="patient-sales-heading" className="font-semibold">
@@ -192,9 +196,15 @@ export function PatientSales({ scope, period }: { scope: PharmacyScope; period: 
       <p className="mt-1 text-sm text-muted-foreground">
         What one registered patient bought, by batch, and what came back. Each view is recorded.
       </p>
-      <div className="mt-2">
-        <CounterPatientLookup scope={scope} value={patient} onChange={setPatient} />
-      </div>
+      {can("patient.pharmacy-lookup") ? (
+        <div className="mt-2">
+          <CounterPatientLookup scope={scope} value={patient} onChange={setPatient} />
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Finding a patient needs patient lookup, which pharmacists hold.
+        </p>
+      )}
       {patient && <PatientSaleLines scope={scope} period={period} patient={patient} />}
     </section>
   );

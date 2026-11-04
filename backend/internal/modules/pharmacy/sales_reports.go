@@ -166,16 +166,18 @@ func (r stockSalesRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.
 
 // stockSalesRows is every product that has ever held stock (a sale takes
 // stock, so every product sold), with units sold and returned by document
-// date, as sales by item counts them, and units on hand and on sellable
-// shelves from all its movements.
+// date, as sales by item counts them, units on hand from all its movements,
+// and units a sale may take today through the counter's own predicate
+// (pharmacy_sellable_buckets), so flagged, expired and unpriced batches on a
+// sellable shelf are never shown as sellable.
 const stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.pack_size, c.unit_of_issue,
- COALESCE(s.units,0)::bigint AS units_sold, COALESCE(r.units,0)::bigint AS units_returned, k.on_hand::bigint AS on_hand_units, k.sellable::bigint AS sellable_units
+ COALESCE(s.units,0)::bigint AS units_sold, COALESCE(r.units,0)::bigint AS units_returned, k.on_hand::bigint AS on_hand_units, v.sellable::bigint AS sellable_units
  FROM pharmacy_catalogue_products c
- JOIN (SELECT b.product_id, sum(m.quantity_units) AS on_hand, COALESCE(sum(m.quantity_units) FILTER (WHERE l.stock_status='sellable'),0) AS sellable
+ JOIN (SELECT b.product_id, sum(m.quantity_units) AS on_hand
    FROM pharmacy_stock_movements m
    JOIN pharmacy_stock_batches b ON b.tenant_id=m.tenant_id AND b.outlet_id=m.outlet_id AND b.id=m.batch_id
-   JOIN pharmacy_stock_locations l ON l.tenant_id=m.tenant_id AND l.outlet_id=m.outlet_id AND l.id=m.location_id
   WHERE m.tenant_id=? AND m.outlet_id=? GROUP BY b.product_id) k ON k.product_id=c.id
+ CROSS JOIN LATERAL (SELECT COALESCE(sum(on_hand),0) AS sellable FROM pharmacy_sellable_buckets(c.tenant_id, c.outlet_id, c.id, ?::date)) v
  LEFT JOIN (SELECT l.product_id, sum(l.quantity_units) AS units
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
   WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date GROUP BY l.product_id) s ON s.product_id=c.id
@@ -204,7 +206,7 @@ func (h *catalogueHandlers) listPatientSales(c *gin.Context, params pagination.P
 func (h *catalogueHandlers) listStockSales(c *gin.Context, params pagination.Params) ([]stockSalesRow, error) {
 	return salesReportPage[stockSalesRow](c, h, params, "the sales stock report", "", stockSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
 		period := []any{tenant, outlet, f.since, f.until}
-		return append(append(append([]any{tenant, outlet}, period...), period...), tenant, outlet)
+		return append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet)
 	})
 }
 
@@ -223,6 +225,8 @@ type salesReportFilter struct {
 	kind         *string
 	// patient is required, never "all": patient-wise sales are one patient's.
 	patient *uuid.UUID
+	// today is the outlet's date, read in the transaction.
+	today string
 }
 
 func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bool) {
@@ -272,6 +276,15 @@ func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params paginat
 	}
 	var rows []T
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		// Each page sums whole tables before its keyset; a large outlet gets
+		// a clean failure, as the stock overview does, not a held connection.
+		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
+			return err
+		}
+		var err error
+		if f.today, err = outletLocalDate(tx, p.TenantID, outlet); err != nil {
+			return err
+		}
 		if err := tenantdb.ApplyOrderedKeyset(tx.Table(query, args(p.TenantID, outlet, f)...), params,
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}).Find(&rows).Error; err != nil {
 			return err

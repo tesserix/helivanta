@@ -143,6 +143,20 @@ describe("DailyReport", () => {
     expect(screen.queryByRole("heading", { name: "Sales and stock" })).toBeNull();
   });
 
+  it("offers the patient lookup only to staff who may look patients up", async () => {
+    serve(days, ["pharmacy.sale.read", "patient.pharmacy-lookup"]);
+    const { unmount } = renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    expect(await screen.findByText(/No hospital has verified this pharmacy yet/)).toBeVisible();
+    unmount();
+    serve(days, ["pharmacy.sale.read"]);
+    renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    await screen.findByRole("table", { name: "Daily sales" });
+    expect(
+      screen.getByText("Finding a patient needs patient lookup, which pharmacists hold."),
+    ).toBeVisible();
+    expect(screen.queryByText(/No hospital has verified this pharmacy yet/)).toBeNull();
+  });
+
   it("reports a failed load with a retry", async () => {
     serve("fail");
     renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);

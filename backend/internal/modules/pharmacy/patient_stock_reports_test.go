@@ -190,6 +190,15 @@ func TestTheSalesStockReportSetsSalesBesideStock(t *testing.T) {
 	}
 	require.EqualValues(t, 195, one.Data[0].OnHand, "stock is now, whatever the period")
 
+	// Sellable is what a sale may take: a flagged batch on the shelf is not.
+	flagged := w.product(t, "TEST-FLG-100", "none")
+	batch := w.shelve(t, flagged, "2028-06-30", 12500, 6)
+	w.shelve(t, flagged, "2028-12-31", 12500, 4)
+	require.Equal(t, http.StatusOK, do(w.r, "PUT", stockPath("safety-incidents/"+uuid.Must(uuid.NewV7()).String()), "editor", safetyBody(batch, w.sellable)).Code)
+	_, flaggedPage, out := reportPage[stockSalesRow](t, w.saleWorld, "stocker", "/reports/stock-sales?from=2026-11-01&to=2026-11-02")
+	require.Len(t, flaggedPage.Data, 4, out)
+	require.Equal(t, stockSalesRow{ProductID: flagged, SKU: "TEST-FLG-100", OnHand: 200, Sellable: 4}, flaggedPage.Data[3], "the flagged batch's 6 units are on hand, not sellable")
+
 	// Paging walks every product once.
 	seen := map[string]bool{}
 	path := "/reports/stock-sales?from=2026-11-01&to=2026-11-02&limit=1"
@@ -203,7 +212,7 @@ func TestTheSalesStockReportSetsSalesBesideStock(t *testing.T) {
 		}
 		path = "/reports/stock-sales?from=2026-11-01&to=2026-11-02&limit=1&cursor=" + url.QueryEscape(*pg.Page.NextCursor)
 	}
-	require.Len(t, seen, 3)
+	require.Len(t, seen, 4)
 
 	code, _, _ = reportPage[stockSalesRow](t, w.saleWorld, "owner", "/reports/stock-sales?from=2026-11-01&to=2026-11-02")
 	require.Equal(t, http.StatusForbidden, code, "sale read alone does not show stock")

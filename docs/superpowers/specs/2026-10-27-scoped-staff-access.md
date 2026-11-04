@@ -52,6 +52,8 @@ snapshot, including subject and sorted permissions. This stays below OpenFGA's
 putting subjects into object IDs. Conflicting content cannot share projection
 keys, and reordering the same permission set preserves identity. Projecting an old revision cannot populate a different revision's keys.
 The initial scope kinds are hospital and staff, both under a verified hospital.
+The proposed [ADR-0055](../../adr/0055-department-scoped-assignments.md) adds a
+`department` kind whose ancestry Organization checks.
 Permission identifiers are platform-declared actions, never tenant-authored code.
 
 This graph check is only one part of authorization. IAM must first provide the

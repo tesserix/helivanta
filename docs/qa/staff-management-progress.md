@@ -1,5 +1,19 @@
 # Staff Management delivery tracker
 
+## Department-scope guard built — 2026-11-04
+
+ADR-0055 is accepted. Organization now has `authz.DepartmentScopeGuard`, the
+first #429 slice. It answers current path and subtree reads and holds the target
+path through a guarded command's commit. No route, permission, event, migration
+or OpenFGA model is added, and nothing consumes it yet. Next are the department
+assignment scope in IAM, then the Workforce posting review consumer and UI.
+
+Evidence: Organization, authorization, architecture and platform race suites
+pass. Eight deliberate mutations are caught: subtree limit, containment, structural
+gate, row lock strength, status, guarded-command check, retired descendants and
+unindexed descent. The 5,000-node plan fixture shows one keyed seed and one
+parent-index descent, with no sequential scan. That is not SLO evidence.
+
 ## Department-scoped assignments proposed — 2026-11-04
 
 [ADR-0055](../adr/0055-department-scoped-assignments.md) and its

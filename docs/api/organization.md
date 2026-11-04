@@ -189,3 +189,30 @@ No HTTP contract, event, permission, migration or OpenFGA model changes here.
 The proposed [managerial supervision design](../adr/0053-reviewed-managerial-posting-supervision.md)
 records the subsequent approval/lifecycle work. This candidate source guard is
 not positive posting approval, departmental access or full Staff acceptance.
+
+## Internal department-scope guard (#429 prerequisite)
+
+`authz.DepartmentScopeGuard` is Organization's current-ancestry source for
+[ADR-0055](../adr/0055-department-scoped-assignments.md) department-scoped
+assignments. It has three operations:
+
+- `CurrentPath` returns the active node-to-root path. It is a hint for selecting
+  candidate grants and is never authority.
+- `CurrentSubtree` returns the active nodes under up to 50 roots for discovery.
+  A subtree larger than 1,000 nodes returns `ErrDepartmentSubtreeLimit`, which
+  wraps `ErrScopedAuthorizationUnavailable`. It is never truncated.
+- `WithinCurrentDepartment` runs only inside a guarded command. It holds the
+  hospital structural gate (shared) and the target path rows `FOR SHARE` in ID
+  order through the outer commit or rollback. It requires an active path
+  reaching the root that contains the held scope node.
+
+Unknown nodes, foreign tenants and unregistered hospitals return
+`ErrDepartmentReferenceHidden`. Retired nodes, sibling or upward scopes and
+paths that changed since the hint return `ErrDepartmentReferenceChanged`.
+Malformed input, calls outside a guarded command and database failures return
+`ErrScopedAuthorizationUnavailable`.
+
+This guard is a prerequisite only. It adds no route, permission, event,
+migration or OpenFGA model, and nothing consumes it yet. Department
+assignments, IAM authority selection and the posting review consumer remain
+open under #429.

@@ -1,8 +1,8 @@
 # Department-scoped Staff assignments
 
-Status: proposed. Tracks #429 without closing it. Implements
-[ADR-0055](../../adr/0055-department-scoped-assignments.md), which needs
-acceptance first. Extends the [scoped staff access foundation](2026-10-27-scoped-staff-access.md)
+Status: in progress. Tracks #429 without closing it. Implements the accepted
+[ADR-0055](../../adr/0055-department-scoped-assignments.md). The Organization
+guard is built; IAM, Workforce and UI slices follow. Extends the [scoped staff access foundation](2026-10-27-scoped-staff-access.md)
 and the [scoped posting preparation](2026-11-03-scoped-staff-posting-preparation.md).
 Uses ORG-AC-01/02/05/06/07/08 and ORG-ST-02. Settles no `ORG-D*` decision.
 

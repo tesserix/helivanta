@@ -109,6 +109,8 @@ ORDER BY k.day, k.currency`
 
 func dailyReportRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/reports/daily", PermSaleRead, h.dailyReport)
+	platform.ListRoute(s, "/reports/items", PermSaleRead, h.listItemSales)
+	platform.ListRoute(s, "/reports/receipts", PermSaleRead, h.listReceipts)
 }
 
 // dailyReport holds totals only, no patient, prescriber or buyer detail, so

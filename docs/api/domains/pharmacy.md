@@ -276,7 +276,21 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **Cash is what was applied to the sale.** Change handed back is not income.
 - **No row for a quiet day.** A day with no sale or credit note is absent, not shown as zeros.
 - **Not audited.** It holds totals only, with no patient, prescriber or buyer detail.
-- **Not covered.** Shift or till close, purchase cost and margin, item-wise and patient-wise reports, and a CSV export.
+- **Not covered.** Shift or till close, purchase cost and margin, patient-wise reports, and a CSV export. Sales by item and each receipt and refund are the reads below.
+
+### Sales by item, and the receipts and refunds register (#1060)
+
+| Route                                       | Behaviour                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/reports/items?from=&to=&product_id=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product. Requires `pharmacy.sale.read` |
+| `GET …/reports/receipts?from=&to=&kind=`    | Paged, oldest first: every tender on a sale (`receipt`) and refund on a credit note (`refund`) with its date, document number, kind, payment reference and amount. `kind` is `cash`, `upi`, `upi_verified`, `card` or `admission_account`. Requires `pharmacy.sale.read`                                                                                                      |
+
+- **Reads of posted records,** like the daily report: each document counts on its own outlet date, a return on the credit note's.
+- **They reconcile.** Items plus the daily report's service charges equal its sales and credits, including credited charges; receipts per day and kind equal its tenders and refunds. The tests prove this for cash, UPI and card receipts and cash refunds; verified-UPI and admission-account rows use the same joins but are not separately exercised.
+- **One row per product never mixes currencies or packs:** a stocked product cannot change either.
+- **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
+- **Not audited.** No patient, prescriber or buyer appears.
+- **Not covered:** average purchase cost and margin, patient-wise sales, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), category and clinician filters, CSV export.
 
 ### Returns as credit notes (#1386 C-1)
 

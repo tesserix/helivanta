@@ -76,15 +76,18 @@ afterEach(() => {
 
 function serve(rows: unknown[] | "fail") {
   const fetcher = vi.fn(async (url: string) =>
-    rows === "fail"
-      ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
-      : new Response(
-          JSON.stringify({
-            from: "2026-11-01",
-            to: "2026-11-15",
-            days: url.includes("from=2026-11-01&to=2026-11-15") ? rows : [],
-          }),
-        ),
+    // The item and receipt panels (#1060) have their own tests.
+    !url.includes("/reports/daily")
+      ? new Response(JSON.stringify({ data: [], page: { next_cursor: null, has_more: false } }))
+      : rows === "fail"
+        ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
+        : new Response(
+            JSON.stringify({
+              from: "2026-11-01",
+              to: "2026-11-15",
+              days: url.includes("from=2026-11-01&to=2026-11-15") ? rows : [],
+            }),
+          ),
   );
   vi.stubGlobal("fetch", fetcher);
   return fetcher;

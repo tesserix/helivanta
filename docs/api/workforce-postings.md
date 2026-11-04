@@ -476,3 +476,20 @@ rejects the new transport selector rather than silently discarding it.
 This branch is unfinished and is not a production release or normal UI acceptance.
 Root-management capability, positive approval, normal selection/review UI,
 operating lifecycle consumers and full Staff acceptance remain open.
+
+### Separate management-review capability — unpublished candidate
+
+The new closed `staff-posting-management-v1` IAM catalog appends exactly
+`workforce.posting_management_reviewer.v1` to the unchanged ten-template review
+catalog. Additive IAM migration `0026_iam_staff_posting_management_templates`
+introduces exactly `workforce.posting.management.review` plus
+`workforce.staff_actor.use`. It does not include posting submission, ordinary
+review, Organization editing, operating or clinical permissions. Positive review
+will require both this management capability and an ordinary independent reviewer
+assignment. All old SQL files, definition digests and catalogs remain frozen.
+
+The focused real OpenFGA scope/projection test covers durable acknowledgement,
+withdrawal, membership revocation, dependency failure, wrong subject/hospital and
+compound command guards. This capability is not yet connected to positive
+approval or normal UI. Full IAM suite acceptance is pending test-VM recovery;
+source schema generation and focused success are not deployment acceptance.

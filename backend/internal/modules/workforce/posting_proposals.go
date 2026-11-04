@@ -26,6 +26,7 @@ import (
 const PermPostingProposalRead authz.Permission = "workforce.posting.proposal.read"
 const PermPostingSubmit authz.Permission = "workforce.posting.submit"
 const PermPostingReview authz.Permission = "workforce.posting.review"
+const PermPostingManagementReview authz.Permission = "workforce.posting.management.review"
 
 var errPostingProposalConflict = errors.New("posting proposal intent or source changed")
 

@@ -1,6 +1,32 @@
 # Staff Management delivery tracker
 
 
+## Management capability checkpoint — 2026-11-04
+
+Retention checkpoint `376138fa` is committed and pushed. Subsequent local work
+adds the separate closed management-review catalog and generated IAM forward
+migration0026, with frozen older catalogs/SQL. The real catalog test first failed
+200/400, then passed with the existing review catalog unchanged. New management
+projection/compound-guard/revocation coverage passes33.998s; both catalog cases
+pass6.371s; all53 generator authority/history tests and643 SDK tests/78 files pass.
+No production feature or positive approval is claimed from those results.
+
+The complete IAM suite was attempted, but existing assignment-projection and
+owner-event tests hit504/timeouts. It was stopped and its three owned fixtures
+removed. Read-only inspection found only60MB available/no swap in the4GB local
+`helivanta-tests` VM; Docker inventory timed out too. A restart at6GB is pending
+explicit approval because the VM contains other local test sessions. The separate
+6GB withdrawal QA VM is running and is not part of the requested restart. No VM
+restart, broad cleanup, migration, production rollout or credential entry occurred.
+The management checkpoint must not be merged before the complete IAM checks pass.
+
+Two fresh normal-workflow root-reviewer/root-approval test cases are being prepared
+in the working tree. They are not executed acceptance or positive approval
+implementation; the focused command must include both ordered scenarios:
+`-run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$/^activation_posting_root_(reviewer|approval)$'`.
+Root approval, normal reviewer UI, descendants, lifecycle, transfers and all
+consumer/employer acceptance remain unfinished. Counts remain unchanged.
+
 ## Protected supervision retention checkpoint — 2026-11-04
 
 Branch `codex/posting-supervision-approval-20261104` now retains optional typed

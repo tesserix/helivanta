@@ -189,6 +189,9 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 		if templateKey == "workforce.posting_submitter.v1" || templateKey == "workforce.posting_reviewer.v1" {
 			catalog = "staff-posting-reviews-v1"
 		}
+		if templateKey == "workforce.posting_management_reviewer.v1" {
+			catalog = "staff-posting-management-v1"
+		}
 		catalogPath += "?catalog=" + catalog
 	}
 	currentList := call("GET", familyPath, "admin", "", 200)
@@ -256,7 +259,7 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	require.Equal(t, first, grant.AssignmentID)
 	require.Equal(t, int64(4), grant.Version, "authority binds the reviewed immutable snapshot, not the activation history version")
 	require.Equal(t, int64(1), grant.ScopeEpoch)
-	for _, candidate := range []authz.Permission{"workforce.leave.approve", "workforce.identity_checks.manage", "workforce.identity_checks.review"} {
+	for _, candidate := range []authz.Permission{"workforce.leave.approve", "workforce.identity_checks.manage", "workforce.identity_checks.review", "workforce.posting.management.review", "workforce.posting.review", "workforce.posting.submit"} {
 		if candidate == request.Permission {
 			continue
 		}

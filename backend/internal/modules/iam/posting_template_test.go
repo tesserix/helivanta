@@ -116,3 +116,39 @@ func TestPostingReviewTemplateScope(t *testing.T) {
 		t.Run(template.key, func(t *testing.T) { exerciseAssignmentProjection(t, template.key, template.permission) })
 	}
 }
+
+func TestPostingManagementCatalogKeepsIndependentAuthoritySeparate(t *testing.T) {
+	router, db, _, ctx := testutil.NewHarness(t, testutil.HarnessOptions{
+		Tokens:  map[string]string{"admin": testutil.TenantA},
+		Perms:   map[string][]authz.Permission{"admin": {iam.PermAssignmentManage}},
+		Modules: []platform.Module{iam.New(nil)},
+	})
+	response := testutil.Do(router, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-posting-management-v1", "admin", "")
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var templates []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &templates))
+	require.Len(t, templates, 11)
+	expected := []string{"workforce.posting.management.review", "workforce.staff_actor.use"}
+	actual := templates[10]
+	require.Equal(t, "workforce.posting_management_reviewer.v1", actual.Key)
+	require.Equal(t, "posting", actual.Family)
+	require.Equal(t, expected, actual.Permissions)
+	require.NotContains(t, actual.Permissions, "workforce.posting.review", "management attestation must not replace ordinary independent review")
+	require.NotContains(t, actual.Permissions, "workforce.posting.submit")
+	var installed string
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT iam_assignment_template_permissions(?)::text`, actual.Key).Scan(&installed).Error
+	}))
+	var permissions []string
+	require.NoError(t, json.Unmarshal([]byte(installed), &permissions))
+	require.Equal(t, expected, permissions)
+	legacy := testutil.Do(router, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-posting-reviews-v1", "admin", "")
+	require.Equal(t, http.StatusOK, legacy.Code)
+	var existing []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(legacy.Body.Bytes(), &existing))
+	require.Equal(t, existing, templates[:10], "closed existing catalog must preserve its exact definitions")
+}
+
+func TestPostingManagementScopeRequiresCurrentIndependentProjection(t *testing.T) {
+	exerciseAssignmentProjection(t, "workforce.posting_management_reviewer.v1", "workforce.posting.management.review")
+}

@@ -1141,6 +1141,13 @@ isolates its own state on them:
 - **NATS and OpenFGA:** each test names its namespace or store with
   `testinfra.IsolationKey(t)`.
 
+On a memory-constrained local test VM, set
+`HELIVANTA_TEST_POSTGRES_SHARED_BUFFERS=16MB` before starting a test binary.
+The supported process-wide budgets are `16MB`, `32MB`, `64MB` and `128MB`;
+unset retains the image default. This changes only PostgreSQL shared buffers;
+per-test databases, production-shaped roles and row-level security remain in
+force. Set it once for the process because the PostgreSQL server is shared.
+
 **Never use `t.Name()` as such a name (#929).** `go test -count=N` runs
 every test N times in one process, against the same containers, under the
 same names. Iteration 2 would read iteration 1's events and tuples and fail

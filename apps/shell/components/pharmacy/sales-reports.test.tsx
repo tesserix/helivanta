@@ -356,3 +356,88 @@ describe("the category filter (#988)", () => {
     expect(reports(without, "/catalogue/categories")).toHaveLength(0);
   });
 });
+
+describe("sales by item by lot and by prescriber (#1060)", () => {
+  const rao = {
+    prescriber_name: "TEST Dr Asha Rao",
+    prescriber_registration: "MMC/2011/04567",
+    prescriber_council: "Maharashtra Medical Council",
+  };
+  const iyer = {
+    prescriber_name: "TEST Dr K Iyer",
+    prescriber_registration: "KMC/2015/11",
+    prescriber_council: "Karnataka Medical Council",
+  };
+
+  function serveReports(permissions: string[], more = false) {
+    const page = (data: unknown[]) =>
+      new Response(JSON.stringify({ data, page: { next_cursor: null, has_more: false } }));
+    const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) => {
+      if (url.endsWith("permissions"))
+        return new Response(
+          JSON.stringify({ tenant_id: scope.tenantId, subject: "TEST-reader", data: permissions }),
+        );
+      if (url.includes("/reports/prescribers"))
+        return new Response(JSON.stringify({ data: [rao, iyer], more }));
+      if (url.includes("/catalogue/categories")) return page([]);
+      return page([item]);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    return fetcher;
+  }
+  const itemReads = (fetcher: ReturnType<typeof serveReports>) =>
+    fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/reports/items"));
+
+  it("applies a lot trimmed, and refuses one over 100 characters", async () => {
+    localStorage.clear();
+    const fetcher = serveReports(["pharmacy.sale.read"]);
+    const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    await screen.findByRole("table", { name: "Sales by item" });
+    await user.type(screen.getByLabelText("Lot number"), "x".repeat(101));
+    await user.click(screen.getByRole("button", { name: "Apply lot" }));
+    expect(await screen.findByText("A lot number is at most 100 characters")).toBeVisible();
+    expect(itemReads(fetcher).some((u) => u.includes("lot_number"))).toBe(false);
+    await user.clear(screen.getByLabelText("Lot number"));
+    await user.type(screen.getByLabelText("Lot number"), "  TEST-LOT-7 ");
+    await user.click(screen.getByRole("button", { name: "Apply lot" }));
+    await waitFor(() => expect(itemReads(fetcher).at(-1)).toContain("&lot_number=TEST-LOT-7"));
+    expect(itemReads(fetcher).at(-1)).not.toContain("%20");
+  });
+
+  it("cuts by a prescriber from the period's list, sending the registration with its council", async () => {
+    localStorage.clear();
+    const fetcher = serveReports(["pharmacy.sale.read", "pharmacy.prescription.read"], true);
+    const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    const picker = await screen.findByRole("combobox", { name: "Prescriber" });
+    expect(
+      await screen.findByText(
+        "More than 200 prescribers in this period; choose a shorter period to see them all.",
+      ),
+    ).toBeVisible();
+    await waitFor(() => expect(picker).toBeEnabled());
+    await chooseOption(
+      user,
+      picker,
+      "TEST Dr Asha Rao (MMC/2011/04567, Maharashtra Medical Council)",
+    );
+    await waitFor(() =>
+      expect(itemReads(fetcher).at(-1)).toContain(
+        "&prescriber_registration=MMC%2F2011%2F04567&prescriber_council=Maharashtra%20Medical%20Council",
+      ),
+    );
+    await chooseOption(user, picker, "All sales, with or without a prescription");
+    await waitFor(() => expect(itemReads(fetcher).at(-1)).not.toContain("prescriber"));
+  });
+
+  it("offers no prescriber and reads no prescribers without prescription read", async () => {
+    localStorage.clear();
+    const fetcher = serveReports(["pharmacy.sale.read"]);
+    renderWithProviders(<ItemSales scope={scope} period={period} />);
+    await screen.findByRole("table", { name: "Sales by item" });
+    expect(screen.getByLabelText("Lot number")).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Prescriber" })).toBeNull();
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes("/reports/prescribers"))).toBe(
+      false,
+    );
+  });
+});

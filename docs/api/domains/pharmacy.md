@@ -301,15 +301,15 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 
 | Route                                       | Behaviour                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET …/reports/items?from=&to=&product_id=&category_id=&subcategory_id=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product; `category_id` and `subcategory_id` to an item category (see below). Requires `pharmacy.sale.read` |
+| `GET …/reports/items?from=&to=&product_id=&category_id=&subcategory_id=&lot_number=&prescriber_registration=&prescriber_council=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product; `category_id` and `subcategory_id` to an item category, `lot_number` to one lot and the prescriber pair to one prescriber (see below). Requires `pharmacy.sale.read`, and `pharmacy.prescription.read` with a prescriber |
 | `GET …/reports/receipts?from=&to=&kind=`    | Paged, oldest first: every tender on a sale (`receipt`) and refund on a credit note (`refund`) with its date, document number, kind, payment reference and amount. `kind` is `cash`, `upi`, `upi_verified`, `card` or `admission_account`. Requires `pharmacy.sale.read`                                                                                                      |
 
 - **Reads of posted records,** like the daily report: each document counts on its own outlet date, a return on the credit note's.
 - **They reconcile.** Items plus the daily report's service charges equal its sales and credits, including credited charges; receipts per day and kind equal its tenders and refunds. The tests prove this for cash, UPI and card receipts and cash refunds; verified-UPI and admission-account rows use the same joins but are not separately exercised.
 - **One row per product never mixes currencies or packs:** a stocked product cannot change either.
 - **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
-- **Not audited.** No patient, prescriber or buyer appears.
-- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), clinician filters, CSV export. Patient-wise sales and the sales stock report follow.
+- **Not audited**, except sales by item filtered by prescriber (see below): no patient, prescriber or buyer appears.
+- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), CSV export. Patient-wise sales and the sales stock report follow.
 
 ### Patient-wise sales and the sales stock report (#1060)
 
@@ -322,6 +322,20 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **Audited in the read.** Each patient-wise page writes an `audit_events` row (`pharmacy_patient_sales`, `report_read`, with the period and patient id) in the read's transaction, so no data leaves without its record.
 - **Stock is now, whatever the period.** On hand is every movement of the product. Sellable uses the counter's own rule (`pharmacy_sellable_buckets`): a sellable shelf, an MRP, unexpired on the outlet's date, and no safety incident. So a recalled or expired batch on the shelf is on hand but not sellable, as are returns in quarantine. The panel shows only to staff holding `pharmacy.stock.read`.
 - **Not covered:** service charges on a patient's sale (medicine lines only; the daily report has the charges); purchase amount (442) and the last vendor (755), since purchase cost waits for approved formulas and a receipt records no supplier; a list across patients; stock as of a past date (the stock register has it); batch-level stock in this report; CSV export.
+
+### Sales by item by lot and by prescriber (#1060)
+
+[Design](../../superpowers/specs/2026-11-04-pharmacy-lot-prescriber-report-filters-design.md).
+
+| Route | Behaviour |
+| --- | --- |
+| `GET …/reports/prescribers?from=&to=` | `{data, more}`: the distinct prescribers (registration with council, under the name last recorded) on prescriptions cited by a sale line dated in the period (at most 366 outlet days), ordered by name, at most 200, `more` beyond. Needs `pharmacy.prescription.read` and `pharmacy.sale.read` (`403` otherwise). Audited (`pharmacy_prescribers`, `list_read`) |
+
+- **Lot.** `lot_number` (1 to 100 characters, trimmed) matches in any case: a recall notice may print it in another, and missing a recalled sale is worse than merging two lots differing only in case. A return counts by its sale line's lot. Rows stay one per product, so a lot number shared by two products shows both. Not audited.
+- **Prescriber.** A prescriber is `prescriber_registration` with `prescriber_council`, exactly as recorded; one alone is `400`. Only prescription lines match, a return by its sale line; OTC lines never do. It needs `pharmacy.prescription.read` as well as sale read (`403`, before anything is read).
+- **Audited in the read.** A prescriber-filtered page writes an `audit_events` row (`pharmacy_item_sales`, `report_read`, field names `from, to, prescriber_registration, prescriber_council`) in its transaction, the values going to the audit log: no row, no data (tested with a failing audit store).
+- **Screen.** Sales by item has a lot number field and, for prescription readers, a prescriber picker from the period's list; all filters combine.
+- **Not covered:** lot or prescriber filters on other reports; a prescriber master or links to staff records (#83); more than 200 prescribers in a period, for which the screen asks for a shorter period.
 
 ### Reports by item category (#988 slice 2)
 

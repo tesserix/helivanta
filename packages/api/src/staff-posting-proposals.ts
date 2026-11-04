@@ -11,6 +11,7 @@ import {
   StaffPostingDecisionInputContract,
   StaffPostingProposalContextRequestContract,
   StaffPostingProposalContextContract,
+  StaffPostingSupervisionContextContract,
   StaffPostingInboxItemContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
@@ -330,13 +331,17 @@ export async function getStaffPostingReviewSource(
   return source;
 }
 
+const legacyContextRequest = StaffPostingProposalContextRequestContract.omit({
+  supervision_context: true,
+});
+
 export async function getStaffPostingProposalContext(
   scope: StaffPostingProposalScope,
   proposal: string,
-  rawRequest: StaffPostingProposalContextRequest,
+  rawRequest: Omit<StaffPostingProposalContextRequest, "supervision_context">,
   signal?: AbortSignal,
 ) {
-  const request = StaffPostingProposalContextRequestContract.parse(rawRequest);
+  const request = legacyContextRequest.parse(rawRequest);
   const params = new URLSearchParams({
     purpose: request.purpose,
     expected_version: String(request.expected_version),
@@ -351,6 +356,40 @@ export async function getStaffPostingProposalContext(
   if (!result.success)
     throw new Error("The protected posting review context could not be verified.");
   const context = result.data;
+  return verifiedPostingContext(context, scope, proposal, request);
+}
+
+export async function getStaffPostingSupervisionContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: Omit<StaffPostingProposalContextRequest, "supervision_context">,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const request = legacyContextRequest.parse(rawRequest);
+  const params = new URLSearchParams({
+    purpose: request.purpose,
+    expected_version: String(request.expected_version),
+    expected_revision_id: commandId.parse(request.expected_revision_id),
+    supervision_context: "v1",
+  });
+  const view = StaffPostingSupervisionContextContract.parse(
+    await apiFetch(`${root(scope)}/${commandId.parse(proposal)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  signal?.throwIfAborted();
+  verifiedPostingContext(view.context, scope, proposal, request);
+  return view;
+}
+
+function verifiedPostingContext(
+  context: z.infer<typeof StaffPostingProposalContextContract>,
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  request: Omit<StaffPostingProposalContextRequest, "supervision_context">,
+) {
   const row = verifiedProposal(context.proposal, scope, proposal);
   const selected = context.draft;
   if (

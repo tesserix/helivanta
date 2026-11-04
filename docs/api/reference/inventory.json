@@ -10007,6 +10007,13 @@
             "workforce_leave_routing_revisions",
             "workforce_leave_route_steps"
           ]
+        },
+        {
+          "id": "0079_workforce_posting_supervision_intents",
+          "sql_sha256": "55d2dbd2512a7a6ed155be5138be03a3c8e101fc0d6577fb3a204bc493b65b62",
+          "creates_tables": [
+            "workforce_posting_supervision_intents"
+          ]
         }
       ]
     },

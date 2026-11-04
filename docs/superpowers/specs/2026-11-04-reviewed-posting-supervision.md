@@ -63,8 +63,8 @@ A proposal may include optional `supervision` with:
   hospital management and required for the other kinds. This matches the owner
   API's Staff-scoped key and reuses its existing RLS lookup boundary.
 
-The referenced proposal identifies a canonical approved managerial posting, not a
-login or category. Omitted supervision keeps legacy non-operating preparation and
+Positive approval must establish that the referenced proposal identifies a
+canonical approved managerial posting, not a login or category. Omitted supervision keeps legacy non-operating preparation and
 continues to refuse positive approval with `posting_supervision_required`.
 Explicit null, incomplete references, nil Staff/non-v7 posting identifiers, unknown keys/kinds and root
 requests with a supervisor are invalid. Nested validation agrees in Go and Zod.
@@ -189,3 +189,16 @@ consumers and production evidence remain explicit parent obligations. Reporting
 root approval as full operating activation would be incorrect. Future routes,
 permissions and migrations require contractdocs, canonical generation and review
 ledger updates, exact-head CI, GitOps and separately named rollout approval.
+
+## Retention checkpoint implementation detail
+
+The candidate 0079 migration binds the exact initial revision using the existing
+revision primary key plus an owner-context trigger checking hospital, Staff,
+proposal, version 1, subject and creation transaction. It adds no redundant index
+on the populated revision table. Proposed supervisor references remain typed,
+immutable untrusted intent; they are not foreign-key certified appointments.
+Positive approval must resolve and pin the exact same-hospital Staff/proposal/
+revision under the existing selected-Staff owner scope, then retain separate
+verified decision evidence. An unavailable, unrelated, stale or unapproved source
+must fail closed. This distinction avoids broadening RLS to resolve an untrusted
+reference and must remain visible in reviewer UI acceptance.

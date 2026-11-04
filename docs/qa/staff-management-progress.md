@@ -1,6 +1,66 @@
 # Staff Management delivery tracker
 
 
+## Protected supervision retention checkpoint — 2026-11-04
+
+Branch `codex/posting-supervision-approval-20261104` now retains optional typed
+supervision intent in the proposal transaction and exposes it through an explicit
+protected context view. The ordinary context/receipt/event shapes remain
+unchanged. Candidate migration `0079_workforce_posting_supervision_intents` is
+checked in, additive and forward-only; historical revisions keep absent intent,
+and positive approval remains blocked by the existing database guards. Proposed
+supervisor IDs remain untrusted until an independent positive approval validates
+the current canonical Staff, exact revision, chain, sources and structural scope.
+This is a development checkpoint, not an independently released Staff feature.
+
+Observed RED: the SDK lacked `getStaffPostingSupervisionContext`; the real Global
+API journey returned400 for the new opt-in. After implementation, the focused
+signed-session/PostgreSQL/OpenFGA journey passed39.273s. Expanded lost-write,
+rollback, same-command retry and explicit legacy-null coverage passed60.430s.
+A cancelled-request regression first demonstrated an unwanted transport call;
+pre/post response abort checks corrected it. All641 SDK tests/78 files pass
+(21.83s), with canonical checks/types, ESLint/format, Go build/vet and scoped
+Workforce/Global API golangci-lint (0 issues). Contractdocs generation/check and
+its package tests pass. The operational inventory remains799 registered /776
+unclassified; the sixteen changed Workforce registration-file pins were reviewed
+against the migration-only registration diff, with unchanged route authority.
+
+The complete Workforce race suite passes1106.128s (wall1126.8s), and the final
+focused journey including historical-backfill/rewrite rejection passes39.647s.
+Removing the initial-intent/creation-transaction guard makes historical backfill
+return200 instead of the required500; the regression fails as intended. SQL was
+restored exactly (SHA256 `55d2dbd2512a7a6ed155be5138be03a3c8e101fc0d6577fb3a204bc493b65b62`).
+The full person-to-posting journey passes432.912s (wall442.5s), and the complete
+architecture suite passes77.801s (wall88.8s), including migration RLS lint and
+current IAM boundaries. Shell type checking also passes. Initial overlapping runs exhausted
+the 4GB test VM and produced authorization timeouts, so those runs do not establish
+a code result. They were stopped; seven exact owned fixtures were captured at
+`/tmp/helivanta-posting-supervision-interrupted-fixtures.json` and removed. Further
+Docker-backed checks were serialized for the successful final runs. Every owned
+fixture from the successful runs was captured and removed by its session label;
+no dependency/image pull was required. The staged patch passed Gitleaks.
+
+Production was rechecked read-only as `f4799d63` (API/Global API/shell2/2) under
+`unidevidp@gmail.com`, project `tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+The prepared #1550 rollout is `baea2e3a`, Kargo Freight
+`97f268682a2734adfbfbc197c48dc96f54bc08a0`, with no added migration over that baseline;
+its merged-main CI and signed images passed. Exact rollout approval is pending.
+#1551 (`a7798a8a`) is merged; neither is claimed live. The repository is PUBLIC.
+
+Normal browser acceptance remains open: the isolated4398 login page responds200,
+but Chrome automation failed to create/navigate the QA tab. Earlier automatic
+review rejected Terminal credential-entry setup; that route was not retried.
+Owner sign-in is still required before authenticated browser acceptance.
+
+Remaining implementation order: separate management-review capability; independent
+root approval; exact supervisor/descendant approval; normal selection/review UI;
+current-source lifecycle and transfer enforcement; every departmental/Pharma
+consumer and standalone employer acceptance. #417/#418/#429 remain OPEN. Full
+Staff counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+
+
 ## Merged posting increments and next input checkpoint — 2026-11-04
 
 [#1550](https://github.com/tesserix/helivanta/pull/1550) merged as `baea2e3a`

@@ -337,7 +337,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -1747,7 +1747,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	})
 	var postingRegistrationPath string
 	var postingSubmitter string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1759,6 +1759,19 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					standing, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: permission})
 					return err == nil && standing.AssignmentID != ""
 				}, 10*time.Second, 20*time.Millisecond)
+			}
+			if scenario == "posting_supervision" {
+				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{generationMigration}))
+				for _, needed := range []struct {
+					subject, template string
+					permission        authz.Permission
+				}{{manager, "workforce.hr_intake.v1", workforce.PermEnrollmentManage}, {manager, "workforce.employment_activator.v1", workforce.PermEmploymentActivate}, {reviewer, "workforce.employment_reviewer.v1", workforce.PermEmploymentReview}} {
+					standing, err := authority.AuthorizeScope(ctx, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: needed.subject, HospitalID: hospital, Permission: needed.permission})
+					require.NoError(t, err)
+					if standing.AssignmentID == "" {
+						grant(needed.subject, needed.template, needed.permission)
+					}
+				}
 			}
 			if scenario == "identity_restore" {
 				grant(manager, "workforce.employment_activator.v1", workforce.PermEmploymentActivate)
@@ -2128,7 +2141,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" {
 						require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{migration}))
 					}
 				}
@@ -2156,7 +2169,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
 				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-P-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-")), "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
 				call(t, "PUT", departmentPath, maker, departmentInput, 200)
-				if scenario == "posting_submission" || scenario == "posting_ongoing" {
+				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" {
 					t.Cleanup(func() {
 						departmentInput["expected_version"], departmentInput["status"] = 1, "retired"
 						retirementPath := organizationBase + "/departments/" + departmentID + "/revisions/" + uuid.Must(uuid.NewV7()).String()
@@ -2197,12 +2210,17 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					require.EqualValues(t, beforeExpiry, sourceAudits(), "post-expiry attempts retain no successful source-use audit")
 					return
 				}
-				if scenario == "posting_submission" {
+				if scenario == "posting_submission" || scenario == "posting_supervision" {
 					postingIntent["ends_at"] = sourceCutoff.UTC().Format(time.RFC3339Nano)
 				}
 				scopedReceipt := call(t, "PUT", scopedCommandPath, recipient, postingIntent, 200)
 				require.Equal(t, "draft", scopedReceipt["status"])
 				require.Equal(t, false, scopedReceipt["grants_access"])
+				if scenario == "posting_supervision" {
+					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
+					assertPostingSupervisionRetention(t, ctx, db, call, scopedStaffBase, recipient, maker, scopedDraft, scopedReceipt, scopedSource, generation)
+					return
+				}
 				if scenario == "posting_ongoing" {
 					postingSubmitter = recipient
 					grant(recipient, "workforce.posting_submitter.v1", authz.Permission("workforce.posting.submit"))

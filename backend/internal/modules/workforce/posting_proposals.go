@@ -237,8 +237,14 @@ func (h *handlers) putPostingProposal(c *gin.Context) {
 				if err := tx.Exec(`INSERT INTO workforce_posting_proposals(tenant_id,hospital_id,staff_id,id,revision_id,version,draft_id,draft_revision_id,status) VALUES(?,?,?,?,?,1,?,?,'pending')`, p.TenantID, s.hospital, s.staff, s.draft, revision, in.DraftID, in.DraftRevisionID).Error; err != nil {
 					return err
 				}
-				if err := tx.Exec(`INSERT INTO workforce_posting_proposal_revisions(tenant_id,hospital_id,staff_id,proposal_id,id,command_id,expected_version,version,status,draft_id,draft_revision_id,draft_version,generation_id,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,eligibility_until,reason,actor_subject,sources_examined,input_hash) VALUES(?,?,?,?,?,?,0,1,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?,true,?)`, p.TenantID, s.hospital, s.staff, s.draft, revision, s.command, in.DraftID, in.DraftRevisionID, *in.DraftVersion, in.GenerationID, source.StaffVersion, source.EmploymentEpoch, draft.DepartmentID, draft.DepartmentRevisionID, draft.StartsAt, draft.EndsAt, until, in.Reason, p.Subject, fingerprint).Error; err != nil {
+				if err := tx.Exec(`INSERT INTO workforce_posting_proposal_revisions(tenant_id,hospital_id,staff_id,proposal_id,id,command_id,expected_version,version,status,draft_id,draft_revision_id,draft_version,generation_id,staff_version,employment_epoch,department_id,department_revision_id,starts_at,ends_at,eligibility_until,reason,actor_subject,sources_examined,input_hash,supervision_requested) VALUES(?,?,?,?,?,?,0,1,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?,true,?,?)`, p.TenantID, s.hospital, s.staff, s.draft, revision, s.command, in.DraftID, in.DraftRevisionID, *in.DraftVersion, in.GenerationID, source.StaffVersion, source.EmploymentEpoch, draft.DepartmentID, draft.DepartmentRevisionID, draft.StartsAt, draft.EndsAt, until, in.Reason, p.Subject, fingerprint, in.Supervision != nil).Error; err != nil {
 					return err
+				}
+				if in.Supervision != nil {
+					intent := in.Supervision
+					if err := tx.Exec(`INSERT INTO workforce_posting_supervision_intents(tenant_id,hospital_id,staff_id,proposal_id,initial_revision_id,kind,supervisor_staff_id,supervisor_proposal_id,supervisor_revision_id) VALUES(?,?,?,?,?,?,?,?,?)`, p.TenantID, s.hospital, s.staff, s.draft, revision, intent.Kind, intent.SupervisorStaffID, intent.SupervisorProposalID, intent.SupervisorRevisionID).Error; err != nil {
+						return err
+					}
 				}
 				out, err = postingProposalResult(tx, p, s, revision)
 				if err != nil {

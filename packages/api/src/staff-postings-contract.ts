@@ -416,6 +416,7 @@ export const StaffPostingProposalContextRequestContract = z
     purpose: z.enum(["review", "submission"]),
     expected_version: z.number().int().min(1).max(9007199254740990),
     expected_revision_id: identifier,
+    supervision_context: z.enum(["v1"]).optional(),
   })
   .strict();
 export type StaffPostingProposalContextRequest = z.infer<
@@ -458,3 +459,11 @@ export const StaffPostingInboxItemContract = z
   })
   .strict();
 export type StaffPostingInboxItem = z.infer<typeof StaffPostingInboxItemContract>;
+
+export const StaffPostingSupervisionContextContract = z
+  .object({
+    context: StaffPostingProposalContextContract,
+    supervision: StaffPostingSupervisionIntentContract.nullable(),
+  })
+  .strict();
+export type StaffPostingSupervisionContext = z.infer<typeof StaffPostingSupervisionContextContract>;

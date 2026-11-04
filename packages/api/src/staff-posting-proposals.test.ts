@@ -295,6 +295,127 @@ it("releases only the requested exact protected proposal context", async () => {
   );
 });
 
+it("requests retained supervision through an explicit protected context view", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const view = {
+    context: {
+      purpose: "review",
+      proposal: receipt,
+      draft,
+      draft_reason: "Synthetic retained preparation rationale",
+      submission_reason: input.reason,
+      decision_reason: null,
+    },
+    supervision: { kind: "hospital_management" },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  const controller = new AbortController();
+  expect(
+    await api.getStaffPostingSupervisionContext(scope, receipt.id, request, controller.signal),
+  ).toEqual(view);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-proposals/${receipt.id}/context?purpose=review&expected_version=1&expected_revision_id=${receipt.revision_id}&supervision_context=v1`,
+    expect.objectContaining({ cache: "no-store", signal: controller.signal }),
+  );
+});
+
+it("withholds protected supervision context when its caller cancels", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const cancelled = new AbortController();
+  cancelled.abort();
+  await expect(
+    api.getStaffPostingSupervisionContext(scope, receipt.id, request, cancelled.signal),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+  const inflight = new AbortController();
+  vi.mocked(apiFetch).mockImplementationOnce(async () => {
+    inflight.abort();
+    return {
+      context: {
+        purpose: "review",
+        proposal: receipt,
+        draft,
+        draft_reason: "Synthetic preparation reason",
+        submission_reason: input.reason,
+        decision_reason: null,
+      },
+      supervision: { kind: "hospital_management" },
+    };
+  });
+  await expect(
+    api.getStaffPostingSupervisionContext(scope, receipt.id, request, inflight.signal),
+  ).rejects.toThrow();
+});
+
+it("refuses supervision context with mismatched sources and keeps the legacy selector strict", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic preparation reason",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  for (const supervision of [
+    null,
+    { kind: "hospital_management" },
+    {
+      kind: "department_member",
+      supervisor_staff_id: scope.staffId,
+      supervisor_proposal_id: receipt.id,
+      supervisor_revision_id: receipt.revision_id,
+    },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ context, supervision });
+    expect(
+      (await api.getStaffPostingSupervisionContext(scope, receipt.id, request)).supervision,
+    ).toEqual(supervision);
+  }
+  for (const view of [
+    { context: { ...context, purpose: "submission" }, supervision: null },
+    {
+      context: {
+        ...context,
+        draft: { ...draft, staff_id: "00000000-0000-4000-8000-000000000001" },
+      },
+      supervision: null,
+    },
+    { context, supervision: { kind: "hospital_management", supervisor_staff_id: scope.staffId } },
+    { context, supervision: { kind: "department_member" } },
+    { context },
+    { context, supervision: null, extra: true },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue(view);
+    await expect(
+      api.getStaffPostingSupervisionContext(scope, receipt.id, request),
+    ).rejects.toThrow();
+  }
+  vi.mocked(apiFetch).mockClear();
+  await expect(
+    api.getStaffPostingProposalContext(scope, receipt.id, {
+      ...request,
+      supervision_context: "v1",
+    } as never),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});
+
 it("refuses private context with mismatched scope, purpose, immutable sources or reasons", async () => {
   const api = await import("./staff-posting-proposals");
   const request = {

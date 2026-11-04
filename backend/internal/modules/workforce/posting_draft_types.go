@@ -124,6 +124,7 @@ type StaffPostingProposalContextRequest struct {
 	Purpose            string    `json:"purpose"`
 	ExpectedVersion    *int64    `json:"expected_version"`
 	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
+	SupervisionContext *string   `json:"supervision_context,omitempty"`
 }
 
 type StaffPostingProposalContext struct {
@@ -139,4 +140,9 @@ type StaffPostingInboxItem struct {
 	Proposal    StaffPostingProposal `json:"proposal"`
 	Staff       StaffPostingTarget   `json:"staff"`
 	IsSubmitter bool                 `json:"is_submitter"`
+}
+
+type StaffPostingSupervisionContext struct {
+	Context     StaffPostingProposalContext    `json:"context"`
+	Supervision *StaffPostingSupervisionIntent `json:"supervision"`
 }

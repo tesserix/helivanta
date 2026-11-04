@@ -435,3 +435,44 @@ The released reviewer slice is recorded in the
 Authenticated browser acceptance of normal submission/review, effective approval,
 supervision, transfers, contractors and all departmental/Pharma consumers remain
 open. UI component/SDK tests do not close those acceptance gates.
+
+## Reviewed supervision evidence — unpublished candidate
+
+The `codex/posting-supervision-approval-20261104` candidate accepts optional
+`supervision` in proposal submission. Its kind is `hospital_management`,
+`department_supervisor` or `department_member`. Hospital management has no
+supervisor references; other kinds require nonzero `supervisor_staff_id` and
+UUIDv7 `supervisor_proposal_id` / `supervisor_revision_id`. Omission preserves
+legacy non-operating meaning; explicit null, partial references and unknown
+fields are rejected. These are proposed references, not verified supervisory
+appointments. Positive approval must independently resolve their exact scope,
+current approved revision, managerial chain and source eligibility. Retaining a
+claim neither verifies it nor grants access.
+
+Additive forward migration `0079_workforce_posting_supervision_intents` retains
+typed immutable intent alongside the exact initial proposal revision. Forced RLS
+uses the existing selected-Staff posting purpose. The initial revision marks
+whether intent was supplied. Both records must be created by the same subject in
+the same transaction; deferred integrity refuses commit if requested evidence is
+lost. Historical rows are not backfilled or reinterpreted. New creation-transaction
+defaults apply only to future revisions; the migration does not rewrite historical
+rows with a volatile default. Revisions and intent cannot be updated or removed.
+There is no destructive down migration; rollback preserves the additive schema
+and audit history. Old head/revision guards still refuse positive approval.
+
+An authorized submitter or independent reviewer can explicitly request:
+
+`GET /posting-proposals/:proposal/context?purpose=submission&expected_version=1&expected_revision_id=:revision&supervision_context=v1`
+
+The opt-in response is `{context: <existing protected context>, supervision:
+<intent or null>}`. Default responses retain their exact existing shape. Repeated,
+unknown or invalid flags return 400. Current scoped operation/source grants,
+reviewer independence, exact immutable source pins and atomic disclosure audit
+are unchanged. Missing marked evidence returns 503 rather than an invented root
+or null intent. The SDK's separate `getStaffPostingSupervisionContext` verifies
+the envelope and all existing nested source checks. Its legacy context getter
+rejects the new transport selector rather than silently discarding it.
+
+This branch is unfinished and is not a production release or normal UI acceptance.
+Root-management capability, positive approval, normal selection/review UI,
+operating lifecycle consumers and full Staff acceptance remain open.

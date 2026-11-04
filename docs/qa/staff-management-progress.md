@@ -100,8 +100,11 @@ was marked accepted, closed or tagged complete by the focused API checks.
   five-file three-check IAM/authz guard, stacked on #1559. It uses existing
   posting-reviewer/identity-manager/identity-reviewer templates in its integration
   test, removing the new management catalog dependency. Isolated build/vet/lint
-  and Gitleaks pass; isolated real IAM integration is still in progress and not
-  accepted. No migration, route, new capability catalog or UI action is added.
+  and Gitleaks pass. The isolated existing-catalog pair failed after 425.397s
+  (472.4s including setup/cleanup): two-check expiry-refresh returned no grant;
+  three-check preparation remained `pending_scope` after graph-authority errors.
+  Its three owned fixtures and seven temporary forwards were cleaned up. It is
+  not accepted; no timeout, expiry window or security assertion was relaxed. No migration, route, new capability catalog or UI action is added.
   Rebase/retarget onto main after the parent merges. It remains draft until
   validation and required CI pass.
 

@@ -8143,6 +8143,28 @@
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/context",
+          "permission": "workforce.posting.cutoff",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/history",
+          "permission": "workforce.posting.cutoff",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
           "permission": "workforce.posting.proposal.read",
           "authentication_required": true,
@@ -9099,6 +9121,15 @@
         {
           "method": "GET",
           "path": "/v1/workforce/person-review-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/posting-cutoff-scopes",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,

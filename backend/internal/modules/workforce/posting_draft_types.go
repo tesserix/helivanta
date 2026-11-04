@@ -200,3 +200,14 @@ type StaffPostingChainReviewContext struct {
 	CheckedAt        time.Time                     `json:"checked_at"`
 	EligibilityUntil time.Time                     `json:"eligibility_until"`
 }
+
+type StaffPostingCutoffHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+}
+
+type StaffPostingCutoffContext struct {
+	Proposal  StaffPostingProposal `json:"proposal"`
+	Cutoff    *StaffPostingCutoff  `json:"cutoff"`
+	CheckedAt time.Time            `json:"checked_at"`
+}

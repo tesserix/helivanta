@@ -134,6 +134,19 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 func assertPostingImmediateCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, hospitalBase, unprivileged, administrator, otherAdministrator string, approved map[string]any) {
 	t.Helper()
 	root := fmt.Sprintf("%s/posting-staff/%s/posting-proposals/%s", hospitalBase, approved["staff_id"], approved["id"])
+	scopes := call(t, "GET", "/v1/workforce/posting-cutoff-scopes", administrator, nil, 200)["data"].([]any)
+	require.Len(t, scopes, 1)
+	require.Len(t, scopes[0].(map[string]any), 2)
+	require.Equal(t, approved["hospital_id"], scopes[0].(map[string]any)["hospital_id"])
+	require.Empty(t, call(t, "GET", "/v1/workforce/posting-cutoff-scopes", unprivileged, nil, 200)["data"])
+	selection := "?expected_revision_id=" + approved["revision_id"].(string)
+	contextPath := root + "/cutoffs/context" + selection
+	contextBefore := call(t, "GET", contextPath, administrator, nil, 200)
+	require.Len(t, contextBefore, 3)
+	require.Contains(t, contextBefore, "cutoff")
+	require.NotEmpty(t, contextBefore["checked_at"])
+	require.Equal(t, approved, contextBefore["proposal"])
+	require.Nil(t, contextBefore["cutoff"])
 	command := uuid.Must(uuid.NewV7()).String()
 	path := root + "/cutoffs/commands/" + command
 	input := map[string]any{"expected_revision_id": approved["revision_id"], "expected_cutoff_version": 0, "mode": "immediate", "reason": "Synthetic immediate responsibility ending despite stale target sources", "sources_examined": true}
@@ -180,4 +193,33 @@ func assertPostingImmediateCutoff(t *testing.T, db *tenantdb.DB, tenant string, 
 	require.Equal(t, after[1], afterReplay[1], "recovery/replay do not record another cutoff")
 	require.Equal(t, after[2], afterReplay[2], "recovery/replay do not republish a cutoff")
 	require.Equal(t, approved, call(t, "GET", root, administrator, nil, 200), "the original approval is immutable history")
+	current := call(t, "GET", contextPath, otherAdministrator, nil, 200)
+	require.Equal(t, approved, current["proposal"])
+	require.Equal(t, receipt, current["cutoff"])
+	call(t, "GET", contextPath, unprivileged, nil, 403)
+	call(t, "GET", root+"/cutoffs/context?expected_revision_id="+uuid.Must(uuid.NewV7()).String(), administrator, nil, 409)
+	call(t, "GET", contextPath+"&unexpected=1", administrator, nil, 400)
+	historyPath := root + "/cutoffs/history" + selection
+	page := call(t, "GET", historyPath, otherAdministrator, nil, 200)
+	require.Equal(t, []any{receipt}, page["data"])
+	require.Equal(t, false, page["page"].(map[string]any)["has_more"])
+	call(t, "GET", historyPath+"&limit=9", administrator, nil, 400)
+	for _, read := range []struct{ path, action string }{
+		{contextPath, "cutoff_context_read"},
+		{historyPath, "cutoff_history_read"},
+		{"/v1/workforce/posting-cutoff-scopes", "cutoff_scope_read"},
+	} {
+		apply := func(sql string) {
+			require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_cutoff_read_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+		}
+		clear := func() { apply("ALTER TABLE workforce_audit DROP CONSTRAINT IF EXISTS synthetic_cutoff_read_fault") }
+		t.Cleanup(clear)
+		before := postingCutoffEffects(t, db, tenant, administrator)
+		apply("ALTER TABLE workforce_audit ADD CONSTRAINT synthetic_cutoff_read_fault CHECK(action<>'workforce.posting_proposal." + read.action + "') NOT VALID")
+		failed := call(t, "GET", read.path, administrator, nil, 500)
+		require.NotContains(t, failed, "data")
+		require.NotContains(t, failed, "cutoff")
+		require.Equal(t, before, postingCutoffEffects(t, db, tenant, administrator), "failed private cutoff disclosures also roll back successful actor-use evidence")
+		clear()
+	}
 }

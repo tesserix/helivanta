@@ -43,15 +43,14 @@ func validPostingReason(reason string) bool {
 func postingV7(id uuid.UUID) bool { return id.Version() == 7 && id.Variant() == uuid.RFC4122 }
 
 func (h *handlers) postingScope(c *gin.Context) (authn.Principal, postingDraftScope, bool) {
-	p, s, ok := postingRequestScope(c)
-	if !ok {
-		return p, s, false
-	}
 	if h.departmentReferences == nil {
-		respondPostingDraftError(c, authz.ErrScopedAuthorizationUnavailable)
-		return p, s, false
+		p, hospital, ok := profileScope(c)
+		if ok {
+			respondPostingDraftError(c, authz.ErrScopedAuthorizationUnavailable)
+		}
+		return p, postingDraftScope{hospital: hospital}, false
 	}
-	return p, s, true
+	return postingRequestScope(c)
 }
 
 func postingRequestScope(c *gin.Context) (authn.Principal, postingDraftScope, bool) {

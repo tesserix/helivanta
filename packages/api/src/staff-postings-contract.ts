@@ -84,6 +84,50 @@ const validPostingCutoff = (
       message: "The retained cutoff/version could not be verified.",
     });
 };
+const validPostingCutoffContext = (
+  value: {
+    proposal: {
+      id: string;
+      revision_id: string;
+      hospital_id: string;
+      staff_id: string;
+      status: string;
+    };
+    cutoff: {
+      proposal_id: string;
+      expected_revision_id: string;
+      hospital_id: string;
+      staff_id: string;
+      recorded_at: string;
+    } | null;
+    checked_at: string;
+  },
+  ctx: z.RefinementCtx,
+) => {
+  const checked = staffPostingInstantMicros(value.checked_at),
+    lower = staffPostingInstantMicros("0001-01-01T00:00:00Z")!,
+    upper = staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const cutoff = value.cutoff,
+    proposal = value.proposal;
+  if (
+    proposal.status !== "approved" ||
+    checked === null ||
+    checked <= lower ||
+    checked > upper ||
+    (cutoff !== null &&
+      (!same(cutoff.proposal_id, proposal.id) ||
+        !same(cutoff.expected_revision_id, proposal.revision_id) ||
+        !same(cutoff.hospital_id, proposal.hospital_id) ||
+        !same(cutoff.staff_id, proposal.staff_id) ||
+        staffPostingInstantMicros(cutoff.recorded_at)! > checked))
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["cutoff"],
+      message: "The scoped cutoff context could not be verified.",
+    });
+};
 export function staffPostingInstantMicros(value: string): bigint | null {
   const match = /^(.+T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match) return null;
@@ -679,3 +723,27 @@ export const StaffPostingChainReviewContextContract = z
   })
   .strict();
 export type StaffPostingChainReviewContext = z.infer<typeof StaffPostingChainReviewContextContract>;
+
+export const StaffPostingCutoffHospitalScopeContract = z
+  .object({
+    hospital_id: identifier,
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StaffPostingCutoffHospitalScope = z.infer<
+  typeof StaffPostingCutoffHospitalScopeContract
+>;
+
+export const StaffPostingCutoffContextContract = z
+  .object({
+    proposal: StaffPostingProposalContract,
+    cutoff: StaffPostingCutoffContract.nullable(),
+    checked_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine(validPostingCutoffContext);
+export type StaffPostingCutoffContext = z.infer<typeof StaffPostingCutoffContextContract>;

@@ -27,6 +27,12 @@ const validPostingCutoff = (value:{id:string;proposal_id:string;expected_revisio
  const lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
  if(value.version!==value.expected_cutoff_version+1||cutoff===null||recorded===null||cutoff<=lower||recorded<=lower||cutoff>upper||recorded>upper||(value.mode==="immediate"?cutoff!==recorded:cutoff!==requested||recorded>=cutoff))ctx.addIssue({code:"custom",path:["cutoff_at"],message:"The retained cutoff/version could not be verified."});
 };
+const validPostingCutoffContext = (value:{proposal:{id:string;revision_id:string;hospital_id:string;staff_id:string;status:string};cutoff:{proposal_id:string;expected_revision_id:string;hospital_id:string;staff_id:string;recorded_at:string}|null;checked_at:string},ctx:z.RefinementCtx) => {
+ const checked=staffPostingInstantMicros(value.checked_at),lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
+ const cutoff=value.cutoff,proposal=value.proposal;
+ if(proposal.status!=="approved"||checked===null||checked<=lower||checked>upper||(cutoff!==null&&(!same(cutoff.proposal_id,proposal.id)||!same(cutoff.expected_revision_id,proposal.revision_id)||!same(cutoff.hospital_id,proposal.hospital_id)||!same(cutoff.staff_id,proposal.staff_id)||staffPostingInstantMicros(cutoff.recorded_at)!>checked)))ctx.addIssue({code:"custom",path:["cutoff"],message:"The scoped cutoff context could not be verified."});
+};
 export function staffPostingInstantMicros(value: string): bigint | null {
  const match=/^(.+T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d+))?(Z|[+-]\\d{2}:\\d{2})$/.exec(value);
  if(!match) return null;
@@ -94,6 +100,10 @@ const validReviewSource = (value:{generation_id:string|null;generation_state:str
 };
 `;
 const refined = models.ts
+  .replace(
+    /(export const StaffPostingCutoffContextContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validPostingCutoffContext);",
+  )
   .replace(
     /(export const StaffPostingCutoffContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
     "$1.superRefine(validPostingCutoff);",

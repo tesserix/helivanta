@@ -57,4 +57,26 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	call(t, "GET", decisionPath, reviewer, nil, 404)
 	rejected := call(t, "PUT", childRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": child["revision_id"], "decision": "reject", "reason": "Independent rejection remains available after an ancestor cutoff", "sources_examined": true}, 200)
 	require.Equal(t, "rejected", rejected["status"])
+	receipts := []map[string]any{cutoff}
+	deadline, err := time.Parse(time.RFC3339Nano, cutoff["cutoff_at"].(string))
+	require.NoError(t, err)
+	for version := 2; version <= 10; version++ {
+		instant := deadline.Add(-time.Duration(version-1) * 5 * time.Second).Format(time.RFC3339Nano)
+		row := call(t, "PUT", parentRoot+"/cutoffs/commands/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_revision_id": parent["revision_id"], "expected_cutoff_version": version - 1, "mode": "scheduled", "cutoff_at": instant, "reason": "Synthetic bounded retained cutoff history", "sources_examined": true}, 200)
+		receipts = append(receipts, row)
+	}
+	historyPath := parentRoot + "/cutoffs/history?expected_revision_id=" + parent["revision_id"].(string) + "&limit=8"
+	first := call(t, "GET", historyPath, administrator, nil, 200)
+	rows := first["data"].([]any)
+	require.Len(t, rows, 8)
+	for i, row := range rows {
+		require.Equal(t, receipts[len(receipts)-1-i], row)
+	}
+	cursor := first["page"].(map[string]any)["next_cursor"].(string)
+	require.True(t, first["page"].(map[string]any)["has_more"].(bool))
+	last := call(t, "GET", historyPath+"&cursor="+cursor, administrator, nil, 200)
+	require.Equal(t, []any{receipts[1], receipts[0]}, last["data"])
+	require.Equal(t, false, last["page"].(map[string]any)["has_more"])
+	call(t, "GET", historyPath+"&cursor="+cursor, reviewer, nil, 400)
+	call(t, "GET", parentRoot+"/cutoffs/history?expected_revision_id="+parentPending["revision_id"].(string)+"&cursor="+cursor, administrator, nil, 400)
 }

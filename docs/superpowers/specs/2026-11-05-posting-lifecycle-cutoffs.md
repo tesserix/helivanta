@@ -2,8 +2,10 @@
 
 Status: implementation in progress. Local command/receipt routes, candidate
 Workforce 0084/IAM 0027 and cutoff-aware legacy refusal are implemented. The
-lifecycle-aware positive review envelope, administrative UI and operating
-consumers remain open. No production migration or rollout has occurred.
+lifecycle-aware positive review envelope and operating consumers remain open.
+Administrative discovery, exact context/history reads and the normal cutoff
+workspace are implemented locally with API/component evidence; normal-account
+browser acceptance remains open. No production migration or rollout has occurred.
 Builds on [ADR-0058](../../adr/0058-retained-posting-cutoffs.md) and all five
 [reusable Staff requirements](2026-11-02-reusable-staff-foundation.md). This work
 does not settle standalone employer scope (ORG-D8), statutory pharmacy policy,

@@ -17,6 +17,7 @@ import {
   StaffPostingSupervisorChoiceContract,
   StaffPostingCutoffContract,
   StaffPostingCutoffInputContract,
+  StaffPostingCutoffContextContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
   type StaffPostingProposal,
@@ -110,6 +111,83 @@ export function getStaffPostingCutoffReceipt(
   signal?: AbortSignal,
 ) {
   return postingCutoffCommand(scope, proposal, command, input, true, signal);
+}
+
+export async function getStaffPostingCutoffContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  const selected = verifiedProposal(proposal, scope, proposal.id);
+  if (selected.status !== "approved")
+    throw new Error("Choose an approved posting before examining its cutoff context.");
+  const params = new URLSearchParams({
+    expected_revision_id: commandId.parse(selected.revision_id),
+  });
+  signal?.throwIfAborted();
+  const raw = await apiFetch(
+    `${root(scope)}/${commandId.parse(selected.id)}/cutoffs/context?${params}`,
+    {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    },
+  );
+  signal?.throwIfAborted();
+  const parsed = StaffPostingCutoffContextContract.safeParse(raw);
+  if (
+    !parsed.success ||
+    !matchesScope(parsed.data.proposal, scope) ||
+    !same(parsed.data.proposal.id, selected.id) ||
+    !same(parsed.data.proposal.revision_id, selected.revision_id) ||
+    parsed.data.proposal.version !== selected.version
+  )
+    throw new Error("The approved posting cutoff context could not be verified.");
+  return parsed.data;
+}
+
+const cutoffHistoryPage = z
+  .object({
+    data: z.array(StaffPostingCutoffContract).max(8),
+    page: z.object({ has_more: z.boolean(), next_cursor: cursorSchema.nullable() }).strict(),
+  })
+  .strict();
+
+export async function listStaffPostingCutoffHistory(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const selected = verifiedProposal(proposal, scope, proposal.id);
+  if (selected.status !== "approved")
+    throw new Error("Choose an approved posting before examining cutoff history.");
+  const params = new URLSearchParams({
+    expected_revision_id: commandId.parse(selected.revision_id),
+    limit: "8",
+  });
+  if (cursor !== null) params.set("cursor", cursorSchema.parse(cursor));
+  signal?.throwIfAborted();
+  const raw = await apiFetch(
+    `${root(scope)}/${commandId.parse(selected.id)}/cutoffs/history?${params}`,
+    { ...enrollmentRequestOptions(scope), signal },
+  );
+  signal?.throwIfAborted();
+  const page = cutoffHistoryPage.parse(raw);
+  if (
+    page.data.some(
+      (row) =>
+        !matchesScope(row, scope) ||
+        !same(row.proposal_id, selected.id) ||
+        !same(row.expected_revision_id, selected.revision_id),
+    ) ||
+    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length ||
+    new Set(page.data.map((row) => row.version)).size !== page.data.length ||
+    page.page.has_more !== Boolean(page.page.next_cursor) ||
+    (page.page.has_more && page.data.length !== 8) ||
+    (cursor !== null && page.page.next_cursor === cursor)
+  )
+    throw new Error("The retained posting cutoff history could not be verified.");
+  return page;
 }
 
 function hospitalRoot(scope: StaffPostingInboxScope) {

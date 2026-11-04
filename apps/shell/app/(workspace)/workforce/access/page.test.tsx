@@ -841,6 +841,77 @@ it.each(["missing", "broader", "extra"])(
   },
 );
 
+it("offers cutoff administration only from its verified lifecycle catalog", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-posting-lifecycle-v1"))
+        return Response.json(catalogDefinitions("staff-posting-lifecycle-v1"));
+      if (url.includes("catalog=staff-posting-management-v1"))
+        return Response.json(catalogDefinitions("staff-posting-management-v1"));
+      if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  expect(
+    await screen.findByRole("option", { name: "Staff posting cutoff administrator" }),
+  ).toBeInTheDocument();
+});
+
+it.each(["missing", "broader", "extra", "unavailable"])(
+  "retains verified management roles when the lifecycle catalog is %s",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("staff-posting-lifecycle-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter((t) => t.key !== "workforce.posting_cutoff_admin.v1")
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((t) =>
+              t.key === "workforce.posting_cutoff_admin.v1"
+                ? { ...t, permissions: [...t.permissions, "workforce.posting.review"] }
+                : t,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("catalog=staff-posting-lifecycle-v1"))
+          return kind === "unavailable"
+            ? Response.json({ error: "unavailable" }, { status: 503 })
+            : Response.json(altered);
+        if (url.includes("catalog=staff-posting-management-v1"))
+          return Response.json(catalogDefinitions("staff-posting-management-v1"));
+        if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+    await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+    await user.click(screen.getByLabelText("Access template"));
+    expect(screen.getByRole("listbox")).toHaveTextContent("Staff posting management reviewer");
+    expect(screen.getByRole("listbox")).not.toHaveTextContent("Staff posting cutoff administrator");
+  },
+);
+
 it.each(["missing", "broader", "extra", "unavailable"])(
   "keeps older verified posting roles when management catalog is %s",
   async (kind) => {

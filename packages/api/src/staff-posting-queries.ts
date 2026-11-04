@@ -4,6 +4,7 @@ import {
   listStaffPostingScopes,
   listStaffPostingTargets,
   listStaffPostingReviewScopes,
+  listStaffPostingCutoffScopes,
 } from "./staff-posting-workspace";
 import {
   getStaffPostingProposalContext,
@@ -11,6 +12,8 @@ import {
   getStaffPostingManagementReviewContext,
   getStaffPostingChainReviewContext,
   getStaffPostingReviewSource,
+  getStaffPostingCutoffContext,
+  listStaffPostingCutoffHistory,
   listStaffPostingProposalInbox,
   listStaffPostingSupervisorChoices,
   staffPostingProposalsKey,
@@ -36,6 +39,60 @@ const options = {
   retry: false as const,
   refetchInterval: POLL_INTERVAL_MS,
 };
+
+export function useStaffPostingCutoffScopes(
+  scope: Pick<StaffPostingScope, "tenantId" | "subject">,
+  cursor: string | null,
+  busy = false,
+) {
+  return useQuery({
+    ...options,
+    refetchInterval: busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !busy,
+    queryKey: ["workforce", "posting-cutoff-scopes", scope.tenantId, scope.subject, cursor],
+    queryFn: ({ signal }) => listStaffPostingCutoffScopes(scope, cursor, signal),
+  });
+}
+
+export function useStaffPostingCutoffContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  busy = false,
+) {
+  return useQuery({
+    ...options,
+    refetchInterval: busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "cutoff-context",
+      proposal.id,
+      proposal.revision_id,
+      proposal.version,
+    ],
+    queryFn: ({ signal }) => getStaffPostingCutoffContext(scope, proposal, signal),
+  });
+}
+
+export function useStaffPostingCutoffHistory(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  cursor: string | null,
+  latestVersion: number,
+) {
+  return useQuery({
+    ...options,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "cutoff-history",
+      proposal.id,
+      proposal.revision_id,
+      cursor,
+      latestVersion,
+    ],
+    queryFn: ({ signal }) => listStaffPostingCutoffHistory(scope, proposal, cursor, signal),
+  });
+}
 export function useStaffPostingDraftSource(scope: StaffPostingScope) {
   return useQuery({
     ...options,

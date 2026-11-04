@@ -1,5 +1,56 @@
 # Staff Management delivery tracker
 
+## Posting cutoff administration — local verification, 2026-11-05
+
+The cutoff candidate now implements bounded admitted-hospital discovery,
+exact-approved-revision context and eight-receipt history pages. Current cutoff
+authority plus a reviewed Staff actor protect each disclosure; failed private
+read audits roll back actor-use evidence. The normal
+`/workforce/posting-cutoffs` workspace selects approved canonical Staff postings,
+requires rationale and examination, shows UTC/local scheduled instants, retains
+uncertain commands for original receipt recovery/identical retry and clears
+private state on account/scope changes. A changed cutoff requires renewed
+examination; a known elapsed cutoff blocks unrecorded retries. No second Staff
+master or product permission is introduced.
+
+Observed RED→GREEN: missing scope, context and history APIs each returned404
+(80.905s/85.986s/91.111s); the administrative read journey then passed86.368s.
+Expanded real Global API/IAM/OpenFGA/Postgres acceptance passed87.825s, including
+ten versions,8+2 history pages, caller/revision-bound cursor refusal and three
+private-read audit faults. Component coverage passes12 cutoff-workspace tests,
+51 access-catalog tests and54 navigation tests. A deliberate recovery mutation
+that substituted a new command ID failed the identity assertion; the original
+source was restored before verification.
+
+Current full SDK passes **689 tests /81 files**, shared UI **280 /27 files** and
+scripts **104**. API/UI/shell types, lint and formatting pass **9 tasks /52.621s**.
+The production Webpack build passes and includes the new route; its first
+invocation lacked required `API_URL` and failed before compilation. The rerun
+uses local Global API origin `http://localhost:8398`. Existing build warnings
+about middleware naming and server-side react-hook-form re-exports remain.
+Contractdocs generation/check, scoped Go vet and full backend build pass; scoped
+Go lint reports **0 issues**. Inventory generation/check reports **824 registered,
+801 unclassified**. Source review refreshed28 changed pins across16 existing
+classifications, preserving their classification and open obligations.
+
+The previous broad native run failed Workforce's existing department-owner
+unavailable test (expected503, actual409) and IAM's exact migration manifest
+(expected26, actual27). Draft parsing now preserves dependency-unavailable error
+precedence; the focused regression passes4.695s. The manifest preserves all prior
+IDs and adds0027; its focused test passes1.185s. The new complete native owner,
+Global API and architecture rerun is pending at this checkpoint; the earlier
+failed run is not counted as a pass. Full shell verification is also pending.
+
+Browser reconnection found the existing local QA tab, but DOM inspection,
+screenshot and a fresh-tab attempt all failed with the same browser adapter
+error. No normal-account UI acceptance is counted. PR #1570 remains draft with
+all exact-head CI checks passing; repository visibility was rechecked as PUBLIC.
+Lifecycle-aware positive review, concurrency/deadline acceptance, actual
+departmental/Pharma operating consumers, normal-role browser acceptance and
+release remain open. No merge, production migration, rollout or release tag
+occurred. All five reusable Staff requirements remain in scope. Counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Posting cutoff owner commands — local implementation checkpoint, 2026-11-05
 
 Branch `codex/posting-lifecycle-cutoffs-20261105` now implements immutable scoped

@@ -44,10 +44,29 @@ chain context and new approval refuse any retained ancestor cutoff with409
 `posting_lifecycle_review_required`; rejection and exact historical receipt
 recovery remain available. The reviewer UI rechecks this conflict while retaining
 the command/rationale/attestations. Positive lifecycle-aware review with explicit
-cutoff observations, administrative discovery/current/history UI, concurrency/
-deadline acceptance, operating-consumer enforcement and release remain unfinished.
+cutoff observations, concurrency/deadline acceptance, operating-consumer
+enforcement and release remain unfinished.
 Do not treat these owner endpoints as complete departmental or Pharma authority.
 See [ADR-0058](../adr/0058-retained-posting-cutoffs.md).
+
+The local candidate now also adds `GET /v1/workforce/posting-cutoff-scopes`
+(at most20 admitted hospitals per filtered page), and `GET` at the proposal's
+`cutoffs/context` and `cutoffs/history` paths. Both require an exact
+`expected_revision_id` matching the approved proposal. History returns at most8
+receipts with caller/hospital/revision-bound continuation. Every disclosure
+requires current cutoff authority and a reviewed Staff actor; failed read audit
+rolls back actor-use evidence. A stale target remains readable for ending its
+responsibility. Responses are private and use `Cache-Control: no-store`.
+
+The normal `/workforce/posting-cutoffs` workspace discovers admitted hospitals,
+selects an approved canonical Staff posting, examines current cutoff/history and
+records an immediate or earlier scheduled cutoff. Required rationale and renewed
+examination bind to the observed cutoff. UTC entry includes a local-time preview.
+Uncertain outcomes retain the exact command for recovery/identical retry; elapsed
+or changed cutoffs block unrecorded retries. Account/scope changes clear private
+data and abort requests. This implementation has component/API test evidence;
+normal-account browser acceptance remains open and no production activation is
+claimed.
 
 This preparation slice merged as `305294ab` in PR #1524 and is deployed after
 specific approval of the revision and migration 0073. Every receipt is a non-operating draft. Workforce owns the draft and immutable commands/revisions; Organization

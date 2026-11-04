@@ -1089,6 +1089,8 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command` | `workforce.posting.cutoff` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command` | `workforce.posting.cutoff` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/context` | `workforce.posting.cutoff` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/history` | `workforce.posting.cutoff` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history` | `workforce.posting.proposal.read` | true | false |
@@ -1189,6 +1191,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/posting-cutoff-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-scopes` | `public` | true | false |
 

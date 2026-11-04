@@ -417,6 +417,11 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile` | `pharmacy.sale.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status` | `pharmacy.catalogue.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/content` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download` | `pharmacy.licence.evidence.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/retry/:attempt` | `pharmacy.licence.manage` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence` | `pharmacy.licence.evidence.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review` | `pharmacy.licence.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
@@ -479,6 +484,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`
+- `helivanta.in.pharmacy.licence_evidence_changed.v1`
 - `helivanta.in.pharmacy.unused_payment_refund_recorded.v1`
 - `helivanta.in.pharmacy.dispense_recorded.v1`
 - `helivanta.in.pharmacy.catalogue_updated.v1`
@@ -502,6 +509,7 @@ Subscriptions:
 
 - `pharmacy-visit-intake` ← `helivanta.in.medicore.visit_created.v1`; after-commit hook: false.
 - `pharmacy-prescription-image-scan` ← `helivanta.in.pharmacy.prescription_image_scan_requested.v1`; after-commit hook: true.
+- `pharmacy-licence-evidence-scan` ← `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`; after-commit hook: true.
 - `pharmacy-payment-opened` ← `helivanta.in.payments.intent_opened.v1`; after-commit hook: false.
 - `pharmacy-payment-failed` ← `helivanta.in.payments.intent_failed.v1`; after-commit hook: false.
 - `pharmacy-payment-paid` ← `helivanta.in.payments.intent_paid.v1`; after-commit hook: false.
@@ -535,6 +543,7 @@ Migration table declarations:
 - `0027_pharmacy`: `pharmacy_bed_occupancies`.
 - `0028_pharmacy`: `pharmacy_unused_payment_refunds`.
 - `0029_pharmacy`: `pharmacy_product_price_declarations`, `pharmacy_product_price_reviews`.
+- `0030_pharmacy`: `pharmacy_licence_evidence`.
 - `0031_pharmacy`: `pharmacy_service_charges`, `pharmacy_service_charge_versions`, `pharmacy_service_charge_reviews`, `pharmacy_sale_charge_lines`, `pharmacy_credit_note_charge_lines`.
 
 ## payments

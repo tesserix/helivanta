@@ -3,6 +3,13 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type LicenceEvidenceFields struct {
+	Filename    string `json:"filename" binding:"required,min=1,max=180"`
+	ContentType string `json:"content_type" binding:"required,oneof=image/png image/jpeg"`
+	Size        int64  `json:"size" binding:"min=1,max=10485760"`
+	Sha256      string `json:"sha256" binding:"required,min=64,max=64"`
+}
+
 type ingredient struct {
 	Name     string `json:"name" binding:"required,min=1,max=200"`
 	Strength string `json:"strength" binding:"required,min=1,max=24"`

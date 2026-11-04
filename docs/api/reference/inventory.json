@@ -2719,6 +2719,51 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/content",
+          "permission": "pharmacy.licence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/download",
+          "permission": "pharmacy.licence.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/retry/:attempt",
+          "permission": "pharmacy.licence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file",
+          "permission": "pharmacy.licence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence",
+          "permission": "pharmacy.licence.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review",
           "permission": "pharmacy.licence.review",
@@ -3351,6 +3396,12 @@
           ]
         },
         {
+          "permission": "pharmacy.licence.evidence.read",
+          "roles": [
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.schedule.declare",
           "roles": [
             "pharmacist",
@@ -3464,6 +3515,8 @@
         }
       ],
       "publishes": [
+        "helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
+        "helivanta.in.pharmacy.licence_evidence_changed.v1",
         "helivanta.in.pharmacy.unused_payment_refund_recorded.v1",
         "helivanta.in.pharmacy.dispense_recorded.v1",
         "helivanta.in.pharmacy.catalogue_updated.v1",
@@ -3494,6 +3547,11 @@
         {
           "name": "pharmacy-prescription-image-scan",
           "subject": "helivanta.in.pharmacy.prescription_image_scan_requested.v1",
+          "after_commit": true
+        },
+        {
+          "name": "pharmacy-licence-evidence-scan",
+          "subject": "helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
           "after_commit": true
         },
         {
@@ -3755,6 +3813,13 @@
           "creates_tables": [
             "pharmacy_product_price_declarations",
             "pharmacy_product_price_reviews"
+          ]
+        },
+        {
+          "id": "0030_pharmacy",
+          "sql_sha256": "54a28bbe60f8d9e803e441b86a87581a41bb772ae86234732cc4a0adb6b5dc34",
+          "creates_tables": [
+            "pharmacy_licence_evidence"
           ]
         },
         {

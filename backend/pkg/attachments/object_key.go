@@ -15,6 +15,9 @@ type ObjectScope struct {
 	HospitalID uuid.UUID
 	OwnerKind  string
 	OwnerID    uuid.UUID
+	// RecordKind is empty for existing keys. Pharmacy licence declarations use
+	// a distinct namespace so caller-selected UUIDs cannot alias prescriptions.
+	RecordKind string
 	RecordID   uuid.UUID
 	FileID     uuid.UUID
 	Version    int64
@@ -40,6 +43,12 @@ func ObjectKey(scope ObjectScope) (string, error) {
 	}
 	if scope.Version < 1 || scope.UploadedAt.IsZero() || scope.UploadedAt.UTC().Year() < 1970 || scope.UploadedAt.UTC().Year() > 9999 {
 		return "", errors.New("document object version and upload date are invalid")
+	}
+	if scope.RecordKind != "" {
+		if scope.OwnerKind != "pharmacy_outlet" || scope.RecordKind != "licence" {
+			return "", errors.New("document record kind unsupported for owner")
+		}
+		return fmt.Sprintf("t/%s/o/%s/%s/k/licence/r/%s/d/%s/f/%s/v/%d", scope.TenantID, scope.OwnerKind, scope.OwnerID, scope.RecordID, scope.UploadedAt.UTC().Format("2006/01/02"), scope.FileID, scope.Version), nil
 	}
 	if scope.HospitalID == uuid.Nil {
 		return fmt.Sprintf("t/%s/o/%s/%s/r/%s/d/%s/f/%s/v/%d", scope.TenantID, scope.OwnerKind, scope.OwnerID, scope.RecordID, scope.UploadedAt.UTC().Format("2006/01/02"), scope.FileID, scope.Version), nil

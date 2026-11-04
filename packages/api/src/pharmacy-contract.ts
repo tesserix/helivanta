@@ -8,6 +8,19 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyLicenceEvidenceFieldsSchema = z
+  .object({
+    filename: z.string().min(1).max(180),
+    content_type: z.enum(["image/png", "image/jpeg"]),
+    size: z.number().int().min(1).max(10485760),
+    sha256: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$"), "Use the required format."),
+  })
+  .strict();
+
 export const pharmacyIngredientSchema = z
   .object({
     name: z.string().trim().min(1).max(200),

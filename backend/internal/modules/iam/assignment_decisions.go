@@ -12,11 +12,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"
 	"github.com/tesserix/helivanta/internal/platform/respond"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
-	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
@@ -48,8 +46,13 @@ func assignmentAdministrator(tx *gorm.DB, tenant, subject string) (bool, error) 
 	}
 	return err == nil, err
 }
+
+// assignmentAccessFor serves the proposal API, whose every route carries the scope kind and department.
 func assignmentAccessFor(tx *gorm.DB, p authn.Principal) error {
 	if err := assignmentAccess(tx); err != nil {
+		return err
+	}
+	if err := assignmentDepartmentAccess(tx); err != nil {
 		return err
 	}
 	allowed, err := assignmentAdministrator(tx, p.TenantID, p.Subject)
@@ -170,15 +173,7 @@ func (h *assignmentProposalHandlers) decide(c *gin.Context) {
 			}
 			return nil
 		}
-		data, err := json.Marshal(iamcontract.AssignmentScopeRequestedData{ProposalID: id, RequestID: requestID, HospitalID: saved.HospitalID, ActorSubject: p.Subject})
-		if err != nil {
-			return err
-		}
-		eventID, err := uuid.NewV7()
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, iamcontract.SubjectAssignmentScopeRequested, events.Event{ID: eventID.String(), Type: iamcontract.SubjectAssignmentScopeRequested, Version: 1, TenantID: p.TenantID, OccurredAt: time.Now(), Data: data})
+		return requestProposalScope(tx, h.bus, p.TenantID, saved, p.Subject)
 	})
 	if err != nil {
 		proposalError(c, err)

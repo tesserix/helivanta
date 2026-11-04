@@ -534,6 +534,7 @@ func (m *Module) registerRenewal(r *platform.Router, deps platform.Deps) {
 func (m *Module) Publishes() []string {
 	return []string{
 		iamcontract.SubjectAssignmentScopeRequested,
+		iamcontract.SubjectAssignmentDepartmentScopeRequested,
 		iamcontract.SubjectAssignmentProjectionRequested,
 		iamcontract.SubjectMemberGranted,
 		iamcontract.SubjectMemberRevoked,

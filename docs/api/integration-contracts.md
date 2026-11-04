@@ -21,6 +21,18 @@ fresh owner verification and independent reviewer authority; this preliminary
 response cannot substitute for current authorization. See the platform domain
 contract for retry, history, activation and unfinished product-access gates.
 
+Department-scoped proposals (ADR-0055) add a second owner on the same request:
+`helivanta.in.iam.assignment_department_scope_requested.v1` →
+`helivanta.in.organization.assignment_department_verified.v1`, published beside
+the Workforce request in the same outbox transaction. The request carries only
+proposal, request, hospital and department IDs; the reply echoes them with
+`eligible`. Organization answers from current structure: a department is eligible
+only in a verified hospital with an active node-to-root path, otherwise it answers
+`false`; an unavailable read retries rather than answering. IAM keeps the first
+answer per owner and request in append-only `iam_assignment_department_verifications`,
+ignores stale or mismatched replies, settles on any refusal, and advances only when
+Workforce and Organization both confirm the current request.
+
 IAM also publishes `helivanta.in.iam.assignment_projection_requested.v1`, with
 only `{proposal_id}` from the canonical staff-access contract. The owning IAM
 consumer reloads the current subject/hospital scope and permission snapshots;

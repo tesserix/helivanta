@@ -296,6 +296,7 @@
       ],
       "publishes": [
         "helivanta.in.iam.assignment_scope_requested.v1",
+        "helivanta.in.iam.assignment_department_scope_requested.v1",
         "helivanta.in.iam.assignment_projection_requested.v1",
         "helivanta.in.iam.member_granted.v1",
         "helivanta.in.iam.member_revoked.v1",
@@ -307,6 +308,11 @@
         {
           "name": "iam-assignment-scope",
           "subject": "helivanta.in.workforce.assignment_scope_verified.v1",
+          "after_commit": false
+        },
+        {
+          "name": "iam-assignment-department-scope",
+          "subject": "helivanta.in.organization.assignment_department_verified.v1",
           "after_commit": false
         },
         {
@@ -10507,7 +10513,8 @@
       "publishes": [
         "helivanta.in.organization.department_link_observed.v1",
         "helivanta.in.organization.hospital_reference_requested.v1",
-        "helivanta.in.organization.department_revision_changed.v1"
+        "helivanta.in.organization.department_revision_changed.v1",
+        "helivanta.in.organization.assignment_department_verified.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -10520,6 +10527,11 @@
         {
           "name": "organization-department-link-request",
           "subject": "helivanta.in.workforce.department_link_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "organization-assignment-department",
+          "subject": "helivanta.in.iam.assignment_department_scope_requested.v1",
           "after_commit": false
         }
       ],

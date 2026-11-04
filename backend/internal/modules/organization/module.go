@@ -45,12 +45,12 @@ func (*Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{ID: "0001_organization", SQL: schema}, {ID: "0002_organization_departments", SQL: departmentsSchema}, {ID: "0003_organization_department_revision_integrity", SQL: departmentRevisionIntegritySchema}, {ID: "0004_organization_department_observations", SQL: departmentObservationsSchema}}
 }
 func (*Module) Publishes() []string {
-	return []string{organizationcontract.SubjectDepartmentLinkObserved, organizationcontract.SubjectHospitalReferenceRequested, organizationcontract.SubjectDepartmentRevisionChanged}
+	return []string{organizationcontract.SubjectDepartmentLinkObserved, organizationcontract.SubjectHospitalReferenceRequested, organizationcontract.SubjectDepartmentRevisionChanged, organizationcontract.SubjectAssignmentDepartmentVerified}
 }
 func (*Module) DirectedSubjects() []string    { return nil }
 func (*Module) DirectedWriteTables() []string { return nil }
 func (*Module) Consumers(deps platform.Deps) []events.Consumer {
-	return []events.Consumer{hospitalObservationConsumer(), departmentLinkRequestConsumer(deps.Bus)}
+	return []events.Consumer{hospitalObservationConsumer(), departmentLinkRequestConsumer(deps.Bus), assignmentDepartmentConsumer(deps.Bus)}
 }
 func (*Module) Broadcasts(platform.Deps) []events.Broadcast { return nil }
 func (*Module) Routes(r *platform.Router, deps platform.Deps) {

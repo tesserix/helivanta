@@ -9,3 +9,6 @@ const SubjectDepartmentRevisionChanged = "helivanta.in.organization.department_r
 
 // SubjectDepartmentLinkObserved carries retained catalog evidence, never operating authority.
 const SubjectDepartmentLinkObserved = "helivanta.in.organization.department_link_observed.v1"
+
+// SubjectAssignmentDepartmentVerified answers whether a department is currently active in its hospital.
+const SubjectAssignmentDepartmentVerified = "helivanta.in.organization.assignment_department_verified.v1"

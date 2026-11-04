@@ -676,6 +676,38 @@
       "type": "object"
     }
   },
+  "helivanta.in.iam.assignment_department_scope_requested.v1": {
+    "source": "backend/internal/modules/iam/contract/assignment_department_scope_generated.go:6",
+    "go_type": "AssignmentDepartmentScopeRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "department_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "proposal_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id",
+        "department_id"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.iam.assignment_projection_requested.v1": {
     "source": "backend/internal/modules/iam/contract/assignment_projection_generated.go:6",
     "go_type": "AssignmentProjectionRequestedData",
@@ -1276,6 +1308,42 @@
         "hospital_id",
         "observation_id",
         "entered_in_error"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.organization.assignment_department_verified.v1": {
+    "source": "backend/internal/modules/organization/contract/assignment_department_generated.go:6",
+    "go_type": "AssignmentDepartmentVerifiedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "department_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "eligible": {
+          "type": "boolean"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "proposal_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id",
+        "request_id",
+        "hospital_id",
+        "department_id",
+        "eligible"
       ],
       "type": "object"
     }

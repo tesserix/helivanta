@@ -45,8 +45,10 @@ posting reviewer in Workforce and the shell.
   Workforce scope request and `iam.assignment.department_scope_requested` in
   one transaction.
 - Organization consumer `department_assignment_verifications.go` follows
-  `department_observations.go`: strict envelope, per-request advisory lock,
-  retained answer, audit, republish of the retained answer.
+  `department_observations.go` for the strict envelope and audit, but answers
+  from current structure without its own table (Organization has no
+  migration); IAM's append-only verifications keep the first answer per owner
+  and request, so a redelivered request cannot change a settled answer.
 - IAM consumer records each answer and moves to `pending_review` only when
   both are eligible for the current request; either refusal is
   `scope_rejected`. The decision path re-asks both; a retired department

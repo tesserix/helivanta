@@ -121,7 +121,7 @@ function Entries({ scope, period }: { scope: PharmacyScope; period: Period }) {
   );
 }
 
-/** An audited register CSV download; download fetches it for the shown filter. */
+/** A CSV download of a register or report; download fetches it for the shown filter. */
 export function RegisterExport({
   label,
   noun = "register",

@@ -58,7 +58,7 @@ by hand.
    no-store`, `nosniff`, a server-made name
    `pharmacy-<report>-<outlet>-<from>-<to>.csv`, and `X-Export-Row-Count` and
    `X-Export-Sha256`.
-8. **Screens.** Each of the three reports gets a "Download CSV" button for
+8. **Screens.** Each of the three reports gets a "Download report CSV" button for
    what it shows (its period and filters). Changing a filter replaces the
    button, which cancels a download in flight, so a stale file never lands.
    While sales by item is filtered by prescriber the button is replaced by a

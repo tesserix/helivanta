@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/tesserix/helivanta/internal/platform/requestid"
 	"github.com/tesserix/helivanta/internal/platform/respond"
@@ -94,11 +95,7 @@ func exportReport[T any](h *catalogueHandlers, r salesReport[T], f reportFile[T]
 		digest := fmt.Sprintf("%x", sha256.Sum256(data))
 		logged := []any{"report", f.name, "tenant_id", p.TenantID, "subject", p.Subject, "pharmacy_id", currentPharmacy(ctx), "outlet_id", outlet}
 		for _, name := range append([]string{"from", "to"}, f.params...) {
-			v := query.Get(name)
-			if v == "" {
-				v = "all"
-			}
-			logged = append(logged, name, v)
+			logged = append(logged, name, filter.applied(name))
 		}
 		logged = append(logged, "row_count", len(rows), "sha256", digest)
 		audit.Log(ctx, requestid.Logger(c), slog.LevelInfo, "pharmacy.report.exported", "report CSV generated", logged...)
@@ -109,6 +106,24 @@ func exportReport[T any](h *catalogueHandlers, r salesReport[T], f reportFile[T]
 		c.Header("X-Export-Sha256", digest)
 		c.Data(http.StatusOK, "text/csv; charset=utf-8", data)
 	}
+}
+
+// applied is the value of a report parameter as the query used it (a lot
+// trimmed, an id parsed), or "all"; the audit log records what was exported.
+func (f salesReportFilter) applied(name string) string {
+	text := map[string]*string{"kind": f.kind, "lot_number": f.lot}[name]
+	id := map[string]*uuid.UUID{"product_id": f.product, "category_id": f.category, "subcategory_id": f.subcategory}[name]
+	switch {
+	case name == "from":
+		return f.since
+	case name == "to":
+		return f.until
+	case text != nil:
+		return *text
+	case id != nil:
+		return id.String()
+	}
+	return "all"
 }
 
 func encodeReport[T any](rows []T, filter salesReportFilter, f reportFile[T]) ([]byte, error) {
@@ -129,14 +144,13 @@ func encodeReport[T any](rows []T, filter salesReportFilter, f reportFile[T]) ([
 }
 
 // majorUnits writes minor units exactly in the major unit: -1250 with two
-// digits is -12.50. The magnitude is unsigned so the most negative amount
-// cannot overflow.
+// digits is -12.50. The sign is split from the formatted digits, never
+// negated, so the most negative amount cannot overflow.
 func majorUnits(minor int64, digits int) string {
-	sign, magnitude := "", uint64(minor)
+	sign, s := "", strconv.FormatInt(minor, 10)
 	if minor < 0 {
-		sign, magnitude = "-", -magnitude
+		sign, s = "-", s[1:]
 	}
-	s := strconv.FormatUint(magnitude, 10)
 	if digits == 0 {
 		return sign + s
 	}

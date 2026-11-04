@@ -6,6 +6,7 @@ export const staffAccessTemplates = [
     description: "Review hospital leave requests with current staff and account authority.",
     family: "leave",
     permissions: ["workforce.leave.approve"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.identity_manager.v1",
@@ -14,6 +15,7 @@ export const staffAccessTemplates = [
       "Prepare identity, background and photo evidence at this hospital; cannot approve the result.",
     family: "identity",
     permissions: ["workforce.identity_checks.manage"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.identity_reviewer.v1",
@@ -22,6 +24,7 @@ export const staffAccessTemplates = [
       "Independently review staff identity, background and photo evidence; no clinical or payroll authority.",
     family: "identity",
     permissions: ["workforce.identity_checks.review"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.hr_intake.v1",
@@ -30,6 +33,7 @@ export const staffAccessTemplates = [
       "Prepare hospital Staff profiles, employment drafts and protected evidence; cannot approve employment or grant access.",
     family: "intake",
     permissions: ["workforce.enrollment.manage", "workforce.documents.manage"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.employment_reviewer.v1",
@@ -38,6 +42,7 @@ export const staffAccessTemplates = [
       "Independently review hospital employment terms and selected evidence; no access activation, clinical or payroll authority.",
     family: "employment",
     permissions: ["workforce.employment.review"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.employment_activator.v1",
@@ -46,6 +51,7 @@ export const staffAccessTemplates = [
       "Activate independently approved employment at this hospital; requires separate current enrollment authority and grants no login, clinical or payroll access.",
     family: "activation",
     permissions: ["workforce.employment.activate"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_reader.v1",
@@ -54,6 +60,7 @@ export const staffAccessTemplates = [
       "Read hospital Staff posting preparation and retained history using a current reviewed digital Staff actor; cannot edit profiles, prepare postings or grant access.",
     family: "posting",
     permissions: ["workforce.posting.read", "workforce.staff_actor.use"],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_preparer.v1",
@@ -67,6 +74,7 @@ export const staffAccessTemplates = [
       "organization.posting_choices.read",
       "workforce.staff_actor.use",
     ],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_submitter.v1",
@@ -82,6 +90,7 @@ export const staffAccessTemplates = [
       "organization.posting_choices.read",
       "workforce.staff_actor.use",
     ],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_reviewer.v1",
@@ -96,6 +105,7 @@ export const staffAccessTemplates = [
       "organization.posting_choices.read",
       "workforce.staff_actor.use",
     ],
+    scope_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_management_reviewer.v1",
@@ -104,6 +114,22 @@ export const staffAccessTemplates = [
       "Attest hospital management intent alongside a separate independent posting reviewer assignment; no submission, operating or clinical authority.",
     family: "posting",
     permissions: ["workforce.posting.management.review", "workforce.staff_actor.use"],
+    scope_kinds: ["hospital"],
+  },
+  {
+    key: "workforce.department_posting_reviewer.v1",
+    name: "Department posting reviewer",
+    description:
+      "Review Staff posting proposals into one department and its current sub-units; no submission, operating or clinical authority.",
+    family: "posting",
+    permissions: [
+      "workforce.posting.read",
+      "workforce.posting.proposal.read",
+      "workforce.posting.review",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["department"],
   },
 ] as const;
 export const staffAccessTemplateCatalogs = {
@@ -167,5 +193,19 @@ export const staffAccessTemplateCatalogs = {
     "workforce.posting_submitter.v1",
     "workforce.posting_reviewer.v1",
     "workforce.posting_management_reviewer.v1",
+  ],
+  "staff-department-posting-reviews-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
+    "workforce.posting_submitter.v1",
+    "workforce.posting_reviewer.v1",
+    "workforce.posting_management_reviewer.v1",
+    "workforce.department_posting_reviewer.v1",
   ],
 } as const;

@@ -72,6 +72,7 @@ Migration table declarations:
 - `0016_iam_membership_candidate_index`: concurrent index `iam_members_candidate_history` on `iam_members (tenant_id, created_at DESC, id DESC)`.
 - `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 - `0023_iam_employment_bases`: `iam_employment_bases`, `iam_employment_basis_history`, `iam_assignment_employment_bases`.
+- `0028_iam_department_assignment_scope`: `iam_assignment_department_verifications`.
 
 ## reference
 

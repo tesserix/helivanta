@@ -20,6 +20,13 @@ const templateFields = contract.models.TemplateDefinition.map((field) => field.n
 const templateLimits = Object.fromEntries(
   contract.models.TemplateDefinition.map((field) => [field.name, field.max]),
 );
+// Templates before 0027 predate declared scope and stay hospital-only, so their digests never change.
+const scopeKindsFrom = 27;
+const scopeKindChoices = [["hospital"], ["department"], ["hospital", "department"]].map((kinds) =>
+  JSON.stringify(kinds),
+);
+const departmentReviewer = /^workforce\.department_posting_reviewer\.v[1-9][0-9]*$/;
+const scopeKinds = (template) => template.scope_kinds ?? ["hospital"];
 const templates = [];
 const keys = new Set();
 const files = new Set();
@@ -44,12 +51,34 @@ for (const migration of migrations) {
     throw new Error("Invalid staff template migration history");
   previousMigration = Number.parseInt(migration.id.slice(0, 4), 10);
   files.add(migration.file);
+  const scopeAware = Number.parseInt(migration.id.slice(0, 4), 10) >= scopeKindsFrom;
+  const declaredFields = scopeAware
+    ? templateFields
+    : templateFields.filter((field) => field !== "scope_kinds");
   const introducedDefinitions = [];
   for (const template of migration.templates) {
+    if (
+      scopeAware !== Object.hasOwn(template ?? {}, "scope_kinds") ||
+      (scopeAware && !scopeKindChoices.includes(JSON.stringify(template.scope_kinds)))
+    )
+      throw new Error(
+        "Staff templates from 0027 declare reviewed scope kinds; earlier templates are hospital-only",
+      );
+    if (
+      scopeAware &&
+      (template.scope_kinds.includes("department") || departmentReviewer.test(template.key ?? "")) &&
+      !(
+        departmentReviewer.test(template.key ?? "") &&
+        JSON.stringify(template.scope_kinds) === JSON.stringify(["department"])
+      )
+    )
+      throw new Error("Only the reviewed department template declares department scope, alone");
     if (template?.family === "posting") {
-      const kind = template.key?.match(
-        /^workforce\.posting_(reader|preparer|submitter|reviewer|management_reviewer)\.v[1-9][0-9]*$/,
-      )?.[1];
+      const kind = departmentReviewer.test(template.key ?? "")
+        ? "reviewer"
+        : template.key?.match(
+            /^workforce\.posting_(reader|preparer|submitter|reviewer|management_reviewer)\.v[1-9][0-9]*$/,
+          )?.[1];
       const permissions = {
         management_reviewer: ["workforce.posting.management.review", "workforce.staff_actor.use"],
         reader: ["workforce.posting.read", "workforce.staff_actor.use"],
@@ -92,8 +121,8 @@ for (const migration of migrations) {
       throw new Error("Employment activators require only the declared activation permission");
     if (
       !template ||
-      Object.keys(template).length !== templateFields.length ||
-      !templateFields.every((field) => Object.hasOwn(template, field)) ||
+      Object.keys(template).length !== declaredFields.length ||
+      !declaredFields.every((field) => Object.hasOwn(template, field)) ||
       typeof template.key !== "string" ||
       template.key.length > templateLimits.key ||
       !/^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key) ||
@@ -121,7 +150,7 @@ for (const migration of migrations) {
       throw new Error("Invalid declared staff access template");
     keys.add(template.key);
     introducedDefinitions.push(
-      Object.fromEntries(templateFields.map((field) => [field, template[field]])),
+      Object.fromEntries(declaredFields.map((field) => [field, template[field]])),
     );
   }
   if (
@@ -175,7 +204,14 @@ SET LOCAL statement_timeout='60s';
 CREATE OR REPLACE FUNCTION iam_assignment_template_permissions(key text) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
  SELECT CASE key ${introduced.map((template) => "WHEN " + quote(template.key) + " THEN " + quote(JSON.stringify(template.permissions)) + "::jsonb").join(" ")} ELSE NULL::jsonb END
 $$;
-`;
+${
+  Number.parseInt(migration.id.slice(0, 4), 10) < scopeKindsFrom
+    ? ""
+    : `CREATE OR REPLACE FUNCTION iam_assignment_template_scope_kinds(key text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+ SELECT CASE key ${introduced.map((template) => "WHEN " + quote(template.key) + " THEN ARRAY[" + scopeKinds(template).map(quote).join(",") + "]::text[]").join(" ")} ELSE NULL::text[] END
+$$;
+`
+}`;
   if (createHash("sha256").update(sql).digest("hex") !== migration.sql_sha256)
     throw new Error(`Immutable staff template migration digest changed: ${migration.id}`);
   templateSQL.push([`backend/internal/modules/iam/${migration.file}`, sql]);
@@ -238,6 +274,18 @@ for (const [module, name, source, filename] of [
     "assignment_projection_generated.go",
   ],
   ["workforce", "AssignmentScopeVerifiedData", "ScopeResult", "assignment_scope_generated.go"],
+  [
+    "iam",
+    "AssignmentDepartmentScopeRequestedData",
+    "DepartmentScopeRequest",
+    "assignment_department_scope_generated.go",
+  ],
+  [
+    "organization",
+    "AssignmentDepartmentVerifiedData",
+    "DepartmentScopeResult",
+    "assignment_department_generated.go",
+  ],
 ]) {
   const file = path.join(root, `backend/internal/modules/${module}/contract/${filename}`);
   const code =
@@ -256,10 +304,11 @@ async function writeTemplateArtifact(relative, content) {
       throw new Error(`Generated staff templates drift: ${relative}`);
   } else await writeFile(file, content);
 }
-const definitions = templates
+const published = templates.map((template) => ({ ...template, scope_kinds: scopeKinds(template) }));
+const definitions = published
   .map(
     (template) =>
-      `{Key:${JSON.stringify(template.key)},Name:${JSON.stringify(template.name)},Description:${JSON.stringify(template.description)},Family:${JSON.stringify(template.family)},Permissions:[]string{${template.permissions.map((p) => JSON.stringify(p)).join(",")}}}`,
+      `{Key:${JSON.stringify(template.key)},Name:${JSON.stringify(template.name)},Description:${JSON.stringify(template.description)},Family:${JSON.stringify(template.family)},Permissions:[]string{${template.permissions.map((p) => JSON.stringify(p)).join(",")}},ScopeKinds:[]string{${template.scope_kinds.map((kind) => JSON.stringify(kind)).join(",")}}}`,
   )
   .join(",");
 const catalogCases = catalogs
@@ -295,7 +344,7 @@ await writeTemplateArtifact(
 );
 const ts =
   "// Generated by scripts/generate-staff-access.mjs.\nexport const staffAccessTemplates=" +
-  JSON.stringify(templates) +
+  JSON.stringify(published) +
   " as const;\nexport const staffAccessTemplateCatalogs=" +
   JSON.stringify(
     Object.fromEntries(catalogs.map((catalog) => [catalog.key, catalog.template_keys])),

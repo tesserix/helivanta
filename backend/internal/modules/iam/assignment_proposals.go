@@ -55,6 +55,12 @@ var staffPostingReviewTemplatesSchema string
 //go:embed assignment_posting_management_templates_generated.sql
 var staffPostingManagementTemplatesSchema string
 
+//go:embed assignment_department_posting_review_templates_generated.sql
+var departmentPostingReviewTemplatesSchema string
+
+//go:embed assignment_department_scope.sql
+var departmentAssignmentScopeSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`

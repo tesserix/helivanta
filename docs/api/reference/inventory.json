@@ -504,6 +504,18 @@
           "id": "0026_iam_staff_posting_management_templates",
           "sql_sha256": "6ca5f9f1f92d8a4c7c8e35facff0f6e13cdd4ebdb7e58d3fa1d108fe57e161e3",
           "creates_tables": []
+        },
+        {
+          "id": "0027_iam_department_posting_review_templates",
+          "sql_sha256": "127681068ee058a3e033b7f65e03c6c9dab4e3da63ad0ff2dc333047e82751c2",
+          "creates_tables": []
+        },
+        {
+          "id": "0028_iam_department_assignment_scope",
+          "sql_sha256": "f4a61ffe831a51c1db9855d3bf6dbb0a9730a828aa4e01a8f0eba56e7e0c4603",
+          "creates_tables": [
+            "iam_assignment_department_verifications"
+          ]
         }
       ]
     },

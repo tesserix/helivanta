@@ -224,6 +224,17 @@ The root-approval consumer, supervision/lifecycle enforcement and authenticated
 reviewer UI acceptance remain separate increments. This catalog-only change adds
 no route, event, Workforce migration or activation behavior.
 
+The normal Staff access page requests these closed catalogs through Global API,
+verifies exact definitions and permission sets, and offers only templates from
+the newest supported catalog. An unavailable or malformed management catalog
+falls back to a verified independent-review/preparation catalog; unverified new
+roles are absent. The area is labelled “Staff posting access”. A retained renewal
+whose template loses catalog confirmation cannot submit or retry until its exact
+catalog is restored; restoration preserves the same command ID and payload.
+Catalog metadata and UI gating never replace server authorization or independent
+assignment approval. Real-account acceptance remains pending; component checks
+are not end-to-end approval evidence.
+
 ## Deployed proposal submissions and readiness
 
 The #1544 release implements the following suffixes below

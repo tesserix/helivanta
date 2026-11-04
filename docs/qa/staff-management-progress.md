@@ -1,5 +1,37 @@
 # Staff Management delivery tracker
 
+## Verified posting assignment choices — 2026-11-04
+
+Catalog PR [#1563](https://github.com/tesserix/helivanta/pull/1563) now includes the
+normal Staff access role chooser. A regression proved the old form offered
+submitter/reviewer templates after verifying only the preparation catalog. The
+fixed form intersects choices with exact verified catalogs, supports the new
+management template, falls back safely to older supported roles and blocks a
+retained management renewal retry until its exact catalog returns. Its immutable
+command is preserved through that refresh/retry journey. This does not establish
+navigation-loss or real-account acceptance.
+
+Focused access-page checks pass **46/46**; the full Node 24 shell suite passes
+**1,490 tests / 181 files**, with types and scoped lint. A Webpack production build
+passes with the canonical public OIDC and Global API build configuration; no
+product build configuration was changed. The first missing-API_URL build failed
+before compilation and is not counted as acceptance. SDK **635/78**, generator
+mutation/compatibility **53/53**, Go build/vet/lint and canonical inventory checks
+also pass. Classified source pins retain their authority classifications.
+
+The root increment is committed/pushed separately as `ec49d203`. Its full native
+race suites pass: IAM **459.661s**, Workforce **542.081s**, Global API **454.577s**.
+The first Global API run exposed cancelled cleanup contexts and two synthetic
+departments without cleanup; the corrected run retains exact pagination and
+retirement assertions. Root approval includes stale commands and management
+context/evidence/audit/outbox rollback. Concurrent/source-race and real-account
+reviewer acceptance, supervisor chains and lifecycle consumers remain open.
+
+#1563 stays draft until its expanded UI revision has passed checks. The previously
+approved guard `09e0f49c` remains the verified production revision. No candidate
+0026/0079/0080 migration or root consumer is deployed. Overall counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Guard deployed; management catalog isolated — 2026-11-04
 
 The five-file scoped-command guard [#1561](https://github.com/tesserix/helivanta/pull/1561)

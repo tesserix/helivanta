@@ -73,8 +73,13 @@ export function AssignmentProposalForm({
   onClose,
   onSaved,
   family = "leave",
+  templateKeys,
   renewal,
-}: FormProps & { family?: StaffAssignmentFamily; renewal?: StaffAssignment }) {
+}: FormProps & {
+  family?: StaffAssignmentFamily;
+  templateKeys: readonly string[];
+  renewal?: StaffAssignment;
+}) {
   const [id] = useState(() => newStaffAssignmentId());
   const [submitted, setSubmitted] = useState<StaffAssignmentInput | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -100,6 +105,12 @@ export function AssignmentProposalForm({
   }));
   const form = useZodForm(
     proposalForm.superRefine((value, ctx) => {
+      if (!templateKeys.includes(value.template_key))
+        ctx.addIssue({
+          code: "custom",
+          path: ["template_key"],
+          message: "This access template is not confirmed by the current server catalog.",
+        });
       if (renewal && value.reason.length + renewalPrefix.length > 500)
         ctx.addIssue({
           code: "custom",
@@ -117,6 +128,9 @@ export function AssignmentProposalForm({
       suppressErrorToast: true,
     },
   );
+  const templateSupported = templateKeys.includes(
+    submitted?.template_key ?? form.watch("template_key"),
+  );
   const managers = hospitals.data?.data.filter((h) => h.access_level === "manager") ?? [];
   return (
     <form
@@ -131,6 +145,12 @@ export function AssignmentProposalForm({
           valid_from: new Date(values.valid_from).toISOString(),
           expires_at: new Date(values.expires_at).toISOString(),
         };
+        if (!templateKeys.includes(command.template_key)) {
+          form.setError("template_key", {
+            message: "This access template is not confirmed by the current server catalog.",
+          });
+          return;
+        }
         setSubmitted(command);
         save.mutate(command);
       })}
@@ -152,7 +172,7 @@ export function AssignmentProposalForm({
         label="Access template"
         disabled={!!submitted || !!renewal}
         options={staffAccessTemplates
-          .filter((template) => template.family === family)
+          .filter((template) => template.family === family && templateKeys.includes(template.key))
           .map((template) => ({ value: template.key, label: template.name }))}
       />
       {renewal ? (
@@ -268,11 +288,21 @@ export function AssignmentProposalForm({
           {...form.register("reason")}
         />
       </Field>
+      {!templateSupported && (
+        <p role="alert">
+          This access template is unavailable. Refresh its verified catalog before submitting or
+          retrying.
+        </p>
+      )}
       {save.isError && <p role="alert">{failure(save.error)}</p>}
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
-          disabled={save.isPending || (!renewal && (hospitals.isPending || hospitals.isError))}
+          disabled={
+            !templateSupported ||
+            save.isPending ||
+            (!renewal && (hospitals.isPending || hospitals.isError))
+          }
         >
           {save.isPending
             ? "Saving…"

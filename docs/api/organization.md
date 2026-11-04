@@ -167,3 +167,25 @@ identity invalidation, invalid queries and atomic audit failure. No production
 rollout or normal positive-role browser acceptance is implied; the
 [tracker](../qa/staff-management-progress.md) records remaining scoped draft,
 discovery and UI work.
+
+## Internal current-ancestry source guard (candidate)
+
+The optional `AncestorID`/`AncestorRevision` pair on
+`authz.DepartmentReference` constrains the existing guarded source callback.
+Both absent retains direct-reference behavior; a partial or invalid pair denies.
+Organization validates exact active child and ancestor revisions in the same
+verified tenant/hospital, and a current active path reaching the actual root.
+The path must contain the requested ancestor within the owner's eight-level
+limit. Hidden, retired, incomplete, cyclic, sibling and upward paths deny.
+
+The existing hospital structural gate and stable-order row SHARE locks remain
+held through the outer command's commit or rollback. This prevents an intermediate
+move from changing a previously checked path before the consumer commits, even
+when the leaf's own revision is unchanged. Organization remains the tree owner;
+references do not grant a permission or establish a managerial appointment.
+Current Workforce callers omit the pair and retain their existing behavior.
+No HTTP contract, event, permission, migration or OpenFGA model changes here.
+
+The proposed [managerial supervision design](../adr/0053-reviewed-managerial-posting-supervision.md)
+records the subsequent approval/lifecycle work. This candidate source guard is
+not positive posting approval, departmental access or full Staff acceptance.

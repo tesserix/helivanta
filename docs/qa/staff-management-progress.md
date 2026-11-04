@@ -4916,3 +4916,57 @@ still being completed before real-account browser acceptance. Positive approval,
 supervision, transfers, contractors, suspension, exit/rehire and departmental/Pharma
 operating consumers remain open. Overall counts remain 10 partial, 10 awaiting
 audit, 1 research, 0 fully accepted; the candidate stays draft and undeployed.
+
+## Managerial supervision: ancestry prerequisite — 2026-11-04
+
+Candidate `codex/posting-supervision-sources-20261104` adds an optional exact
+ancestor source constraint to Organization's existing guarded callback. Same
+active department/current ancestor paths pass; stale, sibling, upward, retired,
+foreign-hospital and partial references deny. The eight-level owner bound is
+retained. Stable-order SHARE locks and the hospital structural gate survive the
+source callback until outer commit/rollback; a public intermediate move waits
+and a later command sees the committed change even with an unchanged leaf.
+Existing Workforce callers omit the pair and keep their current behavior.
+
+Real RED→GREEN source checks passed. Three deliberate mutations were caught:
+removing ancestry denial admits sibling/upward scope; removing row SHARE locks
+admits competing writes; removing the hospital gate allows a public intermediate
+move before outer commit. Exact original source was restored and SHA256 checked
+after every mutation. Full restored-source race suites pass: Organization
+125.467s, authorization 11.035s and architecture 103.945s. Vet, full Go build,
+scoped lint (zero issues), gofmt and contractdocs check pass with cached tooling.
+Existing Workforce posting race checks also pass in 16.759s. CI correctly caught
+the changed guard source pin; both callers were reviewed and its hash/rationale
+updated without changing classifications. All 15 inventory tests and regenerated
+checks pass: 797 registered surfaces /774 still unclassified.
+No dependencies or images were downloaded; only exact-session fixtures were
+removed after private state capture.
+
+A real 5,000-node hospital with an eight-level chain uses two primary-key probes
+(seed and recursive parent), returning eight ancestry rows. The standalone
+fixture measured planning 0.329ms / execution 0.168ms after normal PostgreSQL
+auto-analysis. Cold fixture statistics initially selected sequential scans;
+normal-statistics fixture warmup is bounded at 90 seconds. This is plan evidence,
+not throughput/SLO acceptance or a planner override. No elevated application role
+or new WithAdmin allowlist entry was added.
+
+See [ADR-0053](../adr/0053-reviewed-managerial-posting-supervision.md) and the
+[owner boundary](../api/organization.md). Preserve #1546's legitimate HR
+reporting-line Leave consumer. This slice changes no route, event, permission,
+OpenFGA model or migration and is not yet merged/deployed. Positive root and
+descendant approval, operational lifecycle/transfer enforcement, normal-role
+browser acceptance and departmental/Pharma consumers remain open. Full Staff
+counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+Additional integration evidence: generic Global API authority passes in 9.687s.
+The first extended person-to-posting run failed in 402.417s: the existing bounded
+employment evidence-transfer test expected 200 for an admitted download but got
+503 after its storage barrier. All posting-specific cases passed. The unchanged
+isolated transfer scenario passes (35.399s package, 0.75s scenario), including four
+admitted transfers and rejection of the fifth while occupied. Timing sensitivity
+is indicated, but the cause is not established. No deadline, assertion or source
+was changed. The complete unchanged-source journey rerun passed in 407.358s
+(wall 416.5s), including all posting and employment transfer cases. Three exact
+session-owned fixtures were captured and removed; temporary forwards were
+released. The initial failure is retained alongside the isolated and full rerun
+results; this does not establish the cause or complete Staff acceptance.

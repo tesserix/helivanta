@@ -16,6 +16,7 @@ var (
 type DepartmentReference struct {
 	TenantID                                     string
 	HospitalID, DepartmentID, DepartmentRevision uuid.UUID
+	AncestorID, AncestorRevision                 uuid.UUID
 }
 
 // DepartmentReferenceGuard holds the current owner source through a guarded command.

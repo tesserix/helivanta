@@ -103,3 +103,29 @@ or release tag is claimed. Actual department/Pharma operating guards, credential
 unit specialization, standalone-employer decisions and all five reusable Staff
 requirements remain open. Counts remain10 partial,10 awaiting audit,1 research,
 0 fully accepted.
+
+## Published owner increment and UI follow-up
+
+Owner/API/SDK source is committed as `e1fd098f` in draft
+[PR#1578](https://github.com/tesserix/helivanta/pull/1578), stacked on #1577.
+The following UI source is on `codex/posting-lifecycle-history-ui-20261105`.
+Approved proposals use a distinct history query, preserve rationale and display
+source/reviewer references in expandable details. Pending approval/replay remains
+unchanged. Access rechecks hide retained evidence while pending or unavailable;
+403 clears it and account switches abort in-flight responses.
+
+The precise-time UI regression fails when JavaScript Date drops microseconds.
+A shared UTC formatter now preserves the owner's six-digit fractional precision
+in history, current lifecycle review and proposal interval display. Final focused
+reviewer tests pass **60 /17.83s** and scoped API/UI/shell web checks pass
+**9 /31.343s**. The final production Webpack build, using the existing fixture
+sign-in client and Global API8198, passes. The earlier complete shell run passes
+**1,553 /183 files /377.54s**, before the added precise-time test; the final
+complete shell run is still live and no final result is inferred from that
+previous run. Final architecture passes **84.921s**. Exact final full Workforce
+and Global API runs remain live.
+
+The existing UI1846565c remains served from the cached immutable artifact;
+neither candidate activation nor normal-role browser acceptance is claimed yet.
+All five parent requirements and the owner/consumer/standalone release gates
+remain open. No production actions occurred.

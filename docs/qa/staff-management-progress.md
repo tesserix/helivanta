@@ -15,6 +15,9 @@ or unavailable access. See the
 [history plan](../superpowers/plans/2026-11-05-posting-lifecycle-history.md) and
 [ADR-0059](../adr/0059-retained-posting-lifecycle-history.md).
 
+Owner/API/SDK code is pushed as `e1fd098f`, draft
+[PR#1578](https://github.com/tesserix/helivanta/pull/1578); the UI follows separately.
+
 Expanded real Global API history coverage passes117.648s; SDK **737 /81 files**;
 reviewer UI **59 /12.04s**; scoped web checks **9 /19.994s**. Full/final verification
 is still running and will be recorded in the plan. The candidate is not yet

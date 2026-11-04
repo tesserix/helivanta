@@ -2564,3 +2564,260 @@ it("aborts an in-flight lifecycle approval and clears its private intent on revi
   expect(screen.queryByText("Posting proposal approved.")).not.toBeInTheDocument();
   expect(screen.queryByText("Synthetic Supervisor")).not.toBeInTheDocument();
 });
+
+function approvedHistoryResponse() {
+  const approved = {
+    ...proposal,
+    version: 2,
+    revision_id: id(301),
+    command_id: id(302),
+    status: "approved",
+    recorded_at: "2026-11-03T03:00:00Z",
+  };
+  return {
+    context: {
+      ...context,
+      proposal: approved,
+      decision_reason: "Synthetic independent historical approval",
+    },
+    supervision: { kind: "hospital_management" },
+    review: {
+      revision_id: approved.revision_id,
+      initial_revision_id: proposal.revision_id,
+      reviewer_staff_id: id(303),
+      reviewer_link_id: id(304),
+      reviewer_generation_id: id(305),
+      review_assignment_id: id(306),
+      review_assignment_version: 2,
+      scope_epoch: 1,
+      membership_epoch: 2,
+      support_permission: "workforce.posting.management.review",
+      support_assignment_id: id(307),
+      support_assignment_version: 3,
+      checked_at: "2026-11-03T02:00:00Z",
+      effective_until: "2026-11-05T00:00:00Z",
+      source_count: 1,
+      sources: [
+        {
+          hop: 0,
+          staff_id: staff,
+          proposal_id: proposal.id,
+          revision_id: proposal.revision_id,
+          cutoff: { id: null, version: 0, cutoff_at: null },
+        },
+      ],
+    },
+  };
+}
+
+function approvedHistoryFetcher(
+  onRecord: (signal?: AbortSignal | null) => Response | Promise<Response>,
+  history = approvedHistoryResponse(),
+) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("posting-review-scopes"))
+      return Response.json({
+        data: [
+          {
+            hospital_id: hospital,
+            name: "Synthetic Hospital",
+            can_review: true,
+            can_submit: false,
+          },
+        ],
+        page: { has_more: false, next_cursor: null },
+      });
+    if (url.includes("posting-proposal-inbox"))
+      return Response.json({
+        data: url.includes("status=approved")
+          ? [
+              {
+                staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+                is_submitter: false,
+                proposal: history.context.proposal,
+              },
+            ]
+          : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    if (url.includes("/context"))
+      return new URL(url, "http://localhost").searchParams.get("lifecycle_review") === "recorded"
+        ? onRecord(init?.signal)
+        : postingContextResponse(url, history.context, history.supervision);
+    throw new Error(`Unexpected history request: ${url}`);
+  });
+}
+async function openApprovedHistory(changed = vi.fn(), ui?: ReactElement) {
+  const view = renderReview(
+    ui ?? <StaffPostingReviewWorkspace scope={scope} onContextChanged={changed} />,
+  );
+  await view.user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await view.user.click(screen.getByRole("combobox", { name: "Proposal status" }));
+  await view.user.click(await screen.findByRole("option", { name: "Approved" }));
+  await view.user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  return { ...view, changed };
+}
+
+it("shows retained approval observations after their deadline without presenting operating authority", async () => {
+  vi.setSystemTime(new Date("2026-11-06T00:00:00Z"));
+  const history = approvedHistoryResponse();
+  const fetcher = approvedHistoryFetcher(() => Response.json(history));
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={vi.fn()} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await user.click(screen.getByRole("combobox", { name: "Proposal status" }));
+  await user.click(await screen.findByRole("option", { name: "Approved" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  const retained = await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  expect(within(retained).getByText("2026-11-05T00:00:00.000Z")).toBeInTheDocument();
+  expect(
+    within(retained).getByText(/does not establish current operating authority/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Synthetic independent historical approval")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Approve posting proposal" }),
+  ).not.toBeInTheDocument();
+  expect(
+    fetcher.mock.calls.some(([url]) => String(url).includes("lifecycle_review=recorded")),
+  ).toBe(true);
+});
+
+it("shows unavailable historical proof explicitly without requesting current observations", async () => {
+  const history = approvedHistoryResponse();
+  const fetcher = approvedHistoryFetcher(() => Response.json({ ...history, review: null }));
+  vi.stubGlobal("fetch", fetcher);
+  await openApprovedHistory();
+  const retained = await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  expect(
+    within(retained).getByText(/No retained lifecycle proof is available/),
+  ).toBeInTheDocument();
+  expect(
+    within(retained).queryByRole("list", { name: "Sources retained at approval" }),
+  ).not.toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => String(url).includes("lifecycle_review=current"))).toBe(
+    false,
+  );
+});
+
+it("withholds cached approval history when current access cannot be rechecked", async () => {
+  let reads = 0;
+  const history = approvedHistoryResponse();
+  vi.stubGlobal(
+    "fetch",
+    approvedHistoryFetcher(() =>
+      ++reads === 1
+        ? Response.json(history)
+        : Response.json(
+            { error: "unavailable", message: "Current authority unavailable" },
+            { status: 503 },
+          ),
+    ),
+  );
+  const view = await openApprovedHistory();
+  await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  await view.user.click(screen.getByRole("button", { name: "Recheck history access" }));
+  await screen.findByText(/The retained approval history could not be verified/);
+  expect(screen.queryByText("Synthetic independent historical approval")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Retained lifecycle approval" }),
+  ).not.toBeInTheDocument();
+  expect(view.changed).not.toHaveBeenCalled();
+});
+
+it("clears retained approval evidence when the reviewer loses current access", async () => {
+  let reads = 0;
+  const history = approvedHistoryResponse();
+  vi.stubGlobal(
+    "fetch",
+    approvedHistoryFetcher(() =>
+      ++reads === 1
+        ? Response.json(history)
+        : Response.json(
+            { error: "forbidden", message: "Current review access ended" },
+            { status: 403 },
+          ),
+    ),
+  );
+  const view = await openApprovedHistory();
+  await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  await view.user.click(screen.getByRole("button", { name: "Recheck history access" }));
+  await waitFor(() => expect(view.changed).toHaveBeenCalled());
+  expect(screen.queryByText("Synthetic independent historical approval")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Retained lifecycle approval" }),
+  ).not.toBeInTheDocument();
+});
+
+it("aborts an in-flight historical disclosure when the account changes", async () => {
+  let release!: (response: Response) => void;
+  let originalSignal: AbortSignal | null | undefined;
+  let switched = false;
+  const history = approvedHistoryResponse();
+  const original = approvedHistoryFetcher((signal) => {
+    originalSignal = signal;
+    return new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+      switched
+        ? Promise.resolve(Response.json({ data: [], page: { has_more: false, next_cursor: null } }))
+        : original(input, init),
+    ),
+  );
+  const changed = vi.fn();
+  function HistoryAccountHarness() {
+    const [subject, setSubject] = useState(scope.subject);
+    return (
+      <>
+        <button
+          onClick={() => {
+            switched = true;
+            setSubject("synthetic-next-reviewer");
+          }}
+        >
+          Change history account
+        </button>
+        <StaffPostingReviewWorkspace scope={{ ...scope, subject }} onContextChanged={changed} />
+      </>
+    );
+  }
+  const view = await openApprovedHistory(changed, <HistoryAccountHarness />);
+  await waitFor(() => expect(originalSignal).toBeDefined());
+  await view.user.click(screen.getByRole("button", { name: "Change history account" }));
+  await waitFor(() => expect(originalSignal?.aborted).toBe(true));
+  await act(async () => release(Response.json(history)));
+  await screen.findByText("No approved posting review hospitals on this page.");
+  expect(screen.queryByText("Synthetic independent historical approval")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Retained lifecycle approval" }),
+  ).not.toBeInTheDocument();
+});
+
+it("preserves the original microsecond timestamps in retained approval evidence", async () => {
+  const history = approvedHistoryResponse();
+  history.review.checked_at = "2026-11-03T02:00:00.123456Z";
+  history.review.effective_until = "2026-11-04T23:59:59.987654Z";
+  history.context.proposal.eligibility_until = history.review.effective_until;
+  vi.stubGlobal(
+    "fetch",
+    approvedHistoryFetcher(() => Response.json(history), history),
+  );
+  await openApprovedHistory();
+  const retained = await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  expect(within(retained).getByText("2026-11-03T02:00:00.123456Z")).toBeInTheDocument();
+  expect(within(retained).getByText("2026-11-04T23:59:59.987654Z")).toBeInTheDocument();
+});

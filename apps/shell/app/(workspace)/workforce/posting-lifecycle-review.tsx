@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPostingUtc } from "./posting-time";
 import { Panel } from "@helivanta/ui";
 import type { StaffPostingLifecycleReviewContext } from "@helivanta/api";
 
@@ -13,21 +14,21 @@ export function PostingLifecycleReview({
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground">Effective responsibility ends (UTC)</dt>
-          <dd className="font-semibold">{new Date(context.effective_until).toISOString()}</dd>
+          <dd className="font-semibold">{formatPostingUtc(context.effective_until)}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Sources checked (UTC)</dt>
-          <dd>{new Date(context.checked_at).toISOString()}</dd>
+          <dd>{formatPostingUtc(context.checked_at)}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Proposed source limit (UTC)</dt>
-          <dd>{new Date(context.context.proposal.eligibility_until).toISOString()}</dd>
+          <dd>{formatPostingUtc(context.context.proposal.eligibility_until)}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Proposed placement ends (UTC)</dt>
           <dd>
             {context.context.proposal.ends_at
-              ? new Date(context.context.proposal.ends_at).toISOString()
+              ? formatPostingUtc(context.context.proposal.ends_at)
               : "Ongoing"}
           </dd>
         </div>
@@ -40,7 +41,7 @@ export function PostingLifecycleReview({
         Proposed posting:{" "}
         {context.cutoff.version === 0
           ? "No retained cutoff at this check."
-          : new Date(context.cutoff.cutoff_at!).toISOString()}
+          : formatPostingUtc(context.cutoff.cutoff_at!)}
       </p>
       {context.chain.length > 0 && (
         <section aria-label="Current supervisor chain" className="space-y-3">
@@ -61,20 +62,20 @@ export function PostingLifecycleReview({
                   <div>
                     <dt className="text-muted-foreground">Placement (UTC)</dt>
                     <dd>
-                      {new Date(posting.starts_at).toISOString()} ·{" "}
-                      {posting.ends_at ? new Date(posting.ends_at).toISOString() : "Ongoing"}
+                      {formatPostingUtc(posting.starts_at)} ·{" "}
+                      {posting.ends_at ? formatPostingUtc(posting.ends_at) : "Ongoing"}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Employment/source limit (UTC)</dt>
-                    <dd>{new Date(posting.eligibility_until).toISOString()}</dd>
+                    <dd>{formatPostingUtc(posting.eligibility_until)}</dd>
                   </div>
                   <div className="sm:col-span-2">
                     <dt className="text-muted-foreground">Retained ending (UTC)</dt>
                     <dd>
                       {cutoff.version === 0
                         ? "No retained cutoff at this check."
-                        : `${new Date(cutoff.cutoff_at!).toISOString()} · Version ${cutoff.version}`}
+                        : `${formatPostingUtc(cutoff.cutoff_at!)} · Version ${cutoff.version}`}
                     </dd>
                   </div>
                 </dl>

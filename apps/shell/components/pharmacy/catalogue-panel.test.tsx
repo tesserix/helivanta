@@ -73,6 +73,9 @@ function mockCatalogue({ missing = "" } = {}) {
       return new Response(JSON.stringify(counted([1, 2, 3].map(product))));
     if (url.endsWith("/revisions") || url.endsWith("/tax-classifications"))
       return new Response(JSON.stringify(plain([])));
+    // A product's category (#988): none approved yet.
+    if (url.endsWith("/category"))
+      return new Response(JSON.stringify({ in_force: null, history: [] }));
     if (url.endsWith("/price-control"))
       return new Response(
         JSON.stringify({

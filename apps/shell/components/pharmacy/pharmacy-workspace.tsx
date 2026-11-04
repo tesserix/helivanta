@@ -446,6 +446,8 @@ function OutletPharmacy({
           canManageTax={access.data?.level === "editor" && can("pharmacy.tax.manage")}
           canDeclarePrice={access.data?.level === "editor" && can("pharmacy.price_control.declare")}
           canReviewPrice={access.data?.level === "editor" && can("pharmacy.price_control.review")}
+          canDeclareCategory={access.data?.level === "editor" && can("pharmacy.category.declare")}
+          canReviewCategory={access.data?.level === "editor" && can("pharmacy.category.review")}
         />
       ) : view === "stock" ? (
         <StockRegister scope={scope} timeZone={outlet.timezone} />

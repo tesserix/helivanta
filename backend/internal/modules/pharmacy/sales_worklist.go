@@ -230,26 +230,26 @@ func (h *catalogueHandlers) getSaleSummary(c *gin.Context) {
 		return
 	}
 	var s saleSummary
-	// One snapshot for every read, so a return posted meanwhile is wholly in
-	// or wholly out and the statement's identities hold in the response, not
-	// only in the database. The snapshot needs no lock on the grant; it is
-	// writable only for the read's own audit row.
-	err := h.db.WithTenantRecordedSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+	// One read-only snapshot for every read, so a return posted meanwhile is
+	// wholly in or wholly out and the statement's identities hold in the
+	// response, not only in the database. A snapshot needs no lock on the grant.
+	err := h.db.WithTenantSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 		if _, err := outletAccess(tx, p, outlet, pharmacy, false); err != nil {
 			return err
 		}
 		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
 			return err
 		}
-		if err := loadSaleSummary(tx, p.TenantID, outlet, id, &s); err != nil {
-			return err
-		}
-		if s.Customer != "admission" {
-			return nil
-		}
-		// The bed code points to its occupant: recorded in the same snapshot (#1555).
-		return auditRegisterRead(c, tx, "sale", p.TenantID, p.Subject, id, "summary_read")
+		return loadSaleSummary(tx, p.TenantID, outlet, id, &s)
 	})
+	if err == nil && s.Customer == "admission" {
+		// The bed code points to its occupant (#1555). Recorded in its own
+		// transaction, with the outlet grant checked again, after the snapshot
+		// and before anything is sent: no record, no data.
+		err = h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+			return auditRegisterRead(c, tx, "sale", p.TenantID, p.Subject, id, "summary_read")
+		})
+	}
 	if err != nil {
 		stockError(c, err)
 		return

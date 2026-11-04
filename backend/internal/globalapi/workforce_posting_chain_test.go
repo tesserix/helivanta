@@ -77,5 +77,5 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	require.Equal(t, approved, call(t, "PUT", path, reviewer, decision, 200))
 	require.Equal(t, approved, call(t, "GET", path, reviewer, nil, 200))
 	require.Equal(t, []any{approved, pending}, call(t, "GET", childRoot+"/history?limit=2", reviewer, nil, 200)["data"])
-	assertPostingDepartmentMember(t, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, organizationMaker, approved)
+	assertPostingDepartmentMember(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, organizationMaker, approved)
 }

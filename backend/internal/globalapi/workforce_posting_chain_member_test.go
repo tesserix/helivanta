@@ -5,9 +5,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertPostingDepartmentMember(t *testing.T, call func(*testing.T, string, string, string, any, int) map[string]any, hospitalBase, reviewer, memberSubject, memberStaff, organizationMaker string, supervisor map[string]any) {
+func assertPostingDepartmentMember(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, hospitalBase, reviewer, memberSubject, memberStaff, organizationMaker string, supervisor map[string]any) {
 	t.Helper()
 	require.NotEmpty(t, memberStaff)
 	hospital := supervisor["hospital_id"].(string)
@@ -36,4 +37,25 @@ func assertPostingDepartmentMember(t *testing.T, call func(*testing.T, string, s
 	require.Equal(t, approved, call(t, "PUT", path, reviewer, decision, 200))
 	require.Equal(t, approved, call(t, "GET", path, reviewer, nil, 200))
 	require.Equal(t, []any{approved, pending}, call(t, "GET", root+"/history?limit=2", reviewer, nil, 200)["data"])
+	sibling := uuid.Must(uuid.NewV7()).String()
+	siblingInput := map[string]any{"expected_version": 0, "code": "SYN-CHAIN-SIBLING", "name": "Synthetic unrelated department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic sibling must not inherit supervisory coverage"}
+	siblingDeclaration := call(t, "PUT", organizationBase+"/departments/"+sibling+"/revisions/"+uuid.Must(uuid.NewV7()).String(), organizationMaker, siblingInput, 200)
+	t.Cleanup(func() {
+		siblingInput["expected_version"], siblingInput["status"] = 1, "retired"
+		call(t, "PUT", organizationBase+"/departments/"+sibling+"/revisions/"+uuid.Must(uuid.NewV7()).String(), organizationMaker, siblingInput, 200)
+	})
+	siblingDraft := uuid.Must(uuid.NewV7()).String()
+	siblingReceipt := call(t, "PUT", base+"/posting-drafts/"+siblingDraft+"/commands/"+uuid.Must(uuid.NewV7()).String(), memberSubject, map[string]any{"expected_version": 0, "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "department_id": sibling, "department_revision_id": siblingDeclaration["revision_id"], "starts_at": supervisor["starts_at"], "ends_at": supervisor["ends_at"], "reason": "Synthetic unrelated placement with otherwise current sources"}, 200)
+	siblingRoot := base + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String()
+	siblingPending := call(t, "PUT", siblingRoot+"/commands/"+uuid.Must(uuid.NewV7()).String(), memberSubject, map[string]any{"expected_version": 0, "draft_id": siblingDraft, "draft_revision_id": siblingReceipt["revision_id"], "draft_version": siblingReceipt["version"], "generation_id": source["generation_id"], "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "reason": "Synthetic member proposal names a supervisor from a sibling department", "sources_examined": true, "supervision": map[string]any{"kind": "department_member", "supervisor_staff_id": supervisor["staff_id"], "supervisor_proposal_id": supervisor["id"], "supervisor_revision_id": supervisor["revision_id"]}}, 200)
+	siblingPath := siblingRoot + "/decisions/" + uuid.Must(uuid.NewV7()).String()
+	before := postingRootApprovalEffects(t, db, tenant, reviewer)
+	denied := call(t, "PUT", siblingPath, reviewer, map[string]any{"expected_version": 1, "expected_revision_id": siblingPending["revision_id"], "decision": "approve", "reason": "A department supervisor cannot cover an unrelated sibling", "sources_examined": true}, 409)
+	require.Equal(t, "posting_proposal_conflict", denied["error"])
+	require.Equal(t, before, postingRootApprovalEffects(t, db, tenant, reviewer))
+	require.Equal(t, siblingPending, call(t, "GET", siblingRoot, reviewer, nil, 200))
+	call(t, "GET", siblingPath, reviewer, nil, 404)
+	rejected := call(t, "PUT", siblingRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, map[string]any{"expected_version": 1, "expected_revision_id": siblingPending["revision_id"], "decision": "reject", "reason": "Independent rejection of the synthetic wrong-department proposal", "sources_examined": true}, 200)
+	require.Equal(t, "rejected", rejected["status"])
+
 }

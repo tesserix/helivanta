@@ -1,5 +1,37 @@
 # Staff Management delivery tracker
 
+## Supervisor-chain scope and regression proof — 2026-11-04
+
+Draft [#1567](https://github.com/tesserix/helivanta/pull/1567) is the bounded
+supervisor-chain increment on top of root draft #1565. The full native Workforce
+race suite passes in **565.673s** with a 20-minute process envelope (643 tests and
+subtests reported passing). No business deadline or assertion changed.
+Root #1565 exact head `f6471952` has all CI checks green; it remains draft pending
+independent-account positive reviewer UI acceptance.
+
+A real sibling-department test caught a deliberate removal of the ancestry
+constraint: a wrong-department placement returned approved 200 instead of 409.
+The guard was restored byte for byte (SHA256
+`3d71e52a8200f8a02210efadcc92360873928e5053614121d427a1681f08bdba`).
+The restored seven-scenario root/child/old-command/source/membership set passes
+with the race detector in **137.915s**, including sibling refusal without receipt
+or committed approval effects and independent rejection. Earlier exact pagination,
+source and retirement assertions remain unchanged.
+
+The first complete Global API run failed in **492.515s**: the new chain scenario's
+parent department lacked retirement cleanup, so four later one-row pagination
+checks correctly reported a continuation. The explicit scenario cleanup now
+retires it after its member/sibling nodes, and all four original assertions pass
+in the focused set. The complete Global API suite has been restarted against
+restored source; no full Global API pass is claimed for this candidate yet.
+
+Offline build ./..., vet, scoped lint, canonical registry/inventory checks and
+staged secret scan pass. No supervisor-chain code or migration 0081 is deployed.
+Canonical choices/protected chain context and normal independent-account UI,
+remaining depth/interval/source/concurrency mutations, lifecycle and operating
+consumers stay open. Counts remain **10 partial, 10 awaiting audit, 1 research,
+0 fully accepted**.
+
 ## Supervisor-chain approval increment in development — 2026-11-04
 
 The separate `codex/posting-supervisor-chains-20261104` worktree builds on root

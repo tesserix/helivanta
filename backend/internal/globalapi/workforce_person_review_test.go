@@ -2194,7 +2194,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				departmentPath := organizationBase + "/departments/" + departmentID + "/revisions/" + departmentRevision
 				departmentInput := map[string]any{"expected_version": 0, "code": "SYN-P-" + strings.ToUpper(strings.ReplaceAll(scenario, "_", "-")), "name": "Synthetic scoped posting department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic scoped department choice"}
 				call(t, "PUT", departmentPath, maker, departmentInput, 200)
-				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || strings.HasPrefix(scenario, "posting_root_") {
+				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || scenario == "posting_chain_child" || strings.HasPrefix(scenario, "posting_root_") {
 					t.Cleanup(func() {
 						if departmentInput["status"] == "retired" {
 							return

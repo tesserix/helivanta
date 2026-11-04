@@ -27,7 +27,7 @@ passes **9.386s**; nine composite-key chain labels use the existing intent prima
 key and execute in **2.153ms**. This is reduced-fixture planning evidence, not a
 production SLO. The full native Global API run failed in **586.654s** at the
 existing sequential employment-download capacity setup (expected503, actual200);
-no full API pass is claimed. A separate fixture-only branch starts its four reads
+that run is not counted as passing. A separate fixture-only branch starts its four reads
 concurrently using an atomic bounded media barrier; the focused real API case
 passes **48.779s** with the capacity subtest **1.73s**. Production limits/timeouts
 are unchanged. Full Workforce native race passes **653 tests/subtests / 710.636s**. Full SDK passes
@@ -39,12 +39,21 @@ Production Webpack build, scoped Go vet, full backend build, scoped Go lint
 (zero issues), canonical generation/check, contractdocs generation/check and
 operational inventory check pass. The first combined web run stopped on the shared-Panel lint gate; source now uses
 `Panel as="li"` and the complete rerun passed. Browser binding/real-account,
-operating consumers and lifecycle acceptance remain open. Nothing is merged or
-released for this candidate. Counts remain **10 partial, 10 awaiting audit,
+operating consumers and lifecycle acceptance remain open. This product feature
+has not merged to main or released. Counts remain **10 partial, 10 awaiting audit,
 1 research, 0 fully accepted**.
 
-The capacity correction is independently reviewable in draft
-[#1571](https://github.com/tesserix/helivanta/pull/1571), commit `a79c4d9c`.
+The capacity correction [#1571](https://github.com/tesserix/helivanta/pull/1571)
+merged to main as **`c1189a08`** after all CI checks passed, including Go32m30s,
+web18m5s and E2E13m38s. It is also integrated in this candidate as **`c5045b7f`**.
+The complete integrated Global API native race run now passes **182 tests/subtests /
+518.503s**. The new source/restoration acceptance tests are committed as
+**`9897d757`**. The earlier API failure and its correction remain recorded above.
+The product reviewer feature remains draft/unaccepted; the fixture merge does not
+close a Staff issue or constitute production promotion. Kargo's live prod policy
+has autoPromotionEnabled=false; live API/shell were checked at `9f827a66`, each2/2
+ready and Argo Synced/Healthy. No cluster mutation, migration or promotion occurred.
+
 Current-ancestor source cutoff acceptance passes **104.445s**: changing an
 intermediate supervisor identity blocks current-chain disclosure and a new member
 approval, leaves the target source current, commits no failed-read/approval actor
@@ -5760,3 +5769,17 @@ was changed. The complete unchanged-source journey rerun passed in 407.358s
 session-owned fixtures were captured and removed; temporary forwards were
 released. The initial failure is retained alongside the isolated and full rerun
 results; this does not establish the cause or complete Staff acceptance.
+
+## Next operating-consumer gate — source check 2026-11-05
+
+The `CurrentStaffActorGuard` provider is Workforce-owned and wired through
+platform dependencies. Current direct consumers are Workforce and Organization;
+Pharmacy does not consume that interface in current source. IAM's assignment
+authorizer explicitly requires products to enforce their live object/Staff/link
+invariants. This is source wiring evidence, not a route-by-route Pharmacy audit.
+The new chain view and approvals do not by themselves enforce lifecycle inside
+existing operating commands. Current departmental posting/actor consumer guards,
+reviewed product-to-department bindings and their lifecycle/positive-role browser
+acceptance remain open. Staff must remain canonical in Workforce; consumer
+projections must not create a second employee master or treat approval/discovery
+hints as operating authorization.

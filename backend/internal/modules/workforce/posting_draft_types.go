@@ -6,6 +6,31 @@ import (
 	"time"
 )
 
+type StaffPostingCutoffInput struct {
+	ExpectedRevisionID    uuid.UUID  `json:"expected_revision_id"`
+	ExpectedCutoffVersion *int64     `json:"expected_cutoff_version"`
+	Mode                  string     `json:"mode"`
+	CutoffAt              *time.Time `json:"cutoff_at,omitempty"`
+	Reason                string     `json:"reason"`
+	SourcesExamined       *bool      `json:"sources_examined"`
+}
+
+type StaffPostingCutoff struct {
+	ID                    uuid.UUID  `json:"id"`
+	HospitalID            uuid.UUID  `json:"hospital_id"`
+	StaffID               uuid.UUID  `json:"staff_id"`
+	ProposalID            uuid.UUID  `json:"proposal_id"`
+	ExpectedRevisionID    uuid.UUID  `json:"expected_revision_id"`
+	ExpectedCutoffVersion int64      `json:"expected_cutoff_version"`
+	Version               int64      `json:"version"`
+	Mode                  string     `json:"mode"`
+	RequestedCutoffAt     *time.Time `json:"requested_cutoff_at"`
+	CutoffAt              time.Time  `json:"cutoff_at"`
+	RecordedAt            time.Time  `json:"recorded_at"`
+	Reason                string     `json:"reason"`
+	SourcesExamined       bool       `json:"sources_examined"`
+}
+
 type StaffPostingDraftInput struct {
 	ExpectedVersion      *int64     `json:"expected_version"`
 	StaffVersion         int64      `json:"staff_version"`

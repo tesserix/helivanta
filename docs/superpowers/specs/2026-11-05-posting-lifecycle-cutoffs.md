@@ -1,6 +1,9 @@
 # Workforce posting lifecycle cutoffs
 
-Status: design checkpoint; no endpoint, migration, template or UI implemented.
+Status: implementation in progress. Local command/receipt routes, candidate
+Workforce 0084/IAM 0027 and cutoff-aware legacy refusal are implemented. The
+lifecycle-aware positive review envelope, administrative UI and operating
+consumers remain open. No production migration or rollout has occurred.
 Builds on [ADR-0058](../../adr/0058-retained-posting-cutoffs.md) and all five
 [reusable Staff requirements](2026-11-02-reusable-staff-foundation.md). This work
 does not settle standalone employer scope (ORG-D8), statutory pharmacy policy,
@@ -10,9 +13,10 @@ clinical privileges or department-scoped IAM assignments.
 
 Workforce remains the only Staff/posting owner. Current approval validation is
 in `backend/internal/modules/workforce/posting_chain_approval.go`; the current
-named-chain view is in `posting_chain_context.go`. Both validate current sources,
-but neither reads a retained posting cutoff because that resource does not yet
-exist. `postingOwnerContext` reads the exact scoped Staff row without requiring
+named-chain view is in `posting_chain_context.go`. Before this candidate, neither
+read a retained posting cutoff because that resource did not exist. The candidate
+source validator now reads its exact scoped cutoff and refuses legacy review when
+one is retained. `postingOwnerContext` reads the exact scoped Staff row without requiring
 its active status, which permits ending stale target sources while the separate
 `CurrentStaffActorGuard` still requires an eligible administrative actor.
 

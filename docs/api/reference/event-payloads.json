@@ -3722,8 +3722,44 @@
       "type": "object"
     }
   },
-  "helivanta.in.workforce.posting_draft_changed.v1": {
+  "helivanta.in.workforce.posting_cutoff_changed.v1": {
     "source": "backend/internal/modules/workforce/contract/posting_draft_generated.go:6",
+    "go_type": "PostingCutoffChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "cutoff_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "proposal_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "staff_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hospital_id",
+        "staff_id",
+        "proposal_id",
+        "cutoff_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.workforce.posting_draft_changed.v1": {
+    "source": "backend/internal/modules/workforce/contract/posting_draft_generated.go:14",
     "go_type": "PostingDraftChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3759,7 +3795,7 @@
     }
   },
   "helivanta.in.workforce.posting_proposal_changed.v1": {
-    "source": "backend/internal/modules/workforce/contract/posting_draft_generated.go:14",
+    "source": "backend/internal/modules/workforce/contract/posting_draft_generated.go:22",
     "go_type": "PostingProposalChangedData",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

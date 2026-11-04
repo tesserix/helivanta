@@ -1,5 +1,50 @@
 # Staff Management delivery tracker
 
+## Posting cutoff owner commands — local implementation checkpoint, 2026-11-05
+
+Branch `codex/posting-lifecycle-cutoffs-20261105` now implements immutable scoped
+immediate/scheduled shortening commands and original-actor receipt recovery.
+Candidate Workforce `0084_workforce_posting_cutoffs` and IAM
+`0027_iam_staff_posting_cutoff_templates` are persisted in source. Existing closed
+template/catalog snapshots and original approval history are preserved. A new
+cutoff administrator assignment is separate from submission/approval authority;
+real IAM independent review and OpenFGA projection were exercised. Stale target
+identity does not prevent ending its posting while the administrative actor is
+current. Nothing in this checkpoint is applied to production.
+
+Observed RED→GREEN: missing template returned400 instead of200 (**74.456s**);
+missing cutoff route returned404 instead of403 (**89.039s**). The immediate
+command/receipt/history-preservation journey then passed **90.391s**. A scheduled
+ancestor cutoff exposed a real source gap: legacy current-chain review returned200
+instead of409 (**113.531s**). Cutoff-aware source validation now refuses that view
+and new approval, retains pending/history and permits independent rejection;
+expanded real API acceptance passed **90.566s**. The new lifecycle conflict also
+failed the reviewer UI source-refresh assertion before the handler was updated;
+both conflict variants now preserve command, rationale and attestations.
+
+Expanded atomic/replay acceptance passes **133.541s**, including audit/outbox
+fault rollback, missing receipt after failure, one committed cutoff/audit/event,
+original-actor recovery, changed-actor/intent refusal and no republishing on replay.
+The first expanded run failed solely in cleanup because its test context was
+already canceled; cleanup now uses `context.WithoutCancel`, with all product
+assertions unchanged. That failed **96.133s** run is retained and is not a pass.
+Full SDK passes **686 tests /81 files** and full shell passes **1,525 tests /
+182 files /470.74s**; API/shell types, lint and format checks pass **6 tasks /
+37.522s**. Contractdocs generation/check, scoped Go vet and full Go
+build pass. Scoped Go lint reports **0 issues**; all **94 script tests** pass.
+Inventory remains unaccepted: **821 registered /798 unclassified**;
+31 reviewed source pins were refreshed across 19 existing classifications without
+adding or promoting a classification. Broader owner/API/IAM/architecture
+verification is running at this checkpoint.
+
+Reviewer-chain PR #1570's exact published head `f1a975a9` now has all CI checks
+passing, including Go. It remains draft for normal independent-account browser
+acceptance. Cutoff discovery/current/history UI, lifecycle-aware positive review,
+concurrency/deadline QA and actual departmental/Pharma operating consumers remain
+unfinished. This is an implementation checkpoint, not a complete vertical feature,
+merge/release decision or full Staff acceptance. Counts remain **10 partial,
+10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Retained posting cutoff design checkpoint — 2026-11-05
 
 Source inspection confirms approved postings have no retained command to bring

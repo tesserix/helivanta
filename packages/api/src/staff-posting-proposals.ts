@@ -15,12 +15,15 @@ import {
   StaffPostingChainReviewContextContract,
   StaffPostingInboxItemContract,
   StaffPostingSupervisorChoiceContract,
+  StaffPostingCutoffContract,
+  StaffPostingCutoffInputContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
   type StaffPostingProposal,
   type StaffPostingProposalInput,
   type StaffPostingDecisionInput,
   type StaffPostingProposalContextRequest,
+  type StaffPostingCutoffInput,
 } from "./staff-postings-contract";
 
 export type StaffPostingProposalScope = Omit<StaffPostingScope, "access"> & { access: "scoped" };
@@ -48,6 +51,66 @@ export const staffPostingProposalsKey = (scope: StaffPostingProposalScope) => [
   scope.hospitalId,
   scope.staffId,
 ];
+
+async function postingCutoffCommand(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingCutoffInput,
+  recover: boolean,
+  signal?: AbortSignal,
+) {
+  const path = `${root(scope)}/${commandId.parse(proposal)}/cutoffs/commands/${commandId.parse(command)}`;
+  const intent = StaffPostingCutoffInputContract.parse(input);
+  const raw = await apiFetch(path, {
+    ...enrollmentRequestOptions(scope),
+    ...(recover ? {} : { method: "PUT", body: JSON.stringify(intent) }),
+    signal,
+  });
+  const parsed = StaffPostingCutoffContract.safeParse(raw);
+  if (!parsed.success)
+    throw new Error(
+      "The retained cutoff receipt could not be verified. Recover the exact command before retrying.",
+    );
+  const row = parsed.data;
+  if (
+    !matchesScope(row, scope) ||
+    !same(row.id, command) ||
+    !same(row.proposal_id, proposal) ||
+    !same(row.expected_revision_id, intent.expected_revision_id) ||
+    row.expected_cutoff_version !== intent.expected_cutoff_version ||
+    row.mode !== intent.mode ||
+    row.reason !== intent.reason ||
+    (row.requested_cutoff_at === null
+      ? null
+      : staffPostingInstantMicros(row.requested_cutoff_at)) !==
+      (intent.cutoff_at == null ? null : staffPostingInstantMicros(intent.cutoff_at))
+  )
+    throw new Error(
+      "The retained cutoff receipt does not match this command. Recover the exact command before retrying.",
+    );
+  return row;
+}
+
+export function recordStaffPostingCutoff(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingCutoffInput,
+  signal?: AbortSignal,
+) {
+  return postingCutoffCommand(scope, proposal, command, input, false, signal);
+}
+
+export function getStaffPostingCutoffReceipt(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingCutoffInput,
+  signal?: AbortSignal,
+) {
+  return postingCutoffCommand(scope, proposal, command, input, true, signal);
+}
 
 function hospitalRoot(scope: StaffPostingInboxScope) {
   if (scope.access !== "scoped")

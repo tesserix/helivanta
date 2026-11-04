@@ -114,7 +114,7 @@ export function PostingProposalDecision({
         if (
           error instanceof ApiError &&
           error.status === 409 &&
-          error.code === "posting_proposal_conflict"
+          ["posting_proposal_conflict", "posting_lifecycle_review_required"].includes(error.code)
         ) {
           void source.refetch();
           onContextRecheck();

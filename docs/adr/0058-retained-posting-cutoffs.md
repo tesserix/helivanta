@@ -1,7 +1,8 @@
 # ADR-0058: Retained Workforce posting cutoffs
 
-Date: 2026-11-05. Status: proposed implementation contract; not implemented,
-approved for production, or a claim of operating-consumer enforcement.
+Date: 2026-11-05. Status: implementation in progress. Owner command/receipt and
+legacy-chain refusal are implemented locally; the lifecycle-aware review envelope,
+administrative UI and operating consumers remain open. Not approved for production.
 
 ## Context
 

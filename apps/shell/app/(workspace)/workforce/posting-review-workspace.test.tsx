@@ -1545,69 +1545,72 @@ it("retains an explicit hospital-management submission through an uncertain resp
   expect(JSON.parse(writes[0].body).supervision).toEqual({ kind: "hospital_management" });
 });
 
-it("rechecks a changed employment source after an approval conflict without discarding the command", async () => {
-  const writes: string[] = [];
-  let changed = false;
-  let sourceReads = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (init?.method === "PUT") {
-        writes.push(String(init.body));
-        changed = true;
-        return Response.json(
-          {
-            error: "posting_proposal_conflict",
-            message: "The selected employment source changed.",
-          },
-          { status: 409 },
-        );
-      }
-      if (url.endsWith("posting-review-source")) {
-        sourceReads++;
-        return Response.json(
-          changed
-            ? { ...source, generation_state: "source_changed", eligibility_until: null }
-            : source,
-        );
-      }
-      return reviewerResponse(url, { kind: "hospital_management" });
-    }),
-  );
-  const { user } = await openReviewer();
-  await user.click(
-    await screen.findByRole("button", { name: "Review hospital management approval" }),
-  );
-  await screen.findByText("The current employment source matches this submission.");
-  const before = sourceReads;
-  await user.type(
-    screen.getByLabelText("Decision rationale"),
-    "Independent review before a concurrent identity change",
-  );
-  await user.click(
-    screen.getByLabelText("I examined the submitted proposal and current employment source."),
-  );
-  await user.click(
-    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
-  );
-  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
-  await screen.findByText(
-    "The employment source differs from this submission or is no longer current.",
-  );
-  expect(sourceReads).toBeGreaterThan(before);
-  expect(writes).toHaveLength(1);
-  expect(screen.getByLabelText("Decision rationale")).toHaveValue(
-    "Independent review before a concurrent identity change",
-  );
-  expect(
-    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
-  ).toBeChecked();
-  expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Recover decision receipt" })).toBeEnabled();
-  await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
-  expect(writes).toHaveLength(1);
-});
+it.each(["posting_proposal_conflict", "posting_lifecycle_review_required"])(
+  "rechecks a changed employment source after %s without discarding the command",
+  async (errorCode) => {
+    const writes: string[] = [];
+    let changed = false;
+    let sourceReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (init?.method === "PUT") {
+          writes.push(String(init.body));
+          changed = true;
+          return Response.json(
+            {
+              error: errorCode,
+              message: "The selected employment source changed.",
+            },
+            { status: 409 },
+          );
+        }
+        if (url.endsWith("posting-review-source")) {
+          sourceReads++;
+          return Response.json(
+            changed
+              ? { ...source, generation_state: "source_changed", eligibility_until: null }
+              : source,
+          );
+        }
+        return reviewerResponse(url, { kind: "hospital_management" });
+      }),
+    );
+    const { user } = await openReviewer();
+    await user.click(
+      await screen.findByRole("button", { name: "Review hospital management approval" }),
+    );
+    await screen.findByText("The current employment source matches this submission.");
+    const before = sourceReads;
+    await user.type(
+      screen.getByLabelText("Decision rationale"),
+      "Independent review before a concurrent identity change",
+    );
+    await user.click(
+      screen.getByLabelText("I examined the submitted proposal and current employment source."),
+    );
+    await user.click(
+      screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+    );
+    await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+    await screen.findByText(
+      "The employment source differs from this submission or is no longer current.",
+    );
+    expect(sourceReads).toBeGreaterThan(before);
+    expect(writes).toHaveLength(1);
+    expect(screen.getByLabelText("Decision rationale")).toHaveValue(
+      "Independent review before a concurrent identity change",
+    );
+    expect(
+      screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+    ).toBeChecked();
+    expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recover decision receipt" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
+    expect(writes).toHaveLength(1);
+  },
+);
 
 it("blocks a new approval of an ended posting despite current employment", async () => {
   const endsAt = new Date(Date.now() - 60_000).toISOString();

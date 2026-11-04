@@ -1087,6 +1087,8 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.submit` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command` | `workforce.posting.cutoff` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command` | `workforce.posting.cutoff` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history` | `workforce.posting.proposal.read` | true | false |
@@ -1192,6 +1194,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.posting_cutoff_changed.v1`
 - `helivanta.in.workforce.posting_proposal_changed.v1`
 - `helivanta.in.workforce.posting_draft_changed.v1`
 - `helivanta.in.workforce.department_link_requested.v1`
@@ -1306,6 +1309,7 @@ Migration table declarations:
 - `0080_workforce_posting_root_approvals`: `workforce_posting_management_reviews`.
 - `0081_workforce_posting_chain_approvals`: `workforce_posting_chain_reviews`, `workforce_posting_chain_sources`.
 - `0083_workforce_posting_supervisor_choice_index`: concurrent index `workforce_posting_supervisor_choice_order` on `workforce_posting_supervision_intents (tenant_id, hospital_id, kind, created_at DESC, proposal_id DESC)`.
+- `0084_workforce_posting_cutoffs`: `workforce_posting_cutoffs`.
 
 ## workspace
 

@@ -126,5 +126,58 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	require.Equal(t, []any{approved, pending}, call(t, "GET", childRoot+"/history?limit=2", reviewer, nil, 200)["data"])
 	assertPostingDepartmentMember(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, organizationMaker, approved)
 	assertPostingSupervisorChoiceContinuation(t, db, tenant, call, childReceipt["hospital_id"].(string), submitter, reviewer, approved, selfRootApproved)
+	assertPostingRetainedAncestorCutoff(t, db, tenant, call, hospitalBase, submitter, reviewer, rootApprover, parentApproved, approved)
 	assertPostingAncestorSourceCutoff(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, approved, changeSupervisorIdentity)
+	assertPostingImmediateCutoff(t, db, tenant, call, hospitalBase, submitter, rootApprover, reviewer, selfRootApproved)
+}
+
+func assertPostingImmediateCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, hospitalBase, unprivileged, administrator, otherAdministrator string, approved map[string]any) {
+	t.Helper()
+	root := fmt.Sprintf("%s/posting-staff/%s/posting-proposals/%s", hospitalBase, approved["staff_id"], approved["id"])
+	command := uuid.Must(uuid.NewV7()).String()
+	path := root + "/cutoffs/commands/" + command
+	input := map[string]any{"expected_revision_id": approved["revision_id"], "expected_cutoff_version": 0, "mode": "immediate", "reason": "Synthetic immediate responsibility ending despite stale target sources", "sources_examined": true}
+	call(t, "PUT", path, unprivileged, input, 403)
+	for _, fault := range []struct{ table, constraint, predicate string }{
+		{"workforce_audit", "synthetic_cutoff_audit", "action<>'workforce.posting_proposal.cutoff_recorded'"},
+		{"outbox_events", "synthetic_cutoff_outbox", "subject<>'helivanta.in.workforce.posting_cutoff_changed.v1'"},
+	} {
+		apply := func(sql string) {
+			require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_cutoff_failure_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+		}
+		clear := func() { apply("ALTER TABLE " + fault.table + " DROP CONSTRAINT IF EXISTS " + fault.constraint) }
+		t.Cleanup(clear)
+		before := postingCutoffEffects(t, db, tenant, administrator)
+		apply("ALTER TABLE " + fault.table + " ADD CONSTRAINT " + fault.constraint + " CHECK (" + fault.predicate + ") NOT VALID")
+		call(t, "PUT", path, administrator, input, 500)
+		call(t, "GET", path, administrator, nil, 404)
+		require.Equal(t, before, postingCutoffEffects(t, db, tenant, administrator), "failed cutoff persistence rolls back actor use, cutoff audit and publication")
+		clear()
+	}
+	before := postingCutoffEffects(t, db, tenant, administrator)
+	receipt := call(t, "PUT", path, administrator, input, 200)
+	after := postingCutoffEffects(t, db, tenant, administrator)
+	require.Equal(t, before[1]+1, after[1])
+	require.Equal(t, before[2]+1, after[2])
+	require.Equal(t, command, receipt["id"])
+	require.Equal(t, approved["revision_id"], receipt["expected_revision_id"])
+	require.Equal(t, approved["id"], receipt["proposal_id"])
+	require.EqualValues(t, 1, receipt["version"])
+	require.Equal(t, receipt["recorded_at"], receipt["cutoff_at"], "the immediate instant is generated once by the owner")
+	require.Nil(t, receipt["requested_cutoff_at"])
+	require.Equal(t, receipt, call(t, "PUT", path, administrator, input, 200))
+	require.Equal(t, receipt, call(t, "GET", path, administrator, nil, 200))
+	call(t, "GET", path, otherAdministrator, nil, 404)
+	call(t, "PUT", path, otherAdministrator, input, 409)
+	changed := map[string]any{}
+	for key, value := range input {
+		changed[key] = value
+	}
+	changed["reason"] = "Synthetic changed command intent must not replace the receipt"
+	call(t, "PUT", path, administrator, changed, 409)
+	call(t, "PUT", root+"/cutoffs/commands/"+uuid.Must(uuid.NewV7()).String(), administrator, input, 409)
+	afterReplay := postingCutoffEffects(t, db, tenant, administrator)
+	require.Equal(t, after[1], afterReplay[1], "recovery/replay do not record another cutoff")
+	require.Equal(t, after[2], afterReplay[2], "recovery/replay do not republish a cutoff")
+	require.Equal(t, approved, call(t, "GET", root, administrator, nil, 200), "the original approval is immutable history")
 }

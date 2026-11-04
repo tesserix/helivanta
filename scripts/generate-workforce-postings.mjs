@@ -10,6 +10,23 @@ const contract = JSON.parse(
 );
 const models = emitModels(contract.models);
 const validation = `
+const validPostingCutoffInput = (value:{expected_revision_id:string;mode:string;cutoff_at?:string|null;reason:string},ctx:z.RefinementCtx) => {
+ if(!z.uuidv7().safeParse(value.expected_revision_id).success)ctx.addIssue({code:"custom",path:["expected_revision_id"],message:"Choose the exact approved posting revision."});
+ if(/\\p{Cc}/u.test(value.reason))ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
+ if(value.mode==="immediate"&&value.cutoff_at!=null)ctx.addIssue({code:"custom",path:["cutoff_at"],message:"Immediate ending uses the server instant."});
+ if(value.mode==="scheduled"&&value.cutoff_at==null)ctx.addIssue({code:"custom",path:["cutoff_at"],message:"Choose an explicit future cutoff instant."});
+ if(value.cutoff_at!=null){
+  const instant=staffPostingInstantMicros(value.cutoff_at),lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+  if(instant===null||instant<=lower||instant>upper)ctx.addIssue({code:"custom",path:["cutoff_at"],message:"Choose a bounded nonzero cutoff instant."});
+ }
+};
+const validPostingCutoff = (value:{id:string;proposal_id:string;expected_revision_id:string;mode:string;requested_cutoff_at:string|null;cutoff_at:string;recorded_at:string;reason:string;expected_cutoff_version:number;version:number},ctx:z.RefinementCtx) => {
+ validPostingCutoffInput({...value,cutoff_at:value.requested_cutoff_at},ctx);
+ for(const key of ["id","proposal_id"] as const)if(!z.uuidv7().safeParse(value[key]).success)ctx.addIssue({code:"custom",path:[key],message:"The cutoff reference is not canonical."});
+ const cutoff=staffPostingInstantMicros(value.cutoff_at),recorded=staffPostingInstantMicros(value.recorded_at),requested=value.requested_cutoff_at===null?null:staffPostingInstantMicros(value.requested_cutoff_at);
+ const lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ if(value.version!==value.expected_cutoff_version+1||cutoff===null||recorded===null||cutoff<=lower||recorded<=lower||cutoff>upper||recorded>upper||(value.mode==="immediate"?cutoff!==recorded:cutoff!==requested||recorded>=cutoff))ctx.addIssue({code:"custom",path:["cutoff_at"],message:"The retained cutoff/version could not be verified."});
+};
 export function staffPostingInstantMicros(value: string): bigint | null {
  const match=/^(.+T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d+))?(Z|[+-]\\d{2}:\\d{2})$/.exec(value);
  if(!match) return null;
@@ -77,6 +94,14 @@ const validReviewSource = (value:{generation_id:string|null;generation_state:str
 };
 `;
 const refined = models.ts
+  .replace(
+    /(export const StaffPostingCutoffContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validPostingCutoff);",
+  )
+  .replace(
+    /(export const StaffPostingCutoffInputContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validPostingCutoffInput);",
+  )
   .replace(
     /(export const StaffPostingSupervisorChoiceContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
     "$1.superRefine(validSupervisorChoice);",

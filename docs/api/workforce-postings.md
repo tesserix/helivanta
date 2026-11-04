@@ -1,5 +1,54 @@
 # Workforce postings — preparation and independent review
 
+## Retained posting cutoff command — local candidate
+
+The cutoff branch adds Workforce-owned commands at
+`PUT /v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command`
+and original-actor receipt recovery at the same path with `GET`. This is a local
+candidate, not a released API or complete lifecycle UI. Workforce remains the
+canonical Staff owner. Canonical command/receipt models derive from
+`contracts/workforce-postings.json`; candidate migration
+`0084_workforce_posting_cutoffs` retains immutable owner records, forced RLS,
+scope/revision/provenance checks and indexed version/history lookups.
+
+The distinct `workforce.posting.cutoff` hospital assignment and current reviewed
+Staff actor are mandatory. Candidate IAM
+`0027_iam_staff_posting_cutoff_templates` adds the closed
+`workforce.posting_cutoff_admin.v1` template and `staff-posting-lifecycle-v1`
+catalog. The template includes posting read/proposal read/Staff actor use and
+cutoff authority; it includes no submission, review, management attestation or
+clinical permission. Earlier template/catalog definitions remain unchanged.
+
+Input requires UUIDv7 `expected_revision_id`, `expected_cutoff_version` starting
+at zero, `mode`, a trimmed bounded `reason` and true `sources_examined`.
+`immediate` permits absent/null `cutoff_at` and persists one server-owned instant.
+`scheduled` requires an explicit future instant. Subsequent commands may only
+shorten the retained cutoff. The owner serializes new writes under the existing
+hospital supervision gate and requires the exact approved revision. Ending an
+already stale target remains possible; the administrative actor must still be
+current. This command never activates a replacement or changes Staff employment.
+
+The command UUID, original actor, scope and normalized intent identify a durable
+receipt. Exact PUT replay and authorized GET recovery return the original instant
+and version. Reusing a command with changed intent/actor, stale expected version,
+unapproved revision or a cutoff extension returns409 `posting_cutoff_conflict`.
+Receipt recovery by another cutoff administrator returns404. The private reason
+is returned only under cutoff authority; the new
+`helivanta.in.workforce.posting_cutoff_changed.v1` outbox payload contains hospital,
+Staff, proposal, cutoff identifiers and version, with no private reason or grant.
+Cutoff, audit and publication commit together; a failed sensitive read/write audit
+does not leave successful actor-use evidence.
+
+Existing approval receipts/status/intervals remain unchanged. Current legacy
+chain context and new approval refuse any retained ancestor cutoff with409
+`posting_lifecycle_review_required`; rejection and exact historical receipt
+recovery remain available. The reviewer UI rechecks this conflict while retaining
+the command/rationale/attestations. Positive lifecycle-aware review with explicit
+cutoff observations, administrative discovery/current/history UI, concurrency/
+deadline acceptance, operating-consumer enforcement and release remain unfinished.
+Do not treat these owner endpoints as complete departmental or Pharma authority.
+See [ADR-0058](../adr/0058-retained-posting-cutoffs.md).
+
 This preparation slice merged as `305294ab` in PR #1524 and is deployed after
 specific approval of the revision and migration 0073. Every receipt is a non-operating draft. Workforce owns the draft and immutable commands/revisions; Organization
 owns the referenced department/sub-unit. No Staff, employment, credential or
@@ -621,7 +670,6 @@ its original receipt without rebasing supervision or duplicating approval effect
 Canonical supervisor choices, protected reviewed-chain context, UI acceptance,
 remaining negative/concurrency/lifecycle tests and independent rollout approval
 are still required. See the [increment plan](../superpowers/plans/2026-11-04-posting-supervisor-chains.md).
-
 
 ## Canonical supervisor reference discovery (candidate)
 

@@ -504,6 +504,11 @@
           "id": "0026_iam_staff_posting_management_templates",
           "sql_sha256": "6ca5f9f1f92d8a4c7c8e35facff0f6e13cdd4ebdb7e58d3fa1d108fe57e161e3",
           "creates_tables": []
+        },
+        {
+          "id": "0027_iam_staff_posting_cutoff_templates",
+          "sql_sha256": "31fe7c610e5f74fba591c555ed514febab44b247a5c3da8e72d1eaf9cadf761a",
+          "creates_tables": []
         }
       ]
     },
@@ -8116,6 +8121,28 @@
           "scope_kind": "hospital",
           "scope_parameter": "hospital",
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command",
+          "permission": "workforce.posting.cutoff",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command",
+          "permission": "workforce.posting.cutoff",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
           "permission": "workforce.posting.proposal.read",
           "authentication_required": true,
@@ -9119,6 +9146,10 @@
           "roles": []
         },
         {
+          "permission": "workforce.posting.cutoff",
+          "roles": []
+        },
+        {
           "permission": "workforce.posting.read",
           "roles": []
         },
@@ -9272,6 +9303,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.workforce.posting_cutoff_changed.v1",
         "helivanta.in.workforce.posting_proposal_changed.v1",
         "helivanta.in.workforce.posting_draft_changed.v1",
         "helivanta.in.workforce.department_link_requested.v1",
@@ -10290,6 +10322,13 @@
                 }
               ]
             }
+          ]
+        },
+        {
+          "id": "0084_workforce_posting_cutoffs",
+          "sql_sha256": "2612b4c23033e4d82a6af199fd3f31a95f99e82fe01f5b0937b4697a94e7c5a4",
+          "creates_tables": [
+            "workforce_posting_cutoffs"
           ]
         }
       ]

@@ -1,6 +1,7 @@
 # Posting cutoff implementation plan
 
-Status: design recorded; implementation and acceptance remain open. Follow
+Status: owner command/receipt implementation and legacy refusal in progress;
+the complete vertical feature and acceptance remain open. Follow
 [the specification](../specs/2026-11-05-posting-lifecycle-cutoffs.md) and
 [ADR-0058](../../adr/0058-retained-posting-cutoffs.md). Deliver the owner workflow
 as one vertical feature, then integrate actual operating consumers individually.

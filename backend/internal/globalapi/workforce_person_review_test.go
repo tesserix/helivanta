@@ -356,7 +356,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -2169,7 +2169,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" {
 						if migration.ID == "0082_workforce_posting_supervisor_choices" {
 							applySupervisorDiscoveryMigration(t, db, ctx, migration)
 						} else {
@@ -2270,6 +2270,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if scenario == "posting_chain_child" {
 					require.NotEmpty(t, postingRootReviewerStaff, "include the preceding reviewed root-reviewer scenario")
 					require.NotEmpty(t, postingRootApprover, "include the preceding independent root-approval scenario")
+					grant(postingRootApprover, "workforce.posting_cutoff_admin.v1", authz.Permission("workforce.posting.cutoff"))
+					grant(postingRootReviewer, "workforce.posting_cutoff_admin.v1", authz.Permission("workforce.posting.cutoff"))
 					grant(postingRootReviewer, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, func() func() {

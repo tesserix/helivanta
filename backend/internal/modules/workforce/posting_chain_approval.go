@@ -30,6 +30,13 @@ func validatePostingApprovalSource(tx *gorm.DB, p authn.Principal, s postingDraf
 	if source.StaffVersion != row.StaffVersion || source.EmploymentEpoch != row.EmploymentEpoch {
 		return errPostingProposalConflict
 	}
+	cutoff, err := readPostingRetainedCutoff(tx, p, s)
+	if err != nil {
+		return err
+	}
+	if cutoff != nil {
+		return errPostingLifecycleReviewRequired
+	}
 	generation, state, until, err := readPostingTargetGeneration(tx, p, s, row.GenerationID)
 	if err != nil {
 		return err

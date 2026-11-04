@@ -706,6 +706,26 @@
         }
       ],
       "definitions_sha256": "1211be3a34f23e4c36fb8451ea9d6c9021e20a17ba523533accac0cac584fad5"
+    },
+    {
+      "id": "0027_iam_staff_posting_cutoff_templates",
+      "file": "assignment_posting_cutoff_templates_generated.sql",
+      "templates": [
+        {
+          "key": "workforce.posting_cutoff_admin.v1",
+          "name": "Staff posting cutoff administrator",
+          "description": "End or shorten approved hospital postings with retained reasons and receipts; no appointment approval, access grant or clinical authority.",
+          "family": "posting",
+          "permissions": [
+            "workforce.posting.read",
+            "workforce.posting.proposal.read",
+            "workforce.posting.cutoff",
+            "workforce.staff_actor.use"
+          ]
+        }
+      ],
+      "definitions_sha256": "c1081c87b0ba6b9a55418ffed0657c36da87a7b0206b83991ef56e50d8e203f4",
+      "sql_sha256": "31fe7c610e5f74fba591c555ed514febab44b247a5c3da8e72d1eaf9cadf761a"
     }
   ],
   "template_catalogs": [
@@ -797,6 +817,24 @@
         "workforce.posting_management_reviewer.v1"
       ],
       "definitions_sha256": "d471e60b91ff5cbca5734dafc28a1e9a6ff65b8f028a1e27f7b7d9fa2fccd22a"
+    },
+    {
+      "key": "staff-posting-lifecycle-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1",
+        "workforce.employment_activator.v1",
+        "workforce.posting_reader.v1",
+        "workforce.posting_preparer.v1",
+        "workforce.posting_submitter.v1",
+        "workforce.posting_reviewer.v1",
+        "workforce.posting_management_reviewer.v1",
+        "workforce.posting_cutoff_admin.v1"
+      ],
+      "definitions_sha256": "b82809a448cbce23db46e8de814f1f766fbdf082192059746615c3f5849b7eac"
     }
   ]
 }

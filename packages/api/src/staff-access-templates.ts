@@ -105,6 +105,19 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting.management.review", "workforce.staff_actor.use"],
   },
+  {
+    key: "workforce.posting_cutoff_admin.v1",
+    name: "Staff posting cutoff administrator",
+    description:
+      "End or shorten approved hospital postings with retained reasons and receipts; no appointment approval, access grant or clinical authority.",
+    family: "posting",
+    permissions: [
+      "workforce.posting.read",
+      "workforce.posting.proposal.read",
+      "workforce.posting.cutoff",
+      "workforce.staff_actor.use",
+    ],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -167,5 +180,19 @@ export const staffAccessTemplateCatalogs = {
     "workforce.posting_submitter.v1",
     "workforce.posting_reviewer.v1",
     "workforce.posting_management_reviewer.v1",
+  ],
+  "staff-posting-lifecycle-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
+    "workforce.posting_submitter.v1",
+    "workforce.posting_reviewer.v1",
+    "workforce.posting_management_reviewer.v1",
+    "workforce.posting_cutoff_admin.v1",
   ],
 } as const;

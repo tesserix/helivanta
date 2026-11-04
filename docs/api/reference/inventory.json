@@ -509,6 +509,11 @@
           "id": "0027_iam_staff_posting_cutoff_templates",
           "sql_sha256": "31fe7c610e5f74fba591c555ed514febab44b247a5c3da8e72d1eaf9cadf761a",
           "creates_tables": []
+        },
+        {
+          "id": "0028_iam_staff_posting_source_templates",
+          "sql_sha256": "623668536ec1bbb85d6974aad2fea3de7ddf79887dbabd7e68907a31b3eea74b",
+          "creates_tables": []
         }
       ]
     },
@@ -9157,6 +9162,10 @@
       ],
       "grants": [
         {
+          "permission": "workforce.posting_source.use",
+          "roles": []
+        },
+        {
           "permission": "workforce.staff_actor.use",
           "roles": []
         },
@@ -10369,6 +10378,11 @@
             "workforce_posting_lifecycle_reviews",
             "workforce_posting_lifecycle_sources"
           ]
+        },
+        {
+          "id": "0086_workforce_posting_source_use",
+          "sql_sha256": "ae7a6f15b23e4b05a85ba52a1e16ebf1ba89b36ed07b73b5ef4cda9ce639b672",
+          "creates_tables": []
         }
       ]
     },

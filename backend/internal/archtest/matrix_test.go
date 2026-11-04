@@ -189,6 +189,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	organization.PermPostingChoicesRead: {authz.RoleTenantAdmin},
+	authz.StaffPostingSourceUse:         {authz.RoleTenantAdmin},
 	authz.StaffActorUse:                 {authz.RoleTenantAdmin},
 	organization.PermStructureRead:      {authz.RoleTenantAdmin},
 	organization.PermStructureManage:    {authz.RoleTenantAdmin},

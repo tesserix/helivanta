@@ -1,5 +1,35 @@
 # Staff Management delivery tracker
 
+## Current posting source use — local implementation, 2026-11-05
+
+The next owner boundary supplies live canonical Staff/posting observations to a
+consumer's guarded commit, with current caller actor, exact source revision,
+bounded supervision/structural checks, current employment/cutoff minimum and
+atomic identifier-only evidence. A dedicated source-use permission requires a separate scoped assignment and grants no HR read or operating authority. Workforce0086 and
+canonical IAM0028 are persisted candidates, not applied to production or the QA
+fixture. Source details, tests and remaining gates are in the
+[current-use plan](../superpowers/plans/2026-11-05-current-posting-source-use.md)
+and [ADR0060](../adr/0060-current-posting-source-use.md).
+
+A real IAM/OpenFGA/Postgres journey passes **222.772s** after final provider wiring,
+including audit/proof/consumer faults, source context isolation, ancestor endings
+and expiry despite ignored cancellation. Both locked source-writer orderings pass
+**125.809s**. Full IAM **595.271s**, Global API **727.458s**, architecture
+**141.268s**, shell **1,559 /467.96s**, SDK **737 /81 files**, root scripts **96**
+and updated web checks **9 /32.651s** pass. Final Go vet/build and full lint pass
+with **0 issues**. The configured webpack production build, canonical/contractdocs
+checks, formatting and staged secret scan pass. Build warnings remain for the
+middleware convention and shared UI React Hook Form re-exports. The corrected
+architecture matrix retains coarse TenantAdmin
+permission while requiring separate scoped IAM evidence inside the owner guard.
+No actual Pharma consumer or positive reviewer browser acceptance is claimed.
+Native Chrome controls recovered normal admin/approver sign-in despite the broken
+extension API. A one-day local reviewer proposal is owner-verified and awaiting
+independent approval; activating this specific access grant awaits confirmation.
+Standalone design acceptance was
+requested explicitly under ADR0054; no answer is inferred. All five requirements
+remain intact, with **10 partial,10 awaiting audit,1 research,0 fully accepted**.
+
 ## Retained posting approval history — local candidate, 2026-11-05
 
 The next increment implements an exclusive recorded-history context through the
@@ -27,8 +57,10 @@ build and root script tests **94** pass. CI exposed two existing plan-cursor
 cleanup issues; the fix preserves the 100,000-row EXPLAIN assertions, passes
 **5.793s**, and unfiltered repository-wide Go lint reports **0 issues**. Go vet/
 build, canonical and contractdocs checks, inventory and secret scans pass.
-Inventory remains **824 registered /801 unclassified**; no promotion. CI is
-rerunning after the fix and no green CI result is inferred before it completes.
+Inventory remains **824 registered /801 unclassified**; no promotion. Exact-head
+CI for both history PRs subsequently completed successfully: owner run
+`41908990140` and UI run `41910224471`. The PRs remain draft; CI success does not
+establish independent reviewer acceptance.
 
 The local history candidate is active on loopback UI4398 → Global8198 → owner8398,
 using immutable frontend6d541321 and backend e1fd098f. Health/login return200;

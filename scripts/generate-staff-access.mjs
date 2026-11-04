@@ -48,9 +48,10 @@ for (const migration of migrations) {
   for (const template of migration.templates) {
     if (template?.family === "posting") {
       const kind = template.key?.match(
-        /^workforce\.posting_(reader|preparer|submitter|reviewer|management_reviewer|cutoff_admin)\.v[1-9][0-9]*$/,
+        /^workforce\.posting_(reader|preparer|submitter|reviewer|management_reviewer|cutoff_admin|source_consumer)\.v[1-9][0-9]*$/,
       )?.[1];
       const permissions = {
+        source_consumer: ["workforce.posting_source.use", "workforce.staff_actor.use"],
         cutoff_admin: [
           "workforce.posting.read",
           "workforce.posting.proposal.read",

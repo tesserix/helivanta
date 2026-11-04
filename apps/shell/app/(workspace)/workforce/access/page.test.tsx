@@ -1049,3 +1049,76 @@ it("retains an uncertain management renewal and blocks retry until its exact cat
   expect(commands[0]?.tenant).toBe(tenant);
   expect(await screen.findByText(/Proposal recorded/)).toBeInTheDocument();
 });
+
+it("offers source consumption only from its exact verified source catalog", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-posting-source-v1"))
+        return Response.json(catalogDefinitions("staff-posting-source-v1"));
+      if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  expect(
+    await screen.findByRole("option", { name: "Staff posting source consumer" }),
+  ).toBeInTheDocument();
+});
+
+it.each(["missing", "broader", "extra", "unavailable"])(
+  "withholds source capability and preserves verified lifecycle roles when source catalog is %s",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("staff-posting-source-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter((t) => t.key !== "workforce.posting_source_consumer.v1")
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((t) =>
+              t.key === "workforce.posting_source_consumer.v1"
+                ? { ...t, permissions: [...t.permissions, "workforce.posting.proposal.read"] }
+                : t,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("catalog=staff-posting-source-v1"))
+          return kind === "unavailable"
+            ? Response.json({ error: "unavailable" }, { status: 503 })
+            : Response.json(altered);
+        if (url.includes("catalog=staff-posting-lifecycle-v1"))
+          return Response.json(catalogDefinitions("staff-posting-lifecycle-v1"));
+        if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+    await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+    await user.click(screen.getByLabelText("Access template"));
+    expect(
+      await screen.findByRole("option", { name: "Staff posting cutoff administrator" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Staff posting source consumer" }),
+    ).not.toBeInTheDocument();
+  },
+);

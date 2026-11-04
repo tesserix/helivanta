@@ -128,18 +128,22 @@ function Assignments({ identity }: { identity: Identity }) {
   const postingReviewCatalog = useVerifiedStaffCatalog(scope, "staff-posting-reviews-v1");
   const postingManagementCatalog = useVerifiedStaffCatalog(scope, "staff-posting-management-v1");
   const postingLifecycleCatalog = useVerifiedStaffCatalog(scope, "staff-posting-lifecycle-v1");
-  const postingCatalogName = postingLifecycleCatalog.supported
-    ? "staff-posting-lifecycle-v1"
-    : postingManagementCatalog.supported
-      ? "staff-posting-management-v1"
-      : postingReviewCatalog.supported
-        ? "staff-posting-reviews-v1"
-        : "staff-postings-v1";
+  const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1");
+  const postingCatalogName = postingSourceCatalog.supported
+    ? "staff-posting-source-v1"
+    : postingLifecycleCatalog.supported
+      ? "staff-posting-lifecycle-v1"
+      : postingManagementCatalog.supported
+        ? "staff-posting-management-v1"
+        : postingReviewCatalog.supported
+          ? "staff-posting-reviews-v1"
+          : "staff-postings-v1";
   const postingSupported =
     postingCatalog.supported ||
     postingReviewCatalog.supported ||
     postingManagementCatalog.supported ||
-    postingLifecycleCatalog.supported;
+    postingLifecycleCatalog.supported ||
+    postingSourceCatalog.supported;
   const templateKeys =
     staffAccessTemplateCatalogs[
       family === "posting"

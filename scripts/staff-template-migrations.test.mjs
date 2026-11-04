@@ -101,6 +101,11 @@ test("posting catalogs refuse incomplete, duplicated and expanded role authority
         "workforce.posting.review",
       ],
     ],
+    ["workforce.posting_source_consumer.v1", ["workforce.posting_source.use"]],
+    [
+      "workforce.posting_source_consumer.v1",
+      ["workforce.posting_source.use", "workforce.staff_actor.use", "workforce.posting.read"],
+    ],
     ["workforce.posting_management_reviewer.v1", ["workforce.posting.management.review"]],
     [
       "workforce.posting_management_reviewer.v1",

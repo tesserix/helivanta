@@ -50,8 +50,11 @@ func (r itemSalesRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.P
 // itemSalesRows is one row per product with a sale line or a credit-note line
 // in [since, until]. A stocked product's currency and pack size cannot change
 // (pharmacy_stock_product_identity_guard), so a row never mixes either.
-// Service charges are not products: the daily report shows them.
-const itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.manufacturer, c.pack_size, c.unit_of_issue, c.currency,
+// Service charges are not products: the daily report shows them. A category
+// filter counts a sale line under the category in force on its sale date and
+// a credit-note line under its sale line's, so a return always cancels the
+// sale it returns (#988).
+var itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.manufacturer, c.pack_size, c.unit_of_issue, c.currency,
  COALESCE(s.units_sold,0)::bigint AS units_sold, COALESCE(s.sales_minor,0)::bigint AS sales_minor, COALESCE(s.discount_minor,0)::bigint AS discount_minor,
  COALESCE(s.sales_taxable_minor,0)::bigint AS sales_taxable_minor, COALESCE(s.sales_cgst_minor,0)::bigint AS sales_cgst_minor,
  COALESCE(s.sales_sgst_minor,0)::bigint AS sales_sgst_minor, s.mrp_low_minor, s.mrp_high_minor,
@@ -64,13 +67,14 @@ const itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generi
    sum(l.taxable_minor) AS sales_taxable_minor, sum(l.cgst_minor) AS sales_cgst_minor, sum(l.sgst_minor) AS sales_sgst_minor,
    min(l.mrp_minor) AS mrp_low_minor, max(l.mrp_minor) AS mrp_high_minor
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
-  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date GROUP BY l.product_id) s ON s.product_id=c.id
+  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date AND ` + categoryOn("s", "l.product_id", "s.sale_date") + ` GROUP BY l.product_id) s ON s.product_id=c.id
  LEFT JOIN (SELECT sl.product_id, sum(cl.quantity_units) AS units_returned, sum(cl.amount_minor) AS credits_minor, sum(cl.taxable_minor) AS credits_taxable_minor,
    sum(cl.cgst_minor) AS credits_cgst_minor, sum(cl.sgst_minor) AS credits_sgst_minor
   FROM pharmacy_credit_note_lines cl
   JOIN pharmacy_credit_notes n ON n.tenant_id=cl.tenant_id AND n.outlet_id=cl.outlet_id AND n.id=cl.credit_note_id
   JOIN pharmacy_sale_lines sl ON sl.tenant_id=cl.tenant_id AND sl.outlet_id=cl.outlet_id AND sl.sale_id=cl.sale_id AND sl.line_number=cl.sale_line
-  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date GROUP BY sl.product_id) r ON r.product_id=c.id
+  JOIN pharmacy_sales os ON os.tenant_id=sl.tenant_id AND os.outlet_id=sl.outlet_id AND os.id=sl.sale_id
+  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date AND ` + categoryOn("os", "sl.product_id", "os.sale_date") + ` GROUP BY sl.product_id) r ON r.product_id=c.id
  WHERE c.tenant_id=? AND c.outlet_id=? AND (s.product_id IS NOT NULL OR r.product_id IS NOT NULL)
   AND (?::uuid IS NULL OR c.id=?::uuid)) e`
 
@@ -169,8 +173,10 @@ func (r stockSalesRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.
 // date, as sales by item counts them, units on hand from all its movements,
 // and units a sale may take today through the counter's own predicate
 // (pharmacy_sellable_buckets), so flagged, expired and unpriced batches on a
-// sellable shelf are never shown as sellable.
-const stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.pack_size, c.unit_of_issue,
+// sellable shelf are never shown as sellable. A category filter lists a
+// product by its category today, as its stock is now, and counts its sales
+// line by line as sales by item does (#988).
+var stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.pack_size, c.unit_of_issue,
  COALESCE(s.units,0)::bigint AS units_sold, COALESCE(r.units,0)::bigint AS units_returned, k.on_hand::bigint AS on_hand_units, v.sellable::bigint AS sellable_units
  FROM pharmacy_catalogue_products c
  JOIN (SELECT b.product_id, sum(m.quantity_units) AS on_hand
@@ -180,38 +186,47 @@ const stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.gener
  CROSS JOIN LATERAL (SELECT COALESCE(sum(on_hand),0) AS sellable FROM pharmacy_sellable_buckets(c.tenant_id, c.outlet_id, c.id, ?::date)) v
  LEFT JOIN (SELECT l.product_id, sum(l.quantity_units) AS units
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
-  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date GROUP BY l.product_id) s ON s.product_id=c.id
+  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date AND ` + categoryOn("s", "l.product_id", "s.sale_date") + ` GROUP BY l.product_id) s ON s.product_id=c.id
  LEFT JOIN (SELECT sl.product_id, sum(cl.quantity_units) AS units
   FROM pharmacy_credit_note_lines cl
   JOIN pharmacy_credit_notes n ON n.tenant_id=cl.tenant_id AND n.outlet_id=cl.outlet_id AND n.id=cl.credit_note_id
   JOIN pharmacy_sale_lines sl ON sl.tenant_id=cl.tenant_id AND sl.outlet_id=cl.outlet_id AND sl.sale_id=cl.sale_id AND sl.line_number=cl.sale_line
-  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date GROUP BY sl.product_id) r ON r.product_id=c.id
- WHERE c.tenant_id=? AND c.outlet_id=?) e`
+  JOIN pharmacy_sales os ON os.tenant_id=sl.tenant_id AND os.outlet_id=sl.outlet_id AND os.id=sl.sale_id
+  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date AND ` + categoryOn("os", "sl.product_id", "os.sale_date") + ` GROUP BY sl.product_id) r ON r.product_id=c.id
+ WHERE c.tenant_id=? AND c.outlet_id=? AND ` + categoryOn("c", "c.id", "?::date") + `) e`
+
+// categoryOn is true when no category filter is set, or when the category in
+// force for product on day matches it; rel holds the tenant and outlet. Its
+// arguments are salesReportFilter.categoryArgs.
+func categoryOn(rel, product, day string) string {
+	return `(?::uuid IS NULL OR EXISTS (SELECT 1 FROM pharmacy_product_category_on(` + rel + `.tenant_id, ` + rel + `.outlet_id, ` + product + `, ` + day + `) k
+  WHERE k.category_id=?::uuid AND (?::uuid IS NULL OR k.subcategory_id=?::uuid)))`
+}
 
 var receiptKinds = map[string]bool{"cash": true, "upi": true, "upi_verified": true, "card": true, "admission_account": true}
 
 func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
-	return salesReportPage[itemSalesRow](c, h, params, "sales by item", "product_id", itemSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		period := []any{tenant, outlet, f.since, f.until}
+	return salesReportPage[itemSalesRow](c, h, params, "sales by item", "product_id", true, itemSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		period := append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...)
 		return append(append(period, period...), tenant, outlet, f.product, f.product)
 	})
 }
 
 func (h *catalogueHandlers) listPatientSales(c *gin.Context, params pagination.Params) ([]patientSaleLine, error) {
-	return salesReportPage[patientSaleLine](c, h, params, "patient-wise sales", "patient_id", patientSaleLines, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+	return salesReportPage[patientSaleLine](c, h, params, "patient-wise sales", "patient_id", false, patientSaleLines, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
 		return []any{f.until, tenant, outlet, f.patient, f.since, f.until}
 	})
 }
 
 func (h *catalogueHandlers) listStockSales(c *gin.Context, params pagination.Params) ([]stockSalesRow, error) {
-	return salesReportPage[stockSalesRow](c, h, params, "the sales stock report", "", stockSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		period := []any{tenant, outlet, f.since, f.until}
-		return append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet)
+	return salesReportPage[stockSalesRow](c, h, params, "the sales stock report", "", true, stockSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		period := append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...)
+		return append(append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet), f.categoryArgs(f.today)...)
 	})
 }
 
 func (h *catalogueHandlers) listReceipts(c *gin.Context, params pagination.Params) ([]receiptEntry, error) {
-	return salesReportPage[receiptEntry](c, h, params, "the receipts register", "kind", receiptRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+	return salesReportPage[receiptEntry](c, h, params, "the receipts register", "kind", false, receiptRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
 		half := []any{tenant, outlet, f.since, f.until, f.kind, f.kind}
 		return append(half, half...)
 	})
@@ -227,14 +242,26 @@ type salesReportFilter struct {
 	patient *uuid.UUID
 	// today is the outlet's date, read in the transaction.
 	today string
+	// category, and optionally its subcategory, of sales by item and sales
+	// and stock (#988).
+	category, subcategory *uuid.UUID
 }
 
-func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bool) {
+// categoryArgs are categoryOn's arguments; day is given when categoryOn's
+// day is a placeholder.
+func (f salesReportFilter) categoryArgs(day ...any) []any {
+	return append(append([]any{f.category}, day...), f.category, f.subcategory, f.subcategory)
+}
+
+func salesReportArgs(c *gin.Context, what, filter string, categories bool) (salesReportFilter, bool) {
 	from, to, ok := outletPeriod(c, what)
 	if !ok {
 		return salesReportFilter{}, false
 	}
 	args := salesReportFilter{since: from, until: to}
+	if categories && !reportCategory(c, &args) {
+		return args, false
+	}
 	switch v := c.Query(filter); {
 	case filter == "patient_id":
 		// Fail closed: without a patient this would be every patient's purchases.
@@ -261,16 +288,42 @@ func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bo
 	return args, true
 }
 
+// reportCategory reads category_id and subcategory_id. A subcategory alone
+// is refused, not resolved to its parent: fail closed rather than guess. An
+// id that is no category of this outlet simply matches nothing.
+func reportCategory(c *gin.Context, args *salesReportFilter) bool {
+	for _, q := range []struct {
+		name string
+		into **uuid.UUID
+	}{{"category_id", &args.category}, {"subcategory_id", &args.subcategory}} {
+		v := c.Query(q.name)
+		if v == "" {
+			continue
+		}
+		id, err := uuid.Parse(v)
+		if err != nil {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", q.name+" is an id")
+			return false
+		}
+		*q.into = &id
+	}
+	if args.subcategory != nil && args.category == nil {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "subcategory_id needs its category_id")
+		return false
+	}
+	return true
+}
+
 // salesReportPage refuses malformed scope ids before reading the query
 // string; the outlet grant is checked in the transaction, as for the daily
 // report.
-func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, what, filter, query string,
+func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, what, filter string, categories bool, query string,
 	args func(string, uuid.UUID, salesReportFilter) []any) ([]T, error) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
 		return nil, nil
 	}
-	f, ok := salesReportArgs(c, what, filter)
+	f, ok := salesReportArgs(c, what, filter, categories)
 	if !ok {
 		return nil, nil
 	}

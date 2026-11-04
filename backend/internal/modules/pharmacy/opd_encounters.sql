@@ -34,3 +34,33 @@ BEGIN
 END $$;
 CREATE TRIGGER pharmacy_opd_encounter_guard BEFORE UPDATE OR DELETE ON pharmacy_opd_encounters FOR EACH ROW EXECUTE FUNCTION pharmacy_opd_encounter_guard();
 CREATE TRIGGER pharmacy_opd_encounter_no_truncate BEFORE TRUNCATE ON pharmacy_opd_encounters FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_registered_patients_immutable();
+
+-- A registered patient's counter sale may cite the OPD encounter it serves.
+-- Never an admission's or a walk-in's: an admission is its own link.
+ALTER TABLE pharmacy_sales
+ ADD COLUMN encounter_id uuid,
+ ADD CONSTRAINT pharmacy_sale_encounter_patient_sale CHECK (encounter_id IS NULL OR (patient_id IS NOT NULL AND admission_id IS NULL));
+
+-- The cited encounter must be this patient's, at this patient's hospital,
+-- and a visit that happened (#987 slice 2 decision 2). Checked here so no
+-- code path can post a sale against another's visit. FOR SHARE orders the
+-- sale wholly before or after a status change being applied.
+CREATE FUNCTION pharmacy_sale_encounter_citable() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+ e record;
+BEGIN
+ IF NEW.encounter_id IS NULL THEN RETURN NEW; END IF;
+ SELECT hospital_id,patient_id,status INTO e FROM pharmacy_opd_encounters
+  WHERE tenant_id=NEW.tenant_id AND encounter_id=NEW.encounter_id FOR SHARE;
+ IF NOT FOUND OR e.patient_id IS NULL THEN
+  RAISE EXCEPTION 'the encounter is not known to the pharmacy' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_unknown';
+ END IF;
+ IF e.patient_id IS DISTINCT FROM NEW.patient_id OR e.hospital_id IS DISTINCT FROM NEW.patient_hospital_id THEN
+  RAISE EXCEPTION 'the encounter is not this patient''s at this hospital' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_other';
+ END IF;
+ IF e.status NOT IN ('arrived','in_consultation','closed') THEN
+  RAISE EXCEPTION 'the encounter was cancelled or the patient left without being seen' USING ERRCODE='23514', CONSTRAINT='pharmacy_sale_encounter_status';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER pharmacy_sale_encounter_citable BEFORE INSERT ON pharmacy_sales FOR EACH ROW EXECUTE FUNCTION pharmacy_sale_encounter_citable();

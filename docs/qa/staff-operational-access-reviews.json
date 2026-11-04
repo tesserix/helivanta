@@ -1066,7 +1066,7 @@
         },
         {
           "path": "backend/internal/modules/organization/department_reference_guard.go",
-          "sha256": "220535cab7f1479a0a0b7593fd61b17e56700b1bddd5ce8fc68be5946c03c857",
+          "sha256": "70df5270f093f59f9b87ce3bab9e918e79b7e8196b3b2d613899fbf419036f2f",
           "symbol": "func (g *departmentReferenceGuard) WithCurrentDepartment("
         },
         {

@@ -204,6 +204,37 @@ or positive approval. The [independent review specification](../superpowers/spec
 retains the complete supervision and lifecycle obligations. Positive approval
 still awaits supervision policy; no operating role is activated by a proposal.
 
+## Separate hospital management review catalog — candidate
+
+The closed `staff-posting-management-v1` catalog appends
+`workforce.posting_management_reviewer.v1`, containing exactly
+`workforce.posting.management.review` and `workforce.staff_actor.use`.
+IAM owns its additive `0026_iam_staff_posting_management_templates` migration;
+Workforce registers the management permission. Default and all previous catalog
+snapshots, including the ten-entry independent-review catalog, remain unchanged.
+Canonical inputs are `contracts/staff-access.json`; generated Go, Zod and SQL must
+remain aligned. The ordinary IAM assignment/review and OpenFGA projection journeys
+apply, with verified tenant/hospital scope, current reviewed Staff source,
+independent assignment review and durable withdrawal/recovery.
+
+This capability is separate from ordinary posting review. Its template cannot
+submit or approve a proposal on its own, edit profiles or structure, or grant
+operating, clinical or Pharma authority. Nothing is automatically assigned.
+The root-approval consumer, supervision/lifecycle enforcement and authenticated
+reviewer UI acceptance remain separate increments. This catalog-only change adds
+no route, event, Workforce migration or activation behavior.
+
+The normal Staff access page requests these closed catalogs through Global API,
+verifies exact definitions and permission sets, and offers only templates from
+the newest supported catalog. An unavailable or malformed management catalog
+falls back to a verified independent-review/preparation catalog; unverified new
+roles are absent. The area is labelled “Staff posting access”. A retained renewal
+whose template loses catalog confirmation cannot submit or retry until its exact
+catalog is restored; restoration preserves the same command ID and payload.
+Catalog metadata and UI gating never replace server authorization or independent
+assignment approval. Real-account acceptance remains pending; component checks
+are not end-to-end approval evidence.
+
 ## Deployed proposal submissions and readiness
 
 The #1544 release implements the following suffixes below
@@ -480,21 +511,11 @@ operating lifecycle consumers and full Staff acceptance remain open.
 
 ### Separate management-review capability — unpublished candidate
 
-The new closed `staff-posting-management-v1` IAM catalog appends exactly
-`workforce.posting_management_reviewer.v1` to the unchanged ten-template review
-catalog. Additive IAM migration `0026_iam_staff_posting_management_templates`
-introduces exactly `workforce.posting.management.review` plus
-`workforce.staff_actor.use`. It does not include posting submission, ordinary
-review, Organization editing, operating or clinical permissions. Positive review
-will require both this management capability and an ordinary independent reviewer
-assignment. All old SQL files, definition digests and catalogs remain frozen.
-
-The focused real OpenFGA scope/projection test covers durable acknowledgement,
-withdrawal, membership revocation, dependency failure, wrong subject/hospital and
-compound command guards. This capability is not yet connected to positive
-approval or normal UI in the released application. The candidate below connects
-both. Full IAM suite acceptance is pending;
-source schema generation and focused success are not deployment acceptance.
+The root consumer uses the separate management catalog and verified normal
+assignment choices described above. An ordinary independent reviewer assignment
+and current Staff actor source remain additional requirements. Catalog membership
+alone cannot approve a posting or grant operating/clinical authority. The new root
+consumer and its migration remain separate from catalog PR #1563.
 
 ### Hospital-management root approval — unpublished candidate
 

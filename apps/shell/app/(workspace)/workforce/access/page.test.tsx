@@ -785,12 +785,15 @@ it("offers posting reader and preparer assignments only from their exact catalog
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByLabelText("Assignment area"));
-  await user.click(await screen.findByRole("option", { name: "Staff posting preparation" }));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
   await user.click(screen.getByRole("button", { name: "Propose assignment" }));
   await user.click(screen.getByLabelText("Access template"));
   const templates = screen.getByRole("listbox");
   expect(templates).toHaveTextContent("Staff posting reader");
   expect(templates).toHaveTextContent("Staff posting preparer");
+  expect(templates).not.toHaveTextContent("Staff posting submitter");
+  expect(templates).not.toHaveTextContent("Staff posting reviewer");
+  expect(templates).not.toHaveTextContent("Staff posting management reviewer");
   expect(templates).not.toHaveTextContent("Staff employment activator");
   expect(templates).not.toHaveTextContent("HR intake administrator");
   expect(
@@ -834,8 +837,144 @@ it.each(["missing", "broader", "extra"])(
     );
     await screen.findByText("Staff posting assignments are unavailable in this workspace.");
     await user.click(await screen.findByLabelText("Assignment area"));
-    expect(
-      screen.queryByRole("option", { name: "Staff posting preparation" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Staff posting access" })).not.toBeInTheDocument();
   },
 );
+
+it.each(["missing", "broader", "extra", "unavailable"])(
+  "keeps older verified posting roles when management catalog is %s",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("staff-posting-management-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter(
+            (template) => template.key !== "workforce.posting_management_reviewer.v1",
+          )
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((template) =>
+              template.key === "workforce.posting_management_reviewer.v1"
+                ? {
+                    ...template,
+                    permissions: [...template.permissions, "organization.structure.manage"],
+                  }
+                : template,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("catalog=staff-posting-management-v1"))
+          return kind === "unavailable"
+            ? Response.json({ error: "unavailable" }, { status: 503 })
+            : Response.json(altered);
+        if (url.includes("catalog=staff-posting-reviews-v1"))
+          return Response.json(catalogDefinitions("staff-posting-reviews-v1"));
+        if (url.includes("catalog=staff-postings-v1"))
+          return Response.json(catalogDefinitions("staff-postings-v1"));
+        if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+    await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+    await user.click(screen.getByLabelText("Access template"));
+    const templates = screen.getByRole("listbox");
+    expect(templates).toHaveTextContent("Staff posting reviewer");
+    expect(templates).toHaveTextContent("Staff posting submitter");
+    expect(templates).not.toHaveTextContent("Staff posting management reviewer");
+  },
+);
+
+it("retains an uncertain management renewal and blocks retry until its exact catalog is restored", async () => {
+  const management = {
+    ...row,
+    status: "active",
+    input: { ...row.input, template_key: "workforce.posting_management_reviewer.v1" },
+  };
+  setup("proposer", [management]);
+  const prior = fetch;
+  let available = true;
+  const commands: Array<{ url: string; body: string; tenant: string | null }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-posting-management-v1"))
+        return available
+          ? Response.json(catalogDefinitions("staff-posting-management-v1"))
+          : Response.json({ error: "unavailable" }, { status: 503 });
+      if (url.includes("catalog=staff-posting-reviews-v1"))
+        return Response.json(catalogDefinitions("staff-posting-reviews-v1"));
+      if (url.includes("catalog=staff-postings-v1"))
+        return Response.json(catalogDefinitions("staff-postings-v1"));
+      if (init?.method === "PUT") {
+        commands.push({
+          url,
+          body: String(init.body),
+          tenant: new Headers(init.headers).get("X-Helivanta-Expected-Tenant"),
+        });
+        if (commands.length === 1) return Response.json({ error: "unavailable" }, { status: 502 });
+        return Response.json({
+          ...management,
+          id: url.split("/").at(-1),
+          input: JSON.parse(String(init.body)),
+          status: "pending_scope",
+          version: 1,
+        });
+      }
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  await user.click(await screen.findByRole("button", { name: "Renew access" }));
+  const form = within(screen.getByRole("form", { name: "Renew assignment" }));
+  const local = (value: Date) =>
+    new Date(value.getTime() - value.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  fireEvent.change(form.getByLabelText("Starts at"), {
+    target: { value: local(new Date(Date.now() + 2 * 86400000)) },
+  });
+  fireEvent.change(form.getByLabelText("Expires at"), {
+    target: { value: local(new Date(Date.now() + 3 * 86400000)) },
+  });
+  await user.type(
+    form.getByLabelText("Reason"),
+    "Independent continued hospital management review duty",
+  );
+  await user.click(form.getByRole("button", { name: "Propose renewal" }));
+  expect(await screen.findByText(/may have been recorded/)).toBeInTheDocument();
+  expect(commands).toHaveLength(1);
+  expect(JSON.parse(commands[0]!.body).template_key).toBe(
+    "workforce.posting_management_reviewer.v1",
+  );
+  available = false;
+  await user.click(screen.getByRole("button", { name: "Refresh assignments" }));
+  await screen.findByText(
+    "This access template is unavailable. Refresh its verified catalog before submitting or retrying.",
+  );
+  expect(form.getByRole("button", { name: "Retry same request" })).toBeDisabled();
+  await user.click(form.getByRole("button", { name: "Retry same request" }));
+  expect(commands).toHaveLength(1);
+  available = true;
+  await user.click(screen.getByRole("button", { name: "Refresh assignments" }));
+  await waitFor(() =>
+    expect(form.getByRole("button", { name: "Retry same request" })).toBeEnabled(),
+  );
+  await user.click(form.getByRole("button", { name: "Retry same request" }));
+  await waitFor(() => expect(commands).toHaveLength(2));
+  expect(commands[1]).toEqual(commands[0]);
+  expect(commands[0]?.tenant).toBe(tenant);
+  expect(await screen.findByText(/Proposal recorded/)).toBeInTheDocument();
+});

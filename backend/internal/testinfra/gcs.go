@@ -37,16 +37,17 @@ func (o protocolObject) attrs(bucket, key string) map[string]any {
 
 // GCSProtocol runs the vendor JSON protocol against isolated immutable objects.
 type GCSProtocol struct {
-	Client               *storage.Client
-	Quarantine, Released string
-	mu                   sync.Mutex
-	objects              map[string]protocolObject
-	nextGeneration       int64
-	copies               int
-	afterCopy            func()
-	afterQuarantineWrite func()
-	afterReleasedRead    func()
-	denyReads            bool
+	Client                 *storage.Client
+	Quarantine, Released   string
+	mu                     sync.Mutex
+	objects                map[string]protocolObject
+	nextGeneration         int64
+	copies                 int
+	afterCopy              func()
+	afterQuarantineWrite   func()
+	afterReleasedRead      func()
+	releasedReadsRemaining int
+	denyReads              bool
 }
 
 func NewGCSProtocol(t *testing.T) *GCSProtocol {
@@ -69,9 +70,19 @@ func (p *GCSProtocol) AfterQuarantineWrite(fn func()) {
 }
 func (p *GCSProtocol) AfterCopy(fn func()) { p.mu.Lock(); defer p.mu.Unlock(); p.afterCopy = fn }
 func (p *GCSProtocol) AfterReleasedRead(fn func()) {
+	p.AfterReleasedReads(1, fn)
+}
+
+// AfterReleasedReads holds exactly count media reads in the supplied callback.
+func (p *GCSProtocol) AfterReleasedReads(count int, fn func()) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if count < 1 {
+		fn = nil
+		count = 0
+	}
 	p.afterReleasedRead = fn
+	p.releasedReadsRemaining = count
 }
 func (p *GCSProtocol) DenyReads(deny bool) { p.mu.Lock(); defer p.mu.Unlock(); p.denyReads = deny }
 func (p *GCSProtocol) CorruptReleased(data []byte) {
@@ -182,7 +193,10 @@ func (p *GCSProtocol) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 	deny := p.denyReads
 	hook := p.afterReleasedRead
 	if bucket == p.Released && r.URL.Query().Get("alt") == "media" {
-		p.afterReleasedRead = nil
+		p.releasedReadsRemaining--
+		if p.releasedReadsRemaining <= 0 {
+			p.afterReleasedRead = nil
+		}
 	}
 	p.mu.Unlock()
 	if deny {

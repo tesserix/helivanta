@@ -1,0 +1,233 @@
+{
+  "account": "unidevidp@gmail.com",
+  "project": "tesseracthub-480811",
+  "context": "gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke",
+  "namespace": "helivanta",
+  "verifiedAt": "2026-11-04T08:25:00.073182+00:00",
+  "revision": "9f827a664928cd4175211739b8ac14cd85171d56",
+  "repositoryVisibility": "PUBLIC",
+  "approval": "User explicitly approved 9f827a66 and migrations 0026_iam_staff_posting_management_templates and 0032_pharmacy before promotion",
+  "freight": "da958217d2dbe0b11828ccf24b1b5e6e5d025fbd",
+  "promotion": "prod.01m6jta832new3sycsq543t52q.da95821",
+  "promotionPhase": "Succeeded",
+  "kargoHealth": "Healthy",
+  "deployments": {
+    "helivanta-api": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    },
+    "helivanta-global-api": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    },
+    "helivanta-shell": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-shell",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    },
+    "helivanta-document-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    },
+    "helivanta-emergency-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    },
+    "helivanta-pharmacy-evidence-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    },
+    "helivanta-supply-evidence-worker": {
+      "desired": 2,
+      "ready": 2,
+      "updated": 2,
+      "available": 2,
+      "images": [
+        {
+          "repository": "asia-south1-docker.pkg.dev/tesseracthub-480811/ghcr-remote/tesserix/helivanta/helivanta-api",
+          "tag": "9f827a664928cd4175211739b8ac14cd85171d56"
+        }
+      ]
+    }
+  },
+  "pods": [
+    {
+      "pod": "helivanta-api-7c5ffd9dcf-5bf7v",
+      "container": "api",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-api-7c5ffd9dcf-cjwc5",
+      "container": "api",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-document-worker-5b8fc48f76-49fhr",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-document-worker-5b8fc48f76-9zpmt",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-emergency-worker-b4b9dc6cc-cs4s5",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-emergency-worker-b4b9dc6cc-t9tjz",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-global-api-9789db9c-j5wlj",
+      "container": "global-api",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-global-api-9789db9c-kxknc",
+      "container": "global-api",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-pharmacy-evidence-worker-6b494d8bb-wsnbt",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-pharmacy-evidence-worker-6b494d8bb-z9b5b",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-shell-5788f4459b-487pj",
+      "container": "shell",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:eb3feb65d50a14b17cca9aa4b3a2050f6dd30ee176b70d2fdefe42a24b85fb12"
+    },
+    {
+      "pod": "helivanta-shell-5788f4459b-7nws2",
+      "container": "shell",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:eb3feb65d50a14b17cca9aa4b3a2050f6dd30ee176b70d2fdefe42a24b85fb12"
+    },
+    {
+      "pod": "helivanta-supply-evidence-worker-698579c4b-ctj6q",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    },
+    {
+      "pod": "helivanta-supply-evidence-worker-698579c4b-j2jqv",
+      "container": "worker",
+      "ready": true,
+      "restarts": 0,
+      "imageDigest": "sha256:d65e78c85d391046ab6e118c981acefce6c7882805b95f72a2c8b12df79e012a"
+    }
+  ],
+  "applications": {
+    "helivanta-api": {
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    "helivanta-global-api": {
+      "sync": "Synced",
+      "health": "Healthy"
+    },
+    "helivanta-shell": {
+      "sync": "Synced",
+      "health": "Healthy"
+    }
+  },
+  "migrations": {
+    "job": "helivanta-api-migrate",
+    "pod": "helivanta-api-migrate-xchxp",
+    "exitCode": 0,
+    "before": 225,
+    "after": 227,
+    "added": ["0026_iam_staff_posting_management_templates", "0032_pharmacy"],
+    "removed": []
+  },
+  "publicSmoke": {
+    "/": 200,
+    "/login": 200,
+    "/api/v1/workforce/posting-review-scopes_without_auth": 401
+  },
+  "limitations": [
+    "No automatic Staff assignment or operating/clinical access",
+    "Root approval candidate and migrations 0079/0080 are not deployed",
+    "Independent reviewer UI acceptance, supervisor chains and lifecycle enforcement remain open"
+  ]
+}

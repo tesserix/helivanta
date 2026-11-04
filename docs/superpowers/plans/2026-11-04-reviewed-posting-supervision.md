@@ -67,8 +67,16 @@ source passes. The full Global API retry preserves all original assertions after
 fixing cancelled cleanup contexts and retiring the two new synthetic departments.
 No deadline or security assertion was relaxed.
 
-Normal assignment role choices need exact verified catalogs and safe fallback;
-#1563 adds that check after the regression failed. Real submitter/reviewer browser
-acceptance still needs owner sign-in. Steps 4–7 remain partially complete:
+Normal assignment choices use exact verified catalogs and safe fallback; #1563
+adds that check after the regression failed and is merged/deployed as `9f827a66`.
+The approved rollout added exactly IAM 0026 and Pharmacy 0032 (ledger 225→227);
+root migrations 0079/0080 remain undeployed. Normal local owner sign-in now works
+after replacing the incomplete callback build with a complete standalone build.
+The real form verified four older roles against the earlier backend, then all
+five roles against the candidate. Independent approver/reviewer sign-in and
+positive approval UI acceptance remain open. A department-guard bypass mutation
+is caught (409 expected / 200 actual); exact guard restoration and the focused
+root reviewer/approval/department-first race trio pass in 103.518s. The full
+Global API race rerun with that scenario passes in **495.473s**. Steps 4–7 remain partially complete:
 additional current-source/concurrency mutation proofs, bounded supervisor chains,
 canonical supervisor selection and operating lifecycle consumers remain open.

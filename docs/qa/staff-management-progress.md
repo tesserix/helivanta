@@ -10,11 +10,16 @@ was not relaxed. A full native architecture race run was OOM-killed; the bounded
 rerun passes in **439.621s** without pruning/restarting the existing QA VM.
 The signed release-image workflow passed. The user explicitly approved `9f827a66`
 and both named migrations. Kargo promotion `prod.01m6jta832new3sycsq543t52q.da95821`
-is running; deployment acceptance is not yet claimed.
-Read-only live ledger comparison finds exactly two pending migrations for the
-merged catalog revision: `0026_iam_staff_posting_management_templates` and
-`0032_pharmacy` (the independently merged OPD encounter-link projection). The live
-225-entry ledger has no unknown entries. Their exact rollout approval was received before creating the promotion.
+succeeded. All seven application deployments are ready/updated/available **2/2**
+at the exact revision; 14 containers are ready. Argo applications are Synced/Healthy
+and Kargo is Healthy. Migration pod `helivanta-api-migrate-xchxp` exited 0; the
+production ledger is **225 → 227**, adding exactly the two approved IDs and removing
+none. Home/login return 200; unauthenticated Staff scope discovery returns 401.
+Repository visibility remains PUBLIC. See [release evidence](../deployment/releases/2026-11-04-posting-management-catalog.json).
+The read-only pre-rollout ledger comparison identified exactly two pending
+migrations for the merged catalog revision: `0026_iam_staff_posting_management_templates` and
+`0032_pharmacy` (the independently merged OPD encounter-link projection). The captured
+225-entry pre-rollout ledger had no unknown entries. Their exact rollout approval was received before creating the promotion.
 Root migrations `0079/0080` are excluded from this release.
 
 The separate root candidate is pushed as draft
@@ -49,8 +54,8 @@ is restored byte for byte (SHA256 `70df5270f093f59f9b87ce3bab9e918e79b7e8196b3b2
 the root reviewer/approval/department-first race trio passes in **103.518s**.
 The restored test proves the target generation remains current, approval creates
 no committed audit/event/receipt, pending history stays unchanged and independent
-rejection succeeds after department retirement. Scoped Go lint passes. A full
-Global API rerun with this additional scenario remains pending.
+rejection succeeds after department retirement. Scoped Go lint passes. The full
+Global API race suite with this additional scenario passes in **495.473s**.
 Supervisor chains and operating/lifecycle enforcement remain open. Overall counts
 stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 

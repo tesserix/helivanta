@@ -40,6 +40,9 @@ type ScopedCommandGuard interface {
 	WithScopeGrant(context.Context, ScopeRequest, ScopeGrant, time.Time, func(context.Context) error) error
 }
 
+// MaxScopedCommandChecks bounds independently reserved owner permissions.
+const MaxScopedCommandChecks = 3
+
 // ScopeCheck binds one server-required permission to its current IAM evidence.
 type ScopeCheck struct {
 	Request ScopeRequest

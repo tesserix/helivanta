@@ -38,11 +38,9 @@ what is still owed.
 
 3. **No direct identifiers in either read.** Rows and summaries carry no
    buyer name or phone and no patient id, only the kind and bed code. A bed
-   code with a date still points to its occupant. Neither read is audited,
-   matching the invoice read, which shows more; whether bed-level reads need
-   an audit record is raised with the invoice-read gap below. Anyone who
-   needs the person opens the invoice through the existing
-   `GET …/sales/{id}`, as today.
+   code with a date still points to its occupant, so a read showing an
+   admission sale is audited (#1555). Anyone who needs the person opens the
+   invoice through `GET …/sales/{id}`, which is audited too.
 4. **The summary.** `GET …/sales/{id}/summary` is the statement for one sale:
    - each medicine line: units sold and returned, amount charged and credited;
    - each service charge: amount charged and credited;
@@ -77,7 +75,6 @@ admission_reversed_minor)` always.
 - Store filter across outlets: the worklist is one outlet's, as every sale
   read is.
 - Patient or buyer search, and showing who the buyer was in the list.
-- Auditing the existing invoice and sale-list reads, which already return the
-  buyer name and phone and the patient id unaudited. That is a gap in those
-  reads, not in this slice; it is raised for its own change.
+- Auditing the invoice and sale-list reads, and the bed code in these
+  reads: done in #1555.
 - CSV export.

@@ -17,9 +17,9 @@ import (
 
 // The sales worklist and each sale's summary (#987 slice 1). Both read
 // posted, insert-only records afresh. Neither carries the buyer's name or
-// phone or the patient's id, only who the sale was for as a kind and an
-// admission's bed code; like the invoice read, which shows more, neither is
-// audited (spec decision 3).
+// phone or the patient's id, only who the sale was for as a kind; an
+// admission sale's bed code points to its occupant, so a read showing one
+// is audited (#1555).
 
 func salesWorklistRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/sales/worklist", PermSaleRead, h.listSalesWorklist)
@@ -104,8 +104,21 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
 			return err
 		}
-		return tenantdb.ApplyOrderedKeyset(tx.Table(saleWorkRows, p.TenantID, outlet, invoice, since, until, invoice, invoice, customer, customer), params,
-			tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).Find(&rows).Error
+		if err := tenantdb.ApplyOrderedKeyset(tx.Table(saleWorkRows, p.TenantID, outlet, invoice, since, until, invoice, invoice, customer, customer), params,
+			tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).Find(&rows).Error; err != nil {
+			return err
+		}
+		// A bed code with its date points to the bed's occupant, so a page
+		// showing an admission sale is recorded (#1555); others carry no one.
+		// Only the rows the page shows: ListRoute reads one more to see if
+		// there is a next page and drops it.
+		for _, r := range rows[:min(len(rows), params.Limit)] {
+			if r.Customer == "admission" {
+				return auditRegisterRead(c, tx, "sales_worklist", p.TenantID, p.Subject, outlet, "list_read",
+					"from", orAll(since), "to", orAll(until), "customer", orAll(customer), "invoice", orAll(invoice))
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		stockError(c, err)
@@ -203,15 +216,23 @@ func (h *catalogueHandlers) getSaleSummary(c *gin.Context) {
 	var s saleSummary
 	// One snapshot for every read, so a return posted meanwhile is wholly in
 	// or wholly out and the statement's identities hold in the response, not
-	// only in the database. A read-only snapshot needs no lock on the grant.
-	err := h.db.WithTenantSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
+	// only in the database. The snapshot needs no lock on the grant; it is
+	// writable only for the read's own audit row.
+	err := h.db.WithTenantRecordedSnapshot(c.Request.Context(), p.TenantID, func(tx *gorm.DB) error {
 		if _, err := outletAccess(tx, p, outlet, pharmacy, false); err != nil {
 			return err
 		}
 		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
 			return err
 		}
-		return loadSaleSummary(tx, p.TenantID, outlet, id, &s)
+		if err := loadSaleSummary(tx, p.TenantID, outlet, id, &s); err != nil {
+			return err
+		}
+		if s.Customer != "admission" {
+			return nil
+		}
+		// The bed code points to its occupant: recorded in the same snapshot (#1555).
+		return auditRegisterRead(c, tx, "sale", p.TenantID, p.Subject, id, "summary_read")
 	})
 	if err != nil {
 		stockError(c, err)
@@ -322,4 +343,12 @@ func loadSaleSummary(tx *gorm.DB, tenant string, outlet, id uuid.UUID, s *saleSu
 	}
 	s.NetMinor = s.TotalMinor - s.CreditedMinor
 	return nil
+}
+
+// orAll is an absent filter as the audit log writes it.
+func orAll(v *string) string {
+	if v == nil {
+		return "all"
+	}
+	return *v
 }

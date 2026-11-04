@@ -1,6 +1,7 @@
 package pharmacy
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -58,4 +59,11 @@ func SetSummaryMidRead(t interface{ Cleanup(func()) }, fn func()) {
 	was := summaryMidRead
 	summaryMidRead = fn
 	t.Cleanup(func() { summaryMidRead = was })
+}
+
+// SetReadRecordFault makes every audited read's record fail, for one test.
+func SetReadRecordFault(t interface{ Cleanup(func()) }) {
+	was := readRecordFault
+	readRecordFault = func() error { return errors.New("TEST audit store unavailable") }
+	t.Cleanup(func() { readRecordFault = was })
 }

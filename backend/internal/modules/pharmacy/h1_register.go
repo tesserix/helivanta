@@ -101,9 +101,16 @@ func auditH1Read(c *gin.Context, tx *gorm.DB, tenant, subject string, outlet uui
 	return auditRegisterRead(c, tx, "h1_register", tenant, subject, outlet, action, "from", from, "to", to)
 }
 
+// readRecordFault is a test seam standing for an audit store that refuses
+// the row; it is nil-error otherwise.
+var readRecordFault = func() error { return nil }
+
 // auditRegisterRead writes a register read to audit_events, which holds
 // field names only, and the filter values to the structured audit log.
 func auditRegisterRead(c *gin.Context, tx *gorm.DB, register, tenant, subject string, outlet uuid.UUID, action string, filters ...string) error {
+	if err := readRecordFault(); err != nil {
+		return err
+	}
 	fields := []string{}
 	for i := 0; i < len(filters); i += 2 {
 		fields = append(fields, filters[i])

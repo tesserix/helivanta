@@ -10,34 +10,59 @@ conflicting-command rejection and retained revision history. The approved receip
 continues to report `grants_access=false`. This is API evidence, not browser or
 production acceptance. Missing management authority returns403; omitted attestation returns409. Both
 leave the proposal pending and preserve the command for later authorized use. The
-expanded pair passes54.953s, with real dependencies and race enabled.
+expanded pair passes in 54.953s, with real dependencies and race enabled.
 
 The first positive run exposed the compound IAM/authz guard's two-check ceiling.
 The candidate fix permits at most three distinct exact checks, compares every
 previous grant for conflicting snapshots, and leaves the employment-basis
 consumer's explicit two-check contract unchanged. Real two/three-permission IAM
-integration tests pass48.190s; authz evidence race tests pass2.140s. A separate
+integration tests pass in 48.190s; authz evidence race tests pass in 2.140s. The full authz race suite also passes
+in 6.842s after the final guard changes. A separate
 fixture failure came from fatal assertions inside asynchronous status polling;
 the candidate test fix uses cancellable requests and collected assertions.
 
-An opt-in16MB PostgreSQL fixture buffer budget preserves the default128MB,
+An opt-in 16MB PostgreSQL fixture buffer budget preserves the default 128MB,
 per-test databases, production-shaped roles and forced RLS. Its actual-server
-budget/reuse/isolation tests pass5.252s and the default control passes4.561s.
+budget/reuse/isolation tests pass in 5.252s and the default control passes in 4.561s.
 It is isolated in [#1559](https://github.com/tesserix/helivanta/pull/1559),
-commit `ff6c51d7`. The full testinfra race suite passes17.457s with Ryuk enabled,
+commit `ff6c51d7`. The full testinfra race suite passes in 17.457s with Ryuk enabled,
 including concurrent reaper reuse and independent cleanup. Build/vet/lint and
-Gitleaks pass; PR CI is pending. Colima needs the internal socket override; a
+Gitleaks pass. The authorized admin merge was attempted, but GitHub refused
+while three required checks were in progress; no rules were changed. Colima needs the internal socket override; a
 monitoring script also raced normal reaper cleanup, so the accepted full run used
 Go directly with the correct socket. No skipped regression supplied acceptance.
 
-The full IAM run with the memory budget completed597.949s and was **not green**:
-the migration-count assertion needed26 instead of25 (corrected and focused check
-passed), and management projection recovery remained at acknowledged epoch3
-instead of5. The latter remains under investigation in a new full IAM run with bounded
-non-payload failure diagnostics; no timeout extension, skip
-or acceptance claim resolves it. No feature merge, production rollout, live
-migration or VM restart was performed by this checkpoint. Counts remain
+The full IAM run with the memory budget completed in 597.949s and was **not green**:
+the migration-count assertion needed 26 instead of 25 (corrected and focused check
+passed), and management projection recovery remained at acknowledged epoch 3
+instead of 5. The rerun was stopped after 578.800s following real failures in
+`TestAssignmentProjectionAcknowledgesOnlyCurrentScope` and the posting-preparer
+projection scenario, with NATS timeouts and only 127MB VM memory available. It
+did not reach the new management recovery diagnostic and is not a full pass.
+Only its three owned fixtures were removed. The recovery failure remains open; no timeout extension, skip
+or acceptance claim resolves it. The guard, diagnostic and root API checkpoints are committed and pushed as
+`3c508d18`, `0405318a` and `9d74654c`. No feature merge, production rollout,
+live migration or VM restart was performed by this checkpoint. Counts remain
 **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Local browser sign-in repair — 2026-11-04
+
+Native Chrome inspection found that the old shell on port 4398 had the production
+OIDC issuer baked into its bundle, while its client was provisioned in the local
+identity service. Its normal sign-in action failed with `Errors.App.NotFound`.
+The candidate shell was rebuilt from the current worktree using the existing
+loopback issuer and bound client; the build and TypeScript checks passed. Only
+the owned QA shell listener was replaced. Global API health and local OIDC
+discovery both return 200. No identity application, permission or production
+configuration changed.
+
+Normal browser sign-in now reaches the local credential form with an auth request.
+It is not authenticated yet. Owner/admin sign-in was requested because credentials
+must not be printed or passed through Terminal/clipboard; no secure credential-file
+input is available in the browser tool. There is no posting UI acceptance claim.
+Private runtime metadata is stored under
+`~/.helivanta/staff-management-20261027/posting-review-ui-20261104/ui-root-approval-runtime.json`;
+credentials and runtime secrets remain outside Git.
 
 ## Management capability checkpoint — 2026-11-04
 

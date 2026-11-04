@@ -265,6 +265,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	workforce.PermPostingProposalRead:      {authz.RoleTenantAdmin},
 	workforce.PermPostingSubmit:            {authz.RoleTenantAdmin},
 	workforce.PermPostingReview:            {authz.RoleTenantAdmin},
+	workforce.PermPostingManagementReview:  {authz.RoleTenantAdmin},
 	workforce.PermPostingRead:              {authz.RoleTenantAdmin},
 	workforce.PermPostingPrepare:           {authz.RoleTenantAdmin}, // Draft preparation only; exact hospital reader/manager remains required.
 	workforce.PermEmploymentReview:         {authz.RoleTenantAdmin},

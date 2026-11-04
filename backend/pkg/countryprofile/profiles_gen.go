@@ -45,6 +45,16 @@ func SupportedCurrency(code string) bool {
 	}
 }
 
+// CurrencyMinorDigits is the number of minor-unit digits of a supported currency.
+func CurrencyMinorDigits(code string) (int, bool) {
+	switch code {
+	case "INR":
+		return 2, true
+	default:
+		return 0, false
+	}
+}
+
 // ValidTaxIdentifierKind checks declared metadata, not licence validity.
 func ValidTaxIdentifierKind(code, kind string) bool {
 	switch code {

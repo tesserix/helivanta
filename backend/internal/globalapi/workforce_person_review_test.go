@@ -1767,7 +1767,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingRegistrationPath string
 	var postingSubmitter string
 	var postingRootReviewer string
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_root_dept_first", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -2193,6 +2193,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "PUT", departmentPath, maker, departmentInput, 200)
 				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || strings.HasPrefix(scenario, "posting_root_") {
 					t.Cleanup(func() {
+						if departmentInput["status"] == "retired" {
+							return
+						}
 						departmentInput["expected_version"], departmentInput["status"] = 1, "retired"
 						retirementPath := organizationBase + "/departments/" + departmentID + "/revisions/" + uuid.Must(uuid.NewV7()).String()
 						call(t, "PUT", retirementPath, maker, departmentInput, 200)
@@ -2241,6 +2244,17 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if scenario == "posting_root_reviewer" {
 					grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
 					postingRootReviewer = recipient
+					return
+				}
+				if scenario == "posting_root_dept_first" {
+					require.NotEmpty(t, postingRootReviewer, "include the preceding reviewed root-reviewer and root-approval scenarios")
+					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
+					assertPostingRootDepartmentFirst(t, db, testutil.TenantA, call, scopedStaffBase, recipient, postingRootReviewer, scopedDraft, scopedReceipt, scopedSource, generation, func() {
+						departmentInput["expected_version"], departmentInput["status"] = 1, "retired"
+						retirementPath := organizationBase + "/departments/" + departmentID + "/revisions/" + uuid.Must(uuid.NewV7()).String()
+						retired := call(t, "PUT", retirementPath, maker, departmentInput, 200)
+						require.Equal(t, "retired", retired["status"])
+					})
 					return
 				}
 				if scenario == "posting_root_source_first" {

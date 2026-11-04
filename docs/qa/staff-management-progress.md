@@ -1,5 +1,59 @@
 # Staff Management delivery tracker
 
+## Catalog merged and local QA runtime repaired — 2026-11-04
+
+[#1563](https://github.com/tesserix/helivanta/pull/1563) is merged as
+`9f827a664928cd4175211739b8ac14cd85171d56`. Exact-head Go coverage/race,
+web, end-to-end, scripts, image-build and secret checks passed. The approved
+permission matrix now records the management permission explicitly; cardinality
+was not relaxed. A full native architecture race run was OOM-killed; the bounded
+rerun passes in **439.621s** without pruning/restarting the existing QA VM.
+The signed release-image workflow passed. The user explicitly approved `9f827a66`
+and both named migrations. Kargo promotion `prod.01m6jta832new3sycsq543t52q.da95821`
+is running; deployment acceptance is not yet claimed.
+Read-only live ledger comparison finds exactly two pending migrations for the
+merged catalog revision: `0026_iam_staff_posting_management_templates` and
+`0032_pharmacy` (the independently merged OPD encounter-link projection). The live
+225-entry ledger has no unknown entries. Their exact rollout approval was received before creating the promotion.
+Root migrations `0079/0080` are excluded from this release.
+
+The separate root candidate is pushed as draft
+[#1565](https://github.com/tesserix/helivanta/pull/1565). Its production and local
+Webpack builds pass. The old local QA process lacked the callback client manifest
+and 500 page; the replacement standalone runtime includes copied static/public
+assets and completes normal OIDC saved-login authentication to the QA dashboard.
+No password was extracted or rotated. The normal Staff access form offers the
+four older verified posting roles against the earlier backend, then all five
+including management reviewer against the candidate backend. No access assignment
+was submitted or approved during this catalog-choice check.
+
+The isolated fixture had leave routing under its older `0075` migration ID.
+Before update, a full private dump and ledger capture were retained. Its source SQL
+matches canonical `0078` byte for byte. A fresh fully migrated scratch database
+proved parity for functions, columns, indexes, triggers and forced RLS; constraints
+and policies match after flattening only three explicitly identified associative
+AND groups introduced by dump/restore. The local ledger retains `0075` and adds
+the canonical alias without rerunning its SQL. API startup then applied the five
+remaining local candidate migrations; the local ledger is **224 → 230**, removing
+none. Schema proof, reconciliation record, backup and runtime metadata remain in
+the private QA directory. This local-only reconciliation is not a production
+migration instruction or approval. No repository migration was rewritten.
+
+Independent approver/reviewer browser acceptance remains open. The owner sign-in
+works; the independent QA approver needs normal sign-in. Native browser testing
+paused when the user resumed Chrome and the tab-only connector failed to bind.
+The department-retirement regression initially stopped on an overlong synthetic
+employee code before exercising its assertion. The corrected fixture catches a
+deliberate department-guard bypass (expected 409, actual approved 200). The guard
+is restored byte for byte (SHA256 `70df5270f093f59f9b87ce3bab9e918e79b7e8196b3b2d613899fbf419036f2f`);
+the root reviewer/approval/department-first race trio passes in **103.518s**.
+The restored test proves the target generation remains current, approval creates
+no committed audit/event/receipt, pending history stays unchanged and independent
+rejection succeeds after department retirement. Scoped Go lint passes. A full
+Global API rerun with this additional scenario remains pending.
+Supervisor chains and operating/lifecycle enforcement remain open. Overall counts
+stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Integrated source-change and retry proof — 2026-11-04
 
 The integrated root candidate passes the full native Global API race suite in

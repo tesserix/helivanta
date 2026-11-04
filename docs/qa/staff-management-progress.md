@@ -4927,5 +4927,8 @@ employment evidence-transfer test expected 200 for an admitted download but got
 isolated transfer scenario passes (35.399s package, 0.75s scenario), including four
 admitted transfers and rejection of the fifth while occupied. Timing sensitivity
 is indicated, but the cause is not established. No deadline, assertion or source
-was changed; a complete unchanged-source journey rerun remains in progress.
-The initial failure is retained rather than replaced by the isolated result.
+was changed. The complete unchanged-source journey rerun passed in 407.358s
+(wall 416.5s), including all posting and employment transfer cases. Three exact
+session-owned fixtures were captured and removed; temporary forwards were
+released. The initial failure is retained alongside the isolated and full rerun
+results; this does not establish the cause or complete Staff acceptance.

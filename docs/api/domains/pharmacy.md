@@ -334,7 +334,7 @@ Every read of a pharmacy record that names or points to a person writes an `audi
 | `GET …/opd-encounters`           | `pharmacy_opd_encounters` | the outlet       | `patient_visits_read` (`patient_id,hospital_id`) | always                           |
 
 - **Who opened a record** is one indexed query on `(tenant_id, resource_type, resource_id)`.
-- **The sale summary** reads in one writable REPEATABLE READ snapshot (`tenantdb.WithTenantRecordedSnapshot`), so its statement stays one reading and its audit row commits with it.
+- **The sale summary** reads in one read-only REPEATABLE READ snapshot, so its statement stays one reading. Its audit row, for an admission sale, is written in its own transaction with the outlet grant checked again, after the snapshot and before anything is sent: if it cannot be written, the read fails with no data (tested). No writable snapshot exists, so none can carry a business write.
 - **An audit store that refuses the row fails the read** with an error and no data (tested through a test seam standing for that refusal, on every audited route).
 - **Not covered:** the tenant-wide dispense queue (`GET /pharmacy/dispenses…`), which shows patient names from MediCore's visits; auditing it is a dispensing-workflow decision and #1555 stays open for it.
 
@@ -420,7 +420,7 @@ A registered patient's counter sale may cite the OPD encounter it serves. See th
 
   The hospital-verification check runs before the visit is read, so a hospital that has not verified the pharmacy is refused first.
 
-  A `closed` encounter is citable, as patients collect medicines after the consultation; there is no time limit (agreed 2026-11-04). The sale takes the encounter row `FOR SHARE`, so a status change is wholly before or after it. A later cancellation does not undo a posted sale. The intent digest covers the encounter.
+  A `closed` encounter is citable, as patients collect medicines after the consultation; there is no time limit (agreed 2026-11-04). The sale takes the encounter row `FOR SHARE`, so a status change is wholly before or after it: a sale posted while a cancellation is being applied waits for it and is then refused (tested). A later cancellation does not undo a posted sale. The intent digest covers the encounter.
 
 - **Read.** The invoice read carries `encounter_id` (audited, #1555). The worklist and summary show only `linkage`.
 - **Events.** `sale_posted.v1` is unchanged: publishing the link to hospital billing belongs to #1051.

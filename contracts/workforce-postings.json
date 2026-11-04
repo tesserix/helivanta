@@ -154,6 +154,32 @@
         "max": 150
       }
     ],
+    "StaffPostingSupervisionIntent": [
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": [
+          "hospital_management",
+          "department_supervisor",
+          "department_member"
+        ]
+      },
+      {
+        "name": "supervisor_staff_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "supervisor_proposal_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
+        "name": "supervisor_revision_id",
+        "type": "uuid",
+        "optional": true
+      }
+    ],
     "StaffPostingProposalInput": [
       {
         "name": "expected_version",
@@ -213,6 +239,11 @@
         "pointer": true,
         "binding": "required",
         "required_true": "Review the selected sources before submitting."
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent",
+        "optional": true
       }
     ],
     "StaffPostingProposal": [
@@ -344,6 +375,11 @@
         "pointer": true,
         "binding": "required",
         "required_true": "Review the selected proposal sources before deciding."
+      },
+      {
+        "name": "hospital_management_reviewed",
+        "type": "bool",
+        "optional": true
       }
     ],
     "StaffPostingReviewSource": [
@@ -443,6 +479,18 @@
       {
         "name": "expected_revision_id",
         "type": "uuid"
+      },
+      {
+        "name": "supervision_context",
+        "type": "string",
+        "enum": ["v1"],
+        "optional": true
+      },
+      {
+        "name": "management_review",
+        "type": "string",
+        "enum": ["current"],
+        "optional": true
       }
     ],
     "StaffPostingProposalContext": [
@@ -495,6 +543,18 @@
       {
         "name": "is_submitter",
         "type": "bool"
+      }
+    ],
+    "StaffPostingSupervisionContext": [
+      {
+        "name": "context",
+        "type": "StaffPostingProposalContext"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent",
+        "pointer": true,
+        "nullable": true
       }
     ]
   },

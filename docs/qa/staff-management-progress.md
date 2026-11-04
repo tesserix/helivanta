@@ -1,5 +1,63 @@
 # Staff Management delivery tracker
 
+## Root approval backend validation complete — 2026-11-04
+
+The affected native Linux suites now pass with the race detector: **IAM 459.661s,
+Workforce 542.081s and Global API 454.577s**. Global API includes independent root
+approval, fully entitled self/submitter denial, stale decisions, management-context
+read authorization and terminal refusal, exact replay/conflict/history, and injected
+management-evidence, approval-audit and canonical outbox failures. Failed commands
+preserve the pending head/history and expose no receipt; Staff-source audit and
+outbox writes roll back before the same command later succeeds.
+
+A missing-disclosure-audit mutation was caught (200 instead of the required 500);
+the original source SHA256 was restored and the focused green pair passed in
+51.899s. The first full Global API run failed: cleanup used cancelled subtest
+contexts, leaving department rows active; the two new root scenarios also needed
+explicit cleanup. The corrected run retains the original exact pagination and
+retirement assertions, uses the enclosing live test context for normal calls,
+and keeps separately cancellable polling. No timeout or security assertion was
+relaxed. The earlier combined command's missing helper-file compilation error is
+not counted as a test pass.
+
+The new normal role-choice UI is being completed in separate catalog PR
+[#1563](https://github.com/tesserix/helivanta/pull/1563). Root approval, its three
+candidate migrations and its reviewer UI are not deployed. Real-account UI,
+concurrency/source-race acceptance, department supervision chains and lifecycle
+consumers remain open. Counts stay **10 partial, 10 awaiting audit, 1 research,
+0 fully accepted**. The separately approved guard revision `09e0f49c` is deployed
+and verified; its release record follows below.
+
+## Deployed scoped-command prerequisite — 2026-11-04
+
+[#1561](https://github.com/tesserix/helivanta/pull/1561) is merged and deployed as
+`09e0f49c` using Kargo Freight `ad730a191333c7768f038c0b21f6ba40b4f42328` and
+promotion `prod.01m6jj7k38hbjkwy82q5z86pwc.ad730a1`. The user explicitly approved
+this exact revision and cumulative `0030_pharmacy` migration. The successful
+migration changed the ledger **224 → 225**, adding only `0030_pharmacy` and removing
+nothing. API, Global API, shell and four application workers are ready/updated/
+available **2/2** at the exact revision. All three Argo applications are
+Synced/Healthy, Kargo is Healthy, home/login return 200 and unauthenticated Staff
+scope access returns 401. Repository visibility remains PUBLIC. See the committed
+[release evidence](../deployment/releases/2026-11-04-three-scoped-command-grants.json).
+
+The full candidate IAM suite now passes natively with the race detector in
+**459.661s**, including projection recovery. IAM Go/SQL source hashes match the
+new root-review increment exactly. The root positive/context/self-denial pair
+passes in **53.252s**. Generator mutation/compatibility checks pass **53/53** after
+linking existing cached dependencies into the isolated worktree; the initial
+missing-Prettier harness error was not a product failure. Canonical contractdocs
+and operational inventory checks pass against current main: **809 surfaces,
+786 unclassified**; this is inventory evidence, not runtime acceptance.
+
+Normal root submission/review UI is committed and pushed in checkpoint `4195e4a0`
+and is being isolated against current main for its own bounded PR. A new management
+disclosure audit rollback assertion is undergoing a missing-audit mutation probe
+and restored-source verification. It is not deployed or accepted through a real
+reviewer browser account yet. Full Workforce validation, department-chain
+supervision and lifecycle consumers remain open. Counts remain **10 partial,
+10 awaiting audit, 1 research, 0 fully accepted**; no full Staff completion claimed.
+
 ## Department-scoped assignments proposed — 2026-11-04
 
 [ADR-0055](../adr/0055-department-scoped-assignments.md) and its
@@ -29,6 +87,277 @@ This is documentation only and awaits product-owner acceptance. No migration,
 route, permission or event is added. ORG-D8 is proposed; ORG-D9 (area and
 region grouping) stays open. Counts remain **10 partial, 10 awaiting audit, 1
 research, 0 fully accepted**.
+
+## Incremental management review UI checkpoint — 2026-11-04
+
+Prerequisite [#1559](https://github.com/tesserix/helivanta/pull/1559) is merged
+as `5cc7fa4c`; every required check, including full Go coverage, passed.
+The five-file guard [#1561](https://github.com/tesserix/helivanta/pull/1561)
+is merged as `09e0f49c` after every GitHub check passed. Its final isolated native
+Linux integration pair passes with the race detector in **46.496s**, preserving
+all nine existing QA services. Its exact-session fixtures were reaped normally.
+No VM restart or broad cleanup was needed. The first
+native attempt stopped before tests because two Linux-only modules were absent
+from the cache; those exact pinned modules were cached before the offline rerun.
+
+The candidate adds normal hospital-management submission and approval controls,
+retained supervisor references, explicit management attestation and a separately
+guarded management-context read. Default context envelopes remain compatible;
+the management selector requires review purpose and supervision opt-in. It checks
+three current scoped grants before Workforce locks and audits private disclosure.
+Approval continues to report `grants_access=false`. Department-chain approval and
+operating/lifecycle enforcement are separate remaining increments.
+
+Observed RED→GREEN checks cover selector validation, SDK management-context
+transport, accidental selector discard, missing approval/submission controls and
+supervisor references. Candidate validation passed: SDK 647 tests/78 files,
+shell 1,477 tests/180 files, focused reviewer/submission 33 tests, focused Go
+input/selector race checks, types, scoped lint, Go build/vet and contractdocs.
+The isolated frontend production build passed with a build-only Turbopack root
+override for external cached dependency symlinks; that override is not product
+source and must not be committed. Extended real-service approval/context and
+fully entitled self-denial assertions now pass with real dependencies and the race
+detector in **53.252s**. This includes unchanged bounded context, separate grant
+admission, missing attestation, fully entitled self-denial, terminal context denial
+and exact-command retry. The full candidate IAM race suite is now running to
+resolve the earlier projection-recovery failure; no full-suite pass is claimed.
+
+Read-only production discovery confirms account `unidevidp@gmail.com`, project
+`tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+API, Global API and shell remain ready 2/2 at `f4799d63`; Kargo reports Healthy.
+This is existing deployment health, not deployment of the candidate. The public
+repository remains PUBLIC. No new production promotion or migration has occurred
+at this checkpoint. Real-account browser acceptance remains pending sign-in.
+Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Root approval API checkpoint — 2026-11-04
+
+The normal-workflow root reviewer/approval pair now passes through the Global API,
+real PostgreSQL and OpenFGA (race enabled, 54.118s). It verifies approval of retained
+hospital-management intent by an independent active reviewer, exact-command replay,
+conflicting-command rejection and retained revision history. The approved receipt
+continues to report `grants_access=false`. This is API evidence, not browser or
+production acceptance. Missing management authority returns 403; omitted attestation returns 409. Both
+leave the proposal pending and preserve the command for later authorized use. The
+expanded pair passes in 54.953s, with real dependencies and race enabled.
+
+An additional target/submitter test now grants all three review permissions before
+asserting 403 and unchanged pending state. This assertion is **not yet verified**:
+two runs failed earlier in fixture setup (504 on an existing forbidden draft
+request; then 503 on reviewer activation-source and graph-authority polling).
+The diagnostic run recorded no PostgreSQL wait samples. No timeout was extended,
+error ignored or security assertion relaxed. These failures do not establish a
+root cause; the proposed 6GB local VM restart remains pending approval.
+
+The first positive run exposed the compound IAM/authz guard's two-check ceiling.
+The candidate fix permits at most three distinct exact checks, compares every
+previous grant for conflicting snapshots, and leaves the employment-basis
+consumer's explicit two-check contract unchanged. Real two/three-permission IAM
+integration tests pass in 48.190s; authz evidence race tests pass in 2.140s. The full authz race suite also passes
+in 6.842s after the final guard changes. The final real two/three-check IAM
+pair passes in 47.776s. A separate fixture failure came from fatal assertions inside asynchronous status polling;
+the candidate test fix uses cancellable requests and collected assertions.
+
+An opt-in 16MB PostgreSQL fixture buffer budget preserves the default 128MB,
+per-test databases, production-shaped roles and forced RLS. Its actual-server
+budget/reuse/isolation tests pass in 5.252s and the default control passes in 4.561s.
+It is isolated in [#1559](https://github.com/tesserix/helivanta/pull/1559),
+commit `ff6c51d7`. The full testinfra race suite passes in 17.457s with Ryuk enabled,
+including concurrent reaper reuse and independent cleanup. Build/vet/lint and
+Gitleaks pass. The authorized admin merge was attempted, but GitHub refused
+while three required checks were in progress; no rules were changed. Web and
+end-to-end CI subsequently passed; Go coverage is still pending. Colima needs the internal socket override; a
+monitoring script also raced normal reaper cleanup, so the accepted full run used
+Go directly with the correct socket. No skipped regression supplied acceptance.
+
+The full IAM run with the memory budget completed in 597.949s and was **not green**:
+the migration-count assertion needed 26 instead of 25 (corrected and focused check
+passed), and management projection recovery remained at acknowledged epoch 3
+instead of 5. The rerun was stopped after 578.800s following real failures in
+`TestAssignmentProjectionAcknowledgesOnlyCurrentScope` and the posting-preparer
+projection scenario, with NATS timeouts and only 127MB VM memory available. It
+did not reach the new management recovery diagnostic and is not a full pass.
+Only its three owned fixtures were removed. The recovery failure remains open; no timeout extension, skip
+or acceptance claim resolves it. The guard, diagnostic and root API checkpoints are committed and pushed as
+`3c508d18`, `0405318a` and `9d74654c`. No feature merge, production rollout,
+live migration or VM restart was performed by this checkpoint. Counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Local browser sign-in repair — 2026-11-04
+
+Native Chrome inspection found that the old shell on port 4398 had the production
+OIDC issuer baked into its bundle, while its client was provisioned in the local
+identity service. Its normal sign-in action failed with `Errors.App.NotFound`.
+The candidate shell was rebuilt from the current worktree using the existing
+loopback issuer and bound client; the build and TypeScript checks passed. Only
+the owned QA shell listener was replaced. Global API health and local OIDC
+discovery both return 200. No identity application, permission or production
+configuration changed.
+
+Normal browser sign-in now reaches the local credential form with an auth request.
+It is not authenticated yet. Owner/admin sign-in was requested because credentials
+must not be printed or passed through Terminal/clipboard; no secure credential-file
+input is available in the browser tool. There is no posting UI acceptance claim.
+Private runtime metadata is stored under
+`~/.helivanta/staff-management-20261027/posting-review-ui-20261104/ui-root-approval-runtime.json`;
+credentials and runtime secrets remain outside Git.
+
+## Newly published scope documents checked — 2026-11-04
+
+Reviewed main's proposed ADR-0054 and standalone pharmacy employer specification
+from `b155af06` / #1557. They preserve one Workforce Staff owner and require a typed
+pharmacy employer and outlet target; hospital-owned pharmacy staff remain hospital
+employees. They explicitly remain design only, with ORG-D8 acceptance and ORG-D9
+area/region scope unresolved. The current hospital-management root approval is not
+a standalone pharmacy employer implementation. No synthetic hospital, duplicate
+Pharma Staff master or pharmacy ID substituted into HospitalID was introduced.
+
+Open-issue discovery was refreshed for Staff and related payroll, contractor,
+posting, supervision and Workforce terms. Relevant open stories include #417,
+#418, #429, #434, #118, #1107, #1132 and #1399. This is scope discovery, not a fresh
+acceptance audit of every issue or authorization to close any of them. No issue
+was marked accepted, closed or tagged complete by the focused API checks.
+
+## Incremental prerequisite PRs — 2026-11-04
+
+- [#1559](https://github.com/tesserix/helivanta/pull/1559), `ff6c51d7`:
+  three-file opt-in local PostgreSQL fixture budget. Full local testinfra race
+  validation passed; web, end-to-end, image, script and security CI passed. The
+  required Go coverage job is still running, and GitHub refused the authorized
+  admin merge while required checks were pending.
+- Draft [#1561](https://github.com/tesserix/helivanta/pull/1561), `e955fd6d`:
+  five-file three-check IAM/authz guard, stacked on #1559. It uses existing
+  posting-reviewer/identity-manager/identity-reviewer templates in its integration
+  test, removing the new management catalog dependency. Isolated build/vet/lint
+  and Gitleaks pass. The isolated existing-catalog pair failed after 425.397s
+  (472.4s including setup/cleanup): two-check expiry-refresh returned no grant;
+  three-check preparation remained `pending_scope` after graph-authority errors.
+  Its three owned fixtures and seven temporary forwards were cleaned up. It is
+  not accepted; no timeout, expiry window or security assertion was relaxed. No migration, route, new capability catalog or UI action is added.
+  Rebase/retarget onto main after the parent merges. It remains draft until
+  validation and required CI pass.
+
+The shared local VM was subsequently observed with 78MB available and Docker
+storage 97% full (881MB free). Only owned test fixtures are cleaned up. No unrelated
+container, volume or cached image was pruned. The pending local 6GB restart request
+has not been approved or performed. These prerequisites do not close a Staff
+story or establish production or browser acceptance.
+
+## Management capability checkpoint — 2026-11-04
+
+Retention checkpoint `376138fa` is committed and pushed. Subsequent local work
+adds the separate closed management-review catalog and generated IAM forward
+migration0026, with frozen older catalogs/SQL. The real catalog test first failed
+200/400, then passed with the existing review catalog unchanged. New management
+projection/compound-guard/revocation coverage passes33.998s; both catalog cases
+pass6.371s; all53 generator authority/history tests and643 SDK tests/78 files pass.
+No production feature or positive approval is claimed from those results.
+
+The complete IAM suite was attempted, but existing assignment-projection and
+owner-event tests hit504/timeouts. It was stopped and its three owned fixtures
+removed. Read-only inspection found only60MB available/no swap in the4GB local
+`helivanta-tests` VM; Docker inventory timed out too. A restart at6GB is pending
+explicit approval because the VM contains other local test sessions. The separate
+6GB withdrawal QA VM is running and is not part of the requested restart. No VM
+restart, broad cleanup, migration, production rollout or credential entry occurred.
+The management checkpoint must not be merged before the complete IAM checks pass.
+
+Two fresh normal-workflow root-reviewer/root-approval test cases are being prepared
+in the working tree. They are not executed acceptance or positive approval
+implementation; the focused command must include both ordered scenarios:
+`-run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$/^activation_posting_root_(reviewer|approval)$'`.
+Root approval, normal reviewer UI, descendants, lifecycle, transfers and all
+consumer/employer acceptance remain unfinished. Counts remain unchanged.
+
+## Protected supervision retention checkpoint — 2026-11-04
+
+Branch `codex/posting-supervision-approval-20261104` now retains optional typed
+supervision intent in the proposal transaction and exposes it through an explicit
+protected context view. The ordinary context/receipt/event shapes remain
+unchanged. Candidate migration `0079_workforce_posting_supervision_intents` is
+checked in, additive and forward-only; historical revisions keep absent intent,
+and positive approval remains blocked by the existing database guards. Proposed
+supervisor IDs remain untrusted until an independent positive approval validates
+the current canonical Staff, exact revision, chain, sources and structural scope.
+This is a development checkpoint, not an independently released Staff feature.
+
+Observed RED: the SDK lacked `getStaffPostingSupervisionContext`; the real Global
+API journey returned400 for the new opt-in. After implementation, the focused
+signed-session/PostgreSQL/OpenFGA journey passed39.273s. Expanded lost-write,
+rollback, same-command retry and explicit legacy-null coverage passed60.430s.
+A cancelled-request regression first demonstrated an unwanted transport call;
+pre/post response abort checks corrected it. All641 SDK tests/78 files pass
+(21.83s), with canonical checks/types, ESLint/format, Go build/vet and scoped
+Workforce/Global API golangci-lint (0 issues). Contractdocs generation/check and
+its package tests pass. The operational inventory remains799 registered /776
+unclassified; the sixteen changed Workforce registration-file pins were reviewed
+against the migration-only registration diff, with unchanged route authority.
+
+The complete Workforce race suite passes1106.128s (wall1126.8s), and the final
+focused journey including historical-backfill/rewrite rejection passes39.647s.
+Removing the initial-intent/creation-transaction guard makes historical backfill
+return200 instead of the required500; the regression fails as intended. SQL was
+restored exactly (SHA256 `55d2dbd2512a7a6ed155be5138be03a3c8e101fc0d6577fb3a204bc493b65b62`).
+The full person-to-posting journey passes432.912s (wall442.5s), and the complete
+architecture suite passes77.801s (wall88.8s), including migration RLS lint and
+current IAM boundaries. Shell type checking also passes. Initial overlapping runs exhausted
+the 4GB test VM and produced authorization timeouts, so those runs do not establish
+a code result. They were stopped; seven exact owned fixtures were captured at
+`/tmp/helivanta-posting-supervision-interrupted-fixtures.json` and removed. Further
+Docker-backed checks were serialized for the successful final runs. Every owned
+fixture from the successful runs was captured and removed by its session label;
+no dependency/image pull was required. The staged patch passed Gitleaks.
+
+Production was rechecked read-only as `f4799d63` (API/Global API/shell2/2) under
+`unidevidp@gmail.com`, project `tesseracthub-480811`, context
+`gke_tesseracthub-480811_asia-south1_tesseract-prod-in-gke`, namespace `helivanta`.
+The prepared #1550 rollout is `baea2e3a`, Kargo Freight
+`97f268682a2734adfbfbc197c48dc96f54bc08a0`, with no added migration over that baseline;
+its merged-main CI and signed images passed. Exact rollout approval is pending.
+#1551 (`a7798a8a`) is merged; neither is claimed live. The repository is PUBLIC.
+
+Normal browser acceptance remains open: the isolated4398 login page responds200,
+but Chrome automation failed to create/navigate the QA tab. Earlier automatic
+review rejected Terminal credential-entry setup; that route was not retried.
+Owner sign-in is still required before authenticated browser acceptance.
+
+Remaining implementation order: separate management-review capability; independent
+root approval; exact supervisor/descendant approval; normal selection/review UI;
+current-source lifecycle and transfer enforcement; every departmental/Pharma
+consumer and standalone employer acceptance. #417/#418/#429 remain OPEN. Full
+Staff counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Merged posting increments and next input checkpoint — 2026-11-04
+
+[#1550](https://github.com/tesserix/helivanta/pull/1550) merged as `baea2e3a`
+(normal proposal submission UI). [#1551](https://github.com/tesserix/helivanta/pull/1551)
+merged as `a7798a8a` (current ancestry source guard). Both exact-head PR checks
+and their merged signed-image workflows passed. The baea shell-signing attempt
+first hit a Rekor duplicate-entry409; its normal failed-job rerun succeeded.
+Neither slice adds a migration or operating permission.
+
+Current production was rechecked as `f4799d63`: API, Global API and shell are
+updated/ready2/2, with224 applied migrations including Leave routing0078 from a
+concurrent rollout. These two posting increments have not been promoted. Exact
+Kargo rollout approval for baea is pending; it adds no migration to this baseline.
+
+Input checkpoint `8ebc30f3` is pushed on
+`codex/posting-supervision-approval-20261104`, based on merged a779. Full Workforce
+race suite770.324s and all638 SDK tests/78 files pass, as do Go vet/build/lint,
+canonical and contractdocs checks, SDK types/lint/format, shell types and source
+inventory checks (799 registered /776 unclassified). Removing strict decoding
+failed across proposal, nested intent and decision input; exact source was
+restored and hashed. No dependency/image download was needed for the offline
+input work; four owned fixtures were captured then removed and forwards released.
+
+This is an unfinished feature checkpoint, not an independently releasable input
+extension: retained supervision metadata, current root-management capability,
+positive root/descendant approval and normal UI remain under development. The
+[next contract](../superpowers/specs/2026-11-04-reviewed-posting-supervision.md)
+and plan retain lifecycle/transfer, contractors, standalone employers and all
+departmental/Pharma consumers. No full Staff acceptance is claimed; counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
 ## Reviewer terminal decisions deployed — 2026-11-04
 

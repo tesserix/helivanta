@@ -68,6 +68,130 @@ const receipt = {
 };
 afterEach(() => vi.resetAllMocks());
 
+it("retains an explicit hospital management intent without changing legacy submissions", () => {
+  expect(StaffPostingProposalInputContract.parse(input)).toEqual(input);
+  const supervision = { kind: "hospital_management" };
+  expect(StaffPostingProposalInputContract.parse({ ...input, supervision })).toEqual({
+    ...input,
+    supervision,
+  });
+});
+
+it("pins supervisor lookup to its canonical Staff path", () => {
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: scope.staffId,
+    supervisor_proposal_id: id(20),
+    supervisor_revision_id: id(21),
+  };
+  expect(StaffPostingProposalInputContract.parse({ ...input, supervision })).toEqual({
+    ...input,
+    supervision,
+  });
+  const missingStaff = { ...supervision, supervisor_staff_id: undefined };
+  expect(
+    StaffPostingProposalInputContract.safeParse({ ...input, supervision: missingStaff }).success,
+  ).toBe(false);
+});
+
+it("requires a complete Staff and supervisor reference only for non-root posting intent", () => {
+  for (const kind of ["department_supervisor", "department_member"]) {
+    const supervision = {
+      kind,
+      supervisor_staff_id: scope.staffId,
+      supervisor_proposal_id: id(20),
+      supervisor_revision_id: id(21),
+    };
+    expect(StaffPostingProposalInputContract.parse({ ...input, supervision })).toEqual({
+      ...input,
+      supervision,
+    });
+    for (const invalid of [
+      { kind, supervisor_staff_id: scope.staffId },
+      { kind, supervisor_staff_id: scope.staffId, supervisor_proposal_id: id(20) },
+      { kind, supervisor_staff_id: scope.staffId, supervisor_revision_id: id(21) },
+      { kind, supervisor_proposal_id: id(20), supervisor_revision_id: id(21) },
+    ]) {
+      expect(
+        StaffPostingProposalInputContract.safeParse({ ...input, supervision: invalid }).success,
+      ).toBe(false);
+    }
+  }
+  for (const reference of [
+    { supervisor_staff_id: scope.staffId },
+    { supervisor_proposal_id: id(20) },
+    { supervisor_revision_id: id(21) },
+    { supervisor_proposal_id: id(20), supervisor_revision_id: id(21) },
+  ]) {
+    expect(
+      StaffPostingProposalInputContract.safeParse({
+        ...input,
+        supervision: { kind: "hospital_management", ...reference },
+      }).success,
+    ).toBe(false);
+  }
+});
+
+it("requires UUIDv7 supervisor references and rejects null or unrecognized supervision fields", () => {
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: scope.staffId,
+    supervisor_proposal_id: id(20),
+    supervisor_revision_id: id(21),
+  };
+  for (const field of ["supervisor_proposal_id", "supervisor_revision_id"]) {
+    for (const value of [scope.hospitalId, "00000000-0000-0000-0000-000000000000", null]) {
+      expect(
+        StaffPostingProposalInputContract.safeParse({
+          ...input,
+          supervision: { ...supervision, [field]: value },
+        }).success,
+      ).toBe(false);
+    }
+  }
+  for (const invalid of [null, { ...supervision, grants_access: true }, { kind: "clinical" }]) {
+    expect(
+      StaffPostingProposalInputContract.safeParse({ ...input, supervision: invalid }).success,
+    ).toBe(false);
+  }
+});
+
+it("accepts hospital management review attestation only for approval", () => {
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: id(7),
+    decision: "approve",
+    reason: "Synthetic hospital management appointment review",
+    sources_examined: true,
+  };
+  expect(StaffPostingDecisionInputContract.parse(decision)).toEqual(decision);
+  expect(
+    StaffPostingDecisionInputContract.parse({ ...decision, hospital_management_reviewed: true }),
+  ).toEqual({ ...decision, hospital_management_reviewed: true });
+  for (const action of ["reject", "withdraw"]) {
+    expect(
+      StaffPostingDecisionInputContract.safeParse({
+        ...decision,
+        decision: action,
+        hospital_management_reviewed: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      StaffPostingDecisionInputContract.parse({
+        ...decision,
+        decision: action,
+        hospital_management_reviewed: false,
+      }),
+    ).toEqual({ ...decision, decision: action, hospital_management_reviewed: false });
+  }
+  expect(
+    StaffPostingDecisionInputContract.safeParse({
+      ...decision,
+      hospital_management_reviewed: null,
+    }).success,
+  ).toBe(false);
+});
+
 it("discovers bounded hospital proposal rows with original account headers", async () => {
   const api = await import("./staff-posting-proposals");
   const staff = {
@@ -169,6 +293,225 @@ it("releases only the requested exact protected proposal context", async () => {
       }),
     }),
   );
+});
+
+it("requests retained supervision through an explicit protected context view", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const view = {
+    context: {
+      purpose: "review",
+      proposal: receipt,
+      draft,
+      draft_reason: "Synthetic retained preparation rationale",
+      submission_reason: input.reason,
+      decision_reason: null,
+    },
+    supervision: { kind: "hospital_management" },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  const controller = new AbortController();
+  expect(
+    await api.getStaffPostingSupervisionContext(scope, receipt.id, request, controller.signal),
+  ).toEqual(view);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-proposals/${receipt.id}/context?purpose=review&expected_version=1&expected_revision_id=${receipt.revision_id}&supervision_context=v1`,
+    expect.objectContaining({ cache: "no-store", signal: controller.signal }),
+  );
+});
+
+it("requests an explicit current management review without widening the retained envelope", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const view = {
+    context: {
+      purpose: "review",
+      proposal: receipt,
+      draft,
+      draft_reason: "Synthetic management source review",
+      submission_reason: input.reason,
+      decision_reason: null,
+    },
+    supervision: { kind: "hospital_management" },
+  };
+  vi.mocked(apiFetch).mockResolvedValue(view);
+  const controller = new AbortController();
+  expect(
+    await api.getStaffPostingManagementReviewContext(scope, receipt.id, request, controller.signal),
+  ).toEqual(view);
+  expect(apiFetch).toHaveBeenCalledWith(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-proposals/${receipt.id}/context?purpose=review&expected_version=1&expected_revision_id=${receipt.revision_id}&supervision_context=v1&management_review=current`,
+    expect.objectContaining({ cache: "no-store", signal: controller.signal }),
+  );
+});
+
+it("cannot silently discard management readiness on an ordinary context getter", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+    management_review: "current",
+  };
+  for (const getter of [
+    api.getStaffPostingProposalContext,
+    api.getStaffPostingSupervisionContext,
+  ]) {
+    vi.mocked(apiFetch).mockClear();
+    await expect(getter(scope, receipt.id, request as never)).rejects.toThrow();
+    expect(apiFetch).not.toHaveBeenCalled();
+  }
+});
+
+it("refuses canceled, submission-purpose and unspecified management readiness", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  await expect(
+    api.getStaffPostingManagementReviewContext(scope, receipt.id, {
+      ...request,
+      purpose: "submission",
+    } as never),
+  ).rejects.toThrow();
+  const controller = new AbortController();
+  controller.abort();
+  await expect(
+    api.getStaffPostingManagementReviewContext(scope, receipt.id, request, controller.signal),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic protected rationale",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  for (const supervision of [
+    null,
+    {
+      kind: "department_member",
+      supervisor_staff_id: scope.staffId,
+      supervisor_proposal_id: receipt.id,
+      supervisor_revision_id: receipt.revision_id,
+    },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ context, supervision });
+    await expect(
+      api.getStaffPostingManagementReviewContext(scope, receipt.id, request),
+    ).rejects.toThrow("pending explicit hospital-management request");
+  }
+  const inflight = new AbortController();
+  vi.mocked(apiFetch).mockImplementationOnce(async () => {
+    inflight.abort();
+    return { context, supervision: { kind: "hospital_management" } };
+  });
+  await expect(
+    api.getStaffPostingManagementReviewContext(scope, receipt.id, request, inflight.signal),
+  ).rejects.toThrow();
+});
+
+it("withholds protected supervision context when its caller cancels", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const cancelled = new AbortController();
+  cancelled.abort();
+  await expect(
+    api.getStaffPostingSupervisionContext(scope, receipt.id, request, cancelled.signal),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+  const inflight = new AbortController();
+  vi.mocked(apiFetch).mockImplementationOnce(async () => {
+    inflight.abort();
+    return {
+      context: {
+        purpose: "review",
+        proposal: receipt,
+        draft,
+        draft_reason: "Synthetic preparation reason",
+        submission_reason: input.reason,
+        decision_reason: null,
+      },
+      supervision: { kind: "hospital_management" },
+    };
+  });
+  await expect(
+    api.getStaffPostingSupervisionContext(scope, receipt.id, request, inflight.signal),
+  ).rejects.toThrow();
+});
+
+it("refuses supervision context with mismatched sources and keeps the legacy selector strict", async () => {
+  const api = await import("./staff-posting-proposals");
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic preparation reason",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  for (const supervision of [
+    null,
+    { kind: "hospital_management" },
+    {
+      kind: "department_member",
+      supervisor_staff_id: scope.staffId,
+      supervisor_proposal_id: receipt.id,
+      supervisor_revision_id: receipt.revision_id,
+    },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue({ context, supervision });
+    expect(
+      (await api.getStaffPostingSupervisionContext(scope, receipt.id, request)).supervision,
+    ).toEqual(supervision);
+  }
+  for (const view of [
+    { context: { ...context, purpose: "submission" }, supervision: null },
+    {
+      context: {
+        ...context,
+        draft: { ...draft, staff_id: "00000000-0000-4000-8000-000000000001" },
+      },
+      supervision: null,
+    },
+    { context, supervision: { kind: "hospital_management", supervisor_staff_id: scope.staffId } },
+    { context, supervision: { kind: "department_member" } },
+    { context },
+    { context, supervision: null, extra: true },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue(view);
+    await expect(
+      api.getStaffPostingSupervisionContext(scope, receipt.id, request),
+    ).rejects.toThrow();
+  }
+  vi.mocked(apiFetch).mockClear();
+  await expect(
+    api.getStaffPostingProposalContext(scope, receipt.id, {
+      ...request,
+      supervision_context: "v1",
+    } as never),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
 });
 
 it("refuses private context with mismatched scope, purpose, immutable sources or reasons", async () => {
@@ -350,6 +693,39 @@ it("retains the exact non-operating decision command and verifies its immutable 
     await expect(
       api.getStaffPostingDecisionReceipt(scope, id(6), id(9), decision, selected),
     ).rejects.toThrow("could not be verified");
+  }
+});
+
+it("retains an explicitly attested management approval and rejects a different terminal result", async () => {
+  const api = await import("./staff-posting-proposals");
+  const selected = StaffPostingProposalContract.parse(receipt);
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: id(7),
+    decision: "approve" as const,
+    reason: "Synthetic independent hospital management review",
+    sources_examined: true,
+    hospital_management_reviewed: true,
+  };
+  const approved = {
+    ...receipt,
+    revision_id: id(10),
+    command_id: id(9),
+    version: 2,
+    status: "approved",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(approved);
+  expect(await api.decideStaffPostingProposal(scope, id(6), id(9), decision, selected)).toEqual(
+    approved,
+  );
+  expect(await api.getStaffPostingDecisionReceipt(scope, id(6), id(9), decision, selected)).toEqual(
+    approved,
+  );
+  for (const status of ["withdrawn", "rejected"]) {
+    vi.mocked(apiFetch).mockResolvedValue({ ...approved, status });
+    await expect(
+      api.getStaffPostingDecisionReceipt(scope, id(6), id(9), decision, selected),
+    ).rejects.toThrow();
   }
 });
 

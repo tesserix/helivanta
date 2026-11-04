@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func assertPostingContextAuditRollback(t *testing.T, db *tenantdb.DB, tenant, reviewer, path string, call func(*testing.T, string, string, string, any, int) map[string]any, reasons []string) {
+func assertPostingContextAuditRollback(t *testing.T, db *tenantdb.DB, tenant, reviewer, path, action string, call func(*testing.T, string, string, string, any, int) map[string]any, reasons []string) {
 	t.Helper()
 	countUses := func() int64 {
 		var count int64
@@ -34,7 +34,7 @@ func assertPostingContextAuditRollback(t *testing.T, db *tenantdb.DB, tenant, re
 	t.Cleanup(clear)
 	before := countUses()
 	require.Positive(t, before, "probe must count committed actor-use evidence")
-	require.NoError(t, apply("ALTER TABLE workforce_audit ADD CONSTRAINT synthetic_posting_context_audit CHECK (action<>'workforce.posting_proposal.context_read_review') NOT VALID"))
+	require.NoError(t, apply("ALTER TABLE workforce_audit ADD CONSTRAINT synthetic_posting_context_audit CHECK (action<>'"+action+"') NOT VALID"))
 	failure := call(t, "GET", path, reviewer, nil, 500)
 	require.NotContains(t, failure, "data")
 	body, err := json.Marshal(failure)

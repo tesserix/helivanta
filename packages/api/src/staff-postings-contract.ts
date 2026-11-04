@@ -64,8 +64,44 @@ const validProposalSubmission = (
   if (/\p{Cc}/u.test(value.reason))
     ctx.addIssue({ code: "custom", path: ["reason"], message: "Remove control characters." });
 };
+const validSupervisionIntent = (
+  value: {
+    kind: string;
+    supervisor_staff_id?: string;
+    supervisor_proposal_id?: string;
+    supervisor_revision_id?: string;
+  },
+  ctx: z.RefinementCtx,
+) => {
+  const staff = value.supervisor_staff_id !== undefined,
+    proposal = value.supervisor_proposal_id !== undefined,
+    revision = value.supervisor_revision_id !== undefined;
+  if (
+    value.kind === "hospital_management"
+      ? staff || proposal || revision
+      : !staff || !proposal || !revision
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["supervisor_proposal_id"],
+      message:
+        "Hospital management is an explicit root; other postings require the canonical Staff member and exact supervisor proposal and revision.",
+    });
+  for (const key of ["supervisor_proposal_id", "supervisor_revision_id"] as const)
+    if (value[key] !== undefined && !z.uuidv7().safeParse(value[key]).success)
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "Choose the exact approved supervisor proposal and revision.",
+      });
+};
 const validProposalDecision = (
-  value: { expected_revision_id: string; reason: string },
+  value: {
+    expected_revision_id: string;
+    reason: string;
+    decision: string;
+    hospital_management_reviewed?: boolean;
+  },
   ctx: z.RefinementCtx,
 ) => {
   if (!z.uuidv7().safeParse(value.expected_revision_id).success)
@@ -76,6 +112,12 @@ const validProposalDecision = (
     });
   if (/\p{Cc}/u.test(value.reason))
     ctx.addIssue({ code: "custom", path: ["reason"], message: "Remove control characters." });
+  if (value.hospital_management_reviewed === true && value.decision !== "approve")
+    ctx.addIssue({
+      code: "custom",
+      path: ["hospital_management_reviewed"],
+      message: "Hospital management review applies only to approval.",
+    });
 };
 const validProposal = (
   value: {
@@ -247,6 +289,17 @@ export const StaffPostingTargetContract = z
   .strict();
 export type StaffPostingTarget = z.infer<typeof StaffPostingTargetContract>;
 
+export const StaffPostingSupervisionIntentContract = z
+  .object({
+    kind: z.enum(["hospital_management", "department_supervisor", "department_member"]),
+    supervisor_staff_id: identifier.optional(),
+    supervisor_proposal_id: identifier.optional(),
+    supervisor_revision_id: identifier.optional(),
+  })
+  .strict()
+  .superRefine(validSupervisionIntent);
+export type StaffPostingSupervisionIntent = z.infer<typeof StaffPostingSupervisionIntentContract>;
+
 export const StaffPostingProposalInputContract = z
   .object({
     expected_version: z.number().int().min(0).max(0),
@@ -265,6 +318,7 @@ export const StaffPostingProposalInputContract = z
     sources_examined: z
       .boolean()
       .refine((value) => value === true, "Review the selected sources before submitting."),
+    supervision: StaffPostingSupervisionIntentContract.optional(),
   })
   .strict()
   .superRefine(validProposalSubmission);
@@ -312,6 +366,7 @@ export const StaffPostingDecisionInputContract = z
     sources_examined: z
       .boolean()
       .refine((value) => value === true, "Review the selected proposal sources before deciding."),
+    hospital_management_reviewed: z.boolean().optional(),
   })
   .strict()
   .superRefine(validProposalDecision);
@@ -361,6 +416,8 @@ export const StaffPostingProposalContextRequestContract = z
     purpose: z.enum(["review", "submission"]),
     expected_version: z.number().int().min(1).max(9007199254740990),
     expected_revision_id: identifier,
+    supervision_context: z.enum(["v1"]).optional(),
+    management_review: z.enum(["current"]).optional(),
   })
   .strict();
 export type StaffPostingProposalContextRequest = z.infer<
@@ -403,3 +460,11 @@ export const StaffPostingInboxItemContract = z
   })
   .strict();
 export type StaffPostingInboxItem = z.infer<typeof StaffPostingInboxItemContract>;
+
+export const StaffPostingSupervisionContextContract = z
+  .object({
+    context: StaffPostingProposalContextContract,
+    supervision: StaffPostingSupervisionIntentContract.nullable(),
+  })
+  .strict();
+export type StaffPostingSupervisionContext = z.infer<typeof StaffPostingSupervisionContextContract>;

@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { ProposalInputContract, ScopeRequestContract } from "./staff-access-contract";
+import { staffAccessTemplates, staffAccessTemplateCatalogs } from "./staff-access-templates";
 const hospital = "22222222-2222-4222-8222-222222222222";
 const proposal = "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa";
 const proposalInput = {
@@ -42,4 +43,22 @@ it("applies the same subject constraints to owner-verification actors", () => {
   expect(
     ScopeRequestContract.safeParse({ ...input, actor_subject: "user\0reviewer" }).success,
   ).toBe(false);
+});
+
+it("keeps management review separate from the existing closed review catalog", () => {
+  const key = "workforce.posting_management_reviewer.v1";
+  expect(ProposalInputContract.safeParse({ ...proposalInput, template_key: key }).success).toBe(
+    true,
+  );
+  const management = staffAccessTemplates.find((template) => template.key === key);
+  expect(management?.family).toBe("posting");
+  expect(management?.permissions).toEqual([
+    "workforce.posting.management.review",
+    "workforce.staff_actor.use",
+  ]);
+  expect(staffAccessTemplateCatalogs["staff-posting-reviews-v1"]).not.toContain(key);
+  expect(staffAccessTemplateCatalogs["staff-posting-management-v1"]).toEqual([
+    ...staffAccessTemplateCatalogs["staff-posting-reviews-v1"],
+    key,
+  ]);
 });

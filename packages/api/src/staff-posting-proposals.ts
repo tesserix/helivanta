@@ -11,6 +11,7 @@ import {
   StaffPostingDecisionInputContract,
   StaffPostingProposalContextRequestContract,
   StaffPostingProposalContextContract,
+  StaffPostingSupervisionContextContract,
   StaffPostingInboxItemContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
@@ -206,7 +207,10 @@ function verifiedDecision(
     !same(row.command_id, command) ||
     same(row.revision_id, selected.revision_id) ||
     row.version !== selected.version + 1 ||
-    row.status !== (input.decision === "reject" ? "rejected" : "withdrawn") ||
+    row.status !==
+      ({ approve: "approved", reject: "rejected", withdraw: "withdrawn" } as const)[
+        input.decision
+      ] ||
     row.draft_version !== selected.draft_version ||
     row.staff_version !== selected.staff_version ||
     row.employment_epoch !== selected.employment_epoch ||
@@ -242,7 +246,7 @@ async function postingDecisionRequest(
     !same(pending.revision_id, intent.expected_revision_id)
   )
     throw new Error("Choose the exact pending posting proposal revision before deciding.");
-  if (intent.decision === "approve")
+  if (intent.decision === "approve" && intent.hospital_management_reviewed !== true)
     throw new Error("Posting approval requires the supervision policy.");
   const raw = await apiFetch(path, {
     ...enrollmentRequestOptions(scope),
@@ -330,13 +334,23 @@ export async function getStaffPostingReviewSource(
   return source;
 }
 
+type PostingContextSelection = Omit<
+  StaffPostingProposalContextRequest,
+  "supervision_context" | "management_review"
+>;
+
+const legacyContextRequest = StaffPostingProposalContextRequestContract.omit({
+  supervision_context: true,
+  management_review: true,
+});
+
 export async function getStaffPostingProposalContext(
   scope: StaffPostingProposalScope,
   proposal: string,
-  rawRequest: StaffPostingProposalContextRequest,
+  rawRequest: PostingContextSelection,
   signal?: AbortSignal,
 ) {
-  const request = StaffPostingProposalContextRequestContract.parse(rawRequest);
+  const request = legacyContextRequest.parse(rawRequest);
   const params = new URLSearchParams({
     purpose: request.purpose,
     expected_version: String(request.expected_version),
@@ -351,6 +365,74 @@ export async function getStaffPostingProposalContext(
   if (!result.success)
     throw new Error("The protected posting review context could not be verified.");
   const context = result.data;
+  return verifiedPostingContext(context, scope, proposal, request);
+}
+
+export async function getStaffPostingSupervisionContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: PostingContextSelection,
+  signal?: AbortSignal,
+) {
+  return getPostingSupervisionView(
+    scope,
+    proposal,
+    legacyContextRequest.parse(rawRequest),
+    false,
+    signal,
+  );
+}
+
+export async function getStaffPostingManagementReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: PostingContextSelection & { purpose: "review" },
+  signal?: AbortSignal,
+) {
+  const request = legacyContextRequest.extend({ purpose: z.literal("review") }).parse(rawRequest);
+  const view = await getPostingSupervisionView(scope, proposal, request, true, signal);
+  if (
+    view.supervision?.kind !== "hospital_management" ||
+    view.context.proposal.status !== "pending"
+  )
+    throw new Error(
+      "Current management review requires a pending explicit hospital-management request.",
+    );
+  return view;
+}
+
+async function getPostingSupervisionView(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  request: PostingContextSelection,
+  management: boolean,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const params = new URLSearchParams({
+    purpose: request.purpose,
+    expected_version: String(request.expected_version),
+    expected_revision_id: commandId.parse(request.expected_revision_id),
+    supervision_context: "v1",
+  });
+  if (management) params.set("management_review", "current");
+  const view = StaffPostingSupervisionContextContract.parse(
+    await apiFetch(`${root(scope)}/${commandId.parse(proposal)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  signal?.throwIfAborted();
+  verifiedPostingContext(view.context, scope, proposal, request);
+  return view;
+}
+
+function verifiedPostingContext(
+  context: z.infer<typeof StaffPostingProposalContextContract>,
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  request: PostingContextSelection,
+) {
   const row = verifiedProposal(context.proposal, scope, proposal);
   const selected = context.draft;
   if (

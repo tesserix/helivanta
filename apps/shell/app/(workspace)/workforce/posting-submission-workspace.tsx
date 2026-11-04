@@ -225,6 +225,7 @@ function SubmissionDrafts({
 const formSchema = z.object({
   reason: StaffPostingProposalInputContract.shape.reason,
   sources_examined: StaffPostingProposalInputContract.shape.sources_examined,
+  hospital_management: z.boolean(),
 });
 type Command = { proposal: string; command: string; input: StaffPostingProposalInput };
 
@@ -248,7 +249,11 @@ function PostingSubmission({
   const [retained, setRetained] = useState<Command | null>(null);
   const original = useRef<Command | null>(null);
   const active = useRef<AbortController | null>(null);
-  const form = useZodForm(formSchema, { reason: "", sources_examined: false });
+  const form = useZodForm(formSchema, {
+    reason: "",
+    sources_examined: false,
+    hospital_management: false,
+  });
   const dirty = form.formState.isDirty || retained !== null;
   const source = useStaffPostingReviewSource(scope, dirty);
   const [departmentCursor, setDepartmentCursor] = useState<string | null>(null);
@@ -408,7 +413,11 @@ function PostingSubmission({
             if (original.current || save.isPending || !available || !source.data?.generation_id)
               return;
             const parsed = StaffPostingProposalInputContract.safeParse({
-              ...values,
+              reason: values.reason,
+              sources_examined: values.sources_examined,
+              ...(values.hospital_management
+                ? { supervision: { kind: "hospital_management" } }
+                : {}),
               expected_version: 0,
               draft_id: draft.id,
               draft_revision_id: draft.revision_id,
@@ -447,6 +456,21 @@ function PostingSubmission({
           >
             <Input id="posting-submission-reason" {...form.register("reason")} />
           </Field>
+          <Field
+            id="posting-submission-management"
+            label="Request hospital management responsibility"
+          >
+            <input
+              id="posting-submission-management"
+              type="checkbox"
+              {...form.register("hospital_management")}
+            />
+          </Field>
+          <p className="text-sm text-muted-foreground">
+            {form.watch("hospital_management")
+              ? "An independent management reviewer must approve this responsibility. It does not grant operating or clinical access."
+              : "Supervision is not specified. This proposal cannot be approved."}
+          </p>
           <Field
             id="posting-submission-examined"
             label="I examined this draft and the current employment source."

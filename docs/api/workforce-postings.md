@@ -407,7 +407,6 @@ ledger 220→223. #1547 added no migrations. Rollback preserves additive schema 
 history; a compensating change needs separate review. No positive operating
 activation is established by these releases.
 
-
 ## Normal submission UI — candidate, browser acceptance open
 
 The next UI slice adds submission from the normal posting review workspace only
@@ -435,3 +434,126 @@ The released reviewer slice is recorded in the
 Authenticated browser acceptance of normal submission/review, effective approval,
 supervision, transfers, contractors and all departmental/Pharma consumers remain
 open. UI component/SDK tests do not close those acceptance gates.
+
+## Reviewed supervision evidence — unpublished candidate
+
+The `codex/posting-supervision-approval-20261104` candidate accepts optional
+`supervision` in proposal submission. Its kind is `hospital_management`,
+`department_supervisor` or `department_member`. Hospital management has no
+supervisor references; other kinds require nonzero `supervisor_staff_id` and
+UUIDv7 `supervisor_proposal_id` / `supervisor_revision_id`. Omission preserves
+legacy non-operating meaning; explicit null, partial references and unknown
+fields are rejected. These are proposed references, not verified supervisory
+appointments. Positive approval must independently resolve their exact scope,
+current approved revision, managerial chain and source eligibility. Retaining a
+claim neither verifies it nor grants access.
+
+Additive forward migration `0079_workforce_posting_supervision_intents` retains
+typed immutable intent alongside the exact initial proposal revision. Forced RLS
+uses the existing selected-Staff posting purpose. The initial revision marks
+whether intent was supplied. Both records must be created by the same subject in
+the same transaction; deferred integrity refuses commit if requested evidence is
+lost. Historical rows are not backfilled or reinterpreted. New creation-transaction
+defaults apply only to future revisions; the migration does not rewrite historical
+rows with a volatile default. Revisions and intent cannot be updated or removed.
+There is no destructive down migration; rollback preserves the additive schema
+and audit history. Migration0079 alone retains the old positive-approval denial;
+the candidate root approval extension below is separate.
+
+An authorized submitter or independent reviewer can explicitly request:
+
+`GET /posting-proposals/:proposal/context?purpose=submission&expected_version=1&expected_revision_id=:revision&supervision_context=v1`
+
+The opt-in response is `{context: <existing protected context>, supervision:
+<intent or null>}`. Default responses retain their exact existing shape. Repeated,
+unknown or invalid flags return 400. Current scoped operation/source grants,
+reviewer independence, exact immutable source pins and atomic disclosure audit
+are unchanged. Missing marked evidence returns 503 rather than an invented root
+or null intent. The SDK's separate `getStaffPostingSupervisionContext` verifies
+the envelope and all existing nested source checks. Its legacy context getter
+rejects the new transport selector rather than silently discarding it.
+
+This branch is unfinished and is not a production release or normal UI acceptance.
+Root-management capability, positive approval and normal selection/review UI are
+implemented in the candidate described below. Real-account browser acceptance,
+operating lifecycle consumers and full Staff acceptance remain open.
+
+### Separate management-review capability — unpublished candidate
+
+The new closed `staff-posting-management-v1` IAM catalog appends exactly
+`workforce.posting_management_reviewer.v1` to the unchanged ten-template review
+catalog. Additive IAM migration `0026_iam_staff_posting_management_templates`
+introduces exactly `workforce.posting.management.review` plus
+`workforce.staff_actor.use`. It does not include posting submission, ordinary
+review, Organization editing, operating or clinical permissions. Positive review
+will require both this management capability and an ordinary independent reviewer
+assignment. All old SQL files, definition digests and catalogs remain frozen.
+
+The focused real OpenFGA scope/projection test covers durable acknowledgement,
+withdrawal, membership revocation, dependency failure, wrong subject/hospital and
+compound command guards. This capability is not yet connected to positive
+approval or normal UI in the released application. The candidate below connects
+both. Full IAM suite acceptance is pending;
+source schema generation and focused success are not deployment acceptance.
+
+### Hospital-management root approval — unpublished candidate
+
+Candidate migration `0080_workforce_posting_root_approvals` admits only an
+independent approval of retained `hospital_management` intent. It records immutable,
+forced-RLS management evidence against the initial and approved revisions, current
+reviewer Staff/login/generation, and separate current ordinary-review and
+management-review assignments. Both assignments remain callback-bound through
+commit; the shared IAM/authz guard accepts at most three distinct exact checks.
+The explicit decision field `hospital_management_reviewed=true` selects the extra
+management check before Workforce locks. Missing authority denies403; omitted or
+false attestation retains409 `posting_supervision_required` and consumes no command.
+The SDK permits an explicit attested approval and validates an `approved` receipt.
+The candidate review UI described below requires separate browser acceptance.
+
+The target's locked Staff version, employment epoch, reviewed generation, nominal
+interval and effective cutoff must still match. Organization holds the current
+exact active department/ancestry gate until commit. The transition preserves the
+proposal's source pins, adds the management evidence, head, revision, audit and
+identifier-only outbox in one transaction. Missing internal evidence fails commit;
+no operating, clinical, IAM or profile-supervisor authority is granted.
+Non-root and legacy omitted-intent positive decisions remain denied pending chain
+implementation. There is no historical backfill or destructive rollback.
+
+Real Global API/PostgreSQL/OpenFGA tests pass for independent root approval,
+missing management authority, missing attestation, pending-state preservation,
+exact retry, changed-intent conflict and retained history (54.953s, race enabled).
+These focused tests do not establish complete negative/race coverage, normal UI
+acceptance, lifecycle enforcement or production deployment. The full IAM recovery
+failure and the remaining obligations are tracked in
+[Staff progress](../qa/staff-management-progress.md).
+
+### Normal management review UI — unpublished candidate
+
+Submission explicitly offers hospital management responsibility and retains that
+typed intent with its immutable command through uncertain outcomes and exact
+retry. Omitted legacy intent remains compatible but cannot be approved. Review
+shows the retained responsibility and, for non-root requests, the requested
+supervisor Staff/posting/revision references.
+
+Only pending hospital-management intent offers the management approval action.
+Before showing its form, the client requests the bounded supervision envelope
+with `purpose=review`, `supervision_context=v1` and
+`management_review=current`, retaining the exact proposal version/revision.
+The last selector is invalid without the first two. Duplicate, unknown, empty or
+extra selectors return 400. The owner reserves ordinary review, current Staff
+actor and separate management-review authority before taking Workforce locks;
+the callback must contain the exact management grant. Self/submitter review is
+denied. Terminal or non-management intent cannot supply this context.
+
+The response shape is unchanged. Its private disclosure audit records
+`context_read_management_review` and the current management assignment ID/version;
+these are not added to the public envelope. The SDK exposes a separate
+`getStaffPostingManagementReviewContext` and rejects management selectors in its
+ordinary getters. Query state is pinned to the current account, hospital and
+proposal revision, with no retained cache lifetime.
+
+Approval requires a matching current employment source, source-examination
+attestation, explicit independent management-review attestation and rationale.
+An uncertain command retains its exact payload for receipt recovery/retry.
+Denied or unavailable context offers no approval form. Component/SDK checks do
+not establish real-account browser, deployment or lifecycle acceptance.

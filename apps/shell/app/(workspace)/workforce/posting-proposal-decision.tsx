@@ -23,6 +23,7 @@ import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutof
 const formSchema = z.object({
   reason: StaffPostingDecisionInputContract.shape.reason,
   sources_examined: StaffPostingDecisionInputContract.shape.sources_examined,
+  hospital_management_reviewed: z.boolean(),
 });
 type Command = { id: string; input: StaffPostingDecisionInput };
 
@@ -41,7 +42,7 @@ export function PostingProposalDecision({
   onContextRecheck: () => void;
   scope: StaffPostingProposalScope;
   proposal: StaffPostingProposal;
-  action: "reject" | "withdraw" | null;
+  action: "approve" | "reject" | "withdraw" | null;
   busy: boolean;
   onBusy: (value: boolean) => void;
   onCompleted: (row: StaffPostingProposal) => void;
@@ -51,7 +52,11 @@ export function PostingProposalDecision({
   const original = useRef<Command | null>(null);
   const active = useRef<AbortController | null>(null);
   const source = useStaffPostingReviewSource(scope, busy);
-  const form = useZodForm(formSchema, { reason: "", sources_examined: false });
+  const form = useZodForm(formSchema, {
+    reason: "",
+    sources_examined: false,
+    hospital_management_reviewed: false,
+  });
   const save = useApiMutation(
     async ({ command, recover }: { command: Command; recover: boolean }) => {
       const controller = new AbortController();
@@ -113,13 +118,13 @@ export function PostingProposalDecision({
   );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   const sourceAvailable = source.isSuccess && !source.isFetching;
-  const available = contextAvailable && sourceAvailable;
   const matches =
     sourceAvailable &&
     source.data.generation_state === "current" &&
     source.data.generation_id === proposal.generation_id &&
     source.data.staff_version === proposal.staff_version &&
     source.data.employment_epoch === proposal.employment_epoch;
+  const available = contextAvailable && sourceAvailable && (action !== "approve" || matches);
   return (
     <section
       className="space-y-4 border-t border-border pt-4"
@@ -161,8 +166,18 @@ export function PostingProposalDecision({
           onSubmit={(event) => {
             void form.handleSubmit((values) => {
               if (original.current || save.isPending || !available) return;
+              if (action === "approve" && !values.hospital_management_reviewed) {
+                form.setError("hospital_management_reviewed", {
+                  message: "Confirm your independent hospital management review.",
+                });
+                return;
+              }
               const parsed = StaffPostingDecisionInputContract.safeParse({
-                ...values,
+                reason: values.reason,
+                sources_examined: values.sources_examined,
+                ...(action === "approve"
+                  ? { hospital_management_reviewed: values.hospital_management_reviewed }
+                  : {}),
                 decision: action,
                 expected_version: proposal.version,
                 expected_revision_id: proposal.revision_id,
@@ -170,7 +185,11 @@ export function PostingProposalDecision({
               if (!parsed.success) {
                 parsed.error.issues.forEach((issue) => {
                   const key = issue.path[0];
-                  if (key === "reason" || key === "sources_examined")
+                  if (
+                    key === "reason" ||
+                    key === "sources_examined" ||
+                    key === "hospital_management_reviewed"
+                  )
                     form.setError(key, { message: issue.message });
                 });
                 return;
@@ -204,6 +223,19 @@ export function PostingProposalDecision({
                 {...form.register("sources_examined")}
               />
             </Field>
+            {action === "approve" && (
+              <Field
+                id="posting-management-reviewed"
+                label="I independently reviewed the hospital management responsibility."
+                error={form.formState.errors.hospital_management_reviewed?.message}
+              >
+                <input
+                  id="posting-management-reviewed"
+                  type="checkbox"
+                  {...form.register("hospital_management_reviewed")}
+                />
+              </Field>
+            )}
           </fieldset>
           {save.error && (
             <p role="alert">
@@ -232,7 +264,11 @@ export function PostingProposalDecision({
               </>
             ) : (
               <Button type="submit" disabled={!available || save.isPending}>
-                {action === "reject" ? "Reject proposal" : "Withdraw proposal"}
+                {action === "approve"
+                  ? "Approve proposal"
+                  : action === "reject"
+                    ? "Reject proposal"
+                    : "Withdraw proposal"}
               </Button>
             )}
           </div>

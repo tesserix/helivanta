@@ -1290,6 +1290,8 @@ Migration table declarations:
 - `0075_workforce_posting_proposals`: `workforce_posting_proposals`, `workforce_posting_proposal_revisions`.
 - `0077_workforce_posting_proposal_inbox_index`: concurrent index `workforce_posting_proposal_inbox` on `workforce_posting_proposals (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
 - `0078_workforce_leave_routing`: `workforce_leave_routing_revisions`, `workforce_leave_route_steps`.
+- `0079_workforce_posting_supervision_intents`: `workforce_posting_supervision_intents`.
+- `0080_workforce_posting_root_approvals`: `workforce_posting_management_reviews`.
 
 ## workspace
 

@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "148a1ecda2930d2bc86b2b4da8a452ad6438fe2d38a6ce8f034587a9ac93c0f9",
+  "registry_sha256": "8d39cfd34c57128256181469fb8c0d5622ba53cd4431743b9b870e2445ec94a3",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 812,
-    "unclassified": 789
+    "total": 818,
+    "unclassified": 795
   },
   "entries": [
     {
@@ -5628,6 +5628,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories",
+        "permission": "pharmacy.catalogue.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products",
       "kind": "http",
       "module": "pharmacy",
@@ -5651,6 +5667,22 @@
         "source": "backend/internal/modules/pharmacy/module.go",
         "method": "GET",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id",
+        "permission": "pharmacy.catalogue.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category",
         "permission": "pharmacy.catalogue.read",
         "authentication_required": true,
         "membership_required": true,
@@ -6556,6 +6588,38 @@
       "review": null
     },
     {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire",
+        "permission": "pharmacy.category.declare",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review",
+        "permission": "pharmacy.category.review",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review",
       "kind": "http",
       "module": "pharmacy",
@@ -6844,6 +6908,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id",
+        "permission": "pharmacy.category.declare",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id",
       "kind": "http",
       "module": "pharmacy",
@@ -6852,6 +6932,22 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id",
         "permission": "pharmacy.catalogue.write",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration",
+        "permission": "pharmacy.category.declare",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

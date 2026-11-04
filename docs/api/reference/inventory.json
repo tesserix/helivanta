@@ -2482,6 +2482,60 @@
         },
         {
           "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire",
+          "permission": "pharmacy.category.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id",
+          "permission": "pharmacy.category.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration/review",
+          "permission": "pharmacy.category.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category/:declaration",
+          "permission": "pharmacy.category.declare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/price-control/:declaration/review",
           "permission": "pharmacy.price_control.review",
           "authentication_required": true,
@@ -3430,6 +3484,20 @@
           ]
         },
         {
+          "permission": "pharmacy.category.declare",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
+          "permission": "pharmacy.category.review",
+          "roles": [
+            "pharmacist",
+            "pharmacy_owner"
+          ]
+        },
+        {
           "permission": "pharmacy.price_control.declare",
           "roles": [
             "pharmacist",
@@ -3862,6 +3930,15 @@
           "sql_sha256": "80a006ba3f0e2d9769223669b52132643079a3b58664d8a77e0d1d7a966d9abd",
           "creates_tables": [
             "pharmacy_opd_encounters"
+          ]
+        },
+        {
+          "id": "0033_pharmacy",
+          "sql_sha256": "99d49fc3193acaef616acb5c666af4268a0254f5af1d0fbadf77f2d15453c8b9",
+          "creates_tables": [
+            "pharmacy_item_categories",
+            "pharmacy_product_category_declarations",
+            "pharmacy_product_category_reviews"
           ]
         }
       ]

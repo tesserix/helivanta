@@ -109,6 +109,7 @@ CREATE TRIGGER pharmacy_product_category_declaration_guard BEFORE INSERT ON phar
 -- declaration's date and the outlet's date when it was approved, so an
 -- approval never reaches back over sales already made.
 CREATE TABLE pharmacy_product_category_reviews (
+ id uuid NOT NULL DEFAULT gen_random_uuid(),
  tenant_id uuid NOT NULL,
  outlet_id uuid NOT NULL,
  declaration_id uuid NOT NULL,
@@ -118,6 +119,7 @@ CREATE TABLE pharmacy_product_category_reviews (
  reviewed_by text NOT NULL CHECK (length(btrim(reviewed_by)) BETWEEN 1 AND 200),
  created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY (tenant_id,outlet_id,declaration_id),
+ UNIQUE (tenant_id,id),
  FOREIGN KEY (tenant_id,outlet_id,declaration_id) REFERENCES pharmacy_product_category_declarations (tenant_id,outlet_id,id),
  CHECK ((decision='approved') = (in_force_from IS NOT NULL))
 );

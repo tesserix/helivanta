@@ -77,6 +77,15 @@ func parseStartupTimeout(raw string) (time.Duration, error) {
 	return d, nil
 }
 
+func parsePostgresBufferBudget(raw string) (string, error) {
+	switch raw {
+	case "", "16MB", "32MB", "64MB", "128MB":
+		return raw, nil
+	default:
+		return "", fmt.Errorf("HELIVANTA_TEST_POSTGRES_SHARED_BUFFERS must be 16MB, 32MB, 64MB or 128MB")
+	}
+}
+
 // One Postgres server is shared by every test in a binary; each caller
 // gets its own database on it. Booting a container costs well over a
 // second and creating a database costs a fraction of that, so a package
@@ -106,14 +115,24 @@ func sharedPostgres(t *testing.T) (host, port string) {
 	t.Helper()
 	pgOnce.Do(func() {
 		ctx := context.Background()
-		pgCont, pgErr = tcpostgres.Run(ctx, "postgres:16-alpine",
+		budget, err := parsePostgresBufferBudget(os.Getenv("HELIVANTA_TEST_POSTGRES_SHARED_BUFFERS"))
+		if err != nil {
+			pgErr = err
+			return
+		}
+		options := []testcontainers.ContainerCustomizer{
 			tcpostgres.WithDatabase("hms"),
 			tcpostgres.WithUsername("hms"),
 			tcpostgres.WithPassword("hms"),
 			testcontainers.WithWaitStrategyAndDeadline(startupTimeout(t),
 				wait.ForLog("database system is ready to accept connections").
 					WithOccurrence(2).WithStartupTimeout(startupTimeout(t))),
-		)
+		}
+		if budget != "" {
+			options = append(options, testcontainers.WithCmdArgs("-c", "shared_buffers="+budget))
+		}
+		pgCont, pgErr = tcpostgres.Run(ctx, "postgres:16-alpine", options...)
+
 		if pgErr != nil {
 			pgErr = fmt.Errorf("start postgres: %w", pgErr)
 			return

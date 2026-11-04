@@ -1,5 +1,15 @@
 # Staff Management delivery tracker
 
+## Department-scoped assignments proposed — 2026-11-04
+
+[ADR-0055](../adr/0055-department-scoped-assignments.md) and its
+[specification](../superpowers/specs/2026-11-04-department-scoped-assignments.md)
+propose a `department` assignment scope for #429, with Staff posting review as
+the first consumer. Both are documentation only and await acceptance. No
+migration, route, permission or event exists yet. Implementation waits for the
+posting supervision slice to merge, because both change IAM and the posting
+decision command. Clinical department reach stays open under #429.
+
 ## Standalone pharmacy employer design proposed — 2026-11-04
 
 [ADR-0054](../adr/0054-typed-employing-establishments.md) and its

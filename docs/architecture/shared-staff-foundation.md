@@ -68,11 +68,11 @@ product command under current authority, including retained browser sessions.
 
 The current Staff contract remains hospital-local. Standalone pharmacy employers
 need an explicit owner-scope evolution; never create a synthetic hospital merely
-to make a product fit. The proposed
+to make a product fit. The accepted
 [ADR-0054](../adr/0054-typed-employing-establishments.md) and its
 [specification](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md)
 define that evolution as a typed employing establishment. The evolution is
-unaccepted and unimplemented. This design does not claim to implement it,
+accepted but not yet implemented. This design does not claim to implement it,
 department postings, in-charge coverage or pharmacist-account story #418.
 
 The [Pharma specialization and audit scope](pharma-staff-specialization.md) records

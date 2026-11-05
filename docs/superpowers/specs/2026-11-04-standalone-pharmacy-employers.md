@@ -1,14 +1,15 @@
 # Standalone pharmacy employers and branch postings
 
 Refs [#19](https://github.com/tesserix/helivanta/issues/19). Implements the
-proposed [ADR-0054](../../adr/0054-typed-employing-establishments.md). It
+accepted [ADR-0054](../../adr/0054-typed-employing-establishments.md). It
 extends the [reusable Staff foundation](2026-11-02-reusable-staff-foundation.md),
 [effective postings](2026-11-02-effective-staff-postings.md) and
 [ADR-0053 supervision](../../adr/0053-reviewed-managerial-posting-supervision.md).
 
 It uses ORG-AU-05, ORG-AC-01/02/04/05/08, ORG-ST-02/03, IN-PH-06 and
-IN-PH-10. It proposes ORG-D8 and leaves ORG-D9 open. Status: design only. No slice starts
-until the product owner accepts ADR-0054.
+IN-PH-10. It applies ORG-D8 and leaves ORG-D9 open. Status: design accepted
+with ADR-0054 on 2026-11-05; each slice still needs its own plan, migration IDs
+and tests.
 
 ## Problem
 

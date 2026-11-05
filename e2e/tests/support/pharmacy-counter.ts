@@ -117,14 +117,14 @@ export async function temporaryRole(
 /** Two actors and a sellable outlet: real owner commands, no table or projection writes. */
 export async function readyOutlet(admin: Page, browser: Browser) {
   await login(admin, specAdmin());
-  const { outlet, stamp } = await newOutlet(admin);
+  const { outlet, stamp, timeZone } = await newOutlet(admin);
   const administrator = await owner<Actor>(admin, "GET", "/iam/me/permissions");
   const context = await browser.newContext({
     baseURL: new URL(admin.url()).origin,
     ignoreHTTPSErrors: true,
   });
   try {
-    return await sellableOutlet(admin, administrator, context, outlet, stamp);
+    return await sellableOutlet(admin, administrator, context, outlet, stamp, timeZone);
   } catch (error) {
     await context.close();
     throw error;
@@ -137,6 +137,7 @@ async function sellableOutlet(
   context: BrowserContext,
   outlet: string,
   stamp: string,
+  timeZone: string,
 ) {
   const cashier = await context.newPage();
   await login(cashier, specPharmacist());
@@ -164,7 +165,7 @@ async function sellableOutlet(
     await owner(admin, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
       level: "editor",
     });
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
     const until = `${Number(today.slice(0, 4)) + 2}-12-31`;
     const licence = uuidv7();
     await owner(admin, "PUT", `${outlet}/licences/${licence}`, {
@@ -276,6 +277,7 @@ async function sellableOutlet(
     quarantine,
     shelf,
     stamp,
+    timeZone,
     subject: me.subject,
   };
 }

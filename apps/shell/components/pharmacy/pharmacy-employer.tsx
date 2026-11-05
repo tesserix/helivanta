@@ -41,7 +41,11 @@ export function PharmacyEmployer({
       ) : employer.isPending ? (
         <p className="mt-2 text-sm text-muted-foreground">Checking employer registration…</p>
       ) : employer.isError ? (
-        <RequestFailure message="Could not load employer registration." retry={employer.refetch} />
+        <RequestFailure
+          message="Could not load employer registration."
+          retry={employer.refetch}
+          error={employer.error}
+        />
       ) : employer.data ? (
         <p className="mt-2 text-sm leading-6">
           Registered as an employer on{" "}

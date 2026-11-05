@@ -86,7 +86,7 @@ An outlet's item categories and subcategories, and each product's category. See 
 - **Who.** `pharmacy.category.declare` and `pharmacy.category.review` are held by the pharmacist and the pharmacy owner, as schedule classes are. Declarations, reviews and categories are audited and insert-only, except a category's name and its retirement.
 - **Retirement** is checked with the category row locked (`FOR SHARE`), at declaration and at approval, so a product never lands in a category retired under it (tested concurrently).
 - **Screen.** The catalogue page lists the categories and subcategories, with adding and retiring (confirmed first) for those who may declare; renaming is by the API only; a product's pane shows its category in force, its history, a declaration form defaulting to tomorrow and, for a reviewer, the newest declaration if it awaits review; an older pending one is shown as superseded.
-- **Not covered:** category filters on the reports (the next PR); margin discount rules and their precedence, patient categories, pharmacy templates and indent groupings (later #988 slices); categories shared across outlets; bulk import. Migration `0033_pharmacy`.
+- **Not covered:** margin discount rules and their precedence, patient categories, pharmacy templates and indent groupings (later #988 slices); categories shared across outlets; bulk import. Migration `0033_pharmacy`.
 
 ### NPPA ceiling prices (#1371)
 
@@ -295,33 +295,92 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **Cash is what was applied to the sale.** Change handed back is not income.
 - **No row for a quiet day.** A day with no sale or credit note is absent, not shown as zeros.
 - **Not audited.** It holds totals only, with no patient, prescriber or buyer detail.
-- **Not covered.** Shift or till close, purchase cost and margin, patient-wise reports, and a CSV export. Sales by item and each receipt and refund are the reads below.
+- **Not covered.** Shift or till close, purchase cost and margin, and patient-wise reports. Sales by item and each receipt and refund are the reads below; the report downloads as CSV (see [CSV downloads](#csv-downloads-of-the-reports-1060)).
 
 ### Sales by item, and the receipts and refunds register (#1060)
 
 | Route                                       | Behaviour                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET …/reports/items?from=&to=&product_id=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product. Requires `pharmacy.sale.read` |
+| `GET …/reports/items?from=&to=&product_id=&category_id=&subcategory_id=&lot_number=&prescriber_registration=&prescriber_council=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product; `category_id` and `subcategory_id` to an item category, `lot_number` to one lot and the prescriber pair to one prescriber (see below). Requires `pharmacy.sale.read`, and `pharmacy.prescription.read` with a prescriber |
 | `GET …/reports/receipts?from=&to=&kind=`    | Paged, oldest first: every tender on a sale (`receipt`) and refund on a credit note (`refund`) with its date, document number, kind, payment reference and amount. `kind` is `cash`, `upi`, `upi_verified`, `card` or `admission_account`. Requires `pharmacy.sale.read`                                                                                                      |
 
 - **Reads of posted records,** like the daily report: each document counts on its own outlet date, a return on the credit note's.
 - **They reconcile.** Items plus the daily report's service charges equal its sales and credits, including credited charges; receipts per day and kind equal its tenders and refunds. The tests prove this for cash, UPI and card receipts and cash refunds; verified-UPI and admission-account rows use the same joins but are not separately exercised.
 - **One row per product never mixes currencies or packs:** a stocked product cannot change either.
 - **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
-- **Not audited.** No patient, prescriber or buyer appears.
-- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), category and clinician filters, CSV export. Patient-wise sales and the sales stock report follow.
+- **Not audited**, except sales by item filtered by prescriber (see below): no patient, prescriber or buyer appears.
+- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478). Both download as CSV (below). Patient-wise sales and the sales stock report follow.
 
 ### Patient-wise sales and the sales stock report (#1060)
 
 | Route                                               | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET …/reports/patient-sales?patient_id=&from=&to=` | Paged, oldest first: every line of a sale to that registered patient dated in the period (at most 366 outlet days): date, invoice and line, the admission's bed code when billed to an admission, product, batch lot and expiry, units, MRP, discount, amount, and units returned on credit notes dated up to `to`. `patient_id` is required (400 without it). Requires `pharmacy.sale.read`. Every page is audited |
-| `GET …/reports/stock-sales?from=&to=`               | Paged, oldest product first: every product that has ever held stock, with units sold and returned in the period (by sale and credit-note date, as sales by item counts them) units on hand now, and units a sale may take today. Requires `pharmacy.stock.read`                                                                                                                                                     |
+| `GET …/reports/stock-sales?from=&to=&category_id=&subcategory_id=`               | Paged, oldest product first: every product that has ever held stock, with units sold and returned in the period (by sale and credit-note date, as sales by item counts them) units on hand now, and units a sale may take today. `category_id` and `subcategory_id` narrow to an item category (see below). Requires `pharmacy.stock.read`                                                                                                                                                     |
 
 - **One patient at a time.** The pharmacy holds only the patient's id, so the screen finds the patient through the audited MRN lookup first and reads nothing before. That lookup needs `patient.pharmacy-lookup`, which only pharmacists hold; the screen tells anyone else so. Walk-in buyers are not patients and are not listed.
 - **Audited in the read.** Each patient-wise page writes an `audit_events` row (`pharmacy_patient_sales`, `report_read`, with the period and patient id) in the read's transaction, so no data leaves without its record.
 - **Stock is now, whatever the period.** On hand is every movement of the product. Sellable uses the counter's own rule (`pharmacy_sellable_buckets`): a sellable shelf, an MRP, unexpired on the outlet's date, and no safety incident. So a recalled or expired batch on the shelf is on hand but not sellable, as are returns in quarantine. The panel shows only to staff holding `pharmacy.stock.read`.
-- **Not covered:** service charges on a patient's sale (medicine lines only; the daily report has the charges); purchase amount (442) and the last vendor (755), since purchase cost waits for approved formulas and a receipt records no supplier; a list across patients; stock as of a past date (the stock register has it); batch-level stock in this report; CSV export.
+- **Not covered:** service charges on a patient's sale (medicine lines only; the daily report has the charges); purchase amount (442) and the last vendor (755), since purchase cost waits for approved formulas and a receipt records no supplier; a list across patients; stock as of a past date (the stock register has it); batch-level stock in this report. Both download as CSV (below).
+
+### Sales by item by lot and by prescriber (#1060)
+
+[Design](../../superpowers/specs/2026-11-04-pharmacy-lot-prescriber-report-filters-design.md).
+
+| Route | Behaviour |
+| --- | --- |
+| `GET …/reports/prescribers?from=&to=` | `{data, more}`: the distinct prescribers (registration with council, under the name last recorded) on prescriptions cited by a sale line dated in the period (at most 366 outlet days), ordered by name, at most 200, `more` beyond. Needs `pharmacy.prescription.read` and `pharmacy.sale.read` (`403` otherwise). Audited (`pharmacy_prescribers`, `list_read`) |
+
+- **Lot.** `lot_number` (1 to 100 characters, trimmed) matches in any case: a recall notice may print it in another, and missing a recalled sale is worse than merging two lots differing only in case. A return counts by its sale line's lot. Rows stay one per product, so a lot number shared by two products shows both. Not audited.
+- **Prescriber.** A prescriber is `prescriber_registration` with `prescriber_council`, exactly as recorded; one alone is `400`. Only prescription lines match, a return by its sale line; OTC lines never do. It needs `pharmacy.prescription.read` as well as sale read (`403`, before anything is read).
+- **Audited in the read.** A prescriber-filtered page writes an `audit_events` row (`pharmacy_item_sales`, `report_read`, field names `from, to, prescriber_registration, prescriber_council`) in its transaction, the values going to the audit log: no row, no data (tested with a failing audit store).
+- **Screen.** Sales by item has a lot number field and, for prescription readers, a prescriber picker from the period's list; all filters combine.
+- **Not covered:** lot or prescriber filters on other reports; a prescriber master or links to staff records (#83); more than 200 prescribers in a period, for which the screen asks for a shorter period.
+
+### Reports by item category (#988 slice 2)
+
+Sales by item and sales and stock take `category_id`, and with it
+optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmacy-category-report-filters-design.md)).
+
+- **A sale line counts under the category in force on its sale date**,
+  which slice 1 makes final (no approval takes effect on or before the day
+  it is made). A product moved in the period is split, each sale where it
+  was made.
+- **A credit-note line counts under its sale line's category**, so a return
+  cancels the sale it returns even after the product moved; the note is
+  still in the period by its own date.
+- **Sales and stock lists a product by its category today**, as its stock
+  is now, with only the units sold and returned under that category.
+- `subcategory_id` without `category_id`, or a malformed id, is `400`; an id
+  that is no category of this outlet matches nothing. Retired categories
+  filter as any other. Not audited, as the reports are not.
+- **Screen.** Each report has its own category, then subcategory, picker for
+  catalogue readers; changing the category drops the subcategory.
+- **Not covered:** an "uncategorised" filter, category totals, and category
+  filters on other reports.
+
+### CSV downloads of the reports (#1060)
+
+[Design](../../superpowers/specs/2026-11-05-pharmacy-report-csv-design.md); the audited files: [design](../../superpowers/specs/2026-11-05-pharmacy-audited-report-csv-design.md).
+
+| Route | Behaviour |
+| --- | --- |
+| `GET …/reports/items.csv?from=&to=&product_id=&category_id=&subcategory_id=&lot_number=&prescriber_registration=&prescriber_council=` | Sales by item as a file. Requires `pharmacy.sale.read`, and `pharmacy.prescription.read` with a prescriber. Audited with a prescriber |
+| `GET …/reports/receipts.csv?from=&to=&kind=` | Receipts and refunds as a file. Requires `pharmacy.sale.read` |
+| `GET …/reports/stock-sales.csv?from=&to=&category_id=&subcategory_id=` | Sales and stock as a file, each row with `stock_on`, the outlet's today. Requires `pharmacy.stock.read` |
+| `GET …/reports/patient-sales.csv?patient_id=&from=&to=` | One patient's purchases as a file, each row with the patient id. Requires `pharmacy.sale.read`. Always audited |
+| `GET …/sales/worklist.csv?from=&to=&customer=&linkage=` | The worklist for a period as a file, newest first; `invoice` is refused (one sale is its summary). Requires `pharmacy.sale.read`. Audited when it holds an admission sale |
+| `GET …/reports/daily.csv?from=&to=` | The daily report as a file, one row per outlet day and currency. Requires `pharmacy.sale.read` |
+
+- **The report's own query and filters,** in one transaction, so a file matches its pages. Any other parameter, a repeated or empty one, `cursor` and `limit` are `400`.
+- **All or an error.** At most 5,000 rows and 8 MiB; more is `413 report_export_too_large` before any byte of the file. A failed read is an error with no file. An empty period is a header alone.
+- **Format.** UTF-8 with a byte-order mark (for Excel), CRLF, snake_case headers, `period_from` and `period_to` on every row. Formula-like text is apostrophe-prefixed. Amounts are exact in the currency's major unit (`-12.50`), from the country profile's `currency_minor_digits`; a currency no profile declares is a `500` and no file. Units are integers. `Cache-Control: private, no-store`, `nosniff`, `pharmacy-<report>-<outlet>-<from>-<to>.csv`, `X-Export-Row-Count`, `X-Export-Sha256`.
+- **A personal file is a disclosure, audited in its read.** A file of one patient's purchases, of one prescriber's sales, or of a worklist holding an admission sale (checked over every row of the file) writes an `audit_events` row (`report_export`, `list_export` for the worklist; field names only) in the read's transaction, after the whole file is built: a refused file is never recorded, and an audit store that refuses the row fails the download with no file (tested). See [audited reads](#audited-reads-1555).
+- **Every file sent is recorded** in the audit stream: `pharmacy.report.exported` with the report, actor, outlet, filters as applied, row count and SHA-256. The other files hold no patient, prescriber or buyer and write no `audit_events` row, as their pages do not.
+- **The worklist file carries what the worklist carries:** no buyer name or phone, no patient id.
+- **Screen.** Each report, the worklist and the daily report have a "Download report CSV" button for their period and filters; a filter change cancels a download in flight. Where a file is recorded, the screen says so.
+- **The record is the `audit_events` row.** Its audit-log line is written with the row, before commit, as for audited pages: if the commit then fails, the row rolls back and no file is sent, but that log line remains.
+- **Not covered:** buyer names or patient ids in the worklist file; the sale summary and credit notes as files; files above 5,000 rows; XLSX, PDF, scheduled exports and the governed export service (#594, #64, #444).
 
 ### The sales worklist and sale summary (#987 slice 1)
 
@@ -333,7 +392,7 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **The summary reconciles.** It is read in one snapshot, so a return posted meanwhile is wholly in or wholly out (tested). Lines and charges make the total; payments settle it; the credit notes credit exactly their lines and charges and are refunded in full. So `net = collected − refunded + (admission billed − admission reversed)` for every sale. The tests prove each identity for a walk-in sale with a credited service charge, a registered patient's sale and an admission sale.
 - **No direct identifiers.** Neither read carries the buyer's name or phone, the patient's id or a credit note's recipient, only who the sale was for as a kind. An admission sale shows its bed code, which with the date points to whoever was in that bed, so a worklist page or summary showing one is recorded (see [audited reads](#audited-reads-1555)).
 - **Credits are as of now.** A sale counts on its own date; its credit notes are every one posted so far, whatever the period.
-- **Not covered:** payer liability split (slice 3, with #1051), casualty sales, sales across outlets, buyer or patient search, CSV export. OPD encounter linkage is slice 2, below.
+- **Not covered:** payer liability split (slice 3, with #1051), casualty sales, sales across outlets, buyer or patient search. The worklist downloads as CSV (see [CSV downloads](#csv-downloads-of-the-reports-1060)). OPD encounter linkage is slice 2, below.
 
 ### Audited reads (#1555)
 
@@ -350,6 +409,9 @@ Every read of a pharmacy record that names or points to a person writes an `audi
 | `GET …/prescriptions/open-lines` | `pharmacy_prescriptions`  | the outlet       | `open_lines_read` (`product_id`)                 | always                           |
 | `GET …/sales/worklist`           | `pharmacy_sales_worklist` | the outlet       | `list_read` (`from,to,customer,invoice,linkage`) | a page showing an admission sale |
 | `GET …/sales/{id}/summary`       | `pharmacy_sale`           | the sale         | `summary_read`                                   | an admission sale                |
+| `GET …/reports/patient-sales` and `.csv` | `pharmacy_patient_sales` | the outlet | `report_read`, `report_export` (`from,to,patient_id`) | every page; every file |
+| `GET …/reports/items` and `.csv` with a prescriber | `pharmacy_item_sales` | the outlet | `report_read`, `report_export` (`from,to,prescriber_registration,prescriber_council`) | every page; every file |
+| `GET …/sales/worklist.csv`       | `pharmacy_sales_worklist` | the outlet       | `list_export` (`from,to,customer,invoice,linkage`) | a file holding an admission sale |
 | `GET …/opd-encounters`           | `pharmacy_opd_encounters` | the outlet       | `patient_visits_read` (`patient_id,hospital_id`) | always                           |
 
 - **Who opened a record** is one indexed query on `(tenant_id, resource_type, resource_id)`.
@@ -678,3 +740,23 @@ the relationship is under `binding`, with retained `authorizations` and nullable
 replacement transition fields. The earlier unactivated candidate returned only
 the row; it was corrected before release to match the typed SDK and retained
 receipt contract. Initial response, exact replay and GET recovery are equal.
+
+
+Candidate GET `/v1/pharmacy/hospitals/{hospital}/staff-binding-outlet-choices`
+accepts one `purpose=read|prepare|review` (default read), limit 1–10 and optional
+opaque cursor bound to purpose/hospital/account. It returns only pharmacy/outlet
+IDs and owner-record names. It needs matching expected-tenant/subject assertions,
+exact hospital-scoped binding read authority and a current Staff actor; prepare
+or review adds its exact action authority. Every listed outlet must have an
+explicit current reader/editor grant (editor for prepare/review) and a
+hospital-owned parent. Standalone parents are excluded without inventing a
+hospital relationship. Gates/access locks are acquired in ascending outlet ID
+order; presentation retains descending created-at/ID keyset order. Protected
+read audits retain null binding ID and real outlet/hospital/actor plus two or
+three authority observations. Revocation and audit failures withhold the page.
+This metadata projection requires no catalogue/private HR permission and grants
+no operating authority. The candidate Staff read view is
+`/workforce/pharmacy-relationships`; its separate prepare/review modes now use the
+canonical command/receipt SDK with immutable uncertain-attempt recovery. Normal
+role browser acceptance remains open. No new migration is added by these choices
+or command controls.

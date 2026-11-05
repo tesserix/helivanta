@@ -184,6 +184,26 @@ export type StaffDepartmentBindingHistoryEntry = z.infer<
   typeof StaffDepartmentBindingHistoryEntryContract
 >;
 
+export const StaffBindingOutletChoiceContract = z
+  .object({
+    pharmacy_id: identifier,
+    outlet_id: identifier,
+    pharmacy_name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    outlet_name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type StaffBindingOutletChoice = z.infer<typeof StaffBindingOutletChoiceContract>;
+
 export const StaffDepartmentBindingChangedDataContract = z
   .object({
     pharmacy_id: identifier,

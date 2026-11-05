@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "2b5062206c414686b1b3c0d6c8a3a22de717189218118f11721426281e1d3237",
+  "registry_sha256": "f1225106760b6f6a0d5bcb65443e21f330f69532c9d908b5b84e6d7cf8aafe4c",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 831,
-    "unclassified": 808
+    "total": 840,
+    "unclassified": 817
   },
   "entries": [
     {
@@ -5404,6 +5404,24 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices",
+        "permission": "pharmacy.staff_binding.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/insights",
       "kind": "http",
       "module": "pharmacy",
@@ -6228,6 +6246,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items",
       "kind": "http",
       "module": "pharmacy",
@@ -6239,6 +6273,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -6260,6 +6310,38 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/prescribers",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/prescribers",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
       "kind": "http",
       "module": "pharmacy",
@@ -6276,6 +6358,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales",
       "kind": "http",
       "module": "pharmacy",
@@ -6287,6 +6385,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -6367,6 +6481,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -8750,7 +8880,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -8835,7 +8965,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -10937,7 +11067,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11021,7 +11151,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11131,7 +11261,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11245,7 +11375,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11558,7 +11688,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11617,7 +11747,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11676,7 +11806,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11735,7 +11865,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11794,7 +11924,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -11934,6 +12064,22 @@
         "source": "backend/internal/modules/workforce/module.go",
         "method": "GET",
         "path": "/v1/workforce/posting-scopes",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http workforce GET /v1/workforce/staff-actor-scopes",
+      "kind": "http",
+      "module": "workforce",
+      "registration": {
+        "source": "backend/internal/modules/workforce/module.go",
+        "method": "GET",
+        "path": "/v1/workforce/staff-actor-scopes",
         "permission": "public",
         "authentication_required": true,
         "membership_required": true,
@@ -12625,7 +12771,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12704,7 +12850,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -12783,7 +12929,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -13812,7 +13958,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {
@@ -13994,7 +14140,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/workforce/module.go",
-            "sha256": "803a740517a7792f6910ef5d3c481be029690a42205950660857570483f21e39",
+            "sha256": "5f5deddc2e1bb79a5c8a848e83d0227f39e9ed5b970a9070ed5376538010f862",
             "symbol": "func (*Module) Routes("
           },
           {

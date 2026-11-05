@@ -352,6 +352,30 @@
         "max": 3,
         "orm_ignore": true
       }
+    ],
+    "StaffBindingOutletChoice": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "outlet_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      }
     ]
   },
   "subject": "helivanta.in.pharmacy.staff_department_binding_changed.v1",

@@ -13,9 +13,9 @@ Staff actors, employment and postings. IAM owns independently reviewed scoped
 grants. Licence pharmacist name/registration fields are historical licence text;
 affiliation verification is a separate relationship. Neither is the binding below.
 
-The current Pharmacy Staff source is read-only canonical directory browsing.
-There is no reviewed outlet-to-department binding, professional acceptance or
-Staff-specific product duty. Legacy dispense rows also lack trusted hospital and
+The deployed Pharmacy Staff source remains read-only canonical directory browsing.
+The unreleased candidate implements reviewed outlet-to-department bindings;
+professional acceptance and Staff-specific product duties remain open. Legacy dispense rows also lack trusted hospital and
 outlet lineage. No change here rewrites those rows or derives lineage from a
 selected hospital. Product binding records must contain references, not copied
 Staff, department or professional masters.
@@ -63,7 +63,7 @@ relation unusable until a fresh proposal is approved; no silent retargeting.
 
 ## Commands, disclosure and failures
 
-Proposed additive owner routes live below the existing exact pharmacy/outlet
+Implemented, unreleased additive owner routes live below the existing exact pharmacy/outlet
 path and enter through Global API:
 
 - `PUT /staff-department-bindings/{binding}` records a proposal; exact retry
@@ -74,7 +74,7 @@ path and enter through Global API:
 - `GET /staff-department-bindings` lists bounded metadata/history, never Staff
   or licence payloads. Current authorizations and outlet scope are mandatory.
 
-Canonical inputs will generate Go/Zod models. Responses distinguish pending,
+Canonical inputs generate Go/Zod models. Responses distinguish pending,
 approved, rejected, withdrawn and ended records and show current-source
 availability separately from retained approval. Recovery reads an exact command
 receipt; a network timeout is not proof the command failed. No delete endpoint.
@@ -134,7 +134,7 @@ rollout approval remains separate. Rollback removes mounting/consumer use while
 retaining additive schema and all historical evidence. No policy or grant is
 activated by this design document.
 
-## Purpose-limited choice projections (implementation design, not mounted routes)
+## Purpose-limited choice projections (implemented, unreleased candidate)
 
 The normal-role workspace needs canonical names rather than typed identifiers.
 Keep the parent Staff planning budgets (50 peak requests/s, 80:20 reads:writes,
@@ -143,7 +143,7 @@ The following projections add no service, cache or replica. A request scans one
 bounded page, never all Staff or all outlets. Their latency is an unmeasured
 budget, not a performance result.
 
-Workforce owns proposed GET `/v1/workforce/staff-actor-scopes`. Reuse its existing
+Workforce owns implemented candidate GET `/v1/workforce/staff-actor-scopes`. Reuse its existing
 own-login-link candidate query and filtered-list mechanism, with a maximum20
 candidates and at most four concurrent authorizations. Return only hospital ID
 and current canonical hospital name after independently approved
@@ -155,7 +155,7 @@ projection, not private Staff directory access or posting/operating eligibility.
 Use canonical `contracts/workforce-staff-actors.json` for this new metadata shape;
 do not reimplement the existing Go authorization port in a wire model.
 
-Pharmacy owns proposed GET
+Pharmacy owns implemented candidate GET
 `/v1/pharmacy/hospitals/{hospital}/staff-binding-outlet-choices?purpose=read|prepare|review`.
 Default purpose is read. Maximum10 choices contain only canonical pharmacy/outlet
 IDs and their owner-record names. Hospital assignment and current Staff actor
@@ -189,5 +189,53 @@ Organization's existing canonical department choices. It never requests broader
 catalogue/private HR roles to populate a selector. Concurrent metadata changes,
 wrong/sibling scope, source/grant revocation, fault rollback and bounded paging
 must be proved through real owners/Global API before normal-role browser
-acceptance. These endpoints remain implementation work; this section does not
-assert that they exist, pass tests or are activated.
+acceptance. Both projections are mounted in the candidate registry and pass real
+owner/Global API integration tests. They are not activated in the ordinary-role
+browser fixture or production.
+
+The read workspace at `/workforce/pharmacy-relationships` composes these choices,
+recorded relationship pages, exact detail and protected history. Current department
+names come only from Organization; references outside the current metadata page
+retain their identifiers. Every page exposes continuation, including empty filtered
+pages. Detail is hidden during refetch or denial; account changes remount the
+selection tree. A detected newer history version cannot revert to a verified badge
+by paging backward. The badge describes only the latest successful detail read.
+Proposal, independent decision and uncertain-command recovery controls are now
+implemented in a separate unreleased child increment. Ordinary-role browser
+acceptance remains open; these controls do not establish operating authority.
+
+
+## Relationship command workspace (implemented, unreleased child)
+
+`/workforce/pharmacy-relationships` has separate browse, prepare and review
+purposes. The outlet projection admits the selected purpose before the user can
+open its controls; a visible mode button is not role authority. Preparation pins
+a current Organization department revision and a required protected reason.
+Replacement starts from a recorded approved relationship and pins its ID/version.
+Independent approval requires the exact current department revision on a verified
+metadata page and an explicit responsibility attestation. Replacement review also
+shows the prior relationship/version, states its atomic ending consequence and
+requires an attestation covering the replacement. Rejection, withdrawal and ending
+do not depend on department-choice availability. Withdrawal is offered only to
+the recorded proposer; review controls exclude that account. The owner remains
+responsible for current permissions, same-Staff alternate-login separation,
+source/state revalidation, atomic history and any replacement ending.
+
+After validation, the UI retains one UUIDv7 command and exact input. A failed or
+unverifiable response does not create a new intent, claim completion or trigger
+automatic retries. Explicit recovery reads the original command receipt; explicit
+retry resends the original URL/body. A missing visible receipt may still belong
+to an in-flight request. Pending requests cannot be discarded through navigation;
+leaving a dirty or uncertain editor requires the existing leave guard. Account
+changes and unmount abort the client transport; server completion is not inferred
+from cancellation.
+
+While an editor is open, account/hospital/outlet/list/detail/history automatic
+reads and scope/mode navigation are held. Department metadata can be explicitly
+rechecked before submission, which clears attestation; after retaining an attempt,
+that metadata read is also paused. This prevents focus/reconnect from discarding
+an uncertain attempt. The owner reauthorizes every actual command/recovery.
+A verified retained receipt replaces the old detail display, so an approved receipt
+cannot appear alongside a contradictory pending badge. Returning to relationships
+refreshes the owner record/history. This is not offline persistence of command
+intent across browser crashes, new professional acceptance or operating access.

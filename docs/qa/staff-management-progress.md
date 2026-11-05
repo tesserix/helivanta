@@ -1,5 +1,71 @@
 # Staff Management delivery tracker
 
+## Pharmacy proposal and review controls — local candidate, 2026-11-05
+
+The next child branch, `codex/staff-binding-command-workspace-20261105`, builds on
+**995238e6** in draft [PR1585](https://github.com/tesserix/helivanta/pull/1585).
+Prepare/review purpose admission now leads to canonical department proposals,
+replacement proposals, independent approval/rejection, proposer withdrawal and
+ending controls. Required reasons, current-revision attestation and explicit
+replacement consequences are part of the UI. The exact owner command is retained
+for explicit recovery/retry; no new permission, wire payload, route or migration
+is introduced. Workforce/Organization/Pharmacy/IAM ownership remains unchanged.
+
+**25 focused UI tests pass** through the real SDK with synthetic HTTP fixtures.
+RED→GREEN evidence includes missing proposal/approval controls, missing-receipt
+explanation, unwanted selector reads after reconnect, replacement review disclosure
+and contradictory old pending detail after a verified approval receipt. Tests also
+cover unchanged retry URL/body, mandatory source/reason, self-review UI refusal,
+source-revision mismatch, rejection/withdrawal/ending without metadata, pending
+request navigation/double-submit protection, invalid receipt handling and denied
+command disclosure. Full SDK passes **872 /86 files**; affected lint, typechecks, formatting and
+production webpack build pass. Full shell passes **1,588 /185 files /438.37s**. The user requested merge/deploy for their own acceptance
+testing; ordinary-role browser acceptance remains explicitly unclaimed.
+
+Chrome is being used for another task, so its session was left alone after
+read-only observation. The older immutable browser fixture is unchanged. Actual
+positive-role browser acceptance, QA/production activation and remaining Staff
+operating/professional/lifecycle gates are still open. No grant or live data was
+changed. All five reusable Staff requirements remain active; counts stay
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Canonical pharmacy choices and read workspace — candidate, 2026-11-05
+
+The child branch `codex/staff-binding-choice-workspace-20261105` implements
+Workforce-owned current Staff hospital choices, Pharmacy-owned purpose-bound
+outlet choices, strict generated SDK metadata and the read workspace at
+`/workforce/pharmacy-relationships`. No catalogue/private HR grant is used to
+populate selectors. Server-side IAM/OpenFGA, current Staff actors, explicit
+outlet access and protected read evidence remain mandatory; no operating grant
+follows from a recorded relationship.
+
+The parent receipt-wire correction is published as **3384bbb0** in draft
+[PR1583](https://github.com/tesserix/helivanta/pull/1583). Proposal PUT, exact replay
+and recovery now return the same retained canonical command receipt, matching the
+SDK. The initial flat-row incompatibility was observed through the actual owner
+route before correction. This is an unreleased candidate fix.
+
+Real-owner full suites pass: Workforce **601.269s**, Pharmacy **260.326s**,
+Global API **578.672s** and architecture **86.241s**. Full SDK passes **872 tests /
+86 files**. The read workspace passes **8 focused tests**, covering canonical
+choices, account verification/change, empty filtered continuation, changed source,
+newer-history persistence, unavailable re-read and protected-history revocation.
+The stale verification badge and revocation hook-order failure were each observed
+failing before correction. Go lint reports **0 issues**; vet/build, contractdocs,
+generator checks, API/shell/shared-UI typechecks and lint pass. Full shell passes **1,571 tests /184 files /374.25s**. The first shared-UI
+run found a duplicated Staff navigation icon; it was corrected without changing
+the test. Final shared UI passes **280 tests /27 files /11.62s**. Staged secret scanning
+finds no leaks.
+
+The existing browser fixture is still UI4398 → Global8198 → owner8398 at the
+older immutable candidate; its ordinary reviewer correctly sees no approved
+review hospitals. No access grant, fixture/production migration or rollout was
+performed. The new projections have not passed ordinary-role browser acceptance.
+Proposal/decision/recovery UI, positive reviewer acceptance, professional duties,
+current-posting operating consumers, standalone employers and legacy lineage
+remain open. All five reusable Staff requirements remain intact; tracker counts
+stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Pharmacy department relationships — local candidate, 2026-11-05
 
 The mutation/recovery SDK is now implemented and verified: **844 SDK tests /

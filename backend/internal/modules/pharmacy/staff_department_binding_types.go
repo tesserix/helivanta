@@ -87,3 +87,10 @@ type StaffDepartmentBindingHistoryEntry struct {
 	RelatedBindingVersion *int64                                 `json:"related_binding_version"`
 	Authorizations        []StaffBindingAuthorizationObservation `json:"authorizations" gorm:"-"`
 }
+
+type StaffBindingOutletChoice struct {
+	PharmacyID   uuid.UUID `json:"pharmacy_id"`
+	OutletID     uuid.UUID `json:"outlet_id"`
+	PharmacyName string    `json:"pharmacy_name"`
+	OutletName   string    `json:"outlet_name"`
+}

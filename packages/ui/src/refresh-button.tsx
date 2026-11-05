@@ -11,6 +11,7 @@ export function RefreshButton({
   busy,
   variant = "outline",
   children,
+  "aria-label": label,
 }: {
   refresh: () => unknown;
   /** The read's error. Required, so a refused screen never offers one. */
@@ -18,12 +19,20 @@ export function RefreshButton({
   busy?: boolean;
   variant?: "outline" | "ghost" | "link";
   children: ReactNode;
+  /** Names the button when several refresh the same way, e.g. one per panel. */
+  "aria-label"?: string;
 }) {
   // Asking again can't change an access answer, and the screen shows the
   // refusal itself through RequestFailure.
   if (isRefusal(error)) return null;
   return (
-    <Button type="button" variant={variant} disabled={busy} onClick={() => void refresh()}>
+    <Button
+      type="button"
+      variant={variant}
+      disabled={busy}
+      aria-label={label}
+      onClick={() => void refresh()}
+    >
       {children}
     </Button>
   );

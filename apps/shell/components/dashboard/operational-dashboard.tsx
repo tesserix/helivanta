@@ -21,6 +21,8 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  RefreshButton,
+  RequestFailure,
   SelectControl,
   useZodForm,
 } from "@helivanta/ui";
@@ -380,17 +382,11 @@ function AnalyticsPanel({
             Loading {title.toLowerCase()} insights…
           </div>
         ) : query.isError || !data ? (
-          <div role="alert" className="py-8 text-sm">
-            <p>Could not load {title.toLowerCase()} insights.</p>
-            <Button
-              className="mt-3"
-              variant="outline"
-              aria-label={`Retry ${title}`}
-              onClick={() => void query.refetch()}
-            >
-              Try again
-            </Button>
-          </div>
+          <RequestFailure
+            message={`Could not load ${title.toLowerCase()} insights.`}
+            retry={query.refetch}
+            error={query.error}
+          />
         ) : (
           <>
             <div className="mb-6 flex flex-wrap items-end justify-between gap-5">
@@ -455,15 +451,15 @@ function AnalyticsPanel({
                     timeStyle: "short",
                   })}
                 </time>
-                <button
-                  type="button"
-                  onClick={() => void query.refetch()}
-                  disabled={query.isFetching}
-                  className="ml-3 underline underline-offset-4 disabled:opacity-50"
+                <RefreshButton
+                  refresh={query.refetch}
+                  error={query.error}
+                  busy={query.isFetching}
+                  variant="link"
                   aria-label={`Refresh ${title}`}
                 >
                   Refresh
-                </button>
+                </RefreshButton>
               </span>
             </div>
           </>

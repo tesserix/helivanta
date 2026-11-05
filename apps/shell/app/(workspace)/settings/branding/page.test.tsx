@@ -40,3 +40,19 @@ it("previews and persists owner branding while retaining platform attribution", 
   );
   expect(screen.getAllByText(/Powered by/).length).toBeGreaterThan(0);
 });
+
+it("shows refused branding as a refusal, with no retry", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("permissions")
+        ? new Response(JSON.stringify({ data: ["workspace.branding.manage"] }), { status: 200 })
+        : new Response(JSON.stringify({ error: "forbidden" }), { status: 403 }),
+    ),
+  );
+  renderWithProviders(<BrandingPage />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});

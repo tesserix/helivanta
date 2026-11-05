@@ -28,6 +28,7 @@ import {
   useZodForm,
   firstError,
   RequestFailure,
+  RefreshButton,
 } from "@helivanta/ui";
 
 export function OrganisationStructure({
@@ -113,7 +114,7 @@ function CorporatePanel({ scope, roles }: { scope: SupplyRegistryScope; roles: s
             scope={scope}
             structure={structure.data}
             onDone={() => setEditing(false)}
-            onReload={() => structure.refetch()}
+            refresh={() => structure.refetch()}
           />
         </div>
       ) : (
@@ -206,12 +207,13 @@ function CorporateEditor({
   scope,
   structure,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   structure: CorporateStructure;
   onDone: () => void;
-  onReload: () => unknown;
+  /** Re-reads after a conflicting save. Only rendered while the read succeeds. */
+  refresh: () => unknown;
 }) {
   const form = useZodForm(supplyCorporateInputSchema, {
     expected_version: structure.version,
@@ -326,9 +328,9 @@ function CorporateEditor({
           <p role="alert" className="text-sm text-destructive">
             {mutation.error.message} Reload this relationship if another administrator changed it.
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload corporate relationship
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-wrap gap-2">
@@ -476,7 +478,7 @@ function TerritoryPanel({
             territory={editing}
             admin={roles.includes("administrator") && can("supply.party.access.manage")}
             onDone={() => setEditing(undefined)}
-            onReload={() => {
+            refresh={() => {
               rows.retry();
               setEditing(undefined);
             }}
@@ -492,14 +494,15 @@ function TerritoryEditor({
   territory,
   admin,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   country: string;
   territory: Territory | null;
   admin: boolean;
   onDone: () => void;
-  onReload: () => void;
+  /** Re-reads after a conflicting save. Only rendered while the list read succeeds. */
+  refresh: () => void;
 }) {
   const { can } = usePermissions();
   const id = useRef(territory?.id ?? newSupplyId());
@@ -753,9 +756,9 @@ function TerritoryEditor({
           <p role="alert" className="text-sm text-destructive">
             {mutation.error.message}
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload sales territories
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-wrap gap-2">

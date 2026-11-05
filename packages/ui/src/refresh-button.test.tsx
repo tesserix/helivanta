@@ -17,6 +17,15 @@ describe("RefreshButton", () => {
     expect(refresh).toHaveBeenCalledOnce();
   });
 
+  it("takes a name when several refresh the same way", () => {
+    renderWithProviders(
+      <RefreshButton refresh={vi.fn()} error={null} aria-label="Refresh Laboratory">
+        Refresh
+      </RefreshButton>,
+    );
+    expect(screen.getByRole("button", { name: "Refresh Laboratory" })).toBeEnabled();
+  });
+
   it("is disabled while busy", () => {
     renderWithProviders(
       <RefreshButton refresh={vi.fn()} error={null} busy>

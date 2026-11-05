@@ -107,3 +107,15 @@ it("names a key pair Razorpay refused", async () => {
   await user.click(screen.getByRole("button", { name: "Save Razorpay account" }));
   expect(await screen.findByText("Razorpay didn't accept this key id and secret.")).toBeTruthy();
 });
+
+it("shows a refused payment account as a refusal, with no retry", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify({ error: "forbidden" }), { status: 403 })),
+  );
+  renderWithProviders(<RazorpayAccount />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});

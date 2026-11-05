@@ -25,6 +25,7 @@ import {
   useConfirmLeave,
   useLeaveGuard,
   useZodForm,
+  RefreshButton,
 } from "@helivanta/ui";
 import { useOrganizationCommand } from "./command";
 
@@ -112,9 +113,9 @@ function StructureHospitals({ scope, canManage }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Hospital department structure</h2>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => void query.refetch()}>
+                <RefreshButton refresh={query.refetch} error={query.error}>
                   Refresh hospital references
-                </Button>
+                </RefreshButton>
                 {canManage && (
                   <Button onClick={() => setRegistering(true)}>Register hospital reference</Button>
                 )}
@@ -271,9 +272,9 @@ function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital:
             <p className="mt-1 break-all text-sm text-muted-foreground">Hospital {hospital}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => void query.refetch()}>
+            <RefreshButton refresh={query.refetch} error={query.error}>
               Refresh departments
-            </Button>
+            </RefreshButton>
             {canManage && (
               <Button
                 disabled={query.isPending || query.isError}

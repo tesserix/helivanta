@@ -22,7 +22,14 @@ import {
   type SupplySupportDiagnostics,
   type SupplyRegistryRevision,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  RequestFailure,
+  RefreshButton,
+} from "@helivanta/ui";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 import {
   AccessWindowPolicyStatus,
@@ -77,9 +84,9 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={rows.retry}>
+          <RefreshButton variant="ghost" refresh={rows.retry} error={rows.error}>
             Refresh support requests
-          </Button>
+          </RefreshButton>
           {admin && !rows.isError && (
             <Button
               variant="outline"

@@ -7,14 +7,16 @@ import {
   useStaffPostingReviewScopes,
   useStaffPostingProposalInbox,
   useStaffPostingSupervisionContext,
-  useStaffPostingManagementReviewContext,
-  useStaffPostingChainReviewContext,
+  useStaffPostingLifecycleReviewContext,
   type EnrollmentRequestScope,
   type StaffPostingInboxScope,
   type StaffPostingInboxItem,
   type StaffPostingProposal,
   type StaffPostingReviewHospitalScope,
 } from "@helivanta/api";
+import { PostingApprovalHistory } from "./posting-approval-history";
+import { PostingProposalContextDetails } from "./posting-proposal-context-details";
+import { PostingLifecycleReview } from "./posting-lifecycle-review";
 import { PostingProposalDecision } from "./posting-proposal-decision";
 import { PostingSubmissionWorkspace } from "./posting-submission-workspace";
 import { useStaffAccessCutoff, STAFF_ACCESS_CHANGED } from "./staff-access-cutoff";
@@ -328,16 +330,7 @@ function HospitalPostingReviews({
     </Panel>
   );
 }
-function PostingProposalDetail({
-  scope,
-  item,
-  action,
-  busy,
-  onBusy,
-  onCompleted,
-  onClose,
-  onContextChanged,
-}: {
+type PostingProposalDetailProps = {
   scope: StaffPostingInboxScope;
   item: StaffPostingInboxItem;
   action: "reject" | "withdraw" | null;
@@ -346,7 +339,32 @@ function PostingProposalDetail({
   onCompleted: (row: StaffPostingProposal) => void;
   onClose: () => void;
   onContextChanged: () => void;
-}) {
+};
+
+function PostingProposalDetail(props: PostingProposalDetailProps) {
+  if (props.item.proposal.status === "approved")
+    return (
+      <PostingApprovalHistory
+        scope={{ ...props.scope, staffId: props.item.staff.id }}
+        proposal={props.item.proposal}
+        displayName={props.item.staff.display_name}
+        onClose={props.onClose}
+        onContextChanged={props.onContextChanged}
+      />
+    );
+  return <UnapprovedPostingProposalDetail {...props} />;
+}
+
+function UnapprovedPostingProposalDetail({
+  scope,
+  item,
+  action,
+  busy,
+  onBusy,
+  onCompleted,
+  onClose,
+  onContextChanged,
+}: PostingProposalDetailProps) {
   const [approvalReview, setApprovalReview] = useState<"management" | "chain" | null>(null);
   const managementReview = approvalReview === "management";
   const chainReview = approvalReview === "chain";
@@ -356,19 +374,13 @@ function PostingProposalDetail({
     item.is_submitter ? "submission" : "review",
     busy,
   );
-  const management = useStaffPostingManagementReviewContext(
+  const lifecycle = useStaffPostingLifecycleReviewContext(
     { ...scope, staffId: item.staff.id },
     item.proposal,
-    managementReview,
+    managementReview ? "hospital_management" : chainReview ? "supervised" : null,
     busy,
   );
-  const chain = useStaffPostingChainReviewContext(
-    { ...scope, staffId: item.staff.id },
-    item.proposal,
-    chainReview,
-    busy,
-  );
-  const context = chainReview ? chain : managementReview ? management : supervision;
+  const context = approvalReview ? lifecycle : supervision;
   const confirmLeave = useConfirmLeave();
   const cutoff = useStaffAccessCutoff([context.error], onContextChanged);
   return (
@@ -453,50 +465,8 @@ function PostingProposalDetail({
                   Review supervisor chain approval
                 </Button>
               )}
-            {chainReview && chain.isSuccess && !chain.isFetching && (
-              <section aria-label="Current supervisor chain" className="space-y-3">
-                <h4 className="font-medium">Current supervisor chain</h4>
-                <p className="text-sm text-muted-foreground">
-                  Checked {new Date(chain.data.checked_at).toISOString()} (UTC). Approval rechecks
-                  every source; this view grants no operating access.
-                </p>
-                <ol className="space-y-3">
-                  {chain.data.chain.map(({ posting }) => (
-                    <Panel as="li" key={posting.id} className="text-sm">
-                      <p className="font-medium">{posting.staff.display_name}</p>
-                      <p>
-                        {posting.staff.employee_code} ·{" "}
-                        {posting.kind === "hospital_management"
-                          ? "Hospital management"
-                          : "Department supervisor"}
-                      </p>
-                      <p>
-                        {new Date(posting.starts_at).toISOString()} ·{" "}
-                        {posting.ends_at ? new Date(posting.ends_at).toISOString() : "Ongoing"}{" "}
-                        (UTC)
-                      </p>
-                      <dl className="mt-2 grid gap-2 sm:grid-cols-2">
-                        <div className="min-w-0">
-                          <dt className="text-muted-foreground">Posting reference</dt>
-                          <dd className="break-all">{posting.id}</dd>
-                        </div>
-                        <div className="min-w-0">
-                          <dt className="text-muted-foreground">Reviewed revision</dt>
-                          <dd className="break-all">{posting.revision_id}</dd>
-                        </div>
-                        <div className="min-w-0">
-                          <dt className="text-muted-foreground">Department reference</dt>
-                          <dd className="break-all">{posting.department_id}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-muted-foreground">Source cutoff (UTC)</dt>
-                          <dd>{new Date(posting.eligibility_until).toISOString()}</dd>
-                        </div>
-                      </dl>
-                    </Panel>
-                  ))}
-                </ol>
-              </section>
+            {approvalReview && lifecycle.isSuccess && !lifecycle.isFetching && (
+              <PostingLifecycleReview context={lifecycle.data} />
             )}
             {approvalReview && (
               <Button
@@ -509,39 +479,7 @@ function PostingProposalDetail({
               </Button>
             )}
           </Panel>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-muted-foreground">Draft rationale</dt>
-              <dd className="break-words">{context.data.context.draft_reason}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Submission rationale</dt>
-              <dd className="break-words">{context.data.context.submission_reason}</dd>
-            </div>
-            {context.data.context.decision_reason && (
-              <div>
-                <dt className="text-sm text-muted-foreground">Decision rationale</dt>
-                <dd className="break-words">{context.data.context.decision_reason}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-sm text-muted-foreground">Submitted department reference</dt>
-              <dd className="break-all">{context.data.context.proposal.department_id}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Submitted department revision</dt>
-              <dd className="break-all">{context.data.context.proposal.department_revision_id}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Proposed placement (UTC)</dt>
-              <dd>
-                {new Date(context.data.context.proposal.starts_at).toISOString()} ·{" "}
-                {context.data.context.proposal.ends_at
-                  ? new Date(context.data.context.proposal.ends_at).toISOString()
-                  : "Ongoing"}
-              </dd>
-            </div>
-          </dl>
+          <PostingProposalContextDetails context={context.data.context} />
         </>
       )}
       {approvalReview && (context.isError || context.isPending) && !cutoff && (
@@ -565,7 +503,8 @@ function PostingProposalDetail({
           }}
           action={approvalReview ? "approve" : action}
           approvalKind={chainReview ? "supervised" : "hospital_management"}
-          approvalUntil={chainReview ? chain.data?.eligibility_until : undefined}
+          approvalUntil={approvalReview ? lifecycle.data?.effective_until : undefined}
+          lifecycleContext={approvalReview ? lifecycle.data : undefined}
           busy={busy}
           onBusy={onBusy}
           onCompleted={onCompleted}

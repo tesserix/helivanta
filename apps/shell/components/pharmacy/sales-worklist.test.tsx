@@ -243,6 +243,46 @@ describe("SalesWorklist", () => {
   });
 });
 
+describe("the sales worklist's CSV (#1060)", () => {
+  it("downloads the period's sales, and offers no file of one invoice", async () => {
+    vi.stubGlobal(
+      "URL",
+      Object.assign(class extends URL {}, {
+        createObjectURL: vi.fn(() => "blob:worklist"),
+        revokeObjectURL: vi.fn(),
+      }),
+    );
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const fetcher = serve([row({})]);
+    const json = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation(async (url: string) =>
+      url.includes("/sales/worklist.csv?")
+        ? new Response("period_from\r\n", {
+            headers: {
+              "Content-Type": "text/csv; charset=utf-8",
+              "Content-Disposition": `attachment; filename="pharmacy-sales-worklist-${scope.outletId}-2026-11-04-2026-11-04.csv"`,
+            },
+          })
+        : json(url),
+    );
+    const { user } = renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
+    expect(
+      await screen.findByText("A download holding an admission sale is recorded."),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Download report CSV" }));
+    expect(await screen.findByText("CSV download started.")).toBeVisible();
+    expect(
+      fetcher.mock.calls.map(([url]) => String(url)).filter((u) => u.includes(".csv?")),
+    ).toEqual([expect.stringContaining("/sales/worklist.csv?from=2026-11-04&to=2026-11-04")]);
+
+    await user.type(screen.getByLabelText("Invoice number"), "PH/2627/1");
+    await user.click(screen.getByRole("button", { name: "Show sales" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Download report CSV" })).toBeNull(),
+    );
+  });
+});
+
 describe("SaleStatement", () => {
   it("states the lines, payments, credit notes and balances", () => {
     renderProviders(<SaleStatement summary={summary} />);

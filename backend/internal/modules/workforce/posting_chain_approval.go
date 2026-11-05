@@ -108,48 +108,13 @@ func (h *handlers) withSupervisedPostingLifecycleApproval(ctx context.Context, t
 	if err := validatePostingApprovalSourceWithLifecycle(tx, p, s, row, source, lifecycle); err != nil {
 		return err
 	}
-	refs := []authz.DepartmentReference{{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: row.DepartmentID, DepartmentRevision: row.DepartmentRevisionID}}
-	sources := make([]postingChainSource, 0, postingChainLimit-1)
-	seenStaff := map[uuid.UUID]bool{s.staff: true}
-	seenPostings := map[uuid.UUID]bool{row.ID: true}
-	current := row
-	until := row.EligibilityUntil
-	rooted := false
-	for len(sources) < postingChainLimit-1 {
-		if !validPostingSupervisionIntent(&intent) || intent.SupervisorStaffID == nil || intent.SupervisorProposalID == nil || intent.SupervisorRevisionID == nil {
-			return errPostingProposalConflict
-		}
-		staff, proposal := *intent.SupervisorStaffID, *intent.SupervisorProposalID
-		if seenStaff[staff] || seenPostings[proposal] {
-			return errPostingProposalConflict
-		}
-		seenStaff[staff], seenPostings[proposal] = true, true
-		ancestor, err := readPostingSupervisor(tx, p, postingDraftScope{hospital: s.hospital, staff: staff, draft: proposal}, *intent.SupervisorRevisionID, lifecycle)
-		if err != nil {
-			return err
-		}
-		parent := ancestor.Posting
-		if current.StartsAt.Before(parent.StartsAt) || parent.EndsAt != nil && (current.EndsAt == nil || current.EndsAt.After(*parent.EndsAt)) {
-			return errPostingProposalConflict
-		}
-		if parent.EligibilityUntil.Before(until) {
-			until = parent.EligibilityUntil
-		}
-		ref := authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: parent.DepartmentID, DepartmentRevision: parent.DepartmentRevisionID}
-		if ancestor.Intent.Kind == "department_supervisor" {
-			ref = authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: current.DepartmentID, DepartmentRevision: current.DepartmentRevisionID, AncestorID: parent.DepartmentID, AncestorRevision: parent.DepartmentRevisionID}
-		}
-		refs = append(refs, ref)
-		sources = append(sources, ancestor)
-		if ancestor.Intent.Kind == "hospital_management" {
-			rooted = true
-			break
-		}
-		current, intent = parent, ancestor.Intent
+	plan, err := collectPostingSourcePlan(p.TenantID, s.hospital, row, intent, func(scope postingDraftScope, revision uuid.UUID) (postingChainSource, error) {
+		return readPostingSupervisor(tx, p, scope, revision, lifecycle)
+	})
+	if err != nil {
+		return err
 	}
-	if !rooted || !row.StartsAt.Before(until) {
-		return errPostingProposalConflict
-	}
+	refs, sources, until := plan.References, plan.Sources, plan.EligibilityUntil
 	commandUntil := postingApprovalDeadline(row)
 	if until.Before(commandUntil) {
 		commandUntil = until

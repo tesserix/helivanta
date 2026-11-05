@@ -177,3 +177,36 @@ describe("DailyReport", () => {
     expect(fetcher.mock.calls.length).toBe(calls);
   });
 });
+
+describe("the daily report's CSV (#1060)", () => {
+  it("downloads the period's days", async () => {
+    localStorage.clear();
+    vi.stubGlobal(
+      "URL",
+      Object.assign(class extends URL {}, {
+        createObjectURL: vi.fn(() => "blob:daily"),
+        revokeObjectURL: vi.fn(),
+      }),
+    );
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const fetcher = serve(days);
+    const json = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation(async (url: string) =>
+      url.includes("/reports/daily.csv?")
+        ? new Response("period_from\r\n", {
+            headers: {
+              "Content-Type": "text/csv; charset=utf-8",
+              "Content-Disposition": `attachment; filename="pharmacy-daily-${scope.outletId}-2026-11-01-2026-11-15.csv"`,
+            },
+          })
+        : json(url),
+    );
+    const { user } = renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    const region = screen.getByRole("status", { name: "Daily sales export" }).parentElement!;
+    await user.click(within(region).getByRole("button", { name: "Download report CSV" }));
+    expect(await within(region).findByText("CSV download started.")).toBeVisible();
+    expect(
+      fetcher.mock.calls.map(([url]) => String(url)).filter((u) => u.includes(".csv?")),
+    ).toEqual([expect.stringContaining("/reports/daily.csv?from=2026-11-01&to=2026-11-15")]);
+  });
+});

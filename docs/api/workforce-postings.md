@@ -44,8 +44,8 @@ chain context and new approval refuse any retained ancestor cutoff with409
 `posting_lifecycle_review_required`; rejection and exact historical receipt
 recovery remain available. The reviewer UI rechecks this conflict while retaining
 the command/rationale/attestations. Explicit lifecycle context and positive approval are implemented in local
-candidates; reviewer UI integration, operating-consumer enforcement and release
-remain unfinished.
+candidates; the reviewer UI is integrated locally. Normal-role browser acceptance,
+operating-consumer enforcement and release remain unfinished.
 Do not treat these owner endpoints as complete departmental or Pharma authority.
 See [ADR-0058](../adr/0058-retained-posting-cutoffs.md).
 
@@ -72,8 +72,8 @@ management-root mode and verifies exact scope/revision, ordered linkage, unique
 Staff/postings/cutoff identities, cutoff absence/presence, bounded current clock
 and the computed minimum. Legacy SDK helpers reject lifecycle selectors and keep
 their previous envelopes. This context does not reserve authority. The subsequent
-candidate adds the explicit approval mode below; its reviewer UI and actual
-operating consumers remain open.
+candidate adds the explicit approval mode below; normal-role browser acceptance
+and actual operating consumers remain open.
 
 The existing decision PUT accepts an optional `lifecycle_review` only for
 `decision=approve`. Its `cutoff_versions` vector contains the selected pending
@@ -125,6 +125,24 @@ GET has no lifecycle-vector evidence and cannot verify that input; legacy SDK
 decision/receipt helpers therefore reject lifecycle observations. Client account
 abort prevents disclosure of an in-flight response. No new permission, IAM
 snapshot, published event or runtime service is introduced.
+
+The local `/workforce/posting-reviews` workspace now uses explicit lifecycle
+context for both management-root and supervised approvals, without falling back
+to legacy approval when that context is unavailable. It shows the effective
+deadline, database observation and named ancestors, distinguishing nominal
+placement, employment/source limits and retained cutoff/version. Opaque references
+remain available in expandable details. This view grants no operating access.
+
+The decision retains a copy of its examined context with the exact vector,
+deadline, rationale and command ID. Changed observations reset both examination
+checks while preserving rationale; submission also verifies that both checks
+belong to the current observation. Manual recheck is available. An uncertain
+approval offers **Recover or replay approval**, using the identical original PUT
+even after the current context changes, becomes unavailable or its deadline
+elapses. Only the owner can distinguish committed replay from an expired new
+command. Account/scope changes clear private state and abort in-flight requests.
+Component coverage and a production build do not establish normal-account browser
+acceptance or historical lifecycle-proof browser acceptance; that remains open.
 
 The local candidate now also adds `GET /v1/workforce/posting-cutoff-scopes`
 (at most20 admitted hospitals per filtered page), and `GET` at the proposal's
@@ -853,3 +871,101 @@ retain identical IDs/body and usable receipt recovery. Ordinary rejection remain
 available after a chain-read conflict. No migration or permission expansion is
 introduced. ADR0057 records rationale and acceptance limits; real-account browser,
 operating/lifecycle and production acceptance remain open.
+
+## Retained lifecycle approval history — local candidate
+
+The existing protected proposal context endpoint additionally accepts
+`purpose=review&expected_version=2&expected_revision_id=<approved-revision>&supervision_context=v1&lifecycle_review=recorded`.
+This mode is exclusive of current `management_review` and `chain_review`; repeated,
+mixed or unknown selectors are400. The exact head must be approved; pending or
+stale selections conflict409. Legacy selectors and strict receipts keep their
+existing shapes. The canonical envelope is
+`StaffPostingLifecycleHistoryContext`, described by
+[ADR-0059](../adr/0059-retained-posting-lifecycle-history.md).
+
+The response contains the existing authorized proposal context, nullable retained
+supervision, and `review`. A non-null review holds its exact approval/initial
+revision, original reviewer Staff/link/generation, review/support assignment
+versions/epochs, examination instant, original effective deadline, source count
+and1–32 ordered observations. Each source carries its hop, canonical Staff/
+proposal/revision reference and the originally observed cutoff ID/version/instant.
+No current names, login subject, identity files or credential records are added.
+The selected source is hop0 and retains its original absence/version0; later
+cutoff commands do not replace that observation. Sources and their provenance
+come only from immutable Workforce0085 records. No product-owned Staff copy,
+current-state reconstruction or operating authorization is introduced.
+
+`review:null` explicitly means retained lifecycle proof is unavailable for that
+approval. This can include older approvals and must not be shown as a successful
+current-source check. A non-null header with missing/inconsistent source rows is
+an error and is not released. Responses are bounded at128KiB and `no-store`.
+
+Disclosure uses current independent `workforce.posting.review` plus reviewed
+Staff actor use and verified session/tenant/hospital/object purpose. Historical
+management support does not grant a new management permission to the reader.
+Self/contributor exclusions remain in force. Reads do not require the target or
+its original sources to become operational again, and do not apply current
+cutoffs to the saved historical deadline. A read and its
+`context_read_lifecycle_history` audit commit together; a failed audit withholds
+all context/evidence and rolls back actor-use evidence. No event is emitted.
+
+The SDK's `getStaffPostingLifecycleHistoryContext(scope, approved, signal)`
+verifies the exact approved snapshot, original selected revision, source count,
+ordering/uniqueness, supervisor pin, provenance policy, cutoff bounds and supported
+calendar. It accepts an elapsed historical deadline and checks account abort
+before and after the read. This view cannot be used as current approval
+examination or command recovery; recovery still uses the exact original PUT.
+
+The reviewer workspace routes approved selections to retained history, with the
+original rationale and source/provenance references, explicitly warning that the
+record does not establish current operating authority. Unknown proof is visible
+as unavailable; current observations are never substituted. Access rechecks hide
+cached private evidence while pending or unavailable;403 clears it and account
+changes abort its request. Normal-role browser acceptance, actual departmental/
+Pharma operating consumers and production release remain separate open gates.
+No migration, permission, event, dependency or new service is added by this mode.
+
+## Current posting source use — local owner-port candidate
+
+`authz.CurrentStaffPostingSourceGuard.WithCurrentStaffPosting` is an internal
+owner callback port, not a new HTTP endpoint or an authorization token. Its
+hospital scope pins canonical Staff/posting/revision/version and structural
+Department/revision. Workforce remains the sole Staff/posting owner. Organization
+holds the active structural references and IAM independently holds the caller's
+source-use, current Staff actor and product-action grants through one command.
+
+The dedicated scoped `workforce.posting_source.use` authority is not inferred
+from a legacy role or category. The platform retains its existing coarse
+tenant-administrator permission default; the owner requires an actual independent
+scoped grant. Closed template `workforce.posting_source_consumer.v1`
+contains only source use and Staff actor use; its catalog is
+`staff-posting-source-v1`. It grants no private HR read, file release or product
+operation. Product permission remains separate; all three requirements fit the
+existing three-check maximum. IAM0028 is append-only and preserves all older
+catalogs and immutable SQL snapshots. Workforce0086 adds a distinct read-only
+source purpose; source use cannot approve or mutate postings.
+
+The owner requires authentic guarded-command evidence and an effective reviewed
+caller, then traverses the exact independently approved source to a management
+root, bounded at32 unique Staff/posting nodes. Every source's generation, Staff
+version, employment epoch, original root/chain proof, current department and
+retained cutoff is checked. Source context is restored before product code.
+A scheduled shorter employment term truncates current use without extending the
+original nominal eligibility; future starts, immediate/expired sources and stale
+or hidden references deny. Source and actor deadlines constrain the same commit,
+including when a consumer ignores cancellation and returns nil after expiry.
+
+An identifier-only source-use audit commits atomically with the product action;
+missing proof or an audit failure withholds the callback, and consumer failure
+rolls back actor/source use. The returned reference contains an owned use ID,
+source observations' opaque hash/count, target/actor references and observation/
+source deadline. It is not reusable authority or a general private Staff profile.
+A product must match acting Staff where required and apply its own unit,
+professional and operating policy on each command. No historical approval or
+returned source reference replaces that policy.
+
+This local port does not yet complete Pharma's consumer. Legacy tenant-only
+pharmacy dispense rows still require trustworthy hospital/outlet lineage; neither
+selected hospital nor common ownership supplies it. Standalone employer APIs and
+migrations remain gated by ADR0054 acceptance. Normal-role browser acceptance,
+Pharma integration and production activation remain open.

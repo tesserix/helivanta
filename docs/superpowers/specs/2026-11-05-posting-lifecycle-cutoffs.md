@@ -2,14 +2,16 @@
 
 Status: implementation in progress. Local command/receipt routes, candidate
 Workforce 0084/IAM 0027 and cutoff-aware legacy refusal are implemented. The
-reviewer UI integration and operating consumers remain open.
+reviewer UI integration is implemented locally; normal-role browser acceptance
+and operating consumers remain open.
 Administrative discovery, exact context/history reads and the normal cutoff
 workspace are implemented locally with API/component evidence; normal-account
 browser acceptance remains open. No production migration or rollout has occurred.
 The subsequent local candidates implement explicit lifecycle-review context,
 version/deadline-bound positive decisions, normalized immutable review evidence
-and SDK verification/replay. Reviewer UI integration, actual normal-role browser
-acceptance and operating-consumer enforcement remain open. See the exact selector/envelope in the
+and SDK verification/replay. The reviewer UI now displays effective lifetimes and
+binds approvals/recovery to the examined observations. Actual normal-role browser
+acceptance, historical proof presentation and operating-consumer enforcement remain open. See the exact selector/envelope in the
 [owner contract](../../api/workforce-postings.md).
 Builds on [ADR-0058](../../adr/0058-retained-posting-cutoffs.md) and all five
 [reusable Staff requirements](2026-11-02-reusable-staff-foundation.md). This work

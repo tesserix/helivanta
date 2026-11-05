@@ -2,6 +2,18 @@
 
 ## Pharmacy department relationships — local candidate, 2026-11-05
 
+The mutation/recovery SDK is now implemented and verified: **844 SDK tests /
+84 files**, including **103 reader/command cases**, typechecks, ESLint and webpack
+build pass. It preserves exact command intent, retained receipts, independent
+decisions, replacement correlation and historical disclosure purposes. No new
+owner endpoint or migration was added in this continuation. Purpose-limited
+hospital/outlet choices and the ordinary-role binding workspace remain open.
+
+Native Chrome reconnected and the ordinary reviewer remains correctly denied
+before its independent assignment approval. No grant, production migration or
+activation changed. The five reusable Staff requirements remain active; counts
+remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 Source increment **906867d4** is published in draft
 [PR1583](https://github.com/tesserix/helivanta/pull/1583). A typed reader follow-up
 adds exact detail/list/history validation and cancellation protections: **45 new

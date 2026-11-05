@@ -107,7 +107,7 @@ Full shell tests pass **1,563 /183 files /455.82s**. The full Global API suite p
 including the complete pre-employment/posting and scoped leave journeys. The staged secret scan finds no leaks. Inventory regeneration retains **831 surfaces,
 808 unclassified**; the three IAM source pins were reviewed against the additive
 migration registration change and refreshed without classification promotion.
-The exact Pharma binding workspace, typed command client, purpose-limited choices,
+The exact Pharma binding workspace, purpose-limited choices,
 writer/concurrent-command orderings and ordinary-role browser acceptance remain
 open. Source publication is a draft review increment. Merge, production migration and
 activation gates remain open.
@@ -135,3 +135,46 @@ passes **786 /83 files /9.90s**, API/shell typechecks and reader ESLint pass.
 Exact source/outlet choice APIs, mutation/receipt client, binding workspace,
 concurrency/source-writer acceptance and ordinary-role browser acceptance remain
 open; this is a verified reader, not full binding or Staff completion.
+
+### Mutation/recovery client continuation
+
+The typed SDK now prepares immutable proposals, submits approve/reject/withdraw/
+end commands and recovers the exact attempted receipt without resubmission.
+It snapshots normalized intent/account context before awaiting transport,
+requires distinct proposal/decision command identities and verifies target scope,
+actor, action, expected/result versions, private reason, source references,
+replacement transition and microsecond evidence. Equivalent timezone offsets
+are accepted. Input requires approval-only attestation; the canonical receipt
+retains operation and replacement evidence, not a copied request attestation.
+A third authorized reviewer may end a relationship without rewriting its original
+approval.
+
+Initial seven unimplemented-operation tests were RED. Initial receipt fixtures
+incorrectly included request attestation and omitted the nullable replacement
+receipt fields; these fixture/typecheck failures were corrected against generated
+contracts and the actual owner, not by changing the wire format. A reused proposal
+command ID was observed reaching transport before a preflight refusal was added.
+Two real replay-history purpose cases were observed rejected: audited replays
+retain prepare/review authority instead of converting it to read authority.
+The reader now validates those exact recorded purposes while still requiring
+one relationship permission plus current-actor observation; it does not treat
+historical observations as reusable grants.
+
+Focused reader/command coverage passes **103 tests**. Full SDK passes
+**844 /84 files /14.62s**, API/shell typechecks, affected ESLint and the configured
+webpack production build pass. Commands actually run: API vitest full suite,
+API/shell tsc --noEmit, affected API eslint, prettier, and shell next build
+--webpack with the existing local Global API origin8198. No Go owner behavior,
+migration or permission changed in this continuation.
+
+Native Chrome reconnected; the existing ordinary reviewer still correctly sees
+no approved posting review hospitals. Private evidence is saved in the existing
+QA evidence directory. Its pending one-day grant was not approved or activated.
+The immutable browser fixture still does not include this new binding candidate.
+
+The next owner endpoints are now specified in the binding design: reusable own
+Staff-actor hospital choices and minimal explicitly authorized Pharmacy outlet
+choices. They, the binding workspace, source/outlet-writer and competing-command
+orderings, ordinary-role positive browser acceptance and full operational
+lifecycle enforcement remain open. All five parent requirements and the shared
+21-area acceptance counts remain unchanged.

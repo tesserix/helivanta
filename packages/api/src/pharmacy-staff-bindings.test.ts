@@ -264,3 +264,19 @@ it("normalizes the requested identifier before validating exact proposal history
     page([history]),
   );
 });
+
+it.each(["read", "prepare", "review"] as const)(
+  "retains replay disclosure evidence admitted under its original %s purpose",
+  async (action) => {
+    const replay = {
+      ...history,
+      action: "read",
+      authorizations: [
+        { ...authorizations[0], permission: "pharmacy.staff_binding." + action },
+        authorizations[1],
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(page([replay]))));
+    expect(await listPharmacyStaffBindingHistory(scope, binding.id)).toEqual(page([replay]));
+  },
+);

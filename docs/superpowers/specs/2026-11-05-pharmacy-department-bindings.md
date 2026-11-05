@@ -133,3 +133,61 @@ Persist additive migrations and source contracts; named production migration and
 rollout approval remains separate. Rollback removes mounting/consumer use while
 retaining additive schema and all historical evidence. No policy or grant is
 activated by this design document.
+
+## Purpose-limited choice projections (implementation design, not mounted routes)
+
+The normal-role workspace needs canonical names rather than typed identifiers.
+Keep the parent Staff planning budgets (50 peak requests/s, 80:20 reads:writes,
+500,000/1.5 million Staff at12/36 months, p99 under500ms, 99.9% availability).
+The following projections add no service, cache or replica. A request scans one
+bounded page, never all Staff or all outlets. Their latency is an unmeasured
+budget, not a performance result.
+
+Workforce owns proposed GET `/v1/workforce/staff-actor-scopes`. Reuse its existing
+own-login-link candidate query and filtered-list mechanism, with a maximum20
+candidates and at most four concurrent authorizations. Return only hospital ID
+and current canonical hospital name after independently approved
+`workforce.staff_actor.use` and the existing current Staff-actor guard admit that
+candidate. Pin the candidate login-link identity/version to the admitted actor;
+a changed link is withheld. Current employment generation, credential and commit
+deadlines remain enforced by the existing guard. This is a reusable own-scope
+projection, not private Staff directory access or posting/operating eligibility.
+Use canonical `contracts/workforce-staff-actors.json` for this new metadata shape;
+do not reimplement the existing Go authorization port in a wire model.
+
+Pharmacy owns proposed GET
+`/v1/pharmacy/hospitals/{hospital}/staff-binding-outlet-choices?purpose=read|prepare|review`.
+Default purpose is read. Maximum10 choices contain only canonical pharmacy/outlet
+IDs and their owner-record names. Hospital assignment and current Staff actor
+admission precede enumeration. Read requires exact `pharmacy.staff_binding.read`;
+prepare/review require their corresponding exact permission as well as read.
+Each disclosed outlet additionally requires its current explicit outlet grant
+(reader/editor for read, editor for preparation/review) and hospital-owned parent.
+No affiliation, onboarding or regulatory status becomes operating authority.
+Do not expose other hospitals' binding identifiers or names through these choices.
+Extend the existing Pharmacy binding canonical contract for this projection.
+
+Preserve IAM → Staff actor → Pharmacy lock order. For a page of outlets, acquire
+the existing outlet gates/access locks in ascending canonical outlet-ID order,
+then recheck grant/ownership before disclosure; presentation remains in stable
+created-at/ID keyset order. Revocation either precedes admission or waits behind
+the authorized read. Do not disclose the candidate names if authority, source,
+outlet access or audit recording is unavailable. Retain attributable protected
+read evidence inside the same guarded transaction. Names alone grant no action;
+all subsequent choices and commands reauthorize their exact target.
+
+Both projections require matching single expected-tenant and expected-subject
+headers. Opaque pagination binds verified tenant, subject, route and purpose/
+hospital where applicable; an empty filtered page may have a continuation.
+UI follows continuation instead of treating an empty page as complete. Invalid
+or repeated query parameters fail400, stale account intent409, unavailable
+dependencies/audit503; denied candidates are withheld. Clearing private rows and
+pending panels on account/scope changes remains mandatory.
+
+The UI composes own Staff actor hospitals, authorized Pharmacy outlets and
+Organization's existing canonical department choices. It never requests broader
+catalogue/private HR roles to populate a selector. Concurrent metadata changes,
+wrong/sibling scope, source/grant revocation, fault rollback and bounded paging
+must be proved through real owners/Global API before normal-role browser
+acceptance. These endpoints remain implementation work; this section does not
+assert that they exist, pass tests or are activated.

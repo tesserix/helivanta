@@ -1,5 +1,26 @@
 # Staff Management delivery tracker
 
+## Staff release assembly for user testing — 2026-11-05
+
+The13 dependent PRs are merged into release PR1565; application source is
+**b4f9b466**, assembled as **1ed7080d** with the concurrent test-clock fix preserved.
+After current-main integration, full shell passes **1,601 /185 files**, SDK
+**872 /86 files**, Pharmacy **337.966s**, Global API **690.323s**, architecture
+**112.893s** and corrected posting-review UI **60 cases**. Production build and
+focused command/read UI25 cases pass. Required GitHub main checks remain pending.
+
+The user requested deployment for their own browser acceptance. The
+[release record](../deployment/releases/2026-11-05-staff-self-acceptance.md) and
+[13-migration manifest](../deployment/releases/2026-11-05-staff-self-acceptance-migrations.json)
+record the production227→240 receipt plan, backup, canonical sources and exact
+rollout gates. Production remains **9f827a66**; no migration, grant or promotion
+has been executed. Existing evidence/document worker readiness is limited by
+stale upstream antivirus definitions, not presented as a successful control.
+
+All five foundation requirements and counts remain unchanged: **10 partial,
+10 awaiting audit,1 research,0 fully accepted**. The broad autonomous goal is
+paused; release preparation continues under the user's direct shipping request.
+
 ## Pharmacy proposal and review controls — local candidate, 2026-11-05
 
 The next child branch, `codex/staff-binding-command-workspace-20261105`, builds on

@@ -1,0 +1,128 @@
+{
+  "source_revision": "1ed7080d840e09416760219ae07440e342c07e85",
+  "production_baseline_revision": "9f827a664928cd4175211739b8ac14cd85171d56",
+  "production_ledger_receipts": 227,
+  "expected_receipts_after_apply": 240,
+  "pending": [
+    {
+      "module": "iam",
+      "id": "0027_iam_staff_posting_cutoff_templates",
+      "sql_sha256": "31fe7c610e5f74fba591c555ed514febab44b247a5c3da8e72d1eaf9cadf761a",
+      "creates_tables": []
+    },
+    {
+      "module": "iam",
+      "id": "0028_iam_staff_posting_source_templates",
+      "sql_sha256": "623668536ec1bbb85d6974aad2fea3de7ddf79887dbabd7e68907a31b3eea74b",
+      "creates_tables": []
+    },
+    {
+      "module": "iam",
+      "id": "0029_iam_pharmacy_department_binding_templates",
+      "sql_sha256": "4d7560fc745c5b7b8e7a101028e9bef7a1069baec64148ed5bd6d529ef379c26",
+      "creates_tables": []
+    },
+    {
+      "module": "pharmacy",
+      "id": "0033_pharmacy",
+      "sql_sha256": "22fdae5b035f88d090fbe5bf7a3ca13b2b7591dbda3c2aa2a47a34338e13b4c6",
+      "creates_tables": [
+        "pharmacy_item_categories",
+        "pharmacy_product_category_declarations",
+        "pharmacy_product_category_reviews"
+      ]
+    },
+    {
+      "module": "pharmacy",
+      "id": "0034_pharmacy_staff_department_bindings",
+      "sql_sha256": "3fa1fa28c6c541660c9cf8f98f9bc27f7f2be845cf58a2e95644cd161e21c9f2",
+      "creates_tables": [
+        "pharmacy_staff_department_bindings",
+        "pharmacy_staff_binding_commands",
+        "pharmacy_staff_binding_audit"
+      ]
+    },
+    {
+      "module": "workforce",
+      "id": "0079_workforce_posting_supervision_intents",
+      "sql_sha256": "55d2dbd2512a7a6ed155be5138be03a3c8e101fc0d6577fb3a204bc493b65b62",
+      "creates_tables": ["workforce_posting_supervision_intents"]
+    },
+    {
+      "module": "workforce",
+      "id": "0080_workforce_posting_root_approvals",
+      "sql_sha256": "ad45e9b8c5ec9a8718f9d386d4377d7c02826742ebf1c6b7545b1a05143deb59",
+      "creates_tables": ["workforce_posting_management_reviews"]
+    },
+    {
+      "module": "workforce",
+      "id": "0081_workforce_posting_chain_approvals",
+      "sql_sha256": "9219266b38c29c0fb91341fda9ea69a075bee0765fca5175b50221c1c47a5539",
+      "creates_tables": [
+        "workforce_posting_chain_reviews",
+        "workforce_posting_chain_sources"
+      ]
+    },
+    {
+      "module": "workforce",
+      "id": "0082_workforce_posting_supervisor_choices",
+      "sql_sha256": "41d3b6129c10192477fb45f7d895a7b93f45a494a8cd0b94947f69bf10933d0a",
+      "creates_tables": []
+    },
+    {
+      "module": "workforce",
+      "id": "0083_workforce_posting_supervisor_choice_index",
+      "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creates_tables": [],
+      "concurrent_indexes": [
+        {
+          "name": "workforce_posting_supervisor_choice_order",
+          "table": "workforce_posting_supervision_intents",
+          "columns": [
+            {
+              "name": "tenant_id",
+              "descending": false
+            },
+            {
+              "name": "hospital_id",
+              "descending": false
+            },
+            {
+              "name": "kind",
+              "descending": false
+            },
+            {
+              "name": "created_at",
+              "descending": true
+            },
+            {
+              "name": "proposal_id",
+              "descending": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "workforce",
+      "id": "0084_workforce_posting_cutoffs",
+      "sql_sha256": "2612b4c23033e4d82a6af199fd3f31a95f99e82fe01f5b0937b4697a94e7c5a4",
+      "creates_tables": ["workforce_posting_cutoffs"]
+    },
+    {
+      "module": "workforce",
+      "id": "0085_workforce_posting_lifecycle_reviews",
+      "sql_sha256": "a7e8dd832a1b4e197915b391b74ced7b8a6467bf8514c2f63b9f09225437d620",
+      "creates_tables": [
+        "workforce_posting_lifecycle_reviews",
+        "workforce_posting_lifecycle_sources"
+      ]
+    },
+    {
+      "module": "workforce",
+      "id": "0086_workforce_posting_source_use",
+      "sql_sha256": "ae7a6f15b23e4b05a85ba52a1e16ebf1ba89b36ed07b73b5ef4cda9ce639b672",
+      "creates_tables": []
+    }
+  ]
+}

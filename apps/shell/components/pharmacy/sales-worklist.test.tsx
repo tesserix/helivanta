@@ -125,15 +125,17 @@ const summary: PharmacySaleSummary = {
   admission_reversed_minor: 1250,
 };
 
-function serve(rows: unknown[] | "fail") {
+function serve(rows: unknown[] | "fail" | "refuse") {
   const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) =>
     url.includes("/summary")
       ? new Response(JSON.stringify(summary))
       : rows === "fail"
         ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
-        : new Response(
-            JSON.stringify({ data: rows, page: { next_cursor: null, has_more: false } }),
-          ),
+        : rows === "refuse"
+          ? new Response(JSON.stringify({ error: "forbidden", message: "no" }), { status: 403 })
+          : new Response(
+              JSON.stringify({ data: rows, page: { next_cursor: null, has_more: false } }),
+            ),
   );
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
@@ -240,6 +242,22 @@ describe("SalesWorklist", () => {
     serve("fail");
     renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
     expect(await screen.findByText("Could not load sales.")).toBeVisible();
+  });
+
+  it("announces an empty period, and shows a refusal with no retry", async () => {
+    serve([]);
+    const { unmount } = renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
+    expect(await screen.findByText("No sales from 2026-11-04 to 2026-11-04.")).toHaveAttribute(
+      "role",
+      "status",
+    );
+    unmount();
+    serve("refuse");
+    renderWithProviders(<SalesWorklist scope={scope} today="2026-11-04" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You don't have access to this outlet's reports.",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 });
 

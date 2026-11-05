@@ -82,3 +82,21 @@ func TestWriterNeverBuffersPastItsLimit(t *testing.T) {
 	require.ErrorIs(t, err, csvsafe.ErrTooLarge)
 	require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(8*1024*1024))
 }
+
+func TestExcelWriterStartsWithAByteOrderMarkWithinItsLimit(t *testing.T) {
+	w := csvsafe.NewExcelWriter(8)
+	require.NoError(t, w.Write([]string{"a", "b"}))
+	got, err := w.Bytes()
+	require.NoError(t, err)
+	require.Equal(t, "\ufeffa,b\r\n", string(got), "the mark counts against the limit")
+
+	w = csvsafe.NewExcelWriter(7)
+	_ = w.Write([]string{"a", "b"})
+	_, err = w.Bytes()
+	require.ErrorIs(t, err, csvsafe.ErrTooLarge)
+
+	w = csvsafe.NewExcelWriter(2)
+	got, err = w.Bytes()
+	require.ErrorIs(t, err, csvsafe.ErrTooLarge, "no room for the mark is an error, not a file without it")
+	require.Nil(t, got)
+}

@@ -40,7 +40,7 @@ const MAX_CATEGORY_PAGES = 10;
  * Every category of the outlet, for the pickers: loaded page by page up to
  * MAX_CATEGORY_PAGES, and never retried in a loop once a page fails.
  */
-function useItemCategories(scope: PharmacyScope) {
+export function useItemCategories(scope: PharmacyScope) {
   const list = useApiPagedQuery<PharmacyItemCategory>(
     pharmacyKey(scope, "item-categories"),
     `${pharmacyItemCategoriesPath(scope)}?limit=100`,

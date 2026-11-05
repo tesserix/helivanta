@@ -1329,9 +1329,11 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			defer cloud.AfterReleasedRead(nil)
 			responses := make(chan *httptest.ResponseRecorder, 4)
 			contentPath := approvalPath + "/evidence/" + employmentFile + "/content?employment_review=v1"
+			cloud.AfterReleasedReads(4, func() { paused <- struct{}{}; <-resume })
 			for range 4 {
-				cloud.AfterReleasedRead(func() { paused <- struct{}{}; <-resume })
 				go func() { responses <- request("GET", contentPath, reviewer, nil, "application/json") }()
+			}
+			for range 4 {
 				select {
 				case <-paused:
 				case response := <-responses:

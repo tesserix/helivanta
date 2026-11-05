@@ -1772,3 +1772,20 @@ application are delivered together; rollback retains the schema/history and old
 application writes cannot reopen terminal records. The older read contract stays
 draft-only. There is no destructive down migration. Approval for the exact
 production revision and migration remains required before deployment.
+
+## Own Staff actor hospital choices (unreleased candidate)
+
+`GET /v1/workforce/staff-actor-scopes` enters Global API and returns only
+`hospital_id` and current hospital `name` in the data/page envelope. Limit is
+1–20; cursor is opaque and an empty filtered page may still have continuation.
+Single matching expected-tenant/subject headers are required. Each disclosed
+hospital needs an independently approved current hospital-scoped
+`workforce.staff_actor.use` assignment plus the current reviewed Staff actor.
+The candidate login link ID, Staff ID and version are pinned through the guarded
+read and protected `workforce.staff_actor_scope.read` audit. Up to four candidate
+authorizations run concurrently within a five-second budget. Missing authority,
+source or audit dependencies return 503; changed account intent returns 409;
+unauthorized candidates are withheld. This is not a private Staff directory,
+posting qualification or product operating grant. The source is canonical
+`contracts/workforce-staff-actors.json`; browser acceptance and deployment remain
+open.

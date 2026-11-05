@@ -118,6 +118,40 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
   },
+  {
+    key: "workforce.posting_source_consumer.v1",
+    name: "Staff posting source consumer",
+    description:
+      "Consume current hospital Staff posting observations inside independently authorized guarded commands; no private HR read or operating authority.",
+    family: "posting",
+    permissions: ["workforce.posting_source.use", "workforce.staff_actor.use"],
+  },
+  {
+    key: "pharmacy.department_binding_preparer.v1",
+    name: "Pharmacy department binding preparer",
+    description:
+      "Prepare hospital outlet-to-department relationship proposals; cannot approve them or operate a pharmacy.",
+    family: "pharmacy_binding",
+    permissions: [
+      "pharmacy.staff_binding.read",
+      "pharmacy.staff_binding.prepare",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+  },
+  {
+    key: "pharmacy.department_binding_reviewer.v1",
+    name: "Pharmacy department binding reviewer",
+    description:
+      "Independently review hospital outlet-to-department relationship proposals; no preparation, dispensing or clinical authority.",
+    family: "pharmacy_binding",
+    permissions: [
+      "pharmacy.staff_binding.read",
+      "pharmacy.staff_binding.review",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -194,5 +228,24 @@ export const staffAccessTemplateCatalogs = {
     "workforce.posting_reviewer.v1",
     "workforce.posting_management_reviewer.v1",
     "workforce.posting_cutoff_admin.v1",
+  ],
+  "staff-posting-source-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
+    "workforce.posting_submitter.v1",
+    "workforce.posting_reviewer.v1",
+    "workforce.posting_management_reviewer.v1",
+    "workforce.posting_cutoff_admin.v1",
+    "workforce.posting_source_consumer.v1",
+  ],
+  "pharmacy-department-bindings-v1": [
+    "pharmacy.department_binding_preparer.v1",
+    "pharmacy.department_binding_reviewer.v1",
   ],
 } as const;

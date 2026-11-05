@@ -1,8 +1,10 @@
 # ADR-0058: Retained Workforce posting cutoffs
 
-Date: 2026-11-05. Status: implementation in progress. Owner command/receipt and
-legacy-chain refusal are implemented locally; the lifecycle-aware review envelope,
-administrative UI and operating consumers remain open. Not approved for production.
+Date: 2026-11-05. Status: implementation in progress. Owner command/receipt,
+lifecycle-aware context/approval evidence and administrative/reviewer UI are
+implemented locally. Recorded-history presentation is a local candidate under
+[ADR-0059](0059-retained-posting-lifecycle-history.md). Normal-role browser
+acceptance and operating consumers remain open. Not approved for production.
 
 ## Context
 
@@ -76,7 +78,8 @@ reviewed actor and object scope on every read, write and receipt recovery. Missi
 capability is 403, invisible object 404, malformed input 400, stale/conflicting
 intent 409, unavailable IAM/Staff/Organization authority 503. A failed audit or
 outbox write rolls back the entire command. Reasons stay in owner-private data;
-notifications contain canonical identifiers/version/instant only.
+notifications contain canonical identifiers/version only; current instants must
+be read through the authorized owner contract.
 
 ## Alternatives and migration
 
@@ -86,11 +89,11 @@ postings loses accountability. Copying employee/posting authority into Pharma
 creates a second master. A scheduled job alone leaves a delivery gap at expiry.
 Separate retained cutoffs plus guarded owner use preserve these boundaries.
 
-Candidate next migration numbers are Workforce 0084 and IAM 0027; recheck the
-registry before allocation. Forward-only additive tables require tenant/hospital/
+The allocated persisted migrations are Workforce0084 and IAM0027, plus
+Workforce0085 for immutable lifecycle review/source evidence. Forward-only additive tables require tenant/hospital/
 Staff/proposal/revision composite foreign keys, UUIDv7 command IDs, immutable
 rows, forced purpose-bound RLS, bounded statement/lock timeouts and indexed head
-lookup. Old permissions/catalogs are immutable. Do not apply these migrations or
+lookup. Old permissions/catalogs are immutable. Do not apply these migrations in production or
 promote a revision without approval naming the final release and migrations.
 
 After cutoffs are written, rolling application code back to a consumer that

@@ -111,3 +111,12 @@ func TestSupportedCurrencyIsAProfileCurrency(t *testing.T) {
 		require.False(t, countryprofile.SupportedCurrency(code), code)
 	}
 }
+
+func TestCurrencyMinorDigits(t *testing.T) {
+	digits, ok := countryprofile.CurrencyMinorDigits("INR")
+	require.True(t, ok)
+	require.Equal(t, 2, digits)
+	// An undeclared currency has no digits; a caller must not guess two.
+	_, ok = countryprofile.CurrencyMinorDigits("USD")
+	require.False(t, ok)
+}

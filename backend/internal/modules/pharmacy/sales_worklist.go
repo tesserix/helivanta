@@ -23,6 +23,7 @@ import (
 
 func salesWorklistRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/sales/worklist", PermSaleRead, h.listSalesWorklist)
+	s.GET("/sales/worklist.csv", PermSaleRead, exportReport(h, salesWorklistFile))
 	s.GET("/sales/:id/summary", PermSaleRead, h.getSaleSummary)
 }
 
@@ -77,9 +78,17 @@ var saleCustomers = map[string]bool{"walk_in": true, "patient": true, "admission
 var saleLinkages = map[string]bool{"admission": true, "opd": true, "none": true}
 
 func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.Params) ([]saleWorkRow, error) {
+	rows, _ := h.readSalesWorklist(c, params, "list_read", nil)
+	return rows, nil
+}
+
+// readSalesWorklist reads the worklist; false means the response is
+// written. inTx, when given, runs on the rows in the transaction before the
+// audit row, as salesReport.read's does.
+func (h *catalogueHandlers) readSalesWorklist(c *gin.Context, params pagination.Params, action string, inTx func([]saleWorkRow, reportScope) error) ([]saleWorkRow, bool) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
-		return nil, nil
+		return nil, false
 	}
 	var invoice, customer, linkage *string
 	// An invoice is found exactly, without a period; otherwise the period
@@ -88,27 +97,27 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 	if v := c.Query("invoice"); v != "" {
 		if len(v) > 16 {
 			respond.Error(c, http.StatusBadRequest, "invalid_request", "invoice is an invoice number")
-			return nil, nil
+			return nil, false
 		}
 		invoice = &v
 	} else {
 		from, to, ok := outletPeriod(c, "the sales worklist")
 		if !ok {
-			return nil, nil
+			return nil, false
 		}
 		since, until = &from, &to
 	}
 	if v := c.Query("customer"); v != "" {
 		if !saleCustomers[v] {
 			respond.Error(c, http.StatusBadRequest, "invalid_request", "customer is walk_in, patient or admission")
-			return nil, nil
+			return nil, false
 		}
 		customer = &v
 	}
 	if v := c.Query("linkage"); v != "" {
 		if !saleLinkages[v] {
 			respond.Error(c, http.StatusBadRequest, "invalid_request", "linkage is admission, opd or none")
-			return nil, nil
+			return nil, false
 		}
 		linkage = &v
 	}
@@ -123,22 +132,31 @@ func (h *catalogueHandlers) listSalesWorklist(c *gin.Context, params pagination.
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.NewestFirst}).Find(&rows).Error; err != nil {
 			return err
 		}
+		if inTx != nil {
+			scope := reportScope{since: orAll(since), until: orAll(until), applied: func(name string) string {
+				return orAll(map[string]*string{"from": since, "to": until, "customer": customer, "linkage": linkage}[name])
+			}}
+			if err := inTx(rows, scope); err != nil {
+				return err
+			}
+		}
 		// A bed code with its date points to the bed's occupant, so a page
-		// showing an admission sale is recorded (#1555); others carry no one.
-		// Only the rows the page shows: ListRoute reads one more to see if
-		// there is a next page and drops it.
+		// or file showing an admission sale is recorded (#1555); others carry
+		// no one. Only the rows shown: ListRoute reads one more to see if
+		// there is a next page and drops it, and a file holds them all.
 		for _, r := range rows[:min(len(rows), params.Limit)] {
 			if r.Customer == "admission" {
-				return auditRegisterRead(c, tx, "sales_worklist", p.TenantID, p.Subject, outlet, "list_read",
+				return auditRegisterRead(c, tx, "sales_worklist", p.TenantID, p.Subject, outlet, action,
 					"from", orAll(since), "to", orAll(until), "customer", orAll(customer), "invoice", orAll(invoice), "linkage", orAll(linkage))
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		stockError(c, err)
+		reportReadError(c, err)
+		return nil, false
 	}
-	return rows, nil
+	return rows, true
 }
 
 type summaryLine struct {

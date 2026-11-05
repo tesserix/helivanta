@@ -254,22 +254,22 @@ var receiptsReport = salesReport[receiptEntry]{"the receipts register", "kind", 
 	}}
 
 func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
-	rows, _, _ := itemSalesReport.read(c, h, params)
+	rows, _, _ := itemSalesReport.read(c, h, params, "report_read", nil)
 	return rows, nil
 }
 
 func (h *catalogueHandlers) listPatientSales(c *gin.Context, params pagination.Params) ([]patientSaleLine, error) {
-	rows, _, _ := patientSalesReport.read(c, h, params)
+	rows, _, _ := patientSalesReport.read(c, h, params, "report_read", nil)
 	return rows, nil
 }
 
 func (h *catalogueHandlers) listStockSales(c *gin.Context, params pagination.Params) ([]stockSalesRow, error) {
-	rows, _, _ := stockSalesReport.read(c, h, params)
+	rows, _, _ := stockSalesReport.read(c, h, params, "report_read", nil)
 	return rows, nil
 }
 
 func (h *catalogueHandlers) listReceipts(c *gin.Context, params pagination.Params) ([]receiptEntry, error) {
-	rows, _, _ := receiptsReport.read(c, h, params)
+	rows, _, _ := receiptsReport.read(c, h, params, "report_read", nil)
 	return rows, nil
 }
 
@@ -415,9 +415,11 @@ func reportLines(c *gin.Context, args *salesReportFilter) bool {
 
 // read refuses malformed scope ids before reading the query string; the
 // outlet grant is checked in the transaction, as for the daily report. It
-// returns the rows of one page and the filter that chose them; false means
-// the response is written.
-func (r salesReport[T]) read(c *gin.Context, h *catalogueHandlers, params pagination.Params) ([]T, salesReportFilter, bool) {
+// returns the rows read and the filter that chose them; false means the
+// response is written. A personal read is audited with action; inTx, when
+// given, runs on the rows in the transaction before the audit row, so a file
+// it refuses is never recorded as disclosed.
+func (r salesReport[T]) read(c *gin.Context, h *catalogueHandlers, params pagination.Params, action string, inTx func([]T, salesReportFilter) error) ([]T, salesReportFilter, bool) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
 		return nil, salesReportFilter{}, false
@@ -441,18 +443,23 @@ func (r salesReport[T]) read(c *gin.Context, h *catalogueHandlers, params pagina
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}).Find(&rows).Error; err != nil {
 			return err
 		}
+		if inTx != nil {
+			if err := inTx(rows, f); err != nil {
+				return err
+			}
+		}
 		// A patient's purchases, and a prescriber's sales, are disclosed only
 		// with their audit row, in the same transaction: no row, no data.
 		switch {
 		case f.patient != nil:
-			return auditRegisterRead(c, tx, "patient_sales", p.TenantID, p.Subject, outlet, "report_read", "from", f.since, "to", f.until, "patient_id", f.patient.String())
+			return auditRegisterRead(c, tx, "patient_sales", p.TenantID, p.Subject, outlet, action, "from", f.since, "to", f.until, "patient_id", f.patient.String())
 		case f.registration != nil:
-			return auditRegisterRead(c, tx, "item_sales", p.TenantID, p.Subject, outlet, "report_read", "from", f.since, "to", f.until, "prescriber_registration", *f.registration, "prescriber_council", *f.council)
+			return auditRegisterRead(c, tx, "item_sales", p.TenantID, p.Subject, outlet, action, "from", f.since, "to", f.until, "prescriber_registration", *f.registration, "prescriber_council", *f.council)
 		}
 		return nil
 	})
 	if err != nil {
-		stockError(c, err)
+		reportReadError(c, err)
 		return nil, f, false
 	}
 	return rows, f, true

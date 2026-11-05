@@ -210,7 +210,7 @@ func TestReportCSVRefuses(t *testing.T) {
 		require.Empty(t, res.Header().Get("Content-Disposition"), what)
 	}
 	for _, bad := range []string{"", "from=2026-11-01", period + "&from=2026-11-01", period + "&product_id=", period + "&kind=cash", period + "&cursor=x", period + "&limit=10",
-		period + "&prescriber_registration=MMC%2F1&prescriber_council=Maharashtra%20Medical%20Council", period + "&unused=1", period + "&broken=%ZZ", period + "&subcategory_id=" + uuid.Must(uuid.NewV7()).String()} {
+		period + "&prescriber_registration=MMC%2F1", period + "&unused=1", period + "&broken=%ZZ", period + "&subcategory_id=" + uuid.Must(uuid.NewV7()).String()} {
 		refused(t, do(w.r, "GET", licencePath("/reports/items.csv?"+bad), "pharmacist", ""), http.StatusBadRequest, "items "+bad)
 	}
 	for _, bad := range []string{period + "&product_id=" + w.p, period + "&kind=cheque", period + "&lot_number=x"} {

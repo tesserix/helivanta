@@ -114,9 +114,11 @@ func dailyReportRoutes(s *platform.Router, h *catalogueHandlers) {
 	platform.ListRoute(s, "/reports/patient-sales", PermSaleRead, h.listPatientSales)
 	platform.ListRoute(s, "/reports/stock-sales", PermStockRead, h.listStockSales)
 	s.GET("/reports/prescribers", PermPrescriptionRead, h.listPrescribers)
-	s.GET("/reports/items.csv", PermSaleRead, exportReport(h, itemSalesReport, itemSalesFile))
-	s.GET("/reports/receipts.csv", PermSaleRead, exportReport(h, receiptsReport, receiptsFile))
-	s.GET("/reports/stock-sales.csv", PermStockRead, exportReport(h, stockSalesReport, stockSalesFile))
+	s.GET("/reports/items.csv", PermSaleRead, exportReport(h, itemSalesFile))
+	s.GET("/reports/receipts.csv", PermSaleRead, exportReport(h, receiptsFile))
+	s.GET("/reports/stock-sales.csv", PermStockRead, exportReport(h, stockSalesFile))
+	s.GET("/reports/patient-sales.csv", PermSaleRead, exportReport(h, patientSalesFile))
+	s.GET("/reports/daily.csv", PermSaleRead, exportReport(h, dailyReportFile))
 }
 
 // dailyReport holds totals only, no patient, prescriber or buyer detail, so

@@ -19,6 +19,7 @@ import {
   PatientSales,
   ReceiptsRegister,
   ReportDownload,
+  reportsRefused,
   StockSales,
 } from "./sales-reports";
 
@@ -76,11 +77,18 @@ function Days({ scope, period }: { scope: PharmacyScope; period: Period }) {
     pharmacyDailyReportPath(scope, period.from, period.to),
   );
   if (report.isError)
-    return <RequestFailure message="Could not load the daily report." retry={report.refetch} />;
+    return (
+      <RequestFailure
+        message="Could not load the daily report."
+        retry={report.refetch}
+        error={report.error}
+        refused={reportsRefused}
+      />
+    );
   if (!report.data) return <p role="status">Loading the report…</p>;
   if (report.data.days.length === 0)
     return (
-      <p className="mt-4 text-sm text-muted-foreground">
+      <p role="status" className="mt-4 text-sm text-muted-foreground">
         No sales or returns from {period.from} to {period.to}.
       </p>
     );

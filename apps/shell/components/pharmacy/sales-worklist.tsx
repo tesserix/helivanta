@@ -4,7 +4,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
-  ApiError,
   pharmacyKey,
   pharmacySaleSummaryPath,
   pharmacySalesWorklistPath,
@@ -28,7 +27,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { useListDetail } from "@/lib/use-list-detail";
-import { ReportDownload } from "./sales-reports";
+import { ReportDownload, reportsRefused } from "./sales-reports";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { periodSchema } from "./period";
 
@@ -179,11 +178,16 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
         list={
           <Panel>
             {sales.isError ? (
-              <RequestFailure message="Could not load sales." retry={sales.retry} />
+              <RequestFailure
+                message="Could not load sales."
+                retry={sales.retry}
+                error={sales.error}
+                refused={reportsRefused}
+              />
             ) : sales.isPending ? (
               <p role="status">Loading sales…</p>
             ) : sales.items.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p role="status" className="text-sm text-muted-foreground">
                 {"invoice" in filter
                   ? `No sale with invoice ${filter.invoice}.`
                   : `No sales from ${filter.from} to ${filter.to}.`}
@@ -272,12 +276,13 @@ function SaleSummaryPane({
         closeLabel="Close sale"
         onClose={pane.close}
       />
-      {summary.error instanceof ApiError && summary.error.status === 404 ? (
-        <p role="alert" className="text-sm">
-          This sale was not found, or you do not have access.
-        </p>
-      ) : summary.isError ? (
-        <RequestFailure message="Could not load this sale." retry={summary.refetch} />
+      {summary.isError ? (
+        <RequestFailure
+          message="Could not load this sale."
+          retry={summary.refetch}
+          error={summary.error}
+          refused="This sale was not found, or you do not have access."
+        />
       ) : !s ? (
         <p role="status">Loading sale…</p>
       ) : (

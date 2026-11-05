@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DailyReport } from "./daily-report";
@@ -74,7 +74,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function serve(rows: unknown[] | "fail", permissions: string[] = []) {
+function serve(rows: unknown[] | "fail" | "refuse", permissions: string[] = []) {
   const fetcher = vi.fn(async (url: string) =>
     url.includes("/iam/me/permissions")
       ? new Response(JSON.stringify({ data: permissions }))
@@ -83,13 +83,15 @@ function serve(rows: unknown[] | "fail", permissions: string[] = []) {
         ? new Response(JSON.stringify({ data: [], page: { next_cursor: null, has_more: false } }))
         : rows === "fail"
           ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
-          : new Response(
-              JSON.stringify({
-                from: "2026-11-01",
-                to: "2026-11-15",
-                days: url.includes("from=2026-11-01&to=2026-11-15") ? rows : [],
-              }),
-            ),
+          : rows === "refuse"
+            ? new Response(JSON.stringify({ error: "forbidden", message: "no" }), { status: 403 })
+            : new Response(
+                JSON.stringify({
+                  from: "2026-11-01",
+                  to: "2026-11-15",
+                  days: url.includes("from=2026-11-01&to=2026-11-15") ? rows : [],
+                }),
+              ),
   );
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
@@ -162,6 +164,25 @@ describe("DailyReport", () => {
     renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
     expect(await screen.findByText("Could not load the daily report.")).toBeVisible();
     expect(screen.getByRole("button", { name: /try again|retry/i })).toBeVisible();
+  });
+
+  it("announces an empty period, and shows a refusal with no retry", async () => {
+    serve([]);
+    const { unmount } = renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    expect(
+      await screen.findByText("No sales or returns from 2026-11-01 to 2026-11-15."),
+    ).toHaveAttribute("role", "status");
+    unmount();
+    serve("refuse");
+    renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole("alert")
+          .some((a) => a.textContent === "You don't have access to this outlet's reports."),
+      ).toBe(true),
+    );
+    expect(screen.queryByText("Could not load the daily report.")).toBeNull();
   });
 
   it("refuses a period over 366 days without asking the server", async () => {

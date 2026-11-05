@@ -63,11 +63,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function serve(rows: unknown[] | "fail") {
+function serve(rows: unknown[] | "fail" | "refuse") {
   const fetcher = vi.fn<(url: string) => Promise<Response>>(async () =>
     rows === "fail"
       ? new Response(JSON.stringify({ error: "internal", message: "no" }), { status: 500 })
-      : new Response(JSON.stringify({ data: rows, page: { next_cursor: null, has_more: false } })),
+      : rows === "refuse"
+        ? new Response(JSON.stringify({ error: "not_found", message: "no" }), { status: 404 })
+        : new Response(
+            JSON.stringify({ data: rows, page: { next_cursor: null, has_more: false } }),
+          ),
   );
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
@@ -624,5 +628,45 @@ describe("report CSV downloads (#1060)", () => {
       "the report has more than 5000 rows; choose a shorter period or a narrower filter",
     );
     expect(click).not.toHaveBeenCalled();
+  });
+});
+
+describe("each report's states (#1060)", () => {
+  const sections = [
+    [
+      "sales by item",
+      () => <ItemSales scope={scope} period={period} />,
+      "No items sold or returned from 2026-11-01 to 2026-11-15.",
+    ],
+    [
+      "receipts and refunds",
+      () => <ReceiptsRegister scope={scope} period={period} />,
+      "No receipts or refunds from 2026-11-01 to 2026-11-15.",
+    ],
+    [
+      "a patient's purchases",
+      () => <PatientSaleLines scope={scope} period={period} patient={patient} />,
+      "TEST Asha Rao bought nothing from 2026-11-01 to 2026-11-15.",
+    ],
+    [
+      "sales and stock",
+      () => <StockSales scope={scope} period={period} />,
+      "No product has held stock yet.",
+    ],
+  ] as const;
+
+  it.each(sections)("announces an empty %s", async (_, render, empty) => {
+    serve([]);
+    renderWithProviders(render());
+    expect(await screen.findByText(empty)).toHaveAttribute("role", "status");
+  });
+
+  it.each(sections)("shows refused %s as a refusal, with no retry", async (_, render) => {
+    serve("refuse");
+    renderWithProviders(render());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You don't have access to this outlet's reports.",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 });

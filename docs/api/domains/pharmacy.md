@@ -382,6 +382,36 @@ optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmac
 - **The record is the `audit_events` row.** Its audit-log line is written with the row, before commit, as for audited pages: if the commit then fails, the row rolls back and no file is sent, but that log line remains.
 - **Not covered:** buyer names or patient ids in the worklist file; the sale summary and credit notes as files; files above 5,000 rows; XLSX, PDF, scheduled exports and the governed export service (#594, #64, #444).
 
+### Report screens and the legacy reports (#1060)
+
+[Design](../../superpowers/specs/2026-11-05-pharmacy-report-walkthrough-design.md).
+
+- **Each report section shows its own state.** This covers each section of Daily sales, the Sales worklist, and an opened sale's statement. In order:
+  - **Refused:** a 401, 403 or 404, including access withdrawn while the page is open. The report sections say "You don't have access to this outlet's reports."; the statement says "This sale was not found, or you do not have access.". Neither offers "Try again", because retrying can't change an access answer.
+  - **Failed:** the section's message with "Try again". The other sections keep their rows.
+  - **Loading** and **empty**, both announced (`role="status"`). The empty state is a sentence naming the period.
+
+  A changed period or filter never shows the last answer's rows. An invalid period (the last day before the first, or over 366 days) is refused in the browser with no request sent.
+
+- **Read from cache.** A period read in the last five seconds is answered from the browser's cache without asking the server. So after access is withdrawn, rows the user has just seen can come back for those five seconds. Nothing they hadn't already been shown is disclosed.
+- **Browser tests.** `e2e/tests/pharmacy-reports.spec.ts` posts two cash sales through the counter (one to a walk-in buyer, one to a registered patient of a hospital that has verified the pharmacy) and returns one unit. It checks:
+  - every report on Daily sales and Sales, and every one of their files, against those amounts. Each file has exactly the rows its screen shows.
+  - on Daily sales, in a running browser: invalid periods, empty sections, one section failing while the others answer with no row of the last period left, and access withdrawn with every section refused.
+- **Component tests only.** The Sales screen's and the statement's empty, failed and refused states, and a category filter narrowing sales to a product, are covered by component (Vitest) and API tests. A category takes effect tomorrow at the earliest, so the walkthrough can only show today's sales falling outside one.
+- **Not in the walkthrough.** It covers no admission sale, which needs a MediCore admission, and no prescription sale, which is changing in #1477. API tests cover both.
+
+| Legacy report | Here | Not built, and why |
+| --- | --- | --- |
+| Sales invoice summary (449, 731) | Daily sales: invoices, totals, discount | "Deleted amount": a posted sale is never deleted; it's corrected by a credit note, which the report counts |
+| Sales receipts and refunds (450), receipt and refund (725) | Receipts and refunds, by kind | Cheque, demand draft, PayTM and NEFT, which the counter doesn't take |
+| Item-wise sales (441) | Sales by item, with category, lot and prescriber filters | Average purchase cost: purchase cost formulas are not approved |
+| Patient-wise sales (442) | Patient-wise sales | Purchase amount, for the same reason |
+| Sales stock report (755) | Sales and stock | The last vendor: a receipt records no supplier |
+| Sales profit margin (452, 719, 749), monthly G.P. (444) | — | Purchase cost, tax and gross and net margin formulas need approved examples |
+| Indent MIS (443, 737) | — | Needs a published SupplyConnect contract |
+| Wholesale party-wise and invoice summaries (728, 734) | — | There is no wholesale sale |
+| Pharmacy summary report (752) | — | The patient, insurer and hospital split waits on ledger heads (#1051, #987 slice 3) |
+
 ### The sales worklist and sale summary (#987 slice 1)
 
 | Route                                                        | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |

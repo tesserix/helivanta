@@ -694,5 +694,7 @@ read audits retain null binding ID and real outlet/hospital/actor plus two or
 three authority observations. Revocation and audit failures withhold the page.
 This metadata projection requires no catalogue/private HR permission and grants
 no operating authority. The candidate Staff read view is
-`/workforce/pharmacy-relationships`; proposal/review/recovery controls and normal
-role browser acceptance remain open. No new migration is added by these choices.
+`/workforce/pharmacy-relationships`; its separate prepare/review modes now use the
+canonical command/receipt SDK with immutable uncertain-attempt recovery. Normal
+role browser acceptance remains open. No new migration is added by these choices
+or command controls.

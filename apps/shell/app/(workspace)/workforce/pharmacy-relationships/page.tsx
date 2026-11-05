@@ -24,10 +24,17 @@ export default function PharmacyRelationships() {
 function RelationshipAccount({ restart }: { restart: () => void }) {
   const [nonce] = useState(() => crypto.randomUUID());
   const [changed, setChanged] = useState(false);
+  const [busy, setBusy] = useState(false);
   const identity = useApiQuery<PermissionsResponse>(
     ["pharmacy", "relationship-account", nonce],
     "/iam/me/permissions",
-    { gcTime: 0, staleTime: 0, request: { cache: "no-store" } },
+    {
+      gcTime: 0,
+      staleTime: 0,
+      enabled: !busy,
+      refetchOnWindowFocus: !busy,
+      request: { cache: "no-store" },
+    },
   );
   if (changed)
     return (
@@ -36,7 +43,7 @@ function RelationshipAccount({ restart }: { restart: () => void }) {
         <Button onClick={restart}>Reopen pharmacy relationships</Button>
       </section>
     );
-  if (identity.isPending || identity.isFetching)
+  if (identity.isPending || (identity.isFetching && !busy))
     return <p role="status">Checking pharmacy relationship account…</p>;
   if (identity.isError || !identity.data?.tenant_id || !identity.data.subject)
     return (
@@ -47,6 +54,7 @@ function RelationshipAccount({ restart }: { restart: () => void }) {
     );
   return (
     <PharmacyBindingWorkspace
+      onBusyChanged={setBusy}
       scope={{ tenantId: identity.data.tenant_id, subject: identity.data.subject }}
       onContextChanged={() => setChanged(true)}
     />

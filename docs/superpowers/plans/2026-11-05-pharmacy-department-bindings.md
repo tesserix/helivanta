@@ -233,3 +233,48 @@ React Hook Form build warnings remain.
 After the icon correction, the full shared UI suite passes **280 /27 files /11.62s**;
 its lint/typecheck and the affected package formatting checks also pass. The
 staged secret scan finds no leaks.
+
+
+## Child increment: proposal, review and recovery controls
+
+Branch `codex/staff-binding-command-workspace-20261105` builds on **995238e6**
+(PR1585). It adds purpose-bound preparation/review admission to the existing Staff
+route, generated-schema form validation, canonical department/revision choices,
+replacement identity/version, independent approval attestation, rejection,
+withdrawal and ending. The underlying owner contracts/permissions/migrations are
+unchanged. `newPharmacyStaffBindingId` reuses the cached UUIDv7 generator; no
+package or software is installed.
+
+Focused source/UI tests pass **25 /2 files**. Observed RED→GREEN cycles:
+missing proposal module/control; missing no-visible-receipt explanation; missing
+independent approval/attestation; missing purpose-bound preparation workspace;
+network reconnect unexpectedly rereading parent hospital choices; undisclosed
+replacement ending consequence; and a verified approval receipt still accompanied
+by the old pending detail. Existing assertions were preserved. The test fixture's
+initial department selector interaction was corrected to the existing Radix
+`chooseOption` helper; no native-select assumption was retained.
+
+The original attempt survives missing receipts and explicit retries with the same
+ID/input. Pending submission blocks navigation and double clicks. Invalid receipt
+envelopes remain uncertain; denied authority hides private command fields. Reject,
+withdraw and end do not require department metadata. Approval requires a matching
+current revision, independent account and explicit exact-source attestation;
+backend checks still cover same-Staff alternate logins and action-time revocation.
+Scope/mode changes and automatic parent reads are paused during editing, including
+reconnect. Department source reads pause after a command is retained. A manual
+source recheck before submission clears attestation. This is not persistence of
+client intent through a browser crash.
+
+Chrome is currently in use by the user on another task. Only a read-only
+observation was made; the QA tab, account grants and older immutable runtime remain
+unchanged. Normal-role positive browser acceptance and the broader Staff operating
+scope remain mandatory. Full frontend validation is running; no merge, migration,
+production rollout or new acceptance classification is claimed.
+
+The user subsequently requested commit/push/merge/deploy for their own testing.
+Prepare a release through the existing GitOps path; preserve the explicit lack
+of ordinary-role browser acceptance and inspect pending migrations against the
+actual production ledger before promotion. Full SDK **872 /86 files**, affected
+web lint/typechecks/formatting and webpack production build pass.
+
+Full shell passes **1,588 /185 files /438.37s** on the command increment.

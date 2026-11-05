@@ -200,5 +200,42 @@ retain their identifiers. Every page exposes continuation, including empty filte
 pages. Detail is hidden during refetch or denial; account changes remount the
 selection tree. A detected newer history version cannot revert to a verified badge
 by paging backward. The badge describes only the latest successful detail read.
-Proposal, independent decision and uncertain-command recovery controls remain
-separate implementation work; this read view does not establish operating authority.
+Proposal, independent decision and uncertain-command recovery controls are now
+implemented in a separate unreleased child increment. Ordinary-role browser
+acceptance remains open; these controls do not establish operating authority.
+
+
+## Relationship command workspace (implemented, unreleased child)
+
+`/workforce/pharmacy-relationships` has separate browse, prepare and review
+purposes. The outlet projection admits the selected purpose before the user can
+open its controls; a visible mode button is not role authority. Preparation pins
+a current Organization department revision and a required protected reason.
+Replacement starts from a recorded approved relationship and pins its ID/version.
+Independent approval requires the exact current department revision on a verified
+metadata page and an explicit responsibility attestation. Replacement review also
+shows the prior relationship/version, states its atomic ending consequence and
+requires an attestation covering the replacement. Rejection, withdrawal and ending
+do not depend on department-choice availability. Withdrawal is offered only to
+the recorded proposer; review controls exclude that account. The owner remains
+responsible for current permissions, same-Staff alternate-login separation,
+source/state revalidation, atomic history and any replacement ending.
+
+After validation, the UI retains one UUIDv7 command and exact input. A failed or
+unverifiable response does not create a new intent, claim completion or trigger
+automatic retries. Explicit recovery reads the original command receipt; explicit
+retry resends the original URL/body. A missing visible receipt may still belong
+to an in-flight request. Pending requests cannot be discarded through navigation;
+leaving a dirty or uncertain editor requires the existing leave guard. Account
+changes and unmount abort the client transport; server completion is not inferred
+from cancellation.
+
+While an editor is open, account/hospital/outlet/list/detail/history automatic
+reads and scope/mode navigation are held. Department metadata can be explicitly
+rechecked before submission, which clears attestation; after retaining an attempt,
+that metadata read is also paused. This prevents focus/reconnect from discarding
+an uncertain attempt. The owner reauthorizes every actual command/recovery.
+A verified retained receipt replaces the old detail display, so an approved receipt
+cannot appear alongside a contradictory pending badge. Returning to relationships
+refreshes the owner record/history. This is not offline persistence of command
+intent across browser crashes, new professional acceptance or operating access.

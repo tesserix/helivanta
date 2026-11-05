@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "c04e83c2eeebd354a372ef1e15d90d2fc9d48b9b9d8614ea4642b7efcd904efb",
+  "registry_sha256": "f1225106760b6f6a0d5bcb65443e21f330f69532c9d908b5b84e6d7cf8aafe4c",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 833,
-    "unclassified": 810
+    "total": 840,
+    "unclassified": 817
   },
   "entries": [
     {
@@ -6246,6 +6246,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items",
       "kind": "http",
       "module": "pharmacy",
@@ -6257,6 +6273,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -6278,6 +6310,38 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/prescribers",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/prescribers",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
       "kind": "http",
       "module": "pharmacy",
@@ -6294,6 +6358,22 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales",
       "kind": "http",
       "module": "pharmacy",
@@ -6305,6 +6385,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+        "permission": "pharmacy.stock.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null
@@ -6385,6 +6481,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv",
+        "permission": "pharmacy.sale.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
         "counted": false
       },
       "review": null

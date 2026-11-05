@@ -14,7 +14,13 @@ import {
 import { Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { periodSchema, type Period } from "./period";
-import { ItemSales, PatientSales, ReceiptsRegister, StockSales } from "./sales-reports";
+import {
+  ItemSales,
+  PatientSales,
+  ReceiptsRegister,
+  ReportDownload,
+  StockSales,
+} from "./sales-reports";
 
 /**
  * The daily sales report (#1386 C-3, #1060): posted sales and credit notes
@@ -47,6 +53,11 @@ export function DailyReport({ scope, today }: { scope: PharmacyScope; today: str
           Show report
         </Button>
       </form>
+      <ReportDownload
+        scope={scope}
+        path={pharmacyDailyReportPath(scope, period.from, period.to)}
+        label="Daily sales export"
+      />
       <Days scope={scope} period={period} />
       <ItemSales scope={scope} period={period} />
       <ReceiptsRegister scope={scope} period={period} />

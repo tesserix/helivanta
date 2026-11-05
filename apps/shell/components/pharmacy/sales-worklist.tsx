@@ -28,6 +28,7 @@ import {
   useZodForm,
 } from "@helivanta/ui";
 import { useListDetail } from "@/lib/use-list-detail";
+import { ReportDownload } from "./sales-reports";
 import { formatPharmacyMoney } from "./currency-amount-field";
 import { periodSchema } from "./period";
 
@@ -85,9 +86,10 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
       v.invoice ? { invoice: v.invoice, ...customer } : { from: v.from, to: v.to, ...customer },
     );
   };
+  const path = pharmacySalesWorklistPath(scope, filter);
   const sales = useApiPagedQuery<PharmacySaleWorkRow>(
     pharmacyKey(scope, "sales-worklist", JSON.stringify(filter)),
-    pharmacySalesWorklistPath(scope, filter),
+    path,
   );
   const pane = useListDetail({
     rows: sales.items,
@@ -159,6 +161,15 @@ export function SalesWorklist({ scope, today }: { scope: PharmacyScope; today: s
             Show sales
           </Button>
         </form>
+        {/* One invoice is its statement; a file is of a period. */}
+        {!("invoice" in filter) && (
+          <ReportDownload
+            scope={scope}
+            path={path}
+            label="Sales worklist export"
+            recorded="A download holding an admission sale is recorded."
+          />
+        )}
       </Panel>
       <ListDetail
         label={pane.openName ? `Sale ${pane.openName}` : "Sale"}

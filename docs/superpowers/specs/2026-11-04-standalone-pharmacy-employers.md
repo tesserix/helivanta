@@ -159,7 +159,8 @@ are assigned when a slice starts, from the next free ID in each module.
    UI with a branch picker.
 6. **Pharma professional authority at branches.** This is #418's remaining
    pharmacist, PIC and assistant work. It consumes the branch posting and runs
-   in parallel with the hospital pharmacy path.
+   in parallel with the hospital pharmacy path. It is slice 4 of the
+   [pharmacist outlet authority specification](2026-11-05-pharmacist-outlet-authority.md).
 
 ## Required tests
 

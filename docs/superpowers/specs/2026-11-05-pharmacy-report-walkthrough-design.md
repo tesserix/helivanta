@@ -65,16 +65,20 @@ These are to be proved by the walkthrough before they are fixed.
      payment-account and UPI parts stay in `readyCounter`.
    - **Sales.** The pharmacist posts, through the counter screen:
      - a cash sale to a walk-in buyer;
-     - a sale to a registered patient, who is registered the way
-       `clinicalFixture` (`support/opd.ts`) registers one;
+     - a sale to a registered patient of a hospital that has verified the
+       pharmacy. The pharmacist requests the verification as pharmacy owner
+       for that step only, and the administrator accepts it, because a
+       requester can't accept their own request (`affiliatedPatient`);
      - a return of one unit from the walk-in sale.
 2. **Numbers are checked against what was posted.** The expected amounts
    come from the posted sales and the return, not from re-reading the API's
    totals.
    - **Daily totals:** invoice and credit-note counts and amounts, net, and
      taken and refunded by kind.
-   - **Sales by item:** units sold and returned, and the amount. Also the
-     category and lot filters, each narrowing to the one product or lot.
+   - **Sales by item:** units sold and returned, and the amount. The lot
+     filter keeps the row. A product's category takes effect tomorrow at the
+     earliest, so today's sales are in no category: choosing one narrows
+     them to the empty status (ruled during implementation).
    - **Receipts and refunds:** one receipt per sale and the refund.
    - **Patient-wise sales:** the patient's line only.
    - **Sales and stock:** units sold and the stock on hand.
@@ -97,9 +101,11 @@ These are to be proved by the walkthrough before they are fixed.
      - No row from the previous period remains.
      - "Try again" recovers the section once the route is released.
    - **Restricted access:**
-     - **The owner role** has no prescription read, so it sees no
-       prescriber filter.
-     - **A role without stock read** sees no sales-and-stock section.
+     - **The prescriber filter and the sales-and-stock section** appear
+       exactly when the caller's own permissions hold prescription read and
+       stock read. The seeded spec accounts are an administrator and a
+       pharmacist, so the browser checks the pharmacist's grants; component
+       tests cover both answers (ruled during implementation).
      - **An outlet whose access is withdrawn while the page is open**
        shows "You don't have access to this outlet's reports." No section
        offers "Try again", and no rows remain.

@@ -382,6 +382,34 @@ optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmac
 - **The record is the `audit_events` row.** Its audit-log line is written with the row, before commit, as for audited pages: if the commit then fails, the row rolls back and no file is sent, but that log line remains.
 - **Not covered:** buyer names or patient ids in the worklist file; the sale summary and credit notes as files; files above 5,000 rows; XLSX, PDF, scheduled exports and the governed export service (#594, #64, #444).
 
+### Report screens and the legacy reports (#1060)
+
+[Design](../../superpowers/specs/2026-11-05-pharmacy-report-walkthrough-design.md).
+
+- **Each section of the Daily sales and Sales screens shows its own state**, in this order:
+  - **Refused:** "You don't have access to this outlet's reports." It has no "Try again", because retrying can't change an access answer. This covers a 401, 403 or 404, including access withdrawn while the page is open.
+  - **Failed:** the section's message with "Try again". The other sections keep their rows.
+  - **Loading** and **empty**, both announced (`role="status"`). The empty state is a sentence naming the period.
+
+  A changed period or filter shows "Loading…", never the last answer's rows. An invalid period (the last day before the first, or over 366 days) is refused in the browser with no request sent.
+- **`e2e/tests/pharmacy-reports.spec.ts`** posts two cash sales through the counter (one to a walk-in buyer, one to a registered patient of a hospital that has verified the pharmacy) and returns one unit. It then checks:
+  - every report on Daily sales and Sales, and every one of their files, against those amounts;
+  - the states above, in a running browser.
+
+  It covers no admission sale, which needs a MediCore admission, and no prescription sale, which is changing in #1477. API tests cover both.
+
+| Legacy report | Here | Not built, and why |
+| --- | --- | --- |
+| Sales invoice summary (449, 731) | Daily sales: invoices, totals, discount | "Deleted amount": a posted sale is never deleted; it's corrected by a credit note, which the report counts |
+| Sales receipts and refunds (450), receipt and refund (725) | Receipts and refunds, by kind | Cheque, demand draft, PayTM and NEFT, which the counter doesn't take |
+| Item-wise sales (441) | Sales by item, with category, lot and prescriber filters | Average purchase cost: purchase cost formulas are not approved |
+| Patient-wise sales (442) | Patient-wise sales | Purchase amount, for the same reason |
+| Sales stock report (755) | Sales and stock | The last vendor: a receipt records no supplier |
+| Sales profit margin (452, 719, 749), monthly G.P. (444) | — | Purchase cost, tax and gross and net margin formulas need approved examples |
+| Indent MIS (443, 737) | — | Needs a published SupplyConnect contract |
+| Wholesale party-wise and invoice summaries (728, 734) | — | There is no wholesale sale |
+| Pharmacy summary report (752) | — | The patient, insurer and hospital split waits on ledger heads (#1051, #987 slice 3) |
+
 ### The sales worklist and sale summary (#987 slice 1)
 
 | Route                                                        | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |

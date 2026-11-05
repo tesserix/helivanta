@@ -373,6 +373,12 @@ export const ZONES: Zone[] = [
         permission: "public",
       },
       {
+        label: "Pharmacy relationships",
+        href: "/workforce/pharmacy-relationships",
+        icon: Pill,
+        permission: "public",
+      },
+      {
         label: "Posting cutoffs",
         href: "/workforce/posting-cutoffs",
         icon: CalendarOff,

@@ -110,3 +110,56 @@ or release tag is claimed. Actual department/Pharma operating guards, credential
 unit specialization, standalone-employer decisions and all five reusable Staff
 requirements remain open. Counts remain10 partial,10 awaiting audit,1 research,
 0 fully accepted.
+
+## Published owner increment and UI follow-up
+
+Owner/API/SDK source is committed as `e1fd098f` in draft
+[PR#1578](https://github.com/tesserix/helivanta/pull/1578), stacked on #1577.
+The following UI source is on `codex/posting-lifecycle-history-ui-20261105`.
+Approved proposals use a distinct history query, preserve rationale and display
+source/reviewer references in expandable details. Pending approval/replay remains
+unchanged. Access rechecks hide retained evidence while pending or unavailable;
+403 clears it and account switches abort in-flight responses.
+
+The precise-time UI regression fails when JavaScript Date drops microseconds.
+A shared UTC formatter now preserves the owner's six-digit fractional precision
+in history, current lifecycle review and proposal interval display. Final focused
+reviewer tests pass **60 /17.83s** and scoped API/UI/shell web checks pass
+**9 /31.343s**. The final production Webpack build, using the existing fixture
+sign-in client and Global API8198, passes. The earlier complete shell run passes
+**1,553 /183 files /377.54s**, before the added precise-time test; the final
+complete shell run passes **1,554 /183 files /337.56s**. Final architecture
+passes **84.921s**, full Workforce **597.668s** and full Global API **551.827s**.
+The SDK was rerun after the UI hook landed and still passes **737 /81 files**;
+all root script tests pass **94**, with no skips.
+
+The history candidate now runs locally from immutable UI artifact `6d541321`
+with owner/Global source `e1fd098f`. The later owner commit `84a0939e` changes
+only query-plan test cleanup and its evidence; merge `626a1bf4` carries that fix
+into the UI PR. It changes no served application behavior. Anonymous Staff,
+cutoff and recorded-history requests through UI4398 return401, health/login200,
+and the local migration ledger remains237. Normal-role browser acceptance is
+still not claimed.
+All five parent requirements and the owner/consumer/standalone release gates
+remain open. No production actions occurred.
+
+## Remaining consumer scope confirmed from source
+
+The shared `PharmacyStaffSource` renders the canonical Workforce `StaffDirectory`
+and explicitly states that no outlet assignment is implied
+(`apps/shell/components/pharmacy/staff-source.tsx`). It creates no independent
+Staff master. The legacy dispense handler in
+`backend/internal/modules/pharmacy/dispenses.go` still changes tenant-scoped rows
+with visit/patient snapshots and no hospital/outlet reference. An outlet guard
+alone cannot cover it, and neither a selected hospital nor common ownership can
+supply trusted lineage. These are current source facts, not a new activation.
+
+The next implementation must establish verified product-unit references and
+current posting/Staff/credential checks through the product commit, retaining
+independent IAM authority and fail-closed source endings. Existing Workforce
+approvals and history are not that operating guard. Relevant proposed domain
+criteria are IN-PH-02/04/06 and the five reusable Staff requirements. Pharma
+professional policy still needs jurisdiction/service-specific qualified review;
+no statutory rule or clinical authority is activated by this history change.
+Standalone employer representation remains under ADR0054, without fabricated
+hospital records. No item is removed from the full parent objective.

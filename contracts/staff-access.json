@@ -726,6 +726,56 @@
       ],
       "definitions_sha256": "c1081c87b0ba6b9a55418ffed0657c36da87a7b0206b83991ef56e50d8e203f4",
       "sql_sha256": "31fe7c610e5f74fba591c555ed514febab44b247a5c3da8e72d1eaf9cadf761a"
+    },
+    {
+      "id": "0028_iam_staff_posting_source_templates",
+      "file": "assignment_posting_source_templates_generated.sql",
+      "templates": [
+        {
+          "key": "workforce.posting_source_consumer.v1",
+          "name": "Staff posting source consumer",
+          "description": "Consume current hospital Staff posting observations inside independently authorized guarded commands; no private HR read or operating authority.",
+          "family": "posting",
+          "permissions": [
+            "workforce.posting_source.use",
+            "workforce.staff_actor.use"
+          ]
+        }
+      ],
+      "definitions_sha256": "41c70c7d5987c29c381953846b24d0b519b3d143e5a645055076b7d46b48d48e",
+      "sql_sha256": "623668536ec1bbb85d6974aad2fea3de7ddf79887dbabd7e68907a31b3eea74b"
+    },
+    {
+      "id": "0029_iam_pharmacy_department_binding_templates",
+      "file": "assignment_pharmacy_department_binding_templates_generated.sql",
+      "sql_sha256": "4d7560fc745c5b7b8e7a101028e9bef7a1069baec64148ed5bd6d529ef379c26",
+      "templates": [
+        {
+          "key": "pharmacy.department_binding_preparer.v1",
+          "name": "Pharmacy department binding preparer",
+          "description": "Prepare hospital outlet-to-department relationship proposals; cannot approve them or operate a pharmacy.",
+          "family": "pharmacy_binding",
+          "permissions": [
+            "pharmacy.staff_binding.read",
+            "pharmacy.staff_binding.prepare",
+            "organization.posting_choices.read",
+            "workforce.staff_actor.use"
+          ]
+        },
+        {
+          "key": "pharmacy.department_binding_reviewer.v1",
+          "name": "Pharmacy department binding reviewer",
+          "description": "Independently review hospital outlet-to-department relationship proposals; no preparation, dispensing or clinical authority.",
+          "family": "pharmacy_binding",
+          "permissions": [
+            "pharmacy.staff_binding.read",
+            "pharmacy.staff_binding.review",
+            "organization.posting_choices.read",
+            "workforce.staff_actor.use"
+          ]
+        }
+      ],
+      "definitions_sha256": "8f95872e87e6e777675612a34790ca9b0e6499c1d81a0d5752c4683af836e97a"
     }
   ],
   "template_catalogs": [
@@ -835,6 +885,33 @@
         "workforce.posting_cutoff_admin.v1"
       ],
       "definitions_sha256": "b82809a448cbce23db46e8de814f1f766fbdf082192059746615c3f5849b7eac"
+    },
+    {
+      "key": "staff-posting-source-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1",
+        "workforce.employment_activator.v1",
+        "workforce.posting_reader.v1",
+        "workforce.posting_preparer.v1",
+        "workforce.posting_submitter.v1",
+        "workforce.posting_reviewer.v1",
+        "workforce.posting_management_reviewer.v1",
+        "workforce.posting_cutoff_admin.v1",
+        "workforce.posting_source_consumer.v1"
+      ],
+      "definitions_sha256": "041293cbebdeda8b103cfb4ddeecb6b247a1570d0fcf37d9341c8f6cd9664448"
+    },
+    {
+      "key": "pharmacy-department-bindings-v1",
+      "template_keys": [
+        "pharmacy.department_binding_preparer.v1",
+        "pharmacy.department_binding_reviewer.v1"
+      ],
+      "definitions_sha256": "8f95872e87e6e777675612a34790ca9b0e6499c1d81a0d5752c4683af836e97a"
     }
   ]
 }

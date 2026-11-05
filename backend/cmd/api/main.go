@@ -399,6 +399,7 @@ func run() error {
 	scopedAuthorizer := iam.NewScopedAuthorizer(db, fga)
 	deps := platform.Deps{
 		StaffActors:                 platform.StaffActors(registry.All(), db),
+		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: cfg.EmploymentActivationEnabled,

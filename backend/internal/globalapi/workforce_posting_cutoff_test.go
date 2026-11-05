@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
@@ -26,7 +27,7 @@ func postingCutoffEffects(t *testing.T, db *tenantdb.DB, tenant, actor string) [
 	return counts
 }
 
-func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, submitter, reviewer, administrator, thirdStaff string, rootTemplate, childTemplate map[string]any) {
+func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, submitter, reviewer, administrator, thirdStaff string, rootTemplate, childTemplate map[string]any, usePostingSource postingSourceUseProbe) {
 	t.Helper()
 	prepare := func(template map[string]any, maker string, supervision map[string]any) (string, map[string]any) {
 		base := fmt.Sprintf("%s/posting-staff/%s", hospitalBase, template["staff_id"])
@@ -38,6 +39,7 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 		pending := call(t, "PUT", root+"/commands/"+uuid.Must(uuid.NewV7()).String(), maker, map[string]any{"expected_version": 0, "draft_id": draft, "draft_revision_id": drafted["revision_id"], "draft_version": drafted["version"], "generation_id": source["generation_id"], "staff_version": source["staff_version"], "employment_epoch": source["employment_epoch"], "reason": "Synthetic exact source pins for retained-cutoff acceptance", "sources_examined": true, "supervision": supervision}, 200)
 		return root, pending
 	}
+	assertPostingSourceUseCutoffRaces(t, db, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator, usePostingSource)
 	assertPostingLifecycleCutoffRaces(t, db, tenant, call, request, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
 	assertPostingLifecycleExpiredReplay(t, db, tenant, call, prepare, rootTemplate, childTemplate, submitter, reviewer, administrator)
 	assertPostingLifecycleFarAncestor(t, db, tenant, call, prepare, rootTemplate, childTemplate, thirdStaff, submitter, reviewer, administrator)
@@ -125,8 +127,41 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, cutoff["id"], retainedProof.Sources[1].CutoffID.String())
 	require.EqualValues(t, 1, retainedProof.Sources[1].CutoffVersion)
 	require.Equal(t, parent["revision_id"], retainedProof.Sources[1].SourceRevisionID.String())
+	currentSource := assertCurrentPostingSourceUse(t, db, tenant, submitter, approvedChildReceipt, usePostingSource)
+	require.Equal(t, 2, currentSource.SourceCount)
+	expectedSourceUntil, parseSourceTimeErr := time.Parse(time.RFC3339Nano, approvedChildContext["effective_until"].(string))
+	require.NoError(t, parseSourceTimeErr)
+	require.Equal(t, expectedSourceUntil, currentSource.SourceUntil, "live use retains the minimum current ancestor cutoff")
 	retainedHistory := assertPostingLifecycleHistory(t, call, approvedChildRoot, reviewer, approvedChildReceipt, retainedProof)
 	assertPostingLifecycleHistoryFailures(t, db, tenant, call, approvedChildRoot, reviewer, submitter, approvedChildReceipt, retainedProof)
+
+	expiringRoot, expiringPending := prepare(childTemplate, submitter, map[string]any{"kind": "department_member", "supervisor_staff_id": parent["staff_id"], "supervisor_proposal_id": parent["id"], "supervisor_revision_id": parent["revision_id"]})
+	expiringView := call(t, "GET", expiringRoot+fmt.Sprintf("/context?purpose=review&expected_version=1&expected_revision_id=%s&supervision_context=v1&lifecycle_review=current", expiringPending["revision_id"]), reviewer, nil, 200)
+	expiringVersions := []any{expiringView["cutoff"].(map[string]any)["version"]}
+	for _, source := range expiringView["chain"].([]any) {
+		expiringVersions = append(expiringVersions, source.(map[string]any)["cutoff"].(map[string]any)["version"])
+	}
+	expiringBody := map[string]any{"expected_version": 1, "expected_revision_id": expiringPending["revision_id"], "decision": "approve", "reason": "Independent synthetic source-expiry test", "sources_examined": true, "lifecycle_review": map[string]any{"cutoff_versions": expiringVersions, "effective_until": expiringView["effective_until"]}}
+	expiringApproved := call(t, "PUT", expiringRoot+"/decisions/"+uuid.Must(uuid.NewV7()).String(), reviewer, expiringBody, 200)
+	var databaseNow time.Time
+	require.NoError(t, db.WithTenant(context.WithoutCancel(t.Context()), tenant, func(tx *gorm.DB) error { return tx.Raw("SELECT clock_timestamp()").Scan(&databaseNow).Error }))
+	expiringUntil := databaseNow.UTC().Add(3 * time.Second)
+	call(t, "PUT", expiringRoot+"/cutoffs/commands/"+uuid.Must(uuid.NewV7()).String(), administrator, map[string]any{"expected_revision_id": expiringApproved["revision_id"], "expected_cutoff_version": 0, "mode": "scheduled", "cutoff_at": expiringUntil.Format(time.RFC3339Nano), "reason": "Synthetic source-use expiry boundary", "sources_examined": true}, 200)
+	beforeExpiryUse := postingSourceUseEffects(t, db, tenant, submitter)
+	expiryCallback := false
+	expiryErr := usePostingSource(t.Context(), t, submitter, expiringApproved, func(command context.Context, reference authz.StaffPostingSourceReference) error {
+		expiryCallback = true
+		require.Equal(t, expiringUntil, reference.SourceUntil)
+		select {
+		case <-command.Done():
+		case <-time.After(5 * time.Second):
+			t.Fatal("source expiry did not cancel the consumer")
+		}
+		return nil
+	})
+	require.True(t, expiryCallback)
+	require.ErrorIs(t, expiryErr, authz.ErrScopedCommandDenied)
+	require.Equal(t, beforeExpiryUse, postingSourceUseEffects(t, db, tenant, submitter), "an expired callback returning nil cannot commit either audit")
 	foreignProof := readRetainedPostingLifecycleProof(t, db, uuid.Must(uuid.NewV7()).String(), tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string))
 	require.Empty(t, foreignProof.Headers)
 	require.Empty(t, foreignProof.Sources)
@@ -212,6 +247,12 @@ func assertPostingRetainedAncestorCutoff(t *testing.T, db *tenantdb.DB, tenant s
 	require.Equal(t, beforeReplay[1:], afterReplay[1:], "replay creates no additional approval audit or event")
 	require.Equal(t, retainedProof, readRetainedPostingLifecycleProof(t, db, tenant, tenant, approvedChild["hospital_id"].(string), approvedChild["staff_id"].(string), approvedChild["id"].(string)))
 	require.Equal(t, retainedHistory, assertPostingLifecycleHistory(t, call, approvedChildRoot, reviewer, approvedChildReceipt, retainedProof), "history retains original cutoff versions and deadlines after the ancestor ends")
+	beforeEndedUse := postingSourceUseEffects(t, db, tenant, submitter)
+	endedUseCalled := false
+	require.ErrorIs(t, usePostingSource(t.Context(), t, submitter, approvedChildReceipt, func(context.Context, authz.StaffPostingSourceReference) error { endedUseCalled = true; return nil }), authz.ErrScopedCommandDenied)
+	require.False(t, endedUseCalled)
+	require.Equal(t, beforeEndedUse, postingSourceUseEffects(t, db, tenant, submitter), "ending an ancestor denies new use without persisting partial actor/source evidence")
+
 	changedReplay := map[string]any{}
 	for key, value := range approvedChildDecision {
 		changedReplay[key] = value

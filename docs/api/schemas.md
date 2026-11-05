@@ -128,3 +128,18 @@ HR scope capability response. `node scripts/generate-workforce-directory.mjs`
 and its `--check` emit the shared Go/Zod contract; do not hand-copy capabilities.
 
 The shared department handoff models and owner events extend `contracts/organization-structure.json`; `node scripts/generate-organization-structure.mjs` now also emits Workforce `department_link_types.go`. SDK receipt and history checks add exact identity/version and observation-state invariants. See [the owner contract](workforce-department-links.md).
+
+The unreleased Pharmacy department relationship contract is canonical in
+[pharmacy-staff-bindings.json](../../contracts/pharmacy-staff-bindings.json).
+Run `node scripts/generate-pharmacy-staff-bindings.mjs` and its
+`--check` mode. It generates owner Go models, the identifier-only
+relationship event and SDK Zod models. Paired replacement identity/version and
+approval-only attestation are validated by the generator and owner. These models
+do not authorize dispensing or establish professional acceptance.
+
+The unreleased own Staff-actor hospital choice contract is canonical in
+`contracts/workforce-staff-actors.json`. Generate and verify the Go/Zod metadata
+with `node scripts/generate-workforce-staff-actors.mjs` and `--check`. Its only
+fields are hospital ID and current hospital name; it grants no Staff directory
+or operating access. Pharmacy outlet-choice metadata belongs to the existing
+`pharmacy-staff-bindings.json` contract and generator.

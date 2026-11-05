@@ -1,5 +1,34 @@
 # Staff Management delivery tracker
 
+## Pharmacy proposal and review controls — local candidate, 2026-11-05
+
+The next child branch, `codex/staff-binding-command-workspace-20261105`, builds on
+**995238e6** in draft [PR1585](https://github.com/tesserix/helivanta/pull/1585).
+Prepare/review purpose admission now leads to canonical department proposals,
+replacement proposals, independent approval/rejection, proposer withdrawal and
+ending controls. Required reasons, current-revision attestation and explicit
+replacement consequences are part of the UI. The exact owner command is retained
+for explicit recovery/retry; no new permission, wire payload, route or migration
+is introduced. Workforce/Organization/Pharmacy/IAM ownership remains unchanged.
+
+**25 focused UI tests pass** through the real SDK with synthetic HTTP fixtures.
+RED→GREEN evidence includes missing proposal/approval controls, missing-receipt
+explanation, unwanted selector reads after reconnect, replacement review disclosure
+and contradictory old pending detail after a verified approval receipt. Tests also
+cover unchanged retry URL/body, mandatory source/reason, self-review UI refusal,
+source-revision mismatch, rejection/withdrawal/ending without metadata, pending
+request navigation/double-submit protection, invalid receipt handling and denied
+command disclosure. Full SDK passes **872 /86 files**; affected lint, typechecks, formatting and
+production webpack build pass. Full shell passes **1,588 /185 files /438.37s**. The user requested merge/deploy for their own acceptance
+testing; ordinary-role browser acceptance remains explicitly unclaimed.
+
+Chrome is being used for another task, so its session was left alone after
+read-only observation. The older immutable browser fixture is unchanged. Actual
+positive-role browser acceptance, QA/production activation and remaining Staff
+operating/professional/lifecycle gates are still open. No grant or live data was
+changed. All five reusable Staff requirements remain active; counts stay
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Canonical pharmacy choices and read workspace — candidate, 2026-11-05
 
 The child branch `codex/staff-binding-choice-workspace-20261105` implements

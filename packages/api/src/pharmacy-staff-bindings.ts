@@ -1,3 +1,4 @@
+export { v7 as newPharmacyStaffBindingId } from "uuid";
 import { z } from "zod";
 import { staffPostingInstantMicros as instant } from "./staff-postings-contract";
 import { accountScopedRequest as request } from "./account-scoped-request";

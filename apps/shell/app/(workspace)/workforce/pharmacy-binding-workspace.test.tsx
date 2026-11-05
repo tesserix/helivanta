@@ -1,6 +1,8 @@
+import { NavigationGuardProvider } from "@helivanta/ui";
 import { useState } from "react";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { chooseOption } from "@/test/select";
 import { PharmacyBindingWorkspace } from "./pharmacy-binding-workspace";
 
 const id = (n: number) => "019a0000-0000-7000-8000-" + String(n).padStart(12, "0");
@@ -290,4 +292,155 @@ it("shows changed department source without suggesting current operating authori
   expect(await screen.findByText("Department source changed")).toBeInTheDocument();
   expect(screen.queryByText("Department source verified")).not.toBeInTheDocument();
   expect(screen.getByText(binding.reason)).toBeInTheDocument();
+});
+
+it("opens preparation only through purpose-bound outlet choices and holds scope while editing", async () => {
+  const fetch = vi.fn(async (url: string) => respond(url));
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyBindingWorkspace scope={scope} onContextChanged={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Prepare relationships" }));
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Open pharmacy relationships for Synthetic Hospital",
+    }),
+  );
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Open relationships for Synthetic Pharmacy · Synthetic Outlet",
+    }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare department relationship" }));
+  expect(await screen.findByLabelText("Proposal reason")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Change hospital" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Change outlet" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Review relationships" })).toBeDisabled();
+  expect(
+    fetch.mock.calls.some(([url]) => url.includes("staff-binding-outlet-choices?purpose=prepare")),
+  ).toBe(true);
+});
+
+it("keeps an uncertain command available across network reconnect without rereading its parent selectors", async () => {
+  const fetch = vi.fn(async (url: string, options: RequestInit) => {
+    if (options.method === "PUT") throw new TypeError("Synthetic lost response");
+    if (url.includes("/commands/"))
+      return Response.json({ error: "not_found", message: "Unavailable" }, { status: 404 });
+    return respond(url);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyBindingWorkspace scope={scope} onContextChanged={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Prepare relationships" }));
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Open pharmacy relationships for Synthetic Hospital",
+    }),
+  );
+  await user.click(
+    await screen.findByRole("button", {
+      name: "Open relationships for Synthetic Pharmacy · Synthetic Outlet",
+    }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare department relationship" }));
+  await chooseOption(
+    user,
+    await screen.findByLabelText("Department"),
+    department.code + " · " + department.name,
+  );
+  await user.type(screen.getByLabelText("Proposal reason"), "Synthetic reconnect proof");
+  await user.click(screen.getByRole("button", { name: "Record relationship proposal" }));
+  await screen.findByText(/The outcome could not be confirmed/);
+  const reference = screen.getByText(/Retained command reference:/).textContent;
+  const hospitalsBefore = fetch.mock.calls.filter(([url]) =>
+    url.includes("staff-actor-scopes"),
+  ).length;
+  await act(async () => {
+    fireEvent(window, new Event("offline"));
+    fireEvent(window, new Event("online"));
+  });
+  await user.click(await screen.findByRole("button", { name: "Recover command receipt" }));
+  await screen.findByText(
+    "No retained receipt is visible yet. The original request may still be in flight.",
+  );
+  expect(screen.getByText(/Retained command reference:/).textContent).toBe(reference);
+  expect(fetch.mock.calls.filter(([url]) => url.includes("staff-actor-scopes"))).toHaveLength(
+    hospitalsBefore,
+  );
+  expect(fetch.mock.calls.filter(([, options]) => options.method === "PUT")).toHaveLength(1);
+});
+
+it("shows the verified approval receipt without contradicting it with the old pending detail", async () => {
+  const pending = {
+    ...binding,
+    status: "pending",
+    version: 1,
+    decided_by_subject: null,
+    reviewer_staff_id: null,
+    decision_reason: null,
+    decided_at: null,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options: RequestInit) => {
+      if (options.method === "POST") {
+        const input = JSON.parse(options.body as string);
+        const at = "2026-11-05T01:00:00Z";
+        return Response.json({
+          id: input.id,
+          binding_id: binding.id,
+          operation: "approve",
+          expected_version: 1,
+          reason: input.reason,
+          replaced_binding_id: null,
+          replaced_binding_version: null,
+          actor_subject: scope.subject,
+          actor_staff_id: id(7),
+          recorded_at: at,
+          binding: {
+            ...binding,
+            decided_by_subject: scope.subject,
+            decision_reason: input.reason,
+            decided_at: at,
+          },
+          authorizations: ["pharmacy.staff_binding.review", "workforce.staff_actor.use"].map(
+            (permission) => ({
+              permission,
+              assignment_id: id(8),
+              assignment_version: 1,
+              scope_epoch: 1,
+              membership_epoch: 1,
+            }),
+          ),
+        });
+      }
+      if (url.includes("staff-department-bindings?")) return Response.json(page([pending]));
+      if (url.endsWith("/" + binding.id))
+        return Response.json({ binding: pending, source_state: "not_applicable" });
+      return respond(url);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyBindingWorkspace scope={scope} onContextChanged={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Review relationships" }));
+  await openRelationship(user);
+  await user.click(await screen.findByRole("button", { name: "Approve relationship" }));
+  await screen.findByText("Current department revision verified");
+  await user.type(screen.getByLabelText("Decision reason"), "Synthetic reviewed approval");
+  await user.click(
+    screen.getByLabelText(
+      "I independently verified this department is responsible for this outlet.",
+    ),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve relationship" }));
+  await screen.findByText("Retained approve receipt verified");
+  expect(screen.queryByText("pending · Version 1")).not.toBeInTheDocument();
 });

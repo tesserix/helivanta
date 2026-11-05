@@ -29,6 +29,7 @@ func (b *limited) Write(data []byte) (int, error) {
 type Writer struct {
 	out *limited
 	csv *csv.Writer
+	err error
 }
 
 // NewWriter returns a Writer that refuses to hold more than limit bytes.
@@ -39,6 +40,14 @@ func NewWriter(limit int) *Writer {
 	return &Writer{out: out, csv: w}
 }
 
+// NewExcelWriter is NewWriter behind a UTF-8 byte-order mark, without which
+// Excel reads the file in the system code page; the mark counts against limit.
+func NewExcelWriter(limit int) *Writer {
+	w := NewWriter(limit)
+	_, w.err = w.out.Write([]byte("\ufeff"))
+	return w
+}
+
 // Write appends one record; an overflow may surface here or from Bytes.
 func (w *Writer) Write(record []string) error {
 	return w.csv.Write(record)
@@ -46,6 +55,9 @@ func (w *Writer) Write(record []string) error {
 
 // Bytes returns the complete file, or nil and the first error.
 func (w *Writer) Bytes() ([]byte, error) {
+	if w.err != nil {
+		return nil, w.err
+	}
 	w.csv.Flush()
 	if err := w.csv.Error(); err != nil {
 		return nil, err

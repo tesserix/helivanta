@@ -924,3 +924,48 @@ cached private evidence while pending or unavailable;403 clears it and account
 changes abort its request. Normal-role browser acceptance, actual departmental/
 Pharma operating consumers and production release remain separate open gates.
 No migration, permission, event, dependency or new service is added by this mode.
+
+## Current posting source use — local owner-port candidate
+
+`authz.CurrentStaffPostingSourceGuard.WithCurrentStaffPosting` is an internal
+owner callback port, not a new HTTP endpoint or an authorization token. Its
+hospital scope pins canonical Staff/posting/revision/version and structural
+Department/revision. Workforce remains the sole Staff/posting owner. Organization
+holds the active structural references and IAM independently holds the caller's
+source-use, current Staff actor and product-action grants through one command.
+
+The dedicated scoped `workforce.posting_source.use` authority is not inferred
+from a legacy role or category. The platform retains its existing coarse
+tenant-administrator permission default; the owner requires an actual independent
+scoped grant. Closed template `workforce.posting_source_consumer.v1`
+contains only source use and Staff actor use; its catalog is
+`staff-posting-source-v1`. It grants no private HR read, file release or product
+operation. Product permission remains separate; all three requirements fit the
+existing three-check maximum. IAM0028 is append-only and preserves all older
+catalogs and immutable SQL snapshots. Workforce0086 adds a distinct read-only
+source purpose; source use cannot approve or mutate postings.
+
+The owner requires authentic guarded-command evidence and an effective reviewed
+caller, then traverses the exact independently approved source to a management
+root, bounded at32 unique Staff/posting nodes. Every source's generation, Staff
+version, employment epoch, original root/chain proof, current department and
+retained cutoff is checked. Source context is restored before product code.
+A scheduled shorter employment term truncates current use without extending the
+original nominal eligibility; future starts, immediate/expired sources and stale
+or hidden references deny. Source and actor deadlines constrain the same commit,
+including when a consumer ignores cancellation and returns nil after expiry.
+
+An identifier-only source-use audit commits atomically with the product action;
+missing proof or an audit failure withholds the callback, and consumer failure
+rolls back actor/source use. The returned reference contains an owned use ID,
+source observations' opaque hash/count, target/actor references and observation/
+source deadline. It is not reusable authority or a general private Staff profile.
+A product must match acting Staff where required and apply its own unit,
+professional and operating policy on each command. No historical approval or
+returned source reference replaces that policy.
+
+This local port does not yet complete Pharma's consumer. Legacy tenant-only
+pharmacy dispense rows still require trustworthy hospital/outlet lineage; neither
+selected hospital nor common ownership supplies it. Standalone employer APIs and
+migrations remain gated by ADR0054 acceptance. Normal-role browser acceptance,
+Pharma integration and production activation remain open.

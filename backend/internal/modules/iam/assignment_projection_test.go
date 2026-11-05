@@ -112,6 +112,18 @@ func TestIdentityTemplateScope(t *testing.T) {
 	}
 }
 
+func TestPharmacyDepartmentBindingTemplateScope(t *testing.T) {
+	for _, template := range []struct {
+		key        string
+		permission authz.Permission
+	}{
+		{"pharmacy.department_binding_preparer.v1", "pharmacy.staff_binding.prepare"},
+		{"pharmacy.department_binding_reviewer.v1", "pharmacy.staff_binding.review"},
+	} {
+		t.Run(template.key, func(t *testing.T) { exerciseAssignmentProjection(t, template.key, template.permission) })
+	}
+}
+
 func exerciseAssignmentProjection(t *testing.T, templateKey string, permission authz.Permission) {
 	t.Helper()
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
@@ -183,6 +195,10 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 		familyPath, otherPath = otherPath, familyPath
 	}
 	catalogPath := "/v1/iam/staff-access-templates"
+	if strings.HasPrefix(templateKey, "pharmacy.department_binding_") {
+		familyPath = "/v1/iam/pharmacy-binding-assignment-proposals?limit=50"
+		catalogPath += "?catalog=pharmacy-department-bindings-v1"
+	}
 	if strings.HasPrefix(templateKey, "workforce.posting_") {
 		familyPath = "/v1/iam/posting-assignment-proposals?limit=50"
 		catalog := "staff-postings-v1"
@@ -628,6 +644,13 @@ func exerciseAssignmentProjection(t *testing.T, templateKey string, permission a
 	racing = iam.NewScopedAuthorizer(db, &interceptedScopedChecker{Client: fga, after: func() { time.Sleep(200 * time.Millisecond) }})
 	grant, err = racing.AuthorizeScope(t.Context(), request)
 	require.NoError(t, err)
+	if grant.AssignmentID != "" {
+		var databaseNow time.Time
+		require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			return tx.Raw(`SELECT clock_timestamp()`).Scan(&databaseNow).Error
+		}))
+		t.Logf("expiry recheck diagnostic: returned=%s expiring=%s expires=%s go_now=%s database_now=%s", grant.AssignmentID, expiring, expires.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano), databaseNow.UTC().Format(time.RFC3339Nano))
+	}
 	require.Empty(t, grant.AssignmentID, "validity must be rechecked after the graph call")
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		var activated int64

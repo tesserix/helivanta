@@ -1,5 +1,593 @@
 # Staff Management delivery tracker
 
+## Pharmacy proposal and review controls — local candidate, 2026-11-05
+
+The next child branch, `codex/staff-binding-command-workspace-20261105`, builds on
+**995238e6** in draft [PR1585](https://github.com/tesserix/helivanta/pull/1585).
+Prepare/review purpose admission now leads to canonical department proposals,
+replacement proposals, independent approval/rejection, proposer withdrawal and
+ending controls. Required reasons, current-revision attestation and explicit
+replacement consequences are part of the UI. The exact owner command is retained
+for explicit recovery/retry; no new permission, wire payload, route or migration
+is introduced. Workforce/Organization/Pharmacy/IAM ownership remains unchanged.
+
+**25 focused UI tests pass** through the real SDK with synthetic HTTP fixtures.
+RED→GREEN evidence includes missing proposal/approval controls, missing-receipt
+explanation, unwanted selector reads after reconnect, replacement review disclosure
+and contradictory old pending detail after a verified approval receipt. Tests also
+cover unchanged retry URL/body, mandatory source/reason, self-review UI refusal,
+source-revision mismatch, rejection/withdrawal/ending without metadata, pending
+request navigation/double-submit protection, invalid receipt handling and denied
+command disclosure. Full SDK passes **872 /86 files**; affected lint, typechecks, formatting and
+production webpack build pass. Full shell passes **1,588 /185 files /438.37s**. The user requested merge/deploy for their own acceptance
+testing; ordinary-role browser acceptance remains explicitly unclaimed.
+
+Chrome is being used for another task, so its session was left alone after
+read-only observation. The older immutable browser fixture is unchanged. Actual
+positive-role browser acceptance, QA/production activation and remaining Staff
+operating/professional/lifecycle gates are still open. No grant or live data was
+changed. All five reusable Staff requirements remain active; counts stay
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Canonical pharmacy choices and read workspace — candidate, 2026-11-05
+
+The child branch `codex/staff-binding-choice-workspace-20261105` implements
+Workforce-owned current Staff hospital choices, Pharmacy-owned purpose-bound
+outlet choices, strict generated SDK metadata and the read workspace at
+`/workforce/pharmacy-relationships`. No catalogue/private HR grant is used to
+populate selectors. Server-side IAM/OpenFGA, current Staff actors, explicit
+outlet access and protected read evidence remain mandatory; no operating grant
+follows from a recorded relationship.
+
+The parent receipt-wire correction is published as **3384bbb0** in draft
+[PR1583](https://github.com/tesserix/helivanta/pull/1583). Proposal PUT, exact replay
+and recovery now return the same retained canonical command receipt, matching the
+SDK. The initial flat-row incompatibility was observed through the actual owner
+route before correction. This is an unreleased candidate fix.
+
+Real-owner full suites pass: Workforce **601.269s**, Pharmacy **260.326s**,
+Global API **578.672s** and architecture **86.241s**. Full SDK passes **872 tests /
+86 files**. The read workspace passes **8 focused tests**, covering canonical
+choices, account verification/change, empty filtered continuation, changed source,
+newer-history persistence, unavailable re-read and protected-history revocation.
+The stale verification badge and revocation hook-order failure were each observed
+failing before correction. Go lint reports **0 issues**; vet/build, contractdocs,
+generator checks, API/shell/shared-UI typechecks and lint pass. Full shell passes **1,571 tests /184 files /374.25s**. The first shared-UI
+run found a duplicated Staff navigation icon; it was corrected without changing
+the test. Final shared UI passes **280 tests /27 files /11.62s**. Staged secret scanning
+finds no leaks.
+
+The existing browser fixture is still UI4398 → Global8198 → owner8398 at the
+older immutable candidate; its ordinary reviewer correctly sees no approved
+review hospitals. No access grant, fixture/production migration or rollout was
+performed. The new projections have not passed ordinary-role browser acceptance.
+Proposal/decision/recovery UI, positive reviewer acceptance, professional duties,
+current-posting operating consumers, standalone employers and legacy lineage
+remain open. All five reusable Staff requirements remain intact; tracker counts
+stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Pharmacy department relationships — local candidate, 2026-11-05
+
+The mutation/recovery SDK is now implemented and verified: **844 SDK tests /
+84 files**, including **103 reader/command cases**, typechecks, ESLint and webpack
+build pass. It preserves exact command intent, retained receipts, independent
+decisions, replacement correlation and historical disclosure purposes. No new
+owner endpoint or migration was added in this continuation. Purpose-limited
+hospital/outlet choices and the ordinary-role binding workspace remain open.
+
+Native Chrome reconnected and the ordinary reviewer remains correctly denied
+before its independent assignment approval. No grant, production migration or
+activation changed. The five reusable Staff requirements remain active; counts
+remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+Source increment **906867d4** is published in draft
+[PR1583](https://github.com/tesserix/helivanta/pull/1583). A typed reader follow-up
+adds exact detail/list/history validation and cancellation protections: **45 new
+tests**, full SDK **786 /83 files**, API/shell typechecks and ESLint pass.
+Five subsequent IAM expiry runs pass **151.211s**, without establishing the earlier
+failure's cause. Mutation client, purpose-limited choices, workspace, concurrency
+and ordinary-role browser acceptance remain open. No merge or deployment claimed.
+
+The current branch adds an independently reviewed relationship between a
+hospital-owned Pharmacy outlet and an Organization-owned department revision.
+Workforce remains the canonical Staff owner. Separate exact preparer/reviewer
+IAM roles require current Staff actors and explicit outlet editor access; no
+professional, dispensing or clinical authority follows from this relationship.
+Candidate IAM0029 and Pharmacy0034 are persisted source migrations and are
+applied only to disposable integration databases. See the
+[binding design](../superpowers/specs/2026-11-05-pharmacy-department-bindings.md)
+and [implementation plan](../superpowers/plans/2026-11-05-pharmacy-department-bindings.md).
+
+The real IAM/OpenFGA/Postgres journey through Global API passes **71.496s**,
+including bounded collection/history paging, independent decisions, stale source
+refusal, same-subject self-review denial, retained command receipts, correlated
+replacement, outlet revocation and audit/outbox rollback. Earlier missing routes,
+missing authorization observations and replay disclosure under audit failure
+were observed failing and corrected; this result does not establish browser
+acceptance, all concurrency orderings or production activation.
+
+IAM family-list/projection tests pass **77.608s**; full SDK **741 /82 files**,
+access-page **60**, typechecks, scoped ESLint, Go lint/vet/build, root scripts
+**75** and the configured webpack production build pass. Expanded API disclosure
+tests pass **128.901s**. The initial full owner/architecture run failed; exact
+full architecture **85.566s** and full shell **1,563 /183 files /455.82s**
+pass after the architecture corrections. Full Global API passes **571.248s**.
+The cause of intermittent IAM expiry failure remains unresolved. Isolated licence workflow passes;
+intermittent IAM expiry failure remains unresolved. See the plan for retained
+failure evidence. Chrome is currently in use by the user, so browser interactions are
+paused. The existing local reviewer grant still awaits its specific action-time
+confirmation. No grant or production rollout was performed. All five reusable
+Staff requirements remain intact; counts stay **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
+## Current posting source use — local implementation, 2026-11-05
+
+The next owner boundary supplies live canonical Staff/posting observations to a
+consumer's guarded commit, with current caller actor, exact source revision,
+bounded supervision/structural checks, current employment/cutoff minimum and
+atomic identifier-only evidence. A dedicated source-use permission requires a separate scoped assignment and grants no HR read or operating authority. Workforce0086 and
+canonical IAM0028 are persisted candidates, not applied to production or the QA
+fixture. Source details, tests and remaining gates are in the
+[current-use plan](../superpowers/plans/2026-11-05-current-posting-source-use.md)
+and [ADR0060](../adr/0060-current-posting-source-use.md).
+
+A real IAM/OpenFGA/Postgres journey passes **222.772s** after final provider wiring,
+including audit/proof/consumer faults, source context isolation, ancestor endings
+and expiry despite ignored cancellation. Both locked source-writer orderings pass
+**125.809s**. Full IAM **595.271s**, Global API **727.458s**, architecture
+**141.268s**, shell **1,559 /467.96s**, SDK **737 /81 files**, root scripts **96**
+and updated web checks **9 /32.651s** pass. Final Go vet/build and full lint pass
+with **0 issues**. The configured webpack production build, canonical/contractdocs
+checks, formatting and staged secret scan pass. Build warnings remain for the
+middleware convention and shared UI React Hook Form re-exports. The corrected
+architecture matrix retains coarse TenantAdmin
+permission while requiring separate scoped IAM evidence inside the owner guard.
+No actual Pharma consumer or positive reviewer browser acceptance is claimed.
+Native Chrome controls recovered normal admin/approver sign-in despite the broken
+extension API. A one-day local reviewer proposal is owner-verified and awaiting
+independent approval; activating this specific access grant awaits confirmation.
+Standalone design acceptance was
+requested explicitly under ADR0054; no answer is inferred. All five requirements
+remain intact, with **10 partial,10 awaiting audit,1 research,0 fully accepted**.
+
+## Retained posting approval history — local candidate, 2026-11-05
+
+The next increment implements an exclusive recorded-history context through the
+same Workforce owner. It exposes bounded immutable lifecycle source/cutoff
+observations and original review provenance under current independent review
+and Staff actor admission. It preserves old context/receipt shapes, explicit
+null for unavailable proof, source count/order, original deadlines after an
+ancestor ending, and atomic disclosure auditing. No migration/permission/event.
+The SDK checks exact approved snapshot, proof bindings, calendar and account
+abort. The UI uses a separate history reader with explicit historical wording,
+reuses the rationale component and clears/withholds cached evidence on changed
+or unavailable access. See the
+[history plan](../superpowers/plans/2026-11-05-posting-lifecycle-history.md) and
+[ADR-0059](../adr/0059-retained-posting-lifecycle-history.md).
+
+Owner/API/SDK source is pushed in draft
+[PR#1578](https://github.com/tesserix/helivanta/pull/1578): code `e1fd098f`,
+query-plan test cleanup `84a0939e`. UI code `6d541321` and its parent-sync merge
+`626a1bf4` are in draft [PR#1579](https://github.com/tesserix/helivanta/pull/1579).
+
+Final local evidence: **737 SDK /81 files**, **1,554 shell /183 files /337.56s**,
+**60 focused reviewer /17.83s**, scoped web checks **9 /31.343s**, full Global API
+**551.827s**, Workforce **597.668s**, architecture **84.921s**, final production
+build and root script tests **94** pass. CI exposed two existing plan-cursor
+cleanup issues; the fix preserves the 100,000-row EXPLAIN assertions, passes
+**5.793s**, and unfiltered repository-wide Go lint reports **0 issues**. Go vet/
+build, canonical and contractdocs checks, inventory and secret scans pass.
+Inventory remains **824 registered /801 unclassified**; no promotion. Exact-head
+CI for both history PRs subsequently completed successfully: owner run
+`41908990140` and UI run `41910224471`. The PRs remain draft; CI success does not
+establish independent reviewer acceptance.
+
+The local history candidate is active on loopback UI4398 → Global8198 → owner8398,
+using immutable frontend6d541321 and backend e1fd098f. Health/login return200;
+anonymous Staff/cutoff/history reads through UI return401. The database ledger
+stays237, with no migration in this increment. No business Staff records,
+credentials or production state changed. Normal-role browser control still fails;
+HTTP/unit evidence does not count as admin/reviewer UI acceptance.
+
+Historical presentation is implemented and locally tested; browser acceptance,
+actual Pharma/unit operating consumers, standalone employers and production
+release remain open. All five parent requirements remain in scope. Counts stay
+**10 partial,10 awaiting audit,1 research,0 fully accepted**.
+
+## Reviewer lifecycle UI — local increment, 2026-11-05
+
+Branch `codex/posting-lifecycle-review-ui-20261105`, based on backend decision
+candidate `7b6158dd`, integrates explicit lifecycle review for root and supervised
+approvals. Reviewers see the effective deadline, database check time and named
+ancestors with distinct placement/source/retained-cutoff facts. Required checks
+bind to the current observation, reset after changes and preserve rationale.
+Uncertain outcomes retain a copy of the original context/input/command and use
+the same exact approval PUT for recovery, including after changed/unavailable
+context or elapsed eligibility. Account changes clear private state and abort
+in-flight requests. No new permission, API route, migration or dependency.
+
+The final backend Global API run passes **576.322s** and native architecture
+passes **63.674s**, with no failed cases. Full SDK passes **720 /81 files**;
+the final shell suite passes **1,548 /183 files /324.82s**, and the final focused
+reviewer suite passes **54 /11.39s**. All API/UI/shell type, lint and format checks
+pass **9 tasks /22.754s**; the final production Webpack build and affected-document
+format checks pass. The staged secret scan finds no leaks. The checkbox lint
+correction keeps ref writes in event handlers without lint suppression. No
+production deadline or authorization rule changed.
+A deliberate mutation disabled the final examination reset; the renewed-review
+assertion failed as intended. The source was restored byte for byte and that
+regression passed again. No mutation remains active.
+
+Reconnection reclaimed the existing QA tab, but DOM reads, screenshots and fresh
+tab navigation still fail through the browser connection. No normal-role browser
+acceptance is counted. The local QA runtime now runs candidate `1846565c`:
+UI `4398` → Global API `8198` → product owner `8398`, all loopback-only, using
+the existing registered sign-in client. Owner/Global health and login return
+200; unauthenticated Staff and cutoff discovery through the UI return 401.
+These HTTP probes do not establish normal-role UI acceptance.
+
+The approved local fixture was backed up before applying seven canonical pending
+migrations; the ledger advances **230 → 237**, with no earlier entries removed.
+The pending set was checked against the actual compiled registry: IAM0027;
+Workforce0081–0085; and the existing additive `0033_pharmacy` category tables,
+review policy and RLS migration. SQL hashes, before/after ledgers, runtime hashes
+and probes are retained privately beneath
+`~/.helivanta/staff-management-20261027/posting-review-ui-20261104/`.
+The backup is `lifecycle-local-before-migrations-20261105.dump`; its hash is in
+`lifecycle-local-backup-manifest-20261105.json`. No installs, downloads,
+credential changes or production mutations occurred. The UI sign-in build was
+checked against the fixture client and its rewrite against the Global API;
+an intermediate owner-origin build was discarded without starting it.
+
+Historical lifecycle-proof presentation, actual Pharma/unit operating guards,
+standalone-employer decisions and deployment remain open. All five reusable Staff requirements remain in scope; counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. No production
+migration, merge, rollout or release tag occurred in this increment. UI code is
+pushed as `1846565c`, draft PR [#1577](https://github.com/tesserix/helivanta/pull/1577).
+
+## Positive lifecycle approval and immutable proof — local candidate, 2026-11-05
+
+The next candidate on `codex/posting-lifecycle-decisions-20261105` builds on
+draft #1575. The explicit approval input pins the selected absence and every
+ordered ancestor cutoff version plus the exact effective deadline. Current
+review/actor/read or review/actor/management checks stay within the existing
+three-permission guard. Actor/assignment provenance and exact observations are
+retained atomically with the unchanged approval receipt, audit and identifier-
+only event. Candidate Workforce **0085** persists immutable, forced scope/purpose-
+RLS review/source tables and complete-proof/deadline database constraints.
+Legacy absent-input fingerprint material and old receipt shapes are preserved;
+legacy approval still refuses retained cutoffs. Explicit null observations are
+invalid, and offset/submicrosecond instants normalize before fingerprinting.
+
+The real Global API/IAM/OpenFGA/Postgres approval first failed400 as expected
+(**82.311s**); root and scheduled-child positive approval then passed **85.761s**.
+Expanded evidence/failure coverage passes **87.272s**. The complete actual API
+journey passes **108.139s**, including both PostgreSQL-lock-controlled cutoff/
+approval orderings, actual expiry, exact committed replay after expiry versus
+uncommitted expired refusal, independent rejection, stale version/deadline
+refusal and renewed examination. A three-Staff/two-ancestor chain exercises a
+changed far-root cutoff. Review/source/audit/outbox faults and suppressed
+ancestor/entire proof prevent approval; even suppressing the opt-in marker cannot
+approve through an ancestor cutoff without proof. Retained proof matches real
+actor, source, grant and cutoff facts and is hidden from foreign tenant/hospital
+RLS frames. Internal purpose-scoped SQL probes inspect storage only and are not
+counted as normal-role UI acceptance.
+
+Canonical null-decoding tests exposed null counters becoming zero through an
+existing custom decoder; the canonical decoder now rejects them. A first wrapper
+attempt was bypassed by that embedded custom decoder and was removed. Legacy
+normalized JSON and equivalent UTC/microsecond replay material have explicit
+compatibility tests. The SDK requires the examined context and an exact PUT for
+new approval/recovery; legacy decision/receipt helpers reject lifecycle input.
+Client account abort withholds in-flight responses. Proposal SDK tests pass
+**76**; full SDK passes **720 /81 files**, reviewer/cutoff UI compatibility **60
+/2 files**, and scripts **104**. Current API types, scoped Go vet/build/lint,
+canonical generation/check, contractdocs generation/check and inventory checks
+pass. Source review refreshes22 changed pins across16 existing classifications;
+inventory remains **824 registered, 801 unclassified**, with no promotion.
+
+Full native Workforce passes **470.924s**. The first full Global API run failed
+**513.778s** solely in `TestScopedLeaveThroughGlobalAPI`: the fresh-login step
+returned401 after revocation. Posting lifecycle cases passed within that run.
+The leave fixture now checks its signed whole authentication second against the
+actual stored watermark and verifies the newly minted token; production auth and
+revocation rules are unchanged. Repeated focused validation passes **3 runs /69.759s**. The complete Global
+API rerun then failed **514.542s** only in the two existing posting expiry
+fixtures: safe cancellation occurred about100–123ms before their asserted exact
+cutoff. The probe now keeps the audit gate held until PostgreSQL actually reaches
+the cutoff, releases it, then requires denial/no saved audit; this catches writes
+that could otherwise resume after expiry without relying on cancellation timing.
+Both expiry cases with their real onboarding prerequisites pass **175.9s**.
+No production deadline or authorization rule was weakened. The final full Global
+API rerun passes **576.322s** and native architecture passes **63.674s**, with no
+failed cases. Neither earlier failed broad run is acceptance.
+
+Browser ownership can be reclaimed for the existing local QA tab, but explicit
+timeout DOM/control calls still fail and a bounded locator times out. No actual
+reviewer/admin browser acceptance is counted. Reviewer UI integration is now
+implemented locally in the increment above. Historical proof presentation,
+normal-role browser QA, actual Pharma/unit
+operating guards and deployment remain open. No production migration, rollout,
+merge or release tag occurred. All five reusable Staff requirements remain in
+scope; counts stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Lifecycle-aware posting review context — local candidate, 2026-11-05
+
+The next candidate on `codex/posting-lifecycle-review-20261105`, based on cutoff
+draft #1574, adds explicit `lifecycle_review=current` context and the strict
+`getStaffPostingLifecycleReviewContext` SDK helper. Current independent reviewers
+can inspect scheduled ancestor cutoff ID/version/instant separately from nominal
+source pins. Absence is explicit null/version0; administrator rationale and actor
+evidence are not disclosed. One database observation under the existing
+supervision gate bounds the earliest nominal/source/cutoff deadline. Supervised
+contexts retain posting read/review and reviewed actor checks. Management-root
+contexts retain review/actor/management checks without exceeding the existing
+three-permission compound guard. No broad role or owner bypass was added.
+
+Observed RED→GREEN: the real Global API selector first returned400 instead of200
+(**81.033s**). Subsequent cases caught inconsistent UTC projection and acceptance
+of a posting that starts after its supervisor's scheduled cutoff (expected409,
+actual200, **82.078s**); both are corrected. The final real Global API/IAM/
+OpenFGA/Postgres journey passes **89.414s**, including explicit management root,
+scheduled ancestor eligibility, legacy refusal, current cutoff version10,
+pre-start refusal, immediate ending and private-read audit rollback. An
+intervening run failed during IAM grant projection/upstream timeout while the
+architecture process was killed under memory pressure; it did not reach the new
+endpoint and is not counted as acceptance. The guarded permission budget was
+also exercised: a fourth root grant returned503, so root disclosure now uses its
+existing review/actor/management requirements and no ancestor directory.
+
+Full current Workforce passes **483.253s** with race detection. Native
+architecture passes **81.986s** with actual OpenFGA, Postgres, HTTP authorization
+and migration RLS checks. Full SDK passes **705 tests /81 files**; the61 proposal
+tests include explicit mode, exact scope/chain/deadline, malformed/absent cutoff,
+duplicate cutoff identity and old-helper selector refusal. Reviewer/cutoff UI
+compatibility passes **60 tests /2 files** against this worktree's SDK. Selector
+tests, API types/lint/format, Go vet/build/lint, all canonical generator checks,
+contractdocs generation/check and inventory check pass. Script tests pass
+**104** after linking the already cached Expo fixtures; the first fresh-worktree
+run lacked those fixture dependency links. No package install/download occurred.
+Inventory remains **824 registered, 801 unclassified**; no classifications were
+promoted by adding this read mode.
+
+This read does not reserve authority or enable new positive decisions. Exact
+cutoff-vector/deadline-bound approval, immutable lifecycle review evidence and
+reviewer UI integration remain the next implementation step. Actual Pharma/unit
+operating enforcement and normal-account browser QA remain open. No new migration,
+merge, production rollout or release tag occurred; all five reusable Staff
+requirements and **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**
+remain in scope.
+
+## Cutoff architecture and validation follow-up — 2026-11-05
+
+The complete cutoff administration rerun passes Workforce **587.111s**, IAM
+**451.681s** and Global API **512.034s**. The architecture run was killed during
+typed event discovery (**151.706s**) under concurrent memory pressure; that run
+is a failure, not acceptance. Contract type discovery now first enumerates the
+same complete module set, then type-checks every discovered contract package
+instead of type-checking unrelated module implementations. Discovery/type errors
+and missing packages still fail closed. The targeted field check completes in
+**2.546s** after the corrections below.
+
+The working check exposed missing independent classifications for the five
+`PostingCutoffChangedData` fields. Review checked canonical
+`contracts/workforce-postings.json`, generated contract and the publisher in
+`posting_cutoffs.go`: hospital/Staff/proposal/cutoff identifiers plus monotonic
+version only. Reasons, administrative actor/evidence, placement dates and cutoff
+instants are not broadcast. Staff personal-data restrictions still apply; these
+are not patient/clinical payloads or authority. A synthetic unclassified Staff
+identity field is rejected by the optimized check, then generated source was
+restored byte for byte. No automatic identifier-name classification was added.
+
+Two exact singleton GETs now have documented pagination exceptions: original
+actor cutoff receipt and exact approved-revision current context. History remains
+cursor-paginated. The independently authored permission matrix now includes
+`workforce.posting.cutoff` without adding any legacy business-role grant; actual
+commands still require the closed cutoff assignment plus reviewed Staff actor.
+The four affected static gates pass **2.329s** in this cutoff worktree. The full
+native architecture suite also passes **63.335s**, including actual OpenFGA role/
+permission and cross-tenant checks, HTTP authorization seams and migration RLS
+lint. No static-only run is substituted for those dependency-backed checks.
+
+These changes correct the cutoff candidate's verification gates; they do not
+complete lifecycle-aware approval, product operating enforcement or normal-role
+browser QA. Draft #1574 remains unmerged and no production action occurred.
+
+## Posting cutoff administration — local verification, 2026-11-05
+
+Draft [#1574](https://github.com/tesserix/helivanta/pull/1574), implementation
+commit `d5ec15e4`, now implements bounded admitted-hospital discovery,
+exact-approved-revision context and eight-receipt history pages. Current cutoff
+authority plus a reviewed Staff actor protect each disclosure; failed private
+read audits roll back actor-use evidence. The normal
+`/workforce/posting-cutoffs` workspace selects approved canonical Staff postings,
+requires rationale and examination, shows UTC/local scheduled instants, retains
+uncertain commands for original receipt recovery/identical retry and clears
+private state on account/scope changes. A changed cutoff requires renewed
+examination; a known elapsed cutoff blocks unrecorded retries. No second Staff
+master or product permission is introduced.
+
+Observed RED→GREEN: missing scope, context and history APIs each returned404
+(80.905s/85.986s/91.111s); the administrative read journey then passed86.368s.
+Expanded real Global API/IAM/OpenFGA/Postgres acceptance passed87.825s, including
+ten versions,8+2 history pages, caller/revision-bound cursor refusal and three
+private-read audit faults. Component coverage passes12 cutoff-workspace tests,
+51 access-catalog tests and54 navigation tests. A deliberate recovery mutation
+that substituted a new command ID failed the identity assertion; the original
+source was restored before verification.
+
+Current full SDK passes **689 tests /81 files**, shared UI **280 /27 files**,
+shell **1,542 /183 files /358.68s** and scripts **104**. API/UI/shell types, lint
+and formatting pass **9 tasks /52.621s**.
+The production Webpack build passes and includes the new route; its first
+invocation lacked required `API_URL` and failed before compilation. The rerun
+uses local Global API origin `http://localhost:8398`. Existing build warnings
+about middleware naming and server-side react-hook-form re-exports remain.
+Contractdocs generation/check, scoped Go vet and full backend build pass; scoped
+Go lint reports **0 issues**. Inventory generation/check reports **824 registered,
+801 unclassified**. Source review refreshed28 changed pins across16 existing
+classifications, preserving their classification and open obligations.
+
+The previous broad native run failed Workforce's existing department-owner
+unavailable test (expected503, actual409) and IAM's exact migration manifest
+(expected26, actual27). Draft parsing now preserves dependency-unavailable error
+precedence; the focused regression passes4.695s. The manifest preserves all prior
+IDs and adds0027; its focused test passes1.185s. The new complete native owner,
+Global API and architecture rerun is pending at this checkpoint; the earlier
+failed run is not counted as a pass.
+
+Browser reconnection found the existing local QA tab, but DOM inspection,
+screenshot, fresh-tab and reset/rebind attempts all failed with the same browser
+adapter error. No normal-account UI acceptance is counted. PR #1570 remains draft with
+all exact-head CI checks passing; repository visibility was rechecked as PUBLIC.
+Lifecycle-aware positive review, concurrency/deadline acceptance, actual
+departmental/Pharma operating consumers, normal-role browser acceptance and
+release remain open. No merge, production migration, rollout or release tag
+occurred. All five reusable Staff requirements remain in scope. Counts remain
+**10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Posting cutoff owner commands — local implementation checkpoint, 2026-11-05
+
+Branch `codex/posting-lifecycle-cutoffs-20261105` now implements immutable scoped
+immediate/scheduled shortening commands and original-actor receipt recovery.
+Candidate Workforce `0084_workforce_posting_cutoffs` and IAM
+`0027_iam_staff_posting_cutoff_templates` are persisted in source. Existing closed
+template/catalog snapshots and original approval history are preserved. A new
+cutoff administrator assignment is separate from submission/approval authority;
+real IAM independent review and OpenFGA projection were exercised. Stale target
+identity does not prevent ending its posting while the administrative actor is
+current. Nothing in this checkpoint is applied to production.
+
+Observed RED→GREEN: missing template returned400 instead of200 (**74.456s**);
+missing cutoff route returned404 instead of403 (**89.039s**). The immediate
+command/receipt/history-preservation journey then passed **90.391s**. A scheduled
+ancestor cutoff exposed a real source gap: legacy current-chain review returned200
+instead of409 (**113.531s**). Cutoff-aware source validation now refuses that view
+and new approval, retains pending/history and permits independent rejection;
+expanded real API acceptance passed **90.566s**. The new lifecycle conflict also
+failed the reviewer UI source-refresh assertion before the handler was updated;
+both conflict variants now preserve command, rationale and attestations.
+
+Expanded atomic/replay acceptance passes **133.541s**, including audit/outbox
+fault rollback, missing receipt after failure, one committed cutoff/audit/event,
+original-actor recovery, changed-actor/intent refusal and no republishing on replay.
+The first expanded run failed solely in cleanup because its test context was
+already canceled; cleanup now uses `context.WithoutCancel`, with all product
+assertions unchanged. That failed **96.133s** run is retained and is not a pass.
+Full SDK passes **686 tests /81 files** and full shell passes **1,525 tests /
+182 files /470.74s**; API/shell types, lint and format checks pass **6 tasks /
+37.522s**. Contractdocs generation/check, scoped Go vet and full Go
+build pass. Scoped Go lint reports **0 issues**; all **94 script tests** pass.
+Inventory remains unaccepted: **821 registered /798 unclassified**;
+31 reviewed source pins were refreshed across 19 existing classifications without
+adding or promoting a classification. Broader owner/API/IAM/architecture
+verification is running at this checkpoint.
+
+Reviewer-chain PR #1570's exact published head `f1a975a9` now has all CI checks
+passing, including Go. It remains draft for normal independent-account browser
+acceptance. Cutoff discovery/current/history UI, lifecycle-aware positive review,
+concurrency/deadline QA and actual departmental/Pharma operating consumers remain
+unfinished. This is an implementation checkpoint, not a complete vertical feature,
+merge/release decision or full Staff acceptance. Counts remain **10 partial,
+10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Retained posting cutoff design checkpoint — 2026-11-05
+
+Source inspection confirms approved postings have no retained command to bring
+their cutoff forward. [ADR-0058](../adr/0058-retained-posting-cutoffs.md), the
+[specification](../superpowers/specs/2026-11-05-posting-lifecycle-cutoffs.md) and
+[plan](../superpowers/plans/2026-11-05-posting-lifecycle-cutoffs.md) record the next
+vertical slice: scoped administrative authority, immediate/scheduled shortening,
+immutable replay/history, stale-target revocation, ancestor deadline propagation,
+explicit client compatibility and cutoff-aware rollback. Workforce remains the
+canonical Staff owner. No new endpoint, template, migration or live enforcement
+has been implemented by this documentation checkpoint; no production action was
+performed. Candidate migration numbers must be rechecked before allocation.
+
+A reconnect to the existing local QA tab still failed on page inspection; the
+isolated in-app browser fallback is unavailable. No normal-role browser acceptance
+is counted. At this checkpoint #1570's web, E2E, scripts and security checks pass;
+Go is still pending. Its already recorded local test results are unchanged.
+Counts remain **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
+## Protected current-chain reviewer workflow — 2026-11-05
+
+Draft [#1570](https://github.com/tesserix/helivanta/pull/1570), commit `c35a24cb`,
+on branch `codex/posting-chain-review-context-20261104` extends draft #1569.
+The reviewer can separately request a current named immediate-parent-to-root chain,
+then approve a department supervisor/member without claiming root management
+review. Workforce remains the canonical Staff owner; Organization ancestry and IAM
+assignments/OpenFGA acknowledgement remain required. Existing approval-source,
+cycle/depth/interval guards are reused; ancestor private rationale is excluded.
+No new migration, permission bundle or production activation is introduced.
+
+Observed red: real Global API chain selector returned400 instead of200 (**77.924s**).
+The first implementation returned503 because a label lookup retained write-context
+GUCs; switching only the bounded lookup to the existing read context and restoring
+it made the run pass **76.600s**. Expanded real API checks pass **78.368s**: one/two
+ancestor chains, submitter denial, mixed-selector rejection, sibling ancestry denial
+and read-audit rollback with no committed actor-use evidence. Existing approval,
+immutable history and receipt assertions remain in that run.
+
+Focused SDK passes **45 tests**, including canonical linkage, foreign/self/malformed/
+expired chains, omitted nominal ends and exact supervised receipt recovery. Focused
+reviewer UI passes **47 tests**, including explicit confirmation, unavailable reads,
+return to rejection and identical uncertain retries. The100,000-row planner fixture
+passes **9.386s**; nine composite-key chain labels use the existing intent primary
+key and execute in **2.153ms**. This is reduced-fixture planning evidence, not a
+production SLO. The full native Global API run failed in **586.654s** at the
+existing sequential employment-download capacity setup (expected503, actual200);
+that run is not counted as passing. A separate fixture-only branch starts its four reads
+concurrently using an atomic bounded media barrier; the focused real API case
+passes **48.779s** with the capacity subtest **1.73s**. Production limits/timeouts
+are unchanged. Full Workforce native race passes **653 tests/subtests / 710.636s**. Full SDK passes
+**682 tests**. Full web checks pass **28 tasks / 7m20.165s**, including **1,524 shell tests /
+182 files / 379.95s**, SDK682 and required lint/types/format checks, after restoring
+ignored E2E/script cached tool links and the canonical E2E API alias. No dependency
+download occurred. Architecture passes **128 tests / 291.253s**.
+Production Webpack build, scoped Go vet, full backend build, scoped Go lint
+(zero issues), canonical generation/check, contractdocs generation/check and
+operational inventory check pass. The first combined web run stopped on the shared-Panel lint gate; source now uses
+`Panel as="li"` and the complete rerun passed. Browser binding/real-account,
+operating consumers and lifecycle acceptance remain open. This product feature
+has not merged to main or released. Counts remain **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
+The capacity correction [#1571](https://github.com/tesserix/helivanta/pull/1571)
+merged to main as **`c1189a08`** after all CI checks passed, including Go32m30s,
+web18m5s and E2E13m38s. It is also integrated in this candidate as **`c5045b7f`**.
+The complete integrated Global API native race run now passes **182 tests/subtests /
+518.503s**. The new source/restoration acceptance tests are committed as
+**`9897d757`**. The earlier API failure and its correction remain recorded above.
+The product reviewer feature remains draft/unaccepted; the fixture merge does not
+close a Staff issue or constitute production promotion. Kargo's live prod policy
+has autoPromotionEnabled=false; live API/shell were checked at `9f827a66`, each2/2
+ready and Argo Synced/Healthy. No cluster mutation, migration or promotion occurred.
+
+Current-ancestor source cutoff acceptance passes **104.445s**: changing an
+intermediate supervisor identity blocks current-chain disclosure and a new member
+approval, leaves the target source current, commits no failed-read/approval actor
+use, retains the pending receipt/history and permits independent rejection.
+A private Go build overlay removing only ancestor validation fails the new
+assertion (**125.119s**, expected409/actual200). The actual source is never edited
+(SHA256 `6180a7bcdbc64e726477f96c60112e3a8fb986f978cf4c2966ed6ef152f24ce8`).
+A broader initial overlay failed an existing root deadline assertion first; it is
+not counted as proof of the new ancestor assertion. Normal-source acceptance is
+extended to restoring the original identity fields without reviving the old
+review epoch; the final focused run passes **81.053s**. Its first expanded run
+(**79.876s**) reached the intended denial but failed an audit-counter assertion
+because two successful inspection reads were inside the rollback-count interval.
+Those successful reads now follow that interval; all denial/rollback assertions
+remain. Historical approved source rows remain unchanged, the target source stays
+current, both changed/restored ancestor reads and new approvals fail409 without
+actor-use/approval evidence, the pending proposal has no decision receipt and one
+history row, and independent rejection remains available.
+
+At the user's reconnect request the QA tab was claimed, automation reset, and a
+fresh browser ID rebound. Inventory/claim work, but page inspection, screenshot and
+explicit-timeout read-only DOM evaluation still fail with timeoutMs. No browser
+acceptance, account membership expansion or runtime cutover is claimed.
+
 ## Canonical supervisor discovery and submission — 2026-11-04
 
 Draft [#1569](https://github.com/tesserix/helivanta/pull/1569) on branch
@@ -5691,3 +6279,19 @@ was changed. The complete unchanged-source journey rerun passed in 407.358s
 session-owned fixtures were captured and removed; temporary forwards were
 released. The initial failure is retained alongside the isolated and full rerun
 results; this does not establish the cause or complete Staff acceptance.
+
+## Next operating-consumer gate — source check 2026-11-05
+
+The `CurrentStaffActorGuard` provider is Workforce-owned and wired through
+platform dependencies. Released direct consumers at this checkpoint were Workforce
+and Organization. The unreleased Pharmacy department-binding candidate described
+above now consumes the exact reviewed governance guard; existing dispensing and
+other operating commands do not yet consume current-posting authority. IAM's assignment
+authorizer explicitly requires products to enforce their live object/Staff/link
+invariants. This is source wiring evidence, not a route-by-route Pharmacy audit.
+The new chain view and approvals do not by themselves enforce lifecycle inside
+existing operating commands. Current departmental posting/actor consumer guards,
+reviewed product-to-department bindings and their lifecycle/positive-role browser
+acceptance remain open. Staff must remain canonical in Workforce; consumer
+projections must not create a second employee master or treat approval/discovery
+hints as operating authorization.

@@ -6,6 +6,31 @@ import (
 	"time"
 )
 
+type StaffPostingCutoffInput struct {
+	ExpectedRevisionID    uuid.UUID  `json:"expected_revision_id"`
+	ExpectedCutoffVersion *int64     `json:"expected_cutoff_version"`
+	Mode                  string     `json:"mode"`
+	CutoffAt              *time.Time `json:"cutoff_at,omitempty"`
+	Reason                string     `json:"reason"`
+	SourcesExamined       *bool      `json:"sources_examined"`
+}
+
+type StaffPostingCutoff struct {
+	ID                    uuid.UUID  `json:"id"`
+	HospitalID            uuid.UUID  `json:"hospital_id"`
+	StaffID               uuid.UUID  `json:"staff_id"`
+	ProposalID            uuid.UUID  `json:"proposal_id"`
+	ExpectedRevisionID    uuid.UUID  `json:"expected_revision_id"`
+	ExpectedCutoffVersion int64      `json:"expected_cutoff_version"`
+	Version               int64      `json:"version"`
+	Mode                  string     `json:"mode"`
+	RequestedCutoffAt     *time.Time `json:"requested_cutoff_at"`
+	CutoffAt              time.Time  `json:"cutoff_at"`
+	RecordedAt            time.Time  `json:"recorded_at"`
+	Reason                string     `json:"reason"`
+	SourcesExamined       bool       `json:"sources_examined"`
+}
+
 type StaffPostingDraftInput struct {
 	ExpectedVersion      *int64     `json:"expected_version"`
 	StaffVersion         int64      `json:"staff_version"`
@@ -91,13 +116,19 @@ type StaffPostingProposal struct {
 	RecordedAt           time.Time  `json:"recorded_at"`
 }
 
+type StaffPostingLifecycleReviewInput struct {
+	CutoffVersions []int64   `json:"cutoff_versions"`
+	EffectiveUntil time.Time `json:"effective_until"`
+}
+
 type StaffPostingDecisionInput struct {
-	ExpectedVersion            *int64    `json:"expected_version" binding:"required"`
-	ExpectedRevisionID         uuid.UUID `json:"expected_revision_id"`
-	Decision                   string    `json:"decision"`
-	Reason                     string    `json:"reason" binding:"required,max=500"`
-	SourcesExamined            *bool     `json:"sources_examined" binding:"required"`
-	HospitalManagementReviewed *bool     `json:"hospital_management_reviewed,omitempty"`
+	ExpectedVersion            *int64                            `json:"expected_version" binding:"required"`
+	ExpectedRevisionID         uuid.UUID                         `json:"expected_revision_id"`
+	Decision                   string                            `json:"decision"`
+	Reason                     string                            `json:"reason" binding:"required,max=500"`
+	SourcesExamined            *bool                             `json:"sources_examined" binding:"required"`
+	HospitalManagementReviewed *bool                             `json:"hospital_management_reviewed,omitempty"`
+	LifecycleReview            *StaffPostingLifecycleReviewInput `json:"lifecycle_review,omitempty"`
 }
 
 type StaffPostingReviewSource struct {
@@ -126,6 +157,8 @@ type StaffPostingProposalContextRequest struct {
 	ExpectedRevisionID uuid.UUID `json:"expected_revision_id"`
 	SupervisionContext *string   `json:"supervision_context,omitempty"`
 	ManagementReview   *string   `json:"management_review,omitempty"`
+	ChainReview        *string   `json:"chain_review,omitempty"`
+	LifecycleReview    *string   `json:"lifecycle_review,omitempty"`
 }
 
 type StaffPostingProposalContext struct {
@@ -160,4 +193,82 @@ type StaffPostingSupervisorChoice struct {
 	EndsAt               *time.Time         `json:"ends_at,omitempty"`
 	EligibilityUntil     time.Time          `json:"eligibility_until"`
 	CreatedAt            time.Time          `json:"created_at"`
+}
+
+type StaffPostingChainNode struct {
+	Posting     StaffPostingSupervisorChoice  `json:"posting"`
+	Supervision StaffPostingSupervisionIntent `json:"supervision"`
+}
+
+type StaffPostingChainReviewContext struct {
+	Context          StaffPostingProposalContext   `json:"context"`
+	Supervision      StaffPostingSupervisionIntent `json:"supervision"`
+	Chain            []StaffPostingChainNode       `json:"chain"`
+	CheckedAt        time.Time                     `json:"checked_at"`
+	EligibilityUntil time.Time                     `json:"eligibility_until"`
+}
+
+type StaffPostingCutoffHospitalScope struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	Name       string    `json:"name"`
+}
+
+type StaffPostingCutoffContext struct {
+	Proposal  StaffPostingProposal `json:"proposal"`
+	Cutoff    *StaffPostingCutoff  `json:"cutoff"`
+	CheckedAt time.Time            `json:"checked_at"`
+}
+
+type StaffPostingCutoffObservation struct {
+	ID       *uuid.UUID `json:"id"`
+	Version  int64      `json:"version"`
+	CutoffAt *time.Time `json:"cutoff_at"`
+}
+
+type StaffPostingLifecycleChainNode struct {
+	Posting     StaffPostingSupervisorChoice  `json:"posting"`
+	Supervision StaffPostingSupervisionIntent `json:"supervision"`
+	Cutoff      StaffPostingCutoffObservation `json:"cutoff"`
+}
+
+type StaffPostingLifecycleReviewContext struct {
+	Context        StaffPostingProposalContext      `json:"context"`
+	Supervision    StaffPostingSupervisionIntent    `json:"supervision"`
+	Cutoff         StaffPostingCutoffObservation    `json:"cutoff"`
+	Chain          []StaffPostingLifecycleChainNode `json:"chain"`
+	CheckedAt      time.Time                        `json:"checked_at"`
+	EffectiveUntil time.Time                        `json:"effective_until"`
+}
+
+type StaffPostingLifecycleHistorySource struct {
+	Hop        int64                         `json:"hop"`
+	StaffID    uuid.UUID                     `json:"staff_id"`
+	ProposalID uuid.UUID                     `json:"proposal_id"`
+	RevisionID uuid.UUID                     `json:"revision_id"`
+	Cutoff     StaffPostingCutoffObservation `json:"cutoff"`
+}
+
+type StaffPostingLifecycleHistoryRecord struct {
+	RevisionID               uuid.UUID                            `json:"revision_id"`
+	InitialRevisionID        uuid.UUID                            `json:"initial_revision_id"`
+	ReviewerStaffID          uuid.UUID                            `json:"reviewer_staff_id"`
+	ReviewerLinkID           uuid.UUID                            `json:"reviewer_link_id"`
+	ReviewerGenerationID     uuid.UUID                            `json:"reviewer_generation_id"`
+	ReviewAssignmentID       uuid.UUID                            `json:"review_assignment_id"`
+	ReviewAssignmentVersion  int64                                `json:"review_assignment_version"`
+	ScopeEpoch               int64                                `json:"scope_epoch"`
+	MembershipEpoch          int64                                `json:"membership_epoch"`
+	SupportPermission        string                               `json:"support_permission"`
+	SupportAssignmentID      uuid.UUID                            `json:"support_assignment_id"`
+	SupportAssignmentVersion int64                                `json:"support_assignment_version"`
+	CheckedAt                time.Time                            `json:"checked_at"`
+	EffectiveUntil           time.Time                            `json:"effective_until"`
+	SourceCount              int64                                `json:"source_count"`
+	Sources                  []StaffPostingLifecycleHistorySource `json:"sources"`
+}
+
+type StaffPostingLifecycleHistoryContext struct {
+	Context     StaffPostingProposalContext         `json:"context"`
+	Supervision *StaffPostingSupervisionIntent      `json:"supervision"`
+	Review      *StaffPostingLifecycleHistoryRecord `json:"review"`
 }

@@ -3,6 +3,14 @@ package contract
 
 import "github.com/google/uuid"
 
+type PostingCutoffChangedData struct {
+	HospitalID uuid.UUID `json:"hospital_id"`
+	StaffID    uuid.UUID `json:"staff_id"`
+	ProposalID uuid.UUID `json:"proposal_id"`
+	CutoffID   uuid.UUID `json:"cutoff_id"`
+	Version    int64     `json:"version"`
+}
+
 type PostingDraftChangedData struct {
 	HospitalID uuid.UUID `json:"hospital_id"`
 	StaffID    uuid.UUID `json:"staff_id"`

@@ -27,6 +27,7 @@ const PermPostingProposalRead authz.Permission = "workforce.posting.proposal.rea
 const PermPostingSubmit authz.Permission = "workforce.posting.submit"
 const PermPostingReview authz.Permission = "workforce.posting.review"
 const PermPostingManagementReview authz.Permission = "workforce.posting.management.review"
+const PermPostingCutoff authz.Permission = "workforce.posting.cutoff"
 
 var errPostingProposalConflict = errors.New("posting proposal intent or source changed")
 
@@ -60,6 +61,8 @@ func respondPostingProposalError(c *gin.Context, err error) {
 	}
 	var pg *pgconn.PgError
 	switch {
+	case errors.Is(err, errPostingLifecycleReviewRequired):
+		respond.Error(c, 409, "posting_lifecycle_review_required", "A retained posting cutoff requires a current lifecycle review. No approval was recorded.")
 	case errors.Is(err, errPostingSupervisionRequired):
 		respond.Error(c, 409, "posting_supervision_required", "The required posting supervision policy is not available. No approval was recorded.")
 	case errors.Is(err, errPostingProposalConflict), errors.Is(err, authz.ErrDepartmentReferenceChanged), errors.As(err, &pg) && (pg.Code == "23505" || pg.ConstraintName == "workforce_posting_proposal_guard"):

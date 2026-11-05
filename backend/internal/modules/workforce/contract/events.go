@@ -447,3 +447,5 @@ const SubjectDepartmentLinkRequested = "helivanta.in.workforce.department_link_r
 const SubjectPostingDraftChanged = "helivanta.in.workforce.posting_draft_changed.v1"
 
 const SubjectPostingProposalChanged = "helivanta.in.workforce.posting_proposal_changed.v1"
+
+const SubjectPostingCutoffChanged = "helivanta.in.workforce.posting_cutoff_changed.v1"

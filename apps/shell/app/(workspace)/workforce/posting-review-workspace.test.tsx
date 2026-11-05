@@ -3,6 +3,7 @@ import { NavigationGuardProvider } from "@helivanta/ui";
 import "@/test/select";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { act, fireEvent, screen, within, waitFor } from "@testing-library/react";
+import { StaffPostingProposalContextContract } from "@helivanta/api";
 import { PostingProposalDecision } from "./posting-proposal-decision";
 import { StaffPostingReviewWorkspace } from "./posting-review-workspace";
 
@@ -87,10 +88,44 @@ const department = {
 function renderReview(ui: ReactElement) {
   return renderWithProviders(<NavigationGuardProvider>{ui}</NavigationGuardProvider>);
 }
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-04T01:00:00Z"));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+function lifecycleContextResponse(
+  value: unknown,
+  supervision: unknown,
+  chain: { posting: ReturnType<typeof supervisorChoice>; supervision: unknown }[] = [],
+) {
+  const parsed = StaffPostingProposalContextContract.safeParse(value);
+  if (!parsed.success) return Response.json({ context: value, supervision });
+  const limits = [
+    parsed.data.proposal.eligibility_until,
+    parsed.data.proposal.ends_at,
+    ...chain.flatMap((node) => [node.posting.eligibility_until, node.posting.ends_at]),
+  ].filter((value): value is string => value !== null);
+  const effective_until = limits.reduce((earliest, value) =>
+    Date.parse(value) < Date.parse(earliest) ? value : earliest,
+  );
+  const absence = { id: null, version: 0, cutoff_at: null };
+  return Response.json({
+    context: value,
+    supervision,
+    cutoff: absence,
+    chain: chain.map((node) => ({ ...node, cutoff: absence })),
+    checked_at: source.checked_at,
+    effective_until,
+  });
+}
 
 function postingContextResponse(url: string, value: unknown, supervision: unknown = null) {
   const query = new URL(url, "http://localhost").searchParams;
+  if (query.has("lifecycle_review")) return lifecycleContextResponse(value, supervision);
   return Response.json(
     query.get("supervision_context") === "v1" ? { context: value, supervision } : value,
   );
@@ -1336,11 +1371,7 @@ it("requires guarded management context and explicit attestation before root app
       if (url.includes("/context?")) {
         const query = new URL(url, "http://localhost").searchParams;
         if (query.has("management_review")) guardedReads.push(url);
-        return Response.json(
-          query.has("supervision_context")
-            ? { context, supervision: { kind: "hospital_management" } }
-            : context,
-        );
+        return postingContextResponse(url, context, { kind: "hospital_management" });
       }
       if (init?.method === "PUT" && url.includes("/decisions/")) {
         writes.push({ url, input: JSON.parse(String(init.body)) });
@@ -1371,7 +1402,9 @@ it("requires guarded management context and explicit attestation before root app
   );
   await screen.findByRole("button", { name: "Approve proposal" });
   expect(guardedReads).toHaveLength(1);
-  expect(guardedReads[0]).toContain("supervision_context=v1&management_review=current");
+  expect(guardedReads[0]).toContain(
+    "supervision_context=v1&lifecycle_review=current&management_review=current",
+  );
   await user.type(
     screen.getByLabelText("Decision rationale"),
     "Independent synthetic management responsibility review",
@@ -1394,6 +1427,7 @@ it("requires guarded management context and explicit attestation before root app
     reason: "Independent synthetic management responsibility review",
     sources_examined: true,
     hospital_management_reviewed: true,
+    lifecycle_review: { cutoff_versions: [0], effective_until: source.eligibility_until },
   });
 });
 
@@ -1545,69 +1579,72 @@ it("retains an explicit hospital-management submission through an uncertain resp
   expect(JSON.parse(writes[0].body).supervision).toEqual({ kind: "hospital_management" });
 });
 
-it("rechecks a changed employment source after an approval conflict without discarding the command", async () => {
-  const writes: string[] = [];
-  let changed = false;
-  let sourceReads = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (init?.method === "PUT") {
-        writes.push(String(init.body));
-        changed = true;
-        return Response.json(
-          {
-            error: "posting_proposal_conflict",
-            message: "The selected employment source changed.",
-          },
-          { status: 409 },
-        );
-      }
-      if (url.endsWith("posting-review-source")) {
-        sourceReads++;
-        return Response.json(
-          changed
-            ? { ...source, generation_state: "source_changed", eligibility_until: null }
-            : source,
-        );
-      }
-      return reviewerResponse(url, { kind: "hospital_management" });
-    }),
-  );
-  const { user } = await openReviewer();
-  await user.click(
-    await screen.findByRole("button", { name: "Review hospital management approval" }),
-  );
-  await screen.findByText("The current employment source matches this submission.");
-  const before = sourceReads;
-  await user.type(
-    screen.getByLabelText("Decision rationale"),
-    "Independent review before a concurrent identity change",
-  );
-  await user.click(
-    screen.getByLabelText("I examined the submitted proposal and current employment source."),
-  );
-  await user.click(
-    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
-  );
-  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
-  await screen.findByText(
-    "The employment source differs from this submission or is no longer current.",
-  );
-  expect(sourceReads).toBeGreaterThan(before);
-  expect(writes).toHaveLength(1);
-  expect(screen.getByLabelText("Decision rationale")).toHaveValue(
-    "Independent review before a concurrent identity change",
-  );
-  expect(
-    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
-  ).toBeChecked();
-  expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Recover decision receipt" })).toBeEnabled();
-  await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
-  expect(writes).toHaveLength(1);
-});
+it.each(["posting_proposal_conflict", "posting_lifecycle_review_required"])(
+  "rechecks a changed employment source after %s without discarding the command",
+  async (errorCode) => {
+    const writes: string[] = [];
+    let changed = false;
+    let sourceReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (init?.method === "PUT") {
+          writes.push(String(init.body));
+          changed = true;
+          return Response.json(
+            {
+              error: errorCode,
+              message: "The selected employment source changed.",
+            },
+            { status: 409 },
+          );
+        }
+        if (url.endsWith("posting-review-source")) {
+          sourceReads++;
+          return Response.json(
+            changed
+              ? { ...source, generation_state: "source_changed", eligibility_until: null }
+              : source,
+          );
+        }
+        return reviewerResponse(url, { kind: "hospital_management" });
+      }),
+    );
+    const { user } = await openReviewer();
+    await user.click(
+      await screen.findByRole("button", { name: "Review hospital management approval" }),
+    );
+    await screen.findByText("The current employment source matches this submission.");
+    const before = sourceReads;
+    await user.type(
+      screen.getByLabelText("Decision rationale"),
+      "Independent review before a concurrent identity change",
+    );
+    await user.click(
+      screen.getByLabelText("I examined the submitted proposal and current employment source."),
+    );
+    await user.click(
+      screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+    );
+    await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+    await screen.findByText(
+      "The employment source differs from this submission or is no longer current.",
+    );
+    expect(sourceReads).toBeGreaterThan(before);
+    expect(writes).toHaveLength(1);
+    expect(screen.getByLabelText("Decision rationale")).toHaveValue(
+      "Independent review before a concurrent identity change",
+    );
+    expect(
+      screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+    ).toBeChecked();
+    expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recover or replay approval" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
+    expect(writes).toHaveLength(1);
+  },
+);
 
 it("blocks a new approval of an ended posting despite current employment", async () => {
   const endsAt = new Date(Date.now() - 60_000).toISOString();
@@ -1659,7 +1696,7 @@ it("blocks a new approval of an ended posting despite current employment", async
   await screen.findByText("The current employment source matches this submission.");
   expect(screen.getByRole("button", { name: "Approve proposal" })).toBeDisabled();
   expect(
-    screen.getByText("This posting has ended. A new approval cannot be recorded."),
+    screen.getByText("The effective responsibility has ended. A new approval cannot be recorded."),
   ).toBeVisible();
   expect(writes).toHaveLength(0);
 });
@@ -1677,7 +1714,8 @@ it("disables an uncertain approval when its posting ends while preserving receip
       const url = String(input);
       if (init?.method === "PUT") {
         writes.push(String(init.body));
-        throw new TypeError("Synthetic lost approval response before nominal end");
+        if (writes.length === 1)
+          throw new TypeError("Synthetic lost approval response before nominal end");
       }
       if (url.includes("/decisions/")) {
         recovered = true;
@@ -1736,11 +1774,12 @@ it("disables an uncertain approval when its posting ends while preserving receip
     await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
     expect(screen.getByRole("button", { name: "Retry exact decision" })).toBeDisabled();
     expect(writes).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Recover decision receipt" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "Recover decision receipt" }));
+    expect(screen.getByRole("button", { name: "Recover or replay approval" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Recover or replay approval" }));
     await screen.findByText("Posting proposal approved.");
     expect(recovered).toBe(true);
-    expect(writes).toHaveLength(1);
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toBe(writes[0]);
   } finally {
     endedClock.mockRestore();
   }
@@ -2017,4 +2056,768 @@ it("clears supervisor disclosure when its scoped read permission is lost", async
   expect(
     screen.queryByRole("button", { name: "Request independent review" }),
   ).not.toBeInTheDocument();
+});
+
+it("requires current named chain review before approving a departmental posting", async () => {
+  const parent = supervisorChoice();
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: parent.staff.id,
+    supervisor_proposal_id: parent.id,
+    supervisor_revision_id: parent.revision_id,
+  };
+  const writes: Record<string, unknown>[] = [];
+  let complete = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("lifecycle_review=current"))
+        return lifecycleContextResponse(context, supervision, [
+          { posting: parent, supervision: { kind: "hospital_management" } },
+        ]);
+      if (init?.method === "PUT" && url.includes("/decisions/")) {
+        writes.push(JSON.parse(String(init.body)));
+        complete = true;
+        return Response.json({
+          ...proposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(99),
+          command_id: url.split("/").at(-1),
+          recorded_at: "2026-11-04T01:00:00Z",
+        });
+      }
+      return reviewerResponse(url, supervision, !complete);
+    }),
+  );
+  const { user } = await openReviewer();
+  expect(screen.queryByRole("button", { name: "Approve proposal" })).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  expect(await screen.findByText("Synthetic Supervisor")).toBeInTheDocument();
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Independent current chain review for the department member",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  expect(writes).toHaveLength(0);
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByText("Posting proposal approved.");
+  expect(writes).toEqual([
+    {
+      expected_version: 1,
+      expected_revision_id: proposal.revision_id,
+      decision: "approve",
+      reason: "Independent current chain review for the department member",
+      sources_examined: true,
+      lifecycle_review: { cutoff_versions: [0, 0], effective_until: source.eligibility_until },
+    },
+  ]);
+});
+
+it.each([403, 503, 409])(
+  "withholds departmental approval when current chain review returns %s",
+  async (status) => {
+    const parent = supervisorChoice();
+    const supervision = {
+      kind: "department_member",
+      supervisor_staff_id: parent.staff.id,
+      supervisor_proposal_id: parent.id,
+      supervisor_revision_id: parent.revision_id,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("lifecycle_review=current"))
+          return Response.json(
+            {
+              error: status === 403 ? "forbidden" : "posting_proposal_conflict",
+              message: "Synthetic chain unavailable",
+            },
+            { status },
+          );
+        return reviewerResponse(url, supervision);
+      }),
+    );
+    const { user } = await openReviewer();
+    await user.click(
+      await screen.findByRole("button", { name: "Review supervisor chain approval" }),
+    );
+    if (status === 403) await screen.findByText(/access changed/i);
+    else {
+      await screen.findByText(/selected proposal could not be verified/i);
+      await user.click(screen.getByRole("button", { name: "Back to proposal review" }));
+      await screen.findByRole("button", { name: "Reject proposal" });
+    }
+    expect(screen.queryByRole("button", { name: "Approve proposal" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Synthetic Supervisor")).not.toBeInTheDocument();
+  },
+);
+
+it("retains the exact supervised approval without adding a management attestation", async () => {
+  const parent = supervisorChoice();
+  const supervision = {
+    kind: "department_supervisor",
+    supervisor_staff_id: parent.staff.id,
+    supervisor_proposal_id: parent.id,
+    supervisor_revision_id: parent.revision_id,
+  };
+  const writes: { url: string; body: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("lifecycle_review=current"))
+        return lifecycleContextResponse(context, supervision, [
+          { posting: parent, supervision: { kind: "hospital_management" } },
+        ]);
+      if (init?.method === "PUT" && url.includes("/decisions/")) {
+        writes.push({ url, body: String(init.body) });
+        throw new TypeError("Synthetic response lost after supervised command");
+      }
+      return reviewerResponse(url, supervision);
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  await screen.findByText("Synthetic Supervisor");
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Independent chain attestation for uncertain command recovery",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await user.click(await screen.findByRole("button", { name: "Retry exact decision" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual(writes[0]);
+  expect(JSON.parse(writes[0].body)).not.toHaveProperty("hospital_management_reviewed");
+  expect(
+    screen.getByLabelText("I independently reviewed the current supervisor chain."),
+  ).toBeDisabled();
+});
+
+it("binds a scheduled supervisor ending into the normal approval workflow", async () => {
+  const parent = supervisorChoice();
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: parent.staff.id,
+    supervisor_proposal_id: parent.id,
+    supervisor_revision_id: parent.revision_id,
+  };
+  const observation = { id: id(301), version: 1, cutoff_at: "2026-11-04T03:00:00Z" };
+  const writes: { url: string; input: Record<string, unknown> }[] = [];
+  let complete = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("lifecycle_review=current"))
+        return Response.json({
+          context,
+          supervision,
+          cutoff: { id: null, version: 0, cutoff_at: null },
+          chain: [
+            { posting: parent, supervision: { kind: "hospital_management" }, cutoff: observation },
+          ],
+          checked_at: source.checked_at,
+          effective_until: observation.cutoff_at,
+        });
+      if (url.includes("chain_review=current"))
+        return Response.json({
+          context,
+          supervision,
+          chain: [{ posting: parent, supervision: { kind: "hospital_management" } }],
+          checked_at: source.checked_at,
+          eligibility_until: source.eligibility_until,
+        });
+      if (init?.method === "PUT" && url.includes("/decisions/")) {
+        writes.push({ url, input: JSON.parse(String(init.body)) });
+        complete = true;
+        return Response.json({
+          ...proposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(302),
+          command_id: url.split("/").at(-1),
+          recorded_at: "2026-11-04T01:00:00Z",
+        });
+      }
+      return reviewerResponse(url, supervision, !complete);
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  expect(await screen.findByText("Effective responsibility ends (UTC)")).toBeInTheDocument();
+  expect(screen.getAllByText("2026-11-04T03:00:00.000Z").length).toBeGreaterThan(0);
+  await user.type(
+    screen.getByLabelText("Decision rationale"),
+    "Examined every scheduled source ending",
+  );
+  await user.click(screen.getByLabelText(/I examined.*current employment/));
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByText("Posting proposal approved.");
+  expect(writes).toHaveLength(1);
+  expect(writes[0].input.lifecycle_review).toEqual({
+    cutoff_versions: [0, 1],
+    effective_until: observation.cutoff_at,
+  });
+});
+
+function scopedLifecycleScenario() {
+  const parent = supervisorChoice();
+  const supervision = {
+    kind: "department_member",
+    supervisor_staff_id: parent.staff.id,
+    supervisor_proposal_id: parent.id,
+    supervisor_revision_id: parent.revision_id,
+  };
+  const envelope = (version: number) => ({
+    context,
+    supervision,
+    cutoff: { id: null, version: 0, cutoff_at: null },
+    chain: [
+      {
+        posting: parent,
+        supervision: { kind: "hospital_management" },
+        cutoff: {
+          id: id(310 + version),
+          version,
+          cutoff_at: version === 1 ? "2026-11-04T03:00:00Z" : "2026-11-04T02:00:00Z",
+        },
+      },
+    ],
+    checked_at: source.checked_at,
+    effective_until: version === 1 ? "2026-11-04T03:00:00Z" : "2026-11-04T02:00:00Z",
+  });
+  return { supervision, envelope };
+}
+
+it("requires renewed examination after a retained source ending changes without losing rationale", async () => {
+  const { supervision, envelope } = scopedLifecycleScenario();
+  let version = 1,
+    complete = false;
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("lifecycle_review=current")) return Response.json(envelope(version));
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        complete = true;
+        return Response.json({
+          ...proposal,
+          status: "approved",
+          version: 2,
+          revision_id: id(320),
+          command_id: url.split("/").at(-1),
+          recorded_at: "2026-11-04T01:00:00Z",
+        });
+      }
+      return reviewerResponse(url, supervision, !complete);
+    }),
+  );
+  const { user } = await openReviewer();
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  await user.type(
+    await screen.findByLabelText("Decision rationale"),
+    "Retain the reason while ending observations change",
+  );
+  const examined = screen.getByLabelText(
+    "I examined the submitted proposal and current employment source.",
+  );
+  const independent = screen.getByLabelText(
+    "I independently reviewed the current supervisor chain.",
+  );
+  await user.click(examined);
+  await user.click(independent);
+  version = 2;
+  await user.click(screen.getByRole("button", { name: "Recheck posting lifetimes" }));
+  await waitFor(() =>
+    expect(screen.getAllByText("2026-11-04T02:00:00.000Z").length).toBeGreaterThan(0),
+  );
+  expect(examined).not.toBeChecked();
+  expect(independent).not.toBeChecked();
+  expect(screen.getByLabelText("Decision rationale")).toHaveValue(
+    "Retain the reason while ending observations change",
+  );
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  expect(writes).toHaveLength(0);
+  await user.click(examined);
+  await user.click(independent);
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByText("Posting proposal approved.");
+  expect(writes[0].lifecycle_review).toEqual({
+    cutoff_versions: [0, 2],
+    effective_until: envelope(2).effective_until,
+  });
+});
+
+it.each(["changed", "unavailable"])(
+  "recovers the original approval after %s context and elapsed eligibility using the identical PUT",
+  async (kind) => {
+    const { supervision, envelope } = scopedLifecycleScenario();
+    const writes: { url: string; body: string }[] = [];
+    let refresh = false,
+      complete = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("lifecycle_review=current"))
+          return refresh && kind === "unavailable"
+            ? Response.json(
+                { error: "unavailable", message: "Synthetic owner unavailable" },
+                { status: 503 },
+              )
+            : Response.json(envelope(refresh ? 2 : 1));
+        if (url.includes("/decisions/")) {
+          expect(init?.method).toBe("PUT");
+          writes.push({ url, body: String(init?.body) });
+          if (writes.length === 1)
+            throw new TypeError("Synthetic response lost after approval committed");
+          complete = true;
+          return Response.json({
+            ...proposal,
+            status: "approved",
+            version: 2,
+            revision_id: id(321),
+            command_id: url.split("/").at(-1),
+            recorded_at: "2026-11-04T01:00:00Z",
+          });
+        }
+        return reviewerResponse(url, supervision, !complete);
+      }),
+    );
+    const { user } = await openReviewer();
+    await user.click(
+      await screen.findByRole("button", { name: "Review supervisor chain approval" }),
+    );
+    await user.type(
+      await screen.findByLabelText("Decision rationale"),
+      "Retain this exact examined approval for recovery",
+    );
+    await user.click(
+      screen.getByLabelText("I examined the submitted proposal and current employment source."),
+    );
+    await user.click(
+      screen.getByLabelText("I independently reviewed the current supervisor chain."),
+    );
+    await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+    await screen.findByRole("button", { name: "Recover or replay approval" });
+    refresh = true;
+    await user.click(screen.getByRole("button", { name: "Recheck posting lifetimes" }));
+    if (kind === "changed")
+      await waitFor(() =>
+        expect(screen.getAllByText("2026-11-04T02:00:00.000Z").length).toBeGreaterThan(0),
+      );
+    else await screen.findByText(/selected proposal could not be verified/i);
+    vi.setSystemTime(new Date("2026-11-04T04:00:00Z"));
+    await user.click(screen.getByRole("button", { name: "Retry exact decision" }));
+    expect(writes).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Recover or replay approval" }));
+    await screen.findByText("Posting proposal approved.");
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toEqual(writes[0]);
+    expect(JSON.parse(writes[1].body).lifecycle_review).toEqual({
+      cutoff_versions: [0, 1],
+      effective_until: envelope(1).effective_until,
+    });
+  },
+);
+
+it("clears lifecycle source names and retained intent after scoped review revocation", async () => {
+  const { supervision, envelope } = scopedLifecycleScenario();
+  let revoked = false;
+  const changed = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("lifecycle_review=current"))
+        return revoked
+          ? Response.json(
+              { error: "forbidden", message: "Synthetic reviewer permission revoked" },
+              { status: 403 },
+            )
+          : Response.json(envelope(1));
+      if (init?.method === "PUT") throw new TypeError("Synthetic unknown approval outcome");
+      return reviewerResponse(url, supervision);
+    }),
+  );
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={changed} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  await user.type(
+    await screen.findByLabelText("Decision rationale"),
+    "Synthetic private retained lifecycle rationale",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await screen.findByRole("button", { name: "Recover or replay approval" });
+  revoked = true;
+  await user.click(screen.getByRole("button", { name: "Recheck posting lifetimes" }));
+  await screen.findByText(/Staff access changed/);
+  expect(screen.queryByText("Synthetic Supervisor")).not.toBeInTheDocument();
+  expect(
+    screen.queryByDisplayValue("Synthetic private retained lifecycle rationale"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Recover or replay approval" }),
+  ).not.toBeInTheDocument();
+  expect(changed).toHaveBeenCalledTimes(1);
+});
+
+it("aborts an in-flight lifecycle approval and clears its private intent on reviewer account change", async () => {
+  const { supervision, envelope } = scopedLifecycleScenario();
+  let switched = false;
+  let release: ((value: Response) => void) | undefined;
+  let signal: AbortSignal | undefined;
+  let commandId = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PUT") {
+        signal = init.signal ?? undefined;
+        commandId = url.split("/").at(-1)!;
+        return new Promise<Response>((resolve) => {
+          release = resolve;
+        });
+      }
+      if (switched)
+        return Response.json({ data: [], page: { has_more: false, next_cursor: null } });
+      if (url.includes("lifecycle_review=current")) return Response.json(envelope(1));
+      return reviewerResponse(url, supervision);
+    }),
+  );
+  function AccountBoundary() {
+    const [subject, setSubject] = useState(scope.subject);
+    return (
+      <>
+        <button
+          onClick={() => {
+            switched = true;
+            setSubject("synthetic-other-reviewer");
+          }}
+        >
+          Switch reviewer account
+        </button>
+        <StaffPostingReviewWorkspace scope={{ ...scope, subject }} onContextChanged={() => {}} />
+      </>
+    );
+  }
+  const { user } = renderReview(<AccountBoundary />);
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Review supervisor chain approval" }));
+  await user.type(
+    await screen.findByLabelText("Decision rationale"),
+    "Private first-reviewer lifecycle intent",
+  );
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(screen.getByLabelText("I independently reviewed the current supervisor chain."));
+  await user.click(screen.getByRole("button", { name: "Approve proposal" }));
+  await waitFor(() => expect(release).toBeTypeOf("function"));
+  await user.click(screen.getByRole("button", { name: "Switch reviewer account" }));
+  expect(signal?.aborted).toBe(true);
+  expect(
+    screen.queryByDisplayValue("Private first-reviewer lifecycle intent"),
+  ).not.toBeInTheDocument();
+  await act(async () => {
+    release!(
+      Response.json({
+        ...proposal,
+        status: "approved",
+        version: 2,
+        revision_id: id(322),
+        command_id: commandId,
+        recorded_at: "2026-11-04T01:00:00Z",
+      }),
+    );
+  });
+  expect(screen.queryByText("Posting proposal approved.")).not.toBeInTheDocument();
+  expect(screen.queryByText("Synthetic Supervisor")).not.toBeInTheDocument();
+});
+
+function approvedHistoryResponse() {
+  const approved = {
+    ...proposal,
+    version: 2,
+    revision_id: id(301),
+    command_id: id(302),
+    status: "approved",
+    recorded_at: "2026-11-03T03:00:00Z",
+  };
+  return {
+    context: {
+      ...context,
+      proposal: approved,
+      decision_reason: "Synthetic independent historical approval",
+    },
+    supervision: { kind: "hospital_management" },
+    review: {
+      revision_id: approved.revision_id,
+      initial_revision_id: proposal.revision_id,
+      reviewer_staff_id: id(303),
+      reviewer_link_id: id(304),
+      reviewer_generation_id: id(305),
+      review_assignment_id: id(306),
+      review_assignment_version: 2,
+      scope_epoch: 1,
+      membership_epoch: 2,
+      support_permission: "workforce.posting.management.review",
+      support_assignment_id: id(307),
+      support_assignment_version: 3,
+      checked_at: "2026-11-03T02:00:00Z",
+      effective_until: "2026-11-05T00:00:00Z",
+      source_count: 1,
+      sources: [
+        {
+          hop: 0,
+          staff_id: staff,
+          proposal_id: proposal.id,
+          revision_id: proposal.revision_id,
+          cutoff: { id: null, version: 0, cutoff_at: null },
+        },
+      ],
+    },
+  };
+}
+
+function approvedHistoryFetcher(
+  onRecord: (signal?: AbortSignal | null) => Response | Promise<Response>,
+  history = approvedHistoryResponse(),
+) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("posting-review-scopes"))
+      return Response.json({
+        data: [
+          {
+            hospital_id: hospital,
+            name: "Synthetic Hospital",
+            can_review: true,
+            can_submit: false,
+          },
+        ],
+        page: { has_more: false, next_cursor: null },
+      });
+    if (url.includes("posting-proposal-inbox"))
+      return Response.json({
+        data: url.includes("status=approved")
+          ? [
+              {
+                staff: { id: staff, employee_code: "SYN-1", display_name: "Synthetic Staff" },
+                is_submitter: false,
+                proposal: history.context.proposal,
+              },
+            ]
+          : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    if (url.includes("/context"))
+      return new URL(url, "http://localhost").searchParams.get("lifecycle_review") === "recorded"
+        ? onRecord(init?.signal)
+        : postingContextResponse(url, history.context, history.supervision);
+    throw new Error(`Unexpected history request: ${url}`);
+  });
+}
+async function openApprovedHistory(changed = vi.fn(), ui?: ReactElement) {
+  const view = renderReview(
+    ui ?? <StaffPostingReviewWorkspace scope={scope} onContextChanged={changed} />,
+  );
+  await view.user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await view.user.click(screen.getByRole("combobox", { name: "Proposal status" }));
+  await view.user.click(await screen.findByRole("option", { name: "Approved" }));
+  await view.user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  return { ...view, changed };
+}
+
+it("shows retained approval observations after their deadline without presenting operating authority", async () => {
+  vi.setSystemTime(new Date("2026-11-06T00:00:00Z"));
+  const history = approvedHistoryResponse();
+  const fetcher = approvedHistoryFetcher(() => Response.json(history));
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderReview(
+    <StaffPostingReviewWorkspace scope={scope} onContextChanged={vi.fn()} />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Open posting reviews for Synthetic Hospital" }),
+  );
+  await user.click(screen.getByRole("combobox", { name: "Proposal status" }));
+  await user.click(await screen.findByRole("option", { name: "Approved" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open proposal for Synthetic Staff" }),
+  );
+  const retained = await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  expect(within(retained).getByText("2026-11-05T00:00:00.000Z")).toBeInTheDocument();
+  expect(
+    within(retained).getByText(/does not establish current operating authority/i),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Synthetic independent historical approval")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Approve posting proposal" }),
+  ).not.toBeInTheDocument();
+  expect(
+    fetcher.mock.calls.some(([url]) => String(url).includes("lifecycle_review=recorded")),
+  ).toBe(true);
+});
+
+it("shows unavailable historical proof explicitly without requesting current observations", async () => {
+  const history = approvedHistoryResponse();
+  const fetcher = approvedHistoryFetcher(() => Response.json({ ...history, review: null }));
+  vi.stubGlobal("fetch", fetcher);
+  await openApprovedHistory();
+  const retained = await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  expect(
+    within(retained).getByText(/No retained lifecycle proof is available/),
+  ).toBeInTheDocument();
+  expect(
+    within(retained).queryByRole("list", { name: "Sources retained at approval" }),
+  ).not.toBeInTheDocument();
+  expect(fetcher.mock.calls.some(([url]) => String(url).includes("lifecycle_review=current"))).toBe(
+    false,
+  );
+});
+
+it("withholds cached approval history when current access cannot be rechecked", async () => {
+  let reads = 0;
+  const history = approvedHistoryResponse();
+  vi.stubGlobal(
+    "fetch",
+    approvedHistoryFetcher(() =>
+      ++reads === 1
+        ? Response.json(history)
+        : Response.json(
+            { error: "unavailable", message: "Current authority unavailable" },
+            { status: 503 },
+          ),
+    ),
+  );
+  const view = await openApprovedHistory();
+  await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  await view.user.click(screen.getByRole("button", { name: "Recheck history access" }));
+  await screen.findByText(/The retained approval history could not be verified/);
+  expect(screen.queryByText("Synthetic independent historical approval")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Retained lifecycle approval" }),
+  ).not.toBeInTheDocument();
+  expect(view.changed).not.toHaveBeenCalled();
+});
+
+it("clears retained approval evidence when the reviewer loses current access", async () => {
+  let reads = 0;
+  const history = approvedHistoryResponse();
+  vi.stubGlobal(
+    "fetch",
+    approvedHistoryFetcher(() =>
+      ++reads === 1
+        ? Response.json(history)
+        : Response.json(
+            { error: "forbidden", message: "Current review access ended" },
+            { status: 403 },
+          ),
+    ),
+  );
+  const view = await openApprovedHistory();
+  await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  await view.user.click(screen.getByRole("button", { name: "Recheck history access" }));
+  await waitFor(() => expect(view.changed).toHaveBeenCalled());
+  expect(screen.queryByText("Synthetic independent historical approval")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Retained lifecycle approval" }),
+  ).not.toBeInTheDocument();
+});
+
+it("aborts an in-flight historical disclosure when the account changes", async () => {
+  let release!: (response: Response) => void;
+  let originalSignal: AbortSignal | null | undefined;
+  let switched = false;
+  const history = approvedHistoryResponse();
+  const original = approvedHistoryFetcher((signal) => {
+    originalSignal = signal;
+    return new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+      switched
+        ? Promise.resolve(Response.json({ data: [], page: { has_more: false, next_cursor: null } }))
+        : original(input, init),
+    ),
+  );
+  const changed = vi.fn();
+  function HistoryAccountHarness() {
+    const [subject, setSubject] = useState(scope.subject);
+    return (
+      <>
+        <button
+          onClick={() => {
+            switched = true;
+            setSubject("synthetic-next-reviewer");
+          }}
+        >
+          Change history account
+        </button>
+        <StaffPostingReviewWorkspace scope={{ ...scope, subject }} onContextChanged={changed} />
+      </>
+    );
+  }
+  const view = await openApprovedHistory(changed, <HistoryAccountHarness />);
+  await waitFor(() => expect(originalSignal).toBeDefined());
+  await view.user.click(screen.getByRole("button", { name: "Change history account" }));
+  await waitFor(() => expect(originalSignal?.aborted).toBe(true));
+  await act(async () => release(Response.json(history)));
+  await screen.findByText("No approved posting review hospitals on this page.");
+  expect(screen.queryByText("Synthetic independent historical approval")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Retained lifecycle approval" }),
+  ).not.toBeInTheDocument();
+});
+
+it("preserves the original microsecond timestamps in retained approval evidence", async () => {
+  const history = approvedHistoryResponse();
+  history.review.checked_at = "2026-11-03T02:00:00.123456Z";
+  history.review.effective_until = "2026-11-04T23:59:59.987654Z";
+  history.context.proposal.eligibility_until = history.review.effective_until;
+  vi.stubGlobal(
+    "fetch",
+    approvedHistoryFetcher(() => Response.json(history), history),
+  );
+  await openApprovedHistory();
+  const retained = await screen.findByRole("region", { name: "Retained lifecycle approval" });
+  expect(within(retained).getByText("2026-11-03T02:00:00.123456Z")).toBeInTheDocument();
+  expect(within(retained).getByText("2026-11-04T23:59:59.987654Z")).toBeInTheDocument();
 });

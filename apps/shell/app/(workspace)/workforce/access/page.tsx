@@ -127,26 +127,37 @@ function Assignments({ identity }: { identity: Identity }) {
   const postingCatalog = useVerifiedStaffCatalog(scope, "staff-postings-v1");
   const postingReviewCatalog = useVerifiedStaffCatalog(scope, "staff-posting-reviews-v1");
   const postingManagementCatalog = useVerifiedStaffCatalog(scope, "staff-posting-management-v1");
-  const postingCatalogName = postingManagementCatalog.supported
-    ? "staff-posting-management-v1"
-    : postingReviewCatalog.supported
-      ? "staff-posting-reviews-v1"
-      : "staff-postings-v1";
+  const postingLifecycleCatalog = useVerifiedStaffCatalog(scope, "staff-posting-lifecycle-v1");
+  const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1");
+  const pharmacyBindingCatalog = useVerifiedStaffCatalog(scope, "pharmacy-department-bindings-v1");
+  const postingCatalogName = postingSourceCatalog.supported
+    ? "staff-posting-source-v1"
+    : postingLifecycleCatalog.supported
+      ? "staff-posting-lifecycle-v1"
+      : postingManagementCatalog.supported
+        ? "staff-posting-management-v1"
+        : postingReviewCatalog.supported
+          ? "staff-posting-reviews-v1"
+          : "staff-postings-v1";
   const postingSupported =
     postingCatalog.supported ||
     postingReviewCatalog.supported ||
-    postingManagementCatalog.supported;
+    postingManagementCatalog.supported ||
+    postingLifecycleCatalog.supported ||
+    postingSourceCatalog.supported;
   const templateKeys =
     staffAccessTemplateCatalogs[
-      family === "posting"
-        ? postingCatalogName
-        : family === "intake"
-          ? "hr-intake-v1"
-          : family === "employment"
-            ? "employment-v1"
-            : family === "activation"
-              ? "employment-activation-v1"
-              : "legacy-v1"
+      family === "pharmacy_binding"
+        ? "pharmacy-department-bindings-v1"
+        : family === "posting"
+          ? postingCatalogName
+          : family === "intake"
+            ? "hr-intake-v1"
+            : family === "employment"
+              ? "employment-v1"
+              : family === "activation"
+                ? "employment-activation-v1"
+                : "legacy-v1"
     ];
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
@@ -166,21 +177,24 @@ function Assignments({ identity }: { identity: Identity }) {
     (family === "intake" && !intakeSupported) ||
     (family === "employment" && !employmentSupported) ||
     (family === "activation" && !activationSupported) ||
-    (family === "posting" && !postingSupported);
+    (family === "posting" && !postingSupported) ||
+    (family === "pharmacy_binding" && !pharmacyBindingCatalog.supported);
   return (
     <Panel className="space-y-4">
       <p>
         {family === "leave"
           ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
-          : family === "posting"
-            ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
-            : family === "identity"
-              ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
-              : family === "employment"
-                ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
-                : family === "activation"
-                  ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
-                  : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
+          : family === "pharmacy_binding"
+            ? "Pharmacy relationship preparers and independent reviewers link a hospital-owned outlet to its canonical department. They require a current reviewed Staff account and separate outlet editor access. These assignments grant no dispensing, professional, clinical or private HR access."
+            : family === "posting"
+              ? "Verified posting roles separate draft reading and preparation, proposal submission, independent review and hospital management attestation. Each requires a current reviewed digital Staff account. These assignments grant no operating or clinical access."
+              : family === "identity"
+                ? "Identity manager and reviewer assignments have separate permissions for one hospital. They require a current staff account link and grant no hospital administration, payroll or clinical authority."
+                : family === "employment"
+                  ? "Employment reviewers independently examine appointment terms and selected evidence at one hospital. They require a current reviewed staff account link. Approval of terms does not activate employment, login access, payroll or clinical authority."
+                  : family === "activation"
+                    ? "Employment activators use independently approved terms for one hospital and require separate current enrollment authority and a reviewed staff account link. This assignment alone grants no login, clinical or payroll access."
+                    : "HR intake administrators prepare Staff profiles, employment drafts and protected evidence at one hospital. They require a current reviewed staff account link and cannot approve employment, grant access, or manage payroll or clinical care."}
       </p>
       <p>
         Proposing and reviewing require current tenant administrator membership and a hospital
@@ -200,6 +214,9 @@ function Assignments({ identity }: { identity: Identity }) {
           options={[
             { value: "leave", label: "Leave review" },
             { value: "identity", label: "Staff identity checks" },
+            ...(pharmacyBindingCatalog.supported || family === "pharmacy_binding"
+              ? [{ value: "pharmacy_binding", label: "Pharmacy department relationships" }]
+              : []),
             ...(intakeSupported || family === "intake"
               ? [{ value: "intake", label: "Staff onboarding" }]
               : []),
@@ -241,6 +258,13 @@ function Assignments({ identity }: { identity: Identity }) {
       </p>
       <div className="flex flex-wrap gap-2">
         <p aria-live="polite" className="w-full text-sm text-muted-foreground">
+          {pharmacyBindingCatalog.isPending
+            ? "Checking Pharmacy relationship assignments…"
+            : !pharmacyBindingCatalog.supported
+              ? "Pharmacy relationship assignments are unavailable in this workspace."
+              : ""}
+        </p>
+        <p aria-live="polite" className="w-full text-sm text-muted-foreground">
           {activationCatalog.isPending
             ? "Checking employment activation assignments…"
             : !activationSupported
@@ -258,6 +282,7 @@ function Assignments({ identity }: { identity: Identity }) {
             void postingCatalog.refetch();
             void postingReviewCatalog.refetch();
             void postingManagementCatalog.refetch();
+            void pharmacyBindingCatalog.refetch();
           }}
         >
           Refresh assignments

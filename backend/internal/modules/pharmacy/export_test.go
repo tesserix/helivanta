@@ -67,3 +67,16 @@ func SetReadRecordFault(t interface{ Cleanup(func()) }) {
 	readRecordFault = func() error { return errors.New("TEST audit store unavailable") }
 	t.Cleanup(func() { readRecordFault = was })
 }
+
+// SetReportExportRows lowers the report CSV bound for one test.
+func SetReportExportRows(t interface{ Cleanup(func()) }, n int) {
+	old := reportExportRows
+	reportExportRows = n
+	t.Cleanup(func() { reportExportRows = old })
+}
+
+// MajorUnits and Amount expose the report CSV's money.
+var (
+	MajorUnits = majorUnits
+	Amount     = amount
+)

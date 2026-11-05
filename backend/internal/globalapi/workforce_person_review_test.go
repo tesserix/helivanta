@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/organization"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -70,7 +71,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	t.Cleanup(fgaBoundary.Close)
 	graph, err := authz.NewClient(ctx, fgaBoundary.URL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
-	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New()}
+	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New(), pharmacy.New()}
 	registry := platform.NewRegistry()
 	for _, module := range modules {
 		require.NoError(t, registry.Register(module))
@@ -92,7 +93,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	})
 	upstream := httptest.NewServer(owner)
 	t.Cleanup(upstream.Close)
-	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
+	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL, "pharmacy": upstream.URL}})
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	for _, subject := range []string{maker, checker, manager, reviewer} {
@@ -356,7 +357,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -1329,9 +1330,11 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			defer cloud.AfterReleasedRead(nil)
 			responses := make(chan *httptest.ResponseRecorder, 4)
 			contentPath := approvalPath + "/evidence/" + employmentFile + "/content?employment_review=v1"
+			cloud.AfterReleasedReads(4, func() { paused <- struct{}{}; <-resume })
 			for range 4 {
-				cloud.AfterReleasedRead(func() { paused <- struct{}{}; <-resume })
 				go func() { responses <- request("GET", contentPath, reviewer, nil, "application/json") }()
+			}
+			for range 4 {
 				select {
 				case <-paused:
 				case response := <-responses:
@@ -1770,6 +1773,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingRootReviewerStaff string
 	var postingRootApprover string
 	var postingRootApproverStaff string
+	var pharmacyBindingPrepared *pharmacyBindingPreparation
 	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_root_dept_first", "posting_chain_child", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
@@ -2167,7 +2171,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" {
 						if migration.ID == "0082_workforce_posting_supervisor_choices" {
 							applySupervisorDiscoveryMigration(t, db, ctx, migration)
 						} else {
@@ -2261,6 +2265,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, false, scopedReceipt["grants_access"])
 				if scenario == "posting_root_reviewer" {
 					grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
+					grant(recipient, "pharmacy.department_binding_preparer.v1", pharmacy.PermStaffBindingPrepare)
+					pharmacyBindingPrepared = assertPharmacyDepartmentBindingPreparation(t, db, call, maker, recipient, hospital, joiner, departmentID, departmentRevision)
 					postingRootReviewer = recipient
 					postingRootReviewerStaff = joiner
 					return
@@ -2268,9 +2274,22 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if scenario == "posting_chain_child" {
 					require.NotEmpty(t, postingRootReviewerStaff, "include the preceding reviewed root-reviewer scenario")
 					require.NotEmpty(t, postingRootApprover, "include the preceding independent root-approval scenario")
+					grant(postingRootApprover, "workforce.posting_cutoff_admin.v1", authz.Permission("workforce.posting.cutoff"))
+					grant(postingRootReviewer, "workforce.posting_cutoff_admin.v1", authz.Permission("workforce.posting.cutoff"))
 					grant(postingRootReviewer, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
-					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation)
+					grant(recipient, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)
+					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, requestWithContext, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, newPostingSourceUseProbe(db, authority, platform.StaffPostingSources([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func() func() {
+						initial := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+						originalProfile := initial["profile"].(map[string]any)
+						setIdentity := func(givenName, phone any) {
+							current := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
+							changed := call(t, "PUT", joinerPath+"/enrollment?hr_intake=v1", manager, map[string]any{"expected_version": current["version"], "staff": map[string]any{"employee_code": "SYN-ACTIVATION-" + scenario, "display_name": "Synthetic Reviewed Digital Joiner", "job_category": "other", "employment_status": "active"}, "profile": map[string]any{"given_name": givenName, "work_phone": phone}}, 200)
+							require.Equal(t, givenName, changed["profile"].(map[string]any)["given_name"])
+						}
+						setIdentity("Synthetic Changed Supervisor Identity", "+919000000004")
+						return func() { setIdentity(originalProfile["given_name"], originalProfile["work_phone"]) }
+					})
 					return
 				}
 				if scenario == "posting_root_dept_first" {
@@ -2308,6 +2327,10 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					})
 					postingRootApprover = recipient
 					postingRootApproverStaff = joiner
+					grant(recipient, "pharmacy.department_binding_reviewer.v1", pharmacy.PermStaffBindingReview)
+					assertPharmacyDepartmentBindingReview(t, db, call, pharmacyBindingPrepared, maker, recipient, joiner, departmentID, departmentRevision, func() {
+						grant(postingRootReviewer, "pharmacy.department_binding_reviewer.v1", pharmacy.PermStaffBindingReview)
+					})
 					return
 				}
 				if scenario == "posting_supervision" {

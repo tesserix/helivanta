@@ -323,3 +323,8 @@ it("shows scoped posting reviews without tenant-wide Staff grants", () => {
   const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
   expect(pages.some((page) => page.href === "/workforce/posting-reviews")).toBe(true);
 });
+
+it("shows posting cutoff discovery without requiring a tenant-wide Staff grant", () => {
+  const pages = visibleZones((permission) => permission === "public").flatMap((zone) => zone.pages);
+  expect(pages.some((page) => page.href === "/workforce/posting-cutoffs")).toBe(true);
+});

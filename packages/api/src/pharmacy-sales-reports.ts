@@ -1,3 +1,4 @@
+import { apiFetchResponse } from "./client";
 import { pharmacyRoot, type PharmacyScope } from "./pharmacy";
 
 /** One product's sales and returns over a period (#1060). */
@@ -160,4 +161,39 @@ export function pharmacyStockSalesPath(
   category?: PharmacyReportCategory,
 ) {
   return `${pharmacyRoot(scope)}/reports/stock-sales?${period(from, to)}${byCategory(category)}`;
+}
+
+/**
+ * A report's path as its CSV (#1060): sales by item, receipts and refunds, or
+ * sales and stock, with the same filters. The file holds every row, or the
+ * server refuses it.
+ */
+export function pharmacyReportCSVPath(path: string) {
+  const csv = path.replace(/\/reports\/(items|receipts|stock-sales)\?/, "/reports/$1.csv?");
+  if (csv === path) throw new Error(`No CSV of ${path}`);
+  return csv;
+}
+
+/** A report's CSV, from its page path. */
+export async function fetchPharmacyReportCSV(
+  scope: PharmacyScope,
+  path: string,
+  signal: AbortSignal,
+): Promise<{ blob: Blob; filename: string }> {
+  signal.throwIfAborted();
+  const response = await apiFetchResponse(pharmacyReportCSVPath(path), {
+    headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
+    cache: "no-store",
+    signal,
+  });
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename =
+    /^attachment; filename="(pharmacy-(?:items|receipts|stock-sales)-[a-z0-9-]+\.csv)"$/.exec(
+      disposition,
+    )?.[1];
+  if (!filename || !/^text\/csv(?:;|$)/i.test(response.headers.get("Content-Type") ?? ""))
+    throw new Error("The server did not return a valid report CSV. Try again.");
+  const blob = await response.blob();
+  signal.throwIfAborted();
+  return { blob, filename };
 }

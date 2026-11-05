@@ -441,3 +441,159 @@ describe("sales by item by lot and by prescriber (#1060)", () => {
     );
   });
 });
+
+describe("report CSV downloads (#1060)", () => {
+  function downloads() {
+    const create = vi.fn(() => "blob:report");
+    vi.stubGlobal(
+      "URL",
+      Object.assign(class extends URL {}, { createObjectURL: create, revokeObjectURL: vi.fn() }),
+    );
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    return { create, click };
+  }
+
+  function serveFiles(permissions: string[], file: Response | null = null) {
+    const page = (data: unknown[]) =>
+      new Response(JSON.stringify({ data, page: { next_cursor: null, has_more: false } }));
+    const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) => {
+      if (url.endsWith("permissions"))
+        return new Response(
+          JSON.stringify({ tenant_id: scope.tenantId, subject: "TEST-reader", data: permissions }),
+        );
+      if (url.includes(".csv?")) {
+        if (file) return file.clone();
+        const name = /\/reports\/([a-z-]+)\.csv/.exec(url)![1];
+        return new Response("\ufeffperiod_from\r\n", {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="pharmacy-${name}-${scope.outletId}-2026-11-01-2026-11-15.csv"`,
+          },
+        });
+      }
+      if (url.includes("/reports/prescribers"))
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                prescriber_name: "TEST Dr Asha Rao",
+                prescriber_registration: "MMC/2011/04567",
+                prescriber_council: "Maharashtra Medical Council",
+              },
+            ],
+            more: false,
+          }),
+        );
+      if (url.includes("/catalogue/categories")) return page([]);
+      return page([]);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    return fetcher;
+  }
+  const files = (fetcher: ReturnType<typeof serveFiles>) =>
+    fetcher.mock.calls.map(([url]) => String(url)).filter((url) => url.includes(".csv?"));
+
+  it("downloads sales by item with its applied filters", async () => {
+    localStorage.clear();
+    const { click } = downloads();
+    const fetcher = serveFiles(["pharmacy.sale.read"]);
+    const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    await user.type(await screen.findByLabelText("Lot number"), "TEST-LOT-7");
+    await user.click(screen.getByRole("button", { name: "Apply lot" }));
+    await user.click(screen.getByRole("button", { name: "Download report CSV" }));
+    expect(await screen.findByText("CSV download started.")).toBeVisible();
+    expect(files(fetcher)).toEqual([
+      expect.stringContaining(
+        "/reports/items.csv?from=2026-11-01&to=2026-11-15&lot_number=TEST-LOT-7",
+      ),
+    ]);
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it("downloads receipts and refunds, and sales and stock, for the period", async () => {
+    localStorage.clear();
+    downloads();
+    const fetcher = serveFiles(["pharmacy.sale.read", "pharmacy.stock.read"]);
+    const receipts = renderWithProviders(<ReceiptsRegister scope={scope} period={period} />);
+    await receipts.user.click(await screen.findByRole("button", { name: "Download report CSV" }));
+    await screen.findByText("CSV download started.");
+    receipts.unmount();
+    const stock = renderWithProviders(<StockSales scope={scope} period={period} />);
+    await stock.user.click(await screen.findByRole("button", { name: "Download report CSV" }));
+    await screen.findByText("CSV download started.");
+    expect(files(fetcher)).toEqual([
+      expect.stringContaining("/reports/receipts.csv?from=2026-11-01&to=2026-11-15"),
+      expect.stringContaining("/reports/stock-sales.csv?from=2026-11-01&to=2026-11-15"),
+    ]);
+  });
+
+  it("cancels a download in flight when a filter changes", async () => {
+    localStorage.clear();
+    const { click } = downloads();
+    const signals: AbortSignal[] = [];
+    const page = new Response(JSON.stringify({ data: [], page: { next_cursor: null } }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith("permissions"))
+          return new Response(
+            JSON.stringify({ tenant_id: scope.tenantId, subject: "TEST-reader", data: [] }),
+          );
+        if (!url.includes(".csv?")) return page.clone();
+        signals.push(init!.signal!);
+        return new Promise<Response>((_, reject) =>
+          init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason)),
+        );
+      }),
+    );
+    const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    await user.click(await screen.findByRole("button", { name: "Download report CSV" }));
+    expect(await screen.findByRole("button", { name: "Preparing CSV…" })).toBeDisabled();
+    await user.type(screen.getByLabelText("Lot number"), "TEST-LOT-7");
+    await user.click(screen.getByRole("button", { name: "Apply lot" }));
+    expect(await screen.findByRole("button", { name: "Download report CSV" })).toBeEnabled();
+    expect(signals).toHaveLength(1);
+    expect(signals[0].aborted).toBe(true);
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it("offers no download of sales by one prescriber", async () => {
+    localStorage.clear();
+    serveFiles(["pharmacy.sale.read", "pharmacy.prescription.read"]);
+    const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
+    const picker = await screen.findByRole("combobox", { name: "Prescriber" });
+    await waitFor(() => expect(picker).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Download report CSV" })).toBeVisible();
+    await chooseOption(
+      user,
+      picker,
+      "TEST Dr Asha Rao (MMC/2011/04567, Maharashtra Medical Council)",
+    );
+    expect(
+      await screen.findByText("Sales by one prescriber cannot be downloaded yet."),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Download report CSV" })).toBeNull();
+  });
+
+  it("says why an oversized report is refused", async () => {
+    localStorage.clear();
+    const { click } = downloads();
+    serveFiles(
+      ["pharmacy.sale.read"],
+      new Response(
+        JSON.stringify({
+          error: "report_export_too_large",
+          message:
+            "the report has more than 5000 rows; choose a shorter period or a narrower filter",
+        }),
+        { status: 413 },
+      ),
+    );
+    const { user } = renderWithProviders(<ReceiptsRegister scope={scope} period={period} />);
+    await user.click(await screen.findByRole("button", { name: "Download report CSV" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "the report has more than 5000 rows; choose a shorter period or a narrower filter",
+    );
+    expect(click).not.toHaveBeenCalled();
+  });
+});

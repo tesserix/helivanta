@@ -309,7 +309,7 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **One row per product never mixes currencies or packs:** a stocked product cannot change either.
 - **Admission-account rows** settle the document but are not collected or paid out; the UI says so.
 - **Not audited**, except sales by item filtered by prescriber (see below): no patient, prescriber or buyer appears.
-- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478), CSV export. Patient-wise sales and the sales stock report follow.
+- **Not covered:** average purchase cost and margin, wholesale, indents, UPI payments captured but never applied to a sale and their manual refunds (#1478). Both download as CSV (below). Patient-wise sales and the sales stock report follow.
 
 ### Patient-wise sales and the sales stock report (#1060)
 
@@ -321,7 +321,7 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 - **One patient at a time.** The pharmacy holds only the patient's id, so the screen finds the patient through the audited MRN lookup first and reads nothing before. That lookup needs `patient.pharmacy-lookup`, which only pharmacists hold; the screen tells anyone else so. Walk-in buyers are not patients and are not listed.
 - **Audited in the read.** Each patient-wise page writes an `audit_events` row (`pharmacy_patient_sales`, `report_read`, with the period and patient id) in the read's transaction, so no data leaves without its record.
 - **Stock is now, whatever the period.** On hand is every movement of the product. Sellable uses the counter's own rule (`pharmacy_sellable_buckets`): a sellable shelf, an MRP, unexpired on the outlet's date, and no safety incident. So a recalled or expired batch on the shelf is on hand but not sellable, as are returns in quarantine. The panel shows only to staff holding `pharmacy.stock.read`.
-- **Not covered:** service charges on a patient's sale (medicine lines only; the daily report has the charges); purchase amount (442) and the last vendor (755), since purchase cost waits for approved formulas and a receipt records no supplier; a list across patients; stock as of a past date (the stock register has it); batch-level stock in this report; CSV export.
+- **Not covered:** service charges on a patient's sale (medicine lines only; the daily report has the charges); purchase amount (442) and the last vendor (755), since purchase cost waits for approved formulas and a receipt records no supplier; a list across patients; stock as of a past date (the stock register has it); batch-level stock in this report; a CSV of patient-wise sales (sales and stock has one, below).
 
 ### Sales by item by lot and by prescriber (#1060)
 
@@ -358,6 +358,23 @@ optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmac
   catalogue readers; changing the category drops the subcategory.
 - **Not covered:** an "uncategorised" filter, category totals, and category
   filters on other reports.
+
+### CSV downloads of three reports (#1060)
+
+[Design](../../superpowers/specs/2026-11-05-pharmacy-report-csv-design.md).
+
+| Route | Behaviour |
+| --- | --- |
+| `GET …/reports/items.csv?from=&to=&product_id=&category_id=&subcategory_id=&lot_number=` | Sales by item as a file. Requires `pharmacy.sale.read` |
+| `GET …/reports/receipts.csv?from=&to=&kind=` | Receipts and refunds as a file. Requires `pharmacy.sale.read` |
+| `GET …/reports/stock-sales.csv?from=&to=&category_id=&subcategory_id=` | Sales and stock as a file, each row with `stock_on`, the outlet's today. Requires `pharmacy.stock.read` |
+
+- **The report's own query and filters,** in one transaction, so a file matches its pages. Any other parameter, a repeated or empty one, `cursor`, `limit` and the prescriber pair are `400`: sales by a prescriber are personal, and their file needs a disclosure audit this one does not write.
+- **All or an error.** At most 5,000 rows and 8 MiB; more is `413 report_export_too_large` before any byte of the file. A failed read is an error with no file. An empty period is a header alone.
+- **Format.** UTF-8 with a byte-order mark (for Excel), CRLF, snake_case headers, `period_from` and `period_to` on every row. Formula-like text is apostrophe-prefixed. Amounts are exact in the currency's major unit (`-12.50`), from the country profile's `currency_minor_digits`; a currency no profile declares is a `500` and no file. Units are integers. `Cache-Control: private, no-store`, `nosniff`, `pharmacy-<report>-<outlet>-<from>-<to>.csv`, `X-Export-Row-Count`, `X-Export-Sha256`.
+- **Recorded, not audited as a read.** These reports hold no patient, prescriber or buyer, so a download writes no `audit_events` row; the audit stream records `pharmacy.report.exported` with the report, actor, outlet, filters, row count and SHA-256, only for a file sent.
+- **Screen.** Each report has a "Download report CSV" button for its period and filters; a filter change cancels a download in flight. Filtered by prescriber, sales by item says the file is not available yet.
+- **Not covered:** files of patient-wise sales, the sales worklist, sales by prescriber and the daily report; files above 5,000 rows; XLSX, PDF, scheduled exports and the governed export service (#594, #64, #444).
 
 ### The sales worklist and sale summary (#987 slice 1)
 

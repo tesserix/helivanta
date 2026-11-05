@@ -2995,6 +2995,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
@@ -3022,11 +3031,29 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {

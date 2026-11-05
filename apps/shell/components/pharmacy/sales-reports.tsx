@@ -4,6 +4,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
+  fetchPharmacyReportCSV,
   pharmacyItemSalesPath,
   pharmacyKey,
   pharmacyPatientSalesPath,
@@ -26,6 +27,7 @@ import {
 import { Field, LoadMore, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
 import { formatPharmacyMoney } from "./currency-amount-field";
+import { RegisterExport } from "./h1-register";
 import { useItemCategories } from "./item-categories";
 import type { Period } from "./period";
 
@@ -198,11 +200,37 @@ function PrescriberPicker({
   );
 }
 
+/**
+ * A report's CSV, of what it shows (#1060). Keyed by its path, so a new
+ * period or filter replaces it and cancels a download in flight.
+ */
+function ReportDownload({
+  scope,
+  path,
+  label,
+}: {
+  scope: PharmacyScope;
+  path: string;
+  label: string;
+}) {
+  return (
+    <div className="mt-2">
+      <RegisterExport
+        key={path}
+        noun="report"
+        label={label}
+        download={(signal) => fetchPharmacyReportCSV(scope, path, signal)}
+      />
+    </div>
+  );
+}
+
 /** Sales by item over the period (#1060): sold, returned and net per product. */
 export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
   const [category, setCategory] = useState<PharmacyReportCategory>({});
   const [lines, setLines] = useState<PharmacyItemSalesLines>({});
   const filtered = Boolean(category.categoryId || lines.lotNumber || lines.prescriber);
+  const path = pharmacyItemSalesPath(scope, period.from, period.to, category, lines);
   const items = useApiPagedQuery<PharmacyItemSales>(
     pharmacyKey(
       scope,
@@ -214,7 +242,7 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
       lines.lotNumber ?? "",
       lines.prescriber ? prescriberValue(lines.prescriber) : "",
     ),
-    pharmacyItemSalesPath(scope, period.from, period.to, category, lines),
+    path,
   );
   return (
     <section className="mt-6" aria-labelledby="item-sales-heading">
@@ -233,6 +261,15 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
         value={lines.prescriber}
         onChange={(prescriber) => setLines((l) => ({ ...l, prescriber }))}
       />
+      {lines.prescriber ? (
+        // Sales by a prescriber are personal; their file needs a disclosure
+        // audit, so the API refuses it.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Sales by one prescriber cannot be downloaded yet.
+        </p>
+      ) : (
+        <ReportDownload scope={scope} path={path} label="Sales by item export" />
+      )}
       {items.isError ? (
         <RequestFailure message="Could not load sales by item." retry={items.retry} />
       ) : items.isPending ? (
@@ -308,9 +345,10 @@ const kindLabel: Record<PharmacyReceiptKind, string> = {
 
 /** Every payment taken and refund paid over the period, oldest first (#1060). */
 export function ReceiptsRegister({ scope, period }: { scope: PharmacyScope; period: Period }) {
+  const path = pharmacyReceiptsPath(scope, period.from, period.to);
   const entries = useApiPagedQuery<PharmacyReceipt>(
     pharmacyKey(scope, "receipts", period.from, period.to),
-    pharmacyReceiptsPath(scope, period.from, period.to),
+    path,
   );
   return (
     <section className="mt-6" aria-labelledby="receipts-heading">
@@ -321,6 +359,7 @@ export function ReceiptsRegister({ scope, period }: { scope: PharmacyScope; peri
         Each payment and refund, to tick off against the till or a statement. Cash is what was
         applied to the sale, not counting change.
       </p>
+      <ReportDownload scope={scope} path={path} label="Receipts and refunds export" />
       {entries.isError ? (
         <RequestFailure message="Could not load receipts and refunds." retry={entries.retry} />
       ) : entries.isPending ? (
@@ -497,6 +536,7 @@ export function PatientSaleLines({
 /** Each product's sales over the period beside its stock now (#1060, legacy 755). */
 export function StockSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
   const [category, setCategory] = useState<PharmacyReportCategory>({});
+  const path = pharmacyStockSalesPath(scope, period.from, period.to, category);
   const rows = useApiPagedQuery<PharmacyStockSales>(
     pharmacyKey(
       scope,
@@ -506,7 +546,7 @@ export function StockSales({ scope, period }: { scope: PharmacyScope; period: Pe
       category.categoryId ?? "",
       category.subcategoryId ?? "",
     ),
-    pharmacyStockSalesPath(scope, period.from, period.to, category),
+    path,
   );
   return (
     <section className="mt-6" aria-labelledby="stock-sales-heading">
@@ -518,6 +558,7 @@ export function StockSales({ scope, period }: { scope: PharmacyScope; period: Pe
         listed under its category today, with only the sales made while it was in it.
       </p>
       <CategoryFilter scope={scope} id="stock-sales" value={category} onChange={setCategory} />
+      <ReportDownload scope={scope} path={path} label="Sales and stock export" />
 
       {rows.isError ? (
         <RequestFailure message="Could not load sales and stock." retry={rows.retry} />

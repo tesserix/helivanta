@@ -221,31 +221,56 @@ func lineFilters(line string) string {
 
 var receiptKinds = map[string]bool{"cash": true, "upi": true, "upi_verified": true, "card": true, "admission_account": true}
 
-func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
-	return salesReportPage[itemSalesRow](c, h, params, "sales by item", "product_id", reportExtras{category: true, line: true}, itemSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+// salesReport is one report: its query, its filters and their arguments.
+// Its pages and its CSV file (report_csv.go) read it the same way.
+type salesReport[T any] struct {
+	what, filter string
+	extras       reportExtras
+	query        string
+	args         func(string, uuid.UUID, salesReportFilter) []any
+}
+
+var itemSalesReport = salesReport[itemSalesRow]{"sales by item", "product_id", reportExtras{category: true, line: true}, itemSalesRows,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
 		period := append(append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...), f.lineArgs()...)
 		return append(append(period, period...), tenant, outlet, f.product, f.product)
-	})
+	}}
+
+var patientSalesReport = salesReport[patientSaleLine]{"patient-wise sales", "patient_id", reportExtras{}, patientSaleLines,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		return []any{f.until, tenant, outlet, f.patient, f.since, f.until}
+	}}
+
+var stockSalesReport = salesReport[stockSalesRow]{"the sales stock report", "", reportExtras{category: true}, stockSalesRows,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		period := append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...)
+		return append(append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet), f.categoryArgs(f.today)...)
+	}}
+
+var receiptsReport = salesReport[receiptEntry]{"the receipts register", "kind", reportExtras{}, receiptRows,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		half := []any{tenant, outlet, f.since, f.until, f.kind, f.kind}
+		return append(half, half...)
+	}}
+
+func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
+	rows, _, _ := itemSalesReport.read(c, h, params)
+	return rows, nil
 }
 
 func (h *catalogueHandlers) listPatientSales(c *gin.Context, params pagination.Params) ([]patientSaleLine, error) {
-	return salesReportPage[patientSaleLine](c, h, params, "patient-wise sales", "patient_id", reportExtras{}, patientSaleLines, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		return []any{f.until, tenant, outlet, f.patient, f.since, f.until}
-	})
+	rows, _, _ := patientSalesReport.read(c, h, params)
+	return rows, nil
 }
 
 func (h *catalogueHandlers) listStockSales(c *gin.Context, params pagination.Params) ([]stockSalesRow, error) {
-	return salesReportPage[stockSalesRow](c, h, params, "the sales stock report", "", reportExtras{category: true}, stockSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		period := append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...)
-		return append(append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet), f.categoryArgs(f.today)...)
-	})
+	rows, _, _ := stockSalesReport.read(c, h, params)
+	return rows, nil
 }
 
 func (h *catalogueHandlers) listReceipts(c *gin.Context, params pagination.Params) ([]receiptEntry, error) {
-	return salesReportPage[receiptEntry](c, h, params, "the receipts register", "kind", reportExtras{}, receiptRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		half := []any{tenant, outlet, f.since, f.until, f.kind, f.kind}
-		return append(half, half...)
-	})
+	rows, _, _ := receiptsReport.read(c, h, params)
+	return rows, nil
 }
 
 // salesReportFilter is the period and the one optional filter; an absent
@@ -388,18 +413,18 @@ func reportLines(c *gin.Context, args *salesReportFilter) bool {
 	return true
 }
 
-// salesReportPage refuses malformed scope ids before reading the query
-// string; the outlet grant is checked in the transaction, as for the daily
-// report.
-func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, what, filter string, extras reportExtras, query string,
-	args func(string, uuid.UUID, salesReportFilter) []any) ([]T, error) {
+// read refuses malformed scope ids before reading the query string; the
+// outlet grant is checked in the transaction, as for the daily report. It
+// returns the rows of one page and the filter that chose them; false means
+// the response is written.
+func (r salesReport[T]) read(c *gin.Context, h *catalogueHandlers, params pagination.Params) ([]T, salesReportFilter, bool) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
-		return nil, nil
+		return nil, salesReportFilter{}, false
 	}
-	f, ok := salesReportArgs(c, what, filter, extras)
+	f, ok := salesReportArgs(c, r.what, r.filter, r.extras)
 	if !ok {
-		return nil, nil
+		return nil, f, false
 	}
 	var rows []T
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
@@ -412,7 +437,7 @@ func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params paginat
 		if f.today, err = outletLocalDate(tx, p.TenantID, outlet); err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyOrderedKeyset(tx.Table(query, args(p.TenantID, outlet, f)...), params,
+		if err := tenantdb.ApplyOrderedKeyset(tx.Table(r.query, r.args(p.TenantID, outlet, f)...), params,
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}).Find(&rows).Error; err != nil {
 			return err
 		}
@@ -428,8 +453,9 @@ func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params paginat
 	})
 	if err != nil {
 		stockError(c, err)
+		return nil, f, false
 	}
-	return rows, nil
+	return rows, f, true
 }
 
 // maxPrescribers bounds the period's prescriber list; more is said, and the

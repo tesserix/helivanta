@@ -111,3 +111,27 @@ The exact Pharma binding workspace, typed command client, purpose-limited choice
 writer/concurrent-command orderings and ordinary-role browser acceptance remain
 open. Source publication is a draft review increment. Merge, production migration and
 activation gates remain open.
+
+### Typed reader follow-up
+
+Published source increment **906867d4** is draft
+[PR1583](https://github.com/tesserix/helivanta/pull/1583), stacked on1580;
+it remains unmerged and undeployed. Five subsequent IAM expiry runs pass
+**151.211s** with failure-only diagnostics; the earlier failures remain unexplained.
+
+The typed SDK now reads exact detail, bounded relationship pages and history.
+It uses Global API, expected account/tenant intent, no-store, caller cancellation
+and transition cancellation. Late responses are discarded even if the transport
+ignores cancellation. It verifies scope/identity, paired replacement fields,
+decision/state consistency, source-state applicability, duplicate IDs irrespective
+of case, pagination continuation and historical authorization observations.
+Historical observations cannot authorize new commands. Existing canonical Staff
+UUIDs remain supported; the reader does not demand a newly created Staff ID.
+
+Observed RED evidence includes nine hostile/cancelled responses initially returned,
+13 inconsistent paging/history/proof responses initially returned and three
+actor/identifier consistency defects. All **45 reader tests** now pass. Full SDK
+passes **786 /83 files /9.90s**, API/shell typechecks and reader ESLint pass.
+Exact source/outlet choice APIs, mutation/receipt client, binding workspace,
+concurrency/source-writer acceptance and ordinary-role browser acceptance remain
+open; this is a verified reader, not full binding or Staff completion.

@@ -2,6 +2,14 @@
 
 ## Pharmacy department relationships — local candidate, 2026-11-05
 
+Source increment **906867d4** is published in draft
+[PR1583](https://github.com/tesserix/helivanta/pull/1583). A typed reader follow-up
+adds exact detail/list/history validation and cancellation protections: **45 new
+tests**, full SDK **786 /83 files**, API/shell typechecks and ESLint pass.
+Five subsequent IAM expiry runs pass **151.211s**, without establishing the earlier
+failure's cause. Mutation client, purpose-limited choices, workspace, concurrency
+and ordinary-role browser acceptance remain open. No merge or deployment claimed.
+
 The current branch adds an independently reviewed relationship between a
 hospital-owned Pharmacy outlet and an Organization-owned department revision.
 Workforce remains the canonical Staff owner. Separate exact preparer/reviewer

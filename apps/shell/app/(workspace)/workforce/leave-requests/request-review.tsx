@@ -13,8 +13,8 @@ import {
   type LeaveRequestDetail,
   type LeaveRequestEvent,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeLeave } from "./requests-workspace";
 import { LeaveRouteSection } from "./route-section";
@@ -68,7 +68,11 @@ export function LeaveRequestReview({
       {detail.isPending ? (
         <p role="status">Loading request…</p>
       ) : detail.isError ? (
-        <Failure message="Could not load the leave request." retry={() => void detail.refetch()} />
+        <RequestFailure
+          message="Could not load the leave request."
+          retry={() => void detail.refetch()}
+          error={detail.error}
+        />
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 text-sm sm:grid-cols-2">
@@ -132,7 +136,11 @@ export function LeaveRequestReview({
         ) : history.isPending ? (
           <p role="status">Loading history…</p>
         ) : history.isError ? (
-          <Failure message="Could not load the request history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load the request history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ul className="space-y-2 text-sm">
             {history.items.map((e) => (

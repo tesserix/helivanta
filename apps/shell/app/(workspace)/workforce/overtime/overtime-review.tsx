@@ -15,8 +15,8 @@ import {
   type OvertimeEvent,
   type OvertimeRequest,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeOvertime } from "./overtime-workspace";
 
@@ -88,9 +88,10 @@ export function OvertimeReview({
       {detail.isPending ? (
         <p role="status">Loading overtime…</p>
       ) : detail.isError ? (
-        <Failure
+        <RequestFailure
           message="Could not load the overtime request."
           retry={() => void detail.refetch()}
+          error={detail.error}
         />
       ) : (
         <div className="space-y-6">
@@ -122,7 +123,11 @@ export function OvertimeReview({
         {history.isPending ? (
           <p role="status">Loading history…</p>
         ) : history.isError ? (
-          <Failure message="Could not load the overtime history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load the overtime history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ul className="space-y-2 text-sm">
             {history.items.map((e) => (

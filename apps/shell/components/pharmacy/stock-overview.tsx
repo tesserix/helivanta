@@ -75,7 +75,11 @@ export function StockOverview({ scope }: { scope: PharmacyStockOverviewScope }) 
         Snapshot: {asOf}. Expiry uses each outlet&apos;s local date.
       </p>
       {page.isError ? (
-        <RequestFailure message="Could not load stock across outlets." retry={page.refetch} />
+        <RequestFailure
+          message="Could not load stock across outlets."
+          retry={page.refetch}
+          error={page.error}
+        />
       ) : !page.data ? (
         <p role="status">Loading stock across outlets…</p>
       ) : (

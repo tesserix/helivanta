@@ -20,8 +20,15 @@ import {
   type CredentialReminderStatus,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import {
+  Field,
+  LoadMore,
+  PageHeading,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 
 const statuses: { value: CredentialReminderStatus; label: string }[] = [
   { value: "open", label: "Open" },
@@ -69,7 +76,11 @@ export function CredentialRemindersWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <Reminders key={hospital.id} hospital={hospital} />
       ) : (
@@ -111,7 +122,11 @@ function Reminders({ hospital }: { hospital: Hospital }) {
       {policy.isPending ? (
         <p role="status">Loading reminder days…</p>
       ) : policy.isError ? (
-        <Failure message="Could not load the reminder days." retry={() => void policy.refetch()} />
+        <RequestFailure
+          message="Could not load the reminder days."
+          retry={() => void policy.refetch()}
+          error={policy.error}
+        />
       ) : (
         <PolicyForm key={policy.data.version} hospital={hospital} policy={policy.data} />
       )}
@@ -214,7 +229,7 @@ function Inbox({ hospital }: { hospital: Hospital }) {
       {rows.isPending ? (
         <p role="status">Loading reminders…</p>
       ) : rows.isError ? (
-        <Failure message="Could not load reminders." retry={rows.retry} />
+        <RequestFailure message="Could not load reminders." retry={rows.retry} error={rows.error} />
       ) : rows.items.length === 0 ? (
         <p className="rounded-xl border p-6 text-sm">
           No {statuses.find((s) => s.value === status)?.label.toLowerCase()} reminders.

@@ -93,4 +93,21 @@ describe("PharmacyLookupAccess", () => {
     expect(await screen.findByText("No pharmacist has lookup access.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Grant lookup access" })).toBeNull();
   });
+
+  // #1591: a refused read is not an outage, so it offers no retry.
+  it("shows a 403 as a refusal with no retry", async () => {
+    stub(["iam.member.manage"], []);
+    const base = vi.mocked(fetch);
+    const original = base.getMockImplementation()!;
+    base.mockImplementation(async (url, init) =>
+      String(url).includes("pharmacy-lookup-access")
+        ? new Response(JSON.stringify({ error: "forbidden", message: "no" }), { status: 403 })
+        : original(url, init),
+    );
+    render();
+    expect(
+      await screen.findByText("This wasn't found, or you don't have access to it."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
 });

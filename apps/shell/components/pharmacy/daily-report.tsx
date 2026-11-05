@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button, Input } from "@tesserix/web";
 import {
   pharmacyDailyReportPath,
@@ -28,12 +28,15 @@ import {
  * summed per outlet day, read afresh from the records each time.
  */
 export function DailyReport({ scope, today }: { scope: PharmacyScope; today: string }) {
+  const headingId = useId();
   const [period, setPeriod] = useState<Period>({ from: today.slice(0, 8) + "01", to: today });
   const form = useZodForm(periodSchema, period);
   const { can } = usePermissions();
   return (
-    <Panel>
-      <h3 className="font-semibold">Daily sales</h3>
+    <Panel aria-labelledby={headingId}>
+      <h3 id={headingId} className="font-semibold">
+        Daily sales
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
         Each day&apos;s invoices, credit notes, payments taken and refunds paid, by the
         outlet&apos;s date. A return counts on the day it was taken. Cash is what was applied to the

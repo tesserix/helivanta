@@ -387,7 +387,8 @@ optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmac
 [Design](../../superpowers/specs/2026-11-05-pharmacy-report-walkthrough-design.md).
 
 - **Each report section shows its own state.** This covers each section of Daily sales, the Sales worklist, and an opened sale's statement. In order:
-  - **Refused:** a 401, 403 or 404, including access withdrawn while the page is open. The report sections say "You don't have access to this outlet's reports."; the statement says "This sale was not found, or you do not have access.". Neither offers "Try again", because retrying can't change an access answer.
+  - **Refused:** a 403 or 404, including access withdrawn while the page is open. The report sections say "You don't have access to this outlet's reports."; the statement says "This sale was not found, or you do not have access.". Neither offers "Try again", because retrying can't change an access answer.
+  - **Session ended:** a 401 says "Your session has ended. Sign in again to continue.", with no "Try again". Every screen behaves this way (#1591, [frontend standards §5](../../standards/frontend.md#failed-and-refused-reads-1276-1591)).
   - **Failed:** the section's message with "Try again". The other sections keep their rows.
   - **Loading** and **empty**, both announced (`role="status"`). The empty state is a sentence naming the period.
 

@@ -89,7 +89,11 @@ function MyShift({ hospital }: { hospital: Hospital }) {
   if (none) return <IncomingHandovers hospital={hospital} />;
   if (shift.isError)
     return (
-      <RequestFailure message="Could not load your shift." retry={() => void shift.refetch()} />
+      <RequestFailure
+        message="Could not load your shift."
+        retry={() => void shift.refetch()}
+        error={shift.error}
+      />
     );
   if (shift.isPending) return null;
   const s = shift.data;
@@ -206,7 +210,11 @@ function IncomingHandovers({ hospital }: { hospital: Hospital }) {
   );
   if (offers.isError)
     return (
-      <RequestFailure message="Could not load the drawers handed to you." retry={offers.retry} />
+      <RequestFailure
+        message="Could not load the drawers handed to you."
+        retry={offers.retry}
+        error={offers.error}
+      />
     );
   if (offers.isPending) return null;
   const disputed = offers.items.filter((h) => h.status === "disputed");
@@ -308,7 +316,13 @@ function OpenShift({ hospital }: { hospital: Hospital }) {
     { successToast: "Shift opened", invalidate: [["billing", "my-shift", hospital.id]] },
   );
   if (counters.isError)
-    return <RequestFailure message="Could not load the counters." retry={counters.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the counters."
+        retry={counters.retry}
+        error={counters.error}
+      />
+    );
   if (counters.items.length === 0 && !counters.isPending)
     return <p className="text-sm text-muted-foreground">No counter is set up here yet.</p>;
   return (
@@ -409,6 +423,7 @@ function CountForm({
       <RequestFailure
         message="Could not load the notes and coins."
         retry={() => void denominations.refetch()}
+        error={denominations.error}
       />
     );
   if (denominations.isPending) return null;
@@ -474,7 +489,13 @@ function Variances({ hospital }: { hospital: Hospital }) {
     `/billing/hospitals/${hospital.id}/cash-shifts?status=pending_authorisation`,
   );
   if (shifts.isError)
-    return <RequestFailure message="Could not load the shifts." retry={shifts.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the shifts."
+        retry={shifts.retry}
+        error={shifts.error}
+      />
+    );
   const pending = shifts.items;
   return (
     <div>
@@ -560,7 +581,13 @@ function DisputedHandovers({ hospital }: { hospital: Hospital }) {
     `/billing/hospitals/${hospital.id}/cash-handovers/disputed`,
   );
   if (handovers.isError)
-    return <RequestFailure message="Could not load the handovers." retry={handovers.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the handovers."
+        retry={handovers.retry}
+        error={handovers.error}
+      />
+    );
   return (
     <div>
       <h4 className="text-sm font-medium">Handovers to settle</h4>
@@ -653,7 +680,13 @@ function OpenShifts({ hospital }: { hospital: Hospital }) {
     `/billing/hospitals/${hospital.id}/cash-shifts?status=open`,
   );
   if (shifts.isError)
-    return <RequestFailure message="Could not load the open shifts." retry={shifts.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the open shifts."
+        retry={shifts.retry}
+        error={shifts.error}
+      />
+    );
   const others = shifts.items.filter((s) => s.id !== mine.shift.data?.id);
   return (
     <div>
@@ -710,7 +743,11 @@ function PickupShift({ hospital, shift }: { hospital: Hospital; shift: CashShift
         {shift.picked_up_minor > 0 && <> · taken to the safe {money(shift.picked_up_minor)}</>}
       </p>
       {pickups.isError ? (
-        <RequestFailure message="Could not load the pickups." retry={pickups.retry} />
+        <RequestFailure
+          message="Could not load the pickups."
+          retry={pickups.retry}
+          error={pickups.error}
+        />
       ) : (
         <ul className="mt-1">
           {items
@@ -906,7 +943,11 @@ function Counters({ hospital }: { hospital: Hospital }) {
     <div>
       <h4 className="text-sm font-medium">Counters</h4>
       {counters.isError ? (
-        <RequestFailure message="Could not load the counters." retry={counters.retry} />
+        <RequestFailure
+          message="Could not load the counters."
+          retry={counters.retry}
+          error={counters.error}
+        />
       ) : (
         <ul className="text-sm">
           {counters.items.map((c) => (

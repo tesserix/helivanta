@@ -160,7 +160,11 @@ function Allergies({
       {status.isPending ? (
         <p>Loading allergies…</p>
       ) : status.isError ? (
-        <RequestFailure message="Could not load allergies." retry={() => void status.refetch()} />
+        <RequestFailure
+          message="Could not load allergies."
+          retry={() => void status.refetch()}
+          error={status.error}
+        />
       ) : (
         <AllergyBody
           s={status.data}
@@ -610,6 +614,7 @@ function RecordAllergy({
             <RequestFailure
               message="Could not search the drug catalogue."
               retry={() => void drugs.refetch()}
+              error={drugs.error}
             />
           )}
         </form>
@@ -707,7 +712,11 @@ function Weight({
       ) : none ? (
         <p className="text-sm text-muted-foreground">No weight recorded.</p>
       ) : latest.isError ? (
-        <RequestFailure message="Could not load weight." retry={() => void latest.refetch()} />
+        <RequestFailure
+          message="Could not load weight."
+          retry={() => void latest.refetch()}
+          error={latest.error}
+        />
       ) : (
         <p className="text-sm">
           {latest.data.weight_kg} kg ({latest.data.method}),{" "}

@@ -64,7 +64,11 @@ function Entries({ scope, period }: { scope: PharmacyScope; period: Period }) {
         download={(signal) => fetchPharmacyH1RegisterCSV(scope, period.from, period.to, signal)}
       />
       {entries.isError ? (
-        <RequestFailure message="Could not load the H1 register." retry={entries.retry} />
+        <RequestFailure
+          message="Could not load the H1 register."
+          retry={entries.retry}
+          error={entries.error}
+        />
       ) : entries.isPending ? (
         <p role="status">Loading the register…</p>
       ) : entries.items.length === 0 ? (

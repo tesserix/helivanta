@@ -14,8 +14,8 @@ import {
   type RosterConfig,
   type Staff,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, firstError, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { ReviewCheck, SaveError, useRosterWrite } from "./roster-ui";
 
 type Mode = RosterChangeInput["mode"];
@@ -106,12 +106,13 @@ export function ChangeEditor({
           </p>
         </div>
         {staff.isError || areas.isError ? (
-          <Failure
+          <RequestFailure
             message="Could not load staff or roster areas."
             retry={() => {
               staff.retry();
               areas.retry();
             }}
+            error={firstError(staff.error, areas.error)}
           />
         ) : (
           <div className="grid items-end gap-4 sm:grid-cols-5">

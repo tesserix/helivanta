@@ -25,6 +25,7 @@ import {
   Panel,
   SelectControl,
   useZodForm,
+  RequestFailure,
 } from "@helivanta/ui";
 import { PharmacyAffiliationReviews } from "./pharmacy-affiliation-reviews";
 
@@ -56,7 +57,11 @@ export function PatientWorkspace() {
         }
       />
       {hospitals.isError ? (
-        <Failure message="Could not load your hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load your hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospital ? (
@@ -76,17 +81,6 @@ export function PatientWorkspace() {
         onClick={hospitals.loadMore}
       />
     </>
-  );
-}
-
-function Failure({ message, retry }: { message: string; retry: () => void }) {
-  return (
-    <Panel role="alert" as="div">
-      <p className="mb-3 text-sm">{message}</p>
-      <Button variant="outline" onClick={retry}>
-        Try again
-      </Button>
-    </Panel>
   );
 }
 
@@ -119,9 +113,11 @@ function HospitalPatients({ hospital }: { hospital: Hospital }) {
       {access.isPending ? (
         <p role="status">Checking clinical access…</p>
       ) : access.isError ? (
-        <Failure
+        <RequestFailure
           message="Clinical access is not available. Ask your administrator for a patient-registry grant, or retry if access was just updated."
+          refused="Clinical access is not available. Ask your administrator for a patient-registry grant."
           retry={() => void access.refetch()}
+          error={access.error}
         />
       ) : (
         <Registry
@@ -225,9 +221,10 @@ function Registry({
         </form>
         {patients.isError ? (
           <div className="p-5">
-            <Failure
+            <RequestFailure
               message="Could not load patients. No records are shown until access can be verified."
               retry={patients.retry}
+              error={patients.error}
             />
           </div>
         ) : patients.isPending ? (
@@ -370,9 +367,10 @@ function PatientDetail({
       {record.isPending ? (
         <p role="status">Loading patient…</p>
       ) : record.isError ? (
-        <Failure
+        <RequestFailure
           message="This patient record could not be opened. Check hospital access and try again."
           retry={() => void record.refetch()}
+          error={record.error}
         />
       ) : (
         record.data && (

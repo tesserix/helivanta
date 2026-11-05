@@ -18,8 +18,8 @@ import {
   type LeaveYearOpenInput,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1),
@@ -57,7 +57,11 @@ export function LeaveSettingsPanel({
         </p>
       ) : (
         <div className="mt-3">
-          <Failure message="Could not load the leave year." retry={() => void settings.refetch()} />
+          <RequestFailure
+            message="Could not load the leave year."
+            retry={() => void settings.refetch()}
+            error={settings.error}
+          />
         </div>
       )}
     </section>
@@ -164,7 +168,11 @@ export function LeaveYearsPanel({
         </p>
       ) : years.isError ? (
         <div className="p-5">
-          <Failure message="Could not load leave years." retry={years.retry} />
+          <RequestFailure
+            message="Could not load leave years."
+            retry={years.retry}
+            error={years.error}
+          />
         </div>
       ) : years.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">No leave year has been opened.</p>
@@ -309,7 +317,11 @@ function RunHistory({
       {runs.isPending ? (
         <p role="status">Loading runs…</p>
       ) : runs.isError ? (
-        <Failure message="Could not load posting runs." retry={runs.retry} />
+        <RequestFailure
+          message="Could not load posting runs."
+          retry={runs.retry}
+          error={runs.error}
+        />
       ) : runs.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing has been posted for this year.</p>
       ) : (

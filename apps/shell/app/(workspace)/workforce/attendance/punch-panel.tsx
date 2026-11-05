@@ -16,8 +16,8 @@ import {
   type AttendanceVoidInput,
   type Staff,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { CorrectionForm } from "./correction-form";
 
@@ -271,7 +271,7 @@ export function PunchLedger({
       </div>
       {staff.isError ? (
         <div className="p-5">
-          <Failure message="Could not load staff." retry={staff.retry} />
+          <RequestFailure message="Could not load staff." retry={staff.retry} error={staff.error} />
         </div>
       ) : !ready ? (
         person === "" && (
@@ -285,7 +285,11 @@ export function PunchLedger({
         </p>
       ) : punches.isError ? (
         <div className="p-5">
-          <Failure message="Could not load punches." retry={punches.retry} />
+          <RequestFailure
+            message="Could not load punches."
+            retry={punches.retry}
+            error={punches.error}
+          />
         </div>
       ) : punches.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

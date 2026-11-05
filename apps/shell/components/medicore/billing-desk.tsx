@@ -27,7 +27,13 @@ export function BillingDeskPage() {
   const hospitals = useApiPagedQuery<Hospital>(["workforce", "hospitals"], "/workforce/hospitals");
   const hospital = hospitals.items.find((item) => item.id === hospitalId) ?? hospitals.items[0];
   if (hospitals.isError)
-    return <RequestFailure message="Could not load your hospitals." retry={hospitals.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load your hospitals."
+        retry={hospitals.retry}
+        error={hospitals.error}
+      />
+    );
   if (hospitals.isPending) return <p role="status">Loading hospitals…</p>;
   if (!hospital)
     return (
@@ -114,7 +120,13 @@ function Accounts({ hospital, view }: { hospital: Hospital; view: DeskView }) {
     `/billing/hospitals/${hospital.id}/accounts${view ? `?view=${view}` : ""}`,
   );
   if (accounts.isError)
-    return <RequestFailure message="Could not load the accounts." retry={accounts.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the accounts."
+        retry={accounts.retry}
+        error={accounts.error}
+      />
+    );
   if (accounts.items.length === 0 && !accounts.isPending)
     return <p className="mt-3 text-sm text-muted-foreground">No accounts here.</p>;
   return (

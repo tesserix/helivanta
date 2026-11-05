@@ -39,6 +39,7 @@ import {
   Pager,
   Panel,
   QueryState,
+  firstError,
   RequestFailure,
   SelectControl,
   isModifiedClick,
@@ -268,6 +269,7 @@ function ScopedSafety({ scope, timeZone, tabs }: ZonedProps & { tabs: React.Reac
           <RequestFailure
             message="Could not verify safety access. Previously loaded records are hidden."
             retry={permissions.refetch}
+            error={permissions.error}
           />
         ) : permissions.isPending ? (
           <p role="status">Checking safety access…</p>
@@ -320,6 +322,7 @@ function SafetyCollections({
           if (canReadProducts) products.retry();
           locations.retry();
         }}
+        error={firstError(batches.error, locations.error)}
       />
     );
   if (batches.isPending || locations.isPending)
@@ -331,7 +334,9 @@ function SafetyCollections({
       {canReadProducts && products.isError && (
         <RequestFailure
           message="Product names are unavailable. Exact batch, expiry and product identifiers remain available."
+          refused="Product names are unavailable. Exact batch, expiry and product identifiers remain available."
           retry={products.retry}
+          error={products.error}
         />
       )}
       {canReadProducts && products.isPending && (
@@ -505,6 +510,7 @@ function BatchPane({
     <RequestFailure
       message="Could not verify safety access. Previously loaded records are hidden."
       retry={permissions.refetch}
+      error={permissions.error}
     />
   ) : permissions.isPending ? (
     <p role="status">Checking safety access…</p>
@@ -515,11 +521,19 @@ function BatchPane({
       This record was not found, or you do not have access.
     </p>
   ) : batch.isError ? (
-    <RequestFailure message="Could not load this batch." retry={batch.refetch} />
+    <RequestFailure
+      message="Could not load this batch."
+      retry={batch.refetch}
+      error={batch.error}
+    />
   ) : !row || locations.isPending ? (
     <p role="status">Loading batch…</p>
   ) : locations.isError ? (
-    <RequestFailure message="Could not load safety locations." retry={locations.retry} />
+    <RequestFailure
+      message="Could not load safety locations."
+      retry={locations.retry}
+      error={locations.error}
+    />
   ) : (
     <SelectedBatchSafety
       scope={scope}
@@ -562,6 +576,7 @@ function SelectedBatchSafety({
       <RequestFailure
         message="Could not load this batch's safety history. Previously loaded records and the recording form are hidden."
         retry={incidents.retry}
+        error={incidents.error}
       />
     );
   if (incidents.isPending) return <p role="status">Loading batch safety history…</p>;

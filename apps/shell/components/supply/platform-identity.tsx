@@ -36,6 +36,7 @@ export function PlatformIdentity({
         <RequestFailure
           message="Workspace identity could not be confirmed. Try again or contact your platform administrator."
           retry={check.refetch}
+          error={check.error}
         />
       ) : check.data ? (
         <div className="space-y-4">

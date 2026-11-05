@@ -141,6 +141,7 @@ export function BillingUpi({
       <RequestFailure
         message={`Could not check the ${label}.`}
         retry={() => void request.refetch()}
+        error={request.error}
       />
     );
   if (id && !u) return <p role="status">Starting UPI…</p>;

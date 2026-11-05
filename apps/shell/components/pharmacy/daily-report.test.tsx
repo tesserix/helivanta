@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DailyReport } from "./daily-report";
@@ -175,12 +175,9 @@ describe("DailyReport", () => {
     unmount();
     serve("refuse");
     renderWithProviders(<DailyReport scope={scope} today="2026-11-15" />);
-    await waitFor(() =>
-      expect(
-        screen
-          .getAllByRole("alert")
-          .some((a) => a.textContent === "You don't have access to this outlet's reports."),
-      ).toBe(true),
+    const daily = await screen.findByRole("region", { name: "Daily sales" });
+    expect(await within(daily).findByRole("alert")).toHaveTextContent(
+      "You don't have access to this outlet's reports.",
     );
     expect(screen.queryByText("Could not load the daily report.")).toBeNull();
   });

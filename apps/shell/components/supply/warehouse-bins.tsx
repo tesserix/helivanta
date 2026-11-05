@@ -90,6 +90,7 @@ export function WarehouseBins({
         <RequestFailure
           message="Could not load warehouse bins. Refresh access or contact your administrator."
           retry={bins.retry}
+          error={bins.error}
         />
       ) : bins.isPending ? (
         <p role="status">Loading bins…</p>
@@ -323,7 +324,11 @@ function BinHistory({
         </Button>
       </div>
       {history.isError ? (
-        <RequestFailure message="Could not load retained bin history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load retained bin history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : history.isPending ? (
         <p role="status">Loading bin history…</p>
       ) : (

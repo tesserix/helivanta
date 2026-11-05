@@ -65,6 +65,7 @@ function StaffSourceAccount({ onRestart }: { onRestart: () => void }) {
       <RequestFailure
         message="Could not verify your pharmacy Staff workspace."
         retry={identity.refetch}
+        error={identity.error}
       />
     );
   if (!parsed.data.data.includes("pharmacy.catalogue.read"))
@@ -107,7 +108,11 @@ function StaffSourceHospitals({ scope, onContextChanged }: SourceProps) {
       {query.isPending ? (
         <p role="status">Loading Staff source hospitals…</p>
       ) : query.isError ? (
-        <RequestFailure message="Could not load Staff source hospitals." retry={query.refetch} />
+        <RequestFailure
+          message="Could not load Staff source hospitals."
+          retry={query.refetch}
+          error={query.error}
+        />
       ) : query.data && query.data.data.length > 0 ? (
         <HospitalSourcePage
           key={cursor ?? "first"}
@@ -192,6 +197,7 @@ function HospitalSource({
       rows={query.data?.data ?? []}
       isPending={query.isPending}
       isError={query.isError}
+      error={query.error}
       onRetry={() => query.refetch()}
       onFirstPage={cursor ? () => setCursor(null) : undefined}
       onNextPage={

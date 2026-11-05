@@ -45,7 +45,11 @@ export function OrganizationStructure() {
   const parsed = identityContract.safeParse(identity.data);
   if (identity.isError || !parsed.success)
     return (
-      <RequestFailure message="Could not verify organization access." retry={identity.refetch} />
+      <RequestFailure
+        message="Could not verify organization access."
+        retry={identity.refetch}
+        error={identity.error}
+      />
     );
   if (!parsed.data.data.includes("organization.structure.read"))
     return <Panel role="alert">Organization structure access required</Panel>;
@@ -123,7 +127,11 @@ function StructureHospitals({ scope, canManage }: Props) {
             {query.isPending ? (
               <p role="status">Loading hospital references…</p>
             ) : query.isError ? (
-              <RequestFailure message="Could not load hospital references." retry={query.refetch} />
+              <RequestFailure
+                message="Could not load hospital references."
+                retry={query.refetch}
+                error={query.error}
+              />
             ) : (
               <>
                 {query.data?.data.length === 0 ? (
@@ -286,6 +294,7 @@ function DepartmentDirectory({ scope, canManage, hospital }: Props & { hospital:
           <RequestFailure
             message="Could not load departments. Current access must be verified before editing."
             retry={query.refetch}
+            error={query.error}
           />
         ) : (
           <>
@@ -575,7 +584,11 @@ function DepartmentHistory({
       {query.isPending ? (
         <p role="status">Loading department history…</p>
       ) : query.isError ? (
-        <RequestFailure message="Could not verify department history." retry={query.refetch} />
+        <RequestFailure
+          message="Could not verify department history."
+          retry={query.refetch}
+          error={query.error}
+        />
       ) : (
         <>
           <ol className="divide-y">

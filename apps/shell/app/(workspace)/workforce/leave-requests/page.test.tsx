@@ -164,7 +164,10 @@ it("hides private history and decisions when request access cannot be verified",
   mock({ detailFailure: true, historyNote: "Private review history" });
   const { user } = renderWithProviders(<LeaveRequests />);
   await user.click(await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }));
-  expect(await screen.findByText("Could not load the leave request.")).toBeInTheDocument();
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   expect(screen.queryByText(/Private review history/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve leave" })).not.toBeInTheDocument();
 });

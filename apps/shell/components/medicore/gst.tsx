@@ -70,6 +70,7 @@ function GstPanel({ hospital }: { hospital: Hospital }) {
           <RequestFailure
             message="Could not load the hospital's timezone."
             retry={() => void charging.refetch()}
+            error={charging.error}
           />
         ) : charging.data ? (
           <RegistrationForm hospital={hospital} timezone={charging.data.timezone} />
@@ -78,6 +79,7 @@ function GstPanel({ hospital }: { hospital: Hospital }) {
         <RequestFailure
           message="Could not load the GST registration."
           retry={() => void registration.refetch()}
+          error={registration.error}
         />
       ) : (
         <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" aria-label="GST registration">
@@ -183,7 +185,11 @@ export function TaxInvoices({
     <section aria-label="Tax invoices" className="space-y-2 border-t border-border pt-2">
       <p className="text-sm font-medium">Tax invoices</p>
       {invoices.isError ? (
-        <RequestFailure message="Could not load the tax invoices." retry={invoices.retry} />
+        <RequestFailure
+          message="Could not load the tax invoices."
+          retry={invoices.retry}
+          error={invoices.error}
+        />
       ) : invoices.items.length === 0 && !invoices.isPending ? (
         <p className="text-sm text-muted-foreground">No tax invoice yet.</p>
       ) : (
@@ -230,7 +236,11 @@ export function TaxInvoices({
         onClick={invoices.loadMore}
       />
       {notes.isError ? (
-        <RequestFailure message="Could not load the credit notes." retry={notes.retry} />
+        <RequestFailure
+          message="Could not load the credit notes."
+          retry={notes.retry}
+          error={notes.error}
+        />
       ) : (
         notes.items.length > 0 && (
           <>
@@ -389,6 +399,7 @@ function DocumentDetail({
         <RequestFailure
           message={`Could not load the ${name.toLowerCase()} lines.`}
           retry={lines.retry}
+          error={lines.error}
         />
       ) : (
         <table className="w-full text-sm" aria-label={`${name} lines`}>

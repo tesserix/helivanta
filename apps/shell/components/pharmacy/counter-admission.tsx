@@ -76,6 +76,7 @@ export function CounterAdmissionLookup({
       <RequestFailure
         message="Could not check which hospitals have verified this pharmacy."
         retry={links.retry}
+        error={links.error}
       />
     );
   if (links.isPending || links.hasMore) return <p role="status">Checking verified hospitals…</p>;

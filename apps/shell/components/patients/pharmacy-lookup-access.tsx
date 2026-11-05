@@ -84,7 +84,11 @@ export function PharmacyLookupAccess({
         MRN and see only the name, age and sex. Every lookup is recorded.
       </p>
       {grants.isError ? (
-        <RequestFailure message="Could not load lookup access." retry={grants.retry} />
+        <RequestFailure
+          message="Could not load lookup access."
+          retry={grants.retry}
+          error={grants.error}
+        />
       ) : grants.items.length === 0 && !grants.isPending ? (
         <p className="mt-2 text-sm text-muted-foreground">No pharmacist has lookup access.</p>
       ) : (

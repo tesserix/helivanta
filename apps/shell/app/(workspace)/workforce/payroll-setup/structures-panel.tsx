@@ -11,10 +11,11 @@ import {
   type SalaryHead,
   type SalaryStructure,
 } from "@helivanta/api";
-import { Failure } from "../roster-policy/policy-ui";
+
 import { headsKey, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { StructureEditor } from "./structure-editor";
 import { StructurePreview } from "./structure-preview";
+import { RequestFailure } from "@helivanta/ui";
 
 export const describeLines = (s: SalaryStructure) =>
   s.lines
@@ -101,7 +102,11 @@ export function StructuresPanel({ hospital, writable }: { hospital: Hospital; wr
         </p>
       ) : structures.isError ? (
         <div className="p-5">
-          <Failure message="Could not load salary structures." retry={structures.retry} />
+          <RequestFailure
+            message="Could not load salary structures."
+            retry={structures.retry}
+            error={structures.error}
+          />
         </div>
       ) : structures.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

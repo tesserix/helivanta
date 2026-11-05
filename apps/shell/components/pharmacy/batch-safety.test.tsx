@@ -291,7 +291,7 @@ it("lets users correct a definite rejected request while retaining its identity"
   expect(JSON.parse(writes[1]?.[1]?.body as string).occurred_at).toBe("2026-10-17T09:30:00.000Z");
 });
 
-it("hides all history and the form after refresh is denied, then recovers explicitly", async () => {
+it("hides all history and the form after refresh is denied, and recovers without the draft", async () => {
   let reads = 0;
   fixture({
     incidents: () => {
@@ -308,12 +308,17 @@ it("hides all history and the form after refresh is denied, then recovers explic
   expect(await screen.findByText(incident.reason)).toBeVisible();
   await user.type(screen.getByLabelText("Reason and observed evidence"), "TEST private draft");
   await user.click(screen.getByRole("button", { name: "Refresh safety history" }));
-  expect(await screen.findByText(/could not load this batch's safety history/i)).toBeVisible();
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeVisible();
   expect(screen.queryByText(incident.reason)).not.toBeInTheDocument();
   expect(
     screen.queryByRole("form", { name: "Record batch safety concern" }),
   ).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Try again" }));
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  // Access restored: the window regaining focus re-reads, and the private
+  // draft typed before the refusal must not come back.
+  window.dispatchEvent(new Event("visibilitychange"));
   expect(await screen.findByText(incident.reason)).toBeVisible();
   expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue("");
 });
@@ -417,15 +422,18 @@ it("does not fetch stock options without stock read access", async () => {
   expect(fetcher.mock.calls).toHaveLength(1);
 });
 
-it("clears selected batch and private draft if loading more batch options fails", async () => {
+it("clears selected batch and private draft if loading more batch options is refused", async () => {
   let calls = 0;
+  let restored = false;
   fixture({
     batches: (url) => {
       calls += 1;
-      if (new URL(url, "http://localhost").searchParams.has("cursor"))
+      if (new URL(url, "http://localhost").searchParams.has("cursor") && !restored) {
+        restored = true;
         return new Response(JSON.stringify({ error: "forbidden", message: "TEST denied" }), {
           status: 403,
         });
+      }
       return new Response(
         JSON.stringify(
           page(
@@ -448,11 +456,13 @@ it("clears selected batch and private draft if loading more batch options fails"
   await screen.findByText(incident.reason);
   await user.type(screen.getByLabelText("Reason and observed evidence"), "TEST hidden draft");
   await user.click(screen.getByRole("button", { name: "Load more batches" }));
-  await screen.findByText(/could not load safety batch options/i);
+  await screen.findByText("This wasn't found, or you don't have access to it.");
   expect(screen.queryByText(incident.reason)).not.toBeInTheDocument();
   expect(screen.queryByRole("list", { name: "Batches at this outlet" })).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Try again" }));
-  // The batch is still the address's, so it reopens, without the hidden draft.
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  // Access restored: the window regaining focus re-reads, and the batch is
+  // still the address's, so it reopens without the hidden draft.
+  window.dispatchEvent(new Event("visibilitychange"));
   await screen.findByText(incident.reason);
   expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue("");
 });

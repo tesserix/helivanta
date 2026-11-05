@@ -25,6 +25,7 @@ import {
   FormSelectField,
   LoadMore,
   Panel,
+  firstError,
   RequestFailure,
   useZodForm,
 } from "@helivanta/ui";
@@ -135,7 +136,11 @@ export function ItemCategories({ scope, canEdit }: { scope: PharmacyScope; canEd
         but takes no new ones.
       </p>
       {list.isError ? (
-        <RequestFailure message="Could not load the categories." retry={list.retry} />
+        <RequestFailure
+          message="Could not load the categories."
+          retry={list.retry}
+          error={list.error}
+        />
       ) : list.isPending ? (
         <p role="status">Loading categories…</p>
       ) : top.length === 0 ? (
@@ -273,6 +278,7 @@ export function ProductCategorySection({
             void current.refetch();
             categories.retry();
           }}
+          error={firstError(current.error, categories.error)}
         />
       ) : !current.data || categories.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">

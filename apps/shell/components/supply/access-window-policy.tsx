@@ -30,6 +30,7 @@ export function useAccessWindowPolicy(scope: SupplyRegistryScope, enabled = true
     data: !query.isError && parsed.success ? parsed.data : null,
     ready: !query.isFetching && !query.isError && parsed.success,
     pending: query.isPending || query.isFetching,
+    error: query.error,
     refetch: query.refetch,
   };
 }
@@ -45,6 +46,7 @@ export function AccessWindowPolicyStatus({
       <RequestFailure
         message="Current access duration limits are unavailable. Retry before granting access."
         retry={policy.refetch}
+        error={policy.error}
       />
     );
   return null;

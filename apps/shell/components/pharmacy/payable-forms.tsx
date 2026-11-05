@@ -331,7 +331,11 @@ function ReceiptPicker({
         />
       </Field>
       {receipts.isError && (
-        <RequestFailure message="Could not load receiving lines." retry={receipts.retry} />
+        <RequestFailure
+          message="Could not load receiving lines."
+          retry={receipts.retry}
+          error={receipts.error}
+        />
       )}
       <LoadMore
         label="Load more receiving lines"
@@ -389,7 +393,11 @@ export function PayableHistory({
     );
   if (detail.isError)
     return (
-      <RequestFailure message="Could not load this financial document." retry={detail.refetch} />
+      <RequestFailure
+        message="Could not load this financial document."
+        retry={detail.refetch}
+        error={detail.error}
+      />
     );
   if (!detail.data) return <p role="status">Loading document…</p>;
   const doc = detail.data;
@@ -455,7 +463,11 @@ export function PayableHistory({
       <div>
         <h4 className="mb-3 font-semibold">Payments, credits & reversals</h4>
         {history.isError ? (
-          <RequestFailure message="Could not load settlement history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load settlement history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : history.isPending ? (
           <p role="status">Loading settlements…</p>
         ) : !history.items.length ? (

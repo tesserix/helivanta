@@ -8,7 +8,7 @@ import {
   type Hospital,
   type RosterConfig,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useConfirmLeave } from "@helivanta/ui";
+import { Field, PageHeading, SelectControl, useConfirmLeave, RequestFailure } from "@helivanta/ui";
 import { RosterEditor } from "./roster-editor";
 import { ConfigurationSummary, effectiveDate } from "./roster-summary";
 
@@ -58,7 +58,11 @@ export function RosterWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <ConfigCatalog key={`${hospital.id}:${kind}`} hospital={hospital} kind={kind} />
       ) : (
@@ -77,16 +81,6 @@ export function RosterWorkspace() {
         </Button>
       )}
     </>
-  );
-}
-function Failure({ message, retry }: { message: string; retry: () => void }) {
-  return (
-    <div role="alert" className="rounded-xl border p-6 text-sm">
-      {message}{" "}
-      <Button variant="outline" onClick={retry}>
-        Try again
-      </Button>
-    </div>
   );
 }
 function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterConfig["kind"] }) {
@@ -155,7 +149,11 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
             Loading configurations…
           </p>
         ) : records.isError ? (
-          <Failure message="Could not load configurations." retry={records.retry} />
+          <RequestFailure
+            message="Could not load configurations."
+            retry={records.retry}
+            error={records.error}
+          />
         ) : !rows.length ? (
           <div className="p-12 text-center">
             <h4 className="font-semibold">
@@ -313,7 +311,11 @@ function ConfigHistory({
       {history.isPending ? (
         <p role="status">Loading configuration history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load configuration history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load configuration history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-4">
           {history.items.map((r) => (

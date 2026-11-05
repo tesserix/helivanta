@@ -14,8 +14,15 @@ import {
   type LeaveConfigInput,
   type LeaveStructureEntry,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useFieldArray, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import {
+  ConfirmDialog,
+  Field,
+  SelectControl,
+  useFieldArray,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { configNoun } from "./leave-summary";
 
 type Props = {
@@ -38,7 +45,14 @@ export function LeaveEditor(props: Props) {
   );
   if (props.kind !== "structure") return <LeaveForm {...props} types={[]} />;
   if (types.isPending) return <p role="status">Loading leave types…</p>;
-  if (types.isError) return <Failure message="Could not load leave types." retry={types.retry} />;
+  if (types.isError)
+    return (
+      <RequestFailure
+        message="Could not load leave types."
+        retry={types.retry}
+        error={types.error}
+      />
+    );
   return (
     <>
       <LeaveForm {...props} types={types.items} />

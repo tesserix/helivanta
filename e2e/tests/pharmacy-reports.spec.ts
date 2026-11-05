@@ -126,7 +126,7 @@ test("a pharmacist's sales read back the same on every report and file", async (
 }) => {
   test.setTimeout(240_000);
   const fixture = await readyOutlet(page, browser);
-  const { cashier, outlet, product, sku, stamp } = fixture;
+  const { cashier, outlet, product, sku, stamp, timeZone } = fixture;
   try {
     const patient = await affiliatedPatient(page, cashier, outlet);
     // A product's category takes effect tomorrow at the earliest, so today's
@@ -136,7 +136,7 @@ test("a pharmacist's sales read back the same on every report and file", async (
       code: `TEST-CAT-${stamp}`,
       name: "TEST Report category",
     });
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
 
     const walkIn = await sellCash(cashier, outlet, sku, 3);
     const toPatient = await sellCash(cashier, outlet, sku, 2, patient);
@@ -303,10 +303,10 @@ test("each report section shows its empty, invalid, failed and refused states", 
 }) => {
   test.setTimeout(240_000);
   const fixture = await readyOutlet(page, browser);
-  const { cashier, outlet, sku, subject } = fixture;
+  const { cashier, outlet, sku, subject, timeZone } = fixture;
   try {
     const sale = await sellCash(cashier, outlet, sku, 1);
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
     await cashier.goto("/pharmacy/daily-report");
     const receipts = region(cashier, "Receipts and refunds");
     await expect(receipts).toContainText(sale.invoice_number);

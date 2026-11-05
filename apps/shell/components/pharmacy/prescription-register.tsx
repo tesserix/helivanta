@@ -157,7 +157,11 @@ function Entries({
         download={(signal) => fetchPharmacyPrescriptionRegisterCSV(scope, filter, signal)}
       />
       {entries.isError ? (
-        <RequestFailure message="Could not load the prescription register." retry={entries.retry} />
+        <RequestFailure
+          message="Could not load the prescription register."
+          retry={entries.retry}
+          error={entries.error}
+        />
       ) : entries.isPending ? (
         <p role="status">Loading the register…</p>
       ) : entries.items.length === 0 ? (

@@ -69,7 +69,11 @@ export function Prescriptions({ scope, canRecord }: { scope: PharmacyScope; canR
       <Panel>
         <h3 className="font-semibold">Recorded prescriptions</h3>
         {list.isError ? (
-          <RequestFailure message="Could not load prescriptions." retry={list.retry} />
+          <RequestFailure
+            message="Could not load prescriptions."
+            retry={list.retry}
+            error={list.error}
+          />
         ) : list.isPending ? (
           <p role="status">Loading prescriptions…</p>
         ) : list.items.length === 0 ? (
@@ -456,7 +460,11 @@ function PrescriptionPages({
         </form>
       )}
       {pages.isError ? (
-        <RequestFailure message="Could not load this prescription's pages." retry={pages.refetch} />
+        <RequestFailure
+          message="Could not load this prescription's pages."
+          retry={pages.refetch}
+          error={pages.error}
+        />
       ) : pages.isPending ? (
         <p role="status">Loading pages…</p>
       ) : images.length === 0 ? (

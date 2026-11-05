@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { HeadsPanel } from "./heads-panel";
 import { StaffPayPanel } from "./staff-pay-panel";
 import { StatutoryPanel } from "./statutory-panel";
@@ -52,7 +52,11 @@ function PayrollHospitalWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <HospitalPayroll key={hospital.id} hospital={hospital} />
       ) : (
@@ -190,7 +194,11 @@ export function RevisionHistory<T extends object>({
       {history.isPending ? (
         <p role="status">Loading revisions…</p>
       ) : history.isError ? (
-        <Failure message="Could not load revisions." retry={history.retry} />
+        <RequestFailure
+          message="Could not load revisions."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

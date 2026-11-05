@@ -31,8 +31,8 @@ import {
   type StatutoryRule,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { IncomeTaxPreview } from "./income-tax-preview";
@@ -122,7 +122,11 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
         </p>
       ) : rules.isError ? (
         <div className="p-5">
-          <Failure message="Could not load statutory rules." retry={rules.retry} />
+          <RequestFailure
+            message="Could not load statutory rules."
+            retry={rules.retry}
+            error={rules.error}
+          />
         </div>
       ) : (
         <ul className="divide-y">
@@ -426,7 +430,11 @@ function StatutoryPreview({
         </Button>
       </div>
       {structures.isError ? (
-        <Failure message="Could not load salary structures." retry={structures.retry} />
+        <RequestFailure
+          message="Could not load salary structures."
+          retry={structures.retry}
+          error={structures.error}
+        />
       ) : (
         <form
           noValidate

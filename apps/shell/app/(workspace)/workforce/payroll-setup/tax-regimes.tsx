@@ -14,8 +14,8 @@ import {
   type TaxRegimeInput,
   type TaxRegimeRevision,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { RevisionHistory } from "./payroll-workspace";
 
@@ -71,7 +71,11 @@ export function TaxRegimes({
       {elections.isPending ? (
         <p role="status">Loading elections…</p>
       ) : elections.isError ? (
-        <Failure message="Could not load regime elections." retry={elections.retry} />
+        <RequestFailure
+          message="Could not load regime elections."
+          retry={elections.retry}
+          error={elections.error}
+        />
       ) : elections.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No regime recorded for any tax year.</p>
       ) : (

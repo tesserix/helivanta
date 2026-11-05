@@ -14,8 +14,8 @@ import {
   type LeaveYear,
   type StaffLeaveBalances,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "./years-panel";
 
 export function LeaveBalancesPanel({
@@ -119,7 +119,11 @@ function BalanceList({
         </p>
       ) : balances.isError ? (
         <div className="p-5">
-          <Failure message="Could not load leave balances." retry={balances.retry} />
+          <RequestFailure
+            message="Could not load leave balances."
+            retry={balances.retry}
+            error={balances.error}
+          />
         </div>
       ) : balances.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">
@@ -231,7 +235,11 @@ function StaffLedger({
       {ledger.isPending ? (
         <p role="status">Loading ledger…</p>
       ) : ledger.isError ? (
-        <Failure message="Could not load the leave ledger." retry={ledger.retry} />
+        <RequestFailure
+          message="Could not load the leave ledger."
+          retry={ledger.retry}
+          error={ledger.error}
+        />
       ) : ledger.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No entries in this leave year.</p>
       ) : (

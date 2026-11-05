@@ -33,6 +33,13 @@ outage. Nothing makes a new screen handle it.
 - **About 170 direct call sites in 73 files.** Their `retry` is
   `q.retry` (91), `q.refetch` (42), `() => void q.refetch()` (18), or a
   function over several queries (10).
+- **Three local `Failure` components** (two in workforce, one in patients)
+  copy `RequestFailure` without an error: 92 more call sites across 45
+  workforce files and the patient workspace. They are replaced by
+  `RequestFailure`.
+- **About 15 screens hand-roll their own "Try again" button** for a read
+  (workforce setup, shifts, documents, enrollment, branding, the Razorpay
+  account, the dashboard and a few pharmacy panels). See "Not covered".
 - **Some screens give a 404 its own meaning** before `RequestFailure` is
   reached: "not set up yet" (GST, bed charging, daily collection), "no
   shift" (cash desk), "not found" (several detail panes), and the supply
@@ -68,8 +75,10 @@ outage. Nothing makes a new screen handle it.
    the server now refuses aren't left on screen as if current.
 4. **Call sites pass their query's error.**
    - **A script adds `error={q.error}`** where `retry` names one query.
-   - **Hand-written:** where `retry` covers several queries, `error` is the
-     first failing one's (`a.error ?? b.error`).
+   - **Hand-written:** where `retry` covers several queries, `error` is
+     `firstError(a.error, b.error)`: a refusal from any of them, otherwise
+     the first error. A refusal wins because retrying can't fix it, even if
+     another query merely failed.
    - Screens that already give a 404 its own meaning keep that branch;
      `RequestFailure` sees only what reaches it.
    - Pharmacy's report-specific sentences from #1589 stay.
@@ -100,3 +109,10 @@ outage. Nothing makes a new screen handle it.
   This covers reads only.
 - **Redirecting to sign-in on a 401.** The screen says so; the session flow
   is unchanged.
+- **The hand-rolled read retries, and a lint rule banning them.** About 15
+  screens render their own "Try again" for a failed read instead of
+  `RequestFailure`, so they still show a refusal as an outage. Until a lint
+  rule rejects a retry button outside `packages/ui`, a new screen can still
+  do the same. Both are the next slice.
+- **"Load more" under a refused list.** A list's `LoadMore` sits outside
+  `QueryState`, so it stays visible under the refusal.

@@ -15,8 +15,8 @@ import {
   type AttendanceShift,
   type AttendanceTotals,
 } from "@helivanta/api";
-import { Field } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { PunchForm } from "./punch-panel";
 
 const cell = "px-4 py-3 align-top";
@@ -115,7 +115,11 @@ function Totals({ hospital, base, date }: { hospital: string; base: string; date
   if (totals.isError || !totals.data)
     return (
       <div className="border-b p-5">
-        <Failure message="Could not load day totals." retry={() => totals.refetch()} />
+        <RequestFailure
+          message="Could not load day totals."
+          retry={() => totals.refetch()}
+          error={totals.error}
+        />
       </div>
     );
   const t = totals.data;
@@ -175,7 +179,11 @@ function Sheet({ hospital, base, date }: { hospital: string; base: string; date:
   if (days.isError)
     return (
       <div className="p-5">
-        <Failure message="Could not load attendance." retry={days.retry} />
+        <RequestFailure
+          message="Could not load attendance."
+          retry={days.retry}
+          error={days.error}
+        />
       </div>
     );
   if (days.items.length === 0)

@@ -11,8 +11,8 @@ import {
   type DutyExchange,
   type Hospital,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl } from "@helivanta/ui";
-import { Failure } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+
 import { DutyExchangeForm } from "./exchange-form";
 import { DutyExchangeReview } from "./exchange-review";
 
@@ -45,7 +45,11 @@ export function DutyExchangesWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <ExchangeBoard key={hospital.id} hospital={hospital} />
       ) : (
@@ -132,7 +136,11 @@ function ExchangeBoard({ hospital }: { hospital: Hospital }) {
         </p>
       ) : exchanges.isError ? (
         <div className="p-5">
-          <Failure message="Could not load duty exchanges." retry={exchanges.retry} />
+          <RequestFailure
+            message="Could not load duty exchanges."
+            retry={exchanges.retry}
+            error={exchanges.error}
+          />
         </div>
       ) : exchanges.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">

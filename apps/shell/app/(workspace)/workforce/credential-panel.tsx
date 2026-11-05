@@ -28,8 +28,8 @@ import {
   type StaffCredential,
   type StaffCredentials,
 } from "@helivanta/api";
-import { Field, LoadMore, formatDateTime, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "./roster-policy/policy-ui";
+import { Field, LoadMore, formatDateTime, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "./roster-policy/policy-ui";
 
 type View = { kind: "propose" | "decide" | "withdraw" | "history"; credential: StaffCredential };
 const reviewStates: Record<CredentialReview["status"], string> = {
@@ -115,7 +115,11 @@ export function StaffCredentialPanel({
         {record.isPending ? (
           <p role="status">Loading credentials…</p>
         ) : record.isError ? (
-          <Failure message="Could not load credentials." retry={() => void record.refetch()} />
+          <RequestFailure
+            message="Could not load credentials."
+            retry={() => void record.refetch()}
+            error={record.error}
+          />
         ) : (
           data && (
             <>
@@ -423,9 +427,10 @@ function EvidencePicker({
     >
       <legend className="text-sm font-medium">Evidence files</legend>
       {files.isError ? (
-        <Failure
+        <RequestFailure
           message="Could not load this credential's evidence."
           retry={() => void files.refetch()}
+          error={files.error}
         />
       ) : files.isPending ? (
         <p role="status" className="text-sm">
@@ -662,7 +667,11 @@ function History({
       {history.isPending ? (
         <p role="status">Loading review history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load review history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load review history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : history.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No reviews recorded for this credential.</p>
       ) : (

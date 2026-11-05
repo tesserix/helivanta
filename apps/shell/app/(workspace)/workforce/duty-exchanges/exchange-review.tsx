@@ -13,8 +13,8 @@ import {
   type DutyExchangeDetail,
   type DutyExchangeEvent,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeDates, describeDuty } from "./exchanges-workspace";
 
@@ -68,7 +68,11 @@ export function DutyExchangeReview({
       {detail.isPending ? (
         <p role="status">Loading exchange…</p>
       ) : detail.isError ? (
-        <Failure message="Could not load the duty exchange." retry={() => void detail.refetch()} />
+        <RequestFailure
+          message="Could not load the duty exchange."
+          retry={() => void detail.refetch()}
+          error={detail.error}
+        />
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 text-sm sm:grid-cols-2">
@@ -106,7 +110,11 @@ export function DutyExchangeReview({
         {history.isPending ? (
           <p role="status">Loading history…</p>
         ) : history.isError ? (
-          <Failure message="Could not load the exchange history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load the exchange history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ul className="space-y-2 text-sm">
             {history.items.map((e) => (

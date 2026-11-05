@@ -12,8 +12,8 @@ import {
   type StaffRosterAssignment,
   type StaffRosterAssignmentInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, ReviewBox, inputClass, today } from "./policy-ui";
+import { Field, SelectControl, useZodForm, firstError, RequestFailure } from "@helivanta/ui";
+import { ReviewBox, inputClass, today } from "./policy-ui";
 
 export function AssignmentsPanel({
   hospital,
@@ -65,7 +65,11 @@ export function AssignmentsPanel({
         </p>
       ) : assignments.isError ? (
         <div className="p-5">
-          <Failure message="Could not load assignments." retry={assignments.retry} />
+          <RequestFailure
+            message="Could not load assignments."
+            retry={assignments.retry}
+            error={assignments.error}
+          />
         </div>
       ) : assignments.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">No staff have a weekly template yet.</p>
@@ -319,12 +323,13 @@ function AssignmentEditor({
         </div>
       )}
       {(staff.isError || templates.isError) && (
-        <Failure
+        <RequestFailure
           message="Could not load staff or weekly templates."
           retry={() => {
             staff.retry();
             templates.retry();
           }}
+          error={firstError(staff.error, templates.error)}
         />
       )}
       {save.isError && (
@@ -375,7 +380,11 @@ function AssignmentHistory({
       {history.isPending ? (
         <p role="status">Loading assignment history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load assignment history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load assignment history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

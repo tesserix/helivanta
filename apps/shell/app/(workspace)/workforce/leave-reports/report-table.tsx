@@ -11,7 +11,7 @@ import {
   type LeaveReportFilter,
   type LeaveStatusReportRow,
 } from "@helivanta/api";
-import { Failure } from "../roster-policy/policy-ui";
+import { RequestFailure } from "@helivanta/ui";
 
 const cell = "px-4 py-3 align-top";
 const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
@@ -59,7 +59,11 @@ export function LeaveReportTable({
         </p>
       ) : rows.isError ? (
         <div className="p-5">
-          <Failure message="Could not load the report." retry={rows.retry} />
+          <RequestFailure
+            message="Could not load the report."
+            retry={rows.retry}
+            error={rows.error}
+          />
         </div>
       ) : rows.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">No leave matches these filters.</p>

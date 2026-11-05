@@ -415,3 +415,24 @@ it("removes a rejected second weekly shift and preserves the first allocation", 
     { area_revision_id: areaRevision, shift_revision_id: revision },
   ]);
 });
+
+// #1591: a refused read is not an outage, so it offers no retry.
+it("shows refused configurations as a refusal with no retry", async () => {
+  mock();
+  const base = vi.mocked(fetch);
+  const original = base.getMockImplementation()!;
+  base.mockImplementation(async (url, init) =>
+    String(url).includes("roster-configs")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "no" }), { status: 403 })
+      : original(url, init),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});

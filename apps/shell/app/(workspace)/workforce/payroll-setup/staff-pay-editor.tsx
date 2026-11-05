@@ -13,8 +13,8 @@ import {
   type SalaryAssignmentInput,
   type SalaryStructure,
 } from "@helivanta/api";
-import { Field, SelectControl, useFieldArray, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useFieldArray, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { staffPayKey } from "./staff-pay-panel";
 
@@ -71,7 +71,11 @@ export function StaffPayEditor({
       className="space-y-6 border-t bg-muted/10 p-5"
     >
       {structures.isError ? (
-        <Failure message="Could not load salary structures." retry={structures.retry} />
+        <RequestFailure
+          message="Could not load salary structures."
+          retry={structures.retry}
+          error={structures.error}
+        />
       ) : (
         <fieldset disabled={save.isPending} className="space-y-6">
           <div className="grid gap-5 sm:grid-cols-2">

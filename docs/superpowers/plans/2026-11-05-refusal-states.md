@@ -26,7 +26,7 @@
 ## Review Focus
 
 1. **A paged list whose Load more is refused.** `isError` is set with rows on screen; the person expects the rows gone and the refusal shown, not "may be out of date" with a retry. Task 2 tests it.
-2. **A multi-query panel where one query is refused and another fails with a 500.** The person expects the refusal, since retrying can't fix it. Hand-written sites use `a.error ?? b.error` in the order the queries render; Task 3 rules on which order and records it.
+2. **A multi-query panel where one query is refused and another fails with a 500.** The person expects the refusal, since retrying can't fix it. Hand-written sites use `firstError(a.error, b.error)`, which prefers a refusal (ruled in Task 3).
 3. **The pharmacy report screens getting a 401.** They pass a `refused` sentence; the person expects to be told to sign in again, not that they lack access. Task 1 tests it.
 4. **`error` is a plain object with a `status` field, not an `ApiError`.** It counts as a failure with a retry (fail closed: a retry discloses nothing). Task 1 tests it.
 5. **A screen that already treats 404 as "not set up yet"** (GST, bed charging, daily collection, cash desk). The person expects its setup prompt, not the refusal. Task 3 checks one such screen's existing test still passes unchanged.
@@ -70,7 +70,7 @@ Expected: the default-refusal and 401 tests FAIL; type-check FAILS with "Unused 
 Run: `pnpm --filter @helivanta/shell type-check 2>&1 | grep -c "Property 'error' is missing"`
 Expected: about 12 — the multi-query, `onReload` and async sites the codemod left. Their file:line list is the input to Step 5.
 
-- [ ] **Step 5: Hand-write the remaining sites.** Multi-query: `error={a.error ?? b.error}` in the order the queries render. `onReload` / async: pass the error of the query the callback refetches; if the component receives only a callback, add an `error: unknown` prop alongside it and pass it from the caller.
+- [ ] **Step 5: Hand-write the remaining sites.** Multi-query: `error={firstError(a.error, b.error)}`. `onReload` / async: pass the error of the query the callback refetches; if the component receives only a callback, add an `error: unknown` prop alongside it and pass it from the caller.
 
 - [ ] **Step 6: Run the gate on the touched packages**
 
@@ -146,7 +146,7 @@ git commit -m "feat(ui): hide rows the server refuses on refresh (#1591)"
 
 - [ ] **Step 2: Prove each can fail.** Temporarily remove `error={…}` from that screen's call site (or, for `QueryState` screens, the `error` pass-through) and add `// @ts-expect-error` so it compiles; run the file; expected FAIL. Restore. Record each in the PR's validation section.
 
-- [ ] **Step 3: Rule on multi-query order (Review Focus 2).** For each hand-written `a.error ?? b.error` site from Task 1 Step 5, check the order matches the queries' render order; record the ruling in the ledger.
+- [ ] **Step 3: Rule on multi-query order (Review Focus 2).** Hand-written sites use `firstError`, so a refusal wins whatever the order; `request-failure.test.tsx` tests it.
 
 - [ ] **Step 4: Check Review Focus 5.** Run `pnpm --filter @helivanta/shell test -- gst bed-charging daily-collection` with no edits; expected PASS: their "not set up" 404 branches are untouched.
 

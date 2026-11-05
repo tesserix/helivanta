@@ -22,8 +22,8 @@ import {
   type StatutoryDecisionInput,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { StaffPayEditor } from "./staff-pay-editor";
@@ -88,7 +88,7 @@ export function StaffPayPanel({ hospital, writable }: { hospital: Hospital; writ
       </div>
       {staff.isError ? (
         <div className="p-5">
-          <Failure message="Could not load staff." retry={staff.retry} />
+          <RequestFailure message="Could not load staff." retry={staff.retry} error={staff.error} />
         </div>
       ) : member ? (
         <StaffPay
@@ -158,9 +158,10 @@ function StaffPay({
   if (assignment.isError && !missing)
     return (
       <div className="p-5">
-        <Failure
+        <RequestFailure
           message="Could not load this staff member's pay."
           retry={() => void assignment.refetch()}
+          error={assignment.error}
         />
       </div>
     );

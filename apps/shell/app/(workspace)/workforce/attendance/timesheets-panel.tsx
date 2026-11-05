@@ -30,8 +30,8 @@ import {
   type AttendanceTimesheetDay,
   type AttendanceTimesheetPerson,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
 // Finalising locks punches and corrections, so every attendance read refetches.
@@ -122,7 +122,11 @@ export function TimesheetsPanel({
         </p>
       ) : periods.isError ? (
         <div className="p-5">
-          <Failure message="Could not load periods." retry={periods.retry} />
+          <RequestFailure
+            message="Could not load periods."
+            retry={periods.retry}
+            error={periods.error}
+          />
         </div>
       ) : periods.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">No period has been finalised yet.</p>
@@ -308,7 +312,11 @@ function PeriodDetail({
       {period.isPending ? (
         <p role="status">Loading period…</p>
       ) : period.isError ? (
-        <Failure message="Could not load the period." retry={() => void period.refetch()} />
+        <RequestFailure
+          message="Could not load the period."
+          retry={() => void period.refetch()}
+          error={period.error}
+        />
       ) : (
         <div className="space-y-6">
           {finaliser && (
@@ -324,7 +332,11 @@ function PeriodDetail({
             {versions.isPending ? (
               <p role="status">Loading versions…</p>
             ) : versions.isError ? (
-              <Failure message="Could not load the versions." retry={versions.retry} />
+              <RequestFailure
+                message="Could not load the versions."
+                retry={versions.retry}
+                error={versions.error}
+              />
             ) : (
               <ul className="space-y-2 text-sm">
                 {versions.items.map((t) => (
@@ -381,7 +393,11 @@ function PeriodDetail({
         {history.isPending ? (
           <p role="status">Loading history…</p>
         ) : history.isError ? (
-          <Failure message="Could not load the period history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load the period history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ul className="space-y-2 text-sm">
             {history.items.map((e) => (
@@ -547,7 +563,11 @@ function TimesheetDetail({
         {people.isPending ? (
           <p role="status">Loading people…</p>
         ) : people.isError ? (
-          <Failure message="Could not load the people." retry={people.retry} />
+          <RequestFailure
+            message="Could not load the people."
+            retry={people.retry}
+            error={people.error}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -606,7 +626,11 @@ function TimesheetDetail({
         {days.isPending ? (
           <p role="status">Loading days…</p>
         ) : days.isError ? (
-          <Failure message="Could not load the days." retry={days.retry} />
+          <RequestFailure
+            message="Could not load the days."
+            retry={days.retry}
+            error={days.error}
+          />
         ) : days.items.length === 0 ? (
           <p className="text-sm text-muted-foreground">No days match.</p>
         ) : (

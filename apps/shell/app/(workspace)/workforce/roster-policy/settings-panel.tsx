@@ -14,8 +14,8 @@ import {
   type RosterSettings,
   type RosterSettingsInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, ReviewBox, inputClass, today, weekdayOptions } from "./policy-ui";
+import { Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { ReviewBox, inputClass, today, weekdayOptions } from "./policy-ui";
 
 export function SettingsPanel({ hospital, writable }: { hospital: Hospital; writable: boolean }) {
   const path = `/workforce/hospitals/${hospital.id}/hr/roster-settings`;
@@ -58,7 +58,11 @@ export function SettingsPanel({ hospital, writable }: { hospital: Hospital; writ
             until a manager sets the timezone, week start and automatic population.
           </p>
         ) : settings.isError || !current ? (
-          <Failure message="Could not load roster settings." retry={() => settings.refetch()} />
+          <RequestFailure
+            message="Could not load roster settings."
+            retry={() => settings.refetch()}
+            error={settings.error}
+          />
         ) : (
           <dl className="grid gap-4 text-sm sm:grid-cols-4">
             <Fact label="Timezone" value={current.timezone} />
@@ -238,7 +242,11 @@ function SettingsHistory({
       {history.isPending ? (
         <p role="status">Loading settings history…</p>
       ) : history.isError ? (
-        <Failure message="Could not load settings history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load settings history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

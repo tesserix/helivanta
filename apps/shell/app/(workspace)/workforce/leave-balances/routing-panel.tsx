@@ -10,8 +10,8 @@ import {
   type LeaveRoutingPolicy,
   type LeaveRoutingPolicyInput,
 } from "@helivanta/api";
-import { Field, Panel, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import { Field, Panel, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { LeaveReview, SaveError } from "./years-panel";
 
 const modeOptions = Object.entries(LEAVE_ROUTING_MODES).map(([value, label]) => ({
@@ -37,9 +37,10 @@ export function LeaveRoutingPanel({
         </p>
       ) : policy.isError ? (
         <div className="mt-3">
-          <Failure
+          <RequestFailure
             message="Could not load the routing policy."
             retry={() => void policy.refetch()}
+            error={policy.error}
           />
         </div>
       ) : (

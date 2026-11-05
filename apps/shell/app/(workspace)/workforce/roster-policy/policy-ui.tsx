@@ -1,20 +1,9 @@
-import { Button } from "@tesserix/web";
 import { WEEKDAYS } from "@helivanta/api";
 
 export const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 export const today = () => new Date().toISOString().slice(0, 10);
 export const weekdayOptions = WEEKDAYS.map((label, index) => ({ value: String(index), label }));
-export function Failure({ message, retry }: { message: string; retry: () => void }) {
-  return (
-    <div role="alert" className="rounded-xl border p-6 text-sm">
-      {message}{" "}
-      <Button variant="outline" onClick={retry}>
-        Try again
-      </Button>
-    </div>
-  );
-}
 export function ReviewBox({
   id,
   error,

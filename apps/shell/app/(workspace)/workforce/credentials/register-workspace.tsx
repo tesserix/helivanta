@@ -11,8 +11,15 @@ import {
   type CredentialRegisterEntry,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass } from "../roster-policy/policy-ui";
+import {
+  Field,
+  LoadMore,
+  PageHeading,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
+import { inputClass } from "../roster-policy/policy-ui";
 import { standingText } from "../credential-panel";
 
 export function CredentialRegisterWorkspace() {
@@ -45,7 +52,11 @@ export function CredentialRegisterWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <Register key={hospital.id} hospital={hospital} />
       ) : (
@@ -121,7 +132,11 @@ function Register({ hospital }: { hospital: Hospital }) {
           {rows.error?.message}
         </p>
       ) : rows.isError ? (
-        <Failure message="Could not load the credential register." retry={rows.retry} />
+        <RequestFailure
+          message="Could not load the credential register."
+          retry={rows.retry}
+          error={rows.error}
+        />
       ) : rows.items.length === 0 ? (
         <p className="rounded-xl border p-6 text-sm">
           {within === null

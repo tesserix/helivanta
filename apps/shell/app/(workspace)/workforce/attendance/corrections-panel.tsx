@@ -17,8 +17,8 @@ import {
   type AttendanceCorrectionDecisionForm,
   type AttendanceCorrectionEvent,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { CorrectionForm, correctionInvalidations } from "./correction-form";
 
@@ -115,7 +115,11 @@ export function CorrectionsBoard({
         </p>
       ) : corrections.isError ? (
         <div className="p-5">
-          <Failure message="Could not load corrections." retry={corrections.retry} />
+          <RequestFailure
+            message="Could not load corrections."
+            retry={corrections.retry}
+            error={corrections.error}
+          />
         </div>
       ) : corrections.items.length === 0 ? (
         <p className="p-5 text-sm text-muted-foreground">
@@ -217,7 +221,11 @@ function CorrectionReview({
       {detail.isPending ? (
         <p role="status">Loading correction…</p>
       ) : detail.isError ? (
-        <Failure message="Could not load the correction." retry={() => void detail.refetch()} />
+        <RequestFailure
+          message="Could not load the correction."
+          retry={() => void detail.refetch()}
+          error={detail.error}
+        />
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 text-sm sm:grid-cols-2">
@@ -241,7 +249,11 @@ function CorrectionReview({
         {history.isPending ? (
           <p role="status">Loading history…</p>
         ) : history.isError ? (
-          <Failure message="Could not load the correction history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load the correction history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ul className="space-y-2 text-sm">
             {history.items.map((e) => (

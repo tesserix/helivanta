@@ -12,8 +12,8 @@ import {
   type LeaveConfig,
   type LeaveReportFilter,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm } from "@helivanta/ui";
-import { Failure, inputClass, today } from "../roster-policy/policy-ui";
+import { Field, PageHeading, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
+import { inputClass, today } from "../roster-policy/policy-ui";
 import { LeaveReportTable } from "./report-table";
 
 export function LeaveReportsWorkspace() {
@@ -45,7 +45,11 @@ export function LeaveReportsWorkspace() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <Failure message="Could not load hospitals." retry={hospitals.retry} />
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <ReportBoard key={hospital.id} hospital={hospital} />
       ) : (

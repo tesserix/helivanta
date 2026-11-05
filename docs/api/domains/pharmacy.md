@@ -379,6 +379,7 @@ optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmac
 - **Every file sent is recorded** in the audit stream: `pharmacy.report.exported` with the report, actor, outlet, filters as applied, row count and SHA-256. The other files hold no patient, prescriber or buyer and write no `audit_events` row, as their pages do not.
 - **The worklist file carries what the worklist carries:** no buyer name or phone, no patient id.
 - **Screen.** Each report, the worklist and the daily report have a "Download report CSV" button for their period and filters; a filter change cancels a download in flight. Where a file is recorded, the screen says so.
+- **The record is the `audit_events` row.** Its audit-log line is written with the row, before commit, as for audited pages: if the commit then fails, the row rolls back and no file is sent, but that log line remains.
 - **Not covered:** buyer names or patient ids in the worklist file; the sale summary and credit notes as files; files above 5,000 rows; XLSX, PDF, scheduled exports and the governed export service (#594, #64, #444).
 
 ### The sales worklist and sale summary (#987 slice 1)

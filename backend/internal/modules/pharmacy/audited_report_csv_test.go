@@ -141,25 +141,20 @@ func TestDailyReportCSV(t *testing.T) {
 	rows := csvRecords(t, do(w.r, "GET", licencePath("/reports/daily.csv?from=2026-11-01&to=2026-11-02"), "clerk", ""))
 	require.Len(t, rows, 2)
 	for i, d := range days {
-		r := rows[i]
-		require.Equal(t, d.Day, r["day"])
-		require.Equal(t, "INR", r["currency"])
-		require.Equal(t, strconv.FormatInt(d.Sales, 10), r["sales"])
-		require.Equal(t, rupees(d.SalesMinor), r["sales_amount"])
-		require.Equal(t, rupees(d.SalesTaxable), r["sales_taxable"])
-		require.Equal(t, rupees(d.SalesCGST), r["sales_cgst"])
-		require.Equal(t, rupees(d.DiscountMinor), r["discount"])
-		require.Equal(t, strconv.FormatInt(d.UnitsSold, 10), r["units_sold"])
-		require.Equal(t, strconv.FormatInt(d.CreditNotes, 10), r["credit_notes"])
-		require.Equal(t, rupees(d.CreditsMinor), r["credits"])
-		require.Equal(t, rupees(d.CreditsSGST), r["credits_sgst"])
-		require.Equal(t, strconv.FormatInt(d.UnitsReturned, 10), r["units_returned"])
-		require.Equal(t, rupees(d.NetMinor), r["net"])
-		require.Equal(t, rupees(d.CashMinor), r["cash"])
-		require.Equal(t, rupees(d.UPIMinor), r["upi"])
-		require.Equal(t, rupees(d.CardMinor), r["card"])
-		require.Equal(t, rupees(d.CashRefundMinor), r["cash_refunds"])
+		want := map[string]string{"day": d.Day, "currency": "INR", "sales": strconv.FormatInt(d.Sales, 10), "sales_amount": rupees(d.SalesMinor),
+			"sales_taxable": rupees(d.SalesTaxable), "sales_cgst": rupees(d.SalesCGST), "sales_sgst": rupees(d.SalesSGST), "discount": rupees(d.DiscountMinor),
+			"units_sold": strconv.FormatInt(d.UnitsSold, 10), "credit_notes": strconv.FormatInt(d.CreditNotes, 10), "credits": rupees(d.CreditsMinor),
+			"credits_taxable": rupees(d.CreditsTaxable), "credits_cgst": rupees(d.CreditsCGST), "credits_sgst": rupees(d.CreditsSGST),
+			"units_returned": strconv.FormatInt(d.UnitsReturned, 10), "net": rupees(d.NetMinor), "cash": rupees(d.CashMinor), "upi": rupees(d.UPIMinor),
+			"upi_verified": rupees(d.UPIVerifiedMinor), "card": rupees(d.CardMinor), "cash_refunds": rupees(d.CashRefundMinor),
+			"upi_refunds": rupees(d.UPIRefundMinor), "card_refunds": rupees(d.CardRefundMinor), "admission_account": rupees(d.AdmissionAccountMinor),
+			"admission_account_refunds": rupees(d.AdmissionAccountRefundMinor), "service_charges": rupees(d.ServiceChargesMinor),
+			"service_charges_taxable": rupees(d.ServiceChargesTaxableMinor), "service_charge_credits": rupees(d.ServiceChargeCreditsMinor),
+			"service_charge_credits_taxable": rupees(d.ServiceChargeCreditsTaxableMinor), "period_from": "2026-11-01", "period_to": "2026-11-02"}
+		require.Equal(t, want, rows[i], "every column, in its own name")
 	}
+	// Distinct values, so a swapped pair of columns cannot pass by coincidence.
+	require.NotEqual(t, rows[0]["sales_taxable"], rows[0]["sales_cgst"])
 	require.Equal(t, http.StatusBadRequest, do(w.r, "GET", licencePath("/reports/daily.csv?from=2026-11-01&to=2026-11-02&kind=cash"), "clerk", "").Code)
 	require.Equal(t, http.StatusForbidden, do(w.r, "GET", licencePath("/reports/daily.csv?from=2026-11-01&to=2026-11-02"), "stocker", "").Code)
 }

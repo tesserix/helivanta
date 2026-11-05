@@ -12,13 +12,22 @@ import {
   StaffPostingProposalContextRequestContract,
   StaffPostingProposalContextContract,
   StaffPostingSupervisionContextContract,
+  StaffPostingChainReviewContextContract,
+  StaffPostingLifecycleReviewContextContract,
+  StaffPostingLifecycleHistoryContextContract,
   StaffPostingInboxItemContract,
+  StaffPostingSupervisorChoiceContract,
+  StaffPostingCutoffContract,
+  StaffPostingCutoffInputContract,
+  StaffPostingCutoffContextContract,
   staffPostingInstantMicros,
   type StaffPostingDraft,
   type StaffPostingProposal,
   type StaffPostingProposalInput,
   type StaffPostingDecisionInput,
+  type StaffPostingLifecycleReviewContext,
   type StaffPostingProposalContextRequest,
+  type StaffPostingCutoffInput,
 } from "./staff-postings-contract";
 
 export type StaffPostingProposalScope = Omit<StaffPostingScope, "access"> & { access: "scoped" };
@@ -46,6 +55,143 @@ export const staffPostingProposalsKey = (scope: StaffPostingProposalScope) => [
   scope.hospitalId,
   scope.staffId,
 ];
+
+async function postingCutoffCommand(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingCutoffInput,
+  recover: boolean,
+  signal?: AbortSignal,
+) {
+  const path = `${root(scope)}/${commandId.parse(proposal)}/cutoffs/commands/${commandId.parse(command)}`;
+  const intent = StaffPostingCutoffInputContract.parse(input);
+  const raw = await apiFetch(path, {
+    ...enrollmentRequestOptions(scope),
+    ...(recover ? {} : { method: "PUT", body: JSON.stringify(intent) }),
+    signal,
+  });
+  const parsed = StaffPostingCutoffContract.safeParse(raw);
+  if (!parsed.success)
+    throw new Error(
+      "The retained cutoff receipt could not be verified. Recover the exact command before retrying.",
+    );
+  const row = parsed.data;
+  if (
+    !matchesScope(row, scope) ||
+    !same(row.id, command) ||
+    !same(row.proposal_id, proposal) ||
+    !same(row.expected_revision_id, intent.expected_revision_id) ||
+    row.expected_cutoff_version !== intent.expected_cutoff_version ||
+    row.mode !== intent.mode ||
+    row.reason !== intent.reason ||
+    (row.requested_cutoff_at === null
+      ? null
+      : staffPostingInstantMicros(row.requested_cutoff_at)) !==
+      (intent.cutoff_at == null ? null : staffPostingInstantMicros(intent.cutoff_at))
+  )
+    throw new Error(
+      "The retained cutoff receipt does not match this command. Recover the exact command before retrying.",
+    );
+  return row;
+}
+
+export function recordStaffPostingCutoff(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingCutoffInput,
+  signal?: AbortSignal,
+) {
+  return postingCutoffCommand(scope, proposal, command, input, false, signal);
+}
+
+export function getStaffPostingCutoffReceipt(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingCutoffInput,
+  signal?: AbortSignal,
+) {
+  return postingCutoffCommand(scope, proposal, command, input, true, signal);
+}
+
+export async function getStaffPostingCutoffContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  const selected = verifiedProposal(proposal, scope, proposal.id);
+  if (selected.status !== "approved")
+    throw new Error("Choose an approved posting before examining its cutoff context.");
+  const params = new URLSearchParams({
+    expected_revision_id: commandId.parse(selected.revision_id),
+  });
+  signal?.throwIfAborted();
+  const raw = await apiFetch(
+    `${root(scope)}/${commandId.parse(selected.id)}/cutoffs/context?${params}`,
+    {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    },
+  );
+  signal?.throwIfAborted();
+  const parsed = StaffPostingCutoffContextContract.safeParse(raw);
+  if (
+    !parsed.success ||
+    !matchesScope(parsed.data.proposal, scope) ||
+    !same(parsed.data.proposal.id, selected.id) ||
+    !same(parsed.data.proposal.revision_id, selected.revision_id) ||
+    parsed.data.proposal.version !== selected.version
+  )
+    throw new Error("The approved posting cutoff context could not be verified.");
+  return parsed.data;
+}
+
+const cutoffHistoryPage = z
+  .object({
+    data: z.array(StaffPostingCutoffContract).max(8),
+    page: z.object({ has_more: z.boolean(), next_cursor: cursorSchema.nullable() }).strict(),
+  })
+  .strict();
+
+export async function listStaffPostingCutoffHistory(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const selected = verifiedProposal(proposal, scope, proposal.id);
+  if (selected.status !== "approved")
+    throw new Error("Choose an approved posting before examining cutoff history.");
+  const params = new URLSearchParams({
+    expected_revision_id: commandId.parse(selected.revision_id),
+    limit: "8",
+  });
+  if (cursor !== null) params.set("cursor", cursorSchema.parse(cursor));
+  signal?.throwIfAborted();
+  const raw = await apiFetch(
+    `${root(scope)}/${commandId.parse(selected.id)}/cutoffs/history?${params}`,
+    { ...enrollmentRequestOptions(scope), signal },
+  );
+  signal?.throwIfAborted();
+  const page = cutoffHistoryPage.parse(raw);
+  if (
+    page.data.some(
+      (row) =>
+        !matchesScope(row, scope) ||
+        !same(row.proposal_id, selected.id) ||
+        !same(row.expected_revision_id, selected.revision_id),
+    ) ||
+    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length ||
+    new Set(page.data.map((row) => row.version)).size !== page.data.length ||
+    page.page.has_more !== Boolean(page.page.next_cursor) ||
+    (page.page.has_more && page.data.length !== 8) ||
+    (cursor !== null && page.page.next_cursor === cursor)
+  )
+    throw new Error("The retained posting cutoff history could not be verified.");
+  return page;
+}
 
 function hospitalRoot(scope: StaffPostingInboxScope) {
   if (scope.access !== "scoped")
@@ -236,9 +382,18 @@ async function postingDecisionRequest(
   selected: StaffPostingProposal,
   method: "PUT" | "GET",
   signal?: AbortSignal,
+  supervised = false,
+  lifecycle = false,
 ) {
   const path = `${root(scope)}/${commandId.parse(proposal)}/decisions/${commandId.parse(command)}`;
   const intent = StaffPostingDecisionInputContract.parse(input);
+  if (intent.lifecycle_review !== undefined && !lifecycle)
+    throw new Error("Use the explicit lifecycle approval command.");
+  if (
+    lifecycle &&
+    (method !== "PUT" || intent.lifecycle_review === undefined || intent.decision !== "approve")
+  )
+    throw new Error("Recover lifecycle approval by replaying its exact original PUT.");
   const pending = verifiedProposal(selected, scope, proposal);
   if (
     pending.status !== "pending" ||
@@ -246,14 +401,21 @@ async function postingDecisionRequest(
     !same(pending.revision_id, intent.expected_revision_id)
   )
     throw new Error("Choose the exact pending posting proposal revision before deciding.");
-  if (intent.decision === "approve" && intent.hospital_management_reviewed !== true)
+  if (
+    supervised &&
+    (intent.decision !== "approve" || intent.hospital_management_reviewed !== undefined)
+  )
+    throw new Error("A supervised approval cannot claim hospital management review.");
+  if (!supervised && intent.decision === "approve" && intent.hospital_management_reviewed !== true)
     throw new Error("Posting approval requires the supervision policy.");
+  signal?.throwIfAborted();
   const raw = await apiFetch(path, {
     ...enrollmentRequestOptions(scope),
     method,
     ...(method === "PUT" ? { body: JSON.stringify(intent) } : {}),
     signal,
   });
+  signal?.throwIfAborted();
   return verifiedDecision(raw, scope, proposal, command, intent, pending);
 }
 
@@ -336,12 +498,14 @@ export async function getStaffPostingReviewSource(
 
 type PostingContextSelection = Omit<
   StaffPostingProposalContextRequest,
-  "supervision_context" | "management_review"
+  "supervision_context" | "management_review" | "chain_review" | "lifecycle_review"
 >;
 
 const legacyContextRequest = StaffPostingProposalContextRequestContract.omit({
   supervision_context: true,
   management_review: true,
+  chain_review: true,
+  lifecycle_review: true,
 });
 
 export async function getStaffPostingProposalContext(
@@ -508,4 +672,415 @@ export async function listStaffPostingProposalInbox(
     }
   }
   return page;
+}
+
+const supervisorChoicePage = z
+  .object({
+    data: z.array(StaffPostingSupervisorChoiceContract).max(8),
+    page: z.object({ has_more: z.boolean(), next_cursor: cursorSchema.nullable() }).strict(),
+  })
+  .strict();
+
+export async function listStaffPostingSupervisorChoices(
+  scope: StaffPostingInboxScope,
+  purpose: "submission" | "review",
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const selected = z.enum(["submission", "review"]).parse(purpose);
+  const query = new URLSearchParams({ purpose: selected, limit: "8" });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  signal?.throwIfAborted();
+  const raw = await apiFetch(`${hospitalRoot(scope)}/posting-supervisor-choices?${query}`, {
+    ...enrollmentRequestOptions(scope),
+    signal,
+  });
+  signal?.throwIfAborted();
+  const page = supervisorChoicePage.parse(raw);
+  if (
+    page.page.has_more !== Boolean(page.page.next_cursor) ||
+    (page.page.has_more && page.data.length === 0) ||
+    (cursor !== null && page.page.next_cursor === cursor) ||
+    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length
+  )
+    throw new Error("The supervisor choice page could not be verified.");
+  for (let index = 1; index < page.data.length; index++) {
+    const before = page.data[index - 1],
+      after = page.data[index];
+    const previous = staffPostingInstantMicros(before.created_at),
+      current = staffPostingInstantMicros(after.created_at);
+    if (
+      previous === null ||
+      current === null ||
+      previous < current ||
+      (previous === current && before.id.toLowerCase() <= after.id.toLowerCase())
+    )
+      throw new Error("The supervisor choice page order could not be verified.");
+  }
+
+  for (const choice of page.data) {
+    if (!same(choice.hospital_id, scope.hospitalId))
+      throw new Error("The supervisor choices do not match this hospital.");
+  }
+  return page;
+}
+
+export async function decideStaffPostingSupervisedProposal(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingDecisionInput,
+  selected: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  return postingDecisionRequest(scope, proposal, command, input, selected, "PUT", signal, true);
+}
+
+export async function getStaffPostingSupervisedDecisionReceipt(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  input: StaffPostingDecisionInput,
+  selected: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  return postingDecisionRequest(scope, proposal, command, input, selected, "GET", signal, true);
+}
+
+export async function getStaffPostingChainReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: PostingContextSelection & { purpose: "review" },
+  signal?: AbortSignal,
+) {
+  const request = legacyContextRequest.extend({ purpose: z.literal("review") }).parse(rawRequest);
+  signal?.throwIfAborted();
+  const params = new URLSearchParams({
+    purpose: "review",
+    expected_version: String(request.expected_version),
+    expected_revision_id: request.expected_revision_id,
+    supervision_context: "v1",
+    chain_review: "current",
+  });
+  const view = StaffPostingChainReviewContextContract.parse(
+    await apiFetch(`${root(scope)}/${commandId.parse(proposal)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  signal?.throwIfAborted();
+  return verifiedPostingChainContext(view, scope, proposal, request);
+}
+
+function verifiedPostingChainContext(
+  view: z.infer<typeof StaffPostingChainReviewContextContract>,
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  request: PostingContextSelection & { purpose: "review" },
+) {
+  verifiedPostingContext(view.context, scope, proposal, request);
+  if (view.context.proposal.status !== "pending" || view.supervision.kind === "hospital_management")
+    throw new Error("Choose a pending supervised posting for current chain review.");
+  const seenStaff = new Set([scope.staffId.toLowerCase()]);
+  const seenPostings = new Set([proposal.toLowerCase()]);
+  let child: { starts_at: string; ends_at?: string | null } = view.context.proposal;
+  let intent = view.supervision;
+  let until = staffPostingInstantMicros(view.context.proposal.eligibility_until)!;
+  if (child.ends_at != null && staffPostingInstantMicros(child.ends_at)! < until)
+    until = staffPostingInstantMicros(child.ends_at)!;
+  for (const [index, node] of view.chain.entries()) {
+    const parent = node.posting;
+    if (
+      !same(parent.hospital_id, scope.hospitalId) ||
+      !same(parent.staff.id, intent.supervisor_staff_id ?? "") ||
+      !same(parent.id, intent.supervisor_proposal_id ?? "") ||
+      !same(parent.revision_id, intent.supervisor_revision_id ?? "") ||
+      seenStaff.has(parent.staff.id.toLowerCase()) ||
+      seenPostings.has(parent.id.toLowerCase()) ||
+      parent.kind !== node.supervision.kind ||
+      staffPostingInstantMicros(child.starts_at)! < staffPostingInstantMicros(parent.starts_at)! ||
+      (parent.ends_at != null &&
+        (child.ends_at == null ||
+          staffPostingInstantMicros(child.ends_at)! >
+            staffPostingInstantMicros(parent.ends_at)!)) ||
+      (index === view.chain.length - 1) !== (node.supervision.kind === "hospital_management")
+    )
+      throw new Error("The current supervisor chain is disconnected, repeated or out of scope.");
+    seenStaff.add(parent.staff.id.toLowerCase());
+    seenPostings.add(parent.id.toLowerCase());
+    for (const deadline of [parent.eligibility_until, parent.ends_at])
+      if (deadline != null && staffPostingInstantMicros(deadline)! < until)
+        until = staffPostingInstantMicros(deadline)!;
+    child = parent;
+    intent = node.supervision;
+  }
+  const checked = staffPostingInstantMicros(view.checked_at),
+    cutoff = staffPostingInstantMicros(view.eligibility_until);
+  if (
+    checked === null ||
+    checked <= staffPostingInstantMicros("0001-01-01T00:00:00Z")! ||
+    cutoff !== until ||
+    checked >= until ||
+    staffPostingInstantMicros(view.context.proposal.starts_at)! >= until
+  )
+    throw new Error("The checked supervisor chain cutoff could not be verified.");
+  return view;
+}
+
+export async function getStaffPostingLifecycleReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  rawRequest: PostingContextSelection & {
+    purpose: "review";
+    mode: "supervised" | "hospital_management";
+  },
+  signal?: AbortSignal,
+) {
+  const request = legacyContextRequest
+    .extend({ purpose: z.literal("review"), mode: z.enum(["supervised", "hospital_management"]) })
+    .parse(rawRequest);
+  const params = new URLSearchParams({
+    purpose: "review",
+    expected_version: String(request.expected_version),
+    expected_revision_id: request.expected_revision_id,
+    supervision_context: "v1",
+    lifecycle_review: "current",
+  });
+  if (request.mode === "hospital_management") params.set("management_review", "current");
+  signal?.throwIfAborted();
+  const view = StaffPostingLifecycleReviewContextContract.parse(
+    await apiFetch(`${root(scope)}/${commandId.parse(proposal)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  signal?.throwIfAborted();
+  return verifiedPostingLifecycleContext(view, scope, proposal, request);
+}
+
+function verifiedPostingLifecycleContext(
+  view: StaffPostingLifecycleReviewContext,
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  request: PostingContextSelection & {
+    purpose: "review";
+    mode: "supervised" | "hospital_management";
+  },
+) {
+  verifiedPostingContext(view.context, scope, proposal, request);
+  if (view.context.proposal.status !== "pending" || view.cutoff.version !== 0)
+    throw new Error("Choose a pending posting with no retained local cutoff.");
+  const deadlines = [
+    view.context.proposal.eligibility_until,
+    view.context.proposal.ends_at,
+    ...view.chain.flatMap((node) => [node.posting.eligibility_until, node.posting.ends_at]),
+  ].filter((value): value is string => value != null);
+  let nominal = deadlines[0];
+  for (const deadline of deadlines)
+    if (staffPostingInstantMicros(deadline)! < staffPostingInstantMicros(nominal)!)
+      nominal = deadline;
+  if (request.mode === "hospital_management") {
+    if (view.supervision.kind !== "hospital_management" || view.chain.length !== 0)
+      throw new Error("Choose the explicit management root for lifecycle review.");
+  } else {
+    verifiedPostingChainContext(
+      {
+        context: view.context,
+        supervision: view.supervision,
+        chain: view.chain.map((node) => ({ posting: node.posting, supervision: node.supervision })),
+        checked_at: view.checked_at,
+        eligibility_until: nominal,
+      },
+      scope,
+      proposal,
+      request,
+    );
+  }
+  let until = staffPostingInstantMicros(nominal)!;
+  const seenCutoffs = new Set<string>();
+  for (const observation of [view.cutoff, ...view.chain.map((node) => node.cutoff)]) {
+    if (observation.cutoff_at !== null) {
+      const id = observation.id!.toLowerCase();
+      if (seenCutoffs.has(id)) throw new Error("The lifecycle cutoff identity is repeated.");
+      seenCutoffs.add(id);
+      const cutoff = staffPostingInstantMicros(observation.cutoff_at)!;
+      if (cutoff < until) until = cutoff;
+    }
+  }
+  const checked = staffPostingInstantMicros(view.checked_at),
+    lower = staffPostingInstantMicros("0001-01-01T00:00:00Z")!,
+    upper = staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+  if (
+    checked === null ||
+    checked <= lower ||
+    checked > upper ||
+    checked >= until ||
+    staffPostingInstantMicros(view.context.proposal.starts_at)! >= until ||
+    staffPostingInstantMicros(view.effective_until) !== until
+  )
+    throw new Error("The current lifecycle deadline could not be verified.");
+  return view;
+}
+
+export async function decideStaffPostingLifecycleProposal(
+  scope: StaffPostingProposalScope,
+  proposal: string,
+  command: string,
+  rawInput: StaffPostingDecisionInput,
+  selected: StaffPostingLifecycleReviewContext,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const input = StaffPostingDecisionInputContract.parse(rawInput);
+  if (input.decision !== "approve" || input.lifecycle_review === undefined)
+    throw new Error("Approve using the exact examined lifecycle observations.");
+  const view = StaffPostingLifecycleReviewContextContract.parse(selected);
+  const mode =
+    view.supervision.kind === "hospital_management" ? "hospital_management" : "supervised";
+  verifiedPostingLifecycleContext(view, scope, proposal, {
+    purpose: "review",
+    expected_version: input.expected_version,
+    expected_revision_id: input.expected_revision_id,
+    mode,
+  });
+  const versions = [view.cutoff.version, ...view.chain.map((node) => node.cutoff.version)];
+  if (
+    versions.length !== input.lifecycle_review.cutoff_versions.length ||
+    versions.some((version, index) => version !== input.lifecycle_review!.cutoff_versions[index]) ||
+    staffPostingInstantMicros(view.effective_until) !==
+      staffPostingInstantMicros(input.lifecycle_review.effective_until)
+  )
+    throw new Error("Re-examine the exact current lifecycle observations before approval.");
+  return postingDecisionRequest(
+    scope,
+    proposal,
+    command,
+    input,
+    view.context.proposal,
+    "PUT",
+    signal,
+    mode === "supervised",
+    true,
+  );
+}
+
+export async function getStaffPostingLifecycleHistoryContext(
+  scope: StaffPostingProposalScope,
+  selected: StaffPostingProposal,
+  signal?: AbortSignal,
+) {
+  const approved = verifiedProposal(selected, scope);
+  if (approved.status !== "approved")
+    throw new Error("Choose an approved posting for retained history.");
+  const request = {
+    purpose: "review" as const,
+    expected_version: approved.version,
+    expected_revision_id: approved.revision_id,
+  };
+  const params = new URLSearchParams({
+    purpose: "review",
+    expected_version: String(approved.version),
+    expected_revision_id: commandId.parse(approved.revision_id),
+    supervision_context: "v1",
+    lifecycle_review: "recorded",
+  });
+  signal?.throwIfAborted();
+  const view = StaffPostingLifecycleHistoryContextContract.parse(
+    await apiFetch(`${root(scope)}/${commandId.parse(approved.id)}/context?${params}`, {
+      ...enrollmentRequestOptions(scope),
+      signal,
+    }),
+  );
+  signal?.throwIfAborted();
+  verifiedPostingContext(view.context, scope, approved.id, request);
+  const instants = new Set([
+    "starts_at",
+    "ends_at",
+    "eligibility_until",
+    "created_at",
+    "recorded_at",
+  ]);
+  for (const key of StaffPostingProposalContract.keyof().options) {
+    const expected = approved[key],
+      actual = view.context.proposal[key];
+    const matched = instants.has(key)
+      ? (expected === null ? null : staffPostingInstantMicros(String(expected))) ===
+        (actual === null ? null : staffPostingInstantMicros(String(actual)))
+      : typeof expected === "string" && (key === "id" || key.endsWith("_id"))
+        ? same(expected, String(actual))
+        : expected === actual;
+    if (!matched) throw new Error("Retained history does not match this approved posting.");
+  }
+  const record = view.review;
+  if (record === null) return view;
+  const until = staffPostingInstantMicros(record.effective_until),
+    checked = staffPostingInstantMicros(record.checked_at);
+  if (
+    until === null ||
+    checked === null ||
+    checked <= staffPostingInstantMicros("0001-01-01T00:00:00Z")! ||
+    until > staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!
+  )
+    throw new Error("Retained lifecycle times are outside the supported calendar.");
+  const rootReview = view.supervision?.kind === "hospital_management";
+  if (
+    !view.supervision ||
+    record.source_count !== record.sources.length ||
+    !same(record.revision_id, approved.revision_id) ||
+    same(record.initial_revision_id, record.revision_id) ||
+    same(record.reviewer_staff_id, approved.staff_id) ||
+    checked >= until ||
+    checked > staffPostingInstantMicros(approved.recorded_at)! ||
+    staffPostingInstantMicros(approved.starts_at)! >= until ||
+    until > staffPostingInstantMicros(approved.eligibility_until)! ||
+    (approved.ends_at !== null && until > staffPostingInstantMicros(approved.ends_at)!) ||
+    (rootReview &&
+      (record.sources.length !== 1 ||
+        record.support_permission !== "workforce.posting.management.review" ||
+        same(record.review_assignment_id, record.support_assignment_id))) ||
+    (!rootReview &&
+      (record.sources.length < 2 || record.support_permission !== "workforce.posting.read"))
+  )
+    throw new Error("Retained lifecycle review provenance or deadline could not be verified.");
+  commandId.parse(record.initial_revision_id);
+  const staff = new Set<string>(),
+    proposals = new Set<string>(),
+    cutoffs = new Set<string>();
+  for (const [index, source] of record.sources.entries()) {
+    commandId.parse(source.proposal_id);
+    commandId.parse(source.revision_id);
+    if (
+      source.hop !== index ||
+      staff.has(source.staff_id.toLowerCase()) ||
+      proposals.has(source.proposal_id.toLowerCase())
+    )
+      throw new Error("Retained lifecycle source order could not be verified.");
+    staff.add(source.staff_id.toLowerCase());
+    proposals.add(source.proposal_id.toLowerCase());
+    if (
+      index === 0 &&
+      (!same(source.staff_id, approved.staff_id) ||
+        !same(source.proposal_id, approved.id) ||
+        !same(source.revision_id, record.initial_revision_id) ||
+        source.cutoff.version !== 0)
+    )
+      throw new Error("Retained lifecycle history does not bind the original selected proposal.");
+    if (
+      index === 1 &&
+      view.supervision.kind !== "hospital_management" &&
+      (!same(source.staff_id, view.supervision.supervisor_staff_id ?? "") ||
+        !same(source.proposal_id, view.supervision.supervisor_proposal_id ?? "") ||
+        !same(source.revision_id, view.supervision.supervisor_revision_id ?? ""))
+    )
+      throw new Error("Retained lifecycle history does not bind the requested supervisor.");
+    if (source.cutoff.id !== null) {
+      if (
+        cutoffs.has(source.cutoff.id.toLowerCase()) ||
+        until > staffPostingInstantMicros(source.cutoff.cutoff_at!)!
+      )
+        throw new Error("Retained lifecycle cutoff evidence could not be verified.");
+      cutoffs.add(source.cutoff.id.toLowerCase());
+    }
+  }
+  return view;
 }

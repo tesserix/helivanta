@@ -12,6 +12,10 @@ import (
 )
 
 func (h *handlers) withRootPostingApproval(ctx context.Context, tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource, persist func(*gorm.DB) error) error {
+	return h.withRootPostingLifecycleApproval(ctx, tx, p, s, row, source, nil, persist)
+}
+
+func (h *handlers) withRootPostingLifecycleApproval(ctx context.Context, tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, source EmploymentPeriodSource, lifecycle *postingLifecycleReview, persist func(*gorm.DB) error) error {
 	intent, err := readPostingSupervisionIntent(tx, p.TenantID, s)
 	if err != nil {
 		return err
@@ -22,22 +26,14 @@ func (h *handlers) withRootPostingApproval(ctx context.Context, tx *gorm.DB, p a
 	if h.departmentReferences == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
-	if source.StaffVersion != row.StaffVersion || source.EmploymentEpoch != row.EmploymentEpoch {
-		return errPostingProposalConflict
-	}
-	generation, state, until, err := readPostingTargetGeneration(tx, p, s, row.GenerationID)
-	if err != nil {
+	if err := validatePostingApprovalSourceWithLifecycle(tx, p, s, row, source, lifecycle); err != nil {
 		return err
 	}
-	approvalUntil := row.EligibilityUntil
-	if row.EndsAt != nil && row.EndsAt.Before(approvalUntil) {
-		approvalUntil = *row.EndsAt
+	until := postingApprovalDeadline(row)
+	if lifecycle != nil && lifecycle.EffectiveUntil.Before(until) {
+		until = lifecycle.EffectiveUntil
 	}
-	if (state != "effective" && state != "not_started") || generation.EmploymentEpoch != row.EmploymentEpoch || row.StartsAt.Before(generation.StartsAt) || !row.StartsAt.Before(until) || until.Before(row.EligibilityUntil) ||
-		generation.EndsAt != nil && (row.EndsAt == nil || row.EndsAt.After(*generation.EndsAt)) || !time.Now().Before(approvalUntil) {
-		return errPostingProposalConflict
-	}
-	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, approvalUntil); err != nil {
+	if err := h.db.ConstrainGuardedCommand(ctx, p.TenantID, until); err != nil {
 		return errors.Join(errPostingProposalConflict, err)
 	}
 	ref := authz.DepartmentReference{TenantID: p.TenantID, HospitalID: s.hospital, DepartmentID: row.DepartmentID, DepartmentRevision: row.DepartmentRevisionID, AncestorID: row.DepartmentID, AncestorRevision: row.DepartmentRevisionID}

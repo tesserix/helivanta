@@ -76,3 +76,15 @@ func TestPostingHospitalInboxFitsWireBudget(t *testing.T) {
 	require.NoError(t, err)
 	require.LessOrEqual(t, len(encoded), 20*1024, "maximum escaped labels, source pins and continuation fit the inbox budget")
 }
+
+func TestPostingSupervisorChoicesFitWireBudget(t *testing.T) {
+	instant := time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)
+	id := uuid.Must(uuid.NewV7())
+	rows := make([]workforce.StaffPostingSupervisorChoice, 8)
+	for i := range rows {
+		rows[i] = workforce.StaffPostingSupervisorChoice{ID: id, RevisionID: id, HospitalID: id, Kind: "department_supervisor", Staff: workforce.StaffPostingTarget{ID: id, EmployeeCode: strings.Repeat("<", 40), DisplayName: strings.Repeat("&", 150)}, DepartmentID: id, DepartmentRevisionID: id, StartsAt: instant, EndsAt: &instant, EligibilityUntil: instant, CreatedAt: instant}
+	}
+	payload, err := json.Marshal(map[string]any{"data": rows, "page": map[string]any{"has_more": true, "next_cursor": strings.Repeat("X", 2048)}})
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(payload), 20*1024, "eight choices with worst-case escaping and continuation fit the protected projection budget")
+}

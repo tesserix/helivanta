@@ -76,3 +76,18 @@ func TestPostingInboxRefusesUnavailableAuthorityInsteadOfEmptySuccess(t *testing
 	require.NotContains(t, response.Body.String(), "data")
 	require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
 }
+
+func TestPostingSupervisorChoicesFailClosedWithoutCurrentOwners(t *testing.T) {
+	h := newRequestHarness(t, func(opts *testutil.HarnessOptions) {
+		opts.Perms["admin"] = append(opts.Perms["admin"], authz.Permission("workforce.posting.read"))
+	})
+	request := httptest.NewRequest("GET", h.base+"/posting-supervisor-choices?purpose=submission", nil)
+	request.Header.Set("Authorization", "Bearer admin")
+	request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+	request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+	response := httptest.NewRecorder()
+	h.handler.ServeHTTP(response, request)
+	require.Equal(t, 503, response.Code, response.Body.String())
+	require.NotContains(t, response.Body.String(), "data")
+	require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
+}

@@ -40,6 +40,9 @@ func authorizePostingProposalDecider(tx *gorm.DB, p authn.Principal, s postingDr
 
 func validPostingDecisionInput(in *StaffPostingDecisionInput) bool {
 	in.Reason = strings.TrimSpace(in.Reason)
+	if !validPostingLifecycleDecision(in.LifecycleReview) || in.LifecycleReview != nil && in.Decision != "approve" {
+		return false
+	}
 	if in.HospitalManagementReviewed != nil {
 		if *in.HospitalManagementReviewed && in.Decision != "approve" {
 			return false
@@ -88,6 +91,9 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	if in.Decision == "approve" && in.HospitalManagementReviewed != nil && *in.HospitalManagementReviewed {
 		additional = []authz.Permission{PermPostingManagementReview}
 	}
+	if in.LifecycleReview != nil && len(additional) == 0 {
+		additional = []authz.Permission{PermPostingRead}
+	}
 	var out StaffPostingProposal
 	err = h.scopedPostingTransaction(c, p, s, true, permission, func(ctx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
 		if err := postingProposalDecisionContext(tx, s, in.Decision, in.ExpectedRevisionID); err != nil {
@@ -121,15 +127,42 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 		if err := authorizePostingProposalDecider(tx, p, s, in.Decision); err != nil {
 			return err
 		}
+		var chain []postingChainSource
+		var lifecycle *postingLifecycleReview
+		if in.LifecycleReview != nil {
+			lifecycle, err = newPostingLifecycleReview(tx)
+			if err != nil {
+				return err
+			}
+		}
 		persist := func(current *gorm.DB) error {
-			out, err = h.recordPostingDecision(current, p, s, row, in, fingerprint)
+			out, err = h.recordPostingDecision(ctx, current, p, s, row, in, fingerprint, chain, lifecycle)
 			return err
 		}
 		if in.Decision == "approve" {
-			if len(additional) == 0 {
+			intent, readErr := readPostingSupervisionIntent(tx, p.TenantID, s)
+			if readErr != nil {
+				return readErr
+			}
+			if intent == nil {
 				return errPostingSupervisionRequired
 			}
-			return h.withRootPostingApproval(ctx, tx, p, s, row, source, persist)
+			if intent.Kind != "hospital_management" {
+				if in.HospitalManagementReviewed != nil {
+					return errPostingSupervisionRequired
+				}
+				return h.withSupervisedPostingLifecycleApproval(ctx, tx, p, s, row, source, *intent, lifecycle, func(current *gorm.DB, verified []postingChainSource) error {
+					chain = verified
+					return persist(current)
+				})
+			}
+			if in.HospitalManagementReviewed == nil {
+				return errPostingSupervisionRequired
+			}
+			if lifecycle == nil {
+				return h.withRootPostingApproval(ctx, tx, p, s, row, source, persist)
+			}
+			return h.withRootPostingLifecycleApproval(ctx, tx, p, s, row, source, lifecycle, persist)
 		}
 		return persist(tx)
 	}, additional...)
@@ -141,7 +174,15 @@ func (h *handlers) putPostingProposalDecision(c *gin.Context) {
 	respond.OK(c, out)
 }
 
-func (h *handlers) recordPostingDecision(tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, in StaffPostingDecisionInput, fingerprint string) (StaffPostingProposal, error) {
+func (h *handlers) recordPostingDecision(ctx context.Context, tx *gorm.DB, p authn.Principal, s postingDraftScope, row StaffPostingProposal, in StaffPostingDecisionInput, fingerprint string, chain []postingChainSource, lifecycle *postingLifecycleReview) (StaffPostingProposal, error) {
+	if in.LifecycleReview != nil {
+		if !lifecycle.matchesDecision(row, chain, in.LifecycleReview) {
+			return StaffPostingProposal{}, errPostingProposalConflict
+		}
+		if err := tx.Exec(`SELECT set_config('app.workforce_posting_lifecycle_approval','verified',true)`).Error; err != nil {
+			return StaffPostingProposal{}, err
+		}
+	}
 	revision, err := uuid.NewV7()
 	if err != nil {
 		return StaffPostingProposal{}, err
@@ -152,7 +193,16 @@ func (h *handlers) recordPostingDecision(tx *gorm.DB, p authn.Principal, s posti
 		return StaffPostingProposal{}, err
 	}
 	if status == "approved" {
-		if err := recordPostingManagementReview(tx, p, s, revision, row.RevisionID); err != nil {
+		if len(chain) == 0 {
+			if err := recordPostingManagementReview(tx, p, s, revision, row.RevisionID); err != nil {
+				return StaffPostingProposal{}, err
+			}
+		} else if err := recordPostingChainReview(tx, p, s, revision, row.RevisionID, chain); err != nil {
+			return StaffPostingProposal{}, err
+		}
+	}
+	if in.LifecycleReview != nil {
+		if err := recordPostingLifecycleReview(ctx, tx, p, s, revision, row, chain, lifecycle); err != nil {
 			return StaffPostingProposal{}, err
 		}
 	}

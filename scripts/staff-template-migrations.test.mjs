@@ -90,6 +90,22 @@ test("unchanged catalog regenerates and checks without changing public artifacts
 
 test("posting catalogs refuse incomplete, duplicated and expanded role authority before writes", async (t) => {
   for (const [key, permissions] of [
+    ["workforce.posting_cutoff_admin.v1", ["workforce.posting.cutoff"]],
+    [
+      "workforce.posting_cutoff_admin.v1",
+      [
+        "workforce.posting.read",
+        "workforce.posting.proposal.read",
+        "workforce.posting.cutoff",
+        "workforce.staff_actor.use",
+        "workforce.posting.review",
+      ],
+    ],
+    ["workforce.posting_source_consumer.v1", ["workforce.posting_source.use"]],
+    [
+      "workforce.posting_source_consumer.v1",
+      ["workforce.posting_source.use", "workforce.staff_actor.use", "workforce.posting.read"],
+    ],
     ["workforce.posting_management_reviewer.v1", ["workforce.posting.management.review"]],
     [
       "workforce.posting_management_reviewer.v1",
@@ -240,6 +256,150 @@ async function intakeExtension(contract) {
   entry.sql_sha256 = createHash("sha256").update(sql).digest("hex");
   return { entry, sql };
 }
+
+async function pharmacyBindingExtension(contract, kind = "preparer") {
+  const entry = await extension(contract);
+  entry.id = entry.id.replace("_test_templates", "_pharmacy_binding_templates");
+  entry.file = "assignment_pharmacy_binding_templates_generated.sql";
+  entry.templates = [
+    {
+      key: `pharmacy.department_binding_${kind}.v2`,
+      name: `Pharmacy department binding ${kind}`,
+      description:
+        "Prepare outlet-to-department relationships within one hospital; cannot approve relationships or operate a pharmacy.",
+      family: "pharmacy_binding",
+      permissions: [
+        "pharmacy.staff_binding.read",
+        `pharmacy.staff_binding.${kind === "reviewer" ? "review" : "prepare"}`,
+        "organization.posting_choices.read",
+        "workforce.staff_actor.use",
+      ],
+    },
+  ];
+  const fields = contract.models.TemplateDefinition.map((field) => field.name);
+  entry.definitions_sha256 = createHash("sha256")
+    .update(
+      JSON.stringify(
+        entry.templates.map((template) =>
+          Object.fromEntries(fields.map((field) => [field, template[field]])),
+        ),
+      ),
+    )
+    .digest("hex");
+  const template = entry.templates[0];
+  const sql = (
+    await readFile(
+      path.join(root, "backend/internal/modules/iam/testdata/staff_template_append.sql"),
+      "utf8",
+    )
+  ).replace(
+    "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
+    `WHEN '${template.key}' THEN '${JSON.stringify(template.permissions)}'::jsonb`,
+  );
+  entry.sql_sha256 = createHash("sha256").update(sql).digest("hex");
+  return { entry, sql };
+}
+
+test("a Pharmacy binding preparer can use canonical Staff without gaining review or operating authority", async (t) => {
+  const { dir, contract, contractPath } = await fixture(t);
+  const historical = await Promise.all(
+    artifacts
+      .filter((file) => file.endsWith(".sql"))
+      .map((file) => readFile(path.join(dir, file), "utf8")),
+  );
+  const { entry, sql } = await pharmacyBindingExtension(contract);
+  contract.template_migrations.push(entry);
+  await writeFile(contractPath, JSON.stringify(contract));
+  const result = generate(dir);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await readFile(path.join(dir, "backend/internal/modules/iam", entry.file), "utf8"),
+    sql,
+  );
+  assert.deepEqual(
+    await Promise.all(
+      artifacts
+        .filter((file) => file.endsWith(".sql"))
+        .map((file) => readFile(path.join(dir, file), "utf8")),
+    ),
+    historical,
+  );
+  const publicDefinitions = await readFile(
+    path.join(dir, "packages/api/src/staff-access-templates.ts"),
+    "utf8",
+  );
+  assert.match(publicDefinitions, /pharmacy\.department_binding_preparer\.v2/);
+  assert.equal(generate(dir, "--check").status, 0);
+});
+
+test("a separate Pharmacy binding reviewer has review rather than preparation authority", async (t) => {
+  const { dir, contract, contractPath } = await fixture(t);
+  const { entry, sql } = await pharmacyBindingExtension(contract, "reviewer");
+  contract.template_migrations.push(entry);
+  await writeFile(contractPath, JSON.stringify(contract));
+  const result = generate(dir);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await readFile(path.join(dir, "backend/internal/modules/iam", entry.file), "utf8"),
+    sql,
+  );
+  const publicDefinitions = await readFile(
+    path.join(dir, "packages/api/src/staff-access-templates.ts"),
+    "utf8",
+  );
+  assert.match(publicDefinitions, /pharmacy\.department_binding_reviewer\.v2/);
+  assert.equal(generate(dir, "--check").status, 0);
+});
+
+test("Pharmacy relationship templates reject missing sources and unrelated authority before writes", async (t) => {
+  for (const kind of ["preparer", "reviewer"]) {
+    for (const change of [
+      (template) => {
+        template.permissions.pop();
+      },
+      (template) => {
+        template.permissions.splice(2, 1);
+      },
+      (template) => {
+        template.permissions.push("workforce.enrollment.manage");
+      },
+      (template) => {
+        template.permissions.push("pharmacy.prescription.read");
+      },
+      (template) => {
+        template.permissions.push("pharmacy.sale.create");
+      },
+      (template) => {
+        template.permissions.push("pharmacy.staff_binding.prepare");
+      },
+      (template) => {
+        template.key = "workforce.department_binding_preparer.v1";
+      },
+      (template) => {
+        template.key = "pharmacy.department_binding_admin.v1";
+      },
+    ]) {
+      const { dir, contract, contractPath } = await fixture(t);
+      const before = await Promise.all(
+        artifacts.map((file) => readFile(path.join(dir, file), "utf8")),
+      );
+      const { entry } = await pharmacyBindingExtension(contract, kind);
+      change(entry.templates[0]);
+      contract.template_migrations.push(entry);
+      await writeFile(contractPath, JSON.stringify(contract));
+      const result = generate(dir);
+      assert.notEqual(result.status, 0);
+      assert.match(
+        result.stderr,
+        /Pharmacy binding templates require their exact role and Staff source permissions/,
+      );
+      assert.deepEqual(
+        await Promise.all(artifacts.map((file) => readFile(path.join(dir, file), "utf8"))),
+        before,
+      );
+    }
+  }
+});
 
 test("HR intake introduces its exact compound authority without rewriting history", async (t) => {
   const { dir, contract, contractPath } = await fixture(t);

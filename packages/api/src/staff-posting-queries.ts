@@ -4,13 +4,20 @@ import {
   listStaffPostingScopes,
   listStaffPostingTargets,
   listStaffPostingReviewScopes,
+  listStaffPostingCutoffScopes,
 } from "./staff-posting-workspace";
 import {
   getStaffPostingProposalContext,
   getStaffPostingSupervisionContext,
   getStaffPostingManagementReviewContext,
+  getStaffPostingChainReviewContext,
+  getStaffPostingLifecycleReviewContext,
+  getStaffPostingLifecycleHistoryContext,
   getStaffPostingReviewSource,
+  getStaffPostingCutoffContext,
+  listStaffPostingCutoffHistory,
   listStaffPostingProposalInbox,
+  listStaffPostingSupervisorChoices,
   staffPostingProposalsKey,
   type StaffPostingInboxScope,
   type StaffPostingProposalScope,
@@ -34,6 +41,60 @@ const options = {
   retry: false as const,
   refetchInterval: POLL_INTERVAL_MS,
 };
+
+export function useStaffPostingCutoffScopes(
+  scope: Pick<StaffPostingScope, "tenantId" | "subject">,
+  cursor: string | null,
+  busy = false,
+) {
+  return useQuery({
+    ...options,
+    refetchInterval: busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !busy,
+    queryKey: ["workforce", "posting-cutoff-scopes", scope.tenantId, scope.subject, cursor],
+    queryFn: ({ signal }) => listStaffPostingCutoffScopes(scope, cursor, signal),
+  });
+}
+
+export function useStaffPostingCutoffContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  busy = false,
+) {
+  return useQuery({
+    ...options,
+    refetchInterval: busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "cutoff-context",
+      proposal.id,
+      proposal.revision_id,
+      proposal.version,
+    ],
+    queryFn: ({ signal }) => getStaffPostingCutoffContext(scope, proposal, signal),
+  });
+}
+
+export function useStaffPostingCutoffHistory(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  cursor: string | null,
+  latestVersion: number,
+) {
+  return useQuery({
+    ...options,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "cutoff-history",
+      proposal.id,
+      proposal.revision_id,
+      cursor,
+      latestVersion,
+    ],
+    queryFn: ({ signal }) => listStaffPostingCutoffHistory(scope, proposal, cursor, signal),
+  });
+}
 export function useStaffPostingDraftSource(scope: StaffPostingScope) {
   return useQuery({
     ...options,
@@ -252,5 +313,116 @@ export function useStaffPostingManagementReviewContext(
         },
         signal,
       ),
+  });
+}
+
+export function useStaffPostingSupervisorChoices(
+  scope: StaffPostingInboxScope,
+  purpose: "submission" | "review",
+  cursor: string | null,
+  state: { enabled: boolean; busy: boolean },
+) {
+  return useQuery({
+    ...options,
+    enabled: state.enabled,
+    refetchInterval: state.busy ? false : POLL_INTERVAL_MS,
+    refetchOnWindowFocus: !state.busy,
+    queryKey: [
+      "workforce",
+      "posting-supervisor-choices",
+      scope.access,
+      scope.tenantId,
+      scope.subject,
+      scope.hospitalId,
+      purpose,
+      cursor,
+    ],
+    queryFn: ({ signal }) => listStaffPostingSupervisorChoices(scope, purpose, cursor, signal),
+  });
+}
+
+export function useStaffPostingChainReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  enabled: boolean,
+  busy = false,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    enabled,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "chain-review-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+      "review",
+    ],
+    queryFn: ({ signal }) =>
+      getStaffPostingChainReviewContext(
+        scope,
+        proposal.id,
+        {
+          purpose: "review",
+          expected_version: proposal.version,
+          expected_revision_id: proposal.revision_id,
+        },
+        signal,
+      ),
+  });
+}
+
+export function useStaffPostingLifecycleReviewContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+  mode: "hospital_management" | "supervised" | null,
+  busy = false,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    enabled: mode !== null,
+    refetchOnWindowFocus: !busy,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "lifecycle-review-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+      mode,
+    ],
+    queryFn: ({ signal }) =>
+      getStaffPostingLifecycleReviewContext(
+        scope,
+        proposal.id,
+        {
+          purpose: "review",
+          expected_version: proposal.version,
+          expected_revision_id: proposal.revision_id,
+          mode: mode ?? "supervised",
+        },
+        signal,
+      ),
+  });
+}
+
+export function useStaffPostingLifecycleHistoryContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+) {
+  return useQuery({
+    ...options,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "lifecycle-history-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+    ],
+    queryFn: ({ signal }) => getStaffPostingLifecycleHistoryContext(scope, proposal, signal),
   });
 }

@@ -1,0 +1,431 @@
+{
+  "models": {
+    "StaffDepartmentBindingProposalInput": [
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "replaces_binding_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "replaces_binding_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "StaffDepartmentBindingCommandInput": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740989
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["approve", "reject", "withdraw", "end"]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "attest_department_responsibility",
+        "type": "bool"
+      }
+    ],
+    "StaffDepartmentBinding": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "replaces_binding_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "replaces_binding_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "withdrawn", "ended"]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "proposed_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "proposer_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "decided_by_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "reviewer_staff_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "decision_reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "decided_at",
+        "type": "time",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "ended_at",
+        "type": "time",
+        "pointer": true,
+        "nullable": true
+      }
+    ],
+    "StaffDepartmentBindingView": [
+      {
+        "name": "binding",
+        "type": "StaffDepartmentBinding"
+      },
+      {
+        "name": "source_state",
+        "type": "string",
+        "enum": ["current", "changed", "not_applicable"]
+      }
+    ],
+    "StaffBindingAuthorizationObservation": [
+      {
+        "name": "permission",
+        "type": "string",
+        "enum": [
+          "pharmacy.staff_binding.read",
+          "pharmacy.staff_binding.prepare",
+          "pharmacy.staff_binding.review",
+          "workforce.staff_actor.use"
+        ]
+      },
+      {
+        "name": "assignment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "assignment_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "scope_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      }
+    ],
+    "StaffDepartmentBindingCommandReceipt": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "binding_id",
+        "type": "uuid"
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": ["propose", "approve", "reject", "withdraw", "end"]
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "actor_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "recorded_at",
+        "type": "time"
+      },
+      {
+        "name": "binding",
+        "type": "StaffDepartmentBinding"
+      },
+      {
+        "name": "replaced_binding_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "replaced_binding_version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740990,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "authorizations",
+        "type": "[]StaffBindingAuthorizationObservation",
+        "min": 2,
+        "max": 2
+      }
+    ],
+    "StaffDepartmentBindingHistoryEntry": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "binding_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "enum": ["read", "propose", "approve", "reject", "withdraw", "end"]
+      },
+      {
+        "name": "command_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "recorded_at",
+        "type": "time"
+      },
+      {
+        "name": "recorded_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "source_state",
+        "type": "string",
+        "enum": ["current", "changed", "not_applicable"],
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "related_binding_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "related_binding_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "authorizations",
+        "type": "[]StaffBindingAuthorizationObservation",
+        "min": 2,
+        "max": 3,
+        "orm_ignore": true
+      }
+    ],
+    "StaffBindingOutletChoice": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "outlet_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      }
+    ]
+  },
+  "subject": "helivanta.in.pharmacy.staff_department_binding_changed.v1",
+  "events": {
+    "StaffDepartmentBindingChangedData": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "binding_id",
+        "type": "uuid"
+      },
+      {
+        "name": "command_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": ["pending", "approved", "rejected", "withdrawn", "ended"]
+      },
+      {
+        "name": "replaced_binding_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "replaced_binding_version",
+        "type": "int64",
+        "min": 2,
+        "max": 9007199254740990,
+        "pointer": true,
+        "nullable": true
+      }
+    ]
+  }
+}

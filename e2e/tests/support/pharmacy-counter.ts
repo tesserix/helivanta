@@ -53,8 +53,60 @@ export async function provider(page: Page, path: string, body: unknown) {
   return response.json() as Promise<{ id: string; amount: number }>;
 }
 
-/** Two actors, real owner commands, no table or projection writes. */
-export async function readyCounter(admin: Page, browser: Browser) {
+type Actor = { tenant_id: string; subject: string };
+
+/**
+ * Gives the page's own subject `role` until the returned function removes it,
+ * waiting each way until `permission` reaches the real resolver.
+ */
+export async function temporaryRole(
+  admin: Page,
+  administrator: Actor,
+  page: Page,
+  role: string,
+  permission: string,
+) {
+  const holds = async () =>
+    (await owner<{ data: string[] }>(page, "GET", "/iam/me/permissions")).data.includes(permission);
+  const { subject } = await owner<Actor>(page, "GET", "/iam/me/permissions");
+  const membership = await owner<Pick<MembershipCandidate, "id">>(admin, "POST", "/iam/members", {
+    subject,
+    role_key: role,
+  });
+  await expect.poll(holds).toBe(true);
+  return async (reason: string) => {
+    let held: MembershipCandidate | undefined;
+    let cursor: string | null = null;
+    for (let n = 0; n < 20; n++) {
+      const candidates: {
+        data: MembershipCandidate[];
+        page: { has_more: boolean; next_cursor: string | null };
+      } = await membershipOwner(
+        admin,
+        administrator,
+        "GET",
+        `/iam/membership-candidates?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      );
+      held = candidates.data.find((candidate) => candidate.id === membership.id);
+      if (held || !candidates.page.has_more) break;
+      expect(candidates.page.next_cursor).toBeTruthy();
+      cursor = candidates.page.next_cursor;
+    }
+    expect(held, "the temporary membership must be attributable").toBeDefined();
+    await membershipOwner(admin, administrator, "PUT", `/iam/membership-commands/${uuidv7()}`, {
+      operation: "remove",
+      basis_id: held!.id,
+      subject,
+      role_key: role,
+      expected_membership_epoch: held!.membership_epoch,
+      reason,
+    });
+    await expect.poll(holds).toBe(false);
+  };
+}
+
+/** Two actors and a sellable outlet: real owner commands, no table or projection writes. */
+export async function readyOutlet(admin: Page, browser: Browser) {
   await login(admin, specAdmin());
   const { outlet, stamp } = await newOutlet(admin);
   const administrator = await owner<{ tenant_id: string; subject: string }>(
@@ -75,22 +127,13 @@ export async function readyCounter(admin: Page, browser: Browser) {
   );
   // The reviewing pharmacist is temporarily also the pharmacy owner; remove that
   // role after setup so selling/returning is proved under pharmacist authority.
-  const reviewerMembership = await owner<Pick<MembershipCandidate, "id">>(
+  const endReviewer = await temporaryRole(
     admin,
-    "POST",
-    "/iam/members",
-    {
-      subject: me.subject,
-      role_key: "pharmacy_owner",
-    },
+    administrator,
+    cashier,
+    "pharmacy_owner",
+    "pharmacy.licence.review",
   );
-  await expect
-    .poll(async () =>
-      (await owner<{ data: string[] }>(cashier, "GET", "/iam/me/permissions")).data.includes(
-        "pharmacy.licence.review",
-      ),
-    )
-    .toBe(true);
   await owner(admin, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
     level: "editor",
   });
@@ -190,43 +233,7 @@ export async function readyCounter(admin: Page, browser: Browser) {
     quantity_units: 20,
     reason: "TEST checked and shelved",
   });
-  const account = JSON.parse(
-    readFileSync(path.resolve(__dirname, "../../fixtures/payments-account.json"), "utf8"),
-  );
-  await owner(admin, "PUT", "/payments/razorpay-account", account);
-  let reviewer: MembershipCandidate | undefined;
-  let cursor: string | null = null;
-  for (let page = 0; page < 20; page++) {
-    const candidates: {
-      data: MembershipCandidate[];
-      page: { has_more: boolean; next_cursor: string | null };
-    } = await membershipOwner(
-      admin,
-      administrator,
-      "GET",
-      `/iam/membership-candidates?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
-    );
-    reviewer = candidates.data.find((candidate) => candidate.id === reviewerMembership.id);
-    if (reviewer || !candidates.page.has_more) break;
-    expect(candidates.page.next_cursor).toBeTruthy();
-    cursor = candidates.page.next_cursor;
-  }
-  expect(reviewer, "the current temporary reviewer membership must be attributable").toBeDefined();
-  await membershipOwner(admin, administrator, "PUT", `/iam/membership-commands/${uuidv7()}`, {
-    operation: "remove",
-    basis_id: reviewer!.id,
-    subject: me.subject,
-    role_key: "pharmacy_owner",
-    expected_membership_epoch: reviewer!.membership_epoch,
-    reason: "TEST end temporary licence reviewer role before cashier journey",
-  });
-  await expect
-    .poll(async () =>
-      (await owner<{ data: string[] }>(cashier, "GET", "/iam/me/permissions")).data.includes(
-        "pharmacy.licence.review",
-      ),
-    )
-    .toBe(false);
+  await endReviewer("TEST end temporary licence reviewer role before cashier journey");
   await cashier.goto("/dashboard");
   await cashier.evaluate(({ key, value }) => sessionStorage.setItem(key, value), {
     key: `helivanta:pharmacy:scope:${me.tenant_id}`,
@@ -235,7 +242,28 @@ export async function readyCounter(admin: Page, browser: Browser) {
       outletId: outlet.split("/").at(-1),
     }),
   });
-  return { context, cashier, outlet, product, sku, batch, quarantine, subject: me.subject };
+  return {
+    context,
+    cashier,
+    outlet,
+    product,
+    sku,
+    batch,
+    quarantine,
+    shelf,
+    stamp,
+    subject: me.subject,
+  };
+}
+
+/** readyOutlet with the synthetic payment provider's account, for UPI sales. */
+export async function readyCounter(admin: Page, browser: Browser) {
+  const fixture = await readyOutlet(admin, browser);
+  const account = JSON.parse(
+    readFileSync(path.resolve(__dirname, "../../fixtures/payments-account.json"), "utf8"),
+  );
+  await owner(admin, "PUT", "/payments/razorpay-account", account);
+  return fixture;
 }
 
 export async function collectUpi(page: Page, sku: string, units = "2") {

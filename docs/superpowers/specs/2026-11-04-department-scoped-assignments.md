@@ -211,7 +211,9 @@ scope epoch, so any status change invalidates both.
    sensitivity clearance (#426), treating relationships (#430) and
    roster-derived membership get their own specification.
 4. **Outlet scope (#418).** Pharma outlets as a scope kind follow the same
-   pattern with Pharma as the verifying owner.
+   pattern with Pharma as the verifying owner. The
+   [pharmacist outlet authority specification](2026-11-05-pharmacist-outlet-authority.md)
+   designs it.
 
 ## Required tests
 

@@ -1,5 +1,17 @@
 # Staff Management delivery tracker
 
+## Pharmacist outlet authority designed (#418) — 2026-11-05
+
+The [pharmacist outlet authority specification](../superpowers/specs/2026-11-05-pharmacist-outlet-authority.md)
+proposes decisions D1–D7 for product-owner review. Source on `01d4a284` shows the
+gap: the tenant-wide pharmacist role plus an editor outlet grant releases H1 stock,
+and the registers name the login subject, not a registered pharmacist.
+Implementation is blocked on #39 (Practitioner is not in the API bootstrap) and
+#1374 (no practitioner-to-Staff link). No primary source for pharmacist-presence
+or PIC rules is in the India source register yet. No migration, route or
+permission exists. Counts are unchanged at **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## ADR-0054 accepted (#19) — 2026-11-05
 
 The product owner accepted [ADR-0054](../adr/0054-typed-employing-establishments.md)

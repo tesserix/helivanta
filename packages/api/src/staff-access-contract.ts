@@ -27,6 +27,9 @@ export const ProposalInputContract = z
       "workforce.posting_reviewer.v1",
       "workforce.posting_management_reviewer.v1",
       "workforce.posting_cutoff_admin.v1",
+      "workforce.posting_source_consumer.v1",
+      "pharmacy.department_binding_preparer.v1",
+      "pharmacy.department_binding_reviewer.v1",
     ]),
     reason: z
       .string()

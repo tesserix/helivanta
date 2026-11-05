@@ -50,6 +50,17 @@ go +=
 for (const currency of new Set(data.countries.map((p) => p.currency)))
   go += `case ${quoted(currency)}: return true\n`;
 go += "default:return false\n}}\n";
+const minorDigits = new Map();
+for (const p of data.countries) {
+  if ((minorDigits.get(p.currency) ?? p.currency_minor_digits) !== p.currency_minor_digits)
+    throw new Error("Countries disagree on the minor digits of " + p.currency);
+  minorDigits.set(p.currency, p.currency_minor_digits);
+}
+go +=
+  "\n// CurrencyMinorDigits is the number of minor-unit digits of a supported currency.\nfunc CurrencyMinorDigits(code string) (int,bool) {switch code {\n";
+for (const [currency, digits] of minorDigits)
+  go += `case ${quoted(currency)}: return ${digits},true\n`;
+go += "default:return 0,false\n}}\n";
 go +=
   "\n// ValidTaxIdentifierKind checks declared metadata, not licence validity.\nfunc ValidTaxIdentifierKind(code,kind string) bool {switch code {\n";
 for (const p of data.countries)

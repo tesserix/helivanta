@@ -14,6 +14,8 @@ import {
   type StaffPostingProposal,
   type StaffPostingReviewHospitalScope,
 } from "@helivanta/api";
+import { PostingApprovalHistory } from "./posting-approval-history";
+import { PostingProposalContextDetails } from "./posting-proposal-context-details";
 import { PostingLifecycleReview } from "./posting-lifecycle-review";
 import { PostingProposalDecision } from "./posting-proposal-decision";
 import { PostingSubmissionWorkspace } from "./posting-submission-workspace";
@@ -328,16 +330,7 @@ function HospitalPostingReviews({
     </Panel>
   );
 }
-function PostingProposalDetail({
-  scope,
-  item,
-  action,
-  busy,
-  onBusy,
-  onCompleted,
-  onClose,
-  onContextChanged,
-}: {
+type PostingProposalDetailProps = {
   scope: StaffPostingInboxScope;
   item: StaffPostingInboxItem;
   action: "reject" | "withdraw" | null;
@@ -346,7 +339,32 @@ function PostingProposalDetail({
   onCompleted: (row: StaffPostingProposal) => void;
   onClose: () => void;
   onContextChanged: () => void;
-}) {
+};
+
+function PostingProposalDetail(props: PostingProposalDetailProps) {
+  if (props.item.proposal.status === "approved")
+    return (
+      <PostingApprovalHistory
+        scope={{ ...props.scope, staffId: props.item.staff.id }}
+        proposal={props.item.proposal}
+        displayName={props.item.staff.display_name}
+        onClose={props.onClose}
+        onContextChanged={props.onContextChanged}
+      />
+    );
+  return <UnapprovedPostingProposalDetail {...props} />;
+}
+
+function UnapprovedPostingProposalDetail({
+  scope,
+  item,
+  action,
+  busy,
+  onBusy,
+  onCompleted,
+  onClose,
+  onContextChanged,
+}: PostingProposalDetailProps) {
   const [approvalReview, setApprovalReview] = useState<"management" | "chain" | null>(null);
   const managementReview = approvalReview === "management";
   const chainReview = approvalReview === "chain";
@@ -461,39 +479,7 @@ function PostingProposalDetail({
               </Button>
             )}
           </Panel>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-muted-foreground">Draft rationale</dt>
-              <dd className="break-words">{context.data.context.draft_reason}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Submission rationale</dt>
-              <dd className="break-words">{context.data.context.submission_reason}</dd>
-            </div>
-            {context.data.context.decision_reason && (
-              <div>
-                <dt className="text-sm text-muted-foreground">Decision rationale</dt>
-                <dd className="break-words">{context.data.context.decision_reason}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-sm text-muted-foreground">Submitted department reference</dt>
-              <dd className="break-all">{context.data.context.proposal.department_id}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Submitted department revision</dt>
-              <dd className="break-all">{context.data.context.proposal.department_revision_id}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Proposed placement (UTC)</dt>
-              <dd>
-                {new Date(context.data.context.proposal.starts_at).toISOString()} ·{" "}
-                {context.data.context.proposal.ends_at
-                  ? new Date(context.data.context.proposal.ends_at).toISOString()
-                  : "Ongoing"}
-              </dd>
-            </div>
-          </dl>
+          <PostingProposalContextDetails context={context.data.context} />
         </>
       )}
       {approvalReview && (context.isError || context.isPending) && !cutoff && (

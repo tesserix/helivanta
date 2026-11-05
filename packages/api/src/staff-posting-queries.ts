@@ -12,6 +12,7 @@ import {
   getStaffPostingManagementReviewContext,
   getStaffPostingChainReviewContext,
   getStaffPostingLifecycleReviewContext,
+  getStaffPostingLifecycleHistoryContext,
   getStaffPostingReviewSource,
   getStaffPostingCutoffContext,
   listStaffPostingCutoffHistory,
@@ -406,5 +407,22 @@ export function useStaffPostingLifecycleReviewContext(
         },
         signal,
       ),
+  });
+}
+
+export function useStaffPostingLifecycleHistoryContext(
+  scope: StaffPostingProposalScope,
+  proposal: StaffPostingProposal,
+) {
+  return useQuery({
+    ...options,
+    queryKey: [
+      ...staffPostingProposalsKey(scope),
+      "lifecycle-history-context",
+      proposal.id,
+      proposal.version,
+      proposal.revision_id,
+    ],
+    queryFn: ({ signal }) => getStaffPostingLifecycleHistoryContext(scope, proposal, signal),
   });
 }

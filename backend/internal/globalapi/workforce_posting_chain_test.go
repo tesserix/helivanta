@@ -11,7 +11,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, changeSupervisorIdentity func() func()) {
+func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, hospitalBase, childBase, submitter, reviewer, supervisorStaff, rootApprover, rootApproverStaff, organizationMaker, childDraft string, childReceipt, childSource, generation map[string]any, usePostingSource postingSourceUseProbe, changeSupervisorIdentity func() func()) {
 	t.Helper()
 	parentBase := hospitalBase + "/posting-staff/" + supervisorStaff
 	parentSource := call(t, "GET", parentBase+"/posting-review-source", reviewer, nil, 200)
@@ -124,9 +124,12 @@ func assertPostingSupervisedApproval(t *testing.T, db *tenantdb.DB, tenant strin
 	require.Equal(t, approved, call(t, "PUT", path, reviewer, decision, 200))
 	require.Equal(t, approved, call(t, "GET", path, reviewer, nil, 200))
 	require.Equal(t, []any{approved, pending}, call(t, "GET", childRoot+"/history?limit=2", reviewer, nil, 200)["data"])
+	legacyHistory := call(t, "GET", postingLifecycleHistoryPath(childRoot, approved), reviewer, nil, 200)
+	require.Contains(t, legacyHistory, "review")
+	require.Nil(t, legacyHistory["review"], "older approval cannot fabricate later lifecycle evidence")
 	assertPostingDepartmentMember(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, organizationMaker, approved)
 	assertPostingSupervisorChoiceContinuation(t, db, tenant, call, childReceipt["hospital_id"].(string), submitter, reviewer, approved, selfRootApproved)
-	assertPostingRetainedAncestorCutoff(t, db, tenant, call, request, hospitalBase, submitter, reviewer, rootApprover, rootApproverStaff, parentApproved, approved)
+	assertPostingRetainedAncestorCutoff(t, db, tenant, call, request, hospitalBase, submitter, reviewer, rootApprover, rootApproverStaff, parentApproved, approved, usePostingSource)
 	assertPostingAncestorSourceCutoff(t, db, tenant, call, hospitalBase, reviewer, rootApprover, rootApproverStaff, approved, changeSupervisorIdentity)
 	assertPostingImmediateCutoff(t, db, tenant, call, hospitalBase, submitter, rootApprover, reviewer, selfRootApproved)
 }

@@ -43,6 +43,15 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"pharmacy.StaffDepartmentBindingChangedData.PharmacyID":                "opaque organization reference; no commercial name or Staff details",
+	"pharmacy.StaffDepartmentBindingChangedData.OutletID":                  "opaque outlet scope; protected owner lookup required",
+	"pharmacy.StaffDepartmentBindingChangedData.HospitalID":                "opaque hospital scope; no patient or clinical data",
+	"pharmacy.StaffDepartmentBindingChangedData.BindingID":                 "opaque relationship reference; no Staff identity or private reason",
+	"pharmacy.StaffDepartmentBindingChangedData.CommandID":                 "opaque immutable command correlation; no actor or private decision content",
+	"pharmacy.StaffDepartmentBindingChangedData.Version":                   "monotonic relationship version for replay and ordering",
+	"pharmacy.StaffDepartmentBindingChangedData.Status":                    "closed relationship transition vocabulary; no professional or clinical finding",
+	"pharmacy.StaffDepartmentBindingChangedData.ReplacedBindingID":         "optional opaque prior relationship reference; protected lookup required",
+	"pharmacy.StaffDepartmentBindingChangedData.ReplacedBindingVersion":    "optional prior relationship version for replacement correlation",
 	"pharmacy.LicenceEvidenceScanRequestedData.OutletID":                   "opaque outlet scope; downloads require current outlet grant",
 	"pharmacy.LicenceEvidenceScanRequestedData.LicenceID":                  "opaque licence declaration reference, never licence number or pharmacist details",
 	"pharmacy.LicenceEvidenceScanRequestedData.FileID":                     "immutable file intent reference; no filename, checksum, storage key or bytes",

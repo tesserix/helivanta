@@ -1,31 +1,252 @@
 "use client";
 
 import { useState } from "react";
+import { z } from "zod";
+import { Button, Input } from "@tesserix/web";
 import {
+  fetchPharmacyReportCSV,
   pharmacyItemSalesPath,
   pharmacyKey,
   pharmacyPatientSalesPath,
+  pharmacyPrescribersPath,
   pharmacyReceiptsPath,
   pharmacyStockSalesPath,
   useApiPagedQuery,
+  useApiQuery,
   usePermissions,
   type PharmacyItemSales,
+  type PharmacyItemSalesLines,
+  type PharmacyPrescribers,
   type PharmacyPatientSaleLine,
   type PharmacyReceipt,
   type PharmacyReceiptKind,
+  type PharmacyReportCategory,
   type PharmacyScope,
   type PharmacyStockSales,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure } from "@helivanta/ui";
+import { Field, LoadMore, RequestFailure, SelectControl, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, type CounterPatient } from "./counter-patient";
 import { formatPharmacyMoney } from "./currency-amount-field";
+import { RegisterExport } from "./h1-register";
+import { useItemCategories } from "./item-categories";
 import type { Period } from "./period";
+
+/**
+ * The item category, then subcategory, a report is cut by (#988). Retired
+ * categories are offered: past sales were made under them. Only for catalogue
+ * readers, who can list the categories; the API enforces nothing new.
+ */
+function CategoryFilter(props: {
+  scope: PharmacyScope;
+  id: string;
+  value: PharmacyReportCategory;
+  onChange: (value: PharmacyReportCategory) => void;
+}) {
+  const { can } = usePermissions();
+  return can("pharmacy.catalogue.read") ? <CategoryPickers {...props} /> : null;
+}
+
+function CategoryPickers({
+  scope,
+  id,
+  value,
+  onChange,
+}: {
+  scope: PharmacyScope;
+  id: string;
+  value: PharmacyReportCategory;
+  onChange: (value: PharmacyReportCategory) => void;
+}) {
+  const categories = useItemCategories(scope);
+  if (categories.isError)
+    return <RequestFailure message="Could not load the categories." retry={categories.retry} />;
+  const label = (c: { code: string; name: string; retired_at: string | null }) =>
+    `${c.name} (${c.code})${c.retired_at ? ", retired" : ""}`;
+  const subs = categories.items.filter((c) => value.categoryId && c.parent_id === value.categoryId);
+  return (
+    <div className="mt-2 grid gap-4 sm:grid-cols-2">
+      <Field id={`${id}-category`} label="Category">
+        <SelectControl
+          id={`${id}-category`}
+          value={value.categoryId ?? "all"}
+          // A subcategory belongs to one category: changing it drops the subcategory.
+          onValueChange={(v) => onChange(v === "all" ? {} : { categoryId: v })}
+          options={[
+            { value: "all", label: "All categories" },
+            ...categories.items
+              .filter((c) => c.parent_id === null)
+              .map((c) => ({ value: c.id, label: label(c) })),
+          ]}
+        />
+      </Field>
+      {value.categoryId && subs.length > 0 && (
+        <Field id={`${id}-subcategory`} label="Subcategory">
+          <SelectControl
+            id={`${id}-subcategory`}
+            value={value.subcategoryId ?? "all"}
+            onValueChange={(v) =>
+              onChange({
+                categoryId: value.categoryId,
+                ...(v === "all" ? {} : { subcategoryId: v }),
+              })
+            }
+            options={[
+              { value: "all", label: "All subcategories" },
+              ...subs.map((c) => ({ value: c.id, label: label(c) })),
+            ]}
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
+
+const lotSchema = z.object({
+  lot: z.string().trim().max(100, "A lot number is at most 100 characters"),
+});
+
+/** The lot sales by item is cut by (#1060), applied when submitted. */
+function LotFilter({ onChange }: { onChange: (lot: string | undefined) => void }) {
+  const form = useZodForm(lotSchema, { lot: "" });
+  return (
+    <form
+      noValidate
+      className="mt-2 flex flex-wrap items-end gap-4"
+      onSubmit={form.handleSubmit((v) => onChange(v.lot || undefined))}
+    >
+      <Field id="item-sales-lot" label="Lot number" error={form.formState.errors.lot?.message}>
+        <Input id="item-sales-lot" {...form.register("lot")} />
+      </Field>
+      <Button type="submit" variant="outline">
+        Apply lot
+      </Button>
+    </form>
+  );
+}
+
+type Prescriber = NonNullable<PharmacyItemSalesLines["prescriber"]>;
+const prescriberValue = (p: Prescriber) =>
+  JSON.stringify([p.prescriber_registration, p.prescriber_council]);
+
+/**
+ * The prescriber sales by item is cut by (#1060), chosen from the period's
+ * prescribers. Only for prescription readers: the API refuses anyone else,
+ * and every list and every filtered page is recorded.
+ */
+function PrescriberFilter(props: {
+  scope: PharmacyScope;
+  period: Period;
+  value: Prescriber | undefined;
+  onChange: (value: Prescriber | undefined) => void;
+}) {
+  const { can } = usePermissions();
+  return can("pharmacy.prescription.read") ? <PrescriberPicker {...props} /> : null;
+}
+
+function PrescriberPicker({
+  scope,
+  period,
+  value,
+  onChange,
+}: {
+  scope: PharmacyScope;
+  period: Period;
+  value: Prescriber | undefined;
+  onChange: (value: Prescriber | undefined) => void;
+}) {
+  const list = useApiQuery<PharmacyPrescribers>(
+    pharmacyKey(scope, "prescribers", period.from, period.to),
+    pharmacyPrescribersPath(scope, period.from, period.to),
+  );
+  if (list.isError)
+    return (
+      <RequestFailure message="Could not load the prescribers." retry={() => void list.refetch()} />
+    );
+  const prescribers = list.data?.data ?? [];
+  const options = prescribers.map((p) => ({
+    value: prescriberValue(p),
+    label: `${p.prescriber_name} (${p.prescriber_registration}, ${p.prescriber_council})`,
+  }));
+  // A prescriber chosen for another period stays chosen, and named.
+  if (value && !options.some((o) => o.value === prescriberValue(value)))
+    options.unshift({
+      value: prescriberValue(value),
+      label: `${value.prescriber_registration}, ${value.prescriber_council}`,
+    });
+  return (
+    <div className="mt-2">
+      <Field id="item-sales-prescriber" label="Prescriber">
+        <SelectControl
+          id="item-sales-prescriber"
+          value={value ? prescriberValue(value) : "all"}
+          disabled={list.isPending}
+          onValueChange={(v) => {
+            if (v === "all") return onChange(undefined);
+            const [prescriber_registration, prescriber_council] = JSON.parse(v) as [string, string];
+            onChange({ prescriber_registration, prescriber_council });
+          }}
+          options={[
+            { value: "all", label: "All sales, with or without a prescription" },
+            ...options,
+          ]}
+        />
+      </Field>
+      {list.data?.more && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          More than 200 prescribers in this period; choose a shorter period to see them all.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A report's CSV, of what it shows (#1060). Keyed by its path, so a new
+ * period or filter replaces it and cancels a download in flight. `recorded`
+ * says when the file is recorded as a disclosure.
+ */
+export function ReportDownload({
+  scope,
+  path,
+  label,
+  recorded,
+}: {
+  scope: PharmacyScope;
+  path: string;
+  label: string;
+  recorded?: string;
+}) {
+  return (
+    <div className="mt-2">
+      {recorded && <p className="text-sm text-muted-foreground">{recorded}</p>}
+      <RegisterExport
+        key={path}
+        noun="report"
+        label={label}
+        download={(signal) => fetchPharmacyReportCSV(scope, path, signal)}
+      />
+    </div>
+  );
+}
 
 /** Sales by item over the period (#1060): sold, returned and net per product. */
 export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
+  const [category, setCategory] = useState<PharmacyReportCategory>({});
+  const [lines, setLines] = useState<PharmacyItemSalesLines>({});
+  const filtered = Boolean(category.categoryId || lines.lotNumber || lines.prescriber);
+  const path = pharmacyItemSalesPath(scope, period.from, period.to, category, lines);
   const items = useApiPagedQuery<PharmacyItemSales>(
-    pharmacyKey(scope, "item-sales", period.from, period.to),
-    pharmacyItemSalesPath(scope, period.from, period.to),
+    pharmacyKey(
+      scope,
+      "item-sales",
+      period.from,
+      period.to,
+      category.categoryId ?? "",
+      category.subcategoryId ?? "",
+      lines.lotNumber ?? "",
+      lines.prescriber ? prescriberValue(lines.prescriber) : "",
+    ),
+    path,
   );
   return (
     <section className="mt-6" aria-labelledby="item-sales-heading">
@@ -33,15 +254,31 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
         Sales by item
       </h4>
       <p className="mt-1 text-sm text-muted-foreground">
-        Medicines only; service charges are in the daily totals above.
+        Medicines only; service charges are in the daily totals above. A sale counts under the
+        category its item had on the sale date, and a return under its sale&apos;s.
       </p>
+      <CategoryFilter scope={scope} id="item-sales" value={category} onChange={setCategory} />
+      <LotFilter onChange={(lotNumber) => setLines((l) => ({ ...l, lotNumber }))} />
+      <PrescriberFilter
+        scope={scope}
+        period={period}
+        value={lines.prescriber}
+        onChange={(prescriber) => setLines((l) => ({ ...l, prescriber }))}
+      />
+      <ReportDownload
+        scope={scope}
+        path={path}
+        label="Sales by item export"
+        recorded={lines.prescriber && "A download of one prescriber's sales is recorded."}
+      />
       {items.isError ? (
         <RequestFailure message="Could not load sales by item." retry={items.retry} />
       ) : items.isPending ? (
         <p role="status">Loading sales by item…</p>
       ) : items.items.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          No items sold or returned from {period.from} to {period.to}.
+          No items sold or returned{filtered && " for these filters"} from {period.from} to{" "}
+          {period.to}.
         </p>
       ) : (
         <table className="mt-2 w-full text-sm" aria-label="Sales by item">
@@ -109,9 +346,10 @@ const kindLabel: Record<PharmacyReceiptKind, string> = {
 
 /** Every payment taken and refund paid over the period, oldest first (#1060). */
 export function ReceiptsRegister({ scope, period }: { scope: PharmacyScope; period: Period }) {
+  const path = pharmacyReceiptsPath(scope, period.from, period.to);
   const entries = useApiPagedQuery<PharmacyReceipt>(
     pharmacyKey(scope, "receipts", period.from, period.to),
-    pharmacyReceiptsPath(scope, period.from, period.to),
+    path,
   );
   return (
     <section className="mt-6" aria-labelledby="receipts-heading">
@@ -122,6 +360,7 @@ export function ReceiptsRegister({ scope, period }: { scope: PharmacyScope; peri
         Each payment and refund, to tick off against the till or a statement. Cash is what was
         applied to the sale, not counting change.
       </p>
+      <ReportDownload scope={scope} path={path} label="Receipts and refunds export" />
       {entries.isError ? (
         <RequestFailure message="Could not load receipts and refunds." retry={entries.retry} />
       ) : entries.isPending ? (
@@ -219,12 +458,19 @@ export function PatientSaleLines({
   period: Period;
   patient: CounterPatient;
 }) {
+  const path = pharmacyPatientSalesPath(scope, patient.patient_id, period.from, period.to);
   const lines = useApiPagedQuery<PharmacyPatientSaleLine>(
     pharmacyKey(scope, "patient-sales", patient.patient_id, period.from, period.to),
-    pharmacyPatientSalesPath(scope, patient.patient_id, period.from, period.to),
+    path,
   );
   return (
     <>
+      <ReportDownload
+        scope={scope}
+        path={path}
+        label="Patient-wise sales export"
+        recorded="Each download is recorded."
+      />
       {lines.isError ? (
         <RequestFailure message="Could not load the patient's purchases." retry={lines.retry} />
       ) : lines.isPending ? (
@@ -297,9 +543,18 @@ export function PatientSaleLines({
 
 /** Each product's sales over the period beside its stock now (#1060, legacy 755). */
 export function StockSales({ scope, period }: { scope: PharmacyScope; period: Period }) {
+  const [category, setCategory] = useState<PharmacyReportCategory>({});
+  const path = pharmacyStockSalesPath(scope, period.from, period.to, category);
   const rows = useApiPagedQuery<PharmacyStockSales>(
-    pharmacyKey(scope, "stock-sales", period.from, period.to),
-    pharmacyStockSalesPath(scope, period.from, period.to),
+    pharmacyKey(
+      scope,
+      "stock-sales",
+      period.from,
+      period.to,
+      category.categoryId ?? "",
+      category.subcategoryId ?? "",
+    ),
+    path,
   );
   return (
     <section className="mt-6" aria-labelledby="stock-sales-heading">
@@ -307,15 +562,22 @@ export function StockSales({ scope, period }: { scope: PharmacyScope; period: Pe
         Sales and stock
       </h4>
       <p className="mt-1 text-sm text-muted-foreground">
-        Units sold and returned in the period, beside the stock held now.
+        Units sold and returned in the period, beside the stock held now. By category, a product is
+        listed under its category today, with only the sales made while it was in it.
       </p>
+      <CategoryFilter scope={scope} id="stock-sales" value={category} onChange={setCategory} />
+      <ReportDownload scope={scope} path={path} label="Sales and stock export" />
 
       {rows.isError ? (
         <RequestFailure message="Could not load sales and stock." retry={rows.retry} />
       ) : rows.isPending ? (
         <p role="status">Loading sales and stock…</p>
       ) : rows.items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">No product has held stock yet.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {category.categoryId
+            ? "No product in this category today has held stock."
+            : "No product has held stock yet."}
+        </p>
       ) : (
         <table className="mt-2 w-full text-sm" aria-label="Sales and stock">
           <thead className="text-left text-muted-foreground">

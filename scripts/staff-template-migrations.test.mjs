@@ -17,6 +17,8 @@ const artifacts = [
   "backend/internal/modules/workforce/contract/assignment_scope_generated.go",
   "backend/internal/modules/iam/staff_access_templates_generated.go",
   "packages/api/src/staff-access-templates.ts",
+  "backend/internal/modules/iam/contract/assignment_department_scope_generated.go",
+  "backend/internal/modules/organization/contract/assignment_department_generated.go",
   ...catalog.template_migrations
     .filter((entry) => entry.file !== "assignment_templates_generated.sql")
     .map((entry) => "backend/internal/modules/iam/" + entry.file),
@@ -201,7 +203,11 @@ async function extension(contract) {
     "utf8",
   );
   const templates = [
-    { ...contract.template_migrations[0].templates[0], key: "workforce.leave_reviewer.v2" },
+    {
+      ...contract.template_migrations[0].templates[0],
+      key: "workforce.leave_reviewer.v2",
+      scope_kinds: ["hospital"],
+    },
   ];
   const fields = contract.models.TemplateDefinition.map((field) => field.name);
   const normalized = templates.map((template) =>
@@ -232,6 +238,7 @@ async function intakeExtension(contract) {
         "Prepare hospital Staff profiles, employment drafts and protected evidence; cannot approve employment or grant access.",
       family: "intake",
       permissions: ["workforce.enrollment.manage", "workforce.documents.manage"],
+      scope_kinds: ["hospital"],
     },
   ];
   const fields = contract.models.TemplateDefinition.map((field) => field.name);
@@ -249,10 +256,15 @@ async function intakeExtension(contract) {
       path.join(root, "backend/internal/modules/iam/testdata/staff_template_append.sql"),
       "utf8",
     )
-  ).replace(
-    "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
-    "WHEN 'workforce.hr_intake.v2' THEN '[\"workforce.enrollment.manage\",\"workforce.documents.manage\"]'::jsonb",
-  );
+  )
+    .replace(
+      "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
+      "WHEN 'workforce.hr_intake.v2' THEN '[\"workforce.enrollment.manage\",\"workforce.documents.manage\"]'::jsonb",
+    )
+    .replace(
+      "WHEN 'workforce.leave_reviewer.v2' THEN ARRAY['hospital']::text[]",
+      "WHEN 'workforce.hr_intake.v2' THEN ARRAY['hospital']::text[]",
+    );
   entry.sql_sha256 = createHash("sha256").update(sql).digest("hex");
   return { entry, sql };
 }
@@ -274,6 +286,7 @@ async function pharmacyBindingExtension(contract, kind = "preparer") {
         "organization.posting_choices.read",
         "workforce.staff_actor.use",
       ],
+      scope_kinds: ["hospital"],
     },
   ];
   const fields = contract.models.TemplateDefinition.map((field) => field.name);
@@ -292,10 +305,15 @@ async function pharmacyBindingExtension(contract, kind = "preparer") {
       path.join(root, "backend/internal/modules/iam/testdata/staff_template_append.sql"),
       "utf8",
     )
-  ).replace(
-    "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
-    `WHEN '${template.key}' THEN '${JSON.stringify(template.permissions)}'::jsonb`,
-  );
+  )
+    .replace(
+      "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
+      `WHEN '${template.key}' THEN '${JSON.stringify(template.permissions)}'::jsonb`,
+    )
+    .replace(
+      "WHEN 'workforce.leave_reviewer.v2' THEN ARRAY['hospital']::text[]",
+      `WHEN '${template.key}' THEN ARRAY['hospital']::text[]`,
+    );
   entry.sql_sha256 = createHash("sha256").update(sql).digest("hex");
   return { entry, sql };
 }
@@ -773,4 +791,137 @@ test("employment reviewers cannot carry another permission or a broader bundle",
       before,
     );
   }
+});
+
+async function rejectsBeforeWrites(t, mutate, pattern) {
+  const { dir, contract, contractPath } = await fixture(t);
+  const before = await Promise.all(artifacts.map((file) => readFile(path.join(dir, file), "utf8")));
+  await mutate(contract);
+  await writeFile(contractPath, JSON.stringify(contract));
+  const result = generate(dir);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, pattern);
+  assert.deepEqual(
+    await Promise.all(artifacts.map((file) => readFile(path.join(dir, file), "utf8"))),
+    before,
+  );
+}
+const departmentKey = "workforce.department_posting_reviewer.v1";
+const departmentTemplate = (contract) =>
+  contract.template_migrations
+    .flatMap((migration) => migration.templates)
+    .find((template) => template.key === departmentKey);
+
+test("templates introduced from 0030 must declare their scope kinds before writes", async (t) => {
+  await rejectsBeforeWrites(
+    t,
+    async (contract) => {
+      const entry = await extension(contract);
+      delete entry.templates[0].scope_kinds;
+      contract.template_migrations.push(entry);
+    },
+    /scope kinds/i,
+  );
+});
+
+test("scope kinds must be a reviewed ordered subset before writes", async (t) => {
+  for (const scopeKinds of [
+    [],
+    ["ward"],
+    ["department", "hospital"],
+    ["hospital", "hospital"],
+    "hospital",
+    null,
+  ]) {
+    await t.test(JSON.stringify(scopeKinds), async (t) => {
+      await rejectsBeforeWrites(
+        t,
+        async (contract) => {
+          const entry = await extension(contract);
+          entry.templates[0].scope_kinds = scopeKinds;
+          contract.template_migrations.push(entry);
+        },
+        /scope kinds/i,
+      );
+    });
+  }
+});
+
+test("historical templates stay hospital-only and cannot declare a scope", async (t) => {
+  await rejectsBeforeWrites(
+    t,
+    async (contract) => {
+      contract.template_migrations[0].templates[0].scope_kinds = ["hospital"];
+    },
+    /scope kinds|immutable|digest/i,
+  );
+});
+
+test("department posting reviewer keeps exact reviewer authority and department-only scope", async (t) => {
+  for (const [name, mutate] of [
+    ["hospital scope added", (template) => (template.scope_kinds = ["hospital", "department"])],
+    ["hospital scope only", (template) => (template.scope_kinds = ["hospital"])],
+    [
+      "broader permissions",
+      (template) => template.permissions.splice(1, 0, "workforce.posting.prepare"),
+    ],
+    ["missing staff actor", (template) => template.permissions.pop()],
+  ]) {
+    await t.test(name, async (t) => {
+      await rejectsBeforeWrites(
+        t,
+        async (contract) => {
+          const template = departmentTemplate(contract);
+          assert.ok(template, "the department posting reviewer must be declared");
+          mutate(template);
+        },
+        /Posting templates require their exact role|department scope/i,
+      );
+    });
+  }
+});
+
+test("only the reviewed department template may declare department scope", async (t) => {
+  await rejectsBeforeWrites(
+    t,
+    async (contract) => {
+      const entry = await extension(contract);
+      entry.templates[0].scope_kinds = ["hospital", "department"];
+      contract.template_migrations.push(entry);
+    },
+    /department scope/i,
+  );
+});
+
+test("generated templates publish scope kinds and the department scope function", async () => {
+  const go = await readFile(
+    path.join(root, "backend/internal/modules/iam/staff_access_templates_generated.go"),
+    "utf8",
+  );
+  assert.match(
+    go,
+    /Key: "workforce\.leave_reviewer\.v1",[^\n]*?ScopeKinds: \[\]string\{"hospital"\}\}/,
+  );
+  assert.match(
+    go,
+    /Key: "workforce\.department_posting_reviewer\.v1",[^\n]*?ScopeKinds: \[\]string\{"department"\}\}/,
+  );
+  const ts = await readFile(path.join(root, "packages/api/src/staff-access-templates.ts"), "utf8");
+  assert.match(ts, /scope_kinds: \["department"\]/);
+  const entry = catalog.template_migrations.find((migration) =>
+    migration.templates.some((template) => template.key === departmentKey),
+  );
+  assert.ok(entry && entry.id.startsWith("0030_iam_"));
+  const sql = await readFile(path.join(root, "backend/internal/modules/iam", entry.file), "utf8");
+  assert.match(sql, /CREATE OR REPLACE FUNCTION iam_assignment_template_scope_kinds\(key text\)/);
+  assert.match(sql, /WHEN 'workforce\.leave_reviewer\.v1' THEN ARRAY\['hospital'\]::text\[\]/);
+  assert.match(
+    sql,
+    /WHEN 'workforce\.department_posting_reviewer\.v1' THEN ARRAY\['department'\]::text\[\]/,
+  );
+  for (const historical of catalog.template_migrations.filter((m) => m.id < "0027"))
+    assert.doesNotMatch(
+      await readFile(path.join(root, "backend/internal/modules/iam", historical.file), "utf8"),
+      /scope_kinds/,
+    );
 });

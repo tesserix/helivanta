@@ -22,7 +22,11 @@ func WithScopedCommandEvidence(ctx context.Context, checks []ScopeCheck, action 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	evidence := &scopedCommandEvidence{checks: slices.Clone(checks), done: ctx.Done()}
+	checks = slices.Clone(checks)
+	for i := range checks {
+		checks[i].Request.DepartmentPath = slices.Clone(checks[i].Request.DepartmentPath)
+	}
+	evidence := &scopedCommandEvidence{checks: checks, done: ctx.Done()}
 	evidence.active.Store(true)
 	defer evidence.active.Store(false)
 	return action(context.WithValue(ctx, scopedCommandEvidenceKey{}, evidence))
@@ -40,7 +44,7 @@ func ScopedCommandGrant(ctx context.Context, request ScopeRequest) (ScopeGrant, 
 	default:
 	}
 	for _, check := range evidence.checks {
-		if check.Request == request {
+		if check.Request.Same(request) {
 			return check.Grant, true
 		}
 	}

@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import { Button } from "@tesserix/web";
 import { Field, Panel, SelectControl, useConfirmLeave } from "@helivanta/ui";
 import {
+  ApiError,
+  isEnrollmentAccessChanged,
   useStaffPostingReviewScopes,
   useStaffPostingProposalInbox,
+  useStaffPostingReviewDepartmentNames,
   useStaffPostingSupervisionContext,
   useStaffPostingLifecycleReviewContext,
   type EnrollmentRequestScope,
   type StaffPostingInboxScope,
   type StaffPostingInboxItem,
   type StaffPostingProposal,
+  type StaffPostingProposalScope,
   type StaffPostingReviewHospitalScope,
 } from "@helivanta/api";
 import { PostingApprovalHistory } from "./posting-approval-history";
@@ -20,6 +24,14 @@ import { PostingLifecycleReview } from "./posting-lifecycle-review";
 import { PostingProposalDecision } from "./posting-proposal-decision";
 import { PostingSubmissionWorkspace } from "./posting-submission-workspace";
 import { useStaffAccessCutoff, STAFF_ACCESS_CHANGED } from "./staff-access-cutoff";
+
+const DEPARTMENT_RETIRED = "Department retired. This access no longer applies.";
+// A department-scoped 404 means the department left every held subtree; it is shown, not treated as account cutoff.
+const departmentRetired = (error: unknown) => error instanceof ApiError && error.status === 404;
+const departmentCutoff = (error: unknown) =>
+  isEnrollmentAccessChanged(error) && !departmentRetired(error);
+const departmentMoved = (error: unknown) =>
+  error instanceof ApiError && error.status === 409 && error.code === "department_scope_changed";
 
 type Props = {
   scope: EnrollmentRequestScope;
@@ -75,6 +87,7 @@ function PostingReviewAccount({ scope, onContextChanged, onBusyChanged }: Props)
             onClick={() => setSelected(row.hospital_id)}
           >
             {row.name} · {row.can_review ? "Reviewer" : "Submitter"}
+            {row.departments.length > 0 && " · Department scope"}
           </Button>
         ))}
       </div>
@@ -157,9 +170,34 @@ function HospitalPostingReviews({
   const [status, setStatus] = useState<StaffPostingProposal["status"]>("pending");
   const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<StaffPostingInboxItem | null>(null);
-  const inbox = useStaffPostingProposalInbox(scope, status, cursor, busy);
-  const cutoff = useStaffAccessCutoff([inbox.error], onContextChanged);
+  const departmentScoped = hospital.departments.length > 0;
+  const [chosenDepartment, setChosenDepartment] = useState(hospital.departments[0]);
+  const department = hospital.departments.includes(chosenDepartment)
+    ? chosenDepartment
+    : hospital.departments[0];
+  const inbox = useStaffPostingProposalInbox(
+    departmentScoped ? { ...scope, department } : scope,
+    status,
+    cursor,
+    busy,
+  );
+  const names = useStaffPostingReviewDepartmentNames(scope, hospital.departments);
+  const departmentName = (id: string) => names.get(id) ?? `Department reference ${id}`;
+  const cutoff = useStaffAccessCutoff(
+    [inbox.error],
+    onContextChanged,
+    departmentScoped ? departmentCutoff : undefined,
+  );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
+  if (departmentScoped && departmentRetired(inbox.error))
+    return (
+      <div role="alert">
+        {DEPARTMENT_RETIRED}{" "}
+        <Button disabled={busy} onClick={onAdmissionRecheck}>
+          Recheck review departments
+        </Button>
+      </div>
+    );
   if (submitting && hospital.can_submit)
     return (
       <PostingSubmissionWorkspace
@@ -185,7 +223,9 @@ function HospitalPostingReviews({
   if (inbox.isError)
     return (
       <div role="alert">
-        Posting proposals could not be verified.{" "}
+        {departmentMoved(inbox.error)
+          ? "The department structure changed. Reload the posting proposals."
+          : "Posting proposals could not be verified."}{" "}
         <Button onClick={() => void inbox.refetch()}>Retry proposals</Button>
       </div>
     );
@@ -212,7 +252,15 @@ function HospitalPostingReviews({
         </Button>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">{hospital.name} · Posting proposals</h2>
+        <div>
+          <h2 className="font-semibold">{hospital.name} · Posting proposals</h2>
+          {departmentScoped && (
+            <p className="text-sm text-muted-foreground">
+              Covers {hospital.departments.map(departmentName).join(", ")} and their current
+              sub-units.
+            </p>
+          )}
+        </div>
         <Button
           variant="outline"
           disabled={busy}
@@ -224,6 +272,24 @@ function HospitalPostingReviews({
           Refresh proposals
         </Button>
       </div>
+      {departmentScoped && (
+        <Field id="posting-inbox-department" label="Department">
+          <SelectControl
+            id="posting-inbox-department"
+            value={department}
+            disabled={busy}
+            onValueChange={(value) => {
+              setSelected(null);
+              setCursor(null);
+              setChosenDepartment(value);
+            }}
+            options={hospital.departments.map((value) => ({
+              value,
+              label: departmentName(value),
+            }))}
+          />
+        </Field>
+      )}
       <Field id="posting-inbox-status" label="Proposal status">
         <SelectControl
           id="posting-inbox-status"
@@ -249,6 +315,7 @@ function HospitalPostingReviews({
                 {item.staff.employee_code} · {item.proposal.status}
               </p>
             </div>
+            <p className="text-sm">Department: {departmentName(item.proposal.department_id)}</p>
             <p className="text-sm">
               Starts {new Date(item.proposal.starts_at).toISOString()} ·{" "}
               {item.proposal.ends_at
@@ -274,6 +341,7 @@ function HospitalPostingReviews({
         <PostingProposalDetail
           key={`${current.proposal.id}:${current.proposal.revision_id}`}
           scope={scope}
+          departmentScoped={departmentScoped}
           item={current}
           action={
             current.is_submitter
@@ -332,6 +400,7 @@ function HospitalPostingReviews({
 }
 type PostingProposalDetailProps = {
   scope: StaffPostingInboxScope;
+  departmentScoped: boolean;
   item: StaffPostingInboxItem;
   action: "reject" | "withdraw" | null;
   busy: boolean;
@@ -342,21 +411,28 @@ type PostingProposalDetailProps = {
 };
 
 function PostingProposalDetail(props: PostingProposalDetailProps) {
+  // Department reads name the proposal's own department, never the reviewer's chosen view.
+  const scope = {
+    ...props.scope,
+    staffId: props.item.staff.id,
+    ...(props.departmentScoped ? { department: props.item.proposal.department_id } : {}),
+  };
   if (props.item.proposal.status === "approved")
     return (
       <PostingApprovalHistory
-        scope={{ ...props.scope, staffId: props.item.staff.id }}
+        scope={scope}
         proposal={props.item.proposal}
         displayName={props.item.staff.display_name}
         onClose={props.onClose}
         onContextChanged={props.onContextChanged}
       />
     );
-  return <UnapprovedPostingProposalDetail {...props} />;
+  return <UnapprovedPostingProposalDetail {...props} scope={scope} />;
 }
 
 function UnapprovedPostingProposalDetail({
   scope,
+  departmentScoped,
   item,
   action,
   busy,
@@ -364,25 +440,29 @@ function UnapprovedPostingProposalDetail({
   onCompleted,
   onClose,
   onContextChanged,
-}: PostingProposalDetailProps) {
+}: Omit<PostingProposalDetailProps, "scope"> & { scope: StaffPostingProposalScope }) {
   const [approvalReview, setApprovalReview] = useState<"management" | "chain" | null>(null);
   const managementReview = approvalReview === "management";
   const chainReview = approvalReview === "chain";
   const supervision = useStaffPostingSupervisionContext(
-    { ...scope, staffId: item.staff.id },
+    scope,
     item.proposal,
     item.is_submitter ? "submission" : "review",
     busy,
   );
   const lifecycle = useStaffPostingLifecycleReviewContext(
-    { ...scope, staffId: item.staff.id },
+    scope,
     item.proposal,
     managementReview ? "hospital_management" : chainReview ? "supervised" : null,
     busy,
   );
   const context = approvalReview ? lifecycle : supervision;
   const confirmLeave = useConfirmLeave();
-  const cutoff = useStaffAccessCutoff([context.error], onContextChanged);
+  const cutoff = useStaffAccessCutoff(
+    [context.error],
+    onContextChanged,
+    departmentScoped ? departmentCutoff : undefined,
+  );
   return (
     <Panel className="space-y-4" aria-label="Selected posting proposal">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -393,6 +473,8 @@ function UnapprovedPostingProposalDetail({
       </div>
       {cutoff ? (
         <p role="alert">{STAFF_ACCESS_CHANGED}</p>
+      ) : departmentScoped && departmentRetired(context.error) ? (
+        <p role="alert">{DEPARTMENT_RETIRED}</p>
       ) : context.isPending || context.isFetching ? (
         <p role="status">Checking protected proposal context…</p>
       ) : context.isError ? (
@@ -495,7 +577,7 @@ function UnapprovedPostingProposalDetail({
       {context.data && !cutoff && (
         <PostingProposalDecision
           key={approvalReview ?? "ordinary"}
-          scope={{ ...scope, staffId: item.staff.id }}
+          scope={scope}
           proposal={context.data.context.proposal}
           contextAvailable={context.isSuccess && !context.isFetching}
           onContextRecheck={() => {

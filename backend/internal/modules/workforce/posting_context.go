@@ -45,6 +45,9 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 		in.LifecycleReview = &value
 	}
 	fields := 3
+	if _, exists := query["department"]; exists {
+		fields++
+	}
 	if in.SupervisionContext != nil {
 		fields++
 	}

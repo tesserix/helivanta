@@ -46,6 +46,13 @@ function scopedRequest(scope: OrganizationScope) {
   if (tenantTransitionPending()) throw new Error("Wait for your workspace to finish switching.");
   return enrollmentRequestOptions(scope);
 }
+// The server matches the canonical lowercase UUIDv7 exactly, so a case-folded hint is refused rather than rewritten.
+export const postingDepartment = z
+  .uuidv7()
+  .refine(
+    (value) => value === value.toLowerCase(),
+    "Choose a department from the posting review scope.",
+  );
 function pageQuery(cursor: string | null) {
   const params = new URLSearchParams({ limit: "50" });
   if (cursor !== null) params.set("cursor", cursorContract.parse(cursor));
@@ -128,10 +135,13 @@ export async function listPostingDepartmentChoices(
   hospitalId: string,
   cursor: string | null = null,
   signal?: AbortSignal,
+  department?: string,
 ) {
+  const query = pageQuery(cursor);
+  if (department !== undefined) query.set("department", postingDepartment.parse(department));
   const page = departmentPage.parse(
     await apiFetch(
-      `/organization/hospitals/${identifier.parse(hospitalId)}/posting-department-choices?${pageQuery(cursor)}`,
+      `/organization/hospitals/${identifier.parse(hospitalId)}/posting-department-choices?${query}`,
       {
         ...scopedRequest(scope),
         signal,

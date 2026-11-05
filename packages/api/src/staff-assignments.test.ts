@@ -18,6 +18,7 @@ const input = {
 const proposal = {
   id,
   input,
+  scope_kind: "hospital",
   proposed_by: "synthetic-admin",
   status: "pending_review",
   version: 2,

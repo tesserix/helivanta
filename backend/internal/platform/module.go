@@ -47,6 +47,7 @@ type Deps struct {
 	StaffActors          authz.CurrentStaffActorGuard
 	StaffPostingSources  authz.CurrentStaffPostingSourceGuard
 	DepartmentReferences authz.DepartmentReferenceGuard
+	DepartmentScopes     authz.DepartmentScopeGuard
 	ScopedAuthorizer     authz.ScopedAuthorizer
 	OrganizationIdentity *organizationidentity.Client
 	DB                   *tenantdb.DB

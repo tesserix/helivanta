@@ -6,6 +6,11 @@
         "type": "uuid"
       },
       {
+        "name": "department_id",
+        "type": "uuid",
+        "optional": true
+      },
+      {
         "name": "subject",
         "type": "string",
         "min": 1,
@@ -76,6 +81,46 @@
         "type": "bool"
       }
     ],
+    "DepartmentScopeRequest": [
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      }
+    ],
+    "DepartmentScopeResult": [
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "request_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "eligible",
+        "type": "bool"
+      }
+    ],
     "ProposalOutput": [
       {
         "name": "id",
@@ -84,6 +129,11 @@
       {
         "name": "input",
         "type": "ProposalInput"
+      },
+      {
+        "name": "scope_kind",
+        "type": "string",
+        "enum": ["hospital", "department"]
       },
       {
         "name": "proposed_by",
@@ -269,6 +319,13 @@
         "type": "[]string",
         "min": 1,
         "max": 32
+      },
+      {
+        "name": "scope_kinds",
+        "type": "[]string",
+        "enum": ["hospital", "department"],
+        "min": 1,
+        "max": 2
       }
     ],
     "MembershipCommandInput": [
@@ -776,6 +833,28 @@
         }
       ],
       "definitions_sha256": "8f95872e87e6e777675612a34790ca9b0e6499c1d81a0d5752c4683af836e97a"
+    },
+    {
+      "id": "0030_iam_department_posting_review_templates",
+      "file": "assignment_department_posting_review_templates_generated.sql",
+      "sql_sha256": "ae50717dc1c11ec791fea694233f1496101f7bab3e030a4a06acdb42985baea7",
+      "templates": [
+        {
+          "key": "workforce.department_posting_reviewer.v1",
+          "name": "Department posting reviewer",
+          "description": "Review Staff posting proposals into one department and its current sub-units; no submission, operating or clinical authority.",
+          "family": "posting",
+          "permissions": [
+            "workforce.posting.read",
+            "workforce.posting.proposal.read",
+            "workforce.posting.review",
+            "organization.posting_choices.read",
+            "workforce.staff_actor.use"
+          ],
+          "scope_kinds": ["department"]
+        }
+      ],
+      "definitions_sha256": "8f371fef3a22e1cf271733aadd396ea0345a97dfc342f2b9b92ea43cc6e17c77"
     }
   ],
   "template_catalogs": [
@@ -912,6 +991,26 @@
         "pharmacy.department_binding_reviewer.v1"
       ],
       "definitions_sha256": "8f95872e87e6e777675612a34790ca9b0e6499c1d81a0d5752c4683af836e97a"
+    },
+    {
+      "key": "staff-department-posting-reviews-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1",
+        "workforce.employment_activator.v1",
+        "workforce.posting_reader.v1",
+        "workforce.posting_preparer.v1",
+        "workforce.posting_submitter.v1",
+        "workforce.posting_reviewer.v1",
+        "workforce.posting_management_reviewer.v1",
+        "workforce.posting_cutoff_admin.v1",
+        "workforce.posting_source_consumer.v1",
+        "workforce.department_posting_reviewer.v1"
+      ],
+      "definitions_sha256": "6a221c7f0a674326eeee2203152f09e0979349daf9ff084b4330e88b13a70955"
     }
   ]
 }

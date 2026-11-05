@@ -39,7 +39,7 @@ func (a *identityScopeAuthority) AuthorizeScope(_ context.Context, r authz.Scope
 	if r.TenantID != testutil.TenantA || r.HospitalID != a.hospital || r.Subject != "user-hr-manager" || r.Permission != permission {
 		return authz.ScopeGrant{}, nil
 	}
-	return authz.ScopeGrant{AssignmentID: "019a0000-0000-7000-8000-000000000001", Version: 4, ScopeEpoch: 1, MembershipEpoch: 1}, nil
+	return authz.ScopeGrant{AssignmentID: "019a0000-0000-7000-8000-000000000001", Version: 4, ScopeEpoch: 1, MembershipEpoch: 1, ScopeKind: "hospital"}, nil
 }
 
 func (a *identityScopeAuthority) WithScopeGrant(ctx context.Context, r authz.ScopeRequest, _ authz.ScopeGrant, _ time.Time, action func(context.Context) error) error {

@@ -112,7 +112,7 @@ all Pharma role or lifecycle journeys; see the
 [Pharma specialization scope](../architecture/pharma-staff-specialization.md).
 
 Effective canonical Workforce postings, standalone employer
-scope, department-scoped delegation/inheritance, scheduled changes, merge/split,
+scope, department-scoped delegation/inheritance beyond the #429 posting reviewer, scheduled changes, merge/split,
 heads/cost centres and product professional acceptance remain open. A department
 row or its event never establishes Staff eligibility, outlet duty or clinical
 permission. Consumers must not treat this metadata slice as completed staffing.
@@ -212,7 +212,21 @@ paths that changed since the hint return `ErrDepartmentReferenceChanged`.
 Malformed input, calls outside a guarded command and database failures return
 `ErrScopedAuthorizationUnavailable`.
 
-This guard is a prerequisite only. It adds no route, permission, event,
-migration or OpenFGA model, and nothing consumes it yet. Department
-assignments, IAM authority selection and the posting review consumer remain
-open under #429.
+The guard adds no route, permission, migration or OpenFGA model. Its consumers
+are Workforce posting review and the posting choices below; see the
+[department posting review contract](workforce-postings.md#department-posting-review-429-slice-1--candidate-not-released).
+Organization also answers IAM department assignment checks: it consumes
+`helivanta.in.iam.assignment_department_scope_requested.v1` and publishes
+`helivanta.in.organization.assignment_department_verified.v1`, eligible only for an
+active node of that hospital. It answers from current structure and keeps no
+table; IAM retains the first answer per owner and request.
+
+### Department hint on posting choices (candidate, not released)
+
+`posting-department-choices` accepts one optional `department` (UUIDv7). A
+hospital grant may omit it and sees every active head. A department grant must
+send it and sees only that department's current subtree, held through commit by
+`WithinCurrentDepartment`. The audit records the hinted department as resource.
+Cursors bind to the hint. An unknown, retired or out-of-scope hint is 404, a
+path moved between hint and lock is 409 `department_scope_changed`, and a
+subtree over 1,000 nodes or any owner failure is 503.

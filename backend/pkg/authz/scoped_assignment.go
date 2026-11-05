@@ -43,7 +43,11 @@ func (a ScopedAssignment) objectKey() (string, error) {
 		}
 	}
 	id, _ := uuid.Parse(a.ID)
-	if id.Version() != 7 || a.Version < 1 || (a.ScopeKind != "hospital" && a.ScopeKind != "staff") || (a.ScopeKind == "hospital" && a.ScopeID != a.HospitalID) {
+	scope, _ := uuid.Parse(a.ScopeID)
+	if id.Version() != 7 || a.Version < 1 || (a.ScopeKind != "hospital" && a.ScopeKind != "staff" && a.ScopeKind != "department") || (a.ScopeKind == "hospital" && a.ScopeID != a.HospitalID) {
+		return "", ErrInvalidScopedAssignment
+	}
+	if a.ScopeKind == "department" && (scope.Version() != 7 || scope.Variant() != uuid.RFC4122 || a.ScopeID == a.HospitalID) {
 		return "", ErrInvalidScopedAssignment
 	}
 	if !validAssignmentSubject(a.Subject) || len(a.Permissions) == 0 || len(a.Permissions) > 32 {

@@ -7,6 +7,7 @@ const hospital = {
   name: "Synthetic hospital",
   can_submit: false,
   can_review: true,
+  departments: [],
 };
 const page = { data: [hospital], page: { has_more: false, next_cursor: null } };
 afterEach(() => vi.unstubAllGlobals());
@@ -24,6 +25,13 @@ it("discovers reviewer capabilities through the Global API with the original acc
   expect(new Headers(init.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
 });
 
+it("retains the departments a department-scoped reviewer covers", async () => {
+  const department = "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa";
+  const scoped = { ...page, data: [{ ...hospital, departments: [department] }] };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(scoped))));
+  expect(await workspace.listStaffPostingReviewScopes(scope)).toEqual(scoped);
+});
+
 it("retains empty authorized pages and their opaque continuation", async () => {
   const empty = { data: [], page: { has_more: true, next_cursor: "next-page" } };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(empty))));
@@ -38,6 +46,12 @@ it("rejects private fields, missing capabilities, duplicate hospitals and invali
       data: [{ hospital_id: hospital.hospital_id, name: hospital.name, can_review: true }],
     },
     { ...page, data: [{ ...hospital, can_submit: "false" }] },
+    { ...page, data: [{ ...hospital, departments: undefined }] },
+    { ...page, data: [{ ...hospital, departments: ["not-a-department"] }] },
+    {
+      ...page,
+      data: [{ ...hospital, departments: Array.from({ length: 51 }, () => hospital.hospital_id) }],
+    },
     { ...page, data: [hospital, hospital] },
     { ...page, data: Array.from({ length: 21 }, () => hospital) },
     { ...page, page: { has_more: false, next_cursor: "unexpected" } },

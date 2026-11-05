@@ -1644,3 +1644,114 @@ it("rejects a retained examination timestamp outside the owner's supported calen
     api.getStaffPostingLifecycleHistoryContext(scope, history.context.proposal),
   ).rejects.toThrow();
 });
+
+it("scopes department review reads and decisions to the proposal's own department", async () => {
+  const api = await import("./staff-posting-proposals");
+  const department = { ...scope, department: receipt.department_id };
+  const proposalRoot = `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-proposals`;
+  vi.mocked(apiFetch).mockResolvedValue({ data: [], page: { has_more: false, next_cursor: null } });
+  await api.listStaffPostingProposalInbox(department, "pending");
+  expect(vi.mocked(apiFetch).mock.calls[0]![0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/posting-proposal-inbox?status=pending&limit=8&department=${receipt.department_id}`,
+  );
+  const request = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  const context = {
+    purpose: "review",
+    proposal: receipt,
+    draft,
+    draft_reason: "Synthetic retained preparation rationale",
+    submission_reason: input.reason,
+    decision_reason: null,
+  };
+  vi.mocked(apiFetch).mockResolvedValue(context);
+  await api.getStaffPostingProposalContext(department, receipt.id, request);
+  expect(vi.mocked(apiFetch).mock.calls[1]![0]).toBe(
+    `${proposalRoot}/${receipt.id}/context?purpose=review&expected_version=1&expected_revision_id=${receipt.revision_id}&department=${receipt.department_id}`,
+  );
+  vi.mocked(apiFetch).mockResolvedValue({
+    ...context,
+    proposal: { ...receipt, department_id: id(40) },
+    draft: { ...draft, department_id: id(40) },
+  });
+  await expect(
+    api.getStaffPostingProposalContext(department, receipt.id, request),
+  ).rejects.toThrow();
+  const decision = {
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+    decision: "reject" as const,
+    reason: "Synthetic department correction",
+    sources_examined: true,
+  };
+  const rejected = {
+    ...receipt,
+    revision_id: id(10),
+    command_id: id(9),
+    version: 2,
+    status: "rejected",
+  };
+  vi.mocked(apiFetch).mockResolvedValue(rejected);
+  await api.decideStaffPostingProposal(
+    department,
+    receipt.id,
+    id(9),
+    decision,
+    StaffPostingProposalContract.parse(receipt),
+  );
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toBe(
+    `${proposalRoot}/${receipt.id}/decisions/${id(9)}?department=${receipt.department_id}`,
+  );
+  vi.mocked(apiFetch).mockResolvedValue({ hospital_id: scope.hospitalId, staff_id: scope.staffId });
+  await api.getStaffPostingReviewSource(department).catch(() => undefined);
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toBe(
+    `/workforce/hospitals/${scope.hospitalId}/posting-staff/${scope.staffId}/posting-review-source?department=${receipt.department_id}`,
+  );
+  const calls = vi.mocked(apiFetch).mock.calls.length;
+  for (const invalid of [scope.hospitalId, "", receipt.department_id.toUpperCase()]) {
+    await expect(
+      api.listStaffPostingProposalInbox({ ...scope, department: invalid }, "pending"),
+    ).rejects.toThrow();
+  }
+  expect(vi.mocked(apiFetch).mock.calls).toHaveLength(calls);
+  expect(api.staffPostingProposalsKey(department)).toContain(receipt.department_id);
+});
+
+it("keeps the department hint on supervised chain, lifecycle and recorded history reads", async () => {
+  const api = await import("./staff-posting-proposals");
+  const department = { ...scope, department: receipt.department_id };
+  const hint = `&department=${receipt.department_id}`;
+  const review = {
+    purpose: "review" as const,
+    expected_version: 1,
+    expected_revision_id: receipt.revision_id,
+  };
+  vi.mocked(apiFetch).mockResolvedValue(chainReviewFixture());
+  await api.getStaffPostingChainReviewContext(department, receipt.id, review);
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toMatch(
+    new RegExp(`chain_review=current${hint}$`),
+  );
+  vi.mocked(apiFetch).mockResolvedValue(lifecycleReviewFixture());
+  await api.getStaffPostingLifecycleReviewContext(department, receipt.id, {
+    ...review,
+    mode: "supervised",
+  });
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toMatch(
+    new RegExp(`lifecycle_review=current${hint}$`),
+  );
+  const history = lifecycleHistoryFixture();
+  vi.mocked(apiFetch).mockResolvedValue(history);
+  await api.getStaffPostingLifecycleHistoryContext(department, history.context.proposal);
+  expect(vi.mocked(apiFetch).mock.calls.at(-1)![0]).toMatch(
+    new RegExp(`lifecycle_review=recorded${hint}$`),
+  );
+  const elsewhere = lifecycleHistoryFixture();
+  elsewhere.context.proposal = { ...elsewhere.context.proposal, department_id: id(40) };
+  vi.mocked(apiFetch).mockResolvedValue(elsewhere);
+  await expect(
+    api.getStaffPostingLifecycleHistoryContext(department, history.context.proposal),
+  ).rejects.toThrow();
+});

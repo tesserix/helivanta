@@ -7,6 +7,7 @@ const identifier = z
 export const ProposalInputContract = z
   .object({
     hospital_id: identifier,
+    department_id: identifier.optional(),
     subject: z
       .string()
       .min(1)
@@ -30,6 +31,7 @@ export const ProposalInputContract = z
       "workforce.posting_source_consumer.v1",
       "pharmacy.department_binding_preparer.v1",
       "pharmacy.department_binding_reviewer.v1",
+      "workforce.department_posting_reviewer.v1",
     ]),
     reason: z
       .string()
@@ -68,10 +70,32 @@ export const ScopeResultContract = z
   .strict();
 export type ScopeResult = z.infer<typeof ScopeResultContract>;
 
+export const DepartmentScopeRequestContract = z
+  .object({
+    proposal_id: identifier,
+    request_id: identifier,
+    hospital_id: identifier,
+    department_id: identifier,
+  })
+  .strict();
+export type DepartmentScopeRequest = z.infer<typeof DepartmentScopeRequestContract>;
+
+export const DepartmentScopeResultContract = z
+  .object({
+    proposal_id: identifier,
+    request_id: identifier,
+    hospital_id: identifier,
+    department_id: identifier,
+    eligible: z.boolean(),
+  })
+  .strict();
+export type DepartmentScopeResult = z.infer<typeof DepartmentScopeResultContract>;
+
 export const ProposalOutputContract = z
   .object({
     id: identifier,
     input: ProposalInputContract,
+    scope_kind: z.enum(["hospital", "department"]),
     proposed_by: z
       .string()
       .min(1)
@@ -203,6 +227,10 @@ export const TemplateDefinitionContract = z
       .max(30)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     permissions: z.array(z.string()).min(1).max(32),
+    scope_kinds: z
+      .array(z.enum(["hospital", "department"]))
+      .min(1)
+      .max(2),
   })
   .strict();
 export type TemplateDefinition = z.infer<typeof TemplateDefinitionContract>;

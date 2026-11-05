@@ -33,4 +33,7 @@ type CredentialRevokedData struct {
 
 const SubjectAssignmentScopeRequested = "helivanta.in.iam.assignment_scope_requested.v1"
 
+// SubjectAssignmentDepartmentScopeRequested asks Organization to confirm a proposal department.
+const SubjectAssignmentDepartmentScopeRequested = "helivanta.in.iam.assignment_department_scope_requested.v1"
+
 const SubjectAssignmentProjectionRequested = "helivanta.in.iam.assignment_projection_requested.v1"

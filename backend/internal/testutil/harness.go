@@ -324,6 +324,7 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 		StaffActors:                 platform.StaffActors(opts.Modules, db),
 		StaffPostingSources:         platform.StaffPostingSources(opts.Modules, db),
 		DepartmentReferences:        platform.DepartmentReferences(opts.Modules, db),
+		DepartmentScopes:            platform.DepartmentScopes(opts.Modules, db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: opts.EmploymentActivationEnabled,
 		ProxyClinicalCaptureEnabled: opts.ProxyClinicalCaptureEnabled,

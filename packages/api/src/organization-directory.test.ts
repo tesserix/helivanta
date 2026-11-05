@@ -177,3 +177,19 @@ it.each([
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(response)));
   await expect(listPostingDepartmentChoices(scope, hospital, "opaque")).rejects.toThrow();
 });
+
+it("narrows posting department choices to one held department subtree", async () => {
+  const { listPostingDepartmentChoices } = await import("./organization-directory");
+  const fetcher = vi.fn().mockResolvedValue(Response.json(page()));
+  vi.stubGlobal("fetch", fetcher);
+  await listPostingDepartmentChoices(scope, hospital, null, undefined, node);
+  const parsed = new URL(String(fetcher.mock.calls[0]![0]), "https://example.invalid");
+  expect(parsed.searchParams.get("department")).toBe(node);
+  expect(parsed.searchParams.has("cursor")).toBe(false);
+  for (const invalid of [hospital, "", node.toUpperCase(), "not-a-department"]) {
+    await expect(
+      listPostingDepartmentChoices(scope, hospital, null, undefined, invalid),
+    ).rejects.toThrow();
+  }
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

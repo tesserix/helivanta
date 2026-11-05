@@ -401,6 +401,7 @@ func run() error {
 		StaffActors:                 platform.StaffActors(registry.All(), db),
 		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),
+		DepartmentScopes:            platform.DepartmentScopes(registry.All(), db),
 		ScopedAuthorizer:            scopedAuthorizer,
 		EmploymentActivationEnabled: cfg.EmploymentActivationEnabled,
 		ProxyClinicalCaptureEnabled: cfg.ProxyClinicalCaptureEnabled,

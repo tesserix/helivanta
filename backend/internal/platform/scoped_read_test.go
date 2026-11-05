@@ -16,7 +16,7 @@ import (
 type readScopeAuthority struct{}
 
 func (readScopeAuthority) AuthorizeScope(context.Context, authz.ScopeRequest) (authz.ScopeGrant, error) {
-	return authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 1, ScopeEpoch: 1, MembershipEpoch: 1}, nil
+	return authz.ScopeGrant{AssignmentID: "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa", Version: 1, ScopeEpoch: 1, MembershipEpoch: 1, ScopeKind: "hospital"}, nil
 }
 
 func TestScopedReadsRetainMembershipScopeAndPaginationMetadata(t *testing.T) {

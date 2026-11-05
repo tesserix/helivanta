@@ -31,9 +31,10 @@ type Router struct {
 // NoTenantMembership allowlist arch test — doesn't have to re-register
 // every module's routes a second time to find out.
 type DeclaredRoute struct {
-	Method         string
-	Path           string
-	Permission     authz.Permission
+	Method     string
+	Path       string
+	Permission authz.Permission
+	// ScopeKind "hospital" admits hospital grants at the route; "department" proves a hospital or department grant in the handler.
 	ScopeKind      string
 	ScopeParameter string
 	// Paginated is true for routes registered through ListRoute. The
@@ -105,6 +106,19 @@ func (r *Router) handleHospitalScope(method, path string, permission authz.Permi
 }
 
 func (r *Router) handleHospitalScopeUsing(method, path string, permission authz.Permission, hospitalParam string, paginated bool, admission gin.HandlerFunc, handlers ...gin.HandlerFunc) {
+	r.handleScoped(method, path, permission, "hospital", hospitalParam, paginated, admission, handlers...)
+}
+
+// GETHandlerScoped admits hospital or department grants inside the handler, which must prove them through authz.AdmitHandlerScope.
+func (r *Router) GETHandlerScoped(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHandlerScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)
+}
+
+func (r *Router) handleHandlerScope(method, path string, permission authz.Permission, hospitalParam string, paginated bool, handlers ...gin.HandlerFunc) {
+	r.handleScoped(method, path, permission, "department", hospitalParam, paginated, authz.RequireHandlerScope(permission, hospitalParam), handlers...)
+}
+
+func (r *Router) handleScoped(method, path string, permission authz.Permission, kind, hospitalParam string, paginated bool, admission gin.HandlerFunc, handlers ...gin.HandlerFunc) {
 	fullPath := r.group.BasePath() + path
 	found := false
 	for _, segment := range strings.Split(fullPath, "/") {
@@ -116,7 +130,7 @@ func (r *Router) handleHospitalScopeUsing(method, path string, permission authz.
 	if !found || permission == "" || permission == authz.Public || permission == authz.NoTenantMembership {
 		panic("platform: scoped route requires a permission and declared hospital parameter")
 	}
-	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: "hospital", ScopeParameter: hospitalParam})
+	*r.declared = append(*r.declared, DeclaredRoute{Method: method, Paginated: paginated, Path: fullPath, Permission: permission, ScopeKind: kind, ScopeParameter: hospitalParam})
 	chain := []gin.HandlerFunc{authz.RequireMembership(r.membership), admission}
 	r.group.Handle(method, path, append(chain, handlers...)...)
 }

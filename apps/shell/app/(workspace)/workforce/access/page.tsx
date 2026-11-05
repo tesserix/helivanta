@@ -8,6 +8,7 @@ import {
   useStaffAssignments,
   useStaffAssignmentHistory,
   useStaffAssignmentDecisions,
+  useOrganizationDepartmentRevisions,
   type StaffAssignment,
   type StaffAssignmentDecision,
   type StaffAssignmentScope,
@@ -112,7 +113,9 @@ function useVerifiedStaffCatalog(
         actual.description === expected.description &&
         actual.family === expected.family &&
         actual.permissions.length === expected.permissions.length &&
-        expected.permissions.every((permission) => actual.permissions.includes(permission))
+        expected.permissions.every((permission) => actual.permissions.includes(permission)) &&
+        actual.scope_kinds.length === expected.scope_kinds.length &&
+        expected.scope_kinds.every((kind) => actual.scope_kinds.includes(kind))
       );
     });
   return { ...catalog, supported };
@@ -130,21 +133,28 @@ function Assignments({ identity }: { identity: Identity }) {
   const postingLifecycleCatalog = useVerifiedStaffCatalog(scope, "staff-posting-lifecycle-v1");
   const postingSourceCatalog = useVerifiedStaffCatalog(scope, "staff-posting-source-v1");
   const pharmacyBindingCatalog = useVerifiedStaffCatalog(scope, "pharmacy-department-bindings-v1");
-  const postingCatalogName = postingSourceCatalog.supported
-    ? "staff-posting-source-v1"
-    : postingLifecycleCatalog.supported
-      ? "staff-posting-lifecycle-v1"
-      : postingManagementCatalog.supported
-        ? "staff-posting-management-v1"
-        : postingReviewCatalog.supported
-          ? "staff-posting-reviews-v1"
-          : "staff-postings-v1";
+  const postingDepartmentCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-department-posting-reviews-v1",
+  );
+  const postingCatalogName = postingDepartmentCatalog.supported
+    ? "staff-department-posting-reviews-v1"
+    : postingSourceCatalog.supported
+      ? "staff-posting-source-v1"
+      : postingLifecycleCatalog.supported
+        ? "staff-posting-lifecycle-v1"
+        : postingManagementCatalog.supported
+          ? "staff-posting-management-v1"
+          : postingReviewCatalog.supported
+            ? "staff-posting-reviews-v1"
+            : "staff-postings-v1";
   const postingSupported =
     postingCatalog.supported ||
     postingReviewCatalog.supported ||
     postingManagementCatalog.supported ||
     postingLifecycleCatalog.supported ||
-    postingSourceCatalog.supported;
+    postingSourceCatalog.supported ||
+    postingDepartmentCatalog.supported;
   const templateKeys =
     staffAccessTemplateCatalogs[
       family === "pharmacy_binding"
@@ -250,7 +260,8 @@ function Assignments({ identity }: { identity: Identity }) {
         {!postingSupported &&
         (postingCatalog.isPending ||
           postingReviewCatalog.isPending ||
-          postingManagementCatalog.isPending)
+          postingManagementCatalog.isPending ||
+          postingDepartmentCatalog.isPending)
           ? "Checking Staff posting assignments…"
           : !postingSupported
             ? "Staff posting assignments are unavailable in this workspace."
@@ -283,6 +294,7 @@ function Assignments({ identity }: { identity: Identity }) {
             void postingReviewCatalog.refetch();
             void postingManagementCatalog.refetch();
             void pharmacyBindingCatalog.refetch();
+            void postingDepartmentCatalog.refetch();
           }}
         >
           Refresh assignments
@@ -400,6 +412,7 @@ function AssignmentRecord({
           item.input.template_key}
       </p>
       <p className="break-all">Hospital: {item.input.hospital_id}</p>
+      <AssignmentAppliesTo scope={scope} item={item} now={now} />
       <p>
         {formatDateTime(item.input.valid_from)} – {formatDateTime(item.input.expires_at)}
       </p>
@@ -444,6 +457,60 @@ function AssignmentRecord({
       {history && <AssignmentHistory scope={scope} item={item} />}
     </section>
   );
+}
+
+function AssignmentAppliesTo({
+  scope,
+  item,
+  now,
+}: {
+  scope: StaffAssignmentScope;
+  item: StaffAssignment;
+  now: number;
+}) {
+  if (item.scope_kind === "hospital" || !item.input.department_id)
+    return <p>Applies to: Whole hospital</p>;
+  return (
+    <AssignmentDepartment
+      scope={scope}
+      hospital={item.input.hospital_id}
+      department={item.input.department_id}
+      now={now}
+    />
+  );
+}
+
+function AssignmentDepartment({
+  scope,
+  hospital,
+  department,
+  now,
+}: {
+  scope: StaffAssignmentScope;
+  hospital: string;
+  department: string;
+  now: number;
+}) {
+  // Revisions list newest first; a scheduled future revision is not yet the current name.
+  const revisions = useOrganizationDepartmentRevisions(scope, hospital, department, null);
+  const current = revisions.data?.data.find((row) => Date.parse(row.effective_at) <= now);
+  if (revisions.isPending) return <p role="status">Loading department…</p>;
+  if (!current)
+    return (
+      <p role="alert" className="break-all">
+        Applies to: department {department}. Its current name could not be verified.{" "}
+        <Button variant="outline" onClick={() => void revisions.refetch()}>
+          Retry department
+        </Button>
+      </p>
+    );
+  if (current.status !== "active")
+    return (
+      <p role="alert">
+        Applies to: {current.name}. Department retired. This access no longer applies.
+      </p>
+    );
+  return <p>Applies to: {current.name} and its current sub-units</p>;
 }
 
 function AssignmentHistory({

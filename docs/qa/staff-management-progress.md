@@ -1,5 +1,47 @@
 # Staff Management delivery tracker
 
+## Department posting review candidate (#429 slice 1) — 2026-11-05
+
+A hospital can grant Staff posting review for one department and its current
+sub-units. IAM 0030/0031 add the closed `workforce.department_posting_reviewer.v1`
+template and two-owner verification (`pending_scope`, then
+`pending_decision_scope`). Organization binds the #1562 guard into platform deps
+and filters posting choices by a department hint. Workforce 0087 moves the posting
+inbox, review source and decision receipt to handler-scoped admission, holding the
+department path through commit. The shell proposes department access from the
+Organization department list and shows department scope in the access list and
+the posting review inbox. It is integrated into release PR #1565 after the posting
+supervision, cutoff and lifecycle slices. Its migrations were renumbered to IAM
+0030/0031 and Workforce 0087 to follow 0029 and 0086 there, and the supervised
+chain, lifecycle and recorded-history context reads now carry the department hint.
+It is not released yet.
+
+The access proposer holds `iam.assignment.manage`, which, like
+`organization.structure.read`, defaults only to tenant administrators, so the form
+uses the department list rather than posting choices (those also need a Staff
+actor link). A missing structure permission now reads as such, without a retry.
+
+Evidence: `go build ./...`, `go vet ./...`, `make lint-go` (0 issues), `go run
+./cmd/contractdocs -check`, `make lint-shell`, both Staff generator checks and the
+84 script tests pass. `go test -race -count=1 -p 2 ./...` passed every package;
+the 16 packages that failed only when the local test VM lost Postgres connections
+all passed on rerun. The frontend gate in CI order under Node 24 passed (shell
+1523, api 650, ui 279, config 72 and emergency-access 9 tests). The local
+coverage gate could not finish because the test VM stopped forwarding container
+ports, so CI's coverage job is the coverage evidence. The pre-integration evidence above is superseded by the release gate rerun.
+
+The 23 operational-access reviews pinned to `router.go`, Workforce/IAM `module.go`,
+`assignment_authority.go`, `posting_drafts.go`, `posting_authority.go` and
+`department_references.go` were rechecked symbol by symbol. Ten pinned symbols are
+byte-identical. Workforce `Routes` changes only the posting-review registrations
+and dependency wiring, `authorityCandidates` also returns scope kind and department
+while every caller binds the kind, and `DepartmentReferences` keeps the same
+fail-closed owner binding. No reviewed route's authority changed. With maintainer approval the 23 pins were refreshed and each review gained a dated #429 recheck note; only hashes and that note changed, and `staff-operational-access-inventory.mjs --check` passes. After release integration the 23 pins were rechecked against the release branch the same way and refreshed again (842 surfaces, 819 unclassified; the two additions are the department-scope event consumers).
+
+Department leave review, clinical department reach, outlet scope (#418),
+standalone employers (#19) and real-account browser acceptance remain open. Counts
+stay **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Staff release assembly for user testing — 2026-11-05
 
 The13 dependent PRs are merged into release PR1565; application source is

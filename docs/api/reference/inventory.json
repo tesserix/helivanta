@@ -305,6 +305,7 @@
       ],
       "publishes": [
         "helivanta.in.iam.assignment_scope_requested.v1",
+        "helivanta.in.iam.assignment_department_scope_requested.v1",
         "helivanta.in.iam.assignment_projection_requested.v1",
         "helivanta.in.iam.member_granted.v1",
         "helivanta.in.iam.member_revoked.v1",
@@ -316,6 +317,11 @@
         {
           "name": "iam-assignment-scope",
           "subject": "helivanta.in.workforce.assignment_scope_verified.v1",
+          "after_commit": false
+        },
+        {
+          "name": "iam-assignment-department-scope",
+          "subject": "helivanta.in.organization.assignment_department_verified.v1",
           "after_commit": false
         },
         {
@@ -528,6 +534,18 @@
           "id": "0029_iam_pharmacy_department_binding_templates",
           "sql_sha256": "4d7560fc745c5b7b8e7a101028e9bef7a1069baec64148ed5bd6d529ef379c26",
           "creates_tables": []
+        },
+        {
+          "id": "0030_iam_department_posting_review_templates",
+          "sql_sha256": "ae50717dc1c11ec791fea694233f1496101f7bab3e030a4a06acdb42985baea7",
+          "creates_tables": []
+        },
+        {
+          "id": "0031_iam_department_assignment_scope",
+          "sql_sha256": "f4a61ffe831a51c1db9855d3bf6dbb0a9730a828aa4e01a8f0eba56e7e0c4603",
+          "creates_tables": [
+            "iam_assignment_department_verifications"
+          ]
         }
       ]
     },
@@ -8191,7 +8209,7 @@
           "counted": false
         },
         {
-          "scope_kind": "hospital",
+          "scope_kind": "department",
           "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-proposal-inbox",
@@ -8343,7 +8361,7 @@
           "counted": false
         },
         {
-          "scope_kind": "hospital",
+          "scope_kind": "department",
           "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command",
@@ -8396,7 +8414,7 @@
           "counted": false
         },
         {
-          "scope_kind": "hospital",
+          "scope_kind": "department",
           "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source",
@@ -10568,6 +10586,11 @@
           "id": "0086_workforce_posting_source_use",
           "sql_sha256": "ae7a6f15b23e4b05a85ba52a1e16ebf1ba89b36ed07b73b5ef4cda9ce639b672",
           "creates_tables": []
+        },
+        {
+          "id": "0087_workforce_department_posting_scope",
+          "sql_sha256": "89817bac698916e0b7087bc0b7837461e100de951be33c59838f9e4235d9a011",
+          "creates_tables": []
         }
       ]
     },
@@ -10766,7 +10789,7 @@
           "counted": false
         },
         {
-          "scope_kind": "hospital",
+          "scope_kind": "department",
           "scope_parameter": "hospital",
           "method": "GET",
           "path": "/v1/organization/hospitals/:hospital/posting-department-choices",
@@ -10821,7 +10844,8 @@
       "publishes": [
         "helivanta.in.organization.department_link_observed.v1",
         "helivanta.in.organization.hospital_reference_requested.v1",
-        "helivanta.in.organization.department_revision_changed.v1"
+        "helivanta.in.organization.department_revision_changed.v1",
+        "helivanta.in.organization.assignment_department_verified.v1"
       ],
       "directed_subjects": [],
       "directed_write_tables": [],
@@ -10834,6 +10858,11 @@
         {
           "name": "organization-department-link-request",
           "subject": "helivanta.in.workforce.department_link_requested.v1",
+          "after_commit": false
+        },
+        {
+          "name": "organization-assignment-department",
+          "subject": "helivanta.in.iam.assignment_department_scope_requested.v1",
           "after_commit": false
         }
       ],

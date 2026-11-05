@@ -47,6 +47,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 Published subjects:
 
 - `helivanta.in.iam.assignment_scope_requested.v1`
+- `helivanta.in.iam.assignment_department_scope_requested.v1`
 - `helivanta.in.iam.assignment_projection_requested.v1`
 - `helivanta.in.iam.member_granted.v1`
 - `helivanta.in.iam.member_revoked.v1`
@@ -55,6 +56,7 @@ Published subjects:
 Subscriptions:
 
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
+- `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: false.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
 - `iam-fga-sync` ← `helivanta.in.iam.member_granted.v1`; after-commit hook: true.
 - `iam-fga-sync-revoke` ← `helivanta.in.iam.member_revoked.v1`; after-commit hook: true.
@@ -73,6 +75,7 @@ Migration table declarations:
 - `0016_iam_membership_candidate_index`: concurrent index `iam_members_candidate_history` on `iam_members (tenant_id, created_at DESC, id DESC)`.
 - `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 - `0023_iam_employment_bases`: `iam_employment_bases`, `iam_employment_basis_history`, `iam_assignment_employment_bases`.
+- `0031_iam_department_assignment_scope`: `iam_assignment_department_verifications`.
 
 ## reference
 
@@ -1383,11 +1386,13 @@ Published subjects:
 - `helivanta.in.organization.department_link_observed.v1`
 - `helivanta.in.organization.hospital_reference_requested.v1`
 - `helivanta.in.organization.department_revision_changed.v1`
+- `helivanta.in.organization.assignment_department_verified.v1`
 
 Subscriptions:
 
 - `organization-hospital-observation` ← `helivanta.in.workforce.organization_hospital_observed.v1`; after-commit hook: false.
 - `organization-department-link-request` ← `helivanta.in.workforce.department_link_requested.v1`; after-commit hook: false.
+- `organization-assignment-department` ← `helivanta.in.iam.assignment_department_scope_requested.v1`; after-commit hook: false.
 
 Migration table declarations:
 

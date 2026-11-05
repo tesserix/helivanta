@@ -557,22 +557,51 @@ describe("report CSV downloads (#1060)", () => {
     expect(click).not.toHaveBeenCalled();
   });
 
-  it("offers no download of sales by one prescriber", async () => {
+  it("downloads one prescriber's sales, saying the download is recorded", async () => {
     localStorage.clear();
-    serveFiles(["pharmacy.sale.read", "pharmacy.prescription.read"]);
+    downloads();
+    const fetcher = serveFiles(["pharmacy.sale.read", "pharmacy.prescription.read"]);
     const { user } = renderWithProviders(<ItemSales scope={scope} period={period} />);
     const picker = await screen.findByRole("combobox", { name: "Prescriber" });
     await waitFor(() => expect(picker).toBeEnabled());
-    expect(screen.getByRole("button", { name: "Download report CSV" })).toBeVisible();
+    expect(screen.queryByText("A download of one prescriber's sales is recorded.")).toBeNull();
     await chooseOption(
       user,
       picker,
       "TEST Dr Asha Rao (MMC/2011/04567, Maharashtra Medical Council)",
     );
     expect(
-      await screen.findByText("Sales by one prescriber cannot be downloaded yet."),
+      await screen.findByText("A download of one prescriber's sales is recorded."),
     ).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Download report CSV" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Download report CSV" }));
+    await screen.findByText("CSV download started.");
+    expect(files(fetcher)).toEqual([
+      expect.stringContaining(
+        "/reports/items.csv?from=2026-11-01&to=2026-11-15&prescriber_registration=MMC%2F2011%2F04567&prescriber_council=Maharashtra%20Medical%20Council",
+      ),
+    ]);
+  });
+
+  it("downloads one patient's purchases, saying each download is recorded", async () => {
+    localStorage.clear();
+    downloads();
+    const fetcher = serveFiles(["pharmacy.sale.read"]);
+    const patient = {
+      patient_id: "0199e000-0000-7000-8000-000000000301",
+      hospital_id: "0199e000-0000-7000-8000-000000000302",
+      name: "TEST Ravi Kumar",
+    };
+    const { user } = renderWithProviders(
+      <PatientSaleLines scope={scope} period={period} patient={patient} />,
+    );
+    expect(await screen.findByText("Each download is recorded.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Download report CSV" }));
+    await screen.findByText("CSV download started.");
+    expect(files(fetcher)).toEqual([
+      expect.stringContaining(
+        `/reports/patient-sales.csv?patient_id=${patient.patient_id}&from=2026-11-01&to=2026-11-15`,
+      ),
+    ]);
   });
 
   it("says why an oversized report is refused", async () => {

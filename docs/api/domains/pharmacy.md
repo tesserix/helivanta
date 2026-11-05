@@ -693,3 +693,70 @@ This processing slice does **not** enforce clean evidence at the licence-review
 boundary. The review gate, user interface and renewal advice are the next slice;
 #1391 remains open until they and their browser/worker acceptance are complete.
 Deploy and accept this worker capability before enabling that gate.
+
+### Reviewed hospital department relationships (unreleased candidate)
+
+The Pharmacy owner records a hospital-owned outlet's responsibility relationship
+to an Organization department/revision. The canonical models are
+[pharmacy-staff-bindings.json](../../../contracts/pharmacy-staff-bindings.json);
+the [design](../../superpowers/specs/2026-11-05-pharmacy-department-bindings.md)
+records decisions, recovery and the uncompleted acceptance gates. This does not
+establish professional acceptance, Staff duty or permission to dispense.
+
+All routes enter Global API below
+`/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}/hospitals/{hospital}/staff-department-bindings`.
+PUT `/{binding}` prepares an immutable proposal; POST `/{binding}/commands`
+decides approve/reject/withdraw/end using a UUIDv7 command and expected version.
+GET `/{binding}` separates recorded relationship from current source state;
+GET `/{binding}/commands/{command}` recovers an immutable receipt. Collection
+and `/{binding}/history` GETs accept only one limit (1–50) and optional opaque
+cursor, returning the standard data/page envelope. Lists describe recorded
+relationships; current source usability requires detail revalidation.
+
+Each request requires single matching expected-tenant and expected-subject
+headers as workspace preconditions, independently approved hospital-scoped IAM
+authority and a current Workforce Staff actor. Exact outlet read access protects
+disclosure; preparing/deciding additionally requires outlet editor access.
+Preparation/withdrawal needs `pharmacy.staff_binding.prepare`; other decisions
+need `pharmacy.staff_binding.review`; reads need `pharmacy.staff_binding.read`.
+A second account linked to the proposing Staff record cannot review it.
+New exact IAM templates are in the `pharmacy-department-bindings-v1` catalog;
+the administration list is `/v1/iam/pharmacy-binding-assignment-proposals`.
+
+Source changes or stale expected versions prevent approval. Replacement names
+the prior approved binding/version, atomically ends it and approves the new one.
+Exact command replay recovers original evidence under current authorization and
+records a disclosure audit. Audit/outbox unavailability returns 503 and rolls back
+business and Staff actor evidence. Foreign outlet/organization objects are hidden
+with 404; missing scoped authority is 403, changed intent/source is 409.
+Identifier-only `helivanta.in.pharmacy.staff_department_binding_changed.v1`
+events carry the relationship transition and optional replaced identity/version;
+there is no operating consumer. IAM0029 and Pharmacy0034 are additive persisted
+candidates, not production migration or activation evidence.
+
+The unreleased proposal PUT returns the same canonical
+StaffDepartmentBindingCommandReceipt envelope as decision and receipt recovery:
+the relationship is under `binding`, with retained `authorizations` and nullable
+replacement transition fields. The earlier unactivated candidate returned only
+the row; it was corrected before release to match the typed SDK and retained
+receipt contract. Initial response, exact replay and GET recovery are equal.
+
+
+Candidate GET `/v1/pharmacy/hospitals/{hospital}/staff-binding-outlet-choices`
+accepts one `purpose=read|prepare|review` (default read), limit 1–10 and optional
+opaque cursor bound to purpose/hospital/account. It returns only pharmacy/outlet
+IDs and owner-record names. It needs matching expected-tenant/subject assertions,
+exact hospital-scoped binding read authority and a current Staff actor; prepare
+or review adds its exact action authority. Every listed outlet must have an
+explicit current reader/editor grant (editor for prepare/review) and a
+hospital-owned parent. Standalone parents are excluded without inventing a
+hospital relationship. Gates/access locks are acquired in ascending outlet ID
+order; presentation retains descending created-at/ID keyset order. Protected
+read audits retain null binding ID and real outlet/hospital/actor plus two or
+three authority observations. Revocation and audit failures withhold the page.
+This metadata projection requires no catalogue/private HR permission and grants
+no operating authority. The candidate Staff read view is
+`/workforce/pharmacy-relationships`; its separate prepare/review modes now use the
+canonical command/receipt SDK with immutable uncertain-attempt recovery. Normal
+role browser acceptance remains open. No new migration is added by these choices
+or command controls.

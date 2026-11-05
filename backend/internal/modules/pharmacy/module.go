@@ -104,6 +104,9 @@ var opdEncountersSchema string
 //go:embed item_categories.sql
 var itemCategoriesSchema string
 
+//go:embed staff_department_bindings.sql
+var staffDepartmentBindingsSchema string
+
 const (
 	PermAccountsRead    authz.Permission = "pharmacy.accounts.read"
 	PermAccountsWrite   authz.Permission = "pharmacy.accounts.write"
@@ -164,6 +167,9 @@ func (m *Module) Name() string { return "pharmacy" }
 
 func (m *Module) Permissions() []authz.Grant {
 	return []authz.Grant{
+		{Permission: PermStaffBindingRead},
+		{Permission: PermStaffBindingPrepare},
+		{Permission: PermStaffBindingReview},
 		{Permission: PermAccountsRead, Roles: []authz.Role{authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}},
 		{Permission: PermAccountsWrite, Roles: []authz.Role{authz.RolePharmacyOwner, authz.RolePharmacyPurchasing}},
 		{Permission: PermAccountsPayment, Roles: []authz.Role{authz.RolePharmacyOwner}},
@@ -257,13 +263,14 @@ func (m *Module) Migrations() []tenantdb.Migration {
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();
 			CREATE TRIGGER pharmacy_dispenses_audit AFTER INSERT OR UPDATE OR DELETE ON pharmacy_dispenses
 			  FOR EACH ROW EXECUTE FUNCTION audit_record_change();`,
-	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}, {ID: "0021_pharmacy", SQL: paymentRequestsSchema}, {ID: "0022_pharmacy", SQL: verifiedUPISchema}, {ID: "0023_pharmacy", SQL: affiliationVerificationSchema}, {ID: "0024_pharmacy", SQL: stockOverviewSchema}, {ID: "0025_pharmacy", SQL: registeredPatientsSchema}, {ID: "0026_pharmacy", SQL: registeredPatientSaleSchema}, {ID: "0027_pharmacy", SQL: admissionSaleSchema}, {ID: "0028_pharmacy", SQL: unusedPaymentRefundsSchema}, {ID: "0029_pharmacy", SQL: priceControlSchema}, {ID: "0030_pharmacy", SQL: licenceEvidenceSchema}, {ID: "0031_pharmacy", SQL: serviceChargesSchema}, {ID: "0032_pharmacy", SQL: opdEncountersSchema}, {ID: "0033_pharmacy", SQL: itemCategoriesSchema}}
+	}, {ID: "0004_pharmacy", SQL: catalogueSchema}, {ID: "0005_pharmacy", SQL: inventorySchema}, {ID: "0006_pharmacy", SQL: payablesSchema}, {ID: "0007_pharmacy", SQL: batchSafetySchema}, {ID: "0008_pharmacy", SQL: storageAddressSchema}, {ID: "0009_pharmacy", SQL: taxSchema}, {ID: "0010_pharmacy", SQL: dispenseListsSchema}, {ID: "0011_pharmacy", SQL: indiaOnlySchema}, {ID: "0012_pharmacy", SQL: licencesSchema}, {ID: "0013_pharmacy", SQL: scheduleClassSchema}, {ID: "0014_pharmacy", SQL: releaseSchema}, {ID: "0015_pharmacy", SQL: saleSchema}, {ID: "0016_pharmacy", SQL: prescriptionsSchema}, {ID: "0017_pharmacy", SQL: prescriptionSaleSchema}, {ID: "0018_pharmacy", SQL: discountsSchema}, {ID: "0019_pharmacy", SQL: creditNotesSchema}, {ID: "0020_pharmacy", SQL: dailyReportSchema}, {ID: "0021_pharmacy", SQL: paymentRequestsSchema}, {ID: "0022_pharmacy", SQL: verifiedUPISchema}, {ID: "0023_pharmacy", SQL: affiliationVerificationSchema}, {ID: "0024_pharmacy", SQL: stockOverviewSchema}, {ID: "0025_pharmacy", SQL: registeredPatientsSchema}, {ID: "0026_pharmacy", SQL: registeredPatientSaleSchema}, {ID: "0027_pharmacy", SQL: admissionSaleSchema}, {ID: "0028_pharmacy", SQL: unusedPaymentRefundsSchema}, {ID: "0029_pharmacy", SQL: priceControlSchema}, {ID: "0030_pharmacy", SQL: licenceEvidenceSchema}, {ID: "0031_pharmacy", SQL: serviceChargesSchema}, {ID: "0032_pharmacy", SQL: opdEncountersSchema}, {ID: "0033_pharmacy", SQL: itemCategoriesSchema}, {ID: "0034_pharmacy_staff_department_bindings", SQL: staffDepartmentBindingsSchema}}
 }
 
 func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 	g := r.Group("/pharmacy")
 	g.GET("/insights", PermDispenseRead, requirePharmacyTenant, insights.Counts(deps.DB, "pharmacy_dispenses", "status", []string{"pending", "dispensed"}))
 	registryRoutes(g, deps)
+	staffDepartmentBindingRoutes(g, deps, deps.StaffActors)
 	admissionRoutes(g, deps)
 	catalogueRoutes(g, deps)
 	inventoryRoutes(g, deps)
@@ -283,7 +290,7 @@ func (m *Module) Routes(r *platform.Router, deps platform.Deps) {
 
 // Publishes declares the module's clinical, catalogue, inventory and financial events.
 func (m *Module) Publishes() []string {
-	return []string{pharmacycontract.SubjectLicenceEvidenceScanRequested, pharmacycontract.SubjectLicenceEvidenceChanged, pharmacycontract.SubjectUnusedPaymentRefundRecorded, pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged, pharmacycontract.SubjectCreditNoteIssued, pharmacycontract.SubjectPaymentRequested, pharmacycontract.SubjectPaymentCancelled, pharmacycontract.SubjectAffiliationVerificationRequested, pharmacycontract.SubjectAffiliationVerificationWithdrawn, pharmacycontract.SubjectAffiliationDecisionReceived, pharmacycontract.SubjectAdmissionChargePosted, pharmacycontract.SubjectAdmissionChargeReversed}
+	return []string{pharmacycontract.SubjectStaffDepartmentBindingChanged, pharmacycontract.SubjectLicenceEvidenceScanRequested, pharmacycontract.SubjectLicenceEvidenceChanged, pharmacycontract.SubjectUnusedPaymentRefundRecorded, pharmacycontract.SubjectDispenseRecorded, pharmacycontract.SubjectCatalogueUpdated, pharmacycontract.SubjectStockMovementRecorded, pharmacycontract.SubjectPayableRecorded, pharmacycontract.SubjectSettlementRecorded, pharmacycontract.SubjectBatchSafetyRecorded, pharmacycontract.SubjectSalePosted, pharmacycontract.SubjectPrescriptionImageScanRequested, pharmacycontract.SubjectPrescriptionImageChanged, pharmacycontract.SubjectCreditNoteIssued, pharmacycontract.SubjectPaymentRequested, pharmacycontract.SubjectPaymentCancelled, pharmacycontract.SubjectAffiliationVerificationRequested, pharmacycontract.SubjectAffiliationVerificationWithdrawn, pharmacycontract.SubjectAffiliationDecisionReceived, pharmacycontract.SubjectAdmissionChargePosted, pharmacycontract.SubjectAdmissionChargeReversed}
 }
 
 // DirectedSubjects declares none: this module publishes nothing that

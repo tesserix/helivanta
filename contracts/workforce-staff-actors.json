@@ -1,0 +1,17 @@
+{
+  "models": {
+    "StaffActorHospitalChoice": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 150,
+        "format": "text"
+      }
+    ]
+  }
+}

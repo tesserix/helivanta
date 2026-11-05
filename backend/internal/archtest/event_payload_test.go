@@ -43,6 +43,15 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"pharmacy.StaffDepartmentBindingChangedData.PharmacyID":                "opaque organization reference; no commercial name or Staff details",
+	"pharmacy.StaffDepartmentBindingChangedData.OutletID":                  "opaque outlet scope; protected owner lookup required",
+	"pharmacy.StaffDepartmentBindingChangedData.HospitalID":                "opaque hospital scope; no patient or clinical data",
+	"pharmacy.StaffDepartmentBindingChangedData.BindingID":                 "opaque relationship reference; no Staff identity or private reason",
+	"pharmacy.StaffDepartmentBindingChangedData.CommandID":                 "opaque immutable command correlation; no actor or private decision content",
+	"pharmacy.StaffDepartmentBindingChangedData.Version":                   "monotonic relationship version for replay and ordering",
+	"pharmacy.StaffDepartmentBindingChangedData.Status":                    "closed relationship transition vocabulary; no professional or clinical finding",
+	"pharmacy.StaffDepartmentBindingChangedData.ReplacedBindingID":         "optional opaque prior relationship reference; protected lookup required",
+	"pharmacy.StaffDepartmentBindingChangedData.ReplacedBindingVersion":    "optional prior relationship version for replacement correlation",
 	"pharmacy.LicenceEvidenceScanRequestedData.OutletID":                   "opaque outlet scope; downloads require current outlet grant",
 	"pharmacy.LicenceEvidenceScanRequestedData.LicenceID":                  "opaque licence declaration reference, never licence number or pharmacist details",
 	"pharmacy.LicenceEvidenceScanRequestedData.FileID":                     "immutable file intent reference; no filename, checksum, storage key or bytes",
@@ -54,6 +63,11 @@ var eventPayloadReviewedNonPHI = map[string]string{
 	"pharmacy.LicenceEvidenceScanInput.LicenceID":                          "opaque declaration UUID, never licence or pharmacist details",
 	"pharmacy.LicenceEvidenceScanInput.FileID":                             "opaque file UUID, never object path or content",
 	"pharmacy.LicenceEvidenceScanInput.ScanAttempt":                        "bounded processing attempt counter",
+	"workforce.PostingCutoffChangedData.HospitalID":                        "internal hospital scope for protected cutoff lookup; no patient or clinical data",
+	"workforce.PostingCutoffChangedData.StaffID":                           "canonical Staff reference for source invalidation; Staff personal-data protections still apply, no name or patient identity",
+	"workforce.PostingCutoffChangedData.ProposalID":                        "opaque approved posting reference for rechecking live owner state; no operating authority or private reason",
+	"workforce.PostingCutoffChangedData.CutoffID":                          "opaque immutable cutoff command reference; no administrative actor, rationale or identity evidence",
+	"workforce.PostingCutoffChangedData.Version":                           "monotonic cutoff version for stale-state detection; notifications never replace guarded current owner checks",
 	"workforce.PostingProposalChangedData.HospitalID":                      "internal hospital scope for protected proposal lookup; no clinical data",
 	"workforce.PostingProposalChangedData.StaffID":                         "hospital-local canonical Staff reference; minimize disclosure and reauthorize reads",
 	"workforce.PostingProposalChangedData.ProposalID":                      "opaque placement proposal identity; no operating authority or private reason",
@@ -732,14 +746,26 @@ var eventPayloadReviewedNonPHI = map[string]string{
 // the AST-only mode the other contract tests use does not provide.
 func loadContractPackagesWithTypes(t *testing.T) []*packages.Package {
 	t.Helper()
+	listed, err := packages.Load(&packages.Config{Mode: packages.NeedName}, modulesPrefix+"...")
+	require.NoError(t, err)
+	var contracts []string
+	for _, p := range listed {
+		require.Emptyf(t, p.Errors, "%s: contract discovery failed", p.PkgPath)
+		if strings.HasSuffix(p.PkgPath, "/contract") {
+			contracts = append(contracts, p.PkgPath)
+		}
+	}
+	require.NotEmpty(t, contracts, "no contract packages found — this test would pass vacuously")
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedName | packages.NeedImports | packages.NeedDeps |
 			packages.NeedSyntax | packages.NeedFiles | packages.NeedTypes | packages.NeedTypesInfo,
-	}, modulesPrefix+"...")
+	}, contracts...)
 	require.NoError(t, err)
+	require.Len(t, pkgs, len(contracts), "every discovered contract must be type checked")
 
 	var out []*packages.Package
 	for _, p := range pkgs {
+		require.Emptyf(t, p.Errors, "%s: contract type checking failed", p.PkgPath)
 		if strings.HasSuffix(p.PkgPath, "/contract") {
 			out = append(out, p)
 		}

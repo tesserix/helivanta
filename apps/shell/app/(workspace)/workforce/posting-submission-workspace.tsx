@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, Panel, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import { Field, Panel, FormSelectField, useLeaveGuard, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
   StaffPostingProposalInputContract,
+  StaffPostingSupervisorChoiceContract,
+  useStaffPostingSupervisorChoices,
   useStaffPostingTargets,
   useStaffPostingDrafts,
   useStaffPostingReviewSource,
@@ -225,6 +227,13 @@ function SubmissionDrafts({
 const formSchema = z.object({
   reason: StaffPostingProposalInputContract.shape.reason,
   sources_examined: StaffPostingProposalInputContract.shape.sources_examined,
+  responsibility: z.enum([
+    "unspecified",
+    "hospital_management",
+    "department_supervisor",
+    "department_member",
+  ]),
+  supervisor: StaffPostingSupervisorChoiceContract.nullable(),
 });
 type Command = { proposal: string; command: string; input: StaffPostingProposalInput };
 
@@ -248,8 +257,33 @@ function PostingSubmission({
   const [retained, setRetained] = useState<Command | null>(null);
   const original = useRef<Command | null>(null);
   const active = useRef<AbortController | null>(null);
-  const form = useZodForm(formSchema, { reason: "", sources_examined: false });
+  const form = useZodForm(formSchema, {
+    reason: "",
+    sources_examined: false,
+    responsibility: "unspecified",
+    supervisor: null,
+  });
   const dirty = form.formState.isDirty || retained !== null;
+  const responsibility = form.watch("responsibility");
+  const needsSupervisor =
+    responsibility === "department_supervisor" || responsibility === "department_member";
+  const selectedSupervisor = form.watch("supervisor");
+  const [supervisorCursor, setSupervisorCursor] = useState<string | null>(null);
+  const supervisors = useStaffPostingSupervisorChoices(scope, "submission", supervisorCursor, {
+    enabled: needsSupervisor,
+    busy: dirty,
+  });
+  const currentSupervisor = supervisors.data?.data.find(
+    (row) =>
+      row.id === selectedSupervisor?.id &&
+      row.revision_id === selectedSupervisor?.revision_id &&
+      row.staff.id === selectedSupervisor?.staff.id &&
+      row.staff.id !== scope.staffId,
+  );
+  const supervisorAvailable =
+    !needsSupervisor ||
+    (supervisors.isSuccess && !supervisors.isFetching && currentSupervisor !== undefined);
+
   const source = useStaffPostingReviewSource(scope, dirty);
   const [departmentCursor, setDepartmentCursor] = useState<string | null>(null);
   const departments = useStaffPostingDepartmentChoices(scope, departmentCursor);
@@ -311,7 +345,7 @@ function PostingSubmission({
     save.error.status === 404 &&
     save.error.code === "not_found";
   const cutoff = useStaffAccessCutoff(
-    [source.error, departments.error, missingReceipt ? null : save.error],
+    [source.error, departments.error, supervisors.error, missingReceipt ? null : save.error],
     onContextChanged,
   );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
@@ -330,6 +364,7 @@ function PostingSubmission({
   );
   const available =
     contextAvailable && matches && departments.isSuccess && !departments.isFetching && !!department;
+  const editingDisabled = !available || save.isPending || retained !== null;
   return (
     <section
       className="space-y-4 border-t border-border pt-4"
@@ -405,10 +440,31 @@ function PostingSubmission({
         className="space-y-4"
         onSubmit={(event) => {
           void form.handleSubmit((values) => {
-            if (original.current || save.isPending || !available || !source.data?.generation_id)
+            if (
+              original.current ||
+              save.isPending ||
+              !available ||
+              !supervisorAvailable ||
+              !source.data?.generation_id
+            )
               return;
             const parsed = StaffPostingProposalInputContract.safeParse({
-              ...values,
+              reason: values.reason,
+              sources_examined: values.sources_examined,
+              ...(values.responsibility === "hospital_management"
+                ? { supervision: { kind: "hospital_management" } }
+                : (values.responsibility === "department_supervisor" ||
+                      values.responsibility === "department_member") &&
+                    currentSupervisor
+                  ? {
+                      supervision: {
+                        kind: values.responsibility,
+                        supervisor_staff_id: currentSupervisor.staff.id,
+                        supervisor_proposal_id: currentSupervisor.id,
+                        supervisor_revision_id: currentSupervisor.revision_id,
+                      },
+                    }
+                  : {}),
               expected_version: 0,
               draft_id: draft.id,
               draft_revision_id: draft.revision_id,
@@ -436,10 +492,7 @@ function PostingSubmission({
           })(event);
         }}
       >
-        <fieldset
-          disabled={!available || save.isPending || retained !== null}
-          className="space-y-4"
-        >
+        <fieldset disabled={editingDisabled} className="space-y-4">
           <Field
             id="posting-submission-reason"
             label="Submission rationale"
@@ -447,6 +500,139 @@ function PostingSubmission({
           >
             <Input id="posting-submission-reason" {...form.register("reason")} />
           </Field>
+          <FormSelectField
+            control={form.control}
+            name="responsibility"
+            id="posting-submission-responsibility"
+            label="Posting responsibility"
+            disabled={editingDisabled}
+            options={[
+              { value: "unspecified", label: "Preparation only" },
+              { value: "hospital_management", label: "Hospital management" },
+              { value: "department_supervisor", label: "Department supervisor" },
+              { value: "department_member", label: "Department member" },
+            ]}
+            onValueChange={() => {
+              form.setValue("supervisor", null, { shouldDirty: true });
+              setSupervisorCursor(null);
+            }}
+          />
+          <p className="text-sm text-muted-foreground">
+            {responsibility === "hospital_management"
+              ? "An independent management reviewer must approve this responsibility. It does not grant operating or clinical access."
+              : needsSupervisor
+                ? "Choose an approved supervisor reference. Your reviewer will check their current employment and department scope."
+                : "Supervision is not specified. This proposal cannot be approved."}
+          </p>
+          {needsSupervisor && (
+            <section
+              aria-label="Approved supervisor references"
+              className="space-y-3 rounded-md border border-border p-4"
+            >
+              <h3 className="font-medium">Choose a supervisor</h3>
+              {supervisors.isPending || supervisors.isFetching ? (
+                <p role="status">Loading approved supervisor references…</p>
+              ) : supervisors.isError ? (
+                <div role="alert">
+                  Supervisor references could not be verified.{" "}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      form.setValue("supervisor", null, { shouldDirty: true });
+                      void supervisors.refetch();
+                    }}
+                  >
+                    Retry supervisor references
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {supervisors.data.data
+                    .filter((row) => row.staff.id !== scope.staffId)
+                    .map((row) => (
+                      <div
+                        key={row.id}
+                        className="space-y-2 border-b border-border pb-3 last:border-b-0 last:pb-0"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium">
+                              {row.staff.display_name} · {row.staff.employee_code}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {row.kind === "hospital_management"
+                                ? "Hospital management"
+                                : "Department supervisor"}{" "}
+                              · {row.starts_at} {row.ends_at ? `to ${row.ends_at}` : "· ongoing"}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={selectedSupervisor?.id === row.id ? "default" : "outline"}
+                            aria-pressed={selectedSupervisor?.id === row.id}
+                            aria-label={`Choose supervisor ${row.staff.display_name}`}
+                            onClick={() =>
+                              form.setValue("supervisor", row, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }
+                          >
+                            Choose supervisor
+                          </Button>
+                        </div>
+                        <details className="text-sm text-muted-foreground">
+                          <summary>Reviewed appointment details</summary>
+                          <p className="break-all">
+                            Posting reference: {row.id} · Revision: {row.revision_id}
+                          </p>
+                          <p className="break-all">
+                            Reviewed department reference: {row.department_id} · Revision:{" "}
+                            {row.department_revision_id}
+                          </p>
+                          <p>Reviewed source cutoff: {row.eligibility_until} (UTC)</p>
+                        </details>
+                      </div>
+                    ))}
+                  {supervisors.data.data.every((row) => row.staff.id === scope.staffId) && (
+                    <p>No other Staff supervisor references on this page.</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {supervisors.data.page.has_more && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          form.setValue("supervisor", null, { shouldDirty: true });
+                          setSupervisorCursor(supervisors.data.page.next_cursor);
+                        }}
+                      >
+                        More supervisor references
+                      </Button>
+                    )}
+                    {supervisorCursor && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          form.setValue("supervisor", null, { shouldDirty: true });
+                          setSupervisorCursor(null);
+                        }}
+                      >
+                        First supervisor references
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+              {!supervisorAvailable && (
+                <p className="text-sm text-muted-foreground">
+                  Choose a supervisor reference before requesting independent review.
+                </p>
+              )}
+            </section>
+          )}
           <Field
             id="posting-submission-examined"
             label="I examined this draft and the current employment source."
@@ -485,7 +671,7 @@ function PostingSubmission({
               </Button>
             </>
           ) : (
-            <Button type="submit" disabled={!available || save.isPending}>
+            <Button type="submit" disabled={!available || !supervisorAvailable || save.isPending}>
               Request independent review
             </Button>
           )}

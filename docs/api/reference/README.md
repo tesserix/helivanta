@@ -38,6 +38,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
@@ -369,6 +370,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/dispenses/dispensed` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses/waiting` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
 | POST | `/v1/pharmacy/medications` | `pharmacy.medication.write` | false | false |
@@ -420,6 +422,12 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes` | `pharmacy.sale.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id` | `pharmacy.discount.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling` | `pharmacy.sale.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command` | `pharmacy.staff_binding.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands` | `pharmacy.staff_binding.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history` | `pharmacy.staff_binding.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding` | `pharmacy.staff_binding.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding` | `pharmacy.staff_binding.prepare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings` | `pharmacy.staff_binding.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile` | `pharmacy.sale.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status` | `pharmacy.catalogue.read` | false | false |
@@ -498,6 +506,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.staff_department_binding_changed.v1`
 - `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`
 - `helivanta.in.pharmacy.licence_evidence_changed.v1`
 - `helivanta.in.pharmacy.unused_payment_refund_recorded.v1`
@@ -563,6 +572,7 @@ Migration table declarations:
 - `0031_pharmacy`: `pharmacy_service_charges`, `pharmacy_service_charge_versions`, `pharmacy_service_charge_reviews`, `pharmacy_sale_charge_lines`, `pharmacy_credit_note_charge_lines`.
 - `0032_pharmacy`: `pharmacy_opd_encounters`.
 - `0033_pharmacy`: `pharmacy_item_categories`, `pharmacy_product_category_declarations`, `pharmacy_product_category_reviews`.
+- `0034_pharmacy_staff_department_bindings`: `pharmacy_staff_department_bindings`, `pharmacy_staff_binding_commands`, `pharmacy_staff_binding_audit`.
 
 ## payments
 
@@ -1094,12 +1104,17 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/commands/:command` | `workforce.posting.submit` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/context` | `public` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command` | `workforce.posting.cutoff` | false | false |
+| PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command` | `workforce.posting.cutoff` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/context` | `workforce.posting.cutoff` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/history` | `workforce.posting.cutoff` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal` | `workforce.posting.proposal.read` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source` | `workforce.posting.proposal.read` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/posting-supervisor-choices` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-targets` | `workforce.posting.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/attendance` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/history` | `workforce.benefits.view` | true | false |
@@ -1193,11 +1208,14 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hr-intake-scopes` | `public` | true | false |
 | GET | `/v1/workforce/leave-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/person-review-scopes` | `public` | true | false |
+| GET | `/v1/workforce/posting-cutoff-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-scopes` | `public` | true | false |
+| GET | `/v1/workforce/staff-actor-scopes` | `public` | true | false |
 
 Published subjects:
 
+- `helivanta.in.workforce.posting_cutoff_changed.v1`
 - `helivanta.in.workforce.posting_proposal_changed.v1`
 - `helivanta.in.workforce.posting_draft_changed.v1`
 - `helivanta.in.workforce.department_link_requested.v1`
@@ -1308,6 +1326,12 @@ Migration table declarations:
 - `0075_workforce_posting_proposals`: `workforce_posting_proposals`, `workforce_posting_proposal_revisions`.
 - `0077_workforce_posting_proposal_inbox_index`: concurrent index `workforce_posting_proposal_inbox` on `workforce_posting_proposals (tenant_id, hospital_id, status, created_at DESC, id DESC)`.
 - `0078_workforce_leave_routing`: `workforce_leave_routing_revisions`, `workforce_leave_route_steps`.
+- `0079_workforce_posting_supervision_intents`: `workforce_posting_supervision_intents`.
+- `0080_workforce_posting_root_approvals`: `workforce_posting_management_reviews`.
+- `0081_workforce_posting_chain_approvals`: `workforce_posting_chain_reviews`, `workforce_posting_chain_sources`.
+- `0083_workforce_posting_supervisor_choice_index`: concurrent index `workforce_posting_supervisor_choice_order` on `workforce_posting_supervision_intents (tenant_id, hospital_id, kind, created_at DESC, proposal_id DESC)`.
+- `0084_workforce_posting_cutoffs`: `workforce_posting_cutoffs`.
+- `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
 
 ## workspace
 

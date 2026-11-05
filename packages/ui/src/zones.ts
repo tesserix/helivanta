@@ -12,6 +12,7 @@ import {
   Building2,
   CalendarCog,
   CalendarDays,
+  CalendarOff,
   CalendarX,
   Clock,
   ClipboardCheck,
@@ -369,6 +370,18 @@ export const ZONES: Zone[] = [
         label: "Posting reviews",
         href: "/workforce/posting-reviews",
         icon: ListChecks,
+        permission: "public",
+      },
+      {
+        label: "Pharmacy relationships",
+        href: "/workforce/pharmacy-relationships",
+        icon: Pill,
+        permission: "public",
+      },
+      {
+        label: "Posting cutoffs",
+        href: "/workforce/posting-cutoffs",
+        icon: CalendarOff,
         permission: "public",
       },
       {

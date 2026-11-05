@@ -103,7 +103,7 @@ func assertPostingNonDigitalTarget(t *testing.T, db *tenantdb.DB, tenant string,
 	}
 	call(t, "GET", strings.Replace(contextPath, "/posting-staff/"+staff, "/posting-staff/"+uuid.Must(uuid.NewV7()).String(), 1), reviewer, nil, 404)
 	call(t, "GET", strings.Replace(contextPath, proposal+"/context", postingBase+"/posting-proposals/"+uuid.Must(uuid.NewV7()).String()+"/context", 1), reviewer, nil, 404)
-	assertPostingContextAuditRollback(t, db, tenant, reviewer, contextPath, call, []string{intent["reason"].(string), input["reason"].(string)})
+	assertPostingContextAuditRollback(t, db, tenant, reviewer, contextPath, "workforce.posting_proposal.context_read_review", call, []string{intent["reason"].(string), input["reason"].(string)})
 	require.Len(t, call(t, "GET", proposal+"/history", actor, nil, 200)["data"], 1)
 	decisionPath := proposal + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	decision := map[string]any{"expected_version": pending["version"], "expected_revision_id": pending["revision_id"], "decision": "reject", "reason": "Independent synthetic placement rejected for correction", "sources_examined": true}

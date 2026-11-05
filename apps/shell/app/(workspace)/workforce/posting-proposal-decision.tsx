@@ -8,7 +8,10 @@ import {
   ApiError,
   StaffPostingDecisionInputContract,
   decideStaffPostingProposal,
+  decideStaffPostingLifecycleProposal,
   getStaffPostingDecisionReceipt,
+  decideStaffPostingSupervisedProposal,
+  getStaffPostingSupervisedDecisionReceipt,
   newStaffPostingId,
   useApiMutation,
   useStaffPostingReviewSource,
@@ -17,14 +20,21 @@ import {
   type StaffPostingProposalScope,
   type StaffPostingProposal,
   type StaffPostingDecisionInput,
+  type StaffPostingLifecycleReviewContext,
 } from "@helivanta/api";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
 
 const formSchema = z.object({
   reason: StaffPostingDecisionInputContract.shape.reason,
   sources_examined: StaffPostingDecisionInputContract.shape.sources_examined,
+  hospital_management_reviewed: z.boolean(),
+  chain_reviewed: z.boolean(),
 });
-type Command = { id: string; input: StaffPostingDecisionInput };
+type Command = {
+  id: string;
+  input: StaffPostingDecisionInput;
+  lifecycle?: StaffPostingLifecycleReviewContext;
+};
 
 export function PostingProposalDecision({
   scope,
@@ -36,27 +46,97 @@ export function PostingProposalDecision({
   onContextChanged,
   contextAvailable,
   onContextRecheck,
+  approvalKind = "hospital_management",
+  approvalUntil,
+  lifecycleContext,
 }: {
+  lifecycleContext?: StaffPostingLifecycleReviewContext;
+  approvalKind?: "hospital_management" | "supervised";
+  approvalUntil?: string;
   contextAvailable: boolean;
   onContextRecheck: () => void;
   scope: StaffPostingProposalScope;
   proposal: StaffPostingProposal;
-  action: "reject" | "withdraw" | null;
+  action: "approve" | "reject" | "withdraw" | null;
   busy: boolean;
   onBusy: (value: boolean) => void;
   onCompleted: (row: StaffPostingProposal) => void;
   onContextChanged: () => void;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  const deadlines = [proposal.ends_at, approvalUntil]
+    .filter((value): value is string => value != null)
+    .map((value) => Date.parse(value));
+  const endsAt = deadlines.length ? Math.min(...deadlines) : null;
+  useEffect(() => {
+    if (endsAt === null) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const current = Date.now();
+      setNow(current);
+      if (current < endsAt) timer = setTimeout(tick, Math.min(endsAt - current, 60_000));
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [endsAt]);
+  const ended = endsAt !== null && now >= endsAt;
   const [retained, setRetained] = useState<Command | null>(null);
   const original = useRef<Command | null>(null);
   const active = useRef<AbortController | null>(null);
+  const observationKey = lifecycleContext
+    ? JSON.stringify([
+        lifecycleContext.context.proposal.revision_id,
+        lifecycleContext.effective_until,
+        lifecycleContext.cutoff,
+        ...lifecycleContext.chain.map((node) => [
+          node.posting.id,
+          node.posting.revision_id,
+          node.cutoff,
+        ]),
+      ])
+    : null;
+  const examinedObservation = useRef<string | null>(null);
+  const reviewedObservation = useRef<string | null>(null);
   const source = useStaffPostingReviewSource(scope, busy);
-  const form = useZodForm(formSchema, { reason: "", sources_examined: false });
+  const form = useZodForm(formSchema, {
+    reason: "",
+    sources_examined: false,
+    hospital_management_reviewed: false,
+    chain_reviewed: false,
+  });
+  useEffect(() => {
+    if (original.current || observationKey === null) return;
+    if (examinedObservation.current !== observationKey)
+      form.setValue("sources_examined", false, { shouldDirty: true });
+    if (reviewedObservation.current !== observationKey) {
+      form.setValue("hospital_management_reviewed", false, { shouldDirty: true });
+      form.setValue("chain_reviewed", false, { shouldDirty: true });
+    }
+    form.clearErrors();
+  }, [observationKey, form]);
   const save = useApiMutation(
     async ({ command, recover }: { command: Command; recover: boolean }) => {
       const controller = new AbortController();
       active.current = controller;
-      const row = await (recover ? getStaffPostingDecisionReceipt : decideStaffPostingProposal)(
+      if (command.lifecycle) {
+        return decideStaffPostingLifecycleProposal(
+          scope,
+          command.lifecycle.context.proposal.id,
+          command.id,
+          command.input,
+          command.lifecycle,
+          controller.signal,
+        );
+      }
+      const decide =
+        approvalKind === "supervised"
+          ? decideStaffPostingSupervisedProposal
+          : decideStaffPostingProposal;
+      const receipt =
+        approvalKind === "supervised"
+          ? getStaffPostingSupervisedDecisionReceipt
+          : getStaffPostingDecisionReceipt;
+      const row = await (recover ? receipt : decide)(
         scope,
         proposal.id,
         command.id,
@@ -73,6 +153,14 @@ export function PostingProposalDecision({
       onError: (error) => {
         if (error instanceof ApiError && error.status === 404 && error.code === "not_found")
           onContextRecheck();
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          ["posting_proposal_conflict", "posting_lifecycle_review_required"].includes(error.code)
+        ) {
+          void source.refetch();
+          onContextRecheck();
+        }
       },
       onSuccess: (row) => {
         original.current = null;
@@ -113,13 +201,14 @@ export function PostingProposalDecision({
   );
   if (cutoff) return <p role="alert">{STAFF_ACCESS_CHANGED}</p>;
   const sourceAvailable = source.isSuccess && !source.isFetching;
-  const available = contextAvailable && sourceAvailable;
   const matches =
     sourceAvailable &&
     source.data.generation_state === "current" &&
     source.data.generation_id === proposal.generation_id &&
     source.data.staff_version === proposal.staff_version &&
     source.data.employment_epoch === proposal.employment_epoch;
+  const available =
+    contextAvailable && sourceAvailable && (action !== "approve" || (matches && !ended));
   return (
     <section
       className="space-y-4 border-t border-border pt-4"
@@ -153,6 +242,32 @@ export function PostingProposalDecision({
           </p>
         </>
       )}
+      {lifecycleContext && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={save.isPending}
+          onClick={onContextRecheck}
+        >
+          Recheck posting lifetimes
+        </Button>
+      )}
+      {retained?.lifecycle && (
+        <p className="text-sm text-muted-foreground">
+          The retained approval uses the original examined ending of{" "}
+          {new Date(retained.lifecycle.effective_until).toISOString()} (UTC). Recovery repeats that
+          approval; changed sources require a new review.
+        </p>
+      )}
+      {ended && (
+        <p role="alert">
+          {lifecycleContext
+            ? "The effective responsibility has ended. A new approval cannot be recorded."
+            : approvalUntil
+              ? "The checked supervisor chain has expired. Recheck its sources."
+              : "This posting has ended. A new approval cannot be recorded."}
+        </p>
+      )}
       {action && proposal.status === "pending" && (
         <form
           noValidate
@@ -161,8 +276,56 @@ export function PostingProposalDecision({
           onSubmit={(event) => {
             void form.handleSubmit((values) => {
               if (original.current || save.isPending || !available) return;
+              if (
+                action === "approve" &&
+                lifecycleContext &&
+                (examinedObservation.current !== observationKey ||
+                  reviewedObservation.current !== observationKey)
+              ) {
+                form.setError("sources_examined", {
+                  message: "Examine the current posting lifetimes again.",
+                });
+                return;
+              }
+
+              if (action === "approve" && endsAt !== null && Date.now() >= endsAt) {
+                setNow(Date.now());
+                return;
+              }
+              if (
+                action === "approve" &&
+                !(approvalKind === "supervised"
+                  ? values.chain_reviewed
+                  : values.hospital_management_reviewed)
+              ) {
+                form.setError(
+                  approvalKind === "supervised" ? "chain_reviewed" : "hospital_management_reviewed",
+                  {
+                    message:
+                      approvalKind === "supervised"
+                        ? "Confirm your independent current supervisor chain review."
+                        : "Confirm your independent hospital management review.",
+                  },
+                );
+                return;
+              }
               const parsed = StaffPostingDecisionInputContract.safeParse({
-                ...values,
+                reason: values.reason,
+                sources_examined: values.sources_examined,
+                ...(action === "approve" && approvalKind === "hospital_management"
+                  ? { hospital_management_reviewed: values.hospital_management_reviewed }
+                  : {}),
+                ...(action === "approve" && lifecycleContext
+                  ? {
+                      lifecycle_review: {
+                        cutoff_versions: [
+                          lifecycleContext.cutoff.version,
+                          ...lifecycleContext.chain.map((node) => node.cutoff.version),
+                        ],
+                        effective_until: lifecycleContext.effective_until,
+                      },
+                    }
+                  : {}),
                 decision: action,
                 expected_version: proposal.version,
                 expected_revision_id: proposal.revision_id,
@@ -170,12 +333,22 @@ export function PostingProposalDecision({
               if (!parsed.success) {
                 parsed.error.issues.forEach((issue) => {
                   const key = issue.path[0];
-                  if (key === "reason" || key === "sources_examined")
+                  if (
+                    key === "reason" ||
+                    key === "sources_examined" ||
+                    key === "hospital_management_reviewed"
+                  )
                     form.setError(key, { message: issue.message });
                 });
                 return;
               }
-              const command = { id: newStaffPostingId(), input: parsed.data };
+              const command = {
+                id: newStaffPostingId(),
+                input: parsed.data,
+                ...(action === "approve" && lifecycleContext
+                  ? { lifecycle: structuredClone(lifecycleContext) }
+                  : {}),
+              };
               original.current = command;
               setRetained(command);
               save.mutate({ command, recover: false });
@@ -202,13 +375,52 @@ export function PostingProposalDecision({
                 id="posting-decision-examined"
                 type="checkbox"
                 {...form.register("sources_examined")}
+                onChange={(event) => {
+                  examinedObservation.current = event.target.checked ? observationKey : null;
+                  void form.register("sources_examined").onChange(event);
+                }}
               />
             </Field>
+            {action === "approve" && approvalKind === "hospital_management" && (
+              <Field
+                id="posting-management-reviewed"
+                label="I independently reviewed the hospital management responsibility."
+                error={form.formState.errors.hospital_management_reviewed?.message}
+              >
+                <input
+                  id="posting-management-reviewed"
+                  type="checkbox"
+                  {...form.register("hospital_management_reviewed")}
+                  onChange={(event) => {
+                    reviewedObservation.current = event.target.checked ? observationKey : null;
+                    void form.register("hospital_management_reviewed").onChange(event);
+                  }}
+                />
+              </Field>
+            )}
+            {action === "approve" && approvalKind === "supervised" && (
+              <Field
+                id="posting-chain-reviewed"
+                label="I independently reviewed the current supervisor chain."
+                error={form.formState.errors.chain_reviewed?.message}
+              >
+                <input
+                  id="posting-chain-reviewed"
+                  type="checkbox"
+                  {...form.register("chain_reviewed")}
+                  onChange={(event) => {
+                    reviewedObservation.current = event.target.checked ? observationKey : null;
+                    void form.register("chain_reviewed").onChange(event);
+                  }}
+                />
+              </Field>
+            )}
           </fieldset>
           {save.error && (
             <p role="alert">
-              The decision outcome could not be confirmed. Recover its receipt or retry the same
-              decision. A missing receipt may still belong to an in-flight request.
+              {retained?.lifecycle
+                ? "The approval outcome could not be confirmed. Recover or replay the retained approval. If it was not recorded, the same intent can succeed only while its examined sources remain valid."
+                : "The decision outcome could not be confirmed. Recover its receipt or retry the same decision. A missing receipt may still belong to an in-flight request."}
             </p>
           )}
           <div className="flex flex-wrap gap-2">
@@ -216,8 +428,17 @@ export function PostingProposalDecision({
               <>
                 <Button
                   type="button"
-                  disabled={save.isPending}
-                  onClick={() => save.mutate({ command: retained, recover: false })}
+                  disabled={
+                    save.isPending ||
+                    (action === "approve" && (ended || (sourceAvailable && !matches)))
+                  }
+                  onClick={() => {
+                    if (action === "approve" && endsAt !== null && Date.now() >= endsAt) {
+                      setNow(Date.now());
+                      return;
+                    }
+                    save.mutate({ command: retained, recover: false });
+                  }}
                 >
                   Retry exact decision
                 </Button>
@@ -227,12 +448,16 @@ export function PostingProposalDecision({
                   disabled={save.isPending}
                   onClick={() => save.mutate({ command: retained, recover: true })}
                 >
-                  Recover decision receipt
+                  {retained.lifecycle ? "Recover or replay approval" : "Recover decision receipt"}
                 </Button>
               </>
             ) : (
               <Button type="submit" disabled={!available || save.isPending}>
-                {action === "reject" ? "Reject proposal" : "Withdraw proposal"}
+                {action === "approve"
+                  ? "Approve proposal"
+                  : action === "reject"
+                    ? "Reject proposal"
+                    : "Withdraw proposal"}
               </Button>
             )}
           </div>

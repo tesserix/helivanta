@@ -1,5 +1,16 @@
 # Staff Management delivery tracker
 
+## ADR-0054 accepted (#19) — 2026-11-05
+
+The product owner accepted [ADR-0054](../adr/0054-typed-employing-establishments.md)
+on 2026-11-05. ORG-D8 is settled: an independent or chain pharmacy organization
+becomes a typed Workforce establishment, and its postings reference its Pharma
+outlets. ORG-D9 (grouping branches into areas) stays open, as do ORG-D2, ORG-D5
+and ORG-D6. This is a decision record only. No establishment migration, route,
+permission or event exists yet; each arrives in its own reviewed slice of the
+[standalone pharmacy employer specification](../superpowers/specs/2026-11-04-standalone-pharmacy-employers.md).
+Counts are unchanged at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Department posting review candidate (#429 slice 1) — 2026-11-05
 
 A hospital can grant Staff posting review for one department and its current
@@ -14,7 +25,7 @@ the posting review inbox. It is integrated into release PR #1565 after the posti
 supervision, cutoff and lifecycle slices. Its migrations were renumbered to IAM
 0030/0031 and Workforce 0087 to follow 0029 and 0086 there, and the supervised
 chain, lifecycle and recorded-history context reads now carry the department hint.
-It is not released yet.
+It is merged to main as #1572 but not yet promoted to production.
 
 The access proposer holds `iam.assignment.manage`, which, like
 `organization.structure.read`, defaults only to tenant administrators, so the form

@@ -202,7 +202,7 @@ not a hospital. A separate reviewed expand/backfill/consumer migration must
 establish canonical employer scope without a duplicate employee master or fake
 hospital. This hospital posting work does not settle that contract or claim it
 complete. Existing hospital consumers keep their explicit boundary throughout.
-The proposed [ADR-0054](../../adr/0054-typed-employing-establishments.md) and
+The accepted [ADR-0054](../../adr/0054-typed-employing-establishments.md) and
 [standalone employer specification](2026-11-04-standalone-pharmacy-employers.md)
 add branch postings as a separate target kind under that migration.
 

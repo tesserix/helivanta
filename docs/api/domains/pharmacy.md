@@ -671,3 +671,10 @@ Identifier-only `helivanta.in.pharmacy.staff_department_binding_changed.v1`
 events carry the relationship transition and optional replaced identity/version;
 there is no operating consumer. IAM0029 and Pharmacy0034 are additive persisted
 candidates, not production migration or activation evidence.
+
+The unreleased proposal PUT returns the same canonical
+StaffDepartmentBindingCommandReceipt envelope as decision and receipt recovery:
+the relationship is under `binding`, with retained `authorizations` and nullable
+replacement transition fields. The earlier unactivated candidate returned only
+the row; it was corrected before release to match the typed SDK and retained
+receipt contract. Initial response, exact replay and GET recovery are equal.

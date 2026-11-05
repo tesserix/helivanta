@@ -229,7 +229,7 @@ func (h *staffDepartmentBindingHandlers) put(c *gin.Context) {
 		staffBindingError(c, err)
 		return
 	}
-	var result StaffDepartmentBinding
+	var result StaffDepartmentBindingCommandReceipt
 	err = h.command(c, s, PermStaffBindingPrepare, true, func(ctx context.Context, tx *gorm.DB, actor authz.StaffActorReference) error {
 		ref := authz.DepartmentReference{TenantID: s.principal.TenantID, HospitalID: s.hospital, DepartmentID: in.DepartmentID, DepartmentRevision: in.DepartmentRevisionID}
 		return h.departments.WithCurrentDepartment(ctx, ref, func(held context.Context) error {
@@ -242,7 +242,7 @@ func (h *staffDepartmentBindingHandlers) put(c *gin.Context) {
 					return err
 				}
 				if found {
-					result = receipt.Binding
+					result = receipt
 					return auditStaffBindingReceiptRead(tx, s, actor, receipt)
 				}
 				var at time.Time
@@ -252,12 +252,12 @@ func (h *staffDepartmentBindingHandlers) put(c *gin.Context) {
 				if err := tx.Exec(`INSERT INTO pharmacy_staff_department_bindings(tenant_id,outlet_id,hospital_id,id,department_id,department_revision_id,replaces_binding_id,replaces_binding_version,reason,status,version,proposed_by_subject,proposer_staff_id,created_at) VALUES(@tenant,@outlet,@hospital,@id,@department,@revision,@replacement,@replacement_version,@reason,'pending',1,@subject,@staff,@at)`, map[string]any{"tenant": s.principal.TenantID, "outlet": s.outlet, "hospital": s.hospital, "id": s.binding, "department": in.DepartmentID, "revision": in.DepartmentRevisionID, "replacement": in.ReplacesBindingID, "replacement_version": in.ReplacesBindingVersion, "reason": in.Reason, "subject": s.principal.Subject, "staff": actor.StaffID, "at": at}).Error; err != nil {
 					return err
 				}
-				result, err = readStaffBinding(tx, s, false)
+				row, err := readStaffBinding(tx, s, false)
 				if err != nil {
 					return err
 				}
-				receipt = StaffDepartmentBindingCommandReceipt{ID: s.binding, BindingID: s.binding, Operation: "propose", ExpectedVersion: 0, Reason: in.Reason, ActorSubject: s.principal.Subject, ActorStaffID: actor.StaffID, RecordedAt: at, Binding: result}
-				return h.record(tx, s, actor, hash, &receipt)
+				result = StaffDepartmentBindingCommandReceipt{ID: s.binding, BindingID: s.binding, Operation: "propose", ExpectedVersion: 0, Reason: in.Reason, ActorSubject: s.principal.Subject, ActorStaffID: actor.StaffID, RecordedAt: at, Binding: row}
+				return h.record(tx, s, actor, hash, &result)
 			})
 		})
 	})

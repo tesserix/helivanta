@@ -30,7 +30,10 @@ func assertPharmacyDepartmentBindingPreparation(t *testing.T, db *tenantdb.DB, c
 	call(t, "PUT", base+"/access/"+preparer, administrator, map[string]any{"level": "editor"}, 200)
 	path := base + "/hospitals/" + hospital + "/staff-department-bindings/" + binding
 	in := map[string]any{"department_id": department, "department_revision_id": revision, "replaces_binding_id": nil, "replaces_binding_version": nil, "reason": "Synthetic reviewed relationship preparation"}
-	saved := call(t, "PUT", path, preparer, in, 200)
+	prepared := call(t, "PUT", path, preparer, in, 200)
+	require.Contains(t, prepared, "binding", "proposal and decision responses must use the canonical retained receipt, not an unverified row")
+	require.Len(t, prepared["authorizations"], 2)
+	saved := prepared["binding"].(map[string]any)
 	require.Equal(t, binding, saved["id"])
 	require.Equal(t, pharmacy, saved["pharmacy_id"])
 	require.Equal(t, outlet, saved["outlet_id"])
@@ -42,7 +45,8 @@ func assertPharmacyDepartmentBindingPreparation(t *testing.T, db *tenantdb.DB, c
 	require.Equal(t, float64(1), saved["version"])
 	require.Nil(t, saved["decided_by_subject"])
 	require.NotContains(t, saved, "pharmacist_name")
-	require.Equal(t, saved, call(t, "PUT", path, preparer, in, 200), "retry returns the original proposal, not another publication")
+	require.Equal(t, prepared, call(t, "PUT", path, preparer, in, 200), "retry returns the original proposal receipt, not another publication")
+	require.Equal(t, prepared, call(t, "GET", path+"/commands/"+binding, preparer, nil, 200), "the initial response is the exact recoverable receipt")
 	changed := maps.Clone(in)
 	changed["reason"] = "Synthetic changed-content replay"
 	call(t, "PUT", path, preparer, changed, 409)
@@ -67,7 +71,7 @@ func assertPharmacyDepartmentBindingReview(t *testing.T, db *tenantdb.DB, call f
 	path := prepared.base + "/hospitals/" + prepared.pending["hospital_id"].(string) + "/staff-department-bindings/" + uuid.Must(uuid.NewV7()).String()
 	in := map[string]any{"department_id": department, "department_revision_id": revision, "replaces_binding_id": nil, "replaces_binding_version": nil, "reason": "Synthetic current independently reviewed relationship"}
 	call(t, "PUT", path, reviewer, in, 403)
-	pending := call(t, "PUT", path, prepared.preparer, in, 200)
+	pending := call(t, "PUT", path, prepared.preparer, in, 200)["binding"].(map[string]any)
 	decision := command("approve", 1)
 	call(t, "POST", path+"/commands", prepared.preparer, decision, 403)
 	allowProposerReview()
@@ -142,7 +146,7 @@ func assertPharmacyDepartmentBindingReview(t *testing.T, db *tenantdb.DB, call f
 
 	t.Run("replacement retains both relationships and one correlated command", func(t *testing.T) {
 		firstPath := path[:strings.LastIndex(path, "/")+1] + uuid.Must(uuid.NewV7()).String()
-		first := call(t, "PUT", firstPath, prepared.preparer, in, 200)
+		first := call(t, "PUT", firstPath, prepared.preparer, in, 200)["binding"].(map[string]any)
 		firstDecision := command("approve", 1)
 		firstApproved := call(t, "POST", firstPath+"/commands", reviewer, firstDecision, 200)
 		overlapPath := path[:strings.LastIndex(path, "/")+1] + uuid.Must(uuid.NewV7()).String()
@@ -217,7 +221,7 @@ func assertPharmacyDepartmentBindingReview(t *testing.T, db *tenantdb.DB, call f
 		call(t, "GET", fresh, prepared.preparer, nil, 404)
 		require.Equal(t, before, postingSourceUseEffects(t, db, testutil.TenantA, prepared.preparer))
 		clear()
-		require.Equal(t, "pending", call(t, "PUT", fresh, prepared.preparer, in, 200)["status"])
+		require.Equal(t, "pending", call(t, "PUT", fresh, prepared.preparer, in, 200)["binding"].(map[string]any)["status"])
 	})
 	t.Run("revoking the outlet grant withholds retained relationship receipts", func(t *testing.T) {
 		call(t, "DELETE", prepared.base+"/access/"+reviewer, administrator, nil, 200)

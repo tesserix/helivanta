@@ -1612,7 +1612,13 @@ it("rechecks a changed employment source after an approval conflict without disc
 it("blocks a new approval of an ended posting despite current employment", async () => {
   const endsAt = new Date(Date.now() - 60_000).toISOString();
   const startsAt = new Date(Date.now() - 120_000).toISOString();
-  const endedProposal = { ...proposal, starts_at: startsAt, ends_at: endsAt };
+  const eligibilityUntil = new Date(Date.now() + 86_400_000).toISOString();
+  const endedProposal = {
+    ...proposal,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    eligibility_until: eligibilityUntil,
+  };
   const writes: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -1668,7 +1674,12 @@ it("disables an uncertain approval when its posting ends while preserving receip
   const current = Date.now();
   const startsAt = new Date(current - 120_000).toISOString();
   const endsAt = new Date(current + 60_000).toISOString();
-  const timedProposal = { ...proposal, starts_at: startsAt, ends_at: endsAt };
+  const timedProposal = {
+    ...proposal,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    eligibility_until: new Date(current + 86_400_000).toISOString(),
+  };
   const writes: string[] = [];
   let recovered = false;
   vi.stubGlobal(

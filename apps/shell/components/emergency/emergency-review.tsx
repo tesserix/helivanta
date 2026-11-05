@@ -19,7 +19,15 @@ import {
   type EmergencyTransportReview,
   type EmergencyTransportReviewInput,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, formatTime, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  RefreshButton,
+  RequestFailure,
+  formatTime,
+  useZodForm,
+} from "@helivanta/ui";
 import { EmergencyCommandFailure, useEmergencyCommand } from "./emergency-command";
 
 export function EmergencyClinicalAdmin({ base }: { base: string }) {
@@ -194,6 +202,10 @@ export function EmergencyTransportReviewPanel({ row }: { row: ReviewCase }) {
     { enabled: can("emergency.case.read"), request: { cache: "no-store" } },
   );
   if (!can("emergency.case.read")) return null;
+  const refresh = () => {
+    history.retry();
+    if (can("emergency.case.assess") && row.status === "received") void own.refetch();
+  };
   return (
     <section className="min-w-0 space-y-4 rounded-xl border bg-card p-5">
       <h2 className="font-semibold">Reviewed transport requirement</h2>
@@ -201,15 +213,9 @@ export function EmergencyTransportReviewPanel({ row }: { row: ReviewCase }) {
         An attributed transport review records the required class under an approved policy. Review
         history is not a current eligibility decision or a reservation.
       </p>
-      <Button
-        variant="outline"
-        onClick={() => {
-          history.retry();
-          if (can("emergency.case.assess") && row.status === "received") void own.refetch();
-        }}
-      >
+      <RefreshButton refresh={refresh} error={history.error}>
         Refresh transport reviews
-      </Button>
+      </RefreshButton>
       {row.status === "received" &&
         can("emergency.case.assess") &&
         (own.isPending ? (
@@ -224,7 +230,11 @@ export function EmergencyTransportReviewPanel({ row }: { row: ReviewCase }) {
         ))}
       {history.isPending && <p role="status">Loading transport review history…</p>}
       {history.isError ? (
-        <p role="alert">{history.error?.message}</p>
+        <RequestFailure
+          message="Could not load the transport review history."
+          retry={refresh}
+          error={history.error}
+        />
       ) : (
         <ol className="space-y-3">
           {history.items.map((review) => (

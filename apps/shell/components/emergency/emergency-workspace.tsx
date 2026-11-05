@@ -10,7 +10,7 @@ import {
   type EmergencyBase,
   type EmergencyCase,
 } from "@helivanta/api";
-import { formatTime, LoadMore, PageHeading } from "@helivanta/ui";
+import { formatTime, isRefusal, LoadMore, PageHeading, RequestFailure } from "@helivanta/ui";
 import { EmergencyBaseAdmin } from "./emergency-base-admin";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyFleet } from "./emergency-fleet";
@@ -32,43 +32,46 @@ export function EmergencyWorkspace() {
         <p role="status">Loading operating bases…</p>
       )}
       {bases.isError && (
-        <div role="alert">
-          {bases.error?.message}
-          <Button onClick={bases.retry}>Retry bases</Button>
-        </div>
+        <RequestFailure
+          message="Could not load operating bases."
+          retry={bases.retry}
+          error={bases.error}
+        />
       )}
       {!bases.isPending && !bases.isError && bases.items.length === 0 && (
         <p>No operating bases configured in this tenant.</p>
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
-        {bases.items.map((item) => (
-          <li className="min-w-0 space-y-3 rounded-xl border bg-card p-5" key={item.id}>
-            <h2 className="font-semibold">{item.name}</h2>
-            <p className="text-sm text-muted-foreground">
-              {item.timezone} · {item.access_level ?? "No case access"}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {item.access_level && can("emergency.case.read") && (
-                <Button
-                  className="h-auto min-h-11 max-w-full whitespace-normal text-left"
-                  variant="outline"
-                  onClick={() => setSelected(item.id)}
-                >
-                  Open {item.name}
-                </Button>
-              )}
-              <Can permission="emergency.base.manage">
-                <Button
-                  className="h-auto min-h-11 max-w-full whitespace-normal text-left"
-                  variant="outline"
-                  onClick={() => setConfigure(item.id)}
-                >
-                  Configure {item.name}
-                </Button>
-              </Can>
-            </div>
-          </li>
-        ))}
+        {/* Bases the server now refuses don't stay on screen (#1595). */}
+        {!isRefusal(bases.error) &&
+          bases.items.map((item) => (
+            <li className="min-w-0 space-y-3 rounded-xl border bg-card p-5" key={item.id}>
+              <h2 className="font-semibold">{item.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                {item.timezone} · {item.access_level ?? "No case access"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {item.access_level && can("emergency.case.read") && (
+                  <Button
+                    className="h-auto min-h-11 max-w-full whitespace-normal text-left"
+                    variant="outline"
+                    onClick={() => setSelected(item.id)}
+                  >
+                    Open {item.name}
+                  </Button>
+                )}
+                <Can permission="emergency.base.manage">
+                  <Button
+                    className="h-auto min-h-11 max-w-full whitespace-normal text-left"
+                    variant="outline"
+                    onClick={() => setConfigure(item.id)}
+                  >
+                    Configure {item.name}
+                  </Button>
+                </Can>
+              </div>
+            </li>
+          ))}
       </ul>
       <LoadMore hasMore={bases.hasMore} isLoading={bases.isFetchingMore} onClick={bases.loadMore} />
       <Can permission="emergency.base.manage">
@@ -101,10 +104,7 @@ function EmergencyBaseCases({ base }: { base: EmergencyBase }) {
         can("emergency.case.intake") && <EmergencyIntake base={base} />}
       {cases.isPending && <p role="status">Loading reports…</p>}
       {cases.isError ? (
-        <div role="alert">
-          {cases.error?.message}
-          <Button onClick={cases.retry}>Retry reports</Button>
-        </div>
+        <RequestFailure message="Could not load reports." retry={cases.retry} error={cases.error} />
       ) : (
         <>
           <ul className="divide-y rounded-xl border bg-card">

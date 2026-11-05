@@ -110,3 +110,22 @@ it("retains exactly the same command and body after an uncertain reservation", a
     acknowledgement_seconds: 120,
   });
 });
+
+it("offers to check access again when dispatches are refused, without the server's text", async () => {
+  const fetcher = fixture(["emergency.case.read"]);
+  const read = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url, init) =>
+    url.endsWith("/dispatches")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+          status: 403,
+        })
+      : read(url, init),
+  );
+  renderWithProviders(<EmergencyDispatchPanel baseID={base} caseID={caseID} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.getByRole("button", { name: "Check access again" })).toBeEnabled();
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refresh dispatches|try again/i })).toBeNull();
+});

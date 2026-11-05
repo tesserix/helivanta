@@ -30,6 +30,8 @@ import {
   LoadMore,
   formatTime,
   ConfirmDialog,
+  RefreshButton,
+  RequestFailure,
 } from "@helivanta/ui";
 
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
@@ -55,6 +57,11 @@ export function EmergencyFleet({
   const [checking, setChecking] = useState<EmergencyVehicle | null>(null);
   const manage = level === "supervisor" && can("emergency.fleet.manage");
   if (!can("emergency.fleet.read")) return null;
+  const refresh = () => {
+    setSelected(null);
+    setChecking(null);
+    vehicles.retry();
+  };
   return (
     <section className="min-w-0 space-y-4 rounded-xl border bg-card p-5">
       <header className="space-y-2">
@@ -64,19 +71,16 @@ export function EmergencyFleet({
           does not assign an ambulance. Refresh before an operational decision.
         </p>
       </header>
-      <Button
-        variant="outline"
-        onClick={() => {
-          setSelected(null);
-          setChecking(null);
-          vehicles.retry();
-        }}
-      >
+      <RefreshButton refresh={refresh} error={vehicles.error}>
         Refresh fleet
-      </Button>
+      </RefreshButton>
       {vehicles.isPending && <p role="status">Loading fleet…</p>}
       {vehicles.isError ? (
-        <p role="alert">{vehicles.error?.message}</p>
+        <RequestFailure
+          message="Could not load the fleet."
+          retry={refresh}
+          error={vehicles.error}
+        />
       ) : (
         <ul className="grid gap-4 lg:grid-cols-2">
           {vehicles.items.map((v) => (

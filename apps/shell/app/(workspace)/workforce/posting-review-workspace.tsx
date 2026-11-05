@@ -10,13 +10,17 @@ import {
   useStaffPostingProposalInbox,
   useStaffPostingReviewDepartmentNames,
   useStaffPostingSupervisionContext,
-  useStaffPostingManagementReviewContext,
+  useStaffPostingLifecycleReviewContext,
   type EnrollmentRequestScope,
   type StaffPostingInboxScope,
   type StaffPostingInboxItem,
   type StaffPostingProposal,
+  type StaffPostingProposalScope,
   type StaffPostingReviewHospitalScope,
 } from "@helivanta/api";
+import { PostingApprovalHistory } from "./posting-approval-history";
+import { PostingProposalContextDetails } from "./posting-proposal-context-details";
+import { PostingLifecycleReview } from "./posting-lifecycle-review";
 import { PostingProposalDecision } from "./posting-proposal-decision";
 import { PostingSubmissionWorkspace } from "./posting-submission-workspace";
 import { useStaffAccessCutoff, STAFF_ACCESS_CHANGED } from "./staff-access-cutoff";
@@ -394,17 +398,7 @@ function HospitalPostingReviews({
     </Panel>
   );
 }
-function PostingProposalDetail({
-  scope: hospitalScope,
-  departmentScoped,
-  item,
-  action,
-  busy,
-  onBusy,
-  onCompleted,
-  onClose,
-  onContextChanged,
-}: {
+type PostingProposalDetailProps = {
   scope: StaffPostingInboxScope;
   departmentScoped: boolean;
   item: StaffPostingInboxItem;
@@ -414,27 +408,55 @@ function PostingProposalDetail({
   onCompleted: (row: StaffPostingProposal) => void;
   onClose: () => void;
   onContextChanged: () => void;
-}) {
-  const [managementReview, setManagementReview] = useState(false);
+};
+
+function PostingProposalDetail(props: PostingProposalDetailProps) {
   // Department reads name the proposal's own department, never the reviewer's chosen view.
   const scope = {
-    ...hospitalScope,
-    staffId: item.staff.id,
-    ...(departmentScoped ? { department: item.proposal.department_id } : {}),
+    ...props.scope,
+    staffId: props.item.staff.id,
+    ...(props.departmentScoped ? { department: props.item.proposal.department_id } : {}),
   };
+  if (props.item.proposal.status === "approved")
+    return (
+      <PostingApprovalHistory
+        scope={scope}
+        proposal={props.item.proposal}
+        displayName={props.item.staff.display_name}
+        onClose={props.onClose}
+        onContextChanged={props.onContextChanged}
+      />
+    );
+  return <UnapprovedPostingProposalDetail {...props} scope={scope} />;
+}
+
+function UnapprovedPostingProposalDetail({
+  scope,
+  departmentScoped,
+  item,
+  action,
+  busy,
+  onBusy,
+  onCompleted,
+  onClose,
+  onContextChanged,
+}: Omit<PostingProposalDetailProps, "scope"> & { scope: StaffPostingProposalScope }) {
+  const [approvalReview, setApprovalReview] = useState<"management" | "chain" | null>(null);
+  const managementReview = approvalReview === "management";
+  const chainReview = approvalReview === "chain";
   const supervision = useStaffPostingSupervisionContext(
     scope,
     item.proposal,
     item.is_submitter ? "submission" : "review",
     busy,
   );
-  const management = useStaffPostingManagementReviewContext(
+  const lifecycle = useStaffPostingLifecycleReviewContext(
     scope,
     item.proposal,
-    managementReview,
+    managementReview ? "hospital_management" : chainReview ? "supervised" : null,
     busy,
   );
-  const context = managementReview ? management : supervision;
+  const context = approvalReview ? lifecycle : supervision;
   const confirmLeave = useConfirmLeave();
   const cutoff = useStaffAccessCutoff(
     [context.error],
@@ -506,67 +528,65 @@ function PostingProposalDetail({
                   type="button"
                   variant="outline"
                   disabled={busy}
-                  onClick={() => setManagementReview(true)}
+                  onClick={() => setApprovalReview("management")}
                 >
                   Review hospital management approval
                 </Button>
               )}
-            {managementReview && (
+            {action === "reject" &&
+              item.proposal.status === "pending" &&
+              context.data.supervision &&
+              context.data.supervision.kind !== "hospital_management" &&
+              !chainReview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setApprovalReview("chain")}
+                >
+                  Review supervisor chain approval
+                </Button>
+              )}
+            {approvalReview && lifecycle.isSuccess && !lifecycle.isFetching && (
+              <PostingLifecycleReview context={lifecycle.data} />
+            )}
+            {approvalReview && (
               <Button
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={() => setManagementReview(false)}
+                onClick={() => setApprovalReview(null)}
               >
                 Back to proposal review
               </Button>
             )}
           </Panel>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-muted-foreground">Draft rationale</dt>
-              <dd className="break-words">{context.data.context.draft_reason}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Submission rationale</dt>
-              <dd className="break-words">{context.data.context.submission_reason}</dd>
-            </div>
-            {context.data.context.decision_reason && (
-              <div>
-                <dt className="text-sm text-muted-foreground">Decision rationale</dt>
-                <dd className="break-words">{context.data.context.decision_reason}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-sm text-muted-foreground">Submitted department reference</dt>
-              <dd className="break-all">{context.data.context.proposal.department_id}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Submitted department revision</dt>
-              <dd className="break-all">{context.data.context.proposal.department_revision_id}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Proposed placement (UTC)</dt>
-              <dd>
-                {new Date(context.data.context.proposal.starts_at).toISOString()} ·{" "}
-                {context.data.context.proposal.ends_at
-                  ? new Date(context.data.context.proposal.ends_at).toISOString()
-                  : "Ongoing"}
-              </dd>
-            </div>
-          </dl>
+          <PostingProposalContextDetails context={context.data.context} />
         </>
+      )}
+      {approvalReview && (context.isError || context.isPending) && !cutoff && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={() => setApprovalReview(null)}
+        >
+          Back to proposal review
+        </Button>
       )}
       {context.data && !cutoff && (
         <PostingProposalDecision
-          key={managementReview ? "management" : "ordinary"}
+          key={approvalReview ?? "ordinary"}
           scope={scope}
           proposal={context.data.context.proposal}
           contextAvailable={context.isSuccess && !context.isFetching}
           onContextRecheck={() => {
             void context.refetch();
           }}
-          action={managementReview ? "approve" : action}
+          action={approvalReview ? "approve" : action}
+          approvalKind={chainReview ? "supervised" : "hospital_management"}
+          approvalUntil={approvalReview ? lifecycle.data?.effective_until : undefined}
+          lifecycleContext={approvalReview ? lifecycle.data : undefined}
           busy={busy}
           onBusy={onBusy}
           onCompleted={onCompleted}

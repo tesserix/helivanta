@@ -1045,6 +1045,77 @@ it.each(["missing", "broader", "extra"])(
   },
 );
 
+it("offers cutoff administration only from its verified lifecycle catalog", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-posting-lifecycle-v1"))
+        return Response.json(catalogDefinitions("staff-posting-lifecycle-v1"));
+      if (url.includes("catalog=staff-posting-management-v1"))
+        return Response.json(catalogDefinitions("staff-posting-management-v1"));
+      if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  expect(
+    await screen.findByRole("option", { name: "Staff posting cutoff administrator" }),
+  ).toBeInTheDocument();
+});
+
+it.each(["missing", "broader", "extra", "unavailable"])(
+  "retains verified management roles when the lifecycle catalog is %s",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("staff-posting-lifecycle-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter((t) => t.key !== "workforce.posting_cutoff_admin.v1")
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((t) =>
+              t.key === "workforce.posting_cutoff_admin.v1"
+                ? { ...t, permissions: [...t.permissions, "workforce.posting.review"] }
+                : t,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("catalog=staff-posting-lifecycle-v1"))
+          return kind === "unavailable"
+            ? Response.json({ error: "unavailable" }, { status: 503 })
+            : Response.json(altered);
+        if (url.includes("catalog=staff-posting-management-v1"))
+          return Response.json(catalogDefinitions("staff-posting-management-v1"));
+        if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+    await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+    await user.click(screen.getByLabelText("Access template"));
+    expect(screen.getByRole("listbox")).toHaveTextContent("Staff posting management reviewer");
+    expect(screen.getByRole("listbox")).not.toHaveTextContent("Staff posting cutoff administrator");
+  },
+);
+
 it.each(["missing", "broader", "extra", "unavailable"])(
   "keeps older verified posting roles when management catalog is %s",
   async (kind) => {
@@ -1182,3 +1253,147 @@ it("retains an uncertain management renewal and blocks retry until its exact cat
   expect(commands[0]?.tenant).toBe(tenant);
   expect(await screen.findByText(/Proposal recorded/)).toBeInTheDocument();
 });
+
+it("offers source consumption only from its exact verified source catalog", async () => {
+  setup();
+  const prior = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("catalog=staff-posting-source-v1"))
+        return Response.json(catalogDefinitions("staff-posting-source-v1"));
+      if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  expect(
+    await screen.findByRole("option", { name: "Staff posting source consumer" }),
+  ).toBeInTheDocument();
+});
+
+it.each(["missing", "broader", "extra", "unavailable"])(
+  "withholds source capability and preserves verified lifecycle roles when source catalog is %s",
+  async (kind) => {
+    setup();
+    const prior = fetch;
+    const definitions = catalogDefinitions("staff-posting-source-v1");
+    const altered =
+      kind === "missing"
+        ? definitions.filter((t) => t.key !== "workforce.posting_source_consumer.v1")
+        : kind === "extra"
+          ? [...definitions, definitions[0]]
+          : definitions.map((t) =>
+              t.key === "workforce.posting_source_consumer.v1"
+                ? { ...t, permissions: [...t.permissions, "workforce.posting.proposal.read"] }
+                : t,
+            );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("catalog=staff-posting-source-v1"))
+          return kind === "unavailable"
+            ? Response.json({ error: "unavailable" }, { status: 503 })
+            : Response.json(altered);
+        if (url.includes("catalog=staff-posting-lifecycle-v1"))
+          return Response.json(catalogDefinitions("staff-posting-lifecycle-v1"));
+        if (url.includes("/iam/posting-assignment-proposals?")) return Response.json(page([]));
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    await user.click(await screen.findByRole("option", { name: "Staff posting access" }));
+    await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+    await user.click(screen.getByLabelText("Access template"));
+    expect(
+      await screen.findByRole("option", { name: "Staff posting cutoff administrator" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Staff posting source consumer" }),
+    ).not.toBeInTheDocument();
+  },
+);
+
+it("offers the exact Pharmacy relationship templates in their own assignment area", async () => {
+  setup("proposer", []);
+  const prior = fetch;
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      requests.push(url);
+      if (url.includes("catalog=pharmacy-department-bindings-v1"))
+        return Response.json(catalogDefinitions("pharmacy-department-bindings-v1"));
+      if (url.includes("/iam/pharmacy-binding-assignment-proposals?"))
+        return Response.json(page([]));
+      return prior(url, init);
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <AccessPage />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByLabelText("Assignment area"));
+  await user.click(
+    await screen.findByRole("option", { name: "Pharmacy department relationships" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Propose assignment" }));
+  await user.click(screen.getByLabelText("Access template"));
+  const list = screen.getByRole("listbox");
+  for (const template of catalogDefinitions("pharmacy-department-bindings-v1"))
+    expect(list).toHaveTextContent(template.name);
+  expect(list).not.toHaveTextContent("Staff posting reviewer");
+  expect(
+    requests.some((url) => url.includes("/iam/pharmacy-binding-assignment-proposals?limit=50")),
+  ).toBe(true);
+});
+
+it.each(["unavailable", "extra", "widened"] as const)(
+  "withholds Pharmacy assignment preparation when its catalog is %s",
+  async (kind) => {
+    setup("proposer", []);
+    const prior = fetch;
+    const definitions = catalogDefinitions("pharmacy-department-bindings-v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("catalog=pharmacy-department-bindings-v1")) {
+          if (kind === "unavailable")
+            return Response.json({ error: "unavailable" }, { status: 503 });
+          return Response.json(
+            kind === "extra"
+              ? [...definitions, definitions[0]]
+              : definitions.map((template) => ({
+                  ...template,
+                  permissions: [...template.permissions, "pharmacy.catalogue.read"],
+                })),
+          );
+        }
+        return prior(url, init);
+      }),
+    );
+    const { user } = renderWithProviders(
+      <NavigationGuardProvider>
+        <AccessPage />
+      </NavigationGuardProvider>,
+    );
+    await user.click(await screen.findByLabelText("Assignment area"));
+    expect(
+      screen.queryByRole("option", { name: "Pharmacy department relationships" }),
+    ).not.toBeInTheDocument();
+  },
+);

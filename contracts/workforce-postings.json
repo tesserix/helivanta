@@ -1,5 +1,107 @@
 {
   "models": {
+    "StaffPostingCutoffInput": [
+      {
+        "name": "expected_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_cutoff_version",
+        "type": "int64",
+        "pointer": true,
+        "min": 0,
+        "max": 9007199254740989
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "enum": ["immediate", "scheduled"]
+      },
+      {
+        "name": "cutoff_at",
+        "type": "time",
+        "optional": true,
+        "nullable": true
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "sources_examined",
+        "type": "bool",
+        "pointer": true,
+        "required_true": "Examine the current posting and cutoff history."
+      }
+    ],
+    "StaffPostingCutoff": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_cutoff_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740989
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "enum": ["immediate", "scheduled"]
+      },
+      {
+        "name": "requested_cutoff_at",
+        "type": "time",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "cutoff_at",
+        "type": "time"
+      },
+      {
+        "name": "recorded_at",
+        "type": "time"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "text",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "sources_examined",
+        "type": "bool",
+        "required_true": "The retained cutoff requires examination."
+      }
+    ],
     "StaffPostingDraftInput": [
       {
         "name": "expected_version",
@@ -343,6 +445,18 @@
         "type": "time"
       }
     ],
+    "StaffPostingLifecycleReviewInput": [
+      {
+        "name": "cutoff_versions",
+        "type": "[]int64",
+        "min": 1,
+        "max": 32
+      },
+      {
+        "name": "effective_until",
+        "type": "time"
+      }
+    ],
     "StaffPostingDecisionInput": [
       {
         "name": "expected_version",
@@ -379,6 +493,11 @@
       {
         "name": "hospital_management_reviewed",
         "type": "bool",
+        "optional": true
+      },
+      {
+        "name": "lifecycle_review",
+        "type": "StaffPostingLifecycleReviewInput",
         "optional": true
       }
     ],
@@ -496,6 +615,18 @@
         "type": "string",
         "enum": ["current"],
         "optional": true
+      },
+      {
+        "name": "chain_review",
+        "type": "string",
+        "enum": ["current"],
+        "optional": true
+      },
+      {
+        "name": "lifecycle_review",
+        "type": "string",
+        "enum": ["current", "recorded"],
+        "optional": true
       }
     ],
     "StaffPostingProposalContext": [
@@ -561,9 +692,328 @@
         "pointer": true,
         "nullable": true
       }
+    ],
+    "StaffPostingSupervisorChoice": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff",
+        "type": "StaffPostingTarget"
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "enum": ["hospital_management", "department_supervisor"]
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "starts_at",
+        "type": "time"
+      },
+      {
+        "name": "ends_at",
+        "type": "time",
+        "optional": true,
+        "nullable": true
+      },
+      {
+        "name": "eligibility_until",
+        "type": "time"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ],
+    "StaffPostingChainNode": [
+      {
+        "name": "posting",
+        "type": "StaffPostingSupervisorChoice"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent"
+      }
+    ],
+    "StaffPostingChainReviewContext": [
+      {
+        "name": "context",
+        "type": "StaffPostingProposalContext"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent"
+      },
+      {
+        "name": "chain",
+        "type": "[]StaffPostingChainNode",
+        "min": 1,
+        "max": 31
+      },
+      {
+        "name": "checked_at",
+        "type": "time"
+      },
+      {
+        "name": "eligibility_until",
+        "type": "time"
+      }
+    ],
+    "StaffPostingCutoffHospitalScope": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      }
+    ],
+    "StaffPostingCutoffContext": [
+      {
+        "name": "proposal",
+        "type": "StaffPostingProposal"
+      },
+      {
+        "name": "cutoff",
+        "type": "StaffPostingCutoff",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "checked_at",
+        "type": "time"
+      }
+    ],
+    "StaffPostingCutoffObservation": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "cutoff_at",
+        "type": "time",
+        "pointer": true,
+        "nullable": true
+      }
+    ],
+    "StaffPostingLifecycleChainNode": [
+      {
+        "name": "posting",
+        "type": "StaffPostingSupervisorChoice"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent"
+      },
+      {
+        "name": "cutoff",
+        "type": "StaffPostingCutoffObservation"
+      }
+    ],
+    "StaffPostingLifecycleReviewContext": [
+      {
+        "name": "context",
+        "type": "StaffPostingProposalContext"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent"
+      },
+      {
+        "name": "cutoff",
+        "type": "StaffPostingCutoffObservation"
+      },
+      {
+        "name": "chain",
+        "type": "[]StaffPostingLifecycleChainNode",
+        "min": 0,
+        "max": 31
+      },
+      {
+        "name": "checked_at",
+        "type": "time"
+      },
+      {
+        "name": "effective_until",
+        "type": "time"
+      }
+    ],
+    "StaffPostingLifecycleHistorySource": [
+      {
+        "name": "hop",
+        "type": "int64",
+        "min": 0,
+        "max": 31
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "cutoff",
+        "type": "StaffPostingCutoffObservation"
+      }
+    ],
+    "StaffPostingLifecycleHistoryRecord": [
+      {
+        "name": "revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "initial_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reviewer_staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reviewer_link_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reviewer_generation_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_assignment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "review_assignment_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "scope_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "support_permission",
+        "type": "string",
+        "enum": [
+          "workforce.posting.read",
+          "workforce.posting.management.review"
+        ]
+      },
+      {
+        "name": "support_assignment_id",
+        "type": "uuid"
+      },
+      {
+        "name": "support_assignment_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "checked_at",
+        "type": "time"
+      },
+      {
+        "name": "effective_until",
+        "type": "time"
+      },
+      {
+        "name": "source_count",
+        "type": "int64",
+        "min": 1,
+        "max": 32
+      },
+      {
+        "name": "sources",
+        "type": "[]StaffPostingLifecycleHistorySource",
+        "min": 1,
+        "max": 32
+      }
+    ],
+    "StaffPostingLifecycleHistoryContext": [
+      {
+        "name": "context",
+        "type": "StaffPostingProposalContext"
+      },
+      {
+        "name": "supervision",
+        "type": "StaffPostingSupervisionIntent",
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "review",
+        "type": "StaffPostingLifecycleHistoryRecord",
+        "pointer": true,
+        "nullable": true
+      }
     ]
   },
   "events": {
+    "PostingCutoffChangedData": [
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "proposal_id",
+        "type": "uuid"
+      },
+      {
+        "name": "cutoff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "version",
+        "type": "int64"
+      }
+    ],
     "PostingDraftChangedData": [
       {
         "name": "hospital_id",

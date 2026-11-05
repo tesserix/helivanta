@@ -11,7 +11,11 @@ import (
 
 func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	migs := iam.New(nil).Migrations()
-	require.Len(t, migs, 28)
+	ids := make([]string, len(migs))
+	for i, migration := range migs {
+		ids[i] = migration.ID
+	}
+	require.Len(t, ids, 31)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -46,10 +50,26 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.NotEmpty(t, migs[24].SQL)
 	require.Equal(t, "0026_iam_staff_posting_management_templates", migs[25].ID)
 	require.NotEmpty(t, migs[25].SQL)
-	require.Equal(t, "0027_iam_department_posting_review_templates", migs[26].ID)
+	require.Equal(t, "0027_iam_staff_posting_cutoff_templates", migs[26].ID)
+	require.Equal(t, "0028_iam_staff_posting_source_templates", migs[27].ID)
 	require.NotEmpty(t, migs[26].SQL)
-	require.Equal(t, "0028_iam_department_assignment_scope", migs[27].ID)
-	require.NotEmpty(t, migs[27].SQL)
+	require.Equal(t, "0029_iam_pharmacy_department_binding_templates", migs[28].ID)
+	require.Equal(t, "0030_iam_department_posting_review_templates", migs[29].ID)
+	require.NotEmpty(t, migs[29].SQL)
+	require.Equal(t, "0031_iam_department_assignment_scope", migs[30].ID)
+	require.NotEmpty(t, migs[30].SQL)
+}
+
+func TestPharmacyDepartmentBindingTemplatesArePersisted(t *testing.T) {
+	for _, migration := range iam.New(nil).Migrations() {
+		if migration.ID == "0029_iam_pharmacy_department_binding_templates" {
+			require.Contains(t, migration.SQL, "pharmacy.department_binding_preparer.v1")
+			require.Contains(t, migration.SQL, "pharmacy.department_binding_reviewer.v1")
+			require.Contains(t, migration.SQL, "workforce.staff_actor.use")
+			return
+		}
+	}
+	t.Fatal("the canonical Pharmacy relationship templates must have a persisted IAM migration")
 }
 
 // TestSystemRolesMatchesAuthzRegistry pins iam.SystemRoles() to

@@ -41,13 +41,14 @@ func assertPostingSaveStopsAtReviewedCutoff(t *testing.T, db *tenantdb.DB, reque
 	blocker, unlock := holdActivationSupervision(t, db, lockHospital)
 	saving := startActivationRequest(t, request, command.method, command.path, command.subject, command.input)
 	awaitActivationBlock(t, db, blocker, "INSERT INTO workforce_audit")
-	denied := finishActivationRequest(t, saving, 403)
-	require.NotContains(t, denied, "id", "an expired command must disclose no saved receipt")
 	var observed time.Time
-	require.NoError(t, db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw(`SELECT clock_timestamp()`).Scan(&observed).Error }))
-	hostObserved := time.Now().UTC()
-	require.True(t, !observed.Before(until) || !hostObserved.Before(until), "a real owner clock must reach the exact cutoff while the save audit is blocked: database=%s cutoff=%s host=%s", observed.UTC().Format(time.RFC3339Nano), until.UTC().Format(time.RFC3339Nano), hostObserved.Format(time.RFC3339Nano))
+	require.Eventually(t, func() bool {
+		err := db.WithSystem(t.Context(), func(tx *gorm.DB) error { return tx.Raw(`SELECT clock_timestamp()`).Scan(&observed).Error })
+		return err == nil && !observed.Before(until)
+	}, 6*time.Second, 10*time.Millisecond, "the audit gate must remain held until the actual database cutoff")
 	unlock()
+	denied := finishActivationRequest(t, saving, 403)
+	require.NotContains(t, denied, "id", "work released after expiry must disclose no saved receipt")
 	clear()
 	var saved int64
 	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {

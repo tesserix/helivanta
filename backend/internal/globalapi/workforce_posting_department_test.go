@@ -146,6 +146,11 @@ func assertPostingDepartmentReviewer(t *testing.T, f postingDepartmentFixture) {
 	f.call(t, "GET", review+"&department="+f.sibling, f.reviewer, nil, 404)
 	f.call(t, "GET", review+"&department="+f.parent, f.reviewer, nil, 404)
 	require.Equal(t, pending["id"], f.call(t, "GET", review+"&department="+f.sub, f.reviewer, nil, 200)["proposal"].(map[string]any)["id"])
+	for _, supervised := range []string{"&supervision_context=v1&chain_review=current", "&supervision_context=v1&lifecycle_review=current"} {
+		f.call(t, "GET", review+supervised, f.reviewer, nil, 403)
+		f.call(t, "GET", review+supervised+"&department="+f.sibling, f.reviewer, nil, 404)
+		require.Equal(t, "posting_supervision_required", f.call(t, "GET", review+supervised+"&department="+f.sub, f.reviewer, nil, 409)["error"], "department admission reaches the supervision check")
+	}
 	submission := fmt.Sprintf("%s/context?purpose=submission&expected_version=1&expected_revision_id=%s&department=%s", proposal, pending["revision_id"], f.sub)
 	f.call(t, "GET", submission, f.reviewer, nil, 403)
 

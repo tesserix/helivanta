@@ -20,8 +20,8 @@ const templateFields = contract.models.TemplateDefinition.map((field) => field.n
 const templateLimits = Object.fromEntries(
   contract.models.TemplateDefinition.map((field) => [field.name, field.max]),
 );
-// Templates before 0027 predate declared scope and stay hospital-only, so their digests never change.
-const scopeKindsFrom = 27;
+// Templates before 0030 predate declared scope and stay hospital-only, so their digests never change.
+const scopeKindsFrom = 30;
 const scopeKindChoices = [["hospital"], ["department"], ["hospital", "department"]].map((kinds) =>
   JSON.stringify(kinds),
 );
@@ -62,7 +62,7 @@ for (const migration of migrations) {
       (scopeAware && !scopeKindChoices.includes(JSON.stringify(template.scope_kinds)))
     )
       throw new Error(
-        "Staff templates from 0027 declare reviewed scope kinds; earlier templates are hospital-only",
+        "Staff templates from 0030 declare reviewed scope kinds; earlier templates are hospital-only",
       );
     if (
       scopeAware &&
@@ -74,13 +74,40 @@ for (const migration of migrations) {
       )
     )
       throw new Error("Only the reviewed department template declares department scope, alone");
+    if (template?.family === "pharmacy_binding") {
+      const kind = template.key?.match(
+        /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/,
+      )?.[1];
+      if (
+        !kind ||
+        JSON.stringify(template.permissions) !==
+          JSON.stringify([
+            "pharmacy.staff_binding.read",
+            kind === "reviewer"
+              ? "pharmacy.staff_binding.review"
+              : "pharmacy.staff_binding.prepare",
+            "organization.posting_choices.read",
+            "workforce.staff_actor.use",
+          ])
+      )
+        throw new Error(
+          "Pharmacy binding templates require their exact role and Staff source permissions",
+        );
+    }
     if (template?.family === "posting") {
       const kind = departmentReviewer.test(template.key ?? "")
         ? "reviewer"
         : template.key?.match(
-            /^workforce\.posting_(reader|preparer|submitter|reviewer|management_reviewer)\.v[1-9][0-9]*$/,
+            /^workforce\.posting_(reader|preparer|submitter|reviewer|management_reviewer|cutoff_admin|source_consumer)\.v[1-9][0-9]*$/,
           )?.[1];
       const permissions = {
+        source_consumer: ["workforce.posting_source.use", "workforce.staff_actor.use"],
+        cutoff_admin: [
+          "workforce.posting.read",
+          "workforce.posting.proposal.read",
+          "workforce.posting.cutoff",
+          "workforce.staff_actor.use",
+        ],
         management_reviewer: ["workforce.posting.management.review", "workforce.staff_actor.use"],
         reader: ["workforce.posting.read", "workforce.staff_actor.use"],
         preparer: [
@@ -126,11 +153,19 @@ for (const migration of migrations) {
       !declaredFields.every((field) => Object.hasOwn(template, field)) ||
       typeof template.key !== "string" ||
       template.key.length > templateLimits.key ||
-      !/^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key) ||
+      !(template.family === "pharmacy_binding"
+        ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+        : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
       keys.has(template.key) ||
-      !["leave", "identity", "intake", "employment", "activation", "posting"].includes(
-        template.family,
-      ) ||
+      ![
+        "leave",
+        "identity",
+        "intake",
+        "employment",
+        "activation",
+        "posting",
+        "pharmacy_binding",
+      ].includes(template.family) ||
       typeof template.name !== "string" ||
       !template.name ||
       template.name.length > templateLimits.name ||
@@ -141,10 +176,16 @@ for (const migration of migrations) {
       (template.family === "intake"
         ? JSON.stringify(template.permissions) !==
           JSON.stringify(["workforce.enrollment.manage", "workforce.documents.manage"])
-        : template.family !== "posting" && template.permissions.length !== 1) ||
+        : template.family !== "posting" &&
+          template.family !== "pharmacy_binding" &&
+          template.permissions.length !== 1) ||
       !template.permissions.every(
         (permission) =>
           /^workforce\.[a-z_.]+$/.test(permission) ||
+          (template.family === "pharmacy_binding" &&
+            /^pharmacy\.staff_binding\.(read|prepare|review)$/.test(permission)) ||
+          (template.family === "pharmacy_binding" &&
+            permission === "organization.posting_choices.read") ||
           (template.family === "posting" && permission === "organization.posting_choices.read"),
       )
     )

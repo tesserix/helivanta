@@ -45,6 +45,7 @@ type RoleLister interface {
 // around it. Projections use events; authoritative decisions use published owner APIs (ADR-0041).
 type Deps struct {
 	StaffActors          authz.CurrentStaffActorGuard
+	StaffPostingSources  authz.CurrentStaffPostingSourceGuard
 	DepartmentReferences authz.DepartmentReferenceGuard
 	DepartmentScopes     authz.DepartmentScopeGuard
 	ScopedAuthorizer     authz.ScopedAuthorizer

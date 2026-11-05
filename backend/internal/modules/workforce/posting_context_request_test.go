@@ -75,3 +75,60 @@ func TestPostingChainContextRequiresExclusiveReviewOptIn(t *testing.T) {
 		})
 	}
 }
+
+func TestPostingLifecycleContextRequiresExplicitUnambiguousReview(t *testing.T) {
+	base := "purpose=review&expected_version=1&expected_revision_id=019a0000-0000-7000-8000-000000000001"
+	for _, tc := range []struct {
+		name, query string
+		valid       bool
+	}{
+		{"supervised lifecycle", base + "&supervision_context=v1&lifecycle_review=current", true},
+		{"root lifecycle", base + "&supervision_context=v1&management_review=current&lifecycle_review=current", true},
+		{"missing supervision", base + "&lifecycle_review=current", false},
+		{"legacy chain mixed", base + "&supervision_context=v1&chain_review=current&lifecycle_review=current", false},
+		{"repeated lifecycle", base + "&supervision_context=v1&lifecycle_review=current&lifecycle_review=current", false},
+		{"unknown lifecycle", base + "&supervision_context=v1&lifecycle_review=all", false},
+		{"empty lifecycle", base + "&supervision_context=v1&lifecycle_review=", false},
+		{"unknown extra", base + "&supervision_context=v1&lifecycle_review=current&extra=1", false},
+		{"submission", "purpose=submission&expected_version=1&expected_revision_id=019a0000-0000-7000-8000-000000000001&supervision_context=v1&lifecycle_review=current", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Request = httptest.NewRequest("GET", "/context?"+tc.query, nil)
+			_, ok := postingContextRequest(c)
+			require.Equal(t, tc.valid, ok, response.Body.String())
+			if !tc.valid {
+				require.Equal(t, 400, response.Code)
+			}
+		})
+	}
+}
+
+func TestPostingLifecycleHistoryRequiresExclusiveRecordedReview(t *testing.T) {
+	base := "purpose=review&expected_version=2&expected_revision_id=019a0000-0000-7000-8000-000000000001"
+	for _, tc := range []struct {
+		name, query string
+		valid       bool
+	}{
+		{"retained approval", base + "&supervision_context=v1&lifecycle_review=recorded", true},
+		{"missing supervision", base + "&lifecycle_review=recorded", false},
+		{"management mixed", base + "&supervision_context=v1&management_review=current&lifecycle_review=recorded", false},
+		{"chain mixed", base + "&supervision_context=v1&chain_review=current&lifecycle_review=recorded", false},
+		{"current mixed", base + "&supervision_context=v1&lifecycle_review=current&lifecycle_review=recorded", false},
+		{"submission", "purpose=submission&expected_version=2&expected_revision_id=019a0000-0000-7000-8000-000000000001&supervision_context=v1&lifecycle_review=recorded", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Request = httptest.NewRequest("GET", "/context?"+tc.query, nil)
+			in, ok := postingContextRequest(c)
+			require.Equal(t, tc.valid, ok, response.Body.String())
+			if ok {
+				require.Equal(t, "recorded", *in.LifecycleReview)
+			} else {
+				require.Equal(t, 400, response.Code)
+			}
+		})
+	}
+}

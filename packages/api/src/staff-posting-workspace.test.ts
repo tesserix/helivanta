@@ -9,6 +9,37 @@ const target = {
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.resetAllMocks());
+it("discovers cutoff hospitals without treating empty filtered pages as completion", async () => {
+  const { listStaffPostingCutoffScopes } = await import("./staff-posting-workspace");
+  const result = { data: [], page: { has_more: true, next_cursor: "synthetic-cutoff-scope-next" } };
+  vi.mocked(apiFetch).mockResolvedValue(result);
+  expect(await listStaffPostingCutoffScopes(scope)).toEqual(result);
+  expect(apiFetch).toHaveBeenLastCalledWith(
+    "/workforce/posting-cutoff-scopes?limit=20",
+    expect.objectContaining({
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": scope.subject,
+      },
+    }),
+  );
+  vi.mocked(apiFetch).mockResolvedValue(
+    page([{ hospital_id: hospitalId, name: "Synthetic cutoff hospital" }]),
+  );
+  expect((await listStaffPostingCutoffScopes(scope)).data[0].hospital_id).toBe(hospitalId);
+  for (const bad of [
+    page([{ hospital_id: hospitalId, name: "Synthetic cutoff hospital", can_review: true }]),
+    page([
+      { hospital_id: hospitalId, name: "Synthetic cutoff hospital" },
+      { hospital_id: hospitalId, name: "Duplicate" },
+    ]),
+    { ...result, page: { has_more: false, next_cursor: "unexpected" } },
+  ]) {
+    vi.mocked(apiFetch).mockResolvedValue(bad);
+    await expect(listStaffPostingCutoffScopes(scope)).rejects.toThrow();
+  }
+});
 it("pins bounded scoped hospital discovery and retains empty-page continuation", async () => {
   const { listStaffPostingScopes } = await import("./staff-posting-workspace");
   const continuation = { data: [], page: { has_more: true, next_cursor: "opaque-continuation" } };

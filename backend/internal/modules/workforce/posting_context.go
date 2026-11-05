@@ -20,7 +20,7 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 	if len(c.Request.URL.RawQuery) <= 1024 {
 		query, err = url.ParseQuery(c.Request.URL.RawQuery)
 	}
-	valid := len(c.Request.URL.RawQuery) <= 1024 && err == nil && (len(query) >= 3 && len(query) <= 5)
+	valid := len(c.Request.URL.RawQuery) <= 1024 && err == nil && (len(query) >= 3 && len(query) <= 6)
 	for _, key := range []string{"purpose", "expected_version", "expected_revision_id"} {
 		valid = valid && len(query[key]) == 1
 	}
@@ -39,6 +39,11 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 		value := query.Get("chain_review")
 		in.ChainReview = &value
 	}
+	if values, exists := query["lifecycle_review"]; exists {
+		valid = valid && len(values) == 1 && (values[0] == "current" || values[0] == "recorded" && in.ManagementReview == nil) && in.SupervisionContext != nil && in.ChainReview == nil && query.Get("purpose") == "review"
+		value := query.Get("lifecycle_review")
+		in.LifecycleReview = &value
+	}
 	fields := 3
 	if in.SupervisionContext != nil {
 		fields++
@@ -47,6 +52,9 @@ func postingContextRequest(c *gin.Context) (StaffPostingProposalContextRequest, 
 		fields++
 	}
 	if in.ChainReview != nil {
+		fields++
+	}
+	if in.LifecycleReview != nil {
 		fields++
 	}
 	valid = valid && len(query) == fields
@@ -77,23 +85,26 @@ func (h *handlers) getPostingProposalContext(c *gin.Context) {
 	if !ok {
 		return
 	}
+	recorded := in.LifecycleReview != nil && *in.LifecycleReview == "recorded"
 	permission, decision := PermPostingReview, "reject"
 	if in.Purpose == "submission" {
 		permission, decision = PermPostingSubmit, "withdraw"
 	}
-	if in.ChainReview != nil {
+	if in.ChainReview != nil || in.LifecycleReview != nil && !recorded {
 		decision = "approve"
 	}
 	var additional []authz.Permission
 	if in.ManagementReview != nil {
 		additional = []authz.Permission{PermPostingManagementReview}
 	}
-	if in.ChainReview != nil {
-		additional = []authz.Permission{PermPostingRead}
+	if in.ChainReview != nil || in.LifecycleReview != nil && !recorded && in.ManagementReview == nil {
+		additional = append(additional, PermPostingRead)
 	}
 	out := StaffPostingProposalContext{Purpose: in.Purpose}
 	var supervision *StaffPostingSupervisionIntent
 	var chainView StaffPostingChainReviewContext
+	var lifecycleView StaffPostingLifecycleReviewContext
+	var historyView StaffPostingLifecycleHistoryContext
 	err := h.scopedPostingTransaction(c, p, s, true, permission, func(commandCtx context.Context, tx *gorm.DB, source EmploymentPeriodSource) error {
 		if err := postingProposalDecisionContext(tx, s, decision, in.ExpectedRevisionID); err != nil {
 			return err
@@ -143,6 +154,45 @@ func (h *handlers) getPostingProposalContext(c *gin.Context) {
 				return errPostingSupervisionRequired
 			}
 		}
+		if recorded {
+			historyView, err = postingLifecycleHistoryView(tx, p, s, out, supervision)
+			if err != nil {
+				return err
+			}
+			encoded, err := json.Marshal(historyView)
+			if err != nil {
+				return err
+			}
+			if len(encoded) > 128*1024 {
+				return authz.ErrScopedAuthorizationUnavailable
+			}
+			sources := 0
+			if historyView.Review != nil {
+				sources = len(historyView.Review.Sources)
+			}
+			return postingProposalAuditRecord(tx, p, s.hospital, s.draft, "context_read_lifecycle_history", out.Proposal.Version, map[string]any{"sources": sources})
+		}
+		if in.LifecycleReview != nil {
+			if supervision == nil || out.Proposal.Status != "pending" || (supervision.Kind == "hospital_management") != (in.ManagementReview != nil) {
+				return errPostingSupervisionRequired
+			}
+			lifecycle, err := newPostingLifecycleReview(tx)
+			if err != nil {
+				return err
+			}
+			finish := func(current *gorm.DB, sources []postingChainSource) error {
+				var err error
+				lifecycleView, err = postingLifecycleReviewView(current, p, s, out, *supervision, sources, lifecycle)
+				if err != nil {
+					return err
+				}
+				return postingProposalAuditRecord(current, p, s.hospital, s.draft, "context_read_lifecycle_review", out.Proposal.Version, map[string]any{"ancestors": len(sources)})
+			}
+			if supervision.Kind == "hospital_management" {
+				return h.withRootPostingLifecycleApproval(commandCtx, tx, p, s, out.Proposal, source, lifecycle, func(current *gorm.DB) error { return finish(current, nil) })
+			}
+			return h.withSupervisedPostingLifecycleApproval(commandCtx, tx, p, s, out.Proposal, source, *supervision, lifecycle, finish)
+		}
 		if in.ChainReview != nil {
 			if supervision == nil || supervision.Kind == "hospital_management" || out.Proposal.Status != "pending" {
 				return errPostingSupervisionRequired
@@ -174,6 +224,14 @@ func (h *handlers) getPostingProposalContext(c *gin.Context) {
 	}, additional...)
 	if err != nil {
 		respondPostingProposalError(c, err)
+		return
+	}
+	if recorded {
+		respond.OK(c, historyView)
+		return
+	}
+	if in.LifecycleReview != nil {
+		respond.OK(c, lifecycleView)
 		return
 	}
 	if in.ChainReview != nil {

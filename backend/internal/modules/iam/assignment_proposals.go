@@ -55,6 +55,15 @@ var staffPostingReviewTemplatesSchema string
 //go:embed assignment_posting_management_templates_generated.sql
 var staffPostingManagementTemplatesSchema string
 
+//go:embed assignment_posting_cutoff_templates_generated.sql
+var staffPostingCutoffTemplatesSchema string
+
+//go:embed assignment_posting_source_templates_generated.sql
+var staffPostingSourceTemplatesSchema string
+
+//go:embed assignment_pharmacy_department_binding_templates_generated.sql
+var pharmacyDepartmentBindingTemplatesSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`
@@ -330,6 +339,7 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	platform.ListRoute(g, "/employment-assignment-proposals", authz.Public, h.listEmployment)
 	platform.ListRoute(g, "/employment-activation-assignment-proposals", authz.Public, h.listEmploymentActivation)
 	platform.ListRoute(g, "/posting-assignment-proposals", authz.Public, h.listPosting)
+	platform.ListRoute(g, "/pharmacy-binding-assignment-proposals", authz.Public, h.listPharmacyBinding)
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {
 			return
@@ -381,6 +391,10 @@ func (h *assignmentProposalHandlers) listEmploymentActivation(c *gin.Context, pa
 
 func (h *assignmentProposalHandlers) listPosting(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
 	return h.listFamily(c, params, "posting")
+}
+
+func (h *assignmentProposalHandlers) listPharmacyBinding(c *gin.Context, params pagination.Params) ([]assignmentProposal, error) {
+	return h.listFamily(c, params, "pharmacy_binding")
 }
 
 func (h *assignmentProposalHandlers) listFamily(c *gin.Context, params pagination.Params, family string) ([]assignmentProposal, error) {

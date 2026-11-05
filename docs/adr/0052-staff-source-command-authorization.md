@@ -93,3 +93,46 @@ both rules, then removed. Existing cross-module import/table-ownership checks
 remain unchanged. This guard does not certify the complete source-writer lock
 graph or permit new operating consumers without their own reviewed contract and
 runtime acceptance. The ADR remains proposed for the unreleased candidate.
+
+
+## Current posting source owner composition — ADR0060
+
+The reviewed Workforce-owned `posting_source_guard.go` additionally consumes the
+same narrow actor interface for a current-source observation under an explicit
+source-use IAM capability. It restores its owner context before its caller and
+retains mandatory atomic evidence. This does not admit general product business
+calls or replace product-specific permissions/unit/professional policy. Only the
+new platform wiring resolver may construct/select the actor dependency for this
+owner composition; the Workforce source constructor receives the injected
+interface. Actual Pharma operating integration remains a separate contract gate.
+See [ADR0060](0060-current-posting-source-use.md) and its real IAM/FGA/DB fault,
+expiry and two-ordering source-writer tests. Existing unreviewed consumer checks
+and the actor interface's single-method assertion remain enforced.
+
+## Reviewed hospital pharmacy department governance consumer
+
+The hospital pharmacy binding implementation additionally permits the exact
+`pharmacy/staff_department_binding_authority.go` consumer. It receives the
+existing injected authorization port, requires a separate current hospital-
+scoped Pharmacy prepare/read/review grant, keeps current Staff actor admission
+through commit and checks the exact product-owned outlet grant. Organization
+validates the pinned department through its guarded source port before binding
+writes. The consumer manages the reviewed structural relationship only; it
+cannot read private HR/credential repositories or grant dispensing authority.
+No new provider resolution, cross-owner SQL, general business API or permissive
+consumer wildcard is introduced. The closed allowlist was observed rejecting
+this consumer before the exact reviewed entry was added. Positive, negative,
+source/race/fault and browser acceptance remain required before release.
+
+## Workforce-owned actor hospital metadata
+
+The exact `workforce/staff_actor_scopes.go` consumer may use the same injected
+guard for its own hospital-choice projection. It first admits a current
+hospital-scoped `workforce.staff_actor.use` assignment, checks the candidate
+login-link identity/version against the guarded Staff actor and emits only the
+canonical hospital ID/name. Source-use and protected-read evidence remain in
+the same per-hospital guarded transaction. It exposes no Staff profile, copied
+identity, posting eligibility or operating authority. The architecture gate was
+observed refusing this new consumer before its explicit entry was added.
+Provider construction, the single-method interface and all operating-consumer
+gates remain unchanged.

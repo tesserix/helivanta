@@ -1,0 +1,26 @@
+{
+  "models": {
+    "PharmacyEmployer": [
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "ownership_type",
+        "type": "string",
+        "enum": ["independent", "chain"]
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

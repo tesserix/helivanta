@@ -1,5 +1,23 @@
 # Staff Management delivery tracker
 
+## Standalone pharmacy employer registration (#19 slice 1) — 2026-11-06
+
+Workforce 0088 adds a typed `establishment_kind` to the employer registry.
+`PUT/GET /v1/workforce/pharmacies/:pharmacy` register an `independent` or `chain`
+Pharma organization as an employing establishment, using only the name and
+ownership the Pharma-owned guard returns. A hospital-owned, foreign, unknown or
+non-v7 organization answers 404, and an unavailable guard answers 503. Hospital and
+pharmacy route families each admit one kind after authorization, so a pharmacy ID
+on a hospital route answers 404 even if a later slice lifts the access guard. Pharmacy
+registry setup shows the employer panel to `workforce.hospital.manage` holders.
+Evidence: workforce, platform, archtest, pharmacy and journey tests, SDK and panel
+Vitest tests, and the regenerated contract and operational access ledgers, which
+re-pin the 20 reviews whose router and Workforce route sources changed. The two new
+routes stay unclassified. Pharmacy-family Staff, access grants, IAM roots and
+postings (slices 2–5), unregistering and ORG-D9 remain open. This is not deployed
+runtime acceptance. Counts are unchanged at **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## Pharmacist outlet authority designed (#418) — 2026-11-05
 
 The [pharmacist outlet authority specification](../superpowers/specs/2026-11-05-pharmacist-outlet-authority.md)

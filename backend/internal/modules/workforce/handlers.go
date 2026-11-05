@@ -31,6 +31,7 @@ type handlers struct {
 	staffActors                 authz.CurrentStaffActorGuard
 	departmentReferences        authz.DepartmentReferenceGuard
 	departmentScopes            authz.DepartmentScopeGuard
+	pharmacyEmployers           authz.PharmacyEmployerGuard
 	employmentActivationEnabled bool
 	scopeAuthority              authz.ScopedAuthorizer
 	roles                       platform.RoleLister
@@ -62,7 +63,7 @@ func (h *handlers) listHospitals(c *gin.Context, params pagination.Params) ([]ho
 		return tenantdb.ApplyKeyset(tx, params).Select(`id, name, created_at,
 		 (SELECT level FROM workforce_hospital_access a WHERE a.tenant_id = workforce_hospitals.tenant_id
 		 AND a.hospital_id = workforce_hospitals.id AND a.subject = ?) AS access_level`, p.Subject).
-			Where(`tenant_id = ? AND EXISTS (SELECT 1 FROM workforce_hospital_access a
+			Where(`tenant_id = ? AND establishment_kind = 'hospital' AND EXISTS (SELECT 1 FROM workforce_hospital_access a
 		 WHERE a.tenant_id = workforce_hospitals.tenant_id AND a.hospital_id = workforce_hospitals.id AND a.subject = ?)`, p.TenantID, p.Subject).
 			Find(&rows).Error
 	})
@@ -220,9 +221,20 @@ func (h *handlers) putHospital(c *gin.Context) {
 		return
 	}
 	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO workforce_hospitals (tenant_id, id, name) VALUES (?, ?, ?)
+		if err := tx.Exec(`INSERT INTO workforce_hospitals (tenant_id, id, name) VALUES (?, ?, ?)
 		 ON CONFLICT (tenant_id, id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()
-		 WHERE workforce_hospitals.name IS DISTINCT FROM EXCLUDED.name`, p.TenantID, hospital, in.Name).Error
+		 WHERE workforce_hospitals.establishment_kind = 'hospital' AND workforce_hospitals.name IS DISTINCT FROM EXCLUDED.name`, p.TenantID, hospital, in.Name).Error; err != nil {
+			return err
+		}
+		// A pharmacy registered after the route admission keeps its row; this command must not claim it as a hospital.
+		var kind string
+		if err := tx.Raw(`SELECT establishment_kind FROM workforce_hospitals WHERE tenant_id = ? AND id = ?`, p.TenantID, hospital).Scan(&kind).Error; err != nil {
+			return err
+		}
+		if kind != hospitalEstablishmentKind {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
 	})
 	if err != nil {
 		respondError(c, err)
@@ -266,7 +278,7 @@ func (h *handlers) deleteAccess(c *gin.Context) {
 	}
 	err := h.transaction(c.Request.Context(), p, hospital, func(tx *gorm.DB) error {
 		var n int64
-		if err := tx.Table("workforce_hospitals").Where("tenant_id = ? AND id = ?", p.TenantID, hospital).Count(&n).Error; err != nil {
+		if err := tx.Table("workforce_hospitals").Where("tenant_id = ? AND id = ? AND establishment_kind = 'hospital'", p.TenantID, hospital).Count(&n).Error; err != nil {
 			return err
 		}
 		if n == 0 {

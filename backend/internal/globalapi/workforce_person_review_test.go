@@ -42,6 +42,12 @@ import (
 
 type workforceBeforeDocumentProvenance struct{ *workforce.Module }
 
+// Served routes read 0088's registry column, so the legacy phase adds it and the upgrade drops it before the real 0088.
+var (
+	legacyEstablishmentKind        = tenantdb.Migration{ID: "test_legacy_establishment_kind", SQL: `ALTER TABLE workforce_hospitals ADD COLUMN establishment_kind text NOT NULL DEFAULT 'hospital'`}
+	legacyEstablishmentKindRemoval = tenantdb.Migration{ID: "test_legacy_establishment_kind_removal", SQL: `ALTER TABLE workforce_hospitals DROP COLUMN establishment_kind`}
+)
+
 func (m *workforceBeforeDocumentProvenance) Migrations() []tenantdb.Migration {
 	var before []tenantdb.Migration
 	for _, migration := range m.Module.Migrations() {
@@ -50,7 +56,7 @@ func (m *workforceBeforeDocumentProvenance) Migrations() []tenantdb.Migration {
 		}
 		before = append(before, migration)
 	}
-	return before
+	return append(before, legacyEstablishmentKind)
 }
 
 func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
@@ -371,7 +377,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 		legacyFiles[category] = id
 		call(t, "PUT", staffBase+"/documents/"+id, maker, map[string]any{"record_kind": "enrollment", "record_id": staff, "category": category, "filename": "synthetic-legacy-evidence.png", "content_type": "image/png", "size": imageBytes.Len(), "sha256": fmt.Sprintf("%x", sha256.Sum256(imageBytes.Bytes()))}, 201)
 	}
-	var provenanceMigration []tenantdb.Migration
+	provenanceMigration := []tenantdb.Migration{legacyEstablishmentKindRemoval}
 	var generationMigration tenantdb.Migration
 	upgrade := false
 	for _, migration := range workforce.New().Migrations() {
@@ -387,8 +393,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			provenanceMigration = append(provenanceMigration, migration)
 		}
 	}
-	require.NotEmpty(t, provenanceMigration)
-	require.Equal(t, "0059_workforce_employment_document_provenance", provenanceMigration[0].ID)
+	require.Greater(t, len(provenanceMigration), 1)
+	require.Equal(t, "0059_workforce_employment_document_provenance", provenanceMigration[1].ID)
+	require.Equal(t, "0088_workforce_establishment_kind", provenanceMigration[len(provenanceMigration)-1].ID)
 	require.NoError(t, db.Migrate(ctx, provenanceMigration))
 	file := uuid.Must(uuid.NewV7()).String()
 	filePath := staffBase + "/documents/" + file

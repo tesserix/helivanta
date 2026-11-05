@@ -75,10 +75,12 @@ Pharma employer guard inside the guarded command and commits the registry row,
 audit and outbox together. An exact retry returns the retained row. A
 `hospital_owned` organization or an unknown ID returns 404.
 
-**Route families.** `scope(c)` splits into two extractors: `hospitalScope` for
-`/workforce/hospitals/{hospital}` and `pharmacyScope` for
-`/workforce/pharmacies/{pharmacy}`. Each one checks the registry kind and
-returns a distinct Go type.
+**Route families.** Each family is an establishment router whose admission
+checks the registry kind after authorization: a wrong-kind ID answers 404 and an
+unreadable registry answers 503. `pharmacyScope` reads only `{pharmacy}` and
+returns a distinct Go type. The existing `scope(c)` keeps returning `uuid.UUID`
+until slice 3 adds the distinct hospital type, when a handler first serves both
+families.
 
 - Handlers take the type they support, so a hospital-only handler cannot be
   mounted under the pharmacy family.
@@ -141,13 +143,14 @@ are assigned when a slice starts, from the next free ID in each module.
 
 1. **Establishment kind and registration.** Registry columns, immutability
    trigger, employer guard, the `PUT` and `GET` routes, the hospital-only write
-   guard, typed scope extractors, and UI to register a standalone organization
+   guard, establishment admission, the typed pharmacy scope, and UI to register a standalone organization
    as an employer. Wrong-kind 404 on both families, `hospital_owned` refusal
    and guard outage are tested.
 2. **Typed IAM root.** Assignment root columns, backfill proof against a
    production-shaped fixture, template kind declarations, the OpenFGA model
    and projection, and kind-crossing denial tests.
-3. **Core Staff in a pharmacy establishment.** Directory, create and edit,
+3. **Core Staff in a pharmacy establishment.** The distinct hospital scope
+   type, then directory, create and edit,
    access and identity on the pharmacy family, with `pharmacy_id` contract
    versions. The Pharma Staff screen consumes the family.
 4. **HR lifecycle.** Enrollment, employment periods and reviews, credentials,

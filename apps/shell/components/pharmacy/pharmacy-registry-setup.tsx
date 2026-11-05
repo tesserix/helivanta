@@ -27,6 +27,7 @@ import {
 } from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
 import { AffiliationVerification } from "./affiliation-verification";
+import { PharmacyEmployer } from "./pharmacy-employer";
 export function PharmacyRegistrySetup({
   tenantId,
   pharmacy,
@@ -34,6 +35,7 @@ export function PharmacyRegistrySetup({
   tenantId: string;
   pharmacy?: PharmacyOrganization;
 }) {
+  const { can } = usePermissions();
   return (
     <Panel aria-labelledby="pharmacy-registry" className="mt-6">
       <h3 id="pharmacy-registry" className="font-semibold">
@@ -47,6 +49,14 @@ export function PharmacyRegistrySetup({
       <div className="mt-6 max-w-2xl">
         <OrganizationForm tenantId={tenantId} />
       </div>
+      {pharmacy && (
+        <PharmacyEmployer
+          key={`employer:${pharmacy.id}`}
+          tenantId={tenantId}
+          pharmacy={pharmacy}
+          canManage={can("workforce.hospital.manage")}
+        />
+      )}
       {pharmacy && (
         <AffiliationForm
           key={`affiliation:${pharmacy.id}`}

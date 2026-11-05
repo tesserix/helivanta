@@ -49,7 +49,11 @@ screen from drawing its own button today.
    `onRefresh`, supply structure's `onReload`, pharmacy staff source's
    `onRetry`). Other `on*` props, such as returns' `onRefused={sale.refetch}`,
    refresh without a button and stay allowed. (My call. If wrong, a new
-   forwarding prop name escapes the rule.) It is an error
+   forwarding prop name escapes the rule.) A prop that hands a retry
+   to a shared component is named `retry` or `refresh`, as on
+   `RequestFailure`, and is not matched: `StaffDirectory`'s `onRetry`
+   becomes `retry`, and the country policy and supply structure children
+   take `refresh` and render `RefreshButton`. It is an error
    with this message: "A failed read renders RequestFailure or QueryState; a
    refresh of loaded data is RefreshButton (#1595)." Tests are exempt.
    - **Its own rule:** it is a rule in a small local plugin in

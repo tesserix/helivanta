@@ -152,7 +152,9 @@ test("a pharmacist's sales read back the same on every report and file", async (
     await expect(day).toContainText(inr(sold - credit.total_minor));
     await expect(day).toContainText(`Cash ${inr(sold)}`);
     await expect(day).toContainText(`Cash ${inr(credit.total_minor)}`);
-    const [daily] = await download(cashier, cashier.locator("main"), "daily");
+    const dailyFile = await download(cashier, cashier.locator("main"), "daily");
+    expect(dailyFile).toHaveLength((await days.getByRole("row").count()) - 1);
+    const [daily] = dailyFile;
     expect(daily).toMatchObject({
       day: today,
       sales: "2",
@@ -170,7 +172,11 @@ test("a pharmacist's sales read back the same on every report and file", async (
     const item = items.getByRole("row", { name: /TEST Counter Tablets/ });
     await expect(item).toContainText(`5 units for ${inr(sold)}`);
     await expect(item).toContainText(`1 units for ${inr(credit.total_minor)}`);
-    const [itemFile] = await download(cashier, items, "items");
+    const itemFiles = await download(cashier, items, "items");
+    expect(itemFiles).toHaveLength(
+      (await items.getByRole("table", { name: "Sales by item" }).getByRole("row").count()) - 1,
+    );
+    const [itemFile] = itemFiles;
     expect(itemFile).toMatchObject({
       product_id: product,
       units_sold: "5",
@@ -181,7 +187,11 @@ test("a pharmacist's sales read back the same on every report and file", async (
       net: rupees(sold - credit.total_minor),
     });
     await items.getByLabel("Lot number", { exact: true }).fill(`TEST-LOT-${stamp}`);
+    const byLot = cashier.waitForResponse(
+      (r) => r.url().includes("/reports/items?") && r.url().includes("lot_number="),
+    );
     await items.getByRole("button", { name: "Apply lot", exact: true }).click();
+    expect((await byLot).status()).toBe(200);
     await expect(item).toContainText(`5 units for ${inr(sold)}`);
     await items.getByRole("combobox", { name: "Category", exact: true }).click();
     await cashier.getByRole("option", { name: /TEST Report category/ }).click();
@@ -227,7 +237,11 @@ test("a pharmacist's sales read back the same on every report and file", async (
 
     const stock = region(cashier, "Sales and stock");
     await expect(stock.getByRole("row", { name: /TEST Counter Tablets/ })).toBeVisible();
-    const [stockFile] = await download(cashier, stock, "stock-sales");
+    const stockFiles = await download(cashier, stock, "stock-sales");
+    expect(stockFiles).toHaveLength(
+      (await stock.getByRole("table", { name: "Sales and stock" }).getByRole("row").count()) - 1,
+    );
+    const [stockFile] = stockFiles;
     // 20 received and shelved, 5 sold, 1 returned to quarantine.
     expect(stockFile).toMatchObject({
       product_id: product,
@@ -265,7 +279,11 @@ test("a pharmacist's sales read back the same on every report and file", async (
     await expect(sales).toContainText(walkIn.invoice_number);
     await choose(cashier, "Sold to", "Everyone");
     await cashier.getByLabel("Invoice number", { exact: true }).fill(walkIn.invoice_number);
+    const byInvoice = cashier.waitForResponse(
+      (r) => r.url().includes("/sales/worklist?") && r.url().includes("invoice="),
+    );
     await cashier.getByRole("button", { name: "Show sales", exact: true }).click();
+    expect((await byInvoice).status()).toBe(200);
     await expect(sales.getByRole("listitem")).toHaveCount(1);
     await expect(cashier.getByRole("button", { name: "Download report CSV" })).toHaveCount(0);
     await cashier
@@ -312,32 +330,59 @@ test("each report section shows its empty, invalid, failed and refused states", 
       await expect(cashier.getByRole("status").filter({ hasText: text })).toBeVisible();
     await expect(cashier.getByText(sale.invoice_number)).toHaveCount(0);
 
-    // One section's request fails: only it says so, nothing stale remains,
-    // and its retry recovers it.
-    await cashier.route("**/reports/receipts?**", (route) => route.abort());
+    // One section's request fails while the others answer: only it says so,
+    // the sale it showed for the last period is gone, and its retry recovers it.
+    const day = new Date(`${today}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() - 1);
+    const yesterday = day.toISOString().slice(0, 10);
     await showPeriod(cashier, today, today);
+    await expect(receipts).toContainText(sale.invoice_number);
+    await cashier.route("**/reports/receipts?**", (route) => route.abort());
+    await showPeriod(cashier, yesterday, today);
     await expect(receipts.getByRole("alert")).toContainText("Could not load receipts and refunds.");
+    await expect(receipts.getByText(sale.invoice_number)).toHaveCount(0);
     await expect(
       region(cashier, "Sales by item").getByRole("row", { name: /TEST Counter Tablets/ }),
     ).toBeVisible();
-    await expect(receipts.getByText(sale.invoice_number)).toHaveCount(0);
+    await expect(
+      cashier
+        .getByRole("table", { name: "Daily sales" })
+        .getByRole("row", { name: new RegExp(today) }),
+    ).toBeVisible();
     await cashier.unroute("**/reports/receipts?**");
     await receipts.getByRole("button", { name: "Try again", exact: true }).click();
     await expect(receipts).toContainText(sale.invoice_number);
 
     // The filters follow the caller's own grants, as the API enforces them.
     const me = await owner<{ data: string[] }>(cashier, "GET", "/iam/me/permissions");
-    await expect(cashier.getByRole("combobox", { name: "Prescriber" })).toHaveCount(
+    const stockRead = me.data.includes("pharmacy.stock.read");
+    await expect(cashier.getByRole("combobox", { name: "Prescriber", exact: true })).toHaveCount(
       me.data.includes("pharmacy.prescription.read") ? 1 : 0,
     );
     await expect(cashier.getByRole("heading", { name: "Sales and stock" })).toHaveCount(
-      me.data.includes("pharmacy.stock.read") ? 1 : 0,
+      stockRead ? 1 : 0,
     );
 
-    // Access withdrawn while the page is open: refused, never retried, nothing kept.
+    // Access withdrawn while the page is open: every section answers with the
+    // refusal, none offers a retry, and none keeps a row.
+    // A period this page has never read, so no section answers from the
+    // browser's five-second cache of an earlier read.
+    day.setUTCDate(day.getUTCDate() - 1);
+    const twoDaysAgo = day.toISOString().slice(0, 10);
     await owner(page, "DELETE", `${outlet}/access/${encodeURIComponent(subject)}`);
-    await showPeriod(cashier, "2026-01-01", today);
-    await expect(cashier.getByText(refused).first()).toBeVisible();
+    await showPeriod(cashier, twoDaysAgo, today);
+    const sections = [
+      "Sales by item",
+      "Receipts and refunds",
+      ...(stockRead ? ["Sales and stock"] : []),
+    ];
+    for (const name of sections)
+      await expect(region(cashier, name).getByText(refused).first()).toBeVisible();
+    // The daily totals sit outside the named sections.
+    await expect
+      .poll(() => cashier.getByText(refused, { exact: true }).count())
+      .toBeGreaterThan(sections.length);
+    await expect(cashier.getByRole("table", { name: "Daily sales" })).toHaveCount(0);
     await expect(cashier.getByRole("button", { name: "Try again" })).toHaveCount(0);
     await expect(cashier.getByText(sale.invoice_number)).toHaveCount(0);
   } finally {

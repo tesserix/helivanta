@@ -386,17 +386,19 @@ optionally `subcategory_id` ([design](../../superpowers/specs/2026-11-04-pharmac
 
 [Design](../../superpowers/specs/2026-11-05-pharmacy-report-walkthrough-design.md).
 
-- **Each section of the Daily sales and Sales screens shows its own state**, in this order:
-  - **Refused:** "You don't have access to this outlet's reports." It has no "Try again", because retrying can't change an access answer. This covers a 401, 403 or 404, including access withdrawn while the page is open.
+- **Each report section shows its own state.** This covers each section of Daily sales, the Sales worklist, and an opened sale's statement. In order:
+  - **Refused:** a 401, 403 or 404, including access withdrawn while the page is open. The report sections say "You don't have access to this outlet's reports."; the statement says "This sale was not found, or you do not have access.". Neither offers "Try again", because retrying can't change an access answer.
   - **Failed:** the section's message with "Try again". The other sections keep their rows.
   - **Loading** and **empty**, both announced (`role="status"`). The empty state is a sentence naming the period.
 
-  A changed period or filter shows "Loading…", never the last answer's rows. An invalid period (the last day before the first, or over 366 days) is refused in the browser with no request sent.
-- **`e2e/tests/pharmacy-reports.spec.ts`** posts two cash sales through the counter (one to a walk-in buyer, one to a registered patient of a hospital that has verified the pharmacy) and returns one unit. It then checks:
-  - every report on Daily sales and Sales, and every one of their files, against those amounts;
-  - the states above, in a running browser.
+  A changed period or filter never shows the last answer's rows. An invalid period (the last day before the first, or over 366 days) is refused in the browser with no request sent.
 
-  It covers no admission sale, which needs a MediCore admission, and no prescription sale, which is changing in #1477. API tests cover both.
+- **Read from cache.** A period read in the last five seconds is answered from the browser's cache without asking the server. So after access is withdrawn, rows the user has just seen can come back for those five seconds. Nothing they hadn't already been shown is disclosed.
+- **Browser tests.** `e2e/tests/pharmacy-reports.spec.ts` posts two cash sales through the counter (one to a walk-in buyer, one to a registered patient of a hospital that has verified the pharmacy) and returns one unit. It checks:
+  - every report on Daily sales and Sales, and every one of their files, against those amounts. Each file has exactly the rows its screen shows.
+  - on Daily sales, in a running browser: invalid periods, empty sections, one section failing while the others answer with no row of the last period left, and access withdrawn with every section refused.
+- **Component tests only.** The Sales screen's and the statement's empty, failed and refused states, and a category filter narrowing sales to a product, are covered by component (Vitest) and API tests. A category takes effect tomorrow at the earliest, so the walkthrough can only show today's sales falling outside one.
+- **Not in the walkthrough.** It covers no admission sale, which needs a MediCore admission, and no prescription sale, which is changing in #1477. API tests cover both.
 
 | Legacy report | Here | Not built, and why |
 | --- | --- | --- |

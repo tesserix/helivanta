@@ -4,7 +4,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
-  ApiError,
   pharmacyKey,
   pharmacySaleSummaryPath,
   pharmacySalesWorklistPath,
@@ -277,12 +276,13 @@ function SaleSummaryPane({
         closeLabel="Close sale"
         onClose={pane.close}
       />
-      {summary.error instanceof ApiError && summary.error.status === 404 ? (
-        <p role="alert" className="text-sm">
-          This sale was not found, or you do not have access.
-        </p>
-      ) : summary.isError ? (
-        <RequestFailure message="Could not load this sale." retry={summary.refetch} />
+      {summary.isError ? (
+        <RequestFailure
+          message="Could not load this sale."
+          retry={summary.refetch}
+          error={summary.error}
+          refused="This sale was not found, or you do not have access."
+        />
       ) : !s ? (
         <p role="status">Loading sale…</p>
       ) : (

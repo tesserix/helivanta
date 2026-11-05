@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { MembershipCandidate } from "@helivanta/api";
@@ -57,7 +57,9 @@ type Actor = { tenant_id: string; subject: string };
 
 /**
  * Gives the page's own subject `role` until the returned function removes it,
- * waiting each way until `permission` reaches the real resolver.
+ * waiting each way until `permission` reaches the real resolver. Callers end
+ * it in a `finally`: a role left behind on a seeded spec account would change
+ * the authority every later run proves its steps under.
  */
 export async function temporaryRole(
   admin: Page,
@@ -65,6 +67,7 @@ export async function temporaryRole(
   page: Page,
   role: string,
   permission: string,
+  reason: string,
 ) {
   const holds = async () =>
     (await owner<{ data: string[] }>(page, "GET", "/iam/me/permissions")).data.includes(permission);
@@ -73,8 +76,7 @@ export async function temporaryRole(
     subject,
     role_key: role,
   });
-  await expect.poll(holds).toBe(true);
-  return async (reason: string) => {
+  const end = async (reason: string) => {
     let held: MembershipCandidate | undefined;
     let cursor: string | null = null;
     for (let n = 0; n < 20; n++) {
@@ -103,21 +105,39 @@ export async function temporaryRole(
     });
     await expect.poll(holds).toBe(false);
   };
+  try {
+    await expect.poll(holds).toBe(true);
+  } catch (error) {
+    await end(`${reason} (setup failed)`);
+    throw error;
+  }
+  return end;
 }
 
 /** Two actors and a sellable outlet: real owner commands, no table or projection writes. */
 export async function readyOutlet(admin: Page, browser: Browser) {
   await login(admin, specAdmin());
   const { outlet, stamp } = await newOutlet(admin);
-  const administrator = await owner<{ tenant_id: string; subject: string }>(
-    admin,
-    "GET",
-    "/iam/me/permissions",
-  );
+  const administrator = await owner<Actor>(admin, "GET", "/iam/me/permissions");
   const context = await browser.newContext({
     baseURL: new URL(admin.url()).origin,
     ignoreHTTPSErrors: true,
   });
+  try {
+    return await sellableOutlet(admin, administrator, context, outlet, stamp);
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
+async function sellableOutlet(
+  admin: Page,
+  administrator: Actor,
+  context: BrowserContext,
+  outlet: string,
+  stamp: string,
+) {
   const cashier = await context.newPage();
   await login(cashier, specPharmacist());
   const me = await owner<{ subject: string; tenant_id: string; data: string[] }>(
@@ -125,6 +145,11 @@ export async function readyOutlet(admin: Page, browser: Browser) {
     "GET",
     "/iam/me/permissions",
   );
+  const product = uuidv7();
+  const sku = `TEST-PAY-${stamp}`;
+  const quarantine = uuidv7(),
+    shelf = uuidv7(),
+    batch = uuidv7();
   // The reviewing pharmacist is temporarily also the pharmacy owner; remove that
   // role after setup so selling/returning is proved under pharmacist authority.
   const endReviewer = await temporaryRole(
@@ -133,107 +158,106 @@ export async function readyOutlet(admin: Page, browser: Browser) {
     cashier,
     "pharmacy_owner",
     "pharmacy.licence.review",
+    "TEST end temporary licence reviewer role before cashier journey",
   );
-  await owner(admin, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
-    level: "editor",
-  });
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
-  const until = `${Number(today.slice(0, 4)) + 2}-12-31`;
-  const licence = uuidv7();
-  await owner(admin, "PUT", `${outlet}/licences/${licence}`, {
-    licence_kind: "retail",
-    form_label: "TEST-FORM-20",
-    licence_number: `TEST-DL-${stamp}`,
-    issuing_authority: "TEST State Drug Controller",
-    valid_from: today,
-    valid_until: until,
-    pharmacist_name: "TEST Pharmacist",
-    pharmacist_registration: "TEST-PCI-001",
-  });
-  await owner(cashier, "POST", `${outlet}/licences/${licence}/review`, {
-    decision: "approved",
-    reason: "TEST synthetic licence checked by a second actor",
-  });
-  await owner(admin, "POST", `${outlet}/tax-registrations`, {
-    jurisdiction_code: "27",
-    identifier: "27PQRST5678K2Z1",
-    effective_from: today,
-  });
-  await owner(admin, "PUT", `${outlet}/invoice-profile/${uuidv7()}`, {
-    legal_name: "TEST Counter Pharmacy LLP",
-    address: "TEST 1 Market Road, Pune",
-    invoice_prefix: "TP",
-  });
-  const product = uuidv7();
-  const sku = `TEST-PAY-${stamp}`;
-  await owner(admin, "PUT", `${outlet}/catalogue/products/${product}`, {
-    expected_version: 0,
-    sku,
-    brand_name: "TEST Counter Tablets",
-    generic_name: "TEST molecule",
-    dosage_form: "tablet",
-    route: "oral",
-    manufacturer: "TEST Manufacturer",
-    marketing_company: "",
-    ingredients: [{ name: "TEST molecule", strength: "1", unit: "mg" }],
-    pack_size: 10,
-    unit_of_issue: "tablet",
-    currency: "INR",
-    mrp_minor: 12500,
-    status: "active",
-  });
-  await owner(admin, "POST", `${outlet}/catalogue/products/${product}/tax-classifications`, {
-    classification_code: "30049099",
-    supply_nature: "taxable",
-    rate_percent: "12",
-    effective_from: today,
-  });
-  const declaration = uuidv7();
-  await owner(admin, "PUT", `${outlet}/catalogue/products/${product}/schedule/${declaration}`, {
-    regulatory_class: "none",
-    ndps: false,
-    source: "TEST synthetic pack declaration",
-  });
-  await owner(
-    cashier,
-    "POST",
-    `${outlet}/catalogue/products/${product}/schedule/${declaration}/review`,
-    { decision: "approved", reason: "TEST synthetic pack checked by a second actor" },
-  );
-  const quarantine = uuidv7(),
-    shelf = uuidv7(),
-    batch = uuidv7();
-  await owner(admin, "PUT", `${outlet}/stock/locations/${quarantine}`, {
-    code: "TEST-Q",
-    name: "TEST Return quarantine",
-  });
-  await owner(admin, "PUT", `${outlet}/stock/locations/${shelf}`, {
-    code: "TEST-S",
-    name: "TEST Counter shelf",
-    stock_status: "sellable",
-  });
-  await owner(admin, "PUT", `${outlet}/stock/batches/${batch}`, {
-    product_id: product,
-    lot_number: `TEST-LOT-${stamp}`,
-    expires_on: until,
-    mrp_minor: 12500,
-  });
-  await owner(admin, "PUT", `${outlet}/stock/movements/${uuidv7()}`, {
-    location_id: quarantine,
-    batch_id: batch,
-    kind: "receipt",
-    quantity_units: 20,
-    reason: "TEST received",
-    source_reference: `TEST-GRN-${stamp}`,
-  });
-  await owner(cashier, "PUT", `${outlet}/stock/releases/${uuidv7()}`, {
-    batch_id: batch,
-    from_location_id: quarantine,
-    to_location_id: shelf,
-    quantity_units: 20,
-    reason: "TEST checked and shelved",
-  });
-  await endReviewer("TEST end temporary licence reviewer role before cashier journey");
+  try {
+    await owner(admin, "PUT", `${outlet}/access/${encodeURIComponent(me.subject)}`, {
+      level: "editor",
+    });
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const until = `${Number(today.slice(0, 4)) + 2}-12-31`;
+    const licence = uuidv7();
+    await owner(admin, "PUT", `${outlet}/licences/${licence}`, {
+      licence_kind: "retail",
+      form_label: "TEST-FORM-20",
+      licence_number: `TEST-DL-${stamp}`,
+      issuing_authority: "TEST State Drug Controller",
+      valid_from: today,
+      valid_until: until,
+      pharmacist_name: "TEST Pharmacist",
+      pharmacist_registration: "TEST-PCI-001",
+    });
+    await owner(cashier, "POST", `${outlet}/licences/${licence}/review`, {
+      decision: "approved",
+      reason: "TEST synthetic licence checked by a second actor",
+    });
+    await owner(admin, "POST", `${outlet}/tax-registrations`, {
+      jurisdiction_code: "27",
+      identifier: "27PQRST5678K2Z1",
+      effective_from: today,
+    });
+    await owner(admin, "PUT", `${outlet}/invoice-profile/${uuidv7()}`, {
+      legal_name: "TEST Counter Pharmacy LLP",
+      address: "TEST 1 Market Road, Pune",
+      invoice_prefix: "TP",
+    });
+    await owner(admin, "PUT", `${outlet}/catalogue/products/${product}`, {
+      expected_version: 0,
+      sku,
+      brand_name: "TEST Counter Tablets",
+      generic_name: "TEST molecule",
+      dosage_form: "tablet",
+      route: "oral",
+      manufacturer: "TEST Manufacturer",
+      marketing_company: "",
+      ingredients: [{ name: "TEST molecule", strength: "1", unit: "mg" }],
+      pack_size: 10,
+      unit_of_issue: "tablet",
+      currency: "INR",
+      mrp_minor: 12500,
+      status: "active",
+    });
+    await owner(admin, "POST", `${outlet}/catalogue/products/${product}/tax-classifications`, {
+      classification_code: "30049099",
+      supply_nature: "taxable",
+      rate_percent: "12",
+      effective_from: today,
+    });
+    const declaration = uuidv7();
+    await owner(admin, "PUT", `${outlet}/catalogue/products/${product}/schedule/${declaration}`, {
+      regulatory_class: "none",
+      ndps: false,
+      source: "TEST synthetic pack declaration",
+    });
+    await owner(
+      cashier,
+      "POST",
+      `${outlet}/catalogue/products/${product}/schedule/${declaration}/review`,
+      { decision: "approved", reason: "TEST synthetic pack checked by a second actor" },
+    );
+    await owner(admin, "PUT", `${outlet}/stock/locations/${quarantine}`, {
+      code: "TEST-Q",
+      name: "TEST Return quarantine",
+    });
+    await owner(admin, "PUT", `${outlet}/stock/locations/${shelf}`, {
+      code: "TEST-S",
+      name: "TEST Counter shelf",
+      stock_status: "sellable",
+    });
+    await owner(admin, "PUT", `${outlet}/stock/batches/${batch}`, {
+      product_id: product,
+      lot_number: `TEST-LOT-${stamp}`,
+      expires_on: until,
+      mrp_minor: 12500,
+    });
+    await owner(admin, "PUT", `${outlet}/stock/movements/${uuidv7()}`, {
+      location_id: quarantine,
+      batch_id: batch,
+      kind: "receipt",
+      quantity_units: 20,
+      reason: "TEST received",
+      source_reference: `TEST-GRN-${stamp}`,
+    });
+    await owner(cashier, "PUT", `${outlet}/stock/releases/${uuidv7()}`, {
+      batch_id: batch,
+      from_location_id: quarantine,
+      to_location_id: shelf,
+      quantity_units: 20,
+      reason: "TEST checked and shelved",
+    });
+  } finally {
+    await endReviewer("TEST end temporary licence reviewer role before cashier journey");
+  }
   await cashier.goto("/dashboard");
   await cashier.evaluate(({ key, value }) => sessionStorage.setItem(key, value), {
     key: `helivanta:pharmacy:scope:${me.tenant_id}`,

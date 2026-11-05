@@ -56,6 +56,7 @@ export async function affiliatedPatient(admin: Page, cashier: Page, outlet: stri
     cashier,
     "pharmacy_owner",
     "pharmacy.access.manage",
+    "TEST end temporary affiliation requester role",
   );
   try {
     await owner(cashier, "PUT", `${links}/${affiliation}/verification-requests/${round}`, {});

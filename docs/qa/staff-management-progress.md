@@ -33,8 +33,8 @@ access-page **60**, typechecks, scoped ESLint, Go lint/vet/build, root scripts
 **75** and the configured webpack production build pass. Expanded API disclosure
 tests pass **128.901s**. The initial full owner/architecture run failed; exact
 full architecture **85.566s** and full shell **1,563 /183 files /455.82s**
-pass after the architecture corrections. Full Global API verification and IAM
-expiry diagnosis remain in progress. Isolated licence workflow passes;
+pass after the architecture corrections. Full Global API passes **571.248s**.
+The cause of intermittent IAM expiry failure remains unresolved. Isolated licence workflow passes;
 intermittent IAM expiry failure remains unresolved. See the plan for retained
 failure evidence. Chrome is currently in use by the user, so browser interactions are
 paused. The existing local reviewer grant still awaits its specific action-time

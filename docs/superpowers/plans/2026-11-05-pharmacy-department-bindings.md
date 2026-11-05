@@ -103,8 +103,8 @@ isolated run then passes **37.360s** with failure-only clock diagnostics added;
 its cause is not established, so repeated verification is running without
 weakening its assertion. Do not replace these failures with an all-green claim.
 
-Full shell tests pass **1,563 /183 files /455.82s**. The full Global API suite
-is running; it is not yet a pass. The staged secret scan finds no leaks. Inventory regeneration retains **831 surfaces,
+Full shell tests pass **1,563 /183 files /455.82s**. The full Global API suite passes **571.248s** on the corrected owner source,
+including the complete pre-employment/posting and scoped leave journeys. The staged secret scan finds no leaks. Inventory regeneration retains **831 surfaces,
 808 unclassified**; the three IAM source pins were reviewed against the additive
 migration registration change and refreshed without classification promotion.
 The exact Pharma binding workspace, typed command client, purpose-limited choices,

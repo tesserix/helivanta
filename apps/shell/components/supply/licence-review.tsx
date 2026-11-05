@@ -121,6 +121,7 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
           <RequestFailure
             message="Could not load the current licence review."
             retry={() => void state.refetch()}
+            error={state.error}
           />
         )
       ) : state.isPending ? (
@@ -179,6 +180,7 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
               <RequestFailure
                 message="Could not load private review history."
                 retry={() => void history.refetch()}
+                error={history.error}
               />
             ) : history.isPending ? (
               <p role="status">Loading review history…</p>
@@ -314,6 +316,7 @@ function ReviewForm({
               <RequestFailure
                 message="Could not load released evidence images."
                 retry={() => void files.refetch()}
+                error={files.error}
               />
             ) : (
               <FormSelectField

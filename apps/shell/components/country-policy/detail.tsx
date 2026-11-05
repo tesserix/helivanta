@@ -56,6 +56,7 @@ export function CountryPolicyDetail({
       <RequestFailure
         message="Could not load this policy scope. Its access or status may have changed."
         retry={scope.refetch}
+        error={scope.error}
       />
     );
   return (
@@ -207,7 +208,11 @@ function PolicyRecord({
         {versions.isPending ? (
           <p role="status">Loading policy versions…</p>
         ) : versions.isError ? (
-          <RequestFailure message="Could not load policy versions." retry={versions.retry} />
+          <RequestFailure
+            message="Could not load policy versions."
+            retry={versions.retry}
+            error={versions.error}
+          />
         ) : (
           <div className="flex flex-wrap gap-2">
             {versions.items.map((row) => (
@@ -237,6 +242,7 @@ function PolicyRecord({
           <RequestFailure
             message="Could not load the selected policy version."
             retry={version.refetch}
+            error={version.error}
           />
         ) : (
           <>
@@ -268,7 +274,11 @@ function PolicyRecord({
         {history.isPending ? (
           <p role="status">Loading policy history…</p>
         ) : history.isError ? (
-          <RequestFailure message="Could not load policy history." retry={history.retry} />
+          <RequestFailure
+            message="Could not load policy history."
+            retry={history.retry}
+            error={history.error}
+          />
         ) : (
           <ol className="space-y-3">
             {history.items.map((row) => (

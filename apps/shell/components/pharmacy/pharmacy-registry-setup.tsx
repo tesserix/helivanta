@@ -306,7 +306,11 @@ function AffiliationForm({
         )}
       </form>
       {links.isError ? (
-        <RequestFailure message="Could not load hospital affiliations." retry={links.retry} />
+        <RequestFailure
+          message="Could not load hospital affiliations."
+          retry={links.retry}
+          error={links.error}
+        />
       ) : (
         <ul className="mt-4 divide-y text-sm">
           {links.items.map((link) => (

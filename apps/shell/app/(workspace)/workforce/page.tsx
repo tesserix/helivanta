@@ -345,6 +345,7 @@ function Directory({
         rows={query.data?.data ?? []}
         isPending={query.isPending}
         isError={query.isError}
+        error={query.error}
         onRetry={() => query.refetch()}
         onFirstPage={cursor ? () => setCursor(null) : undefined}
         onNextPage={

@@ -93,7 +93,9 @@ function CorporatePanel({ scope, roles }: { scope: SupplyRegistryScope; roles: s
       {structure.isError ? (
         <RequestFailure
           message="The corporate relationship is unavailable. Refresh access or contact your administrator."
+          refused="The corporate relationship is unavailable. Refresh access or contact your administrator."
           retry={structure.refetch}
+          error={structure.error}
         />
       ) : !structure.data ? (
         <p role="status">Loading corporate relationship…</p>
@@ -149,7 +151,11 @@ function CorporateHistory({ scope }: { scope: SupplyRegistryScope }) {
   );
   if (rows.isError)
     return (
-      <RequestFailure message="Could not load corporate relationship history." retry={rows.retry} />
+      <RequestFailure
+        message="Could not load corporate relationship history."
+        retry={rows.retry}
+        error={rows.error}
+      />
     );
   if (rows.isPending) return <p role="status">Loading corporate history…</p>;
   return (
@@ -288,7 +294,11 @@ function CorporateEditor({
         </p>
       </div>
       {candidates.isError && (
-        <RequestFailure message="Could not load eligible organisations." retry={candidates.retry} />
+        <RequestFailure
+          message="Could not load eligible organisations."
+          retry={candidates.retry}
+          error={candidates.error}
+        />
       )}
       <LoadMore
         hasMore={candidates.hasMore}
@@ -381,6 +391,7 @@ function TerritoryPanel({
         <RequestFailure
           message="Could not load sales territories. Refresh access before continuing."
           retry={rows.retry}
+          error={rows.error}
         />
       ) : rows.isPending ? (
         <p role="status">Loading sales territories…</p>
@@ -646,7 +657,11 @@ function TerritoryEditor({
         onClick={premises.loadMore}
       />
       {premises.isError && (
-        <RequestFailure message="Could not load operating branches." retry={premises.retry} />
+        <RequestFailure
+          message="Could not load operating branches."
+          retry={premises.retry}
+          error={premises.error}
+        />
       )}
       {branch && selected.isPending && <p role="status">Checking operating branch…</p>}
       {branch && !validBranch && !selected.isPending && (
@@ -669,6 +684,7 @@ function TerritoryEditor({
                 candidates.retry();
                 legacy.retry();
               }}
+              error={candidates.error ?? legacy.error}
             />
           ) : (
             <>
@@ -758,7 +774,13 @@ function TerritoryHistory({ scope, id }: { scope: SupplyRegistryScope; id: strin
     { request: { headers: supplyHeaders(scope) } },
   );
   if (rows.isError)
-    return <RequestFailure message="Could not load territory history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load territory history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading territory history…</p>;
   return (
     <div className="space-y-2 rounded-lg border p-3">

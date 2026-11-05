@@ -155,7 +155,11 @@ export function CashPayments({
         />
       )}
       {receipts.isError ? (
-        <RequestFailure message="Could not load the receipts." retry={receipts.retry} />
+        <RequestFailure
+          message="Could not load the receipts."
+          retry={receipts.retry}
+          error={receipts.error}
+        />
       ) : (
         <ul className="divide-y divide-border">
           {receipts.items.map((r) => (

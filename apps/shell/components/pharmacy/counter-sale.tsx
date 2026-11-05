@@ -65,6 +65,7 @@ export function CounterSale({
       <RequestFailure
         message="Could not load the outlet's invoice details."
         retry={profile.refetch}
+        error={profile.error}
       />
     );
   if (!profile.data) return <p role="status">Loading invoice details…</p>;
@@ -304,7 +305,11 @@ function Counter({
     );
   if (products.isError)
     return (
-      <RequestFailure message="Could not load this outlet's products." retry={products.retry} />
+      <RequestFailure
+        message="Could not load this outlet's products."
+        retry={products.retry}
+        error={products.error}
+      />
     );
   if (products.isPending) return <p role="status">Loading products…</p>;
   const active = products.items.filter(

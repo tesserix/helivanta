@@ -82,6 +82,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
             grants.retry();
             legacy.retry();
           }}
+          error={grants.error ?? legacy.error}
         />
       </section>
     );
@@ -113,6 +114,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
         <RequestFailure
           message="Could not load time-limited access grants. Refresh access before continuing."
           retry={grants.retry}
+          error={grants.error}
         />
       ) : grants.isPending ? (
         <p role="status">Loading time-limited grants…</p>
@@ -191,7 +193,11 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
           access.
         </p>
         {legacy.isError ? (
-          <RequestFailure message="Could not load earlier access grants." retry={legacy.retry} />
+          <RequestFailure
+            message="Could not load earlier access grants."
+            retry={legacy.retry}
+            error={legacy.error}
+          />
         ) : legacy.isPending ? (
           <p role="status">Loading earlier grants…</p>
         ) : (
@@ -413,6 +419,7 @@ function GrantEditor({
         <RequestFailure
           message="Could not load trusted tenant members. Existing granted members remain selectable."
           retry={members.retry}
+          error={members.error}
         />
       )}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -478,6 +485,7 @@ function GrantEditor({
         <RequestFailure
           message="Could not load location scopes. Refresh before choosing a location."
           retry={premises.retry}
+          error={premises.error}
         />
       )}
       {unavailable && (
@@ -573,7 +581,13 @@ function GrantHistory({ scope, id }: { scope: SupplyRegistryScope; id: string })
     { request: { headers: supplyHeaders(scope) } },
   );
   if (rows.isError)
-    return <RequestFailure message="Could not load access grant history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load access grant history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading access history…</p>;
   return (
     <div className="w-full space-y-2 border-t pt-3">

@@ -273,7 +273,11 @@ export function CataloguePanel({
         list={
           <Panel flush>
             {products.isError ? (
-              <RequestFailure message="Could not load the catalogue." retry={products.retry} />
+              <RequestFailure
+                message="Could not load the catalogue."
+                retry={products.retry}
+                error={products.error}
+              />
             ) : products.isPending ? (
               <p role="status" className="p-6">
                 Loading catalogue…
@@ -421,7 +425,11 @@ function OpenProduct({
             This record was not found, or you do not have access.
           </p>
         ) : product.isError ? (
-          <RequestFailure message="Could not load this product." retry={product.refetch} />
+          <RequestFailure
+            message="Could not load this product."
+            retry={product.refetch}
+            error={product.error}
+          />
         ) : (
           <p role="status">Loading product…</p>
         )}
@@ -744,7 +752,11 @@ function ProductHistory({
         Revision history
       </h4>
       {history.isError ? (
-        <RequestFailure message="Could not load revision history." retry={history.retry} />
+        <RequestFailure
+          message="Could not load revision history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : history.isPending ? (
         <p role="status">Loading revisions…</p>
       ) : (

@@ -63,7 +63,11 @@ function ReasonsPanel({ hospital }: { hospital: Hospital }) {
         admission. A reason is fixed once set: to change its limits, retire it and add another.
       </p>
       {reasons.isError ? (
-        <RequestFailure message="Could not load the reasons." retry={reasons.retry} />
+        <RequestFailure
+          message="Could not load the reasons."
+          retry={reasons.retry}
+          error={reasons.error}
+        />
       ) : (
         <ul className="mt-3 divide-y divide-border text-sm">
           {reasons.items.map((r) => (
@@ -243,7 +247,11 @@ export function AdmissionDiscounts({
         />
       )}
       {discounts.isError ? (
-        <RequestFailure message="Could not load the discounts." retry={discounts.retry} />
+        <RequestFailure
+          message="Could not load the discounts."
+          retry={discounts.retry}
+          error={discounts.error}
+        />
       ) : (
         <ul className="divide-y divide-border">
           {discounts.items.map((d) => (
@@ -310,7 +318,13 @@ function GiveDiscount({
     },
   );
   if (reasons.isError)
-    return <RequestFailure message="Could not load the reasons." retry={reasons.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the reasons."
+        retry={reasons.retry}
+        error={reasons.error}
+      />
+    );
   if (!reasons.isPending && active.length === 0)
     return (
       <p className="text-muted-foreground">
@@ -494,7 +508,11 @@ function PendingPanel({ hospital }: { hospital: Hospital }) {
     <Panel>
       <h3 className="font-semibold">Discounts waiting for approval</h3>
       {pending.isError ? (
-        <RequestFailure message="Could not load the discounts." retry={pending.retry} />
+        <RequestFailure
+          message="Could not load the discounts."
+          retry={pending.retry}
+          error={pending.error}
+        />
       ) : pending.items.length === 0 && !pending.isPending ? (
         <p className="mt-1 text-sm text-muted-foreground">None waiting.</p>
       ) : (

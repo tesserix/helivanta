@@ -246,7 +246,9 @@ describe("PatientSafety edge cases", () => {
   it("does not call a missing grant an empty weight history", async () => {
     server({ weight: { status: 404, body: { error: "not_found", message: "patient not found" } } });
     render();
-    expect(await screen.findByText("Could not load weight.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("This wasn't found, or you don't have access to it."),
+    ).toBeInTheDocument();
     expect(screen.queryByText("No weight recorded.")).not.toBeInTheDocument();
   });
 

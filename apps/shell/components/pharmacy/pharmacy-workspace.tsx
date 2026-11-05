@@ -88,7 +88,11 @@ export function PharmacyWorkspace({ view }: { view: PharmacyView }) {
   );
   if (identity.isError)
     return (
-      <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
+      <RequestFailure
+        message="Could not verify your active tenant."
+        retry={identity.refetch}
+        error={identity.error}
+      />
     );
   if (!identity.data) return <p role="status">Loading pharmacy workspace…</p>;
   // Suspense: an outlet page reads its starting filter from the URL (#576 D4).
@@ -246,7 +250,11 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
         </div>
       )}
       {pharmacies.isError ? (
-        <RequestFailure message="Could not load your pharmacies." retry={pharmacies.retry} />
+        <RequestFailure
+          message="Could not load your pharmacies."
+          retry={pharmacies.retry}
+          error={pharmacies.error}
+        />
       ) : pharmacies.isPending ? (
         <p role="status">Loading pharmacies…</p>
       ) : !pharmacy ? (
@@ -268,7 +276,11 @@ function TenantPharmacy({ identity, view }: { identity: PharmacyIdentity; view: 
           outlets={outlets}
         />
       ) : outlets.isError ? (
-        <RequestFailure message="Could not load this pharmacy's outlets." retry={outlets.retry} />
+        <RequestFailure
+          message="Could not load this pharmacy's outlets."
+          retry={outlets.retry}
+          error={outlets.error}
+        />
       ) : outlets.isPending ? (
         <p role="status">Loading outlets…</p>
       ) : outlet ? (
@@ -371,6 +383,7 @@ function OutletPharmacy({
         <RequestFailure
           message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
+          error={access.error}
         />
       ) : view === "setup" ? null : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />

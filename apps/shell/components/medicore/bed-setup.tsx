@@ -50,6 +50,7 @@ export function BedSetup({ hospital }: { hospital: Hospital }) {
             wards.retry();
             rooms.retry();
           }}
+          error={wards.error ?? rooms.error}
         />
       ) : (
         <>

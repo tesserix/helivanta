@@ -98,6 +98,7 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
         <RequestFailure
           message="Operating locations are unavailable with your current access. Refresh before continuing."
           retry={locations.retry}
+          error={locations.error}
         />
       ) : locations.isPending ? (
         <p role="status">Loading operating locations…</p>
@@ -293,7 +294,9 @@ function DeliveryPanel({
       {rows.isError ? (
         <RequestFailure
           message="Delivery tasks are unavailable. Your assignment or access may have changed."
+          refused="Delivery tasks are unavailable. Your assignment or access may have changed."
           retry={rows.retry}
+          error={rows.error}
         />
       ) : rows.isPending ? (
         <p role="status">Loading delivery tasks…</p>
@@ -645,6 +648,7 @@ function DeliveryEditor({
         <RequestFailure
           message="Could not load eligible drivers. Refresh before assigning or reassigning this task."
           retry={drivers.retry}
+          error={drivers.error}
         />
       )}
       <FormSelectField
@@ -795,7 +799,13 @@ function DeliveryHistory({
     { request: { headers: supplyHeaders(scope) } },
   );
   if (rows.isError)
-    return <RequestFailure message="Could not load delivery task history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load delivery task history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading delivery history…</p>;
   return (
     <section aria-label="Delivery task history" className="space-y-2 border-t pt-3">

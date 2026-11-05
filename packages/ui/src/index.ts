@@ -31,7 +31,7 @@ export {
 // EmptyState is rendered only through QueryState, which checks the pending
 // and failed states first (#1276), so it is deliberately not exported.
 export { QueryState } from "./query-state";
-export { RequestFailure } from "./request-failure";
+export { RequestFailure, isRefusal, refusedDefault, sessionEnded } from "./request-failure";
 export { PageHeading } from "./page-heading";
 export { Panel, PanelLink } from "./panel";
 export { LoadMore } from "./load-more";

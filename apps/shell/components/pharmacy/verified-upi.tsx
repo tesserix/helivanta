@@ -146,6 +146,7 @@ export function VerifiedUpi({
         <RequestFailure
           message="Could not check unused UPI payments. Check these before collecting again."
           retry={unused.retry}
+          error={unused.error}
         />
       )}
       {refunded && (

@@ -51,6 +51,7 @@ export function RefundPolicySetup({ hospital }: { hospital: Hospital }) {
       <RequestFailure
         message="Could not load the refund threshold."
         retry={() => void policy.refetch()}
+        error={policy.error}
       />
     );
   return (

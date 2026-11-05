@@ -40,7 +40,9 @@ export function OrganisationAccessLimits({ scope }: { scope: SupplyRegistryScope
     return (
       <RequestFailure
         message="Access limits are unavailable. Refresh your organisation access before continuing."
+        refused="Access limits are unavailable. Refresh your organisation access before continuing."
         retry={policy.refetch}
+        error={policy.error}
       />
     );
   if (!policy.data) return <p role="status">Loading organisation access limits…</p>;
@@ -148,6 +150,8 @@ function LimitsEditor({
       <RequestFailure
         message="You can no longer change access limits. Refresh your organisation access."
         retry={onReload}
+        // A refused save, not a failed read (#1591 covers reads): the reload re-reads the policy.
+        error={null}
       />
     );
   return (
@@ -243,7 +247,13 @@ function LimitsHistory({ scope }: { scope: SupplyRegistryScope }) {
     if (rows.error instanceof ApiError && [401, 403, 404].includes(rows.error.status)) denied();
   }, [rows.error, denied]);
   if (rows.isError)
-    return <RequestFailure message="Could not load access limit history." retry={rows.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load access limit history."
+        retry={rows.retry}
+        error={rows.error}
+      />
+    );
   if (rows.isPending) return <p role="status">Loading access limit history…</p>;
   return (
     <section aria-label="Access limit history" className="space-y-3 border-t pt-4">

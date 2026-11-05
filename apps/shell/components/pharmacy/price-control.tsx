@@ -62,7 +62,11 @@ export function ProductPriceControlSection({
         Price control
       </h4>
       {control.isError ? (
-        <RequestFailure message="Could not load the price control." retry={control.refetch} />
+        <RequestFailure
+          message="Could not load the price control."
+          retry={control.refetch}
+          error={control.error}
+        />
       ) : !control.data ? (
         <p role="status" className="text-sm text-muted-foreground">
           Loading price control…

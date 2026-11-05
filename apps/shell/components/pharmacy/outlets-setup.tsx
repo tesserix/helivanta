@@ -124,6 +124,7 @@ export function OutletsSetup({
               <RequestFailure
                 message="Could not load this pharmacy's outlets."
                 retry={outlets.retry}
+                error={outlets.error}
               />
             ) : outlets.isPending ? (
               <p role="status" className="p-5">
@@ -224,7 +225,11 @@ function OpenOutlet({
             This record was not found, or you do not have access.
           </p>
         ) : outlet.isError ? (
-          <RequestFailure message="Could not load this outlet." retry={outlet.refetch} />
+          <RequestFailure
+            message="Could not load this outlet."
+            retry={outlet.refetch}
+            error={outlet.error}
+          />
         ) : (
           <p role="status">Loading outlet…</p>
         )}
@@ -327,6 +332,7 @@ function OutletAccess({
         <RequestFailure
           message="Could not check your access to this outlet. Try again in a moment."
           retry={access.refetch}
+          error={access.error}
         />
       ) : (
         <p className="text-sm">

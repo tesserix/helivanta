@@ -432,7 +432,9 @@ it("hides a previous period ledger and totals when the new reconciliation is den
     target: { value: "2020-01-01T00:00" },
   });
   await user.click(screen.getByRole("button", { name: "Apply period" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Could not reconcile");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
   expect(screen.queryByText(/TEST-PERIOD-LINE/)).not.toBeInTheDocument();
   expect(screen.queryByText("Closing stock")).not.toBeInTheDocument();
   expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
@@ -505,7 +507,10 @@ it.each(["tenantId", "pharmacyId", "outletId"] as const)(
     );
     await screen.findByText("Closing stock");
     await user.click(screen.getByRole("button", { name: "Switch scope" }));
-    expect(await screen.findByText(/Could not load this stock snapshot/)).toBeInTheDocument();
+    expect(
+      await screen.findAllByText("This wasn't found, or you don't have access to it."),
+    ).not.toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(screen.queryByText("TEST-LOT")).not.toBeInTheDocument();
     expect(reconciliationPane()).not.toBeInTheDocument();
   },

@@ -44,7 +44,11 @@ export function PharmacyAffiliationReviews({
         is linked to this hospital. You can revoke a verification later.
       </p>
       {reviews.isError ? (
-        <RequestFailure message="Could not load pharmacy requests." retry={reviews.retry} />
+        <RequestFailure
+          message="Could not load pharmacy requests."
+          retry={reviews.retry}
+          error={reviews.error}
+        />
       ) : reviews.items.length === 0 && !reviews.isPending ? (
         <p className="mt-4 text-sm text-muted-foreground">No pharmacy has asked yet.</p>
       ) : (

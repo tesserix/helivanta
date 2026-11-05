@@ -260,7 +260,11 @@ function Bills({
           <Panel flush>
             <div className="p-5">
               {bills.isError ? (
-                <RequestFailure message="Could not load bills and expenses." retry={bills.retry} />
+                <RequestFailure
+                  message="Could not load bills and expenses."
+                  retry={bills.retry}
+                  error={bills.error}
+                />
               ) : bills.isPending ? (
                 <p role="status">Loading bills and expenses…</p>
               ) : !bills.items.length ? (
@@ -398,7 +402,11 @@ function InventoryAudit({
           valuation.
         </p>
         {audit.isError ? (
-          <RequestFailure message="Could not load the inventory cost audit." retry={audit.retry} />
+          <RequestFailure
+            message="Could not load the inventory cost audit."
+            retry={audit.retry}
+            error={audit.error}
+          />
         ) : audit.isPending ? (
           <p role="status">Loading inventory audit…</p>
         ) : !audit.items.length ? (

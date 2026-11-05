@@ -71,6 +71,7 @@ export function CounterPatientLookup({
       <RequestFailure
         message="Could not check which hospitals have verified this pharmacy."
         retry={links.retry}
+        error={links.error}
       />
     );
   if (links.isPending || links.hasMore) return <p role="status">Checking verified hospitals…</p>;
@@ -241,6 +242,7 @@ export function CounterVisit({
       <RequestFailure
         message="Could not load the patient's visits. The sale can go ahead without one."
         retry={visits.refetch}
+        error={visits.error}
       />
     );
   if (visits.isPending) return <p role="status">Loading the patient's visits…</p>;

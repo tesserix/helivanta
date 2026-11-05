@@ -277,6 +277,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
               locations.retry();
               products.retry();
             }}
+            error={locations.error ?? products.error}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -306,6 +307,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
               <RequestFailure
                 message="Could not load this stock snapshot. Previously loaded rows are hidden."
                 retry={positions.retry}
+                error={positions.error}
               />
             ) : positions.isPending ? (
               <p role="status">Loading stock snapshot…</p>
@@ -507,7 +509,11 @@ function PositionDetail({
           <p role="status">Loading stock position…</p>
         ) : position.isError &&
           !(position.error instanceof ApiError && position.error.status === 404) ? (
-          <RequestFailure message="Could not load this stock position." retry={position.refetch} />
+          <RequestFailure
+            message="Could not load this stock position."
+            retry={position.refetch}
+            error={position.error}
+          />
         ) : (
           <p role="alert" className="text-sm">
             This record was not found, or you do not have access.
@@ -566,6 +572,7 @@ function PositionDetail({
         <RequestFailure
           message="Could not reconcile this lot for the selected period."
           retry={reconciliation.refetch}
+          error={reconciliation.error}
         />
       ) : reconciliation.isPending ? (
         <p role="status">Loading period reconciliation…</p>
@@ -593,7 +600,11 @@ function PositionDetail({
             be edited.
           </p>
           {movements.isError ? (
-            <RequestFailure message="Could not load the period ledger." retry={movements.retry} />
+            <RequestFailure
+              message="Could not load the period ledger."
+              retry={movements.retry}
+              error={movements.error}
+            />
           ) : movements.isPending ? (
             <p role="status">Loading period ledger…</p>
           ) : movements.items.length === 0 ? (

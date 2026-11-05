@@ -52,7 +52,11 @@ export function PartiesWorkspace() {
   );
   if (identity.isError)
     return (
-      <RequestFailure message="Could not verify your active tenant." retry={identity.refetch} />
+      <RequestFailure
+        message="Could not verify your active tenant."
+        retry={identity.refetch}
+        error={identity.error}
+      />
     );
   if (!identity.data) return <p role="status">Loading supply workspace…</p>;
   return (
@@ -136,7 +140,11 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
           </Button>
         </form>
         {parties.isError ? (
-          <RequestFailure message="Could not load organisations." retry={parties.retry} />
+          <RequestFailure
+            message="Could not load organisations."
+            retry={parties.retry}
+            error={parties.error}
+          />
         ) : parties.isPending ? (
           <p role="status" className="p-6">
             Loading organisations…
@@ -257,7 +265,9 @@ function PartyDetail({
     return (
       <RequestFailure
         message="Organisation access could not be verified. It may have been revoked."
+        refused="Organisation access could not be verified. It may have been revoked."
         retry={access.refetch}
+        error={access.error}
       />
     );
   const globalRoles = access.data?.roles ?? [];
@@ -359,6 +369,7 @@ function PrivateParty({
       <RequestFailure
         message="The private profile is unavailable. Refresh access or contact your administrator."
         retry={profile.refetch}
+        error={profile.error}
       />
     );
   if (!profile.data) return <p role="status">Loading private profile…</p>;
@@ -532,7 +543,13 @@ function PartyHistory({ scope, id }: { scope: SupplyScope; id: string }) {
     `/supply/parties/${id}/revisions`,
   );
   if (history.isError)
-    return <RequestFailure message="Could not load profile history." retry={history.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load profile history."
+        retry={history.retry}
+        error={history.error}
+      />
+    );
   if (history.isPending)
     return (
       <p className="mt-4 text-sm" role="status">

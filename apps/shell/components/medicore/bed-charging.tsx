@@ -54,7 +54,11 @@ function BedChargingPanel({ hospital }: { hospital: Hospital }) {
       {setup.isPending ? null : notSetUp ? (
         <TimezoneForm hospital={hospital} />
       ) : setup.isError ? (
-        <RequestFailure message="Could not load bed charging." retry={() => void setup.refetch()} />
+        <RequestFailure
+          message="Could not load bed charging."
+          retry={() => void setup.refetch()}
+          error={setup.error}
+        />
       ) : (
         <>
           <p className="text-sm">Midnights are counted in {setup.data.timezone}.</p>
@@ -112,7 +116,13 @@ function Rates({ hospital }: { hospital: Hospital }) {
     `/billing/hospitals/${hospital.id}/bed-rates`,
   );
   if (rates.isError)
-    return <RequestFailure message="Could not load the bed rates." retry={rates.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load the bed rates."
+        retry={rates.retry}
+        error={rates.error}
+      />
+    );
   return (
     <div>
       {rates.items.length === 0 && !rates.isPending ? (

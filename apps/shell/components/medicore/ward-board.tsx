@@ -59,7 +59,13 @@ export function WardBoard() {
   const hospitals = useApiPagedQuery<Hospital>(["workforce", "hospitals"], "/workforce/hospitals");
   const hospital = hospitals.items.find((item) => item.id === hospitalId) ?? hospitals.items[0];
   if (hospitals.isError)
-    return <RequestFailure message="Could not load your hospitals." retry={hospitals.retry} />;
+    return (
+      <RequestFailure
+        message="Could not load your hospitals."
+        retry={hospitals.retry}
+        error={hospitals.error}
+      />
+    );
   if (hospitals.isPending) return <p role="status">Loading hospitals…</p>;
   if (!hospital)
     return (
@@ -136,7 +142,11 @@ function HospitalBeds({ hospital }: { hospital: Hospital }) {
         </h3>
         {beds.isError ? (
           <div className="p-5">
-            <RequestFailure message="Could not load the beds." retry={beds.retry} />
+            <RequestFailure
+              message="Could not load the beds."
+              retry={beds.retry}
+              error={beds.error}
+            />
           </div>
         ) : beds.isPending ? (
           <p role="status" className="px-5 py-4 text-sm">
@@ -594,6 +604,7 @@ function AdmitPatient({ hospital, available }: { hospital: Hospital; available: 
         <RequestFailure
           message="Could not search patients. You may need patient-registry access at this hospital."
           retry={patients.retry}
+          error={patients.error}
         />
       )}
       <form

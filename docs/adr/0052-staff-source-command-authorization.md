@@ -108,3 +108,18 @@ interface. Actual Pharma operating integration remains a separate contract gate.
 See [ADR0060](0060-current-posting-source-use.md) and its real IAM/FGA/DB fault,
 expiry and two-ordering source-writer tests. Existing unreviewed consumer checks
 and the actor interface's single-method assertion remain enforced.
+
+## Reviewed hospital pharmacy department governance consumer
+
+The hospital pharmacy binding implementation additionally permits the exact
+`pharmacy/staff_department_binding_authority.go` consumer. It receives the
+existing injected authorization port, requires a separate current hospital-
+scoped Pharmacy prepare/read/review grant, keeps current Staff actor admission
+through commit and checks the exact product-owned outlet grant. Organization
+validates the pinned department through its guarded source port before binding
+writes. The consumer manages the reviewed structural relationship only; it
+cannot read private HR/credential repositories or grant dispensing authority.
+No new provider resolution, cross-owner SQL, general business API or permissive
+consumer wildcard is introduced. The closed allowlist was observed rejecting
+this consumer before the exact reviewed entry was added. Positive, negative,
+source/race/fault and browser acceptance remain required before release.

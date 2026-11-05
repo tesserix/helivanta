@@ -1,5 +1,39 @@
 # Staff Management delivery tracker
 
+## Pharmacy department relationships — local candidate, 2026-11-05
+
+The current branch adds an independently reviewed relationship between a
+hospital-owned Pharmacy outlet and an Organization-owned department revision.
+Workforce remains the canonical Staff owner. Separate exact preparer/reviewer
+IAM roles require current Staff actors and explicit outlet editor access; no
+professional, dispensing or clinical authority follows from this relationship.
+Candidate IAM0029 and Pharmacy0034 are persisted source migrations and are
+applied only to disposable integration databases. See the
+[binding design](../superpowers/specs/2026-11-05-pharmacy-department-bindings.md)
+and [implementation plan](../superpowers/plans/2026-11-05-pharmacy-department-bindings.md).
+
+The real IAM/OpenFGA/Postgres journey through Global API passes **71.496s**,
+including bounded collection/history paging, independent decisions, stale source
+refusal, same-subject self-review denial, retained command receipts, correlated
+replacement, outlet revocation and audit/outbox rollback. Earlier missing routes,
+missing authorization observations and replay disclosure under audit failure
+were observed failing and corrected; this result does not establish browser
+acceptance, all concurrency orderings or production activation.
+
+IAM family-list/projection tests pass **77.608s**; full SDK **741 /82 files**,
+access-page **60**, typechecks, scoped ESLint, Go lint/vet/build, root scripts
+**75** and the configured webpack production build pass. Expanded API disclosure
+tests pass **128.901s**. The initial full owner/architecture run failed; exact
+full architecture **85.566s** and full shell **1,563 /183 files /455.82s**
+pass after the architecture corrections. Full Global API verification and IAM
+expiry diagnosis remain in progress. Isolated licence workflow passes;
+intermittent IAM expiry failure remains unresolved. See the plan for retained
+failure evidence. Chrome is currently in use by the user, so browser interactions are
+paused. The existing local reviewer grant still awaits its specific action-time
+confirmation. No grant or production rollout was performed. All five reusable
+Staff requirements remain intact; counts stay **10 partial, 10 awaiting audit,
+1 research, 0 fully accepted**.
+
 ## Current posting source use — local implementation, 2026-11-05
 
 The next owner boundary supplies live canonical Staff/posting observations to a
@@ -6163,8 +6197,10 @@ results; this does not establish the cause or complete Staff acceptance.
 ## Next operating-consumer gate — source check 2026-11-05
 
 The `CurrentStaffActorGuard` provider is Workforce-owned and wired through
-platform dependencies. Current direct consumers are Workforce and Organization;
-Pharmacy does not consume that interface in current source. IAM's assignment
+platform dependencies. Released direct consumers at this checkpoint were Workforce
+and Organization. The unreleased Pharmacy department-binding candidate described
+above now consumes the exact reviewed governance guard; existing dispensing and
+other operating commands do not yet consume current-posting authority. IAM's assignment
 authorizer explicitly requires products to enforce their live object/Staff/link
 invariants. This is source wiring evidence, not a route-by-route Pharmacy audit.
 The new chain view and approvals do not by themselves enforce lifecycle inside

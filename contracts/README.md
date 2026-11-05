@@ -20,3 +20,11 @@ Staff authority follows from these metadata models.
 change event. Generate/check with `node scripts/generate-workforce-postings.mjs`
 and `--check`. Drafts never grant operating authority; see the
 [candidate contract](../docs/api/workforce-postings.md).
+
+The unreleased Pharmacy department relationship contract is canonical in
+[pharmacy-staff-bindings.json](pharmacy-staff-bindings.json).
+Run `node scripts/generate-pharmacy-staff-bindings.mjs` and its
+`--check` mode. It generates owner Go models, the identifier-only
+relationship event and SDK Zod models. Paired replacement identity/version and
+approval-only attestation are validated by the generator and owner. These models
+do not authorize dispensing or establish professional acceptance.

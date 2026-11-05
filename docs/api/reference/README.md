@@ -38,6 +38,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/staff-access-templates` | `public` | false | false |
@@ -420,6 +421,12 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/credit-notes` | `pharmacy.sale.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id` | `pharmacy.discount.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling` | `pharmacy.sale.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command` | `pharmacy.staff_binding.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands` | `pharmacy.staff_binding.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history` | `pharmacy.staff_binding.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding` | `pharmacy.staff_binding.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding` | `pharmacy.staff_binding.prepare` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings` | `pharmacy.staff_binding.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id` | `pharmacy.tax.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile` | `pharmacy.sale.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licence-status` | `pharmacy.catalogue.read` | false | false |
@@ -491,6 +498,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.staff_department_binding_changed.v1`
 - `helivanta.in.pharmacy.licence_evidence_scan_requested.v1`
 - `helivanta.in.pharmacy.licence_evidence_changed.v1`
 - `helivanta.in.pharmacy.unused_payment_refund_recorded.v1`
@@ -556,6 +564,7 @@ Migration table declarations:
 - `0031_pharmacy`: `pharmacy_service_charges`, `pharmacy_service_charge_versions`, `pharmacy_service_charge_reviews`, `pharmacy_sale_charge_lines`, `pharmacy_credit_note_charge_lines`.
 - `0032_pharmacy`: `pharmacy_opd_encounters`.
 - `0033_pharmacy`: `pharmacy_item_categories`, `pharmacy_product_category_declarations`, `pharmacy_product_category_reviews`.
+- `0034_pharmacy_staff_department_bindings`: `pharmacy_staff_department_bindings`, `pharmacy_staff_binding_commands`, `pharmacy_staff_binding_audit`.
 
 ## payments
 

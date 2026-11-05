@@ -241,6 +241,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/pharmacy-binding-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/posting-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
@@ -513,6 +522,11 @@
         {
           "id": "0028_iam_staff_posting_source_templates",
           "sql_sha256": "623668536ec1bbb85d6974aad2fea3de7ddf79887dbabd7e68907a31b3eea74b",
+          "creates_tables": []
+        },
+        {
+          "id": "0029_iam_pharmacy_department_binding_templates",
+          "sql_sha256": "4d7560fc745c5b7b8e7a101028e9bef7a1069baec64148ed5bd6d529ef379c26",
           "creates_tables": []
         }
       ]
@@ -2761,6 +2775,72 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command",
+          "permission": "pharmacy.staff_binding.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands",
+          "permission": "pharmacy.staff_binding.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history",
+          "permission": "pharmacy.staff_binding.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+          "permission": "pharmacy.staff_binding.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+          "permission": "pharmacy.staff_binding.prepare",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings",
+          "permission": "pharmacy.staff_binding.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile/:id",
           "permission": "pharmacy.tax.manage",
@@ -3375,6 +3455,18 @@
       ],
       "grants": [
         {
+          "permission": "pharmacy.staff_binding.read",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.staff_binding.prepare",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.staff_binding.review",
+          "roles": []
+        },
+        {
           "permission": "pharmacy.accounts.read",
           "roles": [
             "pharmacy_owner",
@@ -3607,6 +3699,7 @@
         }
       ],
       "publishes": [
+        "helivanta.in.pharmacy.staff_department_binding_changed.v1",
         "helivanta.in.pharmacy.licence_evidence_scan_requested.v1",
         "helivanta.in.pharmacy.licence_evidence_changed.v1",
         "helivanta.in.pharmacy.unused_payment_refund_recorded.v1",
@@ -3949,6 +4042,15 @@
             "pharmacy_item_categories",
             "pharmacy_product_category_declarations",
             "pharmacy_product_category_reviews"
+          ]
+        },
+        {
+          "id": "0034_pharmacy_staff_department_bindings",
+          "sql_sha256": "3fa1fa28c6c541660c9cf8f98f9bc27f7f2be845cf58a2e95644cd161e21c9f2",
+          "creates_tables": [
+            "pharmacy_staff_department_bindings",
+            "pharmacy_staff_binding_commands",
+            "pharmacy_staff_binding_audit"
           ]
         }
       ]

@@ -142,6 +142,7 @@ export * from "./organization-queries";
 export * from "./department-links";
 export * from "./department-link-queries";
 export * from "./staff-postings-contract";
+export * from "./pharmacy-staff-binding-contract";
 export * from "./staff-postings";
 export * from "./staff-posting-proposals";
 

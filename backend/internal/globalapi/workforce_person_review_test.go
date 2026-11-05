@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/organization"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	workforcecontract "github.com/tesserix/helivanta/internal/modules/workforce/contract"
 	"github.com/tesserix/helivanta/internal/platform"
@@ -70,7 +71,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	t.Cleanup(fgaBoundary.Close)
 	graph, err := authz.NewClient(ctx, fgaBoundary.URL, testinfra.IsolationKey(t))
 	require.NoError(t, err)
-	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New()}
+	modules := []platform.Module{&scopedLeaveIAMModule{iam.New(nil)}, &workforceBeforeDocumentProvenance{workforce.New()}, organization.New(), pharmacy.New()}
 	registry := platform.NewRegistry()
 	for _, module := range modules {
 		require.NoError(t, registry.Register(module))
@@ -92,7 +93,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	})
 	upstream := httptest.NewServer(owner)
 	t.Cleanup(upstream.Close)
-	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL}})
+	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "workforce": upstream.URL, "pharmacy": upstream.URL}})
 	require.NoError(t, err)
 	tokens := map[string]string{}
 	for _, subject := range []string{maker, checker, manager, reviewer} {
@@ -1772,6 +1773,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingRootReviewerStaff string
 	var postingRootApprover string
 	var postingRootApproverStaff string
+	var pharmacyBindingPrepared *pharmacyBindingPreparation
 	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_root_dept_first", "posting_chain_child", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
@@ -2263,6 +2265,8 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.Equal(t, false, scopedReceipt["grants_access"])
 				if scenario == "posting_root_reviewer" {
 					grant(recipient, "workforce.posting_reviewer.v1", workforce.PermPostingReview)
+					grant(recipient, "pharmacy.department_binding_preparer.v1", pharmacy.PermStaffBindingPrepare)
+					pharmacyBindingPrepared = assertPharmacyDepartmentBindingPreparation(t, db, call, maker, recipient, hospital, joiner, departmentID, departmentRevision)
 					postingRootReviewer = recipient
 					postingRootReviewerStaff = joiner
 					return
@@ -2323,6 +2327,10 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					})
 					postingRootApprover = recipient
 					postingRootApproverStaff = joiner
+					grant(recipient, "pharmacy.department_binding_reviewer.v1", pharmacy.PermStaffBindingReview)
+					assertPharmacyDepartmentBindingReview(t, db, call, pharmacyBindingPrepared, maker, recipient, joiner, departmentID, departmentRevision, func() {
+						grant(postingRootReviewer, "pharmacy.department_binding_reviewer.v1", pharmacy.PermStaffBindingReview)
+					})
 					return
 				}
 				if scenario == "posting_supervision" {

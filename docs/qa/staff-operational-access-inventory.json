@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "59d3c08203d01403971d4e3dac00294f657d6f3d425f522b9601f494976108c4",
+  "registry_sha256": "2b5062206c414686b1b3c0d6c8a3a22de717189218118f11721426281e1d3237",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 824,
-    "unclassified": 801
+    "total": 831,
+    "unclassified": 808
   },
   "entries": [
     {
@@ -3022,6 +3022,22 @@
       "review": null
     },
     {
+      "id": "http iam GET /v1/iam/pharmacy-binding-assignment-proposals",
+      "kind": "http",
+      "module": "iam",
+      "registration": {
+        "source": "backend/internal/modules/iam/module.go",
+        "method": "GET",
+        "path": "/v1/iam/pharmacy-binding-assignment-proposals",
+        "permission": "public",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http iam GET /v1/iam/posting-assignment-proposals",
       "kind": "http",
       "module": "iam",
@@ -3092,7 +3108,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "d6244dff88c9ef38461187a0710e7185af6a435aebef994701ff51d4fb0bb08b",
+            "sha256": "64175bc394bbf0e73010e3a5a9fa17fc9de1761b096ee3f055c6a798409b02a1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3136,7 +3152,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "d6244dff88c9ef38461187a0710e7185af6a435aebef994701ff51d4fb0bb08b",
+            "sha256": "64175bc394bbf0e73010e3a5a9fa17fc9de1761b096ee3f055c6a798409b02a1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3196,7 +3212,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "d6244dff88c9ef38461187a0710e7185af6a435aebef994701ff51d4fb0bb08b",
+            "sha256": "64175bc394bbf0e73010e3a5a9fa17fc9de1761b096ee3f055c6a798409b02a1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -5868,6 +5884,78 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings",
+        "permission": "pharmacy.staff_binding.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+        "permission": "pharmacy.staff_binding.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command",
+        "permission": "pharmacy.staff_binding.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history",
+        "permission": "pharmacy.staff_binding.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile",
       "kind": "http",
       "module": "pharmacy",
@@ -6684,6 +6772,24 @@
       "review": null
     },
     {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands",
+        "permission": "pharmacy.staff_binding.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence/:file/retry/:attempt",
       "kind": "http",
       "module": "pharmacy",
@@ -7044,6 +7150,24 @@
         "method": "PUT",
         "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/discount-ceiling/:id",
         "permission": "pharmacy.discount.manage",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "scope_kind": "hospital",
+        "scope_parameter": "hospital",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding",
+        "permission": "pharmacy.staff_binding.prepare",
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,

@@ -124,5 +124,11 @@
       "sql_sha256": "ae7a6f15b23e4b05a85ba52a1e16ebf1ba89b36ed07b73b5ef4cda9ce639b672",
       "creates_tables": []
     }
-  ]
+  ],
+  "released_revision": "62f3f7fd180f5ce9800d70807217b1cb2131d54a",
+  "promotion": "prod.01m6mwm1fjscfvx6162wtj6445.1afd48c",
+  "promotion_succeeded_at": "2026-11-05T03:40:26Z",
+  "observed_receipts_after_apply": 240,
+  "verified_new_forced_rls_tables": 13,
+  "verified_zero_argument_functions": 18
 }

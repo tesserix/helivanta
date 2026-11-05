@@ -52,6 +52,7 @@ The proposed OpenAPI-first direction in #4 needs a migration decision. Preserve 
 | `workforce-identity-checks.json`    | Workforce identity source/projection, employment generation, draft commands/receipts and scoped permission identifiers; `generate-workforce-identity.mjs` generates shared Go/Zod models                      |
 | `workforce-employment-periods.json` | Private appointment/contract draft source, commands and immutable revisions; `generate-workforce-employment-periods.mjs` generates Go/Zod models                                                              |
 | `workforce-employment-reviews.json` | Scoped immutable employment submissions, independent decisions/endings, current capabilities and source/evidence receipts; `generate-workforce-employment-reviews.mjs` generates Go/Zod models                |
+| `workforce-establishments.json`     | Standalone pharmacy employer registration (ADR-0054); `generate-workforce-establishments.mjs` generates Go/Zod models and supports `--check`                                                                  |
 | `staff-access.json`                 | IAM assignment proposals, decisions/history, owner verification and projection-request events; `generate-staff-access.mjs` generates IAM-owned Go HTTP models, shared Zod and public owner event declarations |
 
 `organization-structure.json` owns the unreleased hospital-registration HTTP

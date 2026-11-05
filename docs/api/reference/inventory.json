@@ -9328,6 +9328,24 @@
         },
         {
           "method": "GET",
+          "path": "/v1/workforce/pharmacies/:pharmacy",
+          "permission": "workforce.hospital.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/pharmacies/:pharmacy",
+          "permission": "workforce.hospital.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/workforce/posting-cutoff-scopes",
           "permission": "public",
           "authentication_required": true,
@@ -10590,6 +10608,11 @@
         {
           "id": "0087_workforce_department_posting_scope",
           "sql_sha256": "89817bac698916e0b7087bc0b7837461e100de951be33c59838f9e4235d9a011",
+          "creates_tables": []
+        },
+        {
+          "id": "0088_workforce_establishment_kind",
+          "sql_sha256": "bcacaeabba724a345ca117ed97cf4a9a85727478e2054454414f8f7ade2e3f5b",
           "creates_tables": []
         }
       ]

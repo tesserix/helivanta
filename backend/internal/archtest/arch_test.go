@@ -548,6 +548,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence":               "one coverage proposal's evidence, capped at 10 files by a database trigger",
 	"GET /workforce/hospitals/:hospital/staff/:id/benefit-enrollments/:enrollment/proposals/:proposal/evidence/:file/content": "one evidence file's released bytes, not a collection",
 	"GET /workforce/hospitals/:hospital/staff/:id/attendance":                                                                 "one person's derived days over a bounded range of at most 42 days",
+	"GET /workforce/pharmacies/:pharmacy":                                                                                     "one standalone pharmacy's employer registration",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

@@ -212,6 +212,8 @@ jobs:
         run: node scripts/generate-emergency-dispatch.mjs --check
       - name: Verify Staff directory editing contract
         run: node scripts/generate-workforce-directory.mjs --check
+      - name: Verify Workforce establishment contract
+        run: node scripts/generate-workforce-establishments.mjs --check
       - name: Verify Staff operational access source inventory
         run: |
           node --test scripts/staff-operational-access-inventory.test.mjs

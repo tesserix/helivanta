@@ -2316,6 +2316,17 @@
           "counted": false
         },
         {
+          "scope_kind": "hospital",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices",
+          "permission": "pharmacy.staff_binding.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/insights",
           "permission": "pharmacy.dispense.read",
@@ -9255,6 +9266,15 @@
         {
           "method": "GET",
           "path": "/v1/workforce/posting-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workforce/staff-actor-scopes",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,

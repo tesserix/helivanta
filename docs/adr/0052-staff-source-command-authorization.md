@@ -123,3 +123,16 @@ No new provider resolution, cross-owner SQL, general business API or permissive
 consumer wildcard is introduced. The closed allowlist was observed rejecting
 this consumer before the exact reviewed entry was added. Positive, negative,
 source/race/fault and browser acceptance remain required before release.
+
+## Workforce-owned actor hospital metadata
+
+The exact `workforce/staff_actor_scopes.go` consumer may use the same injected
+guard for its own hospital-choice projection. It first admits a current
+hospital-scoped `workforce.staff_actor.use` assignment, checks the candidate
+login-link identity/version against the guarded Staff actor and emits only the
+canonical hospital ID/name. Source-use and protected-read evidence remain in
+the same per-hospital guarded transaction. It exposes no Staff profile, copied
+identity, posting eligibility or operating authority. The architecture gate was
+observed refusing this new consumer before its explicit entry was added.
+Provider construction, the single-method interface and all operating-consumer
+gates remain unchanged.

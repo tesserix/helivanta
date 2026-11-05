@@ -22,12 +22,94 @@ type pharmacyBindingPreparation struct {
 
 func assertPharmacyDepartmentBindingPreparation(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, administrator, preparer, hospital, staff, department, revision string) *pharmacyBindingPreparation {
 	t.Helper()
+	t.Run("canonical actor hospitals require current source and disclose no private Staff", func(t *testing.T) {
+		rows := call(t, "GET", "/v1/workforce/staff-actor-scopes?limit=20", preparer, nil, 200)["data"].([]any)
+		require.Len(t, rows, 1)
+		row := rows[0].(map[string]any)
+		require.Len(t, row, 2, "the reusable projection contains only canonical hospital identity and name")
+		require.Equal(t, hospital, row["hospital_id"])
+		require.NotEmpty(t, row["name"])
+		require.Empty(t, call(t, "GET", "/v1/workforce/staff-actor-scopes?limit=20", administrator, nil, 200)["data"], "coarse administration is not current Staff actor authority")
+		for _, query := range []string{"limit=21", "limit=1&limit=2", "hospital=guessed"} {
+			call(t, "GET", "/v1/workforce/staff-actor-scopes?"+query, preparer, nil, 400)
+		}
+	})
+	t.Run("unavailable hospital disclosure audit rolls back current actor evidence", func(t *testing.T) {
+		apply := func(sql string) {
+			t.Helper()
+			require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_actor_scope_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+		}
+		clear := func() { apply(`ALTER TABLE workforce_audit DROP CONSTRAINT IF EXISTS synthetic_actor_scope_audit`) }
+		t.Cleanup(clear)
+		before := postingSourceUseEffects(t, db, testutil.TenantA, preparer)
+		apply(`ALTER TABLE workforce_audit ADD CONSTRAINT synthetic_actor_scope_audit CHECK(action<>'workforce.staff_actor_scope.read') NOT VALID`)
+		denied := call(t, "GET", "/v1/workforce/staff-actor-scopes?limit=20", preparer, nil, 503)
+		require.NotContains(t, denied, "data")
+		require.Equal(t, before, postingSourceUseEffects(t, db, testutil.TenantA, preparer))
+		clear()
+		require.Len(t, call(t, "GET", "/v1/workforce/staff-actor-scopes?limit=20", preparer, nil, 200)["data"], 1)
+	})
 	pharmacy, outlet, binding := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
 	base := "/v1/pharmacy/pharmacies/" + pharmacy
 	call(t, "PUT", base, administrator, map[string]any{"code": "SYN-BIND-PHARM", "name": "Synthetic hospital pharmacy", "ownership_type": "hospital_owned"}, 200)
 	base += "/outlets/" + outlet
 	call(t, "PUT", base, administrator, map[string]any{"code": "SYN-BIND-OUTLET", "name": "Synthetic binding outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
 	call(t, "PUT", base+"/access/"+preparer, administrator, map[string]any{"level": "editor"}, 200)
+	t.Run("department preparation sees only minimal explicitly granted outlet metadata", func(t *testing.T) {
+		choices := "/v1/pharmacy/hospitals/" + hospital + "/staff-binding-outlet-choices"
+		rows := call(t, "GET", choices+"?purpose=prepare&limit=10", preparer, nil, 200)["data"].([]any)
+		require.Len(t, rows, 1)
+		row := rows[0].(map[string]any)
+		require.Len(t, row, 4)
+		require.Equal(t, pharmacy, row["pharmacy_id"])
+		require.Equal(t, outlet, row["outlet_id"])
+		require.Equal(t, "Synthetic hospital pharmacy", row["pharmacy_name"])
+		require.Equal(t, "Synthetic binding outlet", row["outlet_name"])
+		call(t, "GET", choices+"?purpose=review", preparer, nil, 403)
+		call(t, "GET", choices, administrator, nil, 403)
+		for _, query := range []string{"limit=11", "purpose=operating", "purpose=read&purpose=prepare", "scope=guessed", "cursor="} {
+			call(t, "GET", choices+"?"+query, preparer, nil, 400)
+		}
+		hidden := uuid.Must(uuid.NewV7()).String()
+		call(t, "PUT", "/v1/pharmacy/pharmacies/"+pharmacy+"/outlets/"+hidden, administrator, map[string]any{"code": "SYN-BIND-HIDDEN", "name": "Synthetic ungranted outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
+		independent, independentOutlet := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+		independentBase := "/v1/pharmacy/pharmacies/" + independent
+		call(t, "PUT", independentBase, administrator, map[string]any{"code": "SYN-BIND-INDEPENDENT", "name": "Synthetic independent pharmacy", "ownership_type": "independent"}, 200)
+		independentBase += "/outlets/" + independentOutlet
+		call(t, "PUT", independentBase, administrator, map[string]any{"code": "SYN-BIND-INDEPENDENT", "name": "Synthetic independent outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
+		call(t, "PUT", independentBase+"/access/"+preparer, administrator, map[string]any{"level": "editor"}, 200)
+		require.Len(t, call(t, "GET", choices+"?purpose=read", preparer, nil, 200)["data"], 1, "neither sibling access nor standalone employer authority is inferred")
+		call(t, "PUT", base+"/access/"+preparer, administrator, map[string]any{"level": "reader"}, 200)
+		require.Len(t, call(t, "GET", choices+"?purpose=read", preparer, nil, 200)["data"], 1)
+		require.Empty(t, call(t, "GET", choices+"?purpose=prepare", preparer, nil, 200)["data"], "preparation requires an explicit editor grant")
+		call(t, "DELETE", base+"/access/"+preparer, administrator, nil, 200)
+		require.Empty(t, call(t, "GET", choices+"?purpose=read", preparer, nil, 200)["data"], "same-session revocation withholds prior metadata")
+		call(t, "PUT", base+"/access/"+preparer, administrator, map[string]any{"level": "editor"}, 200)
+		call(t, "PUT", "/v1/pharmacy/pharmacies/"+pharmacy+"/outlets/"+hidden+"/access/"+preparer, administrator, map[string]any{"level": "editor"}, 200)
+		first := call(t, "GET", choices+"?purpose=read&limit=1", preparer, nil, 200)
+		cursor := first["page"].(map[string]any)["next_cursor"].(string)
+		second := call(t, "GET", choices+"?purpose=read&limit=1&cursor="+url.QueryEscape(cursor), preparer, nil, 200)
+		require.Len(t, first["data"], 1)
+		require.Len(t, second["data"], 1)
+		require.ElementsMatch(t, []string{outlet, hidden}, []string{first["data"].([]any)[0].(map[string]any)["outlet_id"].(string), second["data"].([]any)[0].(map[string]any)["outlet_id"].(string)})
+		require.False(t, second["page"].(map[string]any)["has_more"].(bool))
+		call(t, "GET", choices+"?purpose=prepare&limit=1&cursor="+url.QueryEscape(cursor), preparer, nil, 400)
+		apply := func(sql string) {
+			t.Helper()
+			require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "synthetic_outlet_choice_fault_" + uuid.Must(uuid.NewV7()).String(), SQL: sql}}))
+		}
+		clear := func() {
+			apply(`ALTER TABLE pharmacy_staff_binding_audit DROP CONSTRAINT IF EXISTS synthetic_outlet_choice_audit`)
+		}
+		t.Cleanup(clear)
+		before := postingSourceUseEffects(t, db, testutil.TenantA, preparer)
+		apply(`ALTER TABLE pharmacy_staff_binding_audit ADD CONSTRAINT synthetic_outlet_choice_audit CHECK(COALESCE(changes->>'projection','')<>'staff_binding_outlet_choice') NOT VALID`)
+		denied := call(t, "GET", choices+"?purpose=prepare", preparer, nil, 503)
+		require.NotContains(t, denied, "data")
+		require.Equal(t, before, postingSourceUseEffects(t, db, testutil.TenantA, preparer))
+		clear()
+		require.Len(t, call(t, "GET", choices+"?purpose=prepare", preparer, nil, 200)["data"], 2)
+	})
 	path := base + "/hospitals/" + hospital + "/staff-department-bindings/" + binding
 	in := map[string]any{"department_id": department, "department_revision_id": revision, "replaces_binding_id": nil, "replaces_binding_version": nil, "reason": "Synthetic reviewed relationship preparation"}
 	prepared := call(t, "PUT", path, preparer, in, 200)

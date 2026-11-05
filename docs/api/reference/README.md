@@ -370,6 +370,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/dispenses/dispensed` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses/waiting` | `pharmacy.dispense.read` | true | true |
 | GET | `/v1/pharmacy/dispenses` | `pharmacy.dispense.read` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
 | POST | `/v1/pharmacy/medications` | `pharmacy.medication.write` | false | false |
@@ -1203,6 +1204,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/posting-cutoff-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-review-scopes` | `public` | true | false |
 | GET | `/v1/workforce/posting-scopes` | `public` | true | false |
+| GET | `/v1/workforce/staff-actor-scopes` | `public` | true | false |
 
 Published subjects:
 

@@ -1,12 +1,11 @@
 import { z } from "zod";
 import { staffPostingInstantMicros as instant } from "./staff-postings-contract";
-import { apiFetch } from "./client";
-import { enrollmentRequestOptions } from "./enrollment";
-import { onTenantTransition, tenantTransitionPending } from "./tenant-transition";
+import { accountScopedRequest as request } from "./account-scoped-request";
 import {
   StaffDepartmentBindingContract,
   StaffDepartmentBindingViewContract,
   StaffDepartmentBindingHistoryEntryContract,
+  StaffBindingOutletChoiceContract,
   StaffDepartmentBindingProposalInputContract,
   StaffDepartmentBindingCommandInputContract,
   StaffDepartmentBindingCommandReceiptContract,
@@ -49,33 +48,6 @@ function root(scope: PharmacyStaffBindingScope) {
     identifier.parse(scope.hospitalId) +
     "/staff-department-bindings"
   );
-}
-async function request(
-  scope: PharmacyStaffBindingScope,
-  path: string,
-  signal?: AbortSignal,
-  command?: { method: "PUT" | "POST"; body: unknown },
-) {
-  const tenantId = identifier.parse(scope.tenantId);
-  subject.parse(scope.subject);
-  signal?.throwIfAborted();
-  if (tenantTransitionPending()) throw new Error("Wait for your workspace to finish switching.");
-  const transition = new AbortController();
-  const combined = signal ? AbortSignal.any([transition.signal, signal]) : transition.signal;
-  const unsubscribe = onTenantTransition(() => {
-    if (tenantTransitionPending()) transition.abort();
-  });
-  try {
-    const raw = await apiFetch(path, {
-      ...enrollmentRequestOptions({ tenantId, subject: scope.subject }),
-      ...(command ? { method: command.method, body: JSON.stringify(command.body) } : {}),
-      signal: combined,
-    });
-    combined.throwIfAborted();
-    return raw;
-  } finally {
-    unsubscribe();
-  }
 }
 
 function verifyBinding(
@@ -153,13 +125,14 @@ const historyPage = z
   .strict();
 
 function verifyPage(
-  page: { data: { id: string }[]; page: { has_more: boolean; next_cursor: string | null } },
+  page: { page: { has_more: boolean; next_cursor: string | null } },
   cursor: string | null,
+  identifiers: string[],
 ) {
   if (
     page.page.has_more !== (page.page.next_cursor !== null) ||
     (cursor !== null && page.page.next_cursor === cursor) ||
-    new Set(page.data.map((row) => row.id.toLowerCase())).size !== page.data.length
+    new Set(identifiers.map((id) => id.toLowerCase())).size !== identifiers.length
   )
     throw invalid();
 }
@@ -175,7 +148,11 @@ export async function listPharmacyStaffBindings(
   signal?: AbortSignal,
 ) {
   const page = bindingPage.parse(await request(scope, root(scope) + query(cursor), signal));
-  verifyPage(page, cursor);
+  verifyPage(
+    page,
+    cursor,
+    page.data.map((row) => row.id),
+  );
   page.data.forEach((row) => verifyBinding(row, scope));
   return page;
 }
@@ -192,7 +169,11 @@ export async function listPharmacyStaffBindingHistory(
       signal,
     ),
   );
-  verifyPage(page, cursor);
+  verifyPage(
+    page,
+    cursor,
+    page.data.map((row) => row.id),
+  );
   for (const row of page.data) {
     commandId.parse(row.id);
     subject.parse(row.actor_subject);
@@ -392,4 +373,42 @@ export async function recoverPharmacyStaffBindingReceipt(
     signal,
   );
   return verifyReceipt(raw, scope, attempt);
+}
+
+export type PharmacyStaffBindingHospitalScope = Pick<
+  PharmacyStaffBindingScope,
+  "tenantId" | "subject" | "hospitalId"
+>;
+const outletChoicePage = z
+  .object({ data: z.array(StaffBindingOutletChoiceContract).max(10), page: pageInfo })
+  .strict();
+export async function listPharmacyStaffBindingOutletChoices(
+  scope: PharmacyStaffBindingHospitalScope,
+  purpose: "read" | "prepare" | "review",
+  cursor: string | null = null,
+  signal?: AbortSignal,
+) {
+  const hospital = identifier.parse(scope.hospitalId);
+  const query = new URLSearchParams({
+    purpose: z.enum(["read", "prepare", "review"]).parse(purpose),
+    limit: "10",
+  });
+  if (cursor !== null) query.set("cursor", cursorSchema.parse(cursor));
+  const page = outletChoicePage.parse(
+    await request(
+      scope,
+      "/pharmacy/hospitals/" + hospital + "/staff-binding-outlet-choices?" + query,
+      signal,
+    ),
+  );
+  verifyPage(
+    page,
+    cursor,
+    page.data.map((row) => row.outlet_id),
+  );
+  for (const row of page.data) {
+    commandId.parse(row.outlet_id);
+    commandId.parse(row.pharmacy_id);
+  }
+  return page;
 }

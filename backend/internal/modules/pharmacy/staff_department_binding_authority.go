@@ -44,6 +44,7 @@ func staffDepartmentBindingRoutes(r *platform.Router, deps platform.Deps, actors
 	r.GETScopedHospital("/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command", PermStaffBindingRead, "hospital", h.receipt)
 	platform.ScopedHospitalListRoute(r, "/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings", PermStaffBindingRead, "hospital", h.list)
 	platform.ScopedHospitalListRoute(r, "/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/history", PermStaffBindingRead, "hospital", h.history)
+	platform.ScopedHospitalQueryListRoute(r, "/hospitals/:hospital/staff-binding-outlet-choices", PermStaffBindingRead, "hospital", "purpose", "read", 10, h.outletChoices)
 }
 
 func bindingRequestScope(c *gin.Context) (staffBindingScope, bool) {
@@ -59,7 +60,7 @@ func bindingRequestScope(c *gin.Context) (staffBindingScope, bool) {
 	return scope, true
 }
 
-func bindingBaseScope(c *gin.Context) (staffBindingScope, bool) {
+func bindingHospitalScope(c *gin.Context) (staffBindingScope, bool) {
 	p, _, ok := pharmacyPrincipal(c)
 	if !ok {
 		return staffBindingScope{}, false
@@ -70,13 +71,6 @@ func bindingBaseScope(c *gin.Context) (staffBindingScope, bool) {
 		return staffBindingScope{}, false
 	}
 	scope := staffBindingScope{principal: p}
-	for param, target := range map[string]*uuid.UUID{"pharmacy": &scope.pharmacy, "outlet": &scope.outlet} {
-		id, valid := registryID(c, param)
-		if !valid {
-			return scope, false
-		}
-		*target = id
-	}
 	hospital, err := uuid.Parse(c.Param("hospital"))
 	if err != nil || hospital == uuid.Nil || hospital.String() != c.Param("hospital") {
 		respond.NotFound(c, "hospital")
@@ -86,9 +80,24 @@ func bindingBaseScope(c *gin.Context) (staffBindingScope, bool) {
 	return scope, true
 }
 
-func (h *staffDepartmentBindingHandlers) command(c *gin.Context, s staffBindingScope, permission authz.Permission, writing bool, action func(context.Context, *gorm.DB, authz.StaffActorReference) error) error {
+func bindingBaseScope(c *gin.Context) (staffBindingScope, bool) {
+	scope, ok := bindingHospitalScope(c)
+	if !ok {
+		return scope, false
+	}
+	for param, target := range map[string]*uuid.UUID{"pharmacy": &scope.pharmacy, "outlet": &scope.outlet} {
+		id, valid := registryID(c, param)
+		if !valid {
+			return scope, false
+		}
+		*target = id
+	}
+	return scope, true
+}
+
+func (h *staffDepartmentBindingHandlers) withActor(c *gin.Context, s staffBindingScope, permissions []authz.Permission, action func(context.Context, authz.StaffActorReference) error) error {
 	guard, supported := h.authority.(authz.CompoundScopedCommandGuard)
-	if !supported || h.db == nil || h.actors == nil || h.departments == nil || action == nil {
+	if !supported || h.db == nil || h.actors == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	if !authn.Refresh(c) {
@@ -103,8 +112,8 @@ func (h *staffDepartmentBindingHandlers) command(c *gin.Context, s staffBindingS
 	}
 	ctx, cancel := context.WithDeadline(c.Request.Context(), p.IdleDeadline)
 	defer cancel()
-	checks := make([]authz.ScopeCheck, 0, 2)
-	for _, required := range []authz.Permission{permission, authz.StaffActorUse} {
+	checks := make([]authz.ScopeCheck, 0, len(permissions))
+	for _, required := range permissions {
 		request := authz.ScopeRequest{TenantID: p.TenantID, Subject: p.Subject, HospitalID: s.hospital.String(), Permission: required}
 		grant, err := h.authority.AuthorizeScope(ctx, request)
 		if err != nil {
@@ -118,19 +127,34 @@ func (h *staffDepartmentBindingHandlers) command(c *gin.Context, s staffBindingS
 		}
 		checks = append(checks, authz.ScopeCheck{Request: request, Grant: grant})
 	}
+
 	return guard.WithScopeGrants(ctx, checks, p.AuthTime, func(commandCtx context.Context) error {
-		return h.actors.WithCurrentStaffActor(commandCtx, authz.StaffActorScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: s.hospital}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
-			return h.db.WithTenantCommand(actorCtx, p.TenantID, func(tx *gorm.DB) error {
-				mode := "read"
-				if writing {
-					mode = "write"
-				}
-				grant := checks[0].Grant
-				if err := tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true),set_config('app.pharmacy_staff_binding_hospital',?,true),set_config('app.pharmacy_staff_binding_mode',?,true),set_config('app.pharmacy_staff_binding_permission',?,true),set_config('app.pharmacy_staff_binding_assignment',?,true),set_config('app.pharmacy_staff_binding_assignment_version',?,true),set_config('app.pharmacy_staff_binding_actor',?,true)`, p.Subject, s.outlet.String(), s.pharmacy.String(), s.hospital.String(), mode, string(permission), grant.AssignmentID, strconv.FormatInt(grant.Version, 10), actor.StaffID.String()).Error; err != nil {
-					return err
-				}
-				return action(actorCtx, tx, actor)
-			})
+		return h.actors.WithCurrentStaffActor(commandCtx, authz.StaffActorScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: s.hospital}, action)
+	})
+}
+
+func setStaffBindingContext(tx *gorm.DB, s staffBindingScope, permission authz.Permission, actor authz.StaffActorReference, writing bool) error {
+	grant, ok := authz.ScopedCommandGrant(tx.Statement.Context, authz.ScopeRequest{TenantID: s.principal.TenantID, Subject: s.principal.Subject, HospitalID: s.hospital.String(), Permission: permission})
+	if !ok {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	mode := "read"
+	if writing {
+		mode = "write"
+	}
+	return tx.Exec(`SELECT set_config('app.pharmacy_subject',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true),set_config('app.pharmacy_staff_binding_hospital',?,true),set_config('app.pharmacy_staff_binding_mode',?,true),set_config('app.pharmacy_staff_binding_permission',?,true),set_config('app.pharmacy_staff_binding_assignment',?,true),set_config('app.pharmacy_staff_binding_assignment_version',?,true),set_config('app.pharmacy_staff_binding_actor',?,true)`, s.principal.Subject, s.outlet.String(), s.pharmacy.String(), s.hospital.String(), mode, string(permission), grant.AssignmentID, strconv.FormatInt(grant.Version, 10), actor.StaffID.String()).Error
+}
+
+func (h *staffDepartmentBindingHandlers) command(c *gin.Context, s staffBindingScope, permission authz.Permission, writing bool, action func(context.Context, *gorm.DB, authz.StaffActorReference) error) error {
+	if h.departments == nil || action == nil {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	return h.withActor(c, s, []authz.Permission{permission, authz.StaffActorUse}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
+		return h.db.WithTenantCommand(actorCtx, s.principal.TenantID, func(tx *gorm.DB) error {
+			if err := setStaffBindingContext(tx, s, permission, actor, writing); err != nil {
+				return err
+			}
+			return action(actorCtx, tx, actor)
 		})
 	})
 }

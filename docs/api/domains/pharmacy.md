@@ -678,3 +678,21 @@ the relationship is under `binding`, with retained `authorizations` and nullable
 replacement transition fields. The earlier unactivated candidate returned only
 the row; it was corrected before release to match the typed SDK and retained
 receipt contract. Initial response, exact replay and GET recovery are equal.
+
+
+Candidate GET `/v1/pharmacy/hospitals/{hospital}/staff-binding-outlet-choices`
+accepts one `purpose=read|prepare|review` (default read), limit 1–10 and optional
+opaque cursor bound to purpose/hospital/account. It returns only pharmacy/outlet
+IDs and owner-record names. It needs matching expected-tenant/subject assertions,
+exact hospital-scoped binding read authority and a current Staff actor; prepare
+or review adds its exact action authority. Every listed outlet must have an
+explicit current reader/editor grant (editor for prepare/review) and a
+hospital-owned parent. Standalone parents are excluded without inventing a
+hospital relationship. Gates/access locks are acquired in ascending outlet ID
+order; presentation retains descending created-at/ID keyset order. Protected
+read audits retain null binding ID and real outlet/hospital/actor plus two or
+three authority observations. Revocation and audit failures withhold the page.
+This metadata projection requires no catalogue/private HR permission and grants
+no operating authority. The candidate Staff read view is
+`/workforce/pharmacy-relationships`; proposal/review/recovery controls and normal
+role browser acceptance remain open. No new migration is added by these choices.

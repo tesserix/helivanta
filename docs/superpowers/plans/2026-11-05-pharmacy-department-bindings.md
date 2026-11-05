@@ -178,3 +178,58 @@ choices. They, the binding workspace, source/outlet-writer and competing-command
 orderings, ordinary-role positive browser acceptance and full operational
 lifecycle enforcement remain open. All five parent requirements and the shared
 21-area acceptance counts remain unchanged.
+
+
+## Child increment: canonical choices and read workspace
+
+Continue on `codex/staff-binding-choice-workspace-20261105`, based on parent
+receipt fix **3384bbb0**. The parent retains only that independently published
+wire correction; choices/read workspace are a separate child change.
+
+The own Staff hospital projection and purpose-limited Pharmacy outlet projection
+are implemented and registered, with strict generated Go/Zod models and SDK
+transport/account cancellation protections. Real-owner tests cover independent
+roles, coarse-admin denial, read-only grants, hidden sibling/standalone outlets,
+bounded keyset paging, wrong-purpose cursors, same-session revocation and audit
+rollback. Full Workforce passes **601.269s**, Pharmacy **260.326s**, Global API
+**578.672s**, architecture **86.241s**. Full SDK passes **872 /86 files**.
+
+The Staff read route composes canonical choices, recorded relationships, current
+source detail and protected paged history. The initial missing-selector UI test
+was RED. A later paging test exposed restoration of a verified badge after seeing
+a newer history version; its monotonic observation now passes. Lint found a
+conditional state hook; the protected-history revocation regression reproduced a
+React render failure before the hook was moved to an unconditional position.
+An initial account-change test incorrectly rerendered outside its QueryClient
+provider; an in-provider account harness corrects the test without changing the
+product assertion. Eight focused UI cases pass. No failing test was skipped.
+
+No new migration is added. All 16 Workforce module source pins were re-reviewed:
+the exact diff adds one metadata route and otherwise equals the parent source.
+The existing classifications are unchanged; the two new registered routes remain
+unclassified in the refreshed **833-surface /810-unclassified** inventory.
+Inventory tests pass **15**. Go lint/vet/build, contractdocs and affected web
+lint/typechecks pass. Normal-role browser acceptance, command controls, the
+five-requirement parent objective and the production gates remain open.
+
+
+Full shell passes **1,571 /184 files /374.25s**. The first full shared-UI run
+failed its existing distinct-Staff-icon assertion (24 unique icons for25 pages).
+The new Pharmacy relationship navigation item now uses the existing Pill icon;
+no assertion was weakened. The shell/full SDK, canonical owner suites and focused
+UI results do not constitute positive ordinary-role browser acceptance.
+
+Commands actually run for this child increment: full API/shell/shared-UI Vitest,
+affected package type-check/lint/format:check scripts, the two canonical generator
+checks, scoped golangci-lint, affected Go vet, `go build ./...`, contractdocs
+generate/check, operational inventory generation/check and15 inventory tests,
+webpack production build with `API_URL=http://localhost:8198`, staged Gitleaks
+with redaction and `git diff --cached --check`. The full owner/architecture race
+suites were run serially through the existing cached local integration runtime.
+No install/download, credential change, browser-cookie injection or live rollout
+was performed. Existing Vite configuration, middleware-convention and shared UI
+React Hook Form build warnings remain.
+
+After the icon correction, the full shared UI suite passes **280 /27 files /11.62s**;
+its lint/typecheck and the affected package formatting checks also pass. The
+staged secret scan finds no leaks.

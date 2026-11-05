@@ -1,3 +1,4 @@
+import { apiFetchResponse } from "./client";
 import { pharmacyRoot, type PharmacyScope } from "./pharmacy";
 
 /** One product's sales and returns over a period (#1060). */
@@ -48,8 +49,55 @@ export type PharmacyReceipt = {
 const period = (from: string, to: string) =>
   `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
-export function pharmacyItemSalesPath(scope: PharmacyScope, from: string, to: string) {
-  return `${pharmacyRoot(scope)}/reports/items?${period(from, to)}`;
+/**
+ * An item category, and optionally one of its subcategories, to cut sales by
+ * item and sales and stock by (#988). A sale counts under the category in
+ * force on its sale date; sales and stock lists products by today's.
+ */
+export type PharmacyReportCategory = { categoryId?: string; subcategoryId?: string };
+
+const byCategory = ({ categoryId, subcategoryId }: PharmacyReportCategory = {}) =>
+  (categoryId ? `&category_id=${encodeURIComponent(categoryId)}` : "") +
+  (categoryId && subcategoryId ? `&subcategory_id=${encodeURIComponent(subcategoryId)}` : "");
+
+/** A prescriber, as written on prescriptions: a registration is unique only within its council. */
+export type PharmacyPrescriber = {
+  prescriber_name: string;
+  prescriber_registration: string;
+  prescriber_council: string;
+};
+
+/**
+ * What else sales by item is cut by (#1060): one lot, matched in any case,
+ * and one prescriber, which needs prescription read and is audited.
+ */
+export type PharmacyItemSalesLines = {
+  lotNumber?: string;
+  prescriber?: Pick<PharmacyPrescriber, "prescriber_registration" | "prescriber_council">;
+};
+
+const byLines = ({ lotNumber, prescriber }: PharmacyItemSalesLines = {}) =>
+  (lotNumber ? `&lot_number=${encodeURIComponent(lotNumber)}` : "") +
+  (prescriber
+    ? `&prescriber_registration=${encodeURIComponent(prescriber.prescriber_registration)}` +
+      `&prescriber_council=${encodeURIComponent(prescriber.prescriber_council)}`
+    : "");
+
+export function pharmacyItemSalesPath(
+  scope: PharmacyScope,
+  from: string,
+  to: string,
+  category?: PharmacyReportCategory,
+  lines?: PharmacyItemSalesLines,
+) {
+  return `${pharmacyRoot(scope)}/reports/items?${period(from, to)}${byCategory(category)}${byLines(lines)}`;
+}
+
+/** The prescribers on prescriptions sold against in the period: at most 200, and `more` beyond. */
+export type PharmacyPrescribers = { data: PharmacyPrescriber[]; more: boolean };
+
+export function pharmacyPrescribersPath(scope: PharmacyScope, from: string, to: string) {
+  return `${pharmacyRoot(scope)}/reports/prescribers?${period(from, to)}`;
 }
 
 export function pharmacyReceiptsPath(scope: PharmacyScope, from: string, to: string) {
@@ -106,6 +154,49 @@ export function pharmacyPatientSalesPath(
   return `${pharmacyRoot(scope)}/reports/patient-sales?patient_id=${encodeURIComponent(patientId)}&${period(from, to)}`;
 }
 
-export function pharmacyStockSalesPath(scope: PharmacyScope, from: string, to: string) {
-  return `${pharmacyRoot(scope)}/reports/stock-sales?${period(from, to)}`;
+export function pharmacyStockSalesPath(
+  scope: PharmacyScope,
+  from: string,
+  to: string,
+  category?: PharmacyReportCategory,
+) {
+  return `${pharmacyRoot(scope)}/reports/stock-sales?${period(from, to)}${byCategory(category)}`;
+}
+
+/**
+ * A report's path as its CSV (#1060), with the same filters. The file holds
+ * every row, or the server refuses it; a file naming or pointing to a person
+ * is recorded as a disclosure.
+ */
+export function pharmacyReportCSVPath(path: string) {
+  const csv = path.replace(
+    /(\/reports\/(?:items|receipts|stock-sales|patient-sales|daily)|\/sales\/worklist)\?/,
+    "$1.csv?",
+  );
+  if (csv === path) throw new Error(`No CSV of ${path}`);
+  return csv;
+}
+
+/** A report's CSV, from its page path. */
+export async function fetchPharmacyReportCSV(
+  scope: PharmacyScope,
+  path: string,
+  signal: AbortSignal,
+): Promise<{ blob: Blob; filename: string }> {
+  signal.throwIfAborted();
+  const response = await apiFetchResponse(pharmacyReportCSVPath(path), {
+    headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
+    cache: "no-store",
+    signal,
+  });
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename =
+    /^attachment; filename="(pharmacy-(?:items|receipts|stock-sales|patient-sales|daily|sales-worklist)-[a-z0-9-]+\.csv)"$/.exec(
+      disposition,
+    )?.[1];
+  if (!filename || !/^text\/csv(?:;|$)/i.test(response.headers.get("Content-Type") ?? ""))
+    throw new Error("The server did not return a valid report CSV. Try again.");
+  const blob = await response.blob();
+  signal.throwIfAborted();
+  return { blob, filename };
 }

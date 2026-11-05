@@ -38,6 +38,13 @@ type dailyDay struct {
 	CashRefundMinor  int64  `json:"cash_refund_minor"`
 	UPIRefundMinor   int64  `json:"upi_refund_minor"`
 	CardRefundMinor  int64  `json:"card_refund_minor"`
+	// Read by the CSV test (#1060), which checks every column.
+	AdmissionAccountMinor            int64 `json:"admission_account_minor"`
+	AdmissionAccountRefundMinor      int64 `json:"admission_account_refund_minor"`
+	ServiceChargesMinor              int64 `json:"service_charges_minor"`
+	ServiceChargesTaxableMinor       int64 `json:"service_charges_taxable_minor"`
+	ServiceChargeCreditsMinor        int64 `json:"service_charge_credits_minor"`
+	ServiceChargeCreditsTaxableMinor int64 `json:"service_charge_credits_taxable_minor"`
 }
 
 func dailyReport(t *testing.T, w saleWorld, who, period string) (int, []dailyDay, string) {

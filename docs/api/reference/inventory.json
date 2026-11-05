@@ -3004,7 +3004,25 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily.csv",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/daily",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/items.csv",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
           "membership_required": true,
@@ -3022,6 +3040,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales.csv",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/patient-sales",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
@@ -3031,11 +3058,38 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/prescribers",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts.csv",
+          "permission": "pharmacy.sale.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/receipts",
           "permission": "pharmacy.sale.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/reports/stock-sales.csv",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -3087,6 +3141,15 @@
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/quote",
           "permission": "pharmacy.sale.create",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/worklist.csv",
+          "permission": "pharmacy.sale.read",
           "authentication_required": true,
           "membership_required": true,
           "paginated": false,

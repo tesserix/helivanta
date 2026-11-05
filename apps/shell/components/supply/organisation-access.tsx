@@ -22,7 +22,14 @@ import {
   type SupplyLegacyGrant as LegacyGrant,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  firstError,
+  RequestFailure,
+} from "@helivanta/ui";
 import { OrganisationAccessLimits } from "./organisation-access-limits";
 import {
   AccessWindowPolicyStatus,
@@ -82,7 +89,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
             grants.retry();
             legacy.retry();
           }}
-          error={grants.error ?? legacy.error}
+          error={firstError(grants.error, legacy.error)}
         />
       </section>
     );

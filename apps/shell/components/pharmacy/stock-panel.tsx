@@ -33,6 +33,7 @@ import {
   ListDetail,
   LoadMore,
   Panel,
+  firstError,
   RequestFailure,
   SelectControl,
   useConfirmLeave,
@@ -206,7 +207,7 @@ export function StockPanel({
                     locations.retry();
                     products.retry();
                   }}
-                  error={locations.error ?? products.error}
+                  error={firstError(locations.error, products.error)}
                 />
               ) : (
                 <>

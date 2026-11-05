@@ -174,3 +174,19 @@ it("shows the empty state and focuses the new policy form", async () => {
   expect(screen.getByLabelText("Jurisdiction")).toBeInTheDocument();
   expect(screen.getAllByRole("group", { name: /requirement/ })).toHaveLength(11);
 });
+
+// #1591: a refused read is not an outage, so it offers no retry.
+it("shows a 403 as a refusal with no retry", async () => {
+  const fetcher = fixture();
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url: string) =>
+    url.includes("country-policies")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "no" }), { status: 403 })
+      : original(url),
+  );
+  renderWithProviders(<CountryPolicyWorkspace />);
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});

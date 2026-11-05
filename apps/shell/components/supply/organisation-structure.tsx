@@ -21,7 +21,14 @@ import {
   type SupplyPartySummary,
   type SupplyRegistryScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  firstError,
+  RequestFailure,
+} from "@helivanta/ui";
 
 export function OrganisationStructure({
   scope,
@@ -684,7 +691,7 @@ function TerritoryEditor({
                 candidates.retry();
                 legacy.retry();
               }}
-              error={candidates.error ?? legacy.error}
+              error={firstError(candidates.error, legacy.error)}
             />
           ) : (
             <>

@@ -39,6 +39,7 @@ import {
   Pager,
   Panel,
   QueryState,
+  firstError,
   RequestFailure,
   SelectControl,
   isModifiedClick,
@@ -321,7 +322,7 @@ function SafetyCollections({
           if (canReadProducts) products.retry();
           locations.retry();
         }}
-        error={batches.error ?? locations.error}
+        error={firstError(batches.error, locations.error)}
       />
     );
   if (batches.isPending || locations.isPending)

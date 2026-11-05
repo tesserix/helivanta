@@ -12,6 +12,14 @@ export function isRefusal(error: unknown): boolean {
   return error instanceof ApiError && [401, 403, 404].includes(error.status);
 }
 
+/**
+ * The error to show for a panel that reads several queries: a refusal wins,
+ * since retrying cannot fix it even if another query merely failed.
+ */
+export function firstError(...errors: unknown[]): unknown {
+  return errors.find(isRefusal) ?? errors.find((error) => error != null) ?? null;
+}
+
 export function RequestFailure({
   message,
   retry,

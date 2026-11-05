@@ -3,7 +3,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ApiError } from "@helivanta/api";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { RequestFailure } from "./request-failure";
+import { RequestFailure, firstError } from "./request-failure";
 
 const refused = "You don't have access to these reports.";
 
@@ -70,6 +70,19 @@ describe("RequestFailure", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Could not load.");
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledOnce();
+  });
+});
+
+describe("firstError", () => {
+  const refusal = new ApiError("forbidden", "no", 403);
+  const outage = new ApiError("internal", "boom", 500);
+  it("prefers a refusal whichever query it came from", () => {
+    expect(firstError(outage, refusal)).toBe(refusal);
+    expect(firstError(null, refusal, outage)).toBe(refusal);
+  });
+  it("otherwise gives the first error, or null", () => {
+    expect(firstError(null, outage)).toBe(outage);
+    expect(firstError(null, undefined)).toBeNull();
   });
 });
 

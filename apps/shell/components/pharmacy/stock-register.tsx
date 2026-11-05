@@ -27,6 +27,7 @@ import {
   ListDetail,
   LoadMore,
   Panel,
+  firstError,
   RequestFailure,
   SelectControl,
   useConfirmLeave,
@@ -277,7 +278,7 @@ function OutletStockRegister({ scope, timeZone = "UTC" }: Props) {
               locations.retry();
               products.retry();
             }}
-            error={locations.error ?? products.error}
+            error={firstError(locations.error, products.error)}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">

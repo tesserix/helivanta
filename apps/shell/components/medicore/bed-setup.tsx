@@ -17,7 +17,14 @@ import {
   type Room,
   type Ward,
 } from "@helivanta/api";
-import { Field, FormSelectField, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  Panel,
+  firstError,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -50,7 +57,7 @@ export function BedSetup({ hospital }: { hospital: Hospital }) {
             wards.retry();
             rooms.retry();
           }}
-          error={wards.error ?? rooms.error}
+          error={firstError(wards.error, rooms.error)}
         />
       ) : (
         <>

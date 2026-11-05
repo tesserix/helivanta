@@ -25,6 +25,7 @@ import {
   FormSelectField,
   LoadMore,
   Panel,
+  firstError,
   RequestFailure,
   useZodForm,
 } from "@helivanta/ui";
@@ -277,7 +278,7 @@ export function ProductCategorySection({
             void current.refetch();
             categories.retry();
           }}
-          error={current.error ?? categories.error}
+          error={firstError(current.error, categories.error)}
         />
       ) : !current.data || categories.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">

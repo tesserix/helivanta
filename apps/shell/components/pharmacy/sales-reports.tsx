@@ -202,19 +202,23 @@ function PrescriberPicker({
 
 /**
  * A report's CSV, of what it shows (#1060). Keyed by its path, so a new
- * period or filter replaces it and cancels a download in flight.
+ * period or filter replaces it and cancels a download in flight. `recorded`
+ * says when the file is recorded as a disclosure.
  */
-function ReportDownload({
+export function ReportDownload({
   scope,
   path,
   label,
+  recorded,
 }: {
   scope: PharmacyScope;
   path: string;
   label: string;
+  recorded?: string;
 }) {
   return (
     <div className="mt-2">
+      {recorded && <p className="text-sm text-muted-foreground">{recorded}</p>}
       <RegisterExport
         key={path}
         noun="report"
@@ -261,15 +265,12 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
         value={lines.prescriber}
         onChange={(prescriber) => setLines((l) => ({ ...l, prescriber }))}
       />
-      {lines.prescriber ? (
-        // Sales by a prescriber are personal; their file needs a disclosure
-        // audit, so the API refuses it.
-        <p className="mt-2 text-sm text-muted-foreground">
-          Sales by one prescriber cannot be downloaded yet.
-        </p>
-      ) : (
-        <ReportDownload scope={scope} path={path} label="Sales by item export" />
-      )}
+      <ReportDownload
+        scope={scope}
+        path={path}
+        label="Sales by item export"
+        recorded={lines.prescriber && "A download of one prescriber's sales is recorded."}
+      />
       {items.isError ? (
         <RequestFailure message="Could not load sales by item." retry={items.retry} />
       ) : items.isPending ? (
@@ -457,12 +458,19 @@ export function PatientSaleLines({
   period: Period;
   patient: CounterPatient;
 }) {
+  const path = pharmacyPatientSalesPath(scope, patient.patient_id, period.from, period.to);
   const lines = useApiPagedQuery<PharmacyPatientSaleLine>(
     pharmacyKey(scope, "patient-sales", patient.patient_id, period.from, period.to),
-    pharmacyPatientSalesPath(scope, patient.patient_id, period.from, period.to),
+    path,
   );
   return (
     <>
+      <ReportDownload
+        scope={scope}
+        path={path}
+        label="Patient-wise sales export"
+        recorded="Each download is recorded."
+      />
       {lines.isError ? (
         <RequestFailure message="Could not load the patient's purchases." retry={lines.retry} />
       ) : lines.isPending ? (

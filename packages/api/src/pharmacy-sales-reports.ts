@@ -164,12 +164,15 @@ export function pharmacyStockSalesPath(
 }
 
 /**
- * A report's path as its CSV (#1060): sales by item, receipts and refunds, or
- * sales and stock, with the same filters. The file holds every row, or the
- * server refuses it.
+ * A report's path as its CSV (#1060), with the same filters. The file holds
+ * every row, or the server refuses it; a file naming or pointing to a person
+ * is recorded as a disclosure.
  */
 export function pharmacyReportCSVPath(path: string) {
-  const csv = path.replace(/\/reports\/(items|receipts|stock-sales)\?/, "/reports/$1.csv?");
+  const csv = path.replace(
+    /(\/reports\/(?:items|receipts|stock-sales|patient-sales|daily)|\/sales\/worklist)\?/,
+    "$1.csv?",
+  );
   if (csv === path) throw new Error(`No CSV of ${path}`);
   return csv;
 }
@@ -188,7 +191,7 @@ export async function fetchPharmacyReportCSV(
   });
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const filename =
-    /^attachment; filename="(pharmacy-(?:items|receipts|stock-sales)-[a-z0-9-]+\.csv)"$/.exec(
+    /^attachment; filename="(pharmacy-(?:items|receipts|stock-sales|patient-sales|daily|sales-worklist)-[a-z0-9-]+\.csv)"$/.exec(
       disposition,
     )?.[1];
   if (!filename || !/^text\/csv(?:;|$)/i.test(response.headers.get("Content-Type") ?? ""))

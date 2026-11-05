@@ -28,11 +28,11 @@ test("a licence is entered, scanned, privately downloaded and reviewed by a sepa
 }) => {
   test.setTimeout(150_000);
   await login(page, specAdmin());
-  const { outlet, stamp } = await newOutlet(page);
+  const { outlet, stamp, timeZone } = await newOutlet(page);
   await page.goto("/pharmacy/setup");
   await page.getByRole("button", { name: "Open TEST-OVW", exact: true }).click();
   const pane = page.getByRole("region", { name: "Outlet TEST Overview Outlet" });
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
   const until = new Date(`${today}T00:00:00Z`);
   until.setUTCDate(until.getUTCDate() + 14);
   const number = `TEST-UI-${stamp}`;

@@ -124,5 +124,28 @@
       "sql_sha256": "ae7a6f15b23e4b05a85ba52a1e16ebf1ba89b36ed07b73b5ef4cda9ce639b672",
       "creates_tables": []
     }
-  ]
+  ],
+  "production_rollout": {
+    "main_revision": "62f3f7fd180f5ce9800d70807217b1cb2131d54a",
+    "pr": 1565,
+    "main_ci": "success",
+    "freight": "1afd48c1194c46b97db1a89afcfe7b7c994ba06f",
+    "promotion": "prod.01m6mwm1fjscfvx6162wtj6445.1afd48c",
+    "promotion_phase": "Succeeded",
+    "migration_job_succeeded": true,
+    "ledger_receipts_after_apply": 240,
+    "applied_at": "2026-11-05T03:39:57Z",
+    "image_digests": {
+      "api": "sha256:012c821c4b97907760b57ce17c29d59551cba2832738d197ad02fdcdbfe86356",
+      "shell": "sha256:e3666affd91aed0fd8593b30ffb6c689695952206da9c3dc86a85d7d2497f82f"
+    },
+    "new_tables_forced_rls": 13,
+    "concurrent_index_valid": true,
+    "unready_workers": [
+      "helivanta-document-worker",
+      "helivanta-pharmacy-evidence-worker",
+      "helivanta-supply-evidence-worker"
+    ],
+    "unready_reason": "ClamAV daily 28173 (2026-11-03T06:27:52Z) is the current upstream set and exceeds ReadyDefinitionAge"
+  }
 }

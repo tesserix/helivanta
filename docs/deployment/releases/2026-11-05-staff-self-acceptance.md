@@ -1,8 +1,36 @@
 # Staff posting and Pharmacy workspace release for user acceptance
 
-Status: assembled; protected main checks and production migration/rollout approval
-are pending. This record does not claim production deployment or completed Staff
-Management acceptance.
+Status: deployed to production on 2026-11-05. The three file-scanning workers stay
+unready (see [Existing readiness limitation](#existing-readiness-limitation)).
+Independent browser acceptance is pending. This record does not claim completed
+Staff Management acceptance.
+
+## Verified production evidence
+
+All values were read-only on 2026-11-05.
+
+- **Source.** PR #1565 merged to main as **62f3f7fd**. Every required main CI job
+  passed (`go`, `web`, `scripts`, `e2e`, secret scan). The signed image workflow
+  passed and the deploy branch advanced to that revision.
+- **Promotion.** Kargo freight `1afd48c1` (`nordic-aardwolf`) was promoted to
+  `prod` by `prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`, phase `Succeeded`, at
+  03:39 UTC.
+- **Migrations.** `helivanta-api-migrate` ran from the exact release image and
+  succeeded. The production ledger now holds **240** IDs. All 13 pending IDs were
+  applied at 03:39:56–57 UTC. All 13 new tables have row security enabled and
+  forced, with policies. The 0083 concurrent index
+  `workforce_posting_supervisor_choice_order` is valid and ready, and no invalid
+  index exists. The only unvalidated constraint is the earlier, deliberately
+  `NOT VALID` `patients_hospital_required`.
+- **Images.** API, Global API, shell and the four workers run tag `62f3f7fd`. Digests:
+  API `sha256:012c821c…fe86356`, shell `sha256:e3666aff…497f82f`. The full values
+  are in the [migration manifest](2026-11-05-staff-self-acceptance-migrations.json).
+- **Health.** API, Global API, shell and emergency worker each have 2/2 ready
+  replicas with no restarts. Argo CD `helivanta-global-api` and `helivanta-shell`
+  are Synced/Healthy. `helivanta-api` is Synced/Degraded, only because of the
+  scanner-worker limitation below.
+- **Routing.** `https://helivanta.app/` and `/login` return 200, and `/api/*`
+  reaches the authenticated Global API (401 without a session).
 
 ## Source and verification
 
@@ -85,6 +113,14 @@ Do not alter timestamps, publish synthetic definitions, bypass scanning or weake
 freshness thresholds. Obtain a genuinely current trusted upstream definition set
 through the existing updater before declaring those workers healthy. Until then,
 file/evidence processing remains an explicitly reported limitation.
+
+After promotion, at 2026-11-05T03:56Z, the rolled-out workers were still unready
+for the same reason (`/readyz` 503), and the updater still reported 28173 as
+up-to-date. Two public resolvers return 28173 for `current.cvd.clamav.net`, and
+the official CDN's `daily.cvd` has `Last-Modified: 2026-11-03T06:27:00Z`. The
+cluster therefore holds the current upstream set, and the gap is upstream. At
+2026-11-05T06:27:52Z the definitions pass the 48-hour release limit, and file
+release fails closed until ClamAV publishes a newer daily.
 
 ## Promotion and user testing
 

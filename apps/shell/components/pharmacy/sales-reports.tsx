@@ -212,14 +212,14 @@ function PrescriberPicker({
   );
 }
 
+/** Said where a report is refused: retrying cannot change an access answer. */
+export const reportsRefused = "You don't have access to this outlet's reports.";
+
 /**
  * A report's CSV, of what it shows (#1060). Keyed by its path, so a new
  * period or filter replaces it and cancels a download in flight. `recorded`
  * says when the file is recorded as a disclosure.
  */
-/** Said where a report is refused: retrying cannot change an access answer. */
-export const reportsRefused = "You don't have access to this outlet's reports.";
-
 export function ReportDownload({
   scope,
   path,

@@ -26,15 +26,16 @@ export async function affiliatedPatient(admin: Page, cashier: Page, outlet: stri
   await owner(admin, "PUT", `${registry}/${encodeURIComponent(administrator.subject)}`, {
     level: "registrar",
   });
-  const name = `TEST Report Patient ${randomUUID().slice(0, 8)}`;
+  const given = `TEST Report Patient ${randomUUID().slice(0, 8)}`;
+  const family = `SYNTHETIC-${randomUUID()}`;
   const { patient } = await owner<{ patient: { id: string; mrn: string } }>(
     admin,
     "POST",
     `/patients?hospital_id=${hospitalId}`,
     {
       request_id: randomUUID(),
-      given_name: name,
-      family_name: `SYNTHETIC-${randomUUID()}`,
+      given_name: given,
+      family_name: family,
       dob: "1990-01-01",
       sex: "other",
       notice_version: "TEST-E2E-1060",
@@ -101,5 +102,6 @@ export async function affiliatedPatient(admin: Page, cashier: Page, outlet: stri
       message: "the link is active on both sides",
     })
     .toBe(200);
-  return { patientId: patient.id, mrn: patient.mrn, hospitalId, name };
+  // The name as patientmaster's lookup shows it.
+  return { patientId: patient.id, mrn: patient.mrn, hospitalId, name: `${given} ${family}` };
 }

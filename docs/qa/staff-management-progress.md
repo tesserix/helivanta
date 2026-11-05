@@ -1,5 +1,29 @@
 # Staff Management delivery tracker
 
+## Deployed for user acceptance — 2026-11-05
+
+**62f3f7fd** is deployed through successful Kargo promotion
+`prod.01m6mwm1fjscfvx6162wtj6445.1afd48c`. All 13 approved migrations are applied:
+production receipts increased **227→240**, with the exact new IDs verified. The
+13 new tables have forced RLS, their constraints validate, the concurrent index
+is valid/ready, and 18 installed function bodies/security modes match canonical
+SQL. The release manifest and execution record are updated.
+
+API, Global API, UI and emergency workers have **2/2 ready replicas** on the
+released tag. The Staff relationship page redirects anonymous users to login;
+unauthenticated Staff metadata requests return 401. The user can test at
+[Pharmacy relationships](https://helivanta.app/workforce/pharmacy-relationships).
+Positive-role browser acceptance is delegated to the user and remains unclaimed.
+
+The three document/evidence workers remain unready from the pre-existing
+antivirus definition age condition. Readiness and file-release freshness limits
+remain enforced; promotion success does not establish full worker health. The
+actual production context is the India GKE context recorded in the release note.
+
+All five foundation requirements remain active. Overall Staff Management is
+still **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**. The broad
+autonomous goal remains paused; this records the explicitly approved deployment.
+
 ## Staff release assembly for user testing — 2026-11-05
 
 The13 dependent PRs are merged into release PR1565; application source is

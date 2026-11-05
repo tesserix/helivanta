@@ -81,10 +81,12 @@ func TestPostingSupervisorChoiceQueryUsesBoundedIndexedProbes(t *testing.T) {
 			statement := postingSupervisorChoiceQuery(tx.Session(&gorm.Session{DryRun: true}), principal, hospital, page).Find(&data).Statement
 			rows, err := tx.Statement.ConnPool.QueryContext(t.Context(), "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+statement.SQL.String(), statement.Vars...)
 			require.NoError(t, err)
+			defer func() { require.NoError(t, rows.Close()) }()
 			require.True(t, rows.Next())
 			var raw []byte
 			require.NoError(t, rows.Scan(&raw))
-			require.NoError(t, rows.Close())
+			require.False(t, rows.Next())
+			require.NoError(t, rows.Err())
 			require.Contains(t, string(raw), "workforce_posting_supervisor_choice_order")
 			var plan []struct {
 				ExecutionTime float64 `json:"Execution Time"`
@@ -106,10 +108,12 @@ func TestPostingSupervisorChoiceQueryUsesBoundedIndexedProbes(t *testing.T) {
 				labelStatement := postingChainLabelQuery(tx.Session(&gorm.Session{DryRun: true}), principal, hospital, keys).Find(&labels).Statement
 				labelRows, labelErr := tx.Statement.ConnPool.QueryContext(t.Context(), "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+labelStatement.SQL.String(), labelStatement.Vars...)
 				require.NoError(t, labelErr)
+				defer func() { require.NoError(t, labelRows.Close()) }()
 				require.True(t, labelRows.Next())
 				var labelRaw []byte
 				require.NoError(t, labelRows.Scan(&labelRaw))
-				require.NoError(t, labelRows.Close())
+				require.False(t, labelRows.Next())
+				require.NoError(t, labelRows.Err())
 				require.Contains(t, string(labelRaw), "workforce_posting_supervision_intents_pkey")
 				require.NoError(t, json.Unmarshal(labelRaw, &plan))
 				require.Equal(t, 9, plan[0].Plan.ActualRows)

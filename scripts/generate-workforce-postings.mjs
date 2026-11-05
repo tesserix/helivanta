@@ -10,6 +10,11 @@ const contract = JSON.parse(
 );
 const models = emitModels(contract.models);
 const validation = `
+const validPostingLifecycleInput = (value:{cutoff_versions:number[];effective_until:string},ctx:z.RefinementCtx) => {
+ const until=staffPostingInstantMicros(value.effective_until),lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
+ if(value.cutoff_versions[0]!==0||value.cutoff_versions.some(version=>!Number.isSafeInteger(version)||version<0||version>9007199254740990))ctx.addIssue({code:"custom",path:["cutoff_versions"],message:"Choose the exact ordered cutoff observations, including local absence."});
+ if(until===null||until<=lower||until>upper)ctx.addIssue({code:"custom",path:["effective_until"],message:"Choose the exact effective lifecycle deadline."});
+};
 const validPostingCutoffObservation = (value:{id:string|null;version:number;cutoff_at:string|null},ctx:z.RefinementCtx) => {
  const lower=staffPostingInstantMicros("0001-01-01T00:00:00Z")!,upper=staffPostingInstantMicros("9999-12-31T23:59:59.999999Z")!;
  const instant=value.cutoff_at===null?null:staffPostingInstantMicros(value.cutoff_at);
@@ -78,7 +83,8 @@ const validSupervisionIntent = (value:{kind:string;supervisor_staff_id?:string;s
  if(value.kind==="hospital_management"?(staff||proposal||revision):(!staff||!proposal||!revision))ctx.addIssue({code:"custom",path:["supervisor_proposal_id"],message:"Hospital management is an explicit root; other postings require the canonical Staff member and exact supervisor proposal and revision."});
  for(const key of ["supervisor_proposal_id","supervisor_revision_id"] as const)if(value[key]!==undefined&&!z.uuidv7().safeParse(value[key]).success)ctx.addIssue({code:"custom",path:[key],message:"Choose the exact approved supervisor proposal and revision."});
 };
-const validProposalDecision = (value:{expected_revision_id:string;reason:string;decision:string;hospital_management_reviewed?:boolean},ctx:z.RefinementCtx) => {
+const validProposalDecision = (value:{expected_revision_id:string;reason:string;decision:string;hospital_management_reviewed?:boolean;lifecycle_review?:unknown},ctx:z.RefinementCtx) => {
+ if(value.lifecycle_review!==undefined&&value.decision!=="approve")ctx.addIssue({code:"custom",path:["lifecycle_review"],message:"Lifecycle observations apply only to approval."});
  if(!z.uuidv7().safeParse(value.expected_revision_id).success)ctx.addIssue({code:"custom",path:["expected_revision_id"],message:"Choose the exact pending proposal revision."});
  if(/\\p{Cc}/u.test(value.reason))ctx.addIssue({code:"custom",path:["reason"],message:"Remove control characters."});
  if(value.hospital_management_reviewed===true&&value.decision!=="approve")ctx.addIssue({code:"custom",path:["hospital_management_reviewed"],message:"Hospital management review applies only to approval."});
@@ -105,6 +111,10 @@ const validReviewSource = (value:{generation_id:string|null;generation_state:str
 };
 `;
 const refined = models.ts
+  .replace(
+    /(export const StaffPostingLifecycleReviewInputContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
+    "$1.superRefine(validPostingLifecycleInput);",
+  )
   .replace(
     /(export const StaffPostingCutoffObservationContract=z\.object\(\{[\s\S]*?\}\)\.strict\(\));/g,
     "$1.superRefine(validPostingCutoffObservation);",

@@ -2,13 +2,18 @@ package pharmacy
 
 import (
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/tesserix/helivanta/internal/platform/respond"
+	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
@@ -50,8 +55,12 @@ func (r itemSalesRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.P
 // itemSalesRows is one row per product with a sale line or a credit-note line
 // in [since, until]. A stocked product's currency and pack size cannot change
 // (pharmacy_stock_product_identity_guard), so a row never mixes either.
-// Service charges are not products: the daily report shows them.
-const itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.manufacturer, c.pack_size, c.unit_of_issue, c.currency,
+// Service charges are not products: the daily report shows them. A category
+// filter counts a sale line under the category in force on its sale date and
+// a credit-note line under its sale line's, so a return always cancels the
+// sale it returns (#988). A lot or prescriber filter matches a credit-note
+// line by its sale line too (#1060).
+var itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.manufacturer, c.pack_size, c.unit_of_issue, c.currency,
  COALESCE(s.units_sold,0)::bigint AS units_sold, COALESCE(s.sales_minor,0)::bigint AS sales_minor, COALESCE(s.discount_minor,0)::bigint AS discount_minor,
  COALESCE(s.sales_taxable_minor,0)::bigint AS sales_taxable_minor, COALESCE(s.sales_cgst_minor,0)::bigint AS sales_cgst_minor,
  COALESCE(s.sales_sgst_minor,0)::bigint AS sales_sgst_minor, s.mrp_low_minor, s.mrp_high_minor,
@@ -64,13 +73,14 @@ const itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generi
    sum(l.taxable_minor) AS sales_taxable_minor, sum(l.cgst_minor) AS sales_cgst_minor, sum(l.sgst_minor) AS sales_sgst_minor,
    min(l.mrp_minor) AS mrp_low_minor, max(l.mrp_minor) AS mrp_high_minor
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
-  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date GROUP BY l.product_id) s ON s.product_id=c.id
+  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date AND ` + categoryOn("s", "l.product_id", "s.sale_date") + ` AND ` + lineFilters("l") + ` GROUP BY l.product_id) s ON s.product_id=c.id
  LEFT JOIN (SELECT sl.product_id, sum(cl.quantity_units) AS units_returned, sum(cl.amount_minor) AS credits_minor, sum(cl.taxable_minor) AS credits_taxable_minor,
    sum(cl.cgst_minor) AS credits_cgst_minor, sum(cl.sgst_minor) AS credits_sgst_minor
   FROM pharmacy_credit_note_lines cl
   JOIN pharmacy_credit_notes n ON n.tenant_id=cl.tenant_id AND n.outlet_id=cl.outlet_id AND n.id=cl.credit_note_id
   JOIN pharmacy_sale_lines sl ON sl.tenant_id=cl.tenant_id AND sl.outlet_id=cl.outlet_id AND sl.sale_id=cl.sale_id AND sl.line_number=cl.sale_line
-  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date GROUP BY sl.product_id) r ON r.product_id=c.id
+  JOIN pharmacy_sales os ON os.tenant_id=sl.tenant_id AND os.outlet_id=sl.outlet_id AND os.id=sl.sale_id
+  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date AND ` + categoryOn("os", "sl.product_id", "os.sale_date") + ` AND ` + lineFilters("sl") + ` GROUP BY sl.product_id) r ON r.product_id=c.id
  WHERE c.tenant_id=? AND c.outlet_id=? AND (s.product_id IS NOT NULL OR r.product_id IS NOT NULL)
   AND (?::uuid IS NULL OR c.id=?::uuid)) e`
 
@@ -169,8 +179,10 @@ func (r stockSalesRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.
 // date, as sales by item counts them, units on hand from all its movements,
 // and units a sale may take today through the counter's own predicate
 // (pharmacy_sellable_buckets), so flagged, expired and unpriced batches on a
-// sellable shelf are never shown as sellable.
-const stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.pack_size, c.unit_of_issue,
+// sellable shelf are never shown as sellable. A category filter lists a
+// product by its category today, as its stock is now, and counts its sales
+// line by line as sales by item does (#988).
+var stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.pack_size, c.unit_of_issue,
  COALESCE(s.units,0)::bigint AS units_sold, COALESCE(r.units,0)::bigint AS units_returned, k.on_hand::bigint AS on_hand_units, v.sellable::bigint AS sellable_units
  FROM pharmacy_catalogue_products c
  JOIN (SELECT b.product_id, sum(m.quantity_units) AS on_hand
@@ -180,41 +192,85 @@ const stockSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.gener
  CROSS JOIN LATERAL (SELECT COALESCE(sum(on_hand),0) AS sellable FROM pharmacy_sellable_buckets(c.tenant_id, c.outlet_id, c.id, ?::date)) v
  LEFT JOIN (SELECT l.product_id, sum(l.quantity_units) AS units
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
-  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date GROUP BY l.product_id) s ON s.product_id=c.id
+  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date AND ` + categoryOn("s", "l.product_id", "s.sale_date") + ` GROUP BY l.product_id) s ON s.product_id=c.id
  LEFT JOIN (SELECT sl.product_id, sum(cl.quantity_units) AS units
   FROM pharmacy_credit_note_lines cl
   JOIN pharmacy_credit_notes n ON n.tenant_id=cl.tenant_id AND n.outlet_id=cl.outlet_id AND n.id=cl.credit_note_id
   JOIN pharmacy_sale_lines sl ON sl.tenant_id=cl.tenant_id AND sl.outlet_id=cl.outlet_id AND sl.sale_id=cl.sale_id AND sl.line_number=cl.sale_line
-  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date GROUP BY sl.product_id) r ON r.product_id=c.id
- WHERE c.tenant_id=? AND c.outlet_id=?) e`
+  JOIN pharmacy_sales os ON os.tenant_id=sl.tenant_id AND os.outlet_id=sl.outlet_id AND os.id=sl.sale_id
+  WHERE n.tenant_id=? AND n.outlet_id=? AND n.credit_note_date BETWEEN ?::date AND ?::date AND ` + categoryOn("os", "sl.product_id", "os.sale_date") + ` GROUP BY sl.product_id) r ON r.product_id=c.id
+ WHERE c.tenant_id=? AND c.outlet_id=? AND ` + categoryOn("c", "c.id", "?::date") + `) e`
+
+// categoryOn is true when no category filter is set, or when the category in
+// force for product on day matches it; rel holds the tenant and outlet. Its
+// arguments are salesReportFilter.categoryArgs.
+func categoryOn(rel, product, day string) string {
+	return `(?::uuid IS NULL OR EXISTS (SELECT 1 FROM pharmacy_product_category_on(` + rel + `.tenant_id, ` + rel + `.outlet_id, ` + product + `, ` + day + `) pc
+  WHERE pc.category_id=?::uuid AND (?::uuid IS NULL OR pc.subcategory_id=?::uuid)))`
+}
+
+// lineFilters is true when a sale line (alias line) is of the lot filtered
+// for, if any, and cites a prescription by the prescriber filtered for, if
+// any; an OTC line cites none and never matches a prescriber. Its arguments
+// are salesReportFilter.lineArgs.
+func lineFilters(line string) string {
+	return `(?::text IS NULL OR upper(btrim(` + line + `.lot_number))=upper(?::text))
+  AND (?::text IS NULL OR EXISTS (SELECT 1 FROM pharmacy_prescriptions rx WHERE rx.tenant_id=` + line + `.tenant_id AND rx.outlet_id=` + line + `.outlet_id
+   AND rx.id=` + line + `.prescription_id AND rx.prescriber_registration=?::text AND rx.prescriber_council=?::text))`
+}
 
 var receiptKinds = map[string]bool{"cash": true, "upi": true, "upi_verified": true, "card": true, "admission_account": true}
 
-func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
-	return salesReportPage[itemSalesRow](c, h, params, "sales by item", "product_id", itemSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		period := []any{tenant, outlet, f.since, f.until}
+// salesReport is one report: its query, its filters and their arguments.
+// Its pages and its CSV file (report_csv.go) read it the same way.
+type salesReport[T any] struct {
+	what, filter string
+	extras       reportExtras
+	query        string
+	args         func(string, uuid.UUID, salesReportFilter) []any
+}
+
+var itemSalesReport = salesReport[itemSalesRow]{"sales by item", "product_id", reportExtras{category: true, line: true}, itemSalesRows,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		period := append(append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...), f.lineArgs()...)
 		return append(append(period, period...), tenant, outlet, f.product, f.product)
-	})
+	}}
+
+var patientSalesReport = salesReport[patientSaleLine]{"patient-wise sales", "patient_id", reportExtras{}, patientSaleLines,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		return []any{f.until, tenant, outlet, f.patient, f.since, f.until}
+	}}
+
+var stockSalesReport = salesReport[stockSalesRow]{"the sales stock report", "", reportExtras{category: true}, stockSalesRows,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		period := append([]any{tenant, outlet, f.since, f.until}, f.categoryArgs()...)
+		return append(append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet), f.categoryArgs(f.today)...)
+	}}
+
+var receiptsReport = salesReport[receiptEntry]{"the receipts register", "kind", reportExtras{}, receiptRows,
+	func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
+		half := []any{tenant, outlet, f.since, f.until, f.kind, f.kind}
+		return append(half, half...)
+	}}
+
+func (h *catalogueHandlers) listItemSales(c *gin.Context, params pagination.Params) ([]itemSalesRow, error) {
+	rows, _, _ := itemSalesReport.read(c, h, params, "report_read", nil)
+	return rows, nil
 }
 
 func (h *catalogueHandlers) listPatientSales(c *gin.Context, params pagination.Params) ([]patientSaleLine, error) {
-	return salesReportPage[patientSaleLine](c, h, params, "patient-wise sales", "patient_id", patientSaleLines, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		return []any{f.until, tenant, outlet, f.patient, f.since, f.until}
-	})
+	rows, _, _ := patientSalesReport.read(c, h, params, "report_read", nil)
+	return rows, nil
 }
 
 func (h *catalogueHandlers) listStockSales(c *gin.Context, params pagination.Params) ([]stockSalesRow, error) {
-	return salesReportPage[stockSalesRow](c, h, params, "the sales stock report", "", stockSalesRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		period := []any{tenant, outlet, f.since, f.until}
-		return append(append(append([]any{tenant, outlet, f.today}, period...), period...), tenant, outlet)
-	})
+	rows, _, _ := stockSalesReport.read(c, h, params, "report_read", nil)
+	return rows, nil
 }
 
 func (h *catalogueHandlers) listReceipts(c *gin.Context, params pagination.Params) ([]receiptEntry, error) {
-	return salesReportPage[receiptEntry](c, h, params, "the receipts register", "kind", receiptRows, func(tenant string, outlet uuid.UUID, f salesReportFilter) []any {
-		half := []any{tenant, outlet, f.since, f.until, f.kind, f.kind}
-		return append(half, half...)
-	})
+	rows, _, _ := receiptsReport.read(c, h, params, "report_read", nil)
+	return rows, nil
 }
 
 // salesReportFilter is the period and the one optional filter; an absent
@@ -227,14 +283,41 @@ type salesReportFilter struct {
 	patient *uuid.UUID
 	// today is the outlet's date, read in the transaction.
 	today string
+	// category, and optionally its subcategory, of sales by item and sales
+	// and stock (#988).
+	category, subcategory *uuid.UUID
+	// lot, and the prescriber by registration and council, of sales by item
+	// (#1060).
+	lot, registration, council *string
 }
 
-func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bool) {
+// reportExtras are the filters a report takes beyond its period and its one
+// filter.
+type reportExtras struct{ category, line bool }
+
+// lineArgs are lineFilters' arguments.
+func (f salesReportFilter) lineArgs() []any {
+	return []any{f.lot, f.lot, f.registration, f.registration, f.council}
+}
+
+// categoryArgs are categoryOn's arguments; day is given when categoryOn's
+// day is a placeholder.
+func (f salesReportFilter) categoryArgs(day ...any) []any {
+	return append(append([]any{f.category}, day...), f.category, f.subcategory, f.subcategory)
+}
+
+func salesReportArgs(c *gin.Context, what, filter string, extras reportExtras) (salesReportFilter, bool) {
 	from, to, ok := outletPeriod(c, what)
 	if !ok {
 		return salesReportFilter{}, false
 	}
 	args := salesReportFilter{since: from, until: to}
+	if extras.category && !reportCategory(c, &args) {
+		return args, false
+	}
+	if extras.line && !reportLines(c, &args) {
+		return args, false
+	}
 	switch v := c.Query(filter); {
 	case filter == "patient_id":
 		// Fail closed: without a patient this would be every patient's purchases.
@@ -261,18 +344,89 @@ func salesReportArgs(c *gin.Context, what, filter string) (salesReportFilter, bo
 	return args, true
 }
 
-// salesReportPage refuses malformed scope ids before reading the query
-// string; the outlet grant is checked in the transaction, as for the daily
-// report.
-func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params pagination.Params, what, filter, query string,
-	args func(string, uuid.UUID, salesReportFilter) []any) ([]T, error) {
+// reportCategory reads category_id and subcategory_id. A subcategory alone
+// is refused, not resolved to its parent: fail closed rather than guess. An
+// id that is no category of this outlet simply matches nothing.
+func reportCategory(c *gin.Context, args *salesReportFilter) bool {
+	for _, q := range []struct {
+		name string
+		into **uuid.UUID
+	}{{"category_id", &args.category}, {"subcategory_id", &args.subcategory}} {
+		v := c.Query(q.name)
+		if v == "" {
+			continue
+		}
+		id, err := uuid.Parse(v)
+		if err != nil {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", q.name+" is an id")
+			return false
+		}
+		*q.into = &id
+	}
+	if args.subcategory != nil && args.category == nil {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "subcategory_id needs its category_id")
+		return false
+	}
+	return true
+}
+
+var prescriberRegistration = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9/ .-]{0,39}$`)
+
+// boundedText is s trimmed as the batch and prescription APIs trim what they
+// store (strings.TrimSpace), when it is 1 to max characters with no control
+// character.
+func boundedText(s string, max int) (string, bool) {
+	s = strings.TrimSpace(s)
+	n := utf8.RuneCountInString(s)
+	return s, n >= 1 && n <= max && !strings.ContainsFunc(s, unicode.IsControl)
+}
+
+// reportLines reads lot_number and the prescriber. A prescriber is a
+// registration number with its council, never one alone: a number is only
+// unique within its council. Sales by a prescriber are the outlet's
+// prescription records seen another way, so they need prescription read as
+// well; a missing permission set fails closed.
+func reportLines(c *gin.Context, args *salesReportFilter) bool {
+	if v := c.Query("lot_number"); v != "" {
+		lot, ok := boundedText(v, 100)
+		if !ok {
+			respond.Error(c, http.StatusBadRequest, "invalid_request", "lot_number is up to 100 characters")
+			return false
+		}
+		args.lot = &lot
+	}
+	registration, council := c.Query("prescriber_registration"), c.Query("prescriber_council")
+	if registration == "" && council == "" {
+		return true
+	}
+	registration, okRegistration := boundedText(registration, 40)
+	council, okCouncil := boundedText(council, 120)
+	if !okRegistration || !okCouncil || !prescriberRegistration.MatchString(registration) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a prescriber is prescriber_registration with prescriber_council, as on the prescription")
+		return false
+	}
+	if set, ok := authz.PermissionsFrom(c); !ok || !set.Has(PermPrescriptionRead) {
+		respond.Forbidden(c, "sales by prescriber need the pharmacy.prescription.read permission")
+		return false
+	}
+	args.registration, args.council = &registration, &council
+	return true
+}
+
+// read refuses malformed scope ids before reading the query string; the
+// outlet grant is checked in the transaction, as for the daily report. It
+// returns the rows read and the filter that chose them; false means the
+// response is written. A personal read is audited with action; inTx, when
+// given, runs on the rows in the transaction before the audit row, so a file
+// it refuses is never recorded as disclosed.
+func (r salesReport[T]) read(c *gin.Context, h *catalogueHandlers, params pagination.Params, action string, inTx func([]T, salesReportFilter) error) ([]T, salesReportFilter, bool) {
 	p, outlet, ok := catalogueScope(c)
 	if !ok {
-		return nil, nil
+		return nil, salesReportFilter{}, false
 	}
-	f, ok := salesReportArgs(c, what, filter)
+	f, ok := salesReportArgs(c, r.what, r.filter, r.extras)
 	if !ok {
-		return nil, nil
+		return nil, f, false
 	}
 	var rows []T
 	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
@@ -285,19 +439,87 @@ func salesReportPage[T any](c *gin.Context, h *catalogueHandlers, params paginat
 		if f.today, err = outletLocalDate(tx, p.TenantID, outlet); err != nil {
 			return err
 		}
-		if err := tenantdb.ApplyOrderedKeyset(tx.Table(query, args(p.TenantID, outlet, f)...), params,
+		if err := tenantdb.ApplyOrderedKeyset(tx.Table(r.query, r.args(p.TenantID, outlet, f)...), params,
 			tenantdb.Keyset{Column: "created_at", Direction: pagination.OldestFirst}).Find(&rows).Error; err != nil {
 			return err
 		}
-		// A patient's purchases are disclosed only with their audit row, in
-		// the same transaction: no row, no data.
-		if f.patient == nil {
-			return nil
+		if inTx != nil {
+			if err := inTx(rows, f); err != nil {
+				return err
+			}
 		}
-		return auditRegisterRead(c, tx, "patient_sales", p.TenantID, p.Subject, outlet, "report_read", "from", f.since, "to", f.until, "patient_id", f.patient.String())
+		// A patient's purchases, and a prescriber's sales, are disclosed only
+		// with their audit row, in the same transaction: no row, no data.
+		switch {
+		case f.patient != nil:
+			return auditRegisterRead(c, tx, "patient_sales", p.TenantID, p.Subject, outlet, action, "from", f.since, "to", f.until, "patient_id", f.patient.String())
+		case f.registration != nil:
+			return auditRegisterRead(c, tx, "item_sales", p.TenantID, p.Subject, outlet, action, "from", f.since, "to", f.until, "prescriber_registration", *f.registration, "prescriber_council", *f.council)
+		}
+		return nil
+	})
+	if err != nil {
+		reportReadError(c, err)
+		return nil, f, false
+	}
+	return rows, f, true
+}
+
+// maxPrescribers bounds the period's prescriber list; more is said, and the
+// screen asks for a shorter period.
+const maxPrescribers = 200
+
+type prescriber struct {
+	Name         string `gorm:"column:prescriber_name" json:"prescriber_name"`
+	Registration string `gorm:"column:prescriber_registration" json:"prescriber_registration"`
+	Council      string `gorm:"column:prescriber_council" json:"prescriber_council"`
+}
+
+// listPrescribers is every prescriber, by registration and council, on a
+// prescription cited by a sale line dated in the period, under the name it
+// last recorded (#1060). Prescribers are the outlet's prescription records,
+// so the list needs prescription read and sale read, and each read is
+// audited.
+func (h *catalogueHandlers) listPrescribers(c *gin.Context) {
+	p, outlet, ok := catalogueScope(c)
+	if !ok {
+		return
+	}
+	if set, ok := authz.PermissionsFrom(c); !ok || !set.Has(PermSaleRead) {
+		respond.Forbidden(c, "the prescribers of sales need the pharmacy.sale.read permission")
+		return
+	}
+	from, to, ok := outletPeriod(c, "the prescribers of sales")
+	if !ok {
+		return
+	}
+	var rows []prescriber
+	err := h.transaction(c.Request.Context(), p, outlet, false, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
+			return err
+		}
+		if err := tx.Raw(`SELECT prescriber_name, prescriber_registration, prescriber_council FROM (
+  SELECT DISTINCT ON (rx.prescriber_registration, rx.prescriber_council) rx.prescriber_name, rx.prescriber_registration, rx.prescriber_council
+  FROM pharmacy_sales s
+  JOIN pharmacy_sale_lines l ON l.tenant_id=s.tenant_id AND l.outlet_id=s.outlet_id AND l.sale_id=s.id
+  JOIN pharmacy_prescriptions rx ON rx.tenant_id=l.tenant_id AND rx.outlet_id=l.outlet_id AND rx.id=l.prescription_id
+  WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date
+  ORDER BY rx.prescriber_registration, rx.prescriber_council, rx.created_at DESC, rx.id DESC) e
+ ORDER BY prescriber_name, prescriber_registration, prescriber_council LIMIT ?`, p.TenantID, outlet, from, to, maxPrescribers+1).Scan(&rows).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "prescribers", p.TenantID, p.Subject, outlet, "list_read", "from", from, "to", to)
 	})
 	if err != nil {
 		stockError(c, err)
+		return
 	}
-	return rows, nil
+	more := len(rows) > maxPrescribers
+	if more {
+		rows = rows[:maxPrescribers]
+	}
+	if rows == nil {
+		rows = []prescriber{}
+	}
+	respond.OK(c, gin.H{"data": rows, "more": more})
 }

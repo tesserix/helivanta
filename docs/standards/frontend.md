@@ -283,7 +283,9 @@ renders the data it holds: React Query keeps `data` after a failed refetch,
 and records the server now refuses must not stay on screen. Where access
 changes while the screen is open (an emergency crew assignment), pass
 `recheck="Check access again"` to `RequestFailure`. A 403 or 404 then
-offers that button, never "Try again"; a 401 still offers none.
+offers that button, never "Try again"; a 401 still offers none. A retry
+that must wait for a command in flight passes `busy`, as `RefreshButton`
+does. Both buttons are `type="button"`, so either can sit inside a form.
 
 The lint rule `helivanta/no-hand-rolled-retry` (`packages/config`) enforces
 this. It fails a handler in `onClick`, `onRetry`, `onRefresh` or `onReload`

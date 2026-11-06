@@ -169,7 +169,7 @@ describe("Pharmacy licence setup", () => {
     expect(
       await screen.findByText("This wasn't found, or you don't have access to it."),
     ).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Try again", exact: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Try again$/ })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Record independent licence review" }),
     ).toBeDisabled();

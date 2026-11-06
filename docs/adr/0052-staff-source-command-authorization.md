@@ -136,3 +136,20 @@ identity, posting eligibility or operating authority. The architecture gate was
 observed refusing this new consumer before its explicit entry was added.
 Provider construction, the single-method interface and all operating-consumer
 gates remain unchanged.
+
+## Workforce department leave review consumer — ADR0055 slice 2
+
+The exact `workforce/leave_department_review.go` consumer may use the same
+injected guard to admit the reviewer as a current Staff actor on one held
+department path. It first admits department-scoped `workforce.leave.approve`
+and `workforce.staff_actor.use` grants from
+`workforce.department_leave_reviewer.v1` on the Organization path, holds the
+department through the guarded source port, then opens the actor callback with
+that `DepartmentPath`. Inside the leave transaction it re-locks the reviewer's
+login link and refuses unless Staff, link and generation equal the guarded
+reference. The callback carries only the opaque reference. It reads no other
+Staff profile, grants no posting authority and calls no business API through
+the provider. The architecture gate was observed refusing this consumer before
+its explicit entry was added. Provider construction, the single-method
+interface and all other operating-consumer gates remain unchanged. See the
+[department leave review specification](../superpowers/specs/2026-11-06-department-leave-review.md).

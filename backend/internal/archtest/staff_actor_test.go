@@ -17,6 +17,7 @@ func TestStaffActorAuthorizationHasOnlyReviewedConsumers(t *testing.T) {
 			"internal/modules/workforce/posting_authority.go":                 true,
 			"internal/modules/workforce/posting_source_guard.go":              true,
 			"internal/modules/workforce/staff_actor_scopes.go":                true,
+			"internal/modules/workforce/leave_department_review.go":           true,
 			"internal/modules/pharmacy/staff_department_binding_authority.go": true,
 			"internal/modules/workforce/staff_actor_guard_test.go":            true,
 			"internal/bootstrap/staff_actor_test.go":                          true,

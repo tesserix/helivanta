@@ -1,4 +1,4 @@
-import "@/test/select";
+import { chooseOption } from "@/test/select";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
@@ -25,6 +25,25 @@ const row = {
   version: 3,
   created_at: "2026-10-27T00:00:00Z",
 };
+const cardiology = "0190a000-0000-7000-8000-00000000000a";
+const wards = "0190a000-0000-7000-8000-00000000000b";
+const departmentNames: Record<string, string> = {
+  [cardiology]: "Synthetic Cardiology",
+  [wards]: "Synthetic Wards",
+};
+const departmentRow = (department: string) => ({
+  id: department,
+  hospital_id: hospital,
+  revision_id: "0190a000-0000-7000-8000-0000000000f1",
+  version: 1,
+  code: "SYN",
+  name: departmentNames[department],
+  kind: "department",
+  parent_id: null,
+  status: "active",
+  effective_at: "2026-10-01T00:00:00Z",
+  created_at: "2026-10-01T00:00:00Z",
+});
 const page = (data: unknown[], cursor: string | null = null) => ({
   data,
   page: { has_more: cursor !== null, next_cursor: cursor },
@@ -44,9 +63,17 @@ function mock({
   refuseQueue = (): boolean => false,
   rejected = 0,
   rows = [row] as Record<string, unknown>[],
+  departments = [] as string[],
+  queueRefusal = 0,
+  queueCode = "not_found",
+  detailRefusal = 0,
+  namesUnavailable = false,
 } = {}) {
   const writes: { body: unknown; tenant: string | null }[] = [];
+  const posts: string[] = [];
   const reads: string[] = [];
+  const refusal = (status: number, error: string) =>
+    Response.json({ error, message: "Synthetic refusal." }, { status });
   let done = false;
   vi.stubGlobal(
     "fetch",
@@ -56,6 +83,7 @@ function mock({
       if (url.includes("/iam/me/permissions"))
         return Response.json({ tenant_id: tenant, subject: "synthetic-reviewer", data: [] });
       if (init?.method === "POST") {
+        posts.push(url);
         writes.push({
           body: JSON.parse(String(init.body)),
           tenant: new Headers(init.headers).get("X-Helivanta-Expected-Tenant"),
@@ -88,11 +116,35 @@ function mock({
         return Response.json(
           emptyFirst && !url.includes("cursor=")
             ? page([], "next")
-            : page([{ hospital_id: hospital, name: "Synthetic Hospital" }]),
+            : page([
+                {
+                  hospital_id: hospital,
+                  name: "Synthetic Hospital",
+                  scope_kind: departments.length > 0 ? "department" : "hospital",
+                  department_ids: departments,
+                },
+              ]),
         );
       }
       if (url.endsWith("/leave-review-requests") && refuseQueue())
         return Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 });
+      if (url.includes("/posting-department-choices")) {
+        if (namesUnavailable) return refusal(503, "upstream_unavailable");
+        const department = new URL(url, "http://synthetic").searchParams.get("department")!;
+        return Response.json(page([departmentRow(department)]));
+      }
+      if (/\/department-leave-review-requests\?department=[^&]+$/.test(url)) {
+        if (queueRefusal) return refusal(queueRefusal, queueCode);
+        return Response.json(page(done ? [] : rows));
+      }
+      if (url.includes(`/department-leave-review-requests/${id}?department=`)) {
+        if (detailRefusal) return refusal(detailRefusal, "not_found");
+        return Response.json({
+          request: { ...row, reason: "Synthetic private reason" },
+          days: [],
+          roster_clashes: [],
+        });
+      }
       if (url.endsWith("/leave-review-requests")) return Response.json(page(done ? [] : rows));
       if (url.endsWith(`/leave-review-requests/${id}`))
         return Response.json({
@@ -103,7 +155,7 @@ function mock({
       throw new Error(`Unexpected request ${url}`);
     }),
   );
-  return { writes, reads };
+  return { writes, posts, reads };
 }
 
 it("reviews leave without directory or tenant-wide business permissions", async () => {
@@ -245,4 +297,93 @@ it("withdraws the loaded queue once a refreshed read is refused, with no way to 
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Review leave for Synthetic Nurse/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /refresh queue|try again/i })).toBeNull();
+});
+
+it("reviews leave in a held department through the department routes only", async () => {
+  const { writes, posts, reads } = mock({ departments: [cardiology, wards] });
+  const { user } = renderWithProviders(<ReviewLeave />);
+  const chooser = await screen.findByRole("combobox", { name: "Department" });
+  await waitFor(() => expect(chooser).toHaveTextContent("Synthetic Cardiology"));
+  expect(
+    screen.getByText(/posted only within Synthetic Cardiology and its current sub-units/),
+  ).toBeInTheDocument();
+  await chooseOption(user, chooser, "Synthetic Wards");
+  await waitFor(() =>
+    expect(reads).toContain(
+      `/api/v1/workforce/hospitals/${hospital}/department-leave-review-requests?department=${wards}`,
+    ),
+  );
+  await user.click(await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }));
+  const region = await screen.findByRole("region", { name: "Review leave request" });
+  expect(await within(region).findByText(/Synthetic private reason/)).toBeInTheDocument();
+  await user.type(within(region).getByLabelText("Decision note"), "Synthetic ward cover");
+  await user.click(within(region).getByRole("button", { name: "Approve leave" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(posts).toEqual([
+    `/api/v1/workforce/hospitals/${hospital}/staff/${staff}/leave-requests/${id}/department-decision?department=${wards}`,
+  ]);
+  expect(writes[0]).toEqual({
+    tenant,
+    body: { expected_version: 3, decision: "approve", note: "Synthetic ward cover" },
+  });
+  expect(reads.some((url) => /\/leave-review-requests(\/|$)/.test(url))).toBe(false);
+  expect(await screen.findByText("No pending requests need your review.")).toBeInTheDocument();
+});
+
+it("keeps hospital-wide reviewers off department and organization routes", async () => {
+  const { reads } = mock();
+  renderWithProviders(<ReviewLeave />);
+  await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ });
+  expect(screen.queryByRole("combobox", { name: "Department" })).not.toBeInTheDocument();
+  expect(reads.some((url) => url.includes("department"))).toBe(false);
+});
+
+it("shows a retired department instead of an empty queue", async () => {
+  mock({ departments: [cardiology], queueRefusal: 404 });
+  renderWithProviders(<ReviewLeave />);
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Department retired. This access no longer applies.");
+  expect(within(alert).queryByRole("button")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh queue" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Refresh access" })).toBeEnabled();
+  expect(screen.queryByText("No pending requests need your review.")).not.toBeInTheDocument();
+});
+
+it("asks for a reload when the department structure moved", async () => {
+  const { reads } = mock({
+    departments: [cardiology],
+    queueRefusal: 409,
+    queueCode: "department_scope_changed",
+  });
+  const { user } = renderWithProviders(<ReviewLeave />);
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent(
+    "The department structure changed. Reload the department leave queue.",
+  );
+  const queueReads = () =>
+    reads.filter((url) => url.includes("/department-leave-review-requests?")).length;
+  const before = queueReads();
+  await user.click(within(alert).getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(queueReads()).toBeGreaterThan(before));
+});
+
+it("explains a department request that left the reviewer's authority", async () => {
+  mock({ departments: [cardiology], detailRefusal: 404 });
+  const { user } = renderWithProviders(<ReviewLeave />);
+  await user.click(await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }));
+  const region = await screen.findByRole("region", { name: "Review leave request" });
+  expect(await within(region).findByRole("alert")).toHaveTextContent(
+    "This request is no longer in your department's review. Close it and refresh the queue.",
+  );
+  expect(within(region).queryByRole("button", { name: "Approve leave" })).not.toBeInTheDocument();
+});
+
+it("keeps the department reference when its name cannot be loaded", async () => {
+  mock({ departments: [cardiology], namesUnavailable: true });
+  renderWithProviders(<ReviewLeave />);
+  const chooser = await screen.findByRole("combobox", { name: "Department" });
+  await waitFor(() => expect(chooser).toHaveTextContent(`Department reference ${cardiology}`));
+  expect(
+    await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }),
+  ).toBeInTheDocument();
 });

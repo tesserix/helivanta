@@ -64,7 +64,7 @@ and [ADR-0061](../../adr/0061-department-team-and-atomic-transfers.md). This upd
 the package to eight native pages and eight SVGs; the original seven-page merge
 record above remains historical.
 
-The latest artifact checks found 77 resolving local links, 62 nonoverlapping cards,
+The latest artifact checks found 78 resolving local links, 62 nonoverlapping cards,
 52 valid connectors and no SVG page overflow. Chrome rendered all eight SVGs and
 the new page was visually inspected. Native diagrams.net import/export remains
 unexercised. Runtime acceptance is recorded separately from artifact validity;

@@ -206,7 +206,7 @@ Final local results:
 | Transfer recovery/concurrency     | Concurrent exact requests return one retained pair; changed input and an earlier second consumer conflict; exact replay survives a later original-source ending                                                           |
 | Failure atomicity                 | Audit and outbox fault injection roll back original ending, replacement approval and source-use evidence; original pending state/receipts are checked                                                                     |
 | Build/static contracts            | Production webpack build, shell/API types and lint, Go build/vet/lint, architecture checks, canonical generation and registered-contract checks passed                                                                    |
-| Documentation diagrams            | 77 local links resolve; eight native pages, 62 nonoverlapping cards and 52 connected edges validate; eight SVGs render within bounds; the new page was visually inspected                                                 |
+| Documentation diagrams            | 78 local links resolve; eight native pages, 62 nonoverlapping cards and 52 connected edges validate; eight SVGs render within bounds; the new page was visually inspected                                                 |
 
 The source-use read keeps the strict read-only RLS frame while taking the hospital
 gate before department/actor locks. The final normal-role owner race/browser run

@@ -203,3 +203,28 @@ it("loads private history and follows its cursor", async () => {
   expect(await screen.findByText("proposer: Original verification")).toBeInTheDocument();
   expect(calls.some((url) => url.endsWith("/history?limit=50&cursor=opaque%2B%2F%3D"))).toBe(true);
 });
+
+it("withdraws loaded account links once a refreshed read is refused", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("permissions")
+        ? Response.json({ tenant_id: tenant, subject: "reviewer", data: perms })
+        : refused
+          ? Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 })
+          : Response.json(page([link])),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <StaffLoginLinkPanel hospital={hospital} staff={staff} onClose={() => {}} />,
+  );
+  expect(await screen.findByText(/candidate/)).toBeInTheDocument();
+  refused = true;
+  await user.click(screen.getByRole("button", { name: "Refresh links" }));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/candidate/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /try again|refresh links/i })).toBeNull();
+});

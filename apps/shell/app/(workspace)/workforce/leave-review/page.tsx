@@ -2,7 +2,16 @@
 
 import { useState, useSyncExternalStore, useEffect, useRef } from "react";
 import { Button } from "@tesserix/web";
-import { Field, PageHeading, Panel, SelectControl, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  useZodForm,
+  isRefusal,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   apiFetch,
@@ -61,16 +70,22 @@ function ReviewWorkspace({ identity }: { identity: Identity }) {
     { request: { cache: "no-store", headers } },
   );
   const [selected, setSelected] = useState("");
-  const hospital = scopes.items.find((scope) => scope.hospital_id === selected) ?? scopes.items[0];
+  // Review access the server now refuses withdraws the queue built on it (#1595).
+  const listed = isRefusal(scopes.error) ? [] : scopes.items;
+  const hospital = listed.find((scope) => scope.hospital_id === selected) ?? listed[0];
   return (
     <div className="space-y-5">
-      <Button variant="outline" disabled={scopes.isRefreshing} onClick={scopes.retry}>
+      <RefreshButton refresh={scopes.retry} error={scopes.error} busy={scopes.isRefreshing}>
         Refresh access
-      </Button>
+      </RefreshButton>
       {scopes.isPending ? (
         <p role="status">Loading review access…</p>
       ) : scopes.isError ? (
-        <p role="alert">Could not load your review access. Refresh access to try again.</p>
+        <RequestFailure
+          message="Could not load your review access."
+          retry={scopes.retry}
+          error={scopes.error}
+        />
       ) : (
         <>
           {hospital ? (
@@ -80,7 +95,7 @@ function ReviewWorkspace({ identity }: { identity: Identity }) {
                   id="review-hospital"
                   value={hospital.hospital_id}
                   onValueChange={setSelected}
-                  options={scopes.items.map((scope) => ({
+                  options={listed.map((scope) => ({
                     value: scope.hospital_id,
                     label: scope.name,
                   }))}
@@ -133,22 +148,23 @@ function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: Lea
     <Panel className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">Pending leave requests</h3>
-        <Button
-          variant="outline"
-          disabled={records.isRefreshing || (locked && !denied)}
-          onClick={refresh}
+        <RefreshButton
+          busy={records.isRefreshing || (locked && !denied)}
+          refresh={refresh}
+          error={records.error}
         >
           Refresh queue
-        </Button>
+        </RefreshButton>
       </div>
       {notice && <p role="status">{notice}</p>}
       {records.isPending ? (
         <p role="status">Loading pending requests…</p>
       ) : records.isError ? (
-        <p role="alert">
-          Could not load pending requests. Your access may have changed. Refresh access or the queue
-          to try again.
-        </p>
+        <RequestFailure
+          message="Could not load pending requests. Your access may have changed."
+          retry={refresh}
+          error={records.error}
+        />
       ) : (
         <>
           {records.items.length === 0 ? (

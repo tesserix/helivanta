@@ -28,11 +28,17 @@ afterEach(() => vi.unstubAllGlobals());
 function mock(
   allowed = true,
   hospitals = [{ id: hospital, name: "Synthetic Hospital", access_level: "manager" }],
+  /** Reads whose URL this matches answer 403. */
+  refuse: (url: string) => boolean = () => false,
 ) {
   const writes: { url: string; body: unknown }[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      if (!init?.method && refuse(url))
+        return new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+          status: 403,
+        });
       let status = 200;
       let body: unknown = page([]);
       if (url.includes("permissions")) body = { data: allowed ? ["workforce.roster.manage"] : [] };
@@ -248,4 +254,41 @@ it("holds panel navigation while a shift save is unresolved", async () => {
   release();
   expect(await screen.findByRole("alert")).toHaveTextContent("Synthetic version conflict");
   expect(screen.getByLabelText("Description")).toHaveValue("Synthetic policy only pending change");
+});
+
+const refusal = "This wasn't found, or you don't have access to it.";
+const mountShifts = () =>
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Shifts />
+    </NavigationGuardProvider>,
+  );
+
+it("shows refused hospitals as a refusal, with no retry", async () => {
+  mock(true, undefined, (url) => url.endsWith("/hospitals"));
+  mountShifts();
+  expect(await screen.findByText(refusal)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+it("withdraws loaded shifts and the open editor once a re-read is refused", async () => {
+  let refused = false;
+  mock(true, undefined, (url) => refused && url.includes("/shifts") && !url.includes("/history"));
+  const { user } = mountShifts();
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Night" }));
+  expect(screen.getByLabelText("Start time")).toHaveValue("22:00");
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(await screen.findByText(refusal)).toBeInTheDocument();
+  expect(screen.queryByText("Synthetic Night")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Start time")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /try again|refresh shifts/i })).toBeNull();
+});
+
+it("shows refused shift history as a refusal, with no retry", async () => {
+  mock(true, undefined, (url) => url.includes("/history"));
+  const { user } = mountShifts();
+  await user.click(await screen.findByRole("button", { name: "History for Synthetic Night" }));
+  expect(await screen.findByText(refusal)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });

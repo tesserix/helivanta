@@ -1397,3 +1397,43 @@ it.each(["unavailable", "extra", "widened"] as const)(
     ).not.toBeInTheDocument();
   },
 );
+
+// #1595: a refused hospital or department read is a refusal, not an outage with a retry.
+it("shows refused hospitals in the proposal form as a refusal, with no retry", async () => {
+  departmentCatalogSetup();
+  const catalog = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      new URL(url, "http://localhost").pathname.endsWith("/workforce/hospitals")
+        ? Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 })
+        : catalog(url, init),
+    ),
+  );
+  const { form } = await openPostingProposal();
+  expect(
+    await form.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(form.queryByRole("button", { name: /retry hospitals|try again/i })).toBeNull();
+});
+
+it("shows hidden departments in the proposal form as a refusal, with no retry", async () => {
+  departmentCatalogSetup();
+  const catalog = fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      url.includes(`/organization/hospitals/${hospital}/departments?`)
+        ? Response.json({ error: "not_found", message: "secret detail" }, { status: 404 })
+        : catalog(url, init),
+    ),
+  );
+  const { user, form } = await openPostingProposal();
+  await user.click(form.getByLabelText("Applies to"));
+  await user.click(await screen.findByRole("option", { name: "One department and its sub-units" }));
+  await fillProposal(user, form);
+  expect(
+    await form.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(form.queryByRole("button", { name: /retry departments|try again/i })).toBeNull();
+});

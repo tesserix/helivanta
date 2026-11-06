@@ -58,6 +58,8 @@ it("does not show identity details when a current assignment is denied", async (
     "current hospital identity manager or reviewer assignment",
   );
   expect(screen.queryByText("1990-01-02")).not.toBeInTheDocument();
+  // Asking again cannot change an assignment refusal (#1595).
+  expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
 });
 
 it("explains an unavailable staff record or active account link without showing identity data", async () => {
@@ -67,4 +69,5 @@ it("explains an unavailable staff record or active account link without showing 
   );
   expect(await screen.findByRole("alert")).toHaveTextContent("staff account link");
   expect(screen.queryByText("1990-01-02")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
 });

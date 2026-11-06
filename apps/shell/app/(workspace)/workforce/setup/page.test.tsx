@@ -18,7 +18,15 @@ function mountSetup() {
   );
 }
 
-function mockSetup(options: { allowed?: boolean; fail?: boolean; mapping?: boolean } = {}) {
+function mockSetup(
+  options: {
+    allowed?: boolean;
+    fail?: boolean;
+    mapping?: boolean;
+    /** Reads whose URL this matches answer 403. */
+    refuse?: (url: string) => boolean;
+  } = {},
+) {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     let body: unknown = page([]);
@@ -60,6 +68,10 @@ function mockSetup(options: { allowed?: boolean; fail?: boolean; mapping?: boole
           version: 2,
         },
       ]);
+    if (!init?.method && options.refuse?.(url))
+      return new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+        status: 403,
+      });
     if (init?.method === "PUT") {
       const input = JSON.parse(String(init.body));
       writes.push({ url, body: input });
@@ -140,4 +152,36 @@ it("keeps an unsaved department mapping when a category change is cancelled", as
     "Synthetic unsaved mapping",
   );
   expect(screen.getByRole("combobox", { name: "Category" })).toHaveTextContent("Departments");
+});
+
+const refusal = "This wasn't found, or you don't have access to it.";
+
+it("shows refused hospitals as a refusal, with no retry", async () => {
+  mockSetup({ refuse: (url) => url.endsWith("/hospitals") });
+  mountSetup();
+  expect(await screen.findByText(refusal)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+it("withdraws loaded records and the open editor once a re-read is refused", async () => {
+  let refused = false;
+  mockSetup({ refuse: (url) => refused && url.includes("/masters") && !url.includes("/history") });
+  const { user } = mountSetup();
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Department" }));
+  expect(screen.getByLabelText("Name")).toHaveValue("Synthetic Department");
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(await screen.findByText(refusal)).toBeInTheDocument();
+  expect(screen.queryByText("Synthetic Department")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /try again|refresh setup/i })).toBeNull();
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+});
+
+it("shows refused revision history as a refusal, with no retry", async () => {
+  mockSetup({ refuse: (url) => url.includes("/history") });
+  const { user } = mountSetup();
+  await user.click(await screen.findByRole("button", { name: "History for Synthetic Department" }));
+  expect(await screen.findByText(refusal)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });

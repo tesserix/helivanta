@@ -10,7 +10,7 @@ import {
   type EmergencyBase,
   type EmergencyCase,
 } from "@helivanta/api";
-import { formatTime, LoadMore, PageHeading } from "@helivanta/ui";
+import { formatTime, isRefusal, LoadMore, PageHeading, RequestFailure } from "@helivanta/ui";
 import { EmergencyBaseAdmin } from "./emergency-base-admin";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyFleet } from "./emergency-fleet";
@@ -23,8 +23,11 @@ export function EmergencyWorkspace() {
   });
   const [selected, setSelected] = useState<string | null>(null);
   const [configure, setConfigure] = useState<string | null>(null);
-  const base = bases.items.find((item) => item.id === selected);
-  const configured = bases.items.find((item) => item.id === configure);
+  // Bases the server now refuses don't stay on screen, nor do the panels
+  // opened from them (#1595).
+  const listed = isRefusal(bases.error) ? [] : bases.items;
+  const base = listed.find((item) => item.id === selected);
+  const configured = listed.find((item) => item.id === configure);
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeading description="Review received reports, fleet readiness and current dispatch status." />
@@ -32,16 +35,17 @@ export function EmergencyWorkspace() {
         <p role="status">Loading operating bases…</p>
       )}
       {bases.isError && (
-        <div role="alert">
-          {bases.error?.message}
-          <Button onClick={bases.retry}>Retry bases</Button>
-        </div>
+        <RequestFailure
+          message="Could not load operating bases."
+          retry={bases.retry}
+          error={bases.error}
+        />
       )}
       {!bases.isPending && !bases.isError && bases.items.length === 0 && (
         <p>No operating bases configured in this tenant.</p>
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
-        {bases.items.map((item) => (
+        {listed.map((item) => (
           <li className="min-w-0 space-y-3 rounded-xl border bg-card p-5" key={item.id}>
             <h2 className="font-semibold">{item.name}</h2>
             <p className="text-sm text-muted-foreground">
@@ -101,10 +105,7 @@ function EmergencyBaseCases({ base }: { base: EmergencyBase }) {
         can("emergency.case.intake") && <EmergencyIntake base={base} />}
       {cases.isPending && <p role="status">Loading reports…</p>}
       {cases.isError ? (
-        <div role="alert">
-          {cases.error?.message}
-          <Button onClick={cases.retry}>Retry reports</Button>
-        </div>
+        <RequestFailure message="Could not load reports." retry={cases.retry} error={cases.error} />
       ) : (
         <>
           <ul className="divide-y rounded-xl border bg-card">

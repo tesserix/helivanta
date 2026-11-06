@@ -135,6 +135,8 @@ it("hides task rows when assigned access is denied", async () => {
   expect(await screen.findByText(/Delivery tasks are unavailable/)).toBeInTheDocument();
   expect(screen.queryByText("TEST-DELIVERY")).not.toBeInTheDocument();
   expect(screen.queryByRole("form", { name: "Driver delivery update" })).not.toBeInTheDocument();
+  // Asking again can't change a refusal, so neither a retry nor a refresh is offered.
+  expect(screen.queryByRole("button", { name: /refresh delivery tasks|try again/i })).toBeNull();
 });
 it("validates manual scheduling and reuses one task identity on a failed write", async () => {
   const writes: Array<{ url: string; body: string }> = [];

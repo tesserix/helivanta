@@ -177,3 +177,27 @@ it("can revoke its own access using the original expiry instant", async () => {
     expires_at: grant.expires_at,
   });
 });
+
+it("shows refused clinical review access as a refusal, without the server's text", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes("permissions")
+          ? json({ data: ["emergency.clinical.manage"], subject: "user-admin" })
+          : json({ error: "forbidden", message: "secret detail" }, 403),
+      ),
+    ),
+  );
+  const { user } = renderWithProviders(<EmergencyClinicalAdmin base={base} />);
+  await user.type(
+    await screen.findByLabelText("Clinical reviewer identity subject"),
+    "user-doctor",
+  );
+  await user.click(screen.getByRole("button", { name: "Load clinical review access" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Clinical privilege approval reference")).toBeNull();
+});

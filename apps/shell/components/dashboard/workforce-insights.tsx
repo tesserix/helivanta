@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@tesserix/web";
 import {
   JOB_LABELS,
   staffInsightsSchema,
@@ -10,7 +9,14 @@ import {
   useApiQuery,
   type Hospital,
 } from "@helivanta/api";
-import { Field, LoadMore, Panel, SelectControl } from "@helivanta/ui";
+import {
+  Field,
+  LoadMore,
+  Panel,
+  RefreshButton,
+  RequestFailure,
+  SelectControl,
+} from "@helivanta/ui";
 
 export function WorkforceInsights() {
   const hospitals = useApiPagedQuery<Hospital>(["workforce", "hospitals"], "/workforce/hospitals");
@@ -34,12 +40,11 @@ export function WorkforceInsights() {
       {hospitals.isPending ? (
         <p role="status">Loading hospital access…</p>
       ) : hospitals.isError ? (
-        <div role="alert">
-          Could not load hospital access.{" "}
-          <Button variant="outline" onClick={hospitals.retry}>
-            Retry hospitals
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load hospital access."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : !hospital ? (
         <p className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
           No hospital staff access. Ask your administrator for an explicit hospital grant to view
@@ -80,12 +85,11 @@ function StaffSnapshot({ hospital }: { hospital: Hospital }) {
   if (query.isPending) return <p role="status">Loading team insights…</p>;
   if (query.isError || !data)
     return (
-      <div role="alert" className="py-5 text-sm">
-        Could not load team insights. Access may have changed.{" "}
-        <Button variant="outline" onClick={() => void query.refetch()}>
-          Retry team insights
-        </Button>
-      </div>
+      <RequestFailure
+        message="Could not load team insights. Access may have changed."
+        retry={query.refetch}
+        error={query.error}
+      />
     );
   const active = data.counts
     .filter((row) => row.status === "active")
@@ -164,14 +168,14 @@ function StaffSnapshot({ hospital }: { hospital: Hospital }) {
       <p className="mt-5 text-xs text-muted-foreground">
         Employment status is not attendance or current shift coverage. Queried{" "}
         <time dateTime={data.as_at}>{new Date(data.as_at).toLocaleString()}</time>.{" "}
-        <button
-          type="button"
-          onClick={() => void query.refetch()}
-          disabled={query.isFetching}
-          className="underline underline-offset-4"
+        <RefreshButton
+          refresh={query.refetch}
+          error={query.error}
+          busy={query.isFetching}
+          variant="link"
         >
           {query.isFetching ? "Refreshing…" : "Refresh team"}
-        </button>
+        </RefreshButton>
       </p>
     </>
   );

@@ -30,6 +30,9 @@ import {
   LoadMore,
   formatTime,
   ConfirmDialog,
+  RefreshButton,
+  RequestFailure,
+  isRefusal,
 } from "@helivanta/ui";
 
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
@@ -54,7 +57,17 @@ export function EmergencyFleet({
   const [creation, setCreation] = useState(0);
   const [checking, setChecking] = useState<EmergencyVehicle | null>(null);
   const manage = level === "supervisor" && can("emergency.fleet.manage");
+  // A refusal, even from a background re-read, withdraws every vehicle the
+  // forms below were built from (#1595).
+  const refused = isRefusal(vehicles.error);
+  const listed = refused ? [] : vehicles.items;
+  const chosen = refused ? null : selected;
   if (!can("emergency.fleet.read")) return null;
+  const refresh = () => {
+    setSelected(null);
+    setChecking(null);
+    vehicles.retry();
+  };
   return (
     <section className="min-w-0 space-y-4 rounded-xl border bg-card p-5">
       <header className="space-y-2">
@@ -64,22 +77,19 @@ export function EmergencyFleet({
           does not assign an ambulance. Refresh before an operational decision.
         </p>
       </header>
-      <Button
-        variant="outline"
-        onClick={() => {
-          setSelected(null);
-          setChecking(null);
-          vehicles.retry();
-        }}
-      >
+      <RefreshButton refresh={refresh} error={vehicles.error}>
         Refresh fleet
-      </Button>
+      </RefreshButton>
       {vehicles.isPending && <p role="status">Loading fleet…</p>}
       {vehicles.isError ? (
-        <p role="alert">{vehicles.error?.message}</p>
+        <RequestFailure
+          message="Could not load the fleet."
+          retry={refresh}
+          error={vehicles.error}
+        />
       ) : (
         <ul className="grid gap-4 lg:grid-cols-2">
-          {vehicles.items.map((v) => (
+          {listed.map((v) => (
             <li key={v.id} className="min-w-0 space-y-3 rounded-xl border p-4">
               <div className="flex flex-wrap justify-between gap-2">
                 <h3 className="break-all font-semibold">{v.code}</h3>
@@ -147,9 +157,9 @@ export function EmergencyFleet({
       {manage && (
         <>
           <VehicleForm
-            key={`${selected?.id ?? "new"}-${selected?.version ?? 0}-${creation}`}
+            key={`${chosen?.id ?? "new"}-${chosen?.version ?? 0}-${creation}`}
             base={base}
-            vehicle={selected ?? undefined}
+            vehicle={chosen ?? undefined}
           />
           <Button
             variant="outline"
@@ -161,10 +171,10 @@ export function EmergencyFleet({
             Configure another vehicle
           </Button>
           <CrewForm base={base} />
-          <DutyForm base={base} vehicles={vehicles.items} />
+          <DutyForm base={base} vehicles={listed} />
         </>
       )}
-      {checking && level !== "reader" && can("emergency.fleet.check") && (
+      {checking && !refused && level !== "reader" && can("emergency.fleet.check") && (
         <ReadinessForm
           key={`${checking.id}-${checking.version}-${checking.duty_id}`}
           base={base}
@@ -300,9 +310,15 @@ function CrewForm({ base }: { base: string }) {
         Record the verified identity subject and evidence reference. This is an attributed
         supervisor verification; it does not claim a workforce or licensing-authority integration.
       </p>
-      {crew.isError && <p role="alert">{crew.error?.message}</p>}
+      {crew.isError && (
+        <RequestFailure
+          message="Could not load crew credentials."
+          retry={crew.retry}
+          error={crew.error}
+        />
+      )}
       <ul className="my-3 space-y-2">
-        {crew.items.map((person) => (
+        {(isRefusal(crew.error) ? [] : crew.items).map((person) => (
           <li className="flex flex-wrap items-center justify-between gap-2" key={person.id}>
             <span className="break-all text-sm">
               {person.subject} · {person.qualification} ·{" "}
@@ -483,9 +499,15 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
           Start duty
         </Button>
       </form>
-      {duties.isError && <p role="alert">{duties.error?.message}</p>}
+      {duties.isError && (
+        <RequestFailure
+          message="Could not load duties."
+          retry={duties.retry}
+          error={duties.error}
+        />
+      )}
       <ul className="space-y-3">
-        {duties.items.map((d) => (
+        {(isRefusal(duties.error) ? [] : duties.items).map((d) => (
           <li key={d.id} className="my-3 rounded-lg border p-3">
             <p className="break-all text-sm">
               {vehicles.find((v) => v.id === d.vehicle_id)?.code ?? d.vehicle_id} ·{" "}

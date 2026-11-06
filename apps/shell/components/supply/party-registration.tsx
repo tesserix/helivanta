@@ -36,6 +36,7 @@ import {
   type FieldPath,
   type UseFormReturn,
   RequestFailure,
+  RefreshButton,
 } from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
 import { LicenceReview } from "./licence-review";
@@ -239,9 +240,13 @@ export function PartyRegistration({
               Declared licences
             </h5>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled={licenses.isRefreshing} onClick={licenses.retry}>
+              <RefreshButton
+                refresh={licenses.retry}
+                error={licenses.error}
+                busy={licenses.isRefreshing}
+              >
                 Refresh licence notices
-              </Button>
+              </RefreshButton>
               {editLicense && premises.items.length > 0 && (
                 <Button
                   variant="outline"

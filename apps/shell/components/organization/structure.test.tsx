@@ -196,6 +196,7 @@ it("hides old departments and editing after the owner refuses a refreshed read",
     await screen.findByText("This wasn't found, or you don't have access to it."),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh departments" })).toBeNull();
   expect(screen.queryByRole("cell", { name: node.name })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Add department or sub-unit" })).toBeDisabled();
 });

@@ -25,6 +25,7 @@ export function RequestFailure({
   retry,
   error,
   refused,
+  recheck,
 }: {
   message: string;
   retry: () => unknown;
@@ -32,18 +33,30 @@ export function RequestFailure({
   error: unknown;
   /** Said instead of the default when the server refused or hid the records. */
   refused?: string;
+  /**
+   * Offers to ask again on a refusal, for access that changes while the
+   * screen is open (an emergency assignment). Never "Try again", which
+   * would read as an outage (#1595).
+   */
+  recheck?: string;
 }) {
   // Fail closed: retrying cannot change an authorization answer, and offering
   // it would say the records exist and merely failed to arrive. An error whose
   // status can't be read keeps the retry, which discloses nothing.
-  if (isRefusal(error))
+  if (isRefusal(error)) {
+    // A 401 gets no recheck: only signing in again can fix it.
+    const ended = (error as ApiError).status === 401;
     return (
       <Panel as="div" role="alert">
-        <p className="text-sm">
-          {(error as ApiError).status === 401 ? sessionEnded : (refused ?? refusedDefault)}
-        </p>
+        <p className="text-sm">{ended ? sessionEnded : (refused ?? refusedDefault)}</p>
+        {recheck && !ended && (
+          <Button className="mt-3" variant="outline" onClick={() => void retry()}>
+            {recheck}
+          </Button>
+        )}
       </Panel>
     );
+  }
   return (
     <Panel as="div" role="alert">
       <p className="text-sm">{message}</p>

@@ -21,7 +21,14 @@ import {
   type SupplyDeliveryActionInput,
   type SupplyRegistryRevision,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, useZodForm, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  useZodForm,
+  RequestFailure,
+  RefreshButton,
+} from "@helivanta/ui";
 import { WarehouseBins } from "./warehouse-bins";
 import { dateTimeInputISO, dateTimeInputValue, formatAbsoluteTime } from "./time-input";
 
@@ -283,9 +290,9 @@ function DeliveryPanel({
               Schedule delivery task
             </Button>
           )}
-          <Button variant="ghost" onClick={rows.retry}>
+          <RefreshButton variant="ghost" refresh={rows.retry} error={rows.error}>
             Refresh delivery tasks
-          </Button>
+          </RefreshButton>
           <Button variant="ghost" onClick={onClose}>
             Close delivery tasks
           </Button>

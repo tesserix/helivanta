@@ -189,4 +189,5 @@ it("shows a 403 as a refusal with no retry", async () => {
     await screen.findByText("This wasn't found, or you don't have access to it."),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh policies" })).toBeNull();
 });

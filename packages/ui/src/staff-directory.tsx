@@ -17,7 +17,7 @@ export type StaffDirectoryProps = {
   isError: boolean;
   /** The failed read's error, so a refusal shows as one (#1591). */
   error: unknown;
-  onRetry: () => void | Promise<unknown>;
+  retry: () => void | Promise<unknown>;
   headerActions?: ReactNode;
   rowActions?: (staff: Staff) => ReactNode;
   onFirstPage?: () => void;
@@ -33,7 +33,7 @@ export function StaffDirectory({
   isPending,
   isError,
   error,
-  onRetry,
+  retry,
   headerActions,
   rowActions,
   onFirstPage,
@@ -80,7 +80,7 @@ export function StaffDirectory({
         )}
       </div>
       <QueryState
-        query={{ items: visible, isPending, isError, error, retry: onRetry }}
+        query={{ items: visible, isPending, isError, error, retry }}
         label="staff"
         empty={{
           icon: UsersRound,

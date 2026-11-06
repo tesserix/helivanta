@@ -6,6 +6,7 @@ import {
   Field,
   FormSelectField,
   Panel,
+  RequestFailure,
   useConfirmLeave,
   useLeaveGuard,
   useZodForm,
@@ -84,12 +85,11 @@ export function StaffPostingDraftPanel({
       {saved && <p role="status">Posting draft saved. Operating authority is unchanged.</p>}
       {source.isPending && <p role="status">Loading current Staff source…</p>}
       {source.isError && (
-        <p role="alert">
-          Current Staff source is unavailable. Recheck before preparing a draft.{" "}
-          <Button variant="ghost" onClick={() => void source.refetch()}>
-            Recheck Staff source
-          </Button>
-        </p>
+        <RequestFailure
+          message="Current Staff source is unavailable. Recheck before preparing a draft."
+          retry={source.refetch}
+          error={source.error}
+        />
       )}
       {canManage && source.data && !source.isError && !editor && (
         <Button
@@ -106,12 +106,11 @@ export function StaffPostingDraftPanel({
       {drafts.isPending ? (
         <p role="status">Loading posting drafts…</p>
       ) : drafts.isError ? (
-        <p role="alert">
-          Posting drafts could not be verified.{" "}
-          <Button variant="ghost" onClick={() => void drafts.refetch()}>
-            Retry posting drafts
-          </Button>
-        </p>
+        <RequestFailure
+          message="Posting drafts could not be verified."
+          retry={drafts.refetch}
+          error={drafts.error}
+        />
       ) : (
         <div className="space-y-3">
           {drafts.data?.data.length === 0 && (
@@ -424,12 +423,11 @@ function PostingEditor({
         </Field>
       </fieldset>
       {departments.isError && (
-        <p role="alert">
-          Current departments are unavailable.{" "}
-          <Button type="button" variant="ghost" onClick={() => void departments.refetch()}>
-            Retry department source
-          </Button>
-        </p>
+        <RequestFailure
+          message="Current departments are unavailable."
+          retry={departments.refetch}
+          error={departments.error}
+        />
       )}
       {stale && (
         <p role="alert">Staff source changed. Close and reopen to review the current source.</p>

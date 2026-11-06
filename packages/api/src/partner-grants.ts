@@ -6,6 +6,7 @@ import type { StaffAssignmentScope } from "./staff-assignments";
 import {
   PartnerGrantDraftContract,
   PartnerGrantDraftInputContract,
+  partnerGrantUUIDInputFields,
   type PartnerGrantDraftInput,
 } from "./partner-grant-contract";
 
@@ -48,7 +49,11 @@ function submitted(
     const same =
       key === "valid_from" || key === "expires_at"
         ? instant(value.input[key]) === instant(input[key])
-        : value.input[key] === input[key];
+        : partnerGrantUUIDInputFields.has(key) &&
+            typeof value.input[key] === "string" &&
+            typeof input[key] === "string"
+          ? value.input[key].toLowerCase() === input[key].toLowerCase()
+          : value.input[key] === input[key];
     if (!same)
       throw new Error("The recovered supplier access draft did not match the retained intent.");
   }

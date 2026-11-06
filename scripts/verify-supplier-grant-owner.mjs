@@ -40,7 +40,7 @@ try {
   for (const [label, value] of [
     ["Relationship reference", fixture.relationship_id],
     ["Hospital workspace reference", fixture.recipient_tenant_id],
-    ["Hospital reference", fixture.hospital_id],
+    ["Hospital reference", fixture.hospital_id.toUpperCase()],
     ["Published hospital team reference", fixture.group_id],
     ["Reason", "Synthetic browser receiving-team access intent"],
   ])
@@ -65,6 +65,7 @@ try {
   expect(retained.input.owner_organization_id).toBe(fixture.pharmacy_id);
   expect(retained.input.source_location_id).toBe(fixture.outlet_id);
   expect(retained.input.recipient_kind).toBe("group");
+  expect(retained.input.recipient_hospital_id).toBe(fixture.hospital_id.toLowerCase());
   expect(retained.operating_access_enabled).toBe(false);
   expect(retained.status).toBe("pending_verification");
   await page.screenshot({ path: "/tmp/helivanta-supplier-grant-owner.png", fullPage: true });

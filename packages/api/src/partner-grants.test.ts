@@ -51,10 +51,26 @@ it("recovers a lost save by reading the original identity and intent without ano
   expect(request.mock.calls[0]![1]?.method ?? "GET").toBe("GET");
 });
 
+it.each(["recipient_tenant_id", "recipient_hospital_id"] as const)(
+  "recovers the same %s UUID when the owner returns its canonical lowercase form",
+  async (field) => {
+    const canonical = "abcdefab-cdef-4abc-8abc-abcdefabcdef";
+    const submitted = { ...input, [field]: canonical.toUpperCase() };
+    const retained = { ...draft, input: { ...input, [field]: canonical } };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(retained)),
+    );
+    expect(await preparePartnerGrantDraft(scope, id, submitted)).toEqual(retained);
+    expect(await recoverPartnerGrantDraft(scope, id, submitted)).toEqual(retained);
+  },
+);
+
 it.each([
   { owner_tenant_id: "22222222-2222-4222-8222-222222222222" },
   { operating_access_enabled: true },
   { prepared_by: "another-account" },
+  { input: { ...input, recipient_hospital_id: "abcdefab-cdef-4abc-8abc-abcdefabcdef" } },
   { input: { ...input, template_key: "partner.invoice_viewer.v1" } },
   { input: { ...input, expires_at: "2026-11-08T00:00:00.000002Z" } },
 ])("withholds a mismatched or operating recovery response: %j", async (changed) => {

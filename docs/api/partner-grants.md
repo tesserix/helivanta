@@ -54,6 +54,10 @@ PUT. An inaccessible owner record is `404`, absent governance authority `403`,
 revoked credentials `401`, changed workspace/intent `409` and unavailable
 authority/audit `503 partner_grant_draft_unavailable`. Responses are `no-store`.
 
+UUID-valued intent compares by UUID identity, including the owner's canonical
+lowercase representation. Account subjects and free text remain case-sensitive.
+The canonical generator supplies the UUID field set used by SDK recovery.
+
 The [implementation specification](../superpowers/specs/2026-11-07-independent-supplier-grants.md)
 and [delivery ledger](../design/staff-and-rbac/independent-collaboration-delivery.md)
 retain the remaining bilateral, recipient, disclosure, stock-owner, financial and

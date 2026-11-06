@@ -138,3 +138,12 @@ export const PartnerGrantDraftContract = z
       });
   });
 export type PartnerGrantDraft = z.infer<typeof PartnerGrantDraftContract>;
+
+export const partnerGrantUUIDInputFields: ReadonlySet<string> = new Set([
+  "owner_organization_id",
+  "source_location_id",
+  "relationship_id",
+  "recipient_tenant_id",
+  "recipient_hospital_id",
+  "recipient_group_id",
+]);

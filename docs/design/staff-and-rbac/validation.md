@@ -123,7 +123,7 @@ stages and the canonical onboarding prerequisite.
 
 Commands actually run in the isolated supplier worktree:
 
-- `pnpm --filter @helivanta/api test`: 926 tests in 93 files passed.
+- `pnpm --filter @helivanta/api test`: the latest run passed 929 tests in 93 files.
 - `pnpm --filter @helivanta/shell test`: the unchanged full rerun passed 1,725
   tests in 195 files. The first run had three timeout-related failures in two
   unchanged files; those files also passed independently, with 11 tests.
@@ -137,6 +137,11 @@ Commands actually run in the isolated supplier worktree:
   immutable exact recovery, changed intent, tenant/cursor isolation, missing
   governance authority, audit withholding and creation rollback. Direct database
   UPDATE/DELETE attempts cannot change or remove saved evidence.
+- Two additional SDK regression cases first failed on uppercase recipient UUIDs
+  returned in canonical lowercase by the owner. The SDK now uses canonical
+  contract metadata to compare UUID identity, while retaining exact subject,
+  text, role and nanosecond timestamp checks. A different recipient is rejected.
+  API typecheck/lint and the shell typecheck/production build passed after the fix.
 - The creation rollback assertion was mutation-tested: deliberately omitting the
   creation audit produced the expected failing assertion (expected 503, actual
   200). Restoring the audit made the draft suite pass. No mutation remains.

@@ -949,6 +949,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/department-leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false | false |
@@ -1135,6 +1136,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/department-leave-review-requests/:request` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history` | `workforce.benefits.view` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent` | `workforce.benefits.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents` | `workforce.benefits.view` | true | false |
@@ -1179,6 +1181,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-ledger` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/cancellation` | `workforce.leave.request` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision` | `workforce.leave.approve` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/department-decision` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/history` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false | false |

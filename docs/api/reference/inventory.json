@@ -546,6 +546,11 @@
           "creates_tables": [
             "iam_assignment_department_verifications"
           ]
+        },
+        {
+          "id": "0032_iam_department_leave_review_templates",
+          "sql_sha256": "d8926f65632b1d0e6f254950c36fde452ce1d65e4db15e4ab4664a509adf57a1",
+          "creates_tables": []
         }
       ]
     },
@@ -6875,6 +6880,17 @@
           "counted": false
         },
         {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/department-leave-review-requests",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/employment-review-inbox",
           "permission": "public",
@@ -8591,6 +8607,17 @@
           "counted": false
         },
         {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/department-leave-review-requests/:request",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history",
           "permission": "workforce.benefits.view",
@@ -9030,6 +9057,17 @@
           "scope_parameter": "hospital",
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/department-decision",
           "permission": "workforce.leave.approve",
           "authentication_required": true,
           "membership_required": true,
@@ -10613,6 +10651,11 @@
         {
           "id": "0088_workforce_establishment_kind",
           "sql_sha256": "bcacaeabba724a345ca117ed97cf4a9a85727478e2054454414f8f7ade2e3f5b",
+          "creates_tables": []
+        },
+        {
+          "id": "0089_workforce_leave_department_scope",
+          "sql_sha256": "b50315b3ef54e2af900ba7128b80454d7c316b152d788441eacb1f6f2da5fb37",
           "creates_tables": []
         }
       ]

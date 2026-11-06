@@ -56,7 +56,7 @@ function fixture(
   options: { author?: string; image?: PharmacyLicenceEvidence; denyImage?: boolean } = {},
 ) {
   let saved = { ...licence, entered_by: options.author ?? licence.entered_by };
-  const state = { image: options.image ?? { ...evidence } };
+  const state = { image: options.image ?? { ...evidence }, renewalsDenied: false };
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     if (url.endsWith("/iam/me/permissions"))
       return new Response(
@@ -71,20 +71,24 @@ function fixture(
         }),
       );
     if (url.endsWith("/licences/renewals"))
-      return new Response(
-        JSON.stringify(
-          page([
-            {
-              licence_id: licence.id,
-              date_status: "renewal_due_30",
-              days_remaining: 30,
-              local_date: "2026-11-01",
-              time_zone: "Asia/Kolkata",
-              observed_at: "2026-11-01T06:30:00Z",
-            },
-          ]),
-        ),
-      );
+      return state.renewalsDenied
+        ? new Response(JSON.stringify({ error: "forbidden", message: "TEST denied" }), {
+            status: 403,
+          })
+        : new Response(
+            JSON.stringify(
+              page([
+                {
+                  licence_id: licence.id,
+                  date_status: "renewal_due_30",
+                  days_remaining: 30,
+                  local_date: "2026-11-01",
+                  time_zone: "Asia/Kolkata",
+                  observed_at: "2026-11-01T06:30:00Z",
+                },
+              ]),
+            ),
+          );
     if (url.endsWith("/licences")) return new Response(JSON.stringify(page([saved])));
     if (url.includes("/evidence?limit=1"))
       return options.denyImage
@@ -158,6 +162,25 @@ describe("Pharmacy licence setup", () => {
       await screen.findByText("Another authorized owner must review this declaration."),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Record independent licence review" })).toBeNull();
+  });
+
+  it("removes retained renewal advice and refresh when the server revokes access", async () => {
+    const { state } = fixture();
+    const { user } = renderWithProviders(
+      <LicencePanel scope={scope} subject="user-reviewer" today="2026-11-01" />,
+    );
+    await user.click(await screen.findByText(/TEST-DL-001 · Awaiting independent review/));
+    expect(await screen.findByText(/Renewal due within 30 days · 30 days remaining/)).toBeVisible();
+
+    state.renewalsDenied = true;
+    await user.click(screen.getByRole("button", { name: "Refresh expiry reminders" }));
+
+    expect(
+      await screen.findByText("This wasn't found, or you don't have access to it."),
+    ).toBeVisible();
+    expect(screen.queryByText(/Renewal due within 30 days/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Refresh expiry reminders" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Try again$/ })).toBeNull();
   });
 
   it("keeps review refused when evidence access is unavailable", async () => {

@@ -28,7 +28,15 @@ import {
   type PharmacyLicenceRenewalNotice,
   type PharmacyScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  LoadMore,
+  Panel,
+  RefreshButton,
+  RequestFailure,
+  useZodForm,
+} from "@helivanta/ui";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
 
 type Reports = (key: string) => FormState;
@@ -73,10 +81,12 @@ export function LicencePanel({
     pharmacyKey(scope, "licences", "renewals"),
     `${pharmacyLicencesRoot(scope)}/renewals`,
   );
-  const notices = renewals.items.flatMap((value) => {
-    const parsed = pharmacyLicenceRenewalNoticeSchema.safeParse(value);
-    return parsed.success ? [parsed.data] : [];
-  });
+  const notices = renewals.isError
+    ? []
+    : renewals.items.flatMap((value) => {
+        const parsed = pharmacyLicenceRenewalNoticeSchema.safeParse(value);
+        return parsed.success ? [parsed.data] : [];
+      });
   const invalidNotice = notices.length !== renewals.items.length;
   return (
     <Panel className="space-y-5">
@@ -135,9 +145,13 @@ export function LicencePanel({
             isLoading={renewals.isFetchingMore}
             onClick={renewals.loadMore}
           />
-          <Button type="button" variant="outline" onClick={renewals.retry}>
+          <RefreshButton
+            refresh={renewals.retry}
+            error={renewals.error}
+            busy={renewals.isRefreshing}
+          >
             Refresh expiry reminders
-          </Button>
+          </RefreshButton>
           {can("pharmacy.licence.manage") && (
             <LicenceForm scope={scope} today={today} report={formState?.("licence-create")} />
           )}

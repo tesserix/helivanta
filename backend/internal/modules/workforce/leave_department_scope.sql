@@ -25,14 +25,13 @@ CREATE FUNCTION workforce_leave_department_candidate(t uuid,h uuid,s uuid) RETUR
  AND r.department_id=ANY(workforce_leave_department_subtree()))
 $$;
 
--- Read-only approved branches; the update and delete guards keep every prior write restriction.
+-- Read-only approved branches span the hospital so Go can prove no live posting lies outside the subtree.
 DO $migration$
 DECLARE item record; prior record;
 BEGIN
  FOR item IN SELECT * FROM (VALUES
   ('workforce_posting_proposals',$scope$workforce_leave_department_reads(tenant_id,hospital_id) AND status='approved'$scope$),
   ('workforce_posting_proposal_revisions',$scope$workforce_leave_department_reads(tenant_id,hospital_id) AND status='approved'
-   AND department_id=ANY(workforce_leave_department_subtree())
    AND EXISTS(SELECT 1 FROM workforce_posting_proposals p
    WHERE (p.tenant_id,p.hospital_id,p.staff_id,p.id,p.revision_id,p.version,p.status)=
    (workforce_posting_proposal_revisions.tenant_id,workforce_posting_proposal_revisions.hospital_id,

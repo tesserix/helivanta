@@ -71,7 +71,8 @@ SDK, contract and inventory.
 
 ## Task 5: queue, detail and decision handlers
 
-- Queue: `HandlerScopedQueryListRoute` with the `department` filter, limit 10,
+- Queue: `HandlerScopedFilteredQueryListRoute` with the `department` filter
+  and a sealed cursor, limit 10,
   keyset over the pending requests the database guard admits, then the live
   check per requester. Rows are audited as `queue_read`.
 - Detail and decision reuse `loadLeaveRequestDetail` and the existing

@@ -73,11 +73,11 @@ subtree. A reviewer holding two departments uses them one at a time.
 These are new, alongside the hospital routes. The hospital routes and their
 callers stay unchanged.
 
-| Method | Path under `/workforce/hospitals/:hospital`                          | Helper                        |
-| ------ | -------------------------------------------------------------------- | ----------------------------- |
-| GET    | `/department-leave-review-requests?department=`                      | `HandlerScopedQueryListRoute` |
-| GET    | `/staff/:id/department-leave-review-requests/:request?department=`   | `GETHandlerScoped`            |
-| POST   | `/staff/:id/leave-requests/:request/department-decision?department=` | new `POSTHandlerScoped`       |
+| Method | Path under `/workforce/hospitals/:hospital`                          | Helper                                |
+| ------ | -------------------------------------------------------------------- | ------------------------------------- |
+| GET    | `/department-leave-review-requests?department=`                      | `HandlerScopedFilteredQueryListRoute` |
+| GET    | `/staff/:id/department-leave-review-requests/:request?department=`   | `GETHandlerScoped`                    |
+| POST   | `/staff/:id/leave-requests/:request/department-decision?department=` | new `POSTHandlerScoped`               |
 
 Each route declares `workforce.leave.approve` with department scope. The
 handler must prove the matched assignment through `AdmitHandlerScope`, or the
@@ -101,12 +101,14 @@ buffered success becomes a 500.
 2. **Subtree.** Read `CurrentSubtree([hint])`, at most 1,000 nodes, which must
    contain the hint. Hold the hint with `WithinCurrentDepartment(hint,
 grant.DepartmentID)`. A path change returns 409 `department_scope_changed`.
-3. **Ledger and supervision.** The decision takes the leave-ledger advisory
-   lock, then `workforce_lock_supervision`, so a concurrent posting approval or
-   cutoff commits wholly before or after it. Reads take neither lock.
+3. **Supervision and ledger.** Every call runs as a guarded command, so its
+   transaction takes `workforce_lock_supervision` and a concurrent posting
+   approval or cutoff commits wholly before or after it. A decision then takes
+   the leave-ledger advisory lock, in the same order as hospital decisions.
+   Reads take no ledger lock.
 4. **Actor.** `lockReviewedLeaveActor` locks the reviewer's Staff row and login
    link. Self-decision is refused as today.
-5. **Requester postings.** Read at most 8 approved postings whose current
+5. **Requester postings.** Read at most 9 approved postings whose current
    revision covers the check time. More than 8 fails closed with 503. Run the
    live check on each, and require at least one live posting and every live
    department in the subtree. The decision then holds each live department with

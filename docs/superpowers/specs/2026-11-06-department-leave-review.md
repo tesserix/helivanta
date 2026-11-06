@@ -178,8 +178,13 @@ The leave review page reads `leave-review-scopes`.
   through `useStaffPostingReviewDepartmentNames`.
 - The queue, detail and decision use the department routes for the selected
   department. Rows keep the existing direct and escalated badges.
-- A 404 after a transfer or retirement reads "This request is no longer in your
-  department. Reload the queue."
+- A queue 404 reads "Department retired. This access no longer applies." It is
+  a refusal through `RequestFailure` with no retry (#1595), and the queue's
+  rows and refresh are withdrawn. Refresh access reloads the held departments.
+- A queue 409 `department_scope_changed` reads "The department structure
+  changed. Reload the department leave queue." and offers a retry.
+- A detail 404 after a transfer reads "This request is no longer in your
+  department's review. Close it and refresh the queue." and hides the decision.
 - Organization being unavailable shows the standard unavailable state and never
   retained rows.
 

@@ -9,8 +9,8 @@ grant for the held Organization path in OpenFGA, holds that department through
 commit and binds the reviewer as a current Staff actor. Workforce 0089 then limits
 the session to requests whose requester has every live posting inside the held
 subtree. Hospital leave review and the hospital leave desk are unchanged. The
-shell offers a department selector and a recheck action for retired or moved
-departments.
+shell offers a department selector. A retired department reads as a refusal with
+no retry, and a moved department structure offers a queue retry.
 
 Evidence: the person-review journey's new `posting_dept_leave` case and the
 department leave journey pass against real IAM, OpenFGA and Postgres (206.6s).

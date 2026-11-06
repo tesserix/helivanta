@@ -182,6 +182,50 @@ export const staffAccessTemplates = [
     ],
     scope_kinds: ["department"],
   },
+  {
+    key: "iam.partner_group_member_reader.v1",
+    name: "Partner team membership reader",
+    description:
+      "Read reviewed hospital partner-team memberships and their current source eligibility; no private HR or supplier operating authority.",
+    family: "partner_membership",
+    permissions: [
+      "iam.partner_group.members.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["hospital"],
+  },
+  {
+    key: "iam.partner_group_member_preparer.v1",
+    name: "Partner team membership preparer",
+    description:
+      "Prepare hospital partner-team memberships from exact current reviewed Staff, account links and postings; cannot approve them or grant supplier access.",
+    family: "partner_membership",
+    permissions: [
+      "iam.partner_group.members.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+      "iam.partner_group.members.prepare",
+    ],
+    scope_kinds: ["hospital"],
+  },
+  {
+    key: "iam.partner_group_member_reviewer.v1",
+    name: "Partner team membership reviewer",
+    description:
+      "Independently review hospital partner-team memberships against exact current Staff, account and posting sources; cannot grant supplier or clinical authority.",
+    family: "partner_membership",
+    permissions: [
+      "iam.partner_group.members.read",
+      "workforce.partner_member_source.use",
+      "workforce.posting_source.use",
+      "workforce.staff_actor.use",
+      "iam.partner_group.members.review",
+    ],
+    scope_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -293,5 +337,10 @@ export const staffAccessTemplateCatalogs = {
     "workforce.posting_cutoff_admin.v1",
     "workforce.posting_source_consumer.v1",
     "workforce.department_posting_reviewer.v1",
+  ],
+  "partner-membership-v1": [
+    "iam.partner_group_member_reader.v1",
+    "iam.partner_group_member_preparer.v1",
+    "iam.partner_group_member_reviewer.v1",
   ],
 } as const;

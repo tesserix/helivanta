@@ -812,6 +812,97 @@
       "type": "object"
     }
   },
+  "helivanta.in.iam.partner_group_changed.v1": {
+    "source": "backend/internal/modules/iam/contract/partner_group_scope_generated.go:15",
+    "go_type": "PartnerGroupChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "group_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "group_id",
+        "hospital_id",
+        "version",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.iam.partner_group_hospital_scope_requested.v1": {
+    "source": "backend/internal/modules/iam/contract/partner_group_scope_generated.go:10",
+    "go_type": "PartnerGroupHospitalScopeRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "group_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group_id",
+        "hospital_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.iam.partner_group_member_changed.v1": {
+    "source": "backend/internal/modules/iam/contract/partner_group_scope_generated.go:22",
+    "go_type": "PartnerGroupMemberChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "cohort_epoch": {
+          "type": "integer"
+        },
+        "group_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "member_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "member_version": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "group_id",
+        "hospital_id",
+        "member_id",
+        "member_version",
+        "cohort_epoch",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.lab.result_ready.v1": {
     "source": "backend/internal/modules/lab/contract/events.go:10",
     "go_type": "ResultReadyData",
@@ -3822,6 +3913,39 @@
         "hospital_id",
         "revision_id",
         "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.workforce.partner_group_hospital_scope_observed.v1": {
+    "source": "backend/internal/modules/workforce/contract/partner_group_scope_generated.go:8",
+    "go_type": "PartnerGroupHospitalScopeObservedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "exists": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "group_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "hospital_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group_id",
+        "hospital_id",
+        "exists"
       ],
       "type": "object"
     }

@@ -424,3 +424,12 @@ Start with existing Postgres indexes/transactions, IAM/OpenFGA and outbox worker
 SR entries are proposals or, where marked, references to already settled decisions; they do not replace accepted ORG decisions. ADR-0044's no-default-clinical-access, central department ownership and posting-proposes-access decisions remain the baseline. ORG-D2/D5/D6 need their own review before any affected feature relies on them.
 
 Traceability: ORG-ST-01–07 (structure/history); ORG-AU-01–09 (authority and clinical separation); ORG-AC-01–08 (assignment, lifecycle, deny/failure and migration); IN-PH-02/04/05/06/10 (pharmacy act/evidence/outlet scope); IN-CL-10 and IN-FQ-06 via the organization authority reference. These are proposed Helivanta acceptance criteria, not regulatory certification. Country/state, service, licence and current source applicability require qualified review.
+
+### Independent collaboration implementation candidate
+
+The [delivery ledger](independent-collaboration-delivery.md) tracks the required
+end-to-end work for Maharashtra and Odisha. The [membership implementation](partner-membership-implementation.md)
+includes the current ownership tree, actor roles and endpoint/recovery contract.
+Its [editable draw.io diagram](diagrams/09-independent-membership.drawio) and
+[SVG preview](diagrams/09-independent-membership.svg) distinguish candidate
+membership behavior from pending supplier integrations.

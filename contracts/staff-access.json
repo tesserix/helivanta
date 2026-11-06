@@ -855,6 +855,55 @@
         }
       ],
       "definitions_sha256": "8f371fef3a22e1cf271733aadd396ea0345a97dfc342f2b9b92ea43cc6e17c77"
+    },
+    {
+      "id": "0033_iam_partner_membership_templates",
+      "file": "assignment_partner_membership_templates_generated.sql",
+      "templates": [
+        {
+          "key": "iam.partner_group_member_reader.v1",
+          "name": "Partner team membership reader",
+          "description": "Read reviewed hospital partner-team memberships and their current source eligibility; no private HR or supplier operating authority.",
+          "family": "partner_membership",
+          "permissions": [
+            "iam.partner_group.members.read",
+            "workforce.partner_member_source.use",
+            "workforce.posting_source.use",
+            "workforce.staff_actor.use"
+          ],
+          "scope_kinds": ["hospital"]
+        },
+        {
+          "key": "iam.partner_group_member_preparer.v1",
+          "name": "Partner team membership preparer",
+          "description": "Prepare hospital partner-team memberships from exact current reviewed Staff, account links and postings; cannot approve them or grant supplier access.",
+          "family": "partner_membership",
+          "permissions": [
+            "iam.partner_group.members.read",
+            "workforce.partner_member_source.use",
+            "workforce.posting_source.use",
+            "workforce.staff_actor.use",
+            "iam.partner_group.members.prepare"
+          ],
+          "scope_kinds": ["hospital"]
+        },
+        {
+          "key": "iam.partner_group_member_reviewer.v1",
+          "name": "Partner team membership reviewer",
+          "description": "Independently review hospital partner-team memberships against exact current Staff, account and posting sources; cannot grant supplier or clinical authority.",
+          "family": "partner_membership",
+          "permissions": [
+            "iam.partner_group.members.read",
+            "workforce.partner_member_source.use",
+            "workforce.posting_source.use",
+            "workforce.staff_actor.use",
+            "iam.partner_group.members.review"
+          ],
+          "scope_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "9112cebf02596516e211328f90223ed8b241f6d5fdfbec826d2f823c758170c2",
+      "sql_sha256": "852b5adf12167559fee1129120db1ce88941a381d06871ad7344ca00d29fa244"
     }
   ],
   "template_catalogs": [
@@ -1011,6 +1060,15 @@
         "workforce.department_posting_reviewer.v1"
       ],
       "definitions_sha256": "6a221c7f0a674326eeee2203152f09e0979349daf9ff084b4330e88b13a70955"
+    },
+    {
+      "key": "partner-membership-v1",
+      "template_keys": [
+        "iam.partner_group_member_reader.v1",
+        "iam.partner_group_member_preparer.v1",
+        "iam.partner_group_member_reviewer.v1"
+      ],
+      "definitions_sha256": "9112cebf02596516e211328f90223ed8b241f6d5fdfbec826d2f823c758170c2"
     }
   ]
 }

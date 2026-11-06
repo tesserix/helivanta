@@ -22,6 +22,14 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-activation-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/employment-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
+| PUT | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member` | `public` | false | false |
+| PUT | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member` | `public` | false | false |
+| GET | `/v1/iam/hospitals/:hospital/partner-groups/:group/member-proposals` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/partner-groups` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/partner-member-candidates` | `public` | true | false |
+| GET | `/v1/iam/hospitals/:hospital/partner-member-capabilities` | `public` | false | false |
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
@@ -38,6 +46,12 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | PUT | `/v1/iam/membership-enrollments/:id` | `iam.member.manage` | false | false |
 | GET | `/v1/iam/membership-enrollments` | `iam.member.manage` | true | false |
+| GET | `/v1/iam/partner-groups/:id/commands/:command` | `iam.assignment.manage` | false | false |
+| PUT | `/v1/iam/partner-groups/:id/commands/:command` | `public` | false | false |
+| GET | `/v1/iam/partner-groups/:id` | `iam.assignment.manage` | false | false |
+| PUT | `/v1/iam/partner-groups/:id` | `iam.assignment.manage` | false | false |
+| GET | `/v1/iam/partner-groups` | `iam.assignment.manage` | true | false |
+| GET | `/v1/iam/partner-membership-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
@@ -46,6 +60,9 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 
 Published subjects:
 
+- `helivanta.in.iam.partner_group_hospital_scope_requested.v1`
+- `helivanta.in.iam.partner_group_changed.v1`
+- `helivanta.in.iam.partner_group_member_changed.v1`
 - `helivanta.in.iam.assignment_scope_requested.v1`
 - `helivanta.in.iam.assignment_department_scope_requested.v1`
 - `helivanta.in.iam.assignment_projection_requested.v1`
@@ -55,6 +72,7 @@ Published subjects:
 
 Subscriptions:
 
+- `iam-partner-group-hospital-scope` ← `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`; after-commit hook: false.
 - `iam-assignment-scope` ← `helivanta.in.workforce.assignment_scope_verified.v1`; after-commit hook: false.
 - `iam-assignment-department-scope` ← `helivanta.in.organization.assignment_department_verified.v1`; after-commit hook: false.
 - `iam-assignment-projection` ← `helivanta.in.iam.assignment_projection_requested.v1`; after-commit hook: true.
@@ -76,6 +94,8 @@ Migration table declarations:
 - `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 - `0023_iam_employment_bases`: `iam_employment_bases`, `iam_employment_basis_history`, `iam_assignment_employment_bases`.
 - `0031_iam_department_assignment_scope`: `iam_assignment_department_verifications`.
+- `0032_iam_partner_groups`: `iam_partner_groups`, `iam_partner_group_scope_observations`, `iam_partner_group_commands`.
+- `0034_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
 
 ## reference
 
@@ -1222,6 +1242,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 
 Published subjects:
 
+- `helivanta.in.workforce.partner_group_hospital_scope_observed.v1`
 - `helivanta.in.workforce.posting_cutoff_changed.v1`
 - `helivanta.in.workforce.posting_proposal_changed.v1`
 - `helivanta.in.workforce.posting_draft_changed.v1`
@@ -1271,6 +1292,7 @@ Published subjects:
 
 Subscriptions:
 
+- `workforce-partner-group-hospital-scope` ← `helivanta.in.iam.partner_group_hospital_scope_requested.v1`; after-commit hook: false.
 - `workforce-department-link-observation` ← `helivanta.in.organization.department_link_observed.v1`; after-commit hook: false.
 - `workforce-assignment-scope` ← `helivanta.in.iam.assignment_scope_requested.v1`; after-commit hook: false.
 - `workforce-organization-reference` ← `helivanta.in.organization.hospital_reference_requested.v1`; after-commit hook: false.
@@ -1339,6 +1361,7 @@ Migration table declarations:
 - `0083_workforce_posting_supervisor_choice_index`: concurrent index `workforce_posting_supervisor_choice_order` on `workforce_posting_supervision_intents (tenant_id, hospital_id, kind, created_at DESC, proposal_id DESC)`.
 - `0084_workforce_posting_cutoffs`: `workforce_posting_cutoffs`.
 - `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
+- `0089_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 
 ## workspace
 

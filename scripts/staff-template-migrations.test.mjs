@@ -925,3 +925,32 @@ test("generated templates publish scope kinds and the department scope function"
       /scope_kinds/,
     );
 });
+
+test("partner membership templates refuse missing source checks or combined preparation/review", async (t) => {
+  for (const mutate of [
+    (template) => {
+      template.permissions = template.permissions.filter(
+        (permission) => permission !== "workforce.partner_member_source.use",
+      );
+    },
+    (template) => {
+      template.permissions.push("iam.partner_group.members.review");
+    },
+    (template) => {
+      template.permissions.push("pharmacy.stock.adjust");
+    },
+  ]) {
+    const { dir, contract, contractPath } = await fixture(t);
+    const template = contract.template_migrations
+      .flatMap((entry) => entry.templates)
+      .find((entry) => entry.key === "iam.partner_group_member_preparer.v1");
+    mutate(template);
+    await writeFile(contractPath, JSON.stringify(contract));
+    const result = generate(dir);
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Partner membership templates require exact hospital-only role, actor and source permissions/,
+    );
+  }
+});

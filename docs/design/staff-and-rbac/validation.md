@@ -69,3 +69,31 @@ The latest artifact checks found 78 resolving local links, 62 nonoverlapping car
 the new page was visually inspected. Native diagrams.net import/export remains
 unexercised. Runtime acceptance is recorded separately from artifact validity;
 neither establishes regulatory or production readiness.
+
+## Independent membership candidate — 6 November 2026
+
+Added the standalone [native diagram](diagrams/09-independent-membership.drawio)
+and [SVG preview](diagrams/09-independent-membership.svg). XML checks confirm
+13 nonoverlapping surfaces, 11 valid connectors and geometry within the page.
+`rsvg-convert` rendered the SVG and its PNG was visually inspected for text,
+contrast and connector spacing. The existing eight-page master remains unchanged;
+native diagrams.net import/export of the new file remains unexercised.
+
+Local behavior evidence:
+
+- Dedicated QA Postgres/OpenFGA/NATS, actual IAM/Workforce owners and Global API,
+  race detector: selected pre-employment/posting fixture chain passed in
+  280.921 seconds. It includes the owner candidate projection, current peer
+  source binding, self-enrolment refusal, independent Staff review, changed-intent
+  and stale-version rejection, exact nomination/command recovery, collection
+  reads and following department transfer/cutoff regression cases.
+- `pnpm --filter @helivanta/shell exec vitest run 'app/(workspace)/workforce/partner-teams'`:
+  nine tests passed, including scoped non-governance browsing, lost nomination
+  and approval response recovery with a single PUT, and removal of Staff details
+  after current read authority is withdrawn.
+- New SDK group/member/contract tests, API/shell typechecks and scoped ESLint
+  checks have passed. Full-package checks, final builds and real browser runtime
+  acceptance remain required; consult the delivery ledger for current status.
+
+These are local candidate checks, not evidence of complete supplier disclosure,
+stock/finance composition, production migration, merge or Kargo promotion.

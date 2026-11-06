@@ -8,7 +8,14 @@ import {
   type Hospital,
   type LeaveConfig,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import {
+  Field,
+  PageHeading,
+  SelectControl,
+  RequestFailure,
+  isRefusal,
+  RefreshButton,
+} from "@helivanta/ui";
 import { inputClass } from "../roster-policy/policy-ui";
 import { effectiveDate } from "../roster-setup/roster-summary";
 import { LeaveEditor } from "./leave-editor";
@@ -103,7 +110,10 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
     setHistory(null);
     opener.current?.focus();
   };
-  const rows = records.items.filter((r) =>
+  // Configurations the server now refuses don't stay on screen, nor do the
+  // editor or history opened from them (#1595).
+  const refused = isRefusal(records.error);
+  const rows = (refused ? [] : records.items).filter((r) =>
     `${r.name} ${r.code}`.toLowerCase().includes(filter.toLowerCase()),
   );
   return (
@@ -230,13 +240,13 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
                 Load more configurations
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={records.retry}>
+            <RefreshButton size="sm" refresh={records.retry} error={records.error}>
               Refresh configurations
-            </Button>
+            </RefreshButton>
           </div>
         </div>
       </section>
-      {editing && (
+      {editing && !refused && (
         <LeaveEditor
           key={editing === "new" ? "new" : editing.id}
           path={path}
@@ -246,7 +256,7 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
           onClose={close}
         />
       )}
-      {history && (
+      {history && !refused && (
         <LeaveHistory
           key={history.id}
           path={`${path}/${history.id}/history`}

@@ -17,7 +17,14 @@ import {
   type StaffDirectoryView,
   type EnrollmentRequestScope,
 } from "@helivanta/api";
-import { Field, FormSelectField, useZodForm, ConfirmDialog, Panel } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  useZodForm,
+  ConfirmDialog,
+  Panel,
+  RequestFailure,
+} from "@helivanta/ui";
 
 type DirectoryEditorProps = {
   hospital: Hospital;
@@ -67,19 +74,21 @@ export function StaffDirectoryEditor({
       parsed.data.hospital_id !== hospital.id)
   )
     return (
-      <Panel role="alert" className="mt-6">
-        <p>
-          {query.isError
-            ? "The current Staff record is not available. Retry before editing."
-            : "Could not verify the current Staff record in this account and workspace. Refresh before editing."}
-        </p>
-        <div className="mt-4 flex gap-3">
-          <Button onClick={() => void query.refetch()}>Try again</Button>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </Panel>
+      <div className="mt-6 space-y-3">
+        <RequestFailure
+          message={
+            query.isError
+              ? "The current Staff record is not available. Retry before editing."
+              : "Could not verify the current Staff record in this account and workspace. Refresh before editing."
+          }
+          retry={query.refetch}
+          // A record that fails verification has no error, so it keeps the retry.
+          error={query.error}
+        />
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
     );
   return (
     <StaffDirectoryForm

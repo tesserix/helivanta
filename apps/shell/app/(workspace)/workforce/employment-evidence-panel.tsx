@@ -4,7 +4,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { STAFF_ACCESS_CHANGED, useStaffAccessCutoff } from "./staff-access-cutoff";
 import { Button, Input } from "@tesserix/web";
-import { Panel, Field, FormSelectField, LoadMore, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import {
+  Panel,
+  Field,
+  FormSelectField,
+  LoadMore,
+  useLeaveGuard,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   withStaffIntakeScope,
@@ -162,12 +170,11 @@ export function EmploymentEvidencePanel({
       {files.isPending ? (
         <p role="status">Loading employment evidence…</p>
       ) : files.isError || !valid ? (
-        <div role="alert">
-          Could not verify employment evidence.{" "}
-          <Button variant="ghost" onClick={files.retry}>
-            Retry evidence
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not verify employment evidence."
+          retry={files.retry}
+          error={files.error}
+        />
       ) : parsed.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No employment evidence attached to this revision.

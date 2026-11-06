@@ -27,6 +27,8 @@ function setup(
     manage?: boolean;
     initial?: Record<string, unknown>;
     source?: Partial<typeof source>;
+    /** Draft and history reads whose URL this matches answer 403. */
+    refuse?: (url: string) => boolean;
   } = {},
 ) {
   const writes: { url: string; body: Record<string, unknown>; headers: Headers }[] = [];
@@ -67,6 +69,8 @@ function setup(
         };
         return Response.json(saved);
       }
+      if (url.includes("/checks") && !init?.method && options.refuse?.(url))
+        return Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 });
       if (url.includes("/checks")) {
         return Response.json({
           data: saved ? [saved] : [],
@@ -189,4 +193,35 @@ it("retains inactive staff draft history while disabling new changes", async () 
   expect(screen.getByText(/changed since this draft/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Prepare review draft" })).toBeNull();
   expect(screen.queryByRole("button", { name: /^Edit draft/ })).toBeNull();
+});
+
+it("withdraws loaded review drafts once a re-read is refused", async () => {
+  let refused = false;
+  setup({ manage: false, initial: storedDraft(), refuse: () => refused });
+  renderWithProviders(
+    <StaffIdentitySourcePanel hospitalId={hospital} staffId={staff} onClose={() => {}} />,
+  );
+  expect(await screen.findByText("SYN-EXISTING-POLICY")).toBeInTheDocument();
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("SYN-EXISTING-POLICY")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /retry review drafts|try again/i })).toBeNull();
+});
+
+it("shows refused draft history as a refusal, with no retry", async () => {
+  setup({ manage: false, initial: storedDraft(), refuse: (url) => url.includes("/history") });
+  const { user } = renderWithProviders(
+    <StaffIdentitySourcePanel hospitalId={hospital} staffId={staff} onClose={() => {}} />,
+  );
+  await user.click(await screen.findByRole("button", { name: "History for SYN-EXISTING-POLICY" }));
+  const history = screen.getByRole("region", { name: "Review draft history" });
+  expect(
+    await within(history).findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(
+    within(history).queryByRole("button", { name: /retry draft history|try again/i }),
+  ).toBeNull();
 });

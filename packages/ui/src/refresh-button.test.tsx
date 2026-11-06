@@ -26,6 +26,16 @@ describe("RefreshButton", () => {
     expect(screen.getByRole("button", { name: "Refresh Laboratory" })).toBeEnabled();
   });
 
+  it("can be drawn small, as a toolbar button", () => {
+    renderWithProviders(
+      <RefreshButton refresh={vi.fn()} error={null} size="sm">
+        Refresh
+      </RefreshButton>,
+    );
+    // Button's small size is a height class; matching it keeps the toolbar row even.
+    expect(screen.getByRole("button", { name: "Refresh" })).toHaveClass("h-9");
+  });
+
   it("is disabled while busy", () => {
     renderWithProviders(
       <RefreshButton refresh={vi.fn()} error={null} busy>

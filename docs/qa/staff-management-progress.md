@@ -13,7 +13,9 @@ shell offers a department selector. A retired department reads as a refusal with
 no retry, and a moved department structure offers a queue retry.
 
 Evidence: the person-review journey's new `posting_dept_leave` case and the
-department leave journey pass against real IAM, OpenFGA and Postgres (206.6s).
+department leave journey pass against real IAM, OpenFGA and Postgres. They also
+pass in one run with the five posting department cases that share their
+hospital (213.9s).
 They cover the template grant and its scope discovery, 403 before the grant,
 404 for sibling, foreign and unknown departments, the 0089 RLS session and audit
 evidence. Workforce unit (896s), architecture, `contractdocs -check` and the

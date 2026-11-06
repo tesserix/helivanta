@@ -4,6 +4,10 @@ Start with the [API/specification index](../docs/api/README.md) and [schema sour
 
 Existing top-level JSON files are custom input dialects for the corresponding `scripts/generate-*.mjs` generators. They generate selected backend Go models/validation and frontend Zod contracts. They are not directly consumable OpenAPI or JSON Schema. Edit the canonical input and regenerate; do not hand-edit generated models or copy them into consumers.
 
+`partner-grants.json` owns the unreleased, non-operating supplier grant preparation
+models. Generate/check with `node scripts/generate-partner-grants.mjs` (optionally
+`--check`); see [its authority and recovery boundary](../docs/api/partner-grants.md).
+
 `api/clinical.openapi.json` is an OpenAPI 3.1 descriptive pilot for the implemented legacy visit/lab/dispense/medication/insight APIs. It does not cover all runtime operations, replace existing generators, or assert hospital-level isolation for those tenant-scoped legacy tables. `api/event-envelope.schema.json` describes the existing event envelope, including tenant-less revocation and optional directed destination.
 
 [Generated event payload schemas](../docs/api/reference/event-payloads.json) map all registered published subjects to their current Go payload schemas. [Runtime inventory](../docs/api/reference/inventory.json) records every module/route/permission/event/migration declaration. Regenerate/check from `backend/` with `go run ./cmd/contractdocs` / `go run ./cmd/contractdocs -check`.

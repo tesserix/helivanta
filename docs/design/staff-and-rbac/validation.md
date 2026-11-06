@@ -113,3 +113,52 @@ ordinary staff now use their current hospital capabilities, with command-time
 reauthorization. Unit coverage includes an empty tenant-wide permission list with
 a valid scoped role. No mocked tenant-wide permission is required for the browser
 scenario. The screenshot uses only synthetic fixture data.
+
+## Supplier grant preparation — 7 November 2026
+
+This checkpoint implements private supplier proposal preparation only. It does
+not implement effective grants, bilateral acceptance, partner disclosure, stock
+fulfilment or financial reconciliation. The delivery ledger retains those open
+stages and the canonical onboarding prerequisite.
+
+Commands actually run in the isolated supplier worktree:
+
+- `pnpm --filter @helivanta/api test`: 926 tests in 93 files passed.
+- `pnpm --filter @helivanta/shell test`: the unchanged full rerun passed 1,725
+  tests in 195 files. The first run had three timeout-related failures in two
+  unchanged files; those files also passed independently, with 11 tests.
+- API and shell `type-check`, ESLint and the production shell build passed.
+- `go test -race ./internal/archtest ./cmd/contractdocs`: passed, including the
+  full architecture suite (84.228 seconds).
+- Affected-package `go vet` and `go build ./...` passed. The final repository
+  `golangci-lint run ./...` passed with zero findings.
+- `go test -race ./internal/modules/iam -run TestPartnerGrantDraft -count=1
+-timeout=5m`: passed. Actual Postgres tests cover invalid inputs, explicit nulls,
+  immutable exact recovery, changed intent, tenant/cursor isolation, missing
+  governance authority, audit withholding and creation rollback. Direct database
+  UPDATE/DELETE attempts cannot change or remove saved evidence.
+- The creation rollback assertion was mutation-tested: deliberately omitting the
+  creation audit produced the expected failing assertion (expected 503, actual
+  200). Restoring the audit made the draft suite pass. No mutation remains.
+- `go test -race ./internal/globalapi -run
+TestSupplierGrantDraftThroughActualOwnerAndGraph -count=1 -timeout=5m -v`,
+  with the browser URL configured, passed in 10.295 seconds against the built
+  shell and actual Global API/IAM/OpenFGA/PharmaConnect/Postgres. The browser
+  saved once, lost the successful response and recovered by GET with one PUT;
+  the graph outage returned 503 and no operating authority. Only synthetic
+  accounts were used. OIDC sign-in and positive profile integration were not
+  exercised; the fixture's unavailable profile reader correctly returned 503.
+- Canonical grant generation, contractdocs parity, operational inventory parity
+  and `git diff --check` passed. Inventory parity does not certify operating
+  authorization; 840 existing surfaces remain unclassified.
+
+The earlier full IAM race run failed the unchanged
+`TestAssignmentProjectionAcknowledgesOnlyCurrentScope` case with expected 202,
+actual 504. Its unchanged isolated rerun passed (34.194 seconds). A fresh full
+IAM race run is pending; neither its deadline nor assertions were weakened.
+Remote CI, merge, image publication and Kargo promotion are not established by
+these local checks.
+
+Read-only production discovery reconfirmed API, Global API and shell at
+`62f3f7fd180f5ce9800d70807217b1cb2131d54a`, two ready replicas each, and the
+previous Kargo promotion succeeded. No production change occurred.

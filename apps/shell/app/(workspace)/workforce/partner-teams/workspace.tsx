@@ -14,6 +14,7 @@ import { accessChanged } from "./errors";
 import { TeamProposalForm } from "./proposal-form";
 import { TeamDetail } from "./team-detail";
 import { MemberTeams } from "./member-teams";
+import { PartnerGrantDraftWorkspace } from "./grant-drafts";
 
 export function PartnerTeamsWorkspace() {
   const switching = useTenantTransition();
@@ -28,6 +29,7 @@ function TeamAccount({ restart }: { restart: () => void }) {
   const [nonce] = useState(() => crypto.randomUUID());
   const [changed, setChanged] = useState(false);
   const [membership, setMembership] = useState(false);
+  const [supplierAccess, setSupplierAccess] = useState(false);
   const confirm = useConfirmLeave();
   const identity = useApiQuery<PermissionsResponse>(
     ["iam", "partner-team-account", nonce],
@@ -58,10 +60,26 @@ function TeamAccount({ restart }: { restart: () => void }) {
   const scope = { tenantId: identity.data.tenant_id, subject: identity.data.subject };
   const canGovern = identity.data.data.includes("iam.assignment.manage");
   const canMembers = identity.data.data.includes("iam.partner_group.members.read");
+  if (canGovern && supplierAccess)
+    return (
+      <>
+        <Button variant="outline" onClick={() => confirm(() => setSupplierAccess(false))}>
+          Back to hospital teams
+        </Button>
+        <PartnerGrantDraftWorkspace
+          key={`${scope.tenantId}:${scope.subject}`}
+          scope={scope}
+          onChanged={() => setChanged(true)}
+        />
+      </>
+    );
   if (!canGovern || membership)
     return <MemberTeams scope={scope} onChanged={() => setChanged(true)} />;
   return (
     <>
+      <Button variant="outline" onClick={() => confirm(() => setSupplierAccess(true))}>
+        Supplier access preparation
+      </Button>
       {canMembers && (
         <Button variant="outline" onClick={() => confirm(() => setMembership(true))}>
           Manage team memberships

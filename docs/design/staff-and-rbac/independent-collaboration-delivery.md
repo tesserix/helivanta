@@ -13,17 +13,42 @@ The accepted boundaries in ADRs 0024, 0026, 0031, 0049, 0054 and 0055 remain in
 force. The [partner design](partner-collaboration.md) describes the complete
 journey and required negative cases.
 
+## Supplier grant preparation — local checkpoint, 7 November 2026
+
+The [new preparation contract](../../api/partner-grants.md) stores an immutable,
+typed named-account or published-team proposal under the supplier's verified
+tenant. PharmaConnect and SupplyConnect source locations remain distinct. Its
+Go/Zod source, owner-only IAM routes, forced-RLS migration, Global API consumer,
+SDK and governance UI explicitly report `pending_verification` and
+`operating_access_enabled:false`. It does not resolve or approve the submitted
+recipient, relationship, licence or category references.
+
+Observed test cycles cover missing route → real-owner preparation/recovery,
+canonical source-ID refusal, cross-tenant/cursor isolation, changed intent,
+invalid scope and expiry, audit failure, exact SDK response/timestamp matching
+and browser-component recovery of a deliberately lost response without a second
+PUT. The [validation record](validation.md#supplier-grant-preparation--7-november-2026)
+records the actual browser run and package checks. It is local, unmerged and
+undeployed; the final IAM package rerun and remote CI remain pending.
+
+Source discovery also confirmed that SupplyConnect has no wholesale stock ledger
+and that independent pharmacy Workforce routes currently register the employer
+only. These dependencies remain part of the complete requested journey. At read-only discovery, the
+production API was `62f3f7fd`; no organization-identity environment group was
+configured, and canonical onboarding-service #12 remains open. No live change was
+made during discovery. The remaining rows below are not closed by preparation.
+
 ## Dependency order and completion evidence
 
-| Work                                                       | Owner                                                                 | Required final evidence                                                                                                                                                                          | Current state                                                                                 |
-| ---------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| Publishable hospital groups and direct reviewed membership | Shared IAM; Workforce retains Staff/link/posting eligibility          | Real-owner group proposal/review, current source-bound membership, immediate reductions, no nesting/self-enrolment, private directory isolation, UI and recovery                                 | Candidate publication, direct membership, owner choices and UI; broader/release gates pending |
-| Named-person/group partner assignments                     | Shared IAM                                                            | Typed recipient, exact relationship/action/field/validity scope, independent approvals, current home eligibility, revocation/epoch and graph-failure tests                                       | Missing                                                                                       |
-| Bilateral commercial relationship                          | Pharmacy trading boundary; Supply retains premise/legal/licence facts | Both exact legal identities and locations, same immutable terms and revisions, live identity, reviewed current category/activity/jurisdiction evidence; both approvals and unilateral suspension | Missing                                                                                       |
-| Authorized partner disclosure                              | Source product                                                        | Audience/purpose/actor/object-bound machine contract; minimized hospital-specific projections, reauthorized pages and files; no foreign-tenant SQL or browser tenant switch                      | Missing                                                                                       |
-| Orders and fulfilment                                      | Hospital procurement, supplier's source owner, receiving stock owner  | Exact units/lines, independent order approval, source dispatch, receiving discrepancy/quarantine, safe receipt, duplicate/reordered event and ambiguous-commit recovery                          | Existing stock foundations; composition missing                                               |
-| Invoice/credit/settlement reconciliation                   | Existing source invoice and payable owners                            | Traceable source references and amounts, independent approval, unresolved/partial states, no inferred payment from receipt                                                                       | Missing composition                                                                           |
-| Merge and production delivery                              | Application CI, Kargo `kargo-helivanta/prod`                          | Required CI green, exact merged tree and image revision, verified freight, completed promotion and healthy API/Global API/shell, production-safe smoke evidence                                  | Pending implementation                                                                        |
+| Work                                                       | Owner                                                                                 | Required final evidence                                                                                                                                                                          | Current state                                                                                 |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Publishable hospital groups and direct reviewed membership | Shared IAM; Workforce retains Staff/link/posting eligibility                          | Real-owner group proposal/review, current source-bound membership, immediate reductions, no nesting/self-enrolment, private directory isolation, UI and recovery                                 | Candidate publication, direct membership, owner choices and UI; broader/release gates pending |
+| Named-person/group partner assignments                     | Shared IAM                                                                            | Typed recipient, exact relationship/action/field/validity scope, independent approvals, current home eligibility, revocation/epoch and graph-failure tests                                       | Missing                                                                                       |
+| Bilateral commercial relationship                          | SupplyConnect relationship owner; each source retains its premise/legal/licence facts | Both exact legal identities and locations, same immutable terms and revisions, live identity, reviewed current category/activity/jurisdiction evidence; both approvals and unilateral suspension | Missing                                                                                       |
+| Authorized partner disclosure                              | Source product                                                                        | Audience/purpose/actor/object-bound machine contract; minimized hospital-specific projections, reauthorized pages and files; no foreign-tenant SQL or browser tenant switch                      | Missing                                                                                       |
+| Orders and fulfilment                                      | Hospital procurement, supplier's source owner, receiving stock owner                  | Exact units/lines, independent order approval, source dispatch, receiving discrepancy/quarantine, safe receipt, duplicate/reordered event and ambiguous-commit recovery                          | Existing stock foundations; composition missing                                               |
+| Invoice/credit/settlement reconciliation                   | Existing source invoice and payable owners                                            | Traceable source references and amounts, independent approval, unresolved/partial states, no inferred payment from receipt                                                                       | Missing composition                                                                           |
+| Merge and production delivery                              | Application CI, Kargo `kargo-helivanta/prod`                                          | Required CI green, exact merged tree and image revision, verified freight, completed promotion and healthy API/Global API/shell, production-safe smoke evidence                                  | Pending implementation                                                                        |
 
 Every increment must include its canonical contract, owning handlers, migrations,
 Global API route coverage, SDK/UI, audit/outbox/recovery, negative tests and design
@@ -69,8 +94,9 @@ selection, followed by department transfer/cutoff regression cases, passed with
 real Postgres, OpenFGA, NATS and the race detector (280.921 seconds). Nine UI tests
 pass, including both lost-response recovery paths and removal of retained Staff
 details after authority is withdrawn. See the [validation record](validation.md#independent-membership-candidate--6-november-2026)
-for exact scope and remaining checks. The reviewed-membership checkpoint is committed on the feature branch. The main
-branch and Kargo stage have not received this candidate.
+for exact scope and remaining checks. The reviewed-membership checkpoint merged through PR #1614 as `0aadd558`.
+The Kargo stage has not received that candidate. Supplier-grant preparation in
+this worktree remains a separate unmerged checkpoint.
 
 ### Latest integration verification — 7 November 2026
 

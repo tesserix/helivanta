@@ -6421,9 +6421,9 @@ unrelated issue closure remain separate.
 - Exact concurrent requests recover one result; changed intent conflicts. A later
   source ending does not prevent authorized recovery. The browser deliberately
   loses a committed response and recovers the same paired command.
-- Final evidence: shell 1,704 tests, API SDK 895 tests, shared UI 307 tests; full
+- Final combined-main evidence: shell 1,703 tests, API SDK 895 tests, shared UI 308 tests; full
   Workforce/authz suites and changed-case race checks pass. The real browser/owner
-  race run passes in 292.113s. Types, lint, production build, Go build/vet/lint,
+  expanded race run, including temporary-grant cleanup and the following department-review scenario, passes in 288.742s. Types, lint, production build, Go build/vet/lint,
   architecture, canonical generation and registered contracts pass.
 
 See [the scoped delivery/validation record](../design/staff-and-rbac/department-team-management.md),

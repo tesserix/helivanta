@@ -2366,7 +2366,22 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					grant(postingRootReviewer, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					grant(recipient, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)
+
+					cleanupPostingFixtureGrant := func(request authz.ScopeRequest) {
+						held, err := authority.AuthorizeScope(ctx, request)
+						require.NoError(t, err)
+						require.NotEmpty(t, held.AssignmentID)
+						t.Cleanup(func() {
+							assignment := "/v1/iam/assignment-proposals/" + held.AssignmentID
+							standing := call(t, "GET", assignment, maker, nil, 200)
+							call(t, "POST", assignment+"/decision", maker, map[string]any{"expected_version": standing["version"], "decision": "withdraw", "reason": "Release synthetic department-team fixture authority"}, 200)
+							remaining, lookupErr := authority.AuthorizeScope(ctx, request)
+							require.NoError(t, lookupErr)
+							require.NotEqual(t, held.AssignmentID, remaining.AssignmentID, "completed fixture cannot retain its temporary grant")
+						})
+					}
 					grant(postingRootReviewer, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)
+					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootReviewer, HospitalID: hospital, Permission: authz.StaffPostingSourceUse})
 					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, requestWithContext, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, newPostingSourceUseProbe(db, authority, platform.StaffPostingSources([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func() func() {
 						initial := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
 						originalProfile := initial["profile"].(map[string]any)
@@ -2377,8 +2392,12 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						}
 						setIdentity("Synthetic Changed Supervisor Identity", "+919000000004")
 						return func() { setIdentity(originalProfile["given_name"], originalProfile["work_phone"]) }
-					}, departmentBrowserAcceptance(t, gateway, tokens), postingDepartmentReviewer, grantDepartment, func(subject string) {
+					}, departmentBrowserAcceptance(t, gateway, tokens), postingDepartmentReviewer, func(subject, department string, path []string) {
+						grantDepartment(subject, department, path)
+						cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: workforce.PermPostingReview, DepartmentPath: path})
+					}, func(subject string) {
 						grant(subject, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)
+						cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: authz.StaffPostingSourceUse})
 					})
 					return
 				}

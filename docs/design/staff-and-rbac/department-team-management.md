@@ -1,7 +1,7 @@
 # Department team management
 
 Implementation and validation record, reviewed 2026-11-06 against the accepted owner
-boundaries and base `f4cb4838`. Scope: hospital department assignments, reviewed
+boundaries and base `f4cb4838`, synchronized with main `86bff1a6`. Scope: hospital department assignments, reviewed
 heads/supervisors, current team observations, endings and coordinated scheduled
 transfers. Contract/ADR review and production release remain separate.
 
@@ -197,11 +197,11 @@ Final local results:
 
 | Gate                              | Evidence                                                                                                                                                                                                                  |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell suite                       | 1,704 tests / 190 files passed; final changed UI group: 78 tests passed                                                                                                                                                   |
+| Shell suite                       | 1,703 tests / 190 files passed on combined main; final changed UI group: 78 tests passed                                                                                                                                  |
 | API SDK suite                     | 895 tests / 88 files passed                                                                                                                                                                                               |
-| Shared UI suite                   | 307 tests / 29 files passed at the workspace checkpoint                                                                                                                                                                   |
+| Shared UI suite                   | 308 tests / 29 files passed on combined main                                                                                                                                                                              |
 | Workforce and authz               | Full suites passed; final changed-case race checks passed                                                                                                                                                                 |
-| Real browser + owner race journey | Passed in 292.113s with real Global API, IAM/OpenFGA, Organization, Workforce/Postgres and NATS                                                                                                                           |
+| Real browser + owner race journey | Passed in 288.742s on combined main, including the following department-review scenario, with real Global API, IAM/OpenFGA, Organization, Workforce/Postgres and NATS                                                     |
 | Isolation/currentness             | Foreign hospitals hidden; missing action refused; department-only roster excludes sibling scope and validates an external management ancestor without disclosing its data; ended placements remain explicitly non-current |
 | Transfer recovery/concurrency     | Concurrent exact requests return one retained pair; changed input and an earlier second consumer conflict; exact replay survives a later original-source ending                                                           |
 | Failure atomicity                 | Audit and outbox fault injection roll back original ending, replacement approval and source-use evidence; original pending state/receipts are checked                                                                     |
@@ -225,3 +225,21 @@ Original documentation was merged in
 [PR #1600](https://github.com/tesserix/helivanta/pull/1600); the source, test and contract changes travel together in the department-team
 implementation PR. Production activation remains separate. Do not close unrelated workforce,
 clinical, pharmacy or credentialing work from these bounded department workflows.
+
+### Merge handoff checks
+
+The combined-main run adds the following department-review scenario after the new
+team/transfer scenario. It originally exposed a temporary reviewer grant left
+active by the fixture. Cleanup now withdraws each temporary grant through the
+normal IAM command and checks that its assignment can no longer authorize. The
+existing no-authority discovery assertion was retained, and the expanded real
+browser/owner race run passes in 288.742s. This is test-fixture isolation; no
+application permission or policy was relaxed.
+
+The source-drift inventory check also required re-review after additive route
+registration changed whole-file authority hashes. Sixteen unchanged existing
+surfaces were re-reviewed, only two changed source files were repinned, and the
+two new guarded routes were classified. All 15 inventory-tool tests and normal
+checking pass; the global inventory remains 846 surfaces / 25 source-classified /
+821 unclassified, with no runtime-ready marker. See the
+[source-review note](../../qa/staff-operational-access-inventory.md#department-team-source-review--2026-11-06).

@@ -1,7 +1,9 @@
 package authz_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http/httptest"
 	"net/url"
@@ -234,7 +236,9 @@ func TestHandlerScopedFilteredListAdvancesPastWithheldRowsWithoutServingThem(t *
 		c.Set("authn.principal", authn.Principal{Subject: "synthetic-reviewer", TenantID: handlerScopeTenant})
 		c.Set("authz.permissions", authz.NewPermissionSet())
 	})
-	r := platform.NewRouter(e.Group("/v1"), scopeMembership(true))
+	sealer, err := pagination.NewSealer(bytes.Repeat([]byte{5}, 32))
+	require.NoError(t, err)
+	r := platform.NewRouter(e.Group("/v1"), scopeMembership(true)).WithCursorSealer(sealer)
 	base := time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC)
 	rows := make([]handlerScopeRow, 4)
 	for i := range rows {
@@ -267,7 +271,7 @@ func TestHandlerScopedFilteredListAdvancesPastWithheldRowsWithoutServingThem(t *
 	call := func(query string, status int) map[string]any {
 		t.Helper()
 		response := httptest.NewRecorder()
-		e.ServeHTTP(response, httptest.NewRequest("GET", "/v1/hospitals/"+handlerScopeHospital+"/queue?department=019a5c40-0000-7000-8000-000000000003"+query, nil))
+		e.ServeHTTP(response, httptest.NewRequest("GET", "/v1/hospitals/"+handlerScopeHospital+"/queue?"+query, nil))
 		require.Equal(t, status, response.Code, response.Body.String())
 		var body map[string]any
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
@@ -280,13 +284,33 @@ func TestHandlerScopedFilteredListAdvancesPastWithheldRowsWithoutServingThem(t *
 		}
 		return out
 	}
-	first := call("", 200)
+	const department = "department=019a5c40-0000-7000-8000-000000000003"
+	first := call(department, 200)
 	require.Equal(t, []string{rows[0].ID.String()}, ids(first), "the withheld row and the visible probe row are never served")
 	require.Equal(t, true, first["page"].(map[string]any)["has_more"])
-	second := call("&cursor="+url.QueryEscape(first["page"].(map[string]any)["next_cursor"].(string)), 200)
+	next := first["page"].(map[string]any)["next_cursor"].(string)
+	blob, err := base64.RawURLEncoding.DecodeString(next)
+	require.NoError(t, err)
+	require.NotContains(t, string(blob), rows[1].ID.String(), "the cursor anchored on a withheld row must not disclose it")
+	_, err = pagination.Decode(next, handlerScopeTenant)
+	require.ErrorIs(t, err, pagination.ErrInvalidCursor, "a filtered list never issues a readable cursor")
+	call("department=019a5c40-0000-7000-8000-000000000004&cursor="+url.QueryEscape(next), 400)
+	second := call(department+"&cursor="+url.QueryEscape(next), 200)
 	require.Equal(t, []string{rows[2].ID.String(), rows[3].ID.String()}, ids(second), "the cursor anchors on the last scanned row, so nothing after a withheld row is skipped")
 	require.Equal(t, false, second["page"].(map[string]any)["has_more"])
+	plain := pagination.Cursor{TenantID: handlerScopeTenant, CreatedAt: rows[1].CreatedAt, ID: rows[1].ID}
+	call(department+"&cursor="+plain.Encode(), 400)
 	overrun = true
-	failure := call("", 500)
+	failure := call(department, 500)
 	require.NotContains(t, failure, "data")
+}
+
+func TestHandlerScopedFilteredListRequiresACursorSealer(t *testing.T) {
+	r := platform.NewRouter(gin.New().Group("/v1"), scopeMembership(true))
+	require.Panics(t, func() {
+		platform.HandlerScopedFilteredQueryListRoute(r, "/hospitals/:hospital/queue", handlerScopePerm, "hospital", []platform.QueryFilter{{Key: "department"}}, 2, func(*gin.Context, pagination.Params) ([]platform.Filtered[handlerScopeRow], error) {
+			return nil, nil
+		})
+	})
+	require.Empty(t, r.Declared())
 }

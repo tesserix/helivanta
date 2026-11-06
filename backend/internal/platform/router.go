@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 )
 
 // Router wraps a gin route group so that every route must declare the
@@ -23,6 +24,7 @@ type Router struct {
 	declared         *[]DeclaredRoute
 	membership       authz.MembershipChecker
 	scopedAuthorizer authz.ScopedAuthorizer
+	cursorSealer     *pagination.Sealer
 	establishment    *establishment
 }
 
@@ -71,7 +73,7 @@ func NewRouter(g *gin.RouterGroup, membership authz.MembershipChecker) *Router {
 // list and membership checker, so Declared() sees every route regardless
 // of nesting.
 func (r *Router) Group(prefix string) *Router {
-	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer, establishment: r.establishment}
+	return &Router{group: r.group.Group(prefix), declared: r.declared, membership: r.membership, scopedAuthorizer: r.scopedAuthorizer, cursorSealer: r.cursorSealer, establishment: r.establishment}
 }
 
 // Establishment returns a nested router whose routes run admission after authorization and before the handler.
@@ -107,6 +109,12 @@ func hasSegment(path, param string) bool {
 // WithScopedAuthorizer configures scoped authority before route registration.
 func (r *Router) WithScopedAuthorizer(authority authz.ScopedAuthorizer) *Router {
 	r.scopedAuthorizer = authority
+	return r
+}
+
+// WithCursorSealer configures the key filtered lists seal their cursors with.
+func (r *Router) WithCursorSealer(sealer *pagination.Sealer) *Router {
+	r.cursorSealer = sealer
 	return r
 }
 

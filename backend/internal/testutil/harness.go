@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"go.temporal.io/sdk/client"
 	"net/http/httptest"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/organizationidentity"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"github.com/tesserix/helivanta/pkg/transit"
@@ -367,11 +369,13 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if resolver == nil {
 		resolver = harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
 	}
+	cursorSealer, err := pagination.NewSealer([]byte(rand.Text() + rand.Text()))
+	require.NoError(t, err)
 	api := platform.NewRouter(r.Group("/v1",
 		authn.Middleware(verifier, revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
-		membership).WithScopedAuthorizer(scopedAuthorizer)
+		membership).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(cursorSealer)
 	// Consumers and the dispatcher live as long as the test, not as long as
 	// ctx: ctx's 90s bound would stop them silently mid-test, and every
 	// later wait on an event would time out instead of failing here (#1517).

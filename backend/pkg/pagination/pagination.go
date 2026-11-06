@@ -83,13 +83,7 @@ type wireCursor struct {
 const cursorTimeFormat = "2006-01-02T15:04:05.000000000Z07:00"
 
 func (c Cursor) Encode() string {
-	raw, err := json.Marshal(wireCursor{
-		S: c.Scope,
-		T: c.TenantID,
-		C: c.CreatedAt.UTC().Format(cursorTimeFormat),
-		I: c.ID.String(),
-		D: map[Direction]string{OldestFirst: "asc"}[c.Direction],
-	})
+	raw, err := c.wire()
 	if err != nil {
 		// wireCursor is three strings; marshalling cannot fail. Returning
 		// "" rather than panicking means a caller gets "no next page"
@@ -97,6 +91,16 @@ func (c Cursor) Encode() string {
 		return ""
 	}
 	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+func (c Cursor) wire() ([]byte, error) {
+	return json.Marshal(wireCursor{
+		S: c.Scope,
+		T: c.TenantID,
+		C: c.CreatedAt.UTC().Format(cursorTimeFormat),
+		I: c.ID.String(),
+		D: map[Direction]string{OldestFirst: "asc"}[c.Direction],
+	})
 }
 
 // Decode parses raw and refuses it unless it belongs to tenantID.
@@ -113,6 +117,10 @@ func Decode(raw, tenantID string) (Cursor, error) {
 	if err != nil {
 		return Cursor{}, fmt.Errorf("%w: not base64url", ErrInvalidCursor)
 	}
+	return decodeWire(blob, tenantID)
+}
+
+func decodeWire(blob []byte, tenantID string) (Cursor, error) {
 	var w wireCursor
 	if err := json.Unmarshal(blob, &w); err != nil {
 		return Cursor{}, fmt.Errorf("%w: not a cursor", ErrInvalidCursor)
@@ -163,6 +171,15 @@ func Parse(c *gin.Context, tenantID string) (Params, error) {
 // cursor issued for the other ordering rather than repositioning the
 // reader somewhere they did not ask for.
 func ParseFor(c *gin.Context, tenantID string, d Direction) (Params, error) {
+	return parse(c, d, func(raw string) (Cursor, error) { return Decode(raw, tenantID) })
+}
+
+// ParseSealed reads ?limit and a ?cursor sealed by s for this tenant and scope.
+func ParseSealed(c *gin.Context, tenantID, scope string, s *Sealer) (Params, error) {
+	return parse(c, NewestFirst, func(raw string) (Cursor, error) { return s.Open(raw, tenantID, scope) })
+}
+
+func parse(c *gin.Context, d Direction, decode func(string) (Cursor, error)) (Params, error) {
 	p := Params{Limit: DefaultLimit, Direction: d}
 
 	if raw := c.Query("limit"); raw != "" {
@@ -177,7 +194,7 @@ func ParseFor(c *gin.Context, tenantID string, d Direction) (Params, error) {
 	}
 
 	if raw := c.Query("cursor"); raw != "" {
-		cur, err := Decode(raw, tenantID)
+		cur, err := decode(raw)
 		if err != nil {
 			return Params{}, err
 		}

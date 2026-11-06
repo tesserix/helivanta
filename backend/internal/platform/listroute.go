@@ -114,7 +114,7 @@ func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 }
 
 func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, maxLimit int) []gin.HandlerFunc {
-	return pageHandlers(path, h, scopeFor, maxLimit, func(rows []T) []T { return rows })
+	return pageHandlers(path, h, scopeFor, nil, maxLimit, func(rows []T) []T { return rows })
 }
 
 // Filtered is one scanned candidate; the cursor passes a withheld row without serving it.
@@ -127,8 +127,11 @@ func (f Filtered[T]) PageKey() (time.Time, uuid.UUID) { return f.Row.PageKey() }
 
 // HandlerScopedFilteredQueryListRoute is HandlerScopedQueryListRoute for rows that pass a per-row check after the scan.
 func HandlerScopedFilteredQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, filters []QueryFilter, maxLimit int, h ListHandler[Filtered[T]]) {
+	if r.cursorSealer == nil {
+		panic("platform: a filtered list seals its cursors, which may anchor on withheld rows")
+	}
 	scope := queryCursorScope(hospitalParam, filters, maxLimit)
-	r.handleHandlerScope("GET", path, permission, hospitalParam, true, pageHandlers(path, h, scope, maxLimit, visibleRows[T])...)
+	r.handleHandlerScope("GET", path, permission, hospitalParam, true, pageHandlers(path, h, scope, r.cursorSealer, maxLimit, visibleRows[T])...)
 }
 
 func visibleRows[T Keyed](scanned []Filtered[T]) []T {
@@ -141,14 +144,24 @@ func visibleRows[T Keyed](scanned []Filtered[T]) []T {
 	return rows
 }
 
-func pageHandlers[T Keyed, O any](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, maxLimit int, serve func([]T) []O) []gin.HandlerFunc {
+func pageHandlers[T Keyed, O any](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, sealer *pagination.Sealer, maxLimit int, serve func([]T) []O) []gin.HandlerFunc {
 	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
 			respond.Unauthenticated(c, "missing principal")
 			return
 		}
-		params, err := pagination.Parse(c, p.TenantID)
+		scope := ""
+		if scopeFor != nil {
+			scope = scopeFor(c, p)
+		}
+		var params pagination.Params
+		var err error
+		if sealer != nil {
+			params, err = pagination.ParseSealed(c, p.TenantID, scope, sealer)
+		} else {
+			params, err = pagination.Parse(c, p.TenantID)
+		}
 		if err != nil {
 			// Both invalid limits and invalid cursors are client errors.
 			// The handler never runs — a bad page request must not reach
@@ -165,13 +178,9 @@ func pageHandlers[T Keyed, O any](path string, h ListHandler[T], scopeFor func(*
 				return
 			}
 		}
-		scope := ""
-		if scopeFor != nil {
-			scope = scopeFor(c, p)
-			if params.After != nil && params.After.Scope != scope {
-				respond.BadRequest(c, pagination.ErrInvalidCursor)
-				return
-			}
+		if params.After != nil && params.After.Scope != scope {
+			respond.BadRequest(c, pagination.ErrInvalidCursor)
+			return
 		}
 
 		rows, err := h(c, params)
@@ -200,7 +209,11 @@ func pageHandlers[T Keyed, O any](path string, h ListHandler[T], scopeFor func(*
 		var next *string
 		if hasMore && len(rows) > 0 {
 			at, id := rows[len(rows)-1].PageKey()
-			encoded := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Scope: scope}.Encode()
+			cursor := pagination.Cursor{TenantID: p.TenantID, CreatedAt: at, ID: id, Scope: scope}
+			encoded := cursor.Encode()
+			if sealer != nil {
+				encoded = sealer.Seal(cursor)
+			}
 			next = &encoded
 		}
 

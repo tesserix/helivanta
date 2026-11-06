@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img">
+  <title>07  /  Medicines supply: separate accountable acts</title>
+  <desc>A shared timeline links owner records. Shipping, receiving, quality release and payment remain different facts.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60748c" />
+    </marker>
+  </defs>
+  <rect width="1600" height="1000" fill="#ffffff" />
+  <text x="50" y="73" fill="#17324f" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold">07  /  Medicines supply: separate accountable acts</text>
+  <text x="50" y="112" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="normal">A shared timeline links owner records. Shipping, receiving, quality release and payment remain different facts.</text>
+  <rect x="40" y="145" width="740" height="620" rx="12" fill="#eaf2ff" stroke="#8bafe0" />
+  <text x="65" y="182" fill="#173a65" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">HOSPITAL H1  /  BUYER + RECEIVING</text>
+  <rect x="820" y="145" width="740" height="620" rx="12" fill="#e6f5f0" stroke="#75b7a1" />
+  <text x="845" y="182" fill="#155642" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">PHARMACY / SUPPLIER P  /  SOURCE</text>
+  <polyline points="740,267 860,267" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="775.25" y="251.0" width="49.5" height="21" fill="#ffffff" rx="3" />
+  <text x="800.0" y="267.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">order</text>
+  <polyline points="1190,315 1190,420" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="860,470 740,470" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="764.0" y="454.0" width="72.0" height="21" fill="#ffffff" rx="3" />
+  <text x="800.0" y="470.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">shipment</text>
+  <polyline points="410,520 410,620" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="740,667 860,667" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="764.0" y="651.0" width="72.0" height="21" fill="#ffffff" rx="3" />
+  <text x="800.0" y="667.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">evidence</text>
+  <rect x="80" y="220" width="660" height="95" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="410.0" y="264.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">1  H1 order request + independent approval</text>
+  <text x="410.0" y="286.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Approved relationship, exact destination, units and order revision</text>
+  <rect x="860" y="220" width="660" height="95" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1190.0" y="264.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">2  Supplier accepts or proposes changes</text>
+  <text x="1190.0" y="286.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">H1 accepts authorized changes; no unilateral substitution</text>
+  <rect x="80" y="420" width="660" height="100" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="410.0" y="467.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">4  H1 counts receipt and records discrepancy</text>
+  <text x="410.0" y="489.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Quality / safety review is separate from a delivery signature</text>
+  <rect x="860" y="420" width="660" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1190.0" y="467.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">3  P posts its own dispatch → in transit</text>
+  <text x="1190.0" y="489.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Eligible source stock, lots / expiry, quantities and transport evidence</text>
+  <rect x="80" y="620" width="660" height="95" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="410.0" y="664.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">5  Destination receipt + payable review</text>
+  <text x="410.0" y="686.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Destination owner posts stock; receipt does not mean payment</text>
+  <rect x="860" y="620" width="660" height="95" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1190.0" y="664.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">6  Invoice / credit / settlement reconciliation</text>
+  <text x="1190.0" y="686.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Match linked evidence; preserve partial delivery and open obligations</text>
+  <rect x="180" y="825" width="1240" height="80" rx="12" fill="#fff4dd" stroke="#d5af56" stroke-width="1.5" />
+  <text x="800.0" y="862.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Example: order 100 packs → dispatch 60 → receive 58</text>
+  <text x="800.0" y="884.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Retain 2-pack shipment shortage and remaining 40-pack order disposition. Duplicate events cannot create stock or erase evidence.</text>
+  <text x="50" y="970" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal">HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED</text>
+</svg>

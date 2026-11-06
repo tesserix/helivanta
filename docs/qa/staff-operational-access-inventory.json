@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "477465580cee851b69b357aa5de3a797b17fd97981995618af4d02b9cf74afc7",
+  "registry_sha256": "8f01a396747d7e4930af5cd12e4c2717c4b7439aea51433871dea437a8077043",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 865,
@@ -3316,7 +3316,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "aff44dc3d28065b222a5deb96bc9a8681a8d2735dcc4a6e9339d5a20cfb4e8bc",
+            "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3360,7 +3360,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "aff44dc3d28065b222a5deb96bc9a8681a8d2735dcc4a6e9339d5a20cfb4e8bc",
+            "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3420,7 +3420,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "aff44dc3d28065b222a5deb96bc9a8681a8d2735dcc4a6e9339d5a20cfb4e8bc",
+            "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
             "symbol": "func (m *Module) Routes("
           },
           {

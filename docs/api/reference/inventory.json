@@ -699,7 +699,12 @@
           "creates_tables": []
         },
         {
-          "id": "0033_iam_partner_groups",
+          "id": "0033_iam_establishment_root",
+          "sql_sha256": "fae325c8269eefab706af2c7be29a3b428a69a632af8a854e32fc50f3d26d14b",
+          "creates_tables": []
+        },
+        {
+          "id": "0034_iam_partner_groups",
           "sql_sha256": "ef69560b6dcb09e2865f99f066c8d1ab4816d2e0ebde3c635fb610e5204e3529",
           "creates_tables": [
             "iam_partner_groups",
@@ -708,12 +713,12 @@
           ]
         },
         {
-          "id": "0034_iam_partner_membership_templates",
-          "sql_sha256": "44bba65b11646c3772d27602ed52ef92808ebc6fc125d4f7299e4c9dabad85d1",
+          "id": "0035_iam_partner_membership_templates",
+          "sql_sha256": "f09222c36c0df631a229a5ab46a3fbff165e9edf864dc562f9f58f57f62d1adc",
           "creates_tables": []
         },
         {
-          "id": "0035_iam_partner_members",
+          "id": "0036_iam_partner_members",
           "sql_sha256": "2fc54170b70eb7a7af8915ebe02af91decaba33308d235fe135972abaf717eac",
           "creates_tables": [
             "iam_partner_members",

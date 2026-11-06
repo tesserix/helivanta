@@ -94,8 +94,8 @@ Migration table declarations:
 - `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 - `0023_iam_employment_bases`: `iam_employment_bases`, `iam_employment_basis_history`, `iam_assignment_employment_bases`.
 - `0031_iam_department_assignment_scope`: `iam_assignment_department_verifications`.
-- `0033_iam_partner_groups`: `iam_partner_groups`, `iam_partner_group_scope_observations`, `iam_partner_group_commands`.
-- `0035_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
+- `0034_iam_partner_groups`: `iam_partner_groups`, `iam_partner_group_scope_observations`, `iam_partner_group_commands`.
+- `0036_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
 
 ## reference
 

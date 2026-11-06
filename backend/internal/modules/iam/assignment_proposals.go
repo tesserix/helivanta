@@ -74,6 +74,9 @@ var departmentAssignmentScopeSchema string
 //go:embed assignment_department_leave_review_templates_generated.sql
 var departmentLeaveReviewTemplatesSchema string
 
+//go:embed assignment_establishment_root.sql
+var establishmentRootSchema string
+
 type assignmentProposal struct {
 	ProposalInput   `gorm:"embedded"`
 	ID              uuid.UUID `json:"id"`

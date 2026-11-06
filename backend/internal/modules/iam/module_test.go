@@ -15,7 +15,7 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 35)
+	require.Len(t, ids, 36)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -60,9 +60,11 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.NotEmpty(t, migs[30].SQL)
 	require.Equal(t, "0032_iam_department_leave_review_templates", migs[31].ID)
 	require.Contains(t, migs[31].SQL, "'workforce.department_leave_reviewer.v1' THEN ARRAY['department']")
-	for i, id := range []string{"0033_iam_partner_groups", "0034_iam_partner_membership_templates", "0035_iam_partner_members"} {
-		require.Equal(t, id, migs[32+i].ID)
-		require.NotEmpty(t, migs[32+i].SQL)
+	require.Equal(t, "0033_iam_establishment_root", migs[32].ID)
+	require.Contains(t, migs[32].SQL, "CREATE POLICY establishment_root ON iam_assignment_proposals AS RESTRICTIVE")
+	for i, id := range []string{"0034_iam_partner_groups", "0035_iam_partner_membership_templates", "0036_iam_partner_members"} {
+		require.Equal(t, id, migs[33+i].ID)
+		require.NotEmpty(t, migs[33+i].SQL)
 	}
 
 }

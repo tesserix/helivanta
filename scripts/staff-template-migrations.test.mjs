@@ -207,6 +207,7 @@ async function extension(contract) {
       ...contract.template_migrations[0].templates[0],
       key: "workforce.leave_reviewer.v2",
       scope_kinds: ["hospital"],
+      establishment_kinds: ["hospital"],
     },
   ];
   const fields = contract.models.TemplateDefinition.map((field) => field.name);
@@ -215,11 +216,11 @@ async function extension(contract) {
   );
   return {
     definitions_sha256: createHash("sha256").update(JSON.stringify(normalized)).digest("hex"),
+    // IAM 0033 is the hand-written establishment root, so appended templates start at 0034.
     id:
-      String(Number.parseInt(contract.template_migrations.at(-1).id.slice(0, 4), 10) + 1).padStart(
-        4,
-        "0",
-      ) + "_iam_test_templates",
+      String(
+        Math.max(Number.parseInt(contract.template_migrations.at(-1).id.slice(0, 4), 10) + 1, 34),
+      ).padStart(4, "0") + "_iam_test_templates",
     file: "assignment_test_templates_generated.sql",
     sql_sha256: createHash("sha256").update(sql).digest("hex"),
     templates,
@@ -239,6 +240,7 @@ async function intakeExtension(contract) {
       family: "intake",
       permissions: ["workforce.enrollment.manage", "workforce.documents.manage"],
       scope_kinds: ["hospital"],
+      establishment_kinds: ["hospital"],
     },
   ];
   const fields = contract.models.TemplateDefinition.map((field) => field.name);
@@ -261,7 +263,7 @@ async function intakeExtension(contract) {
       "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
       "WHEN 'workforce.hr_intake.v2' THEN '[\"workforce.enrollment.manage\",\"workforce.documents.manage\"]'::jsonb",
     )
-    .replace(
+    .replaceAll(
       "WHEN 'workforce.leave_reviewer.v2' THEN ARRAY['hospital']::text[]",
       "WHEN 'workforce.hr_intake.v2' THEN ARRAY['hospital']::text[]",
     );
@@ -287,6 +289,7 @@ async function pharmacyBindingExtension(contract, kind = "preparer") {
         "workforce.staff_actor.use",
       ],
       scope_kinds: ["hospital"],
+      establishment_kinds: ["hospital"],
     },
   ];
   const fields = contract.models.TemplateDefinition.map((field) => field.name);
@@ -310,7 +313,7 @@ async function pharmacyBindingExtension(contract, kind = "preparer") {
       "WHEN 'workforce.leave_reviewer.v2' THEN '[\"workforce.leave.approve\"]'::jsonb",
       `WHEN '${template.key}' THEN '${JSON.stringify(template.permissions)}'::jsonb`,
     )
-    .replace(
+    .replaceAll(
       "WHEN 'workforce.leave_reviewer.v2' THEN ARRAY['hospital']::text[]",
       `WHEN '${template.key}' THEN ARRAY['hospital']::text[]`,
     );
@@ -938,11 +941,11 @@ test("generated templates publish scope kinds and the department scope function"
   );
   assert.match(
     go,
-    /Key: "workforce\.leave_reviewer\.v1",[^\n]*?ScopeKinds: \[\]string\{"hospital"\}\}/,
+    /Key: "workforce\.leave_reviewer\.v1",[^\n]*?ScopeKinds: \[\]string\{"hospital"\}, EstablishmentKinds: \[\]string\{"hospital"\}\}/,
   );
   assert.match(
     go,
-    /Key: "workforce\.department_posting_reviewer\.v1",[^\n]*?ScopeKinds: \[\]string\{"department"\}\}/,
+    /Key: "workforce\.department_posting_reviewer\.v1",[^\n]*?ScopeKinds: \[\]string\{"department"\}, EstablishmentKinds: \[\]string\{"hospital"\}\}/,
   );
   const ts = await readFile(path.join(root, "packages/api/src/staff-access-templates.ts"), "utf8");
   assert.match(ts, /scope_kinds: \["department"\]/);
@@ -959,7 +962,7 @@ test("generated templates publish scope kinds and the department scope function"
   );
   assert.match(
     go,
-    /Key: "workforce\.department_leave_reviewer\.v1",[^\n]*?Family: "leave"[^\n]*?ScopeKinds: \[\]string\{"department"\}\}/,
+    /Key: "workforce\.department_leave_reviewer\.v1",[^\n]*?Family: "leave"[^\n]*?ScopeKinds: \[\]string\{"department"\}, EstablishmentKinds: \[\]string\{"hospital"\}\}/,
   );
   const leave = catalog.template_migrations.find((migration) =>
     migration.templates.some((template) => template.key === departmentLeaveKey),
@@ -1003,4 +1006,156 @@ test("partner membership templates refuse missing source checks or combined prep
       /Partner membership templates require exact hospital-only role, actor and source permissions/,
     );
   }
+});
+test("templates introduced from 0034 must declare their establishment kinds before writes", async (t) => {
+  await rejectsBeforeWrites(
+    t,
+    async (contract) => {
+      const entry = await extension(contract);
+      assert.ok(Number(entry.id.slice(0, 4)) >= 34);
+      delete entry.templates[0].establishment_kinds;
+      contract.template_migrations.push(entry);
+    },
+    /establishment kinds/i,
+  );
+});
+
+test("establishment kinds must be a reviewed ordered subset before writes", async (t) => {
+  for (const kinds of [
+    [],
+    ["pharmacy"],
+    ["clinic"],
+    ["pharmacy", "hospital"],
+    ["hospital", "hospital"],
+    ["hospital", "pharmacy", "clinic"],
+    "hospital",
+    null,
+  ]) {
+    await t.test(JSON.stringify(kinds), async (t) => {
+      await rejectsBeforeWrites(
+        t,
+        async (contract) => {
+          const entry = await extension(contract);
+          entry.templates[0].establishment_kinds = kinds;
+          contract.template_migrations.push(entry);
+        },
+        /establishment kinds/i,
+      );
+    });
+  }
+});
+
+test("templates before 0034 stay hospital-rooted and cannot declare an establishment kind", async (t) => {
+  for (const index of [0, -2]) {
+    await t.test(String(index), async (t) => {
+      await rejectsBeforeWrites(
+        t,
+        async (contract) => {
+          contract.template_migrations.at(index).templates[0].establishment_kinds = ["hospital"];
+        },
+        /establishment kinds/i,
+      );
+    });
+  }
+});
+
+test("a pharmacy root needs a template that grants hospital-wide scope", async (t) => {
+  await rejectsBeforeWrites(
+    t,
+    async (contract) => {
+      const entry = await extension(contract);
+      entry.templates = [
+        {
+          ...contract.template_migrations
+            .flatMap((migration) => migration.templates)
+            .find((template) => template.key === departmentLeaveKey),
+          key: "workforce.department_leave_reviewer.v2",
+          establishment_kinds: ["hospital", "pharmacy"],
+        },
+      ];
+      contract.template_migrations.push(entry);
+    },
+    /pharmacy root/i,
+  );
+});
+
+test("a pharmacy-assignable template regenerates the establishment kinds function", async (t) => {
+  const { dir, contract, contractPath } = await fixture(t);
+  const historical = await Promise.all(
+    contract.template_migrations.map((migration) =>
+      readFile(path.join(dir, "backend/internal/modules/iam", migration.file), "utf8"),
+    ),
+  );
+  const entry = await extension(contract);
+  entry.templates[0].establishment_kinds = ["hospital", "pharmacy"];
+  const fields = contract.models.TemplateDefinition.map((field) => field.name);
+  entry.definitions_sha256 = createHash("sha256")
+    .update(
+      JSON.stringify(
+        entry.templates.map((template) =>
+          Object.fromEntries(fields.map((field) => [field, template[field]])),
+        ),
+      ),
+    )
+    .digest("hex");
+  const expected = (
+    await readFile(
+      path.join(root, "backend/internal/modules/iam/testdata/staff_template_append.sql"),
+      "utf8",
+    )
+  ).replace(
+    /(CREATE OR REPLACE FUNCTION iam_assignment_template_establishment_kinds[\s\S]*?WHEN 'workforce\.leave_reviewer\.v2' THEN )ARRAY\['hospital'\]/,
+    "$1ARRAY['hospital','pharmacy']",
+  );
+  assert.match(
+    expected,
+    /WHEN 'workforce\.leave_reviewer\.v2' THEN ARRAY\['hospital','pharmacy'\]::text\[\]/,
+  );
+  entry.sql_sha256 = createHash("sha256").update(expected).digest("hex");
+  contract.template_migrations.push(entry);
+  await writeFile(contractPath, JSON.stringify(contract));
+  const result = generate(dir);
+  assert.equal(result.status, 0, result.stderr);
+  const sql = await readFile(path.join(dir, "backend/internal/modules/iam", entry.file), "utf8");
+  assert.equal(sql, expected);
+  assert.match(
+    sql,
+    /CREATE OR REPLACE FUNCTION iam_assignment_template_establishment_kinds\(key text\) RETURNS text\[\][\s\S]*?WHEN 'workforce\.leave_reviewer\.v1' THEN ARRAY\['hospital'\]::text\[\][\s\S]*?WHEN 'workforce\.department_leave_reviewer\.v1' THEN ARRAY\['hospital'\]::text\[\][\s\S]*?ELSE ARRAY\[\]::text\[\] END/,
+  );
+  assert.deepEqual(
+    await Promise.all(
+      contract.template_migrations
+        .slice(0, -1)
+        .map((migration) =>
+          readFile(path.join(dir, "backend/internal/modules/iam", migration.file), "utf8"),
+        ),
+    ),
+    historical,
+  );
+  assert.match(
+    await readFile(path.join(dir, artifacts[5]), "utf8"),
+    /Key: "workforce\.leave_reviewer\.v2",[^\n]*?EstablishmentKinds: \[\]string\{"hospital", "pharmacy"\}\}/,
+  );
+  assert.match(
+    await readFile(path.join(dir, artifacts[6]), "utf8"),
+    /establishment_kinds: \["hospital", "pharmacy"\]/,
+  );
+  const check = generate(dir, "--check");
+  assert.equal(check.status, 0, check.stderr);
+});
+
+test("published templates declare their establishment kinds while historical SQL keeps its bytes", async () => {
+  const ts = await readFile(path.join(root, "packages/api/src/staff-access-templates.ts"), "utf8");
+  const published = catalog.template_migrations.flatMap((migration) => migration.templates);
+  assert.equal((ts.match(/establishment_kinds: \["hospital"\]/g) ?? []).length, published.length);
+  assert.ok(
+    catalog.models.TemplateDefinition.some((field) => field.name === "establishment_kinds"),
+  );
+  for (const migration of catalog.template_migrations.filter(
+    (entry) => Number(entry.id.slice(0, 4)) < 34,
+  ))
+    assert.doesNotMatch(
+      await readFile(path.join(root, "backend/internal/modules/iam", migration.file), "utf8"),
+      /establishment/,
+    );
 });

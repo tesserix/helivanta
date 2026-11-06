@@ -871,7 +871,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "aff44dc3d28065b222a5deb96bc9a8681a8d2735dcc4a6e9339d5a20cfb4e8bc",
+          "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -900,7 +900,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "aff44dc3d28065b222a5deb96bc9a8681a8d2735dcc4a6e9339d5a20cfb4e8bc",
+          "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
           "symbol": "func (m *Module) Routes("
         },
         {
@@ -929,7 +929,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/iam/module.go",
-          "sha256": "aff44dc3d28065b222a5deb96bc9a8681a8d2735dcc4a6e9339d5a20cfb4e8bc",
+          "sha256": "fdaf2463d61e217ae8c33f3c4670639e7f42322e50d29ccd098cab30815269dc",
           "symbol": "func (m *Module) Routes("
         },
         {

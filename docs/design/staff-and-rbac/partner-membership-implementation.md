@@ -102,7 +102,7 @@ objects outside the verified tenant/hospital scope `404`.
 
 ## Migration and remaining acceptance
 
-Candidate IAM migration `0035_iam_partner_members` adds forced tenant/hospital RLS,
+Candidate IAM migration `0036_iam_partner_members` adds forced tenant/hospital RLS,
 immutable commands, guarded membership projections and cohort epochs. It is an
 additive forward migration; application rollback retains its evidence. There is
 no destructive down migration for reviewed history.

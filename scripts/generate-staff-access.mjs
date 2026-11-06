@@ -30,6 +30,12 @@ const departmentLeaveReviewer = /^workforce\.department_leave_reviewer\.v[1-9][0
 const departmentScoped = (key) =>
   departmentReviewer.test(key ?? "") || departmentLeaveReviewer.test(key ?? "");
 const scopeKinds = (template) => template.scope_kinds ?? ["hospital"];
+// IAM 0033 typed the root; templates before 0034 stay hospital-rooted, so their digests never change.
+const establishmentKindsFrom = 34;
+const establishmentKindChoices = [["hospital"], ["hospital", "pharmacy"]].map((kinds) =>
+  JSON.stringify(kinds),
+);
+const establishmentKinds = (template) => template.establishment_kinds ?? ["hospital"];
 const templates = [];
 const keys = new Set();
 const files = new Set();
@@ -55,9 +61,11 @@ for (const migration of migrations) {
   previousMigration = Number.parseInt(migration.id.slice(0, 4), 10);
   files.add(migration.file);
   const scopeAware = Number.parseInt(migration.id.slice(0, 4), 10) >= scopeKindsFrom;
-  const declaredFields = scopeAware
-    ? templateFields
-    : templateFields.filter((field) => field !== "scope_kinds");
+  const rootAware = Number.parseInt(migration.id.slice(0, 4), 10) >= establishmentKindsFrom;
+  const declaredFields = templateFields.filter(
+    (field) =>
+      (scopeAware || field !== "scope_kinds") && (rootAware || field !== "establishment_kinds"),
+  );
   const introducedDefinitions = [];
   for (const template of migration.templates) {
     if (
@@ -67,6 +75,21 @@ for (const migration of migrations) {
       throw new Error(
         "Staff templates from 0030 declare reviewed scope kinds; earlier templates are hospital-only",
       );
+    if (
+      rootAware !== Object.hasOwn(template ?? {}, "establishment_kinds") ||
+      (rootAware &&
+        !establishmentKindChoices.includes(JSON.stringify(template.establishment_kinds)))
+    )
+      throw new Error(
+        "Staff templates from 0034 declare reviewed establishment kinds; earlier templates are hospital-rooted",
+      );
+    // A pharmacy root admits only its own root scope, so a department-only template can never apply there.
+    if (
+      rootAware &&
+      template.establishment_kinds.includes("pharmacy") &&
+      !scopeKinds(template).includes("hospital")
+    )
+      throw new Error("A pharmacy root needs a template that declares hospital scope");
     if (
       scopeAware &&
       (template.scope_kinds.includes("department") || departmentScoped(template.key)) &&
@@ -302,7 +325,14 @@ ${
  SELECT CASE key ${introduced.map((template) => "WHEN " + quote(template.key) + " THEN ARRAY[" + scopeKinds(template).map(quote).join(",") + "]::text[]").join(" ")} ELSE NULL::text[] END
 $$;
 `
-}`;
+}${
+          Number.parseInt(migration.id.slice(0, 4), 10) < establishmentKindsFrom
+            ? ""
+            : `CREATE OR REPLACE FUNCTION iam_assignment_template_establishment_kinds(key text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+ SELECT CASE key ${introduced.map((template) => "WHEN " + quote(template.key) + " THEN ARRAY[" + establishmentKinds(template).map(quote).join(",") + "]::text[]").join(" ")} ELSE ARRAY[]::text[] END
+$$;
+`
+        }`;
   if (createHash("sha256").update(sql).digest("hex") !== migration.sql_sha256)
     throw new Error(`Immutable staff template migration digest changed: ${migration.id}`);
   templateSQL.push([`backend/internal/modules/iam/${migration.file}`, sql]);
@@ -395,11 +425,15 @@ async function writeTemplateArtifact(relative, content) {
       throw new Error(`Generated staff templates drift: ${relative}`);
   } else await writeFile(file, content);
 }
-const published = templates.map((template) => ({ ...template, scope_kinds: scopeKinds(template) }));
+const published = templates.map((template) => ({
+  ...template,
+  scope_kinds: scopeKinds(template),
+  establishment_kinds: establishmentKinds(template),
+}));
 const definitions = published
   .map(
     (template) =>
-      `{Key:${JSON.stringify(template.key)},Name:${JSON.stringify(template.name)},Description:${JSON.stringify(template.description)},Family:${JSON.stringify(template.family)},Permissions:[]string{${template.permissions.map((p) => JSON.stringify(p)).join(",")}},ScopeKinds:[]string{${template.scope_kinds.map((kind) => JSON.stringify(kind)).join(",")}}}`,
+      `{Key:${JSON.stringify(template.key)},Name:${JSON.stringify(template.name)},Description:${JSON.stringify(template.description)},Family:${JSON.stringify(template.family)},Permissions:[]string{${template.permissions.map((p) => JSON.stringify(p)).join(",")}},ScopeKinds:[]string{${template.scope_kinds.map((kind) => JSON.stringify(kind)).join(",")}},EstablishmentKinds:[]string{${template.establishment_kinds.map((kind) => JSON.stringify(kind)).join(",")}}}`,
   )
   .join(",");
 const catalogCases = catalogs

@@ -60,7 +60,7 @@ unrelated latest freight.
 See [the ownership tree and membership contract](partner-membership-implementation.md)
 and the [editable draw.io diagram](diagrams/09-independent-membership.drawio)
 ([SVG preview](diagrams/09-independent-membership.svg)). The SVG preview has been
-rendered and visually inspected; the native XML passed geometry and connector checks. Candidate IAM migration `0035_iam_partner_members`
+rendered and visually inspected; the native XML passed geometry and connector checks. Candidate IAM migration `0036_iam_partner_members`
 retains direct Staff nominations, independent review commands, source references,
 cohort epochs and guarded current projections. It does not grant external access.
 
@@ -76,8 +76,8 @@ branch and Kargo stage have not received this candidate.
 
 The candidate integrates the newer department leave-review work and dependencies
 from upstream main. Its unreleased migrations now follow those upstream changes:
-IAM `0033_iam_partner_groups`, `0034_iam_partner_membership_templates`,
-`0035_iam_partner_members`; Workforce `0090_workforce_partner_group_scope` and
+IAM `0034_iam_partner_groups`, `0035_iam_partner_membership_templates`,
+`0036_iam_partner_members`; Workforce `0090_workforce_partner_group_scope` and
 `0091_workforce_partner_member_candidates`.
 
 The integrated actual-owner/race run passed in 231.519 seconds. Its browser used

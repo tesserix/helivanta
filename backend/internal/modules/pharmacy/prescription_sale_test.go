@@ -24,7 +24,7 @@ const (
 
 // prescribe records a prescription for product: units in total over
 // dispensings, with both addresses unless bare.
-func (w saleWorld) prescribe(t *testing.T, product string, units, dispensings int, bare bool) string {
+func (w saleWorld) prescribeWithoutImage(t *testing.T, product string, units, dispensings int, bare bool) string {
 	t.Helper()
 	addresses := fmt.Sprintf(`,"prescriber_address":%q,"patient_address":%q`, prescriberAddress, patientAddress)
 	if bare {
@@ -36,6 +36,27 @@ func (w saleWorld) prescribe(t *testing.T, product string, units, dispensings in
 	res := do(w.r, "PUT", licencePath("/prescriptions/"+id), "pharmacist", body)
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
 	return id
+}
+
+func (w saleWorld) prescribe(t *testing.T, product string, units, dispensings int, bare bool) string {
+	rx := w.prescribeWithoutImage(t, product, units, dispensings, bare)
+	w.releasePrescriptionImage(t, rx)
+	return rx
+}
+
+func (w saleWorld) releasePrescriptionImage(t *testing.T, rx string) {
+	t.Helper()
+	s := w.prescriptionImage(t, rx)
+	require.Equal(t, http.StatusCreated, do(s.r, "PUT", s.path, "pharmacist", s.body).Code)
+	require.Equal(t, http.StatusAccepted, s.upload("pharmacist", "image/png", s.data).Code)
+	status, err := s.processor(t, "stream: OK\x00").Process(t.Context(), s.input())
+	require.NoError(t, err)
+	require.Equal(t, "available", status)
+}
+
+func (w saleWorld) prescriptionImage(t *testing.T, rx string) imageScenario {
+	t.Helper()
+	return imageScenarioForPrescription(t, prescriptionWorld{r: w.r, db: w.db, bus: w.bus, files: w.files}, w.cloud, rx)
 }
 
 // rxSale is a cash sale of one product citing a prescription line, if rx is set.

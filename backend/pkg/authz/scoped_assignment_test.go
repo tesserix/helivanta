@@ -2,6 +2,7 @@ package authz
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testinfra"
 	"net/http"
@@ -90,6 +91,110 @@ func syntheticScopedAssignment() ScopedAssignment {
 	}
 }
 
+func syntheticHospitalRootAssignment() ScopedAssignment {
+	a := syntheticScopedAssignment()
+	a.ScopeKind, a.ScopeID = "hospital", a.HospitalID
+	return a
+}
+
+// syntheticPharmacyAssignment reuses the hospital's ID so only the root kind separates the two.
+func syntheticPharmacyAssignment() ScopedAssignment {
+	a := syntheticScopedAssignment()
+	a.PharmacyID, a.HospitalID = a.HospitalID, ""
+	a.ScopeKind, a.ScopeID = "pharmacy", a.PharmacyID
+	return a
+}
+
+func TestHospitalRootObjectKeysAreUnchanged(t *testing.T) {
+	department := syntheticScopedAssignment()
+	department.ScopeKind, department.ScopeID = "department", "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab"
+	// Keys produced on 9ec1cf9c; any change would orphan every tuple already projected.
+	for want, a := range map[string]ScopedAssignment{
+		"11111111-1111-4111-8111-111111111111/2ab2e8845cf92c1ef9edb31ceecb71d62d4f09e26d02aa816e0b7dfc0d99b739": syntheticScopedAssignment(),
+		"11111111-1111-4111-8111-111111111111/afa536e7343ac743b4a55c1e1cf194a4cc7adfb08e8aad5cf1c7c0851fd99436": syntheticHospitalRootAssignment(),
+		"11111111-1111-4111-8111-111111111111/11abadc3fae4c2dc2f5d78d7ee767250110ab3c5d09fbc543b06e40d744de3a8": department,
+	} {
+		key, err := a.objectKey()
+		require.NoError(t, err)
+		require.Equal(t, want, key)
+	}
+	pharmacy, err := syntheticPharmacyAssignment().objectKey()
+	require.NoError(t, err)
+	hospital, err := syntheticHospitalRootAssignment().objectKey()
+	require.NoError(t, err)
+	require.NotEqual(t, hospital, pharmacy)
+}
+
+func TestPharmacyRootRejectsMalformedInput(t *testing.T) {
+	var client Client // Invalid input must return before attempting any network operation.
+	other := "44444444-4444-4444-8444-444444444444"
+	mutations := map[string]func(*ScopedAssignment){
+		"both roots":   func(a *ScopedAssignment) { a.HospitalID = other },
+		"neither root": func(a *ScopedAssignment) { a.PharmacyID = "" },
+		"nil pharmacy": func(a *ScopedAssignment) { a.PharmacyID, a.ScopeID = uuid.Nil.String(), uuid.Nil.String() },
+		"non-canonical pharmacy": func(a *ScopedAssignment) {
+			a.PharmacyID, a.ScopeID = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
+		},
+		"hospital scope": func(a *ScopedAssignment) { a.ScopeKind = "hospital" },
+		"staff scope":    func(a *ScopedAssignment) { a.ScopeKind, a.ScopeID = "staff", other },
+		"department scope": func(a *ScopedAssignment) {
+			a.ScopeKind, a.ScopeID = "department", "019aaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaab"
+		},
+		"another pharmacy scope": func(a *ScopedAssignment) { a.ScopeID = other },
+	}
+	_, err := syntheticPharmacyAssignment().objectKey()
+	require.NoError(t, err)
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			a := syntheticPharmacyAssignment()
+			mutate(&a)
+			require.ErrorIs(t, client.ProjectScopedAssignment(t.Context(), a), ErrInvalidScopedAssignment)
+			allowed, err := client.CheckScopedAssignment(t.Context(), a, a.Subject, a.Permissions[0])
+			require.ErrorIs(t, err, ErrInvalidScopedAssignment)
+			require.False(t, allowed)
+		})
+	}
+}
+
+func TestPharmacyRootNeverReadsAsHospitalRoot(t *testing.T) {
+	hospital, pharmacy := syntheticHospitalRootAssignment(), syntheticPharmacyAssignment()
+	for name, c := range map[string]struct{ granted, crossed ScopedAssignment }{
+		"pharmacy grant": {pharmacy, hospital},
+		"hospital grant": {hospital, pharmacy},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := t.Context()
+			endpoint, err := url.Parse(testinfra.StartOpenFGA(t))
+			require.NoError(t, err)
+			proxy := httptest.NewServer(httputil.NewSingleHostReverseProxy(endpoint))
+			t.Cleanup(proxy.Close)
+			client, err := NewClient(ctx, proxy.URL, testinfra.IsolationKey(t))
+			require.NoError(t, err)
+			require.NoError(t, client.GrantTenantRole(ctx, c.granted.TenantID, RoleStaffMember))
+			require.NoError(t, client.GrantRole(ctx, c.granted.TenantID, c.granted.Subject, RoleStaffMember))
+			require.NoError(t, client.ProjectScopedAssignment(ctx, c.granted))
+			check := func(a ScopedAssignment) (bool, error) {
+				return client.CheckScopedAssignment(ctx, a, a.Subject, a.Permissions[0])
+			}
+			allowed, err := check(c.granted)
+			require.NoError(t, err)
+			require.True(t, allowed)
+			allowed, err = check(c.crossed)
+			require.NoError(t, err)
+			require.False(t, allowed, "one establishment ID never authorizes across root kinds")
+			require.NoError(t, client.RevokeRole(ctx, c.granted.TenantID, c.granted.Subject, RoleStaffMember))
+			allowed, err = check(c.granted)
+			require.NoError(t, err)
+			require.False(t, allowed, "revoked tenant membership ends the rooted grant")
+			proxy.Close()
+			allowed, err = check(c.granted)
+			require.ErrorIs(t, err, ErrScopedAuthorizationUnavailable)
+			require.False(t, allowed)
+			require.ErrorIs(t, client.ProjectScopedAssignment(ctx, c.granted), ErrScopedAuthorizationUnavailable)
+		})
+	}
+}
+
 func TestScopedAssignmentRejectsMalformedInput(t *testing.T) {
 	var client Client // Invalid input must return before attempting any network operation.
 	mutations := map[string]func(*ScopedAssignment){
@@ -98,6 +203,7 @@ func TestScopedAssignmentRejectsMalformedInput(t *testing.T) {
 		"unknown scope":        func(a *ScopedAssignment) { a.ScopeKind = "everything" },
 		"mismatched hospital":  func(a *ScopedAssignment) { a.ScopeKind = "hospital" },
 		"hospital department":  func(a *ScopedAssignment) { a.ScopeKind, a.ScopeID = "department", a.HospitalID },
+		"hospital pharmacy":    func(a *ScopedAssignment) { a.ScopeKind, a.ScopeID = "pharmacy", a.HospitalID },
 		"non-v7 department":    func(a *ScopedAssignment) { a.ScopeKind = "department" },
 		"invalid staff":        func(a *ScopedAssignment) { a.ScopeID = "staff:other" },
 		"old command ID":       func(a *ScopedAssignment) { a.ID = a.TenantID },

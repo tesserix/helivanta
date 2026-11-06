@@ -551,6 +551,11 @@
           "id": "0032_iam_department_leave_review_templates",
           "sql_sha256": "d8926f65632b1d0e6f254950c36fde452ce1d65e4db15e4ab4664a509adf57a1",
           "creates_tables": []
+        },
+        {
+          "id": "0033_iam_establishment_root",
+          "sql_sha256": "fae325c8269eefab706af2c7be29a3b428a69a632af8a854e32fc50f3d26d14b",
+          "creates_tables": []
         }
       ]
     },

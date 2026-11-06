@@ -1,14 +1,12 @@
 package iam_test
 
 import (
-	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/globalapi"
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test uses its own module; architecture checks enforce ownership.
@@ -64,12 +62,6 @@ func TestDepartmentAssignmentStorageFailsClosed(t *testing.T) {
 			VALUES(?,?,?,'user-target',?,'Synthetic department scope',now(),now()+interval '1 hour','user-admin',?,'pending_scope',1,?,?)`,
 			testutil.TenantA, id, hospital, template, uuid.Must(uuid.NewV7()).String(), scope, departmentID).Error
 	}
-	constraint := func(t *testing.T, err error, name string) {
-		t.Helper()
-		var pg *pgconn.PgError
-		require.True(t, errors.As(err, &pg), "%v", err)
-		require.Equal(t, name, pg.ConstraintName, pg.Message)
-	}
 
 	t.Run("scope kind and department must agree", func(t *testing.T) {
 		for _, c := range []struct {
@@ -80,7 +72,7 @@ func TestDepartmentAssignmentStorageFailsClosed(t *testing.T) {
 				_, err := insert(tx, departmentReviewTemplate, c.scope, c.department)
 				return err
 			})
-			constraint(t, err, "iam_assignment_proposals_scope_check")
+			requireConstraint(t, err, "iam_assignment_proposals_scope_check")
 		}
 	})
 	t.Run("template must allow the scope kind", func(t *testing.T) {
@@ -88,12 +80,12 @@ func TestDepartmentAssignmentStorageFailsClosed(t *testing.T) {
 			_, err := insert(tx, "workforce.posting_reviewer.v1", "department", department)
 			return err
 		})
-		constraint(t, err, "iam_assignment_proposals_template_scope_check")
+		requireConstraint(t, err, "iam_assignment_proposals_template_scope_check")
 		err = session(true, func(tx *gorm.DB) error {
 			_, err := insert(tx, departmentReviewTemplate, "hospital", nil)
 			return err
 		})
-		constraint(t, err, "iam_assignment_proposals_template_scope_check")
+		requireConstraint(t, err, "iam_assignment_proposals_template_scope_check")
 	})
 	t.Run("unaware sessions cannot write department rows", func(t *testing.T) {
 		err := session(false, func(tx *gorm.DB) error {

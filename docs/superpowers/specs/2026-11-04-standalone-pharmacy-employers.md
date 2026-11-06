@@ -97,14 +97,20 @@ The slice that adds the guard lists every such table it found. It proves each
 listed table refuses a pharmacy establishment, and it proves existing hospital
 writes still succeed.
 
-**IAM root.** `ScopedAssignment` gains `EstablishmentKind` and `EstablishmentID`.
+**IAM root.** `ScopedAssignment` gains `PharmacyID`, and exactly one of
+`HospitalID` and `PharmacyID` names the root. A separate field means a pharmacy
+ID can never travel as `HospitalID`, and no rule is needed to keep two copies of
+the hospital ID equal. The [slice 2 plan](../plans/2026-11-06-typed-iam-root.md)
+records this decision.
 
 - An additive IAM migration backfills every existing assignment as `hospital`,
   with the same ID. Epochs and grants are unchanged.
 - `HospitalID` stays populated for hospital roots and is never set for
-  pharmacy roots.
-- Each template declares `establishment_kinds`. The OpenFGA model and
-  projection add the pharmacy root under the same tenant.
+  pharmacy roots. `PharmacyID` is omitted from a hospital root's content hash,
+  so every existing object key keeps its bytes.
+- Each template declares `establishment_kinds`. The OpenFGA model is
+  unchanged: the root is bound inside the content-hashed object key, so only
+  the projection changes.
 - Real-OpenFGA tests prove three things: a pharmacy-rooted assignment never
   satisfies a hospital check, and the reverse; revocation cuts over; an outage
   returns 503.
@@ -147,8 +153,8 @@ are assigned when a slice starts, from the next free ID in each module.
    as an employer. Wrong-kind 404 on both families, `hospital_owned` refusal
    and guard outage are tested.
 2. **Typed IAM root.** Assignment root columns, backfill proof against a
-   production-shaped fixture, template kind declarations, the OpenFGA model
-   and projection, and kind-crossing denial tests.
+   production-shaped fixture, template kind declarations, the root-bound
+   projection, and kind-crossing denial tests.
 3. **Core Staff in a pharmacy establishment.** The distinct hospital scope
    type, then directory, create and edit,
    access and identity on the pharmacy family, with `pharmacy_id` contract

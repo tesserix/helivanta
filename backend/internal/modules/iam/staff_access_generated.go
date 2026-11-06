@@ -94,12 +94,13 @@ type MemberGrantResult struct {
 }
 
 type TemplateDefinition struct {
-	Key         string   `json:"key"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Family      string   `json:"family"`
-	Permissions []string `json:"permissions"`
-	ScopeKinds  []string `json:"scope_kinds"`
+	Key                string   `json:"key"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Family             string   `json:"family"`
+	Permissions        []string `json:"permissions"`
+	ScopeKinds         []string `json:"scope_kinds"`
+	EstablishmentKinds []string `json:"establishment_kinds"`
 }
 
 type MembershipCommandInput struct {

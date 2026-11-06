@@ -326,6 +326,13 @@
         "enum": ["hospital", "department"],
         "min": 1,
         "max": 2
+      },
+      {
+        "name": "establishment_kinds",
+        "type": "[]string",
+        "enum": ["hospital", "pharmacy"],
+        "min": 1,
+        "max": 2
       }
     ],
     "MembershipCommandInput": [

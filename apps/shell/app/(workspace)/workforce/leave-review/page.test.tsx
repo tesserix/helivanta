@@ -38,6 +38,8 @@ function mock({
   uncertain = false,
   emptyFirst = false,
   unavailable = false,
+  /** Answers the review-scope read with 403 while it returns true. */
+  refuseScopes = (): boolean => false,
   rejected = 0,
   rows = [row] as Record<string, unknown>[],
 } = {}) {
@@ -74,6 +76,8 @@ function mock({
         });
       }
       if (url.includes("/leave-review-scopes")) {
+        if (refuseScopes())
+          return Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 });
         if (unavailable)
           return Response.json(
             { error: "scoped_authorization_unavailable", message: "Access unavailable." },
@@ -205,4 +209,20 @@ it("marks routed requests as direct or escalated and leaves unrouted ones unmark
   expect(within(item("Synthetic Nurse")).getByText("Direct report")).toBeInTheDocument();
   expect(within(item("Synthetic Porter")).getByText("Escalated · level 3")).toBeInTheDocument();
   expect(within(item("Synthetic Clerk")).queryByText(/Direct report|Escalated/)).toBeNull();
+});
+
+it("withdraws the review queue once review access is refused", async () => {
+  let refused = false;
+  mock({ refuseScopes: () => refused });
+  renderWithProviders(<ReviewLeave />);
+  expect(
+    await screen.findByRole("button", { name: /Review leave for Synthetic Nurse/ }),
+  ).toBeVisible();
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Review leave for Synthetic Nurse/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /refresh access|try again/i })).toBeNull();
 });

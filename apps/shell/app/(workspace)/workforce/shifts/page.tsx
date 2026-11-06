@@ -22,6 +22,9 @@ import {
   useZodForm,
   useLeaveGuard,
   useConfirmLeave,
+  isRefusal,
+  RefreshButton,
+  RequestFailure,
 } from "@helivanta/ui";
 
 const inputClass =
@@ -59,12 +62,11 @@ export default function Shifts() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <div role="alert">
-          Could not load hospitals.{" "}
-          <Button variant="outline" onClick={hospitals.retry}>
-            Try again
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <ShiftCatalog key={hospital.id} hospital={hospital} />
       ) : (
@@ -104,7 +106,10 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
   useEffect(() => {
     if (!editing && !history) opener.current?.focus();
   }, [editing, history]);
-  const rows = records.items.filter((s) =>
+  // Shifts the server now refuses don't stay on screen, nor do the editor or
+  // history opened from them (#1595).
+  const refused = isRefusal(records.error);
+  const rows = (refused ? [] : records.items).filter((s) =>
     `${s.name} ${s.code}`.toLowerCase().includes(filter.toLowerCase()),
   );
   return (
@@ -150,11 +155,12 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
             Loading shifts…
           </p>
         ) : records.isError ? (
-          <div className="p-8" role="alert">
-            Could not load shifts.{" "}
-            <Button variant="outline" onClick={records.retry}>
-              Try again
-            </Button>
+          <div className="p-5">
+            <RequestFailure
+              message="Could not load shifts."
+              retry={records.retry}
+              error={records.error}
+            />
           </div>
         ) : !rows.length ? (
           <div className="p-12 text-center">
@@ -254,18 +260,18 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
                 Load more shifts
               </Button>
             )}
-            <Button
-              variant="outline"
+            <RefreshButton
               size="sm"
-              onClick={records.retry}
-              disabled={records.isFetchingMore}
+              refresh={records.retry}
+              error={records.error}
+              busy={records.isFetchingMore}
             >
               Refresh shifts
-            </Button>
+            </RefreshButton>
           </div>
         </div>
       </section>
-      {editing && (
+      {editing && !refused && (
         <ShiftEditor
           key={`${editing === "new" ? "new" : editing.id}:${editorSession}`}
           path={path}
@@ -274,7 +280,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
           onClose={close}
         />
       )}
-      {history && (
+      {history && !refused && (
         <ShiftHistory
           key={history.id}
           path={`${path}/${history.id}/history`}
@@ -521,12 +527,11 @@ function ShiftHistory({
       {history.isPending ? (
         <p role="status">Loading shift history…</p>
       ) : history.isError ? (
-        <div role="alert">
-          Could not load shift history.{" "}
-          <Button variant="outline" onClick={history.retry}>
-            Try again
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load shift history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ul className="space-y-3">
           {history.items.map((r) => (

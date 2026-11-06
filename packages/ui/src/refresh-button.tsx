@@ -10,6 +10,7 @@ export function RefreshButton({
   error,
   busy,
   variant = "outline",
+  size,
   children,
   "aria-label": label,
 }: {
@@ -18,6 +19,7 @@ export function RefreshButton({
   error: unknown;
   busy?: boolean;
   variant?: "outline" | "ghost" | "link";
+  size?: "sm";
   children: ReactNode;
   /** Names the button when several refresh the same way, e.g. one per panel. */
   "aria-label"?: string;
@@ -29,6 +31,7 @@ export function RefreshButton({
     <Button
       type="button"
       variant={variant}
+      size={size}
       disabled={busy}
       aria-label={label}
       onClick={() => void refresh()}

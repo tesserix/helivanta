@@ -19,8 +19,6 @@ export const RETRY_LEGACY = [
   "app/(workspace)/workforce/enrollment-editor.tsx",
   "app/(workspace)/workforce/identity-cases-panel.tsx",
   "app/(workspace)/workforce/identity-source-panel.tsx",
-  "app/(workspace)/workforce/leave-review/page.tsx",
-  "app/(workspace)/workforce/leave-setup/leave-workspace.tsx",
   "app/(workspace)/workforce/login-link-panel.tsx",
   "app/(workspace)/workforce/page.tsx",
   "app/(workspace)/workforce/person-reviews/manager-preparation.tsx",
@@ -40,8 +38,4 @@ export const RETRY_LEGACY = [
   "app/(workspace)/workforce/posting-submission-workspace.tsx",
   "app/(workspace)/workforce/posting-workspace.tsx",
   "app/(workspace)/workforce/postings/page.tsx",
-  "app/(workspace)/workforce/roster-setup/roster-editor.tsx",
-  "app/(workspace)/workforce/roster-setup/roster-workspace.tsx",
-  "app/(workspace)/workforce/setup/page.tsx",
-  "app/(workspace)/workforce/shifts/page.tsx",
 ];

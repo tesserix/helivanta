@@ -23,8 +23,11 @@ export function EmergencyWorkspace() {
   });
   const [selected, setSelected] = useState<string | null>(null);
   const [configure, setConfigure] = useState<string | null>(null);
-  const base = bases.items.find((item) => item.id === selected);
-  const configured = bases.items.find((item) => item.id === configure);
+  // Bases the server now refuses don't stay on screen, nor do the panels
+  // opened from them (#1595).
+  const listed = isRefusal(bases.error) ? [] : bases.items;
+  const base = listed.find((item) => item.id === selected);
+  const configured = listed.find((item) => item.id === configure);
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeading description="Review received reports, fleet readiness and current dispatch status." />
@@ -42,36 +45,34 @@ export function EmergencyWorkspace() {
         <p>No operating bases configured in this tenant.</p>
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
-        {/* Bases the server now refuses don't stay on screen (#1595). */}
-        {!isRefusal(bases.error) &&
-          bases.items.map((item) => (
-            <li className="min-w-0 space-y-3 rounded-xl border bg-card p-5" key={item.id}>
-              <h2 className="font-semibold">{item.name}</h2>
-              <p className="text-sm text-muted-foreground">
-                {item.timezone} · {item.access_level ?? "No case access"}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {item.access_level && can("emergency.case.read") && (
-                  <Button
-                    className="h-auto min-h-11 max-w-full whitespace-normal text-left"
-                    variant="outline"
-                    onClick={() => setSelected(item.id)}
-                  >
-                    Open {item.name}
-                  </Button>
-                )}
-                <Can permission="emergency.base.manage">
-                  <Button
-                    className="h-auto min-h-11 max-w-full whitespace-normal text-left"
-                    variant="outline"
-                    onClick={() => setConfigure(item.id)}
-                  >
-                    Configure {item.name}
-                  </Button>
-                </Can>
-              </div>
-            </li>
-          ))}
+        {listed.map((item) => (
+          <li className="min-w-0 space-y-3 rounded-xl border bg-card p-5" key={item.id}>
+            <h2 className="font-semibold">{item.name}</h2>
+            <p className="text-sm text-muted-foreground">
+              {item.timezone} · {item.access_level ?? "No case access"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {item.access_level && can("emergency.case.read") && (
+                <Button
+                  className="h-auto min-h-11 max-w-full whitespace-normal text-left"
+                  variant="outline"
+                  onClick={() => setSelected(item.id)}
+                >
+                  Open {item.name}
+                </Button>
+              )}
+              <Can permission="emergency.base.manage">
+                <Button
+                  className="h-auto min-h-11 max-w-full whitespace-normal text-left"
+                  variant="outline"
+                  onClick={() => setConfigure(item.id)}
+                >
+                  Configure {item.name}
+                </Button>
+              </Can>
+            </div>
+          </li>
+        ))}
       </ul>
       <LoadMore hasMore={bases.hasMore} isLoading={bases.isFetchingMore} onClick={bases.loadMore} />
       <Can permission="emergency.base.manage">

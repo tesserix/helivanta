@@ -136,3 +136,61 @@ it("can verify a second person without overwriting the first credential", async 
   await waitFor(() => expect(paths).toHaveLength(2));
   expect(paths[1]).not.toEqual(paths[0]);
 });
+
+it("drops the refused fleet from every form once access is withdrawn", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes("permissions")
+          ? json({ data: ["emergency.fleet.read", "emergency.fleet.manage"] })
+          : refused
+            ? json({ error: "forbidden", message: "secret detail" }, 403)
+            : json(
+                page(
+                  url.endsWith("/vehicles")
+                    ? [vehicle]
+                    : url.endsWith("/crew")
+                      ? [
+                          {
+                            id: "c1",
+                            subject: "SYN-CREW-SUBJECT",
+                            qualification: "emt",
+                            suspended: true,
+                          },
+                        ]
+                      : url.endsWith("/duties")
+                        ? [
+                            {
+                              id: "d1",
+                              vehicle_id: vehicle.id,
+                              driver_subject: "SYN-DUTY-DRIVER",
+                              clinician_subject: "SYN-DUTY-CLINICIAN",
+                              ends_at: "2026-10-20T00:00:00Z",
+                              ended_at: null,
+                            },
+                          ]
+                        : [],
+                ),
+              ),
+      ),
+    ),
+  );
+  const { user } = renderWithProviders(<EmergencyFleet base={base} level="supervisor" />);
+  await user.click(await screen.findByRole("button", { name: "Configure SYN-ALS-1" }));
+  expect(screen.getByDisplayValue("SYN-ALS-1")).toBeInTheDocument();
+  expect(screen.getAllByText(/SYN-CREW-SUBJECT/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/SYN-DUTY-DRIVER/).length).toBeGreaterThan(0);
+  refused = true;
+  // A background re-read (window focus), not the Refresh button, brings the refusal.
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findAllByText("This wasn't found, or you don't have access to it."),
+  ).not.toHaveLength(0);
+  expect(screen.queryByDisplayValue("SYN-ALS-1")).not.toBeInTheDocument();
+  expect(screen.queryAllByText(/SYN-ALS-1/)).toHaveLength(0);
+  expect(screen.queryAllByText(/SYN-CREW-SUBJECT/)).toHaveLength(0);
+  expect(screen.queryAllByText(/SYN-DUTY-DRIVER/)).toHaveLength(0);
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+});

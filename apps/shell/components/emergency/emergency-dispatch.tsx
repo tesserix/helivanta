@@ -101,24 +101,30 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
           recheck="Check access again"
         />
       )}
-      {canManage && eligibility.data && !active && !rows.isPending && !rows.isError && (
-        <>
-          {!eligibility.data.dispatch_enabled ? (
-            <p role="status">Dispatch activation is not enabled for this service.</p>
-          ) : !eligibility.data.eligible ? (
-            <p role="status">
-              A current, independently authorized transport review is required before reserving
-              capacity.
-            </p>
-          ) : (
-            <ReservationForm
-              key={`${caseID}-${eligibility.data.assessment_id}`}
-              baseID={baseID}
-              eligibility={eligibility.data}
-            />
-          )}
-        </>
-      )}
+      {/* A refused eligibility re-read withdraws the reservation it allowed (#1595). */}
+      {canManage &&
+        eligibility.data &&
+        !eligibility.isError &&
+        !active &&
+        !rows.isPending &&
+        !rows.isError && (
+          <>
+            {!eligibility.data.dispatch_enabled ? (
+              <p role="status">Dispatch activation is not enabled for this service.</p>
+            ) : !eligibility.data.eligible ? (
+              <p role="status">
+                A current, independently authorized transport review is required before reserving
+                capacity.
+              </p>
+            ) : (
+              <ReservationForm
+                key={`${caseID}-${eligibility.data.assessment_id}`}
+                baseID={baseID}
+                eligibility={eligibility.data}
+              />
+            )}
+          </>
+        )}
     </section>
   );
 }

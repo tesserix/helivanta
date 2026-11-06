@@ -79,7 +79,13 @@ function ClinicalAccessLoader({ base, subject }: { base: string; subject: string
   );
   if (current.isPending) return <p role="status">Loading clinical review access…</p>;
   if (current.isError && !(current.error instanceof ApiError && current.error.status === 404))
-    return <p role="alert">{current.error.message}. Reload access before making a change.</p>;
+    return (
+      <RequestFailure
+        message="Could not load clinical review access. Reload it before making a change."
+        retry={current.refetch}
+        error={current.error}
+      />
+    );
   return (
     <ClinicalAccessEditor
       key={current.data?.version ?? 0}

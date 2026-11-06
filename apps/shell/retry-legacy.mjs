@@ -3,14 +3,7 @@
 // converts them. retry-legacy.test.mjs fails when a listed file no longer
 // breaks the rule, so this list only shrinks and is deleted when empty.
 export const RETRY_LEGACY = [
-  "app/(workspace)/workforce/access/assignment-forms.tsx",
-  "app/(workspace)/workforce/access/membership-form.tsx",
-  "app/(workspace)/workforce/access/membership-management.tsx",
   "app/(workspace)/workforce/access/page.tsx",
-  "app/(workspace)/workforce/person-reviews/manager-preparation.tsx",
-  "app/(workspace)/workforce/person-reviews/page.tsx",
-  "app/(workspace)/workforce/person-reviews/review-detail.tsx",
-  "app/(workspace)/workforce/person-reviews/review-history.tsx",
   "app/(workspace)/workforce/pharmacy-binding-command.tsx",
   "app/(workspace)/workforce/pharmacy-binding-workspace.tsx",
   "app/(workspace)/workforce/pharmacy-relationships/page.tsx",

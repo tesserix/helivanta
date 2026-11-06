@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** convert the 28 workforce files of slice 2a to `RequestFailure`, `QueryState` and
+**Goal:** convert the 27 workforce files of slice 2a to `RequestFailure`, `QueryState` and
 `RefreshButton`, and take them off `apps/shell/retry-legacy.mjs`.
 
 **Architecture:** no new shared code. Each task converts one group of files the same way as
@@ -115,6 +115,6 @@ Tests:
 ### Task 5: Docs and gate
 
 - The spec's "What exists" keeps its numbers. "Slices" already records 2a/2b.
-- `RETRY_LEGACY` now holds exactly the 13 files of 2b, and its ceiling is 13.
+- `RETRY_LEGACY` now holds exactly the 14 files of 2b, and its ceiling is 14. (`pharmacy-relationships/page.tsx` belongs to 2b; the plan first counted it in 2a.)
 - Run `pnpm turbo lint type-check test build format:check` (expect 30/30) and `make lint-shell` (clean).
-- Commit `docs(workforce): 2a converted; 13 files left for 2b (#1595)` if anything changed.
+- Commit `docs(workforce): 2a converted; 14 files left for 2b (#1595)` if anything changed.

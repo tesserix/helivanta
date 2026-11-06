@@ -134,11 +134,11 @@ screen from drawing its own button today.
    forwarding props above and in supply's access and access-limits editors.
 2. **Workforce, in two PRs.** Each converts its files and removes them from
    the list, and lowers the list's ceiling to match.
-   - **2a (28 files, 56 handlers):** the directory and its editors,
+   - **2a (27 files, 55 handlers):** the directory and its editors,
      enrollment, documents, employment periods, evidence and reviews,
      identity, login links, leave, person reviews, rosters, setup, shifts,
      and access assignments and membership.
-   - **2b (13 files, 36 handlers):** postings (cutoff, drafts, reviews,
+   - **2b (14 files, 37 handlers):** postings (cutoff, drafts, reviews,
      submission, approval history), pharmacy binding and relationships, and
      `access/page.tsx`. Two unmerged branches touch these files, so 2b
      waits until it is confirmed whether that work is still live. 2b

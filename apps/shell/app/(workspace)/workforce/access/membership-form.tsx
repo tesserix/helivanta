@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, Panel, LoadMore, formatDateTime, useZodForm, useLeaveGuard } from "@helivanta/ui";
+import {
+  Field,
+  Panel,
+  LoadMore,
+  formatDateTime,
+  useZodForm,
+  useLeaveGuard,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   enrollStaffMember,
@@ -164,20 +173,18 @@ function EnrollmentHistory({ scope }: { scope: StaffAssignmentScope }) {
     <section aria-label="Enrollment history" className="space-y-3 border-t pt-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">Enrollment history</h3>
-        <Button
-          variant="outline"
-          disabled={history.isFetching}
-          onClick={() => void history.refetch()}
-        >
+        <RefreshButton busy={history.isFetching} refresh={history.refetch} error={history.error}>
           Refresh enrollment history
-        </Button>
+        </RefreshButton>
       </div>
       {history.isPending ? (
         <p role="status">Loading enrollment history…</p>
       ) : history.isError ? (
-        <p role="alert">
-          Could not verify enrollment history. Refresh before reconciling an uncertain enrollment.
-        </p>
+        <RequestFailure
+          message="Could not verify enrollment history. Refresh before reconciling an uncertain enrollment."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           {history.data.pages.every((page) => page.data.length === 0) && (

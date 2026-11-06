@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@tesserix/web";
-import { Panel } from "@helivanta/ui";
+import { Panel, RequestFailure } from "@helivanta/ui";
 import type { usePersonReviewHistory } from "@helivanta/api";
 
 type Props = {
@@ -28,12 +28,11 @@ export function RecordedPersonReviewHistory({
       {history.isPending || history.isFetching ? (
         <p role="status">Loading protected review history…</p>
       ) : history.isError ? (
-        <div role="alert">
-          <p>Could not verify recorded review history.</p>
-          <Button variant="outline" onClick={() => void history.refetch()}>
-            Retry history
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not verify recorded review history."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           {history.data.data.length === 0 ? (

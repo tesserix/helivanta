@@ -133,3 +133,32 @@ it("recovers ordinary membership from the retained removal and current epoch", a
   });
   expect(await screen.findByText(/Membership change recorded/)).toBeInTheDocument();
 });
+
+// #1595: memberships the server now refuses don't stay on screen.
+it("withdraws loaded memberships once a refreshed read is refused", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      refused && !init?.method
+        ? Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 })
+        : Response.json(page(url.includes("history") ? [] : [candidate])),
+    ),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <MembershipManagement scope={scope} />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText(candidate.subject)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Remove membership" }));
+  expect(screen.getByRole("form", { name: "Remove organization membership" })).toBeVisible();
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findAllByText("This wasn't found, or you don't have access to it."),
+  ).not.toHaveLength(0);
+  expect(screen.queryByText(candidate.subject)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refresh memberships|try again/i })).toBeNull();
+  expect(screen.queryByRole("form", { name: "Remove organization membership" })).toBeNull();
+});

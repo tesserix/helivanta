@@ -361,6 +361,12 @@ export const ZONES: Zone[] = [
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
       {
+        label: "Department teams",
+        href: "/workforce/department-teams",
+        icon: Users,
+        permission: "public",
+      },
+      {
         label: "Posting preparation",
         href: "/workforce/postings",
         icon: Building,

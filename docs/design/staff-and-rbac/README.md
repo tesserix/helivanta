@@ -1,10 +1,10 @@
 # Staff ownership, departments and scoped RBAC
 
-Date: 2026-11-06. **Status: design for product review; no runtime change or new approved API.**
+Date: 2026-11-06. **Status: ownership/collaboration design for product review, with a local hospital department-team implementation candidate. No new contract approval or production rollout is implied.**
 
 This document restarts the staff/access discussion from the organization tree. It covers hospital-owned departments, their delegated staff administration, independent pharmacy businesses and branches, and independent operators serving hospitals. Hospital departments are owned and managed by the hospital. PharmaConnect is software used by a pharmacy business; the software product itself is not an employer or a department.
 
-The design preserves accepted [ADR-0024](../../adr/0024-pharmacy-ownership-and-outlet-tenancy.md) and [ADR-0044](../../adr/0044-organization-structure-and-access-defaults.md). New proposals below require review, especially independent-employer Workforce scope and cross-tenant service relationships. Existing ORG-D2, ORG-D5 and ORG-D6 remain open. All names marked proposed are illustrative, not registered permissions or supported wire fields.
+The design preserves accepted [ADR-0024](../../adr/0024-pharmacy-ownership-and-outlet-tenancy.md) and [ADR-0044](../../adr/0044-organization-structure-and-access-defaults.md). Standalone Workforce scope is already decided by [ADR-0054](../../adr/0054-typed-employing-establishments.md); its remaining implementation slices and the proposed cross-tenant service relationships still need their applicable review gates. Existing ORG-D2, ORG-D5 and ORG-D6 remain open. All names marked proposed are illustrative, not registered permissions or supported wire fields.
 
 ## Merge baseline and accepted decisions
 
@@ -13,6 +13,8 @@ This draft was initially researched in the older, dirty local worktree at `b812b
 Current `main` already contains the organization module, expanded hospital staff-access templates, department-aware IAM authority and pharmacy department-binding work. Reuse them under [ADR-0051](../../adr/0051-shared-department-owner-boundary.md), [ADR-0052](../../adr/0052-staff-source-command-authorization.md) and [ADR-0055](../../adr/0055-department-scoped-assignments.md). Their exact current contracts take precedence over illustrative proposal names here. New work concentrates on the independent-employer gap and any missing complete consumer journeys, with source verification before implementation.
 
 ADR-0055 explicitly lets a department assignment cover current descendants. Organization supplies the current locked ancestry; OpenFGA holds no duplicate department hierarchy. This proposal preserves that rule. The proposed explicit inclusion/review of new **product outlets** does not change department/sub-unit inheritance. Existing approved workload budgets are also unchanged by the illustrative pharmacy planning scenario below.
+
+The [department team-management review](department-team-management.md) applies the accepted Staff, supervision and transfer decisions to the user’s next focus: assigning staff, department heads, supervisors and safe transfers.
 
 ## 1. The tree: what we understand
 
@@ -40,11 +42,13 @@ Helivanta platform                                      [software operator]
 └── Tenant P: independent pharmacy customer              [separate customer boundary]
     ├── Legal entity / employer                          [pharmacy-owned, not hospital]
     ├── Pharmacy owner and corporate administration
-    ├── Its own employer staff register and HR
-    ├── Pharmacy organization P1                         [business, uses PharmaConnect]
+    ├── Pharmacy organization P1                         [typed employing establishment]
+    │   ├── Its own employer Staff register and HR
     │   ├── Branch/outlet B1 → manager + pharmacist + cashier + stock staff
     │   └── Branch/outlet B2 → manager + pharmacist + cashier + stock staff
-    └── Pharmacy organization P2 → further branches/outlets
+    └── Pharmacy organization P2                         [separate employing establishment]
+        ├── Its own employer Staff register and HR
+        └── Further branches/outlets → assigned staff
 
 Tenant H / Hospital H1 ··· service agreement ··· Tenant P / Outlet B1
                          NOT an ownership edge
@@ -54,12 +58,13 @@ Read the hospital pharmacy nesting as **organizational responsibility**, not a s
 
 “Branch” means an outlet in the first slice. If a business needs a regional office containing several licensed premises/outlets, model that separately after confirming the need; do not invent two competing branch/outlet masters. An independent pharmacy requires no hospital or hospital department. Laboratory/supply/emergency businesses may later follow their own reviewed product-unit trees; do not activate standalone operation for every department automatically.
 
-**Staff appear in several views but have one owning employment record per engagement.** Department staff pages, outlet staff pages, HR pages and access pages reference that record. One login may link to separately reviewed employments in multiple organizations; neither organization can discover the other's private HR record through that login.
+**Staff appear in several views but have one owning employment record per engagement.** Department staff pages, outlet staff pages, HR pages and access pages reference that record. One login may link to separately reviewed employments in multiple organizations; neither organization can discover the other's private HR record through that login. Under ADR-0054, one pharmacy establishment maps to one eligible Pharma organization; a corporate tenant containing P1 and P2 therefore has separately scoped employment records, even if both share a legal parent. Corporate HR requires explicit authority for each establishment.
 
 ## 2. Deliverables and reading order
 
 - Start with the tree above and the [ownership overview](diagrams/01-ownership.svg).
-- Open [the editable seven-page draw.io file](staff-and-rbac.drawio) in diagrams.net.
+- Open [the editable eight-page draw.io file](staff-and-rbac.drawio) in diagrams.net.
+- [Department teams and atomic transfers](diagrams/08-department-team.svg) shows the local owner-backed implementation candidate; see [ADR-0061](../../adr/0061-department-team-and-atomic-transfers.md).
 - Review [delegated administration](diagrams/02-administration.svg), [record ownership](diagrams/03-records.svg), [authorization](diagrams/04-authorization.svg) and [staff lifecycle](diagrams/05-lifecycle.svg).
 - Sections 3–7 define ownership, roles and permission naming; sections 8–12 cover operations, enforcement and delivery.
 - [Research and evidence](research.md) separates primary-source findings from product choices and current implementation.
@@ -84,9 +89,9 @@ The SVGs are companion previews. The draw.io file contains native editable shape
 
 ### Independent staff require an explicit Workforce extension
 
-**Current:** Workforce staff and private evidence are hospital-scoped. **Proposed:** reuse Workforce as the staff capability for both hospital and independent employers; do not duplicate its HR implementation inside PharmaConnect.
+**Accepted direction:** ADR-0054 makes Workforce the single Staff owner for typed employing establishments (`hospital` or `pharmacy`). Current source includes typed establishment registration; that foundation is not evidence that every independent enrollment, private-file, posting or IAM consumer is complete. Reuse the accepted model rather than a Pharma-owned HR implementation.
 
-The proposed employment scope is `(tenant_id, employer_legal_entity_id, workforce_scope_kind, workforce_scope_id)`. Hospital employments retain their real `hospital_id`. Independent employments reference an approved pharmacy-employer workforce scope, with outlet postings as narrower units. These are conceptual fields pending canonical schema design. An untyped nullable `hospital_id` or a magic hospital UUID is not the solution.
+The canonical root follows ADR-0054: an employing establishment has immutable kind and ID. A hospital retains its hospital ID; a pharmacy establishment is exactly one eligible independent/chain Pharma organization with the same ID. The existing physical `hospital_id` column is retained as an establishment key behind typed guards; it is not permission to expose a pharmacy as a hospital. Hospital routes admit only hospital establishments; reviewed pharmacy route families emit `pharmacy_id`. Outlets remain Pharma-owned posting targets. Legal-entity references do not create an alternative tenant-wide HR root.
 
 All associated HR tables, private files, payroll configuration, identifiers, links, reviewer authority, RLS, generators and consumers must migrate together for the chosen slice. No unrelated HR history becomes chain-wide readable because the employer is the same. Employer-wide HR administration needs a specific assignment; a branch manager sees only the staff fields and postings their branch process requires.
 
@@ -235,7 +240,7 @@ Temporary acting appointments are subset delegations with fixed expiry, no re-de
 ### B. Independent pharmacy chain
 
 1. Verify Tenant P, its legal employer, product entitlement and pharmacy organizations/outlets. No hospital is created.
-2. Once independent Workforce scope is implemented, create the employer's staff register and corporate HR/access administration.
+2. For each employing Pharma organization, use its accepted ADR-0054 establishment scope and deliver its staff register and corporate HR/access administration through reviewed capability slices. A shared legal parent does not merge P1/P2 employment roots.
 3. Corporate HR creates staff; a branch staff admin may perform only delegated intake/edit steps for B1. Branch postings and role assignments are separate records.
 4. Assign B1 pharmacist, B1 cashier, B1 stock clerk or multi-outlet supervisor explicitly. A B1 administrator cannot grant B2 access. Corporate HR/private-file access does not flow to outlet managers.
 5. A floating pharmacist has one employer engagement, dated B1/B2 postings and separate outlet assignments, with the appropriate evidence at each outlet. Scheduling clashes and access validity are separate checks.
@@ -353,14 +358,14 @@ For each denied action, present a useful permitted explanation without revealing
 
 This document authorizes no implementation, migration, production rollout or live credential change. Review the tree and ownership decisions first, then implement complete bounded slices.
 
-| Slice                               | Complete outcome / exit gate                                                                                                                                                      |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0. Resolve decisions                | Confirm profile shorthand, independent Workforce owner/scope, branch terminology, intake policy, scope-set growth and service relationship model; record approved changes in ADRs |
-| 1. Close administrator safety gap   | Remove blanket clinical grants from admin reachability under a reviewed migration; preserve legitimate explicit clinical assignments; prove both positive and negative cases      |
-| 2. Hospital department foundation   | Reuse the existing Organization owner and department-aware IAM authority; close verified consumer/binding gaps for head/admin assignments and retirement/transfer behavior        |
-| 3. Hospital pharmacy staff slice    | Intake → reviewed staff link → bounded IAM assignment → real department/outlet consumer → immediate current-state denial on suspension/exit; no legacy bypass                     |
-| 4. Independent pharmacy staff slice | Real employer Workforce scope across all affected HR/file/access tables; chain/branch views, controlled posting/assignment, rehire and negative scope cases                       |
-| 5. Independent operator integration | Reviewed bilateral service contract, minimal authorized order/fulfillment exchange, termination behavior; guest access only as a separately reviewed need                         |
+| Slice                               | Complete outcome / exit gate                                                                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Resolve decisions                | Confirm profile shorthand, apply accepted ADR-0054 employing-establishment scope, and review remaining branch/intake/product-scope/service decisions; record genuinely new decisions in ADRs |
+| 1. Close administrator safety gap   | Remove blanket clinical grants from admin reachability under a reviewed migration; preserve legitimate explicit clinical assignments; prove both positive and negative cases                 |
+| 2. Hospital department foundation   | Reuse the existing Organization owner and department-aware IAM authority; close verified consumer/binding gaps for head/admin assignments and retirement/transfer behavior                   |
+| 3. Hospital pharmacy staff slice    | Intake → reviewed staff link → bounded IAM assignment → real department/outlet consumer → immediate current-state denial on suspension/exit; no legacy bypass                                |
+| 4. Independent pharmacy staff slice | Real employer Workforce scope across all affected HR/file/access tables; chain/branch views, controlled posting/assignment, rehire and negative scope cases                                  |
+| 5. Independent operator integration | Reviewed bilateral service contract, minimal authorized order/fulfillment exchange, termination behavior; guest access only as a separately reviewed need                                    |
 
 ### Minimum synthetic scenarios
 
@@ -405,7 +410,7 @@ Start with existing Postgres indexes/transactions, IAM/OpenFGA and outbox worker
 
 | ID     | Proposal / unresolved question                                                                                                                                                                                                                           | Accountable reviewers                         |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| SR-D1  | Reuse Workforce for independent employers with typed employer scopes, preserving hospital boundaries and private HR ownership                                                                                                                            | Product, Workforce, platform/security         |
+| SR-D1  | Settled by ADR-0054: use typed employing establishments and Workforce ownership; complete each consumer through its reviewed slice                                                                                                                       | Product, Workforce, platform/security         |
 | SR-D2  | Hospital/pharmacy prefixes are profile aliases; shared canonical permissions and IAM assignments enforce them                                                                                                                                            | Product, IAM/security                         |
 | SR-D3  | `a` means approve; access administration uses `m`; UI spells out actions                                                                                                                                                                                 | Product and UX                                |
 | SR-D4  | Initial central intake with bounded delegated intake as an explicit employer policy                                                                                                                                                                      | Hospital/pharmacy operations, HR and security |
@@ -416,6 +421,6 @@ Start with existing Postgres indexes/transactions, IAM/OpenFGA and outbox worker
 | SR-D9  | Standalone pharmacist evidence/operating-authority policy must use the real employer/outlet and applicable jurisdiction, not require a fabricated hospital privilege                                                                                     | Pharmacy governance, legal and IAM            |
 | SR-D10 | Ratify workload/SLO/cost inputs and current-state eligibility gates before production commitments                                                                                                                                                        | Engineering, security and operations          |
 
-SR decisions are proposals in this document, not replacements for accepted ORG decisions. ADR-0044's no-default-clinical-access, central department ownership and posting-proposes-access decisions remain the baseline. ORG-D2/D5/D6 need their own review before any affected feature relies on them.
+SR entries are proposals or, where marked, references to already settled decisions; they do not replace accepted ORG decisions. ADR-0044's no-default-clinical-access, central department ownership and posting-proposes-access decisions remain the baseline. ORG-D2/D5/D6 need their own review before any affected feature relies on them.
 
 Traceability: ORG-ST-01–07 (structure/history); ORG-AU-01–09 (authority and clinical separation); ORG-AC-01–08 (assignment, lifecycle, deny/failure and migration); IN-PH-02/04/05/06/10 (pharmacy act/evidence/outlet scope); IN-CL-10 and IN-FQ-06 via the organization authority reference. These are proposed Helivanta acceptance criteria, not regulatory certification. Country/state, service, licence and current source applicability require qualified review.

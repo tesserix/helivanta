@@ -20,8 +20,9 @@ They cover the template grant and its scope discovery, 403 before the grant,
 404 for sibling, foreign and unknown departments, the 0089 RLS session and audit
 evidence. Workforce unit (896s), architecture, `contractdocs -check` and the
 inventory check also pass, as do the leave-review page tests. The inventory
-re-pins 33 hashes across 23 reviews whose router and Workforce/IAM sources changed
-(847 surfaces, 824 unclassified). This is not deployed runtime acceptance;
+re-pins 33 hashes across 23 reviews whose router and Workforce/IAM sources changed,
+plus the Workforce pin of the two department-team reviews merged from main (849
+surfaces, 824 unclassified). This is not deployed runtime acceptance;
 real-account browser acceptance with two people remains open. Counts are unchanged
 at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
 
@@ -6424,3 +6425,35 @@ reviewed product-to-department bindings and their lifecycle/positive-role browse
 acceptance remain open. Staff must remain canonical in Workforce; consumer
 projections must not create a second employee master or treat approval/discovery
 hints as operating authorization.
+
+## 2026-11-06 — hospital department teams and paired transfers
+
+The isolated department-team branch completes the hospital consumer journey for
+preparation, independent head/supervisor review, current placement observations,
+endings and coordinated scheduled transfers. The original ownership/collaboration
+documentation was merged by PR #1600. Implementation is tracked through the
+department-team feature branch and PR. Production deployment, migration and
+unrelated issue closure remain separate.
+
+- The roster composes proposal-read, current actor and hospital source-use evidence,
+  holds current department scope, minimizes Staff data and distinguishes current,
+  non-current and expired observations. Known source refusal is not an empty-team
+  success; unavailable verification fails closed.
+- The transfer composes five independently reserved existing permissions, preserves
+  the normal decision fingerprint and commits the original ending, replacement
+  approval, source evidence, audit and outbox together. A shared immutable command,
+  actor and fingerprint link the retained pair. A previous pair prevents another
+  replacement consuming that original, including an earlier proposed move.
+- Exact concurrent requests recover one result; changed intent conflicts. A later
+  source ending does not prevent authorized recovery. The browser deliberately
+  loses a committed response and recovers the same paired command.
+- Final combined-main evidence: shell 1,703 tests, API SDK 895 tests, shared UI 308 tests; full
+  Workforce/authz suites and changed-case race checks pass. The real browser/owner
+  expanded race run, including temporary-grant cleanup and the following department-review scenario, passes in 288.742s. Types, lint, production build, Go build/vet/lint,
+  architecture, canonical generation and registered contracts pass.
+
+See [the scoped delivery/validation record](../design/staff-and-rbac/department-team-management.md),
+[the candidate contract](../api/workforce-postings.md) and
+[ADR-0061](../adr/0061-department-team-and-atomic-transfers.md). External login,
+representative load, statutory HOD/clinical privilege policy and independent
+pharmacy cross-tenant service agreements are separate review/release work.

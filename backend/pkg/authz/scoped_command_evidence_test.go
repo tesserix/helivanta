@@ -70,10 +70,10 @@ func commandEvidenceFixture() (authz.ScopeRequest, authz.ScopeGrant) {
 		authz.ScopeGrant{AssignmentID: "00000000-0000-4000-8000-000000000003", Version: 2, ScopeEpoch: 3, MembershipEpoch: 4, ScopeKind: "hospital"}
 }
 
-func TestScopedCommandEvidenceCarriesThreeExactReservationsAndRejectsFour(t *testing.T) {
+func TestScopedCommandEvidenceCarriesFiveExactReservationsAndRejectsSix(t *testing.T) {
 	request, grant := commandEvidenceFixture()
 	var checks []authz.ScopeCheck
-	for _, permission := range []authz.Permission{"workforce.posting.review", authz.StaffActorUse, "workforce.posting.management.review"} {
+	for _, permission := range []authz.Permission{"workforce.posting.review", authz.StaffActorUse, "workforce.posting.management.review", "workforce.posting.cutoff", authz.StaffPostingSourceUse} {
 		selected := request
 		selected.Permission = permission
 		checks = append(checks, authz.ScopeCheck{Request: selected, Grant: grant})

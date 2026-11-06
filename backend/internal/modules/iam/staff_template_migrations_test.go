@@ -59,6 +59,20 @@ func TestAppendOnlyTemplateSQLPreservesPublishedDefinitions(t *testing.T) {
 		require.Equal(t, definition.Permissions, permissions)
 		baseline[definition.Key] = *value
 	}
+	leaveCatalog := testutil.Do(r, http.MethodGet, "/v1/iam/staff-access-templates?catalog=staff-department-leave-reviews-v1", "admin", "")
+	require.Equal(t, http.StatusOK, leaveCatalog.Code, leaveCatalog.Body.String())
+	var leaveDefinitions []iam.TemplateDefinition
+	require.NoError(t, json.Unmarshal(leaveCatalog.Body.Bytes(), &leaveDefinitions))
+	require.Len(t, leaveDefinitions, 15)
+	departmentLeave := leaveDefinitions[14]
+	require.Equal(t, "workforce.department_leave_reviewer.v1", departmentLeave.Key)
+	require.Equal(t, []string{"department"}, departmentLeave.ScopeKinds)
+	require.JSONEq(t, `["workforce.leave.approve","organization.posting_choices.read","workforce.staff_actor.use"]`, *read(departmentLeave.Key))
+	var leaveScope struct{ Kinds string }
+	require.NoError(t, db.WithTenant(ctx, testutil.TenantA, func(tx *gorm.DB) error {
+		return tx.Raw(`SELECT array_to_string(iam_assignment_template_scope_kinds(?),',') AS kinds`, departmentLeave.Key).Scan(&leaveScope).Error
+	}))
+	require.Equal(t, "department", leaveScope.Kinds)
 	sql, err := os.ReadFile("testdata/staff_template_append.sql")
 	require.NoError(t, err)
 	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{ID: "test_iam_template_append", SQL: string(sql)}}))

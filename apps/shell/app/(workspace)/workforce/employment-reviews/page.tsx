@@ -2,7 +2,14 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { Button } from "@tesserix/web";
-import { Field, PageHeading, Panel, SelectControl } from "@helivanta/ui";
+import {
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   useApiQuery,
   useTenantTransition,
@@ -64,22 +71,19 @@ function ReviewWorkspace({ workspace }: { workspace: Workspace }) {
   const hospital =
     scopes.data?.data.find((row) => row.hospital_id === selected) ?? scopes.data?.data[0];
   const next = scopes.data?.page.next_cursor;
+  const refreshAccess = () => {
+    setBlocked(false);
+    setNotice("");
+    setSelected("");
+    setRevision((value) => value + 1);
+    setCursors([null]);
+    void scopes.refetch();
+  };
   return (
     <div className="space-y-5">
-      <Button
-        variant="outline"
-        disabled={busy || scopes.isFetching}
-        onClick={() => {
-          setBlocked(false);
-          setNotice("");
-          setSelected("");
-          setRevision((value) => value + 1);
-          setCursors([null]);
-          void scopes.refetch();
-        }}
-      >
+      <RefreshButton busy={busy || scopes.isFetching} refresh={refreshAccess} error={scopes.error}>
         Refresh access
-      </Button>
+      </RefreshButton>
       {notice && !blocked && <p role="status">{notice}</p>}
       {blocked ? (
         <p role="alert">
@@ -88,7 +92,11 @@ function ReviewWorkspace({ workspace }: { workspace: Workspace }) {
       ) : scopes.isPending || scopes.isFetching ? (
         <p role="status">Checking employment-review access…</p>
       ) : scopes.isError ? (
-        <p role="alert">Could not verify employment-review access. Refresh access to try again.</p>
+        <RequestFailure
+          message="Could not verify employment-review access."
+          retry={refreshAccess}
+          error={scopes.error}
+        />
       ) : (
         <>
           {hospital ? (
@@ -191,16 +199,16 @@ function HospitalReviews({
             Recorded terms are checked again when you open them.
           </p>
         </div>
-        <Button
-          variant="outline"
-          disabled={busy || records.isFetching}
-          onClick={() => {
+        <RefreshButton
+          busy={busy || records.isFetching}
+          refresh={() => {
             setSelected(null);
             void records.refetch();
           }}
+          error={records.error}
         >
           Refresh inbox
-        </Button>
+        </RefreshButton>
       </div>
       {hospital.can_submit && hospital.can_review && (
         <Field id="employment-review-mode" label="Workspace role">
@@ -245,9 +253,11 @@ function HospitalReviews({
       {records.isPending || records.isFetching ? (
         <p role="status">Loading employment reviews…</p>
       ) : records.isError ? (
-        <p role="alert">
-          Could not verify the review inbox. Refresh access or the inbox to try again.
-        </p>
+        <RequestFailure
+          message="Could not verify the review inbox."
+          retry={records.refetch}
+          error={records.error}
+        />
       ) : (
         <>
           {records.data.data.length === 0 ? (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { LoadMore, Panel } from "@helivanta/ui";
+import { LoadMore, Panel, isRefusal, RequestFailure } from "@helivanta/ui";
 import {
   IdentityCaseContract,
   identityCaseRequest,
@@ -72,7 +72,8 @@ export function StaffIdentityCases({
           Staff is inactive. History remains available; new draft changes require active employment.
         </p>
       )}
-      {editor && (
+      {/* A refused drafts read withdraws the editor opened from it (#1595). */}
+      {editor && !isRefusal(cases.error) && (
         <IdentityCaseEditor
           key={editor.item?.id ?? "new"}
           scope={scope}
@@ -85,12 +86,12 @@ export function StaffIdentityCases({
       {cases.isPending ? (
         <p role="status">Loading review drafts…</p>
       ) : cases.isError || !rows ? (
-        <div role="alert">
-          <p>Could not load or validate review drafts. Current identity access may have changed.</p>
-          <Button variant="outline" onClick={cases.retry}>
-            Retry review drafts
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load or validate review drafts. Current identity access may have changed."
+          retry={cases.retry}
+          // Drafts that fail validation have no error, so they keep the retry.
+          error={cases.error}
+        />
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No review drafts recorded for this staff member.
@@ -187,12 +188,11 @@ function CaseHistory({
       {query.isPending ? (
         <p role="status">Loading draft history…</p>
       ) : query.isError || !rows ? (
-        <div role="alert">
-          <p>Could not load or validate draft history.</p>
-          <Button variant="outline" onClick={query.retry}>
-            Retry draft history
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load or validate draft history."
+          retry={query.retry}
+          error={query.error}
+        />
       ) : (
         <ol className="space-y-3">
           {rows.map((item) => (

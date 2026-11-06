@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
-import { Field, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import { Field, useLeaveGuard, useZodForm, RequestFailure } from "@helivanta/ui";
 import {
   ApiError,
   EmploymentReviewDecisionInputContract,
@@ -72,12 +72,11 @@ export function EmploymentReviewDetail(props: Props) {
     return <p role="status">Loading protected review details…</p>;
   if (details.isError)
     return (
-      <div role="alert">
-        <p>Could not verify current review details.</p>
-        <Button variant="outline" onClick={() => void details.refetch()}>
-          Retry review details
-        </Button>
-      </div>
+      <RequestFailure
+        message="Could not verify current review details."
+        retry={details.refetch}
+        error={details.error}
+      />
     );
   return (
     <>

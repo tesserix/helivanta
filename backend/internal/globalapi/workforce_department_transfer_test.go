@@ -18,7 +18,14 @@ import (
 func assertAtomicDepartmentTransfer(t *testing.T, db *tenantdb.DB, tenant string, call func(*testing.T, string, string, string, any, int) map[string]any, request postingTestRequest, staffBase, submitter, reviewer, organizationMaker string, source, generation, original, intent map[string]any, browser func(string, map[string]any, map[string]any), departmentReviewer string, grantDepartment func(string, string, []string), grantSource func(string)) {
 	t.Helper()
 	destinationID := uuid.Must(uuid.NewV7()).String()
-	destination := call(t, "PUT", "/v1/organization/hospitals/"+original["hospital_id"].(string)+"/departments/"+destinationID+"/revisions/"+uuid.Must(uuid.NewV7()).String(), organizationMaker, map[string]any{"expected_version": 0, "code": "SYN-TRANSFER-DEST", "name": "Synthetic Transfer Destination", "kind": "department", "parent_id": nil, "status": "active", "reason": "Canonical destination for department transfer acceptance"}, 200)
+	destinationBase := "/v1/organization/hospitals/" + original["hospital_id"].(string) + "/departments/" + destinationID + "/revisions/"
+	destinationInput := map[string]any{"expected_version": 0, "code": "SYN-TRANSFER-DEST", "name": "Synthetic Transfer Destination", "kind": "department", "parent_id": nil, "status": "active", "reason": "Canonical destination for department transfer acceptance"}
+	destination := call(t, "PUT", destinationBase+uuid.Must(uuid.NewV7()).String(), organizationMaker, destinationInput, 200)
+	t.Cleanup(func() {
+		destinationInput["expected_version"], destinationInput["status"] = destination["version"], "retired"
+		retired := call(t, "PUT", destinationBase+uuid.Must(uuid.NewV7()).String(), organizationMaker, destinationInput, 200)
+		require.Equal(t, "retired", retired["status"])
+	})
 	prepare := func(start any, toDestination bool) (string, map[string]any) {
 		department, revision := original["department_id"], original["department_revision_id"]
 		if toDestination {

@@ -22,6 +22,7 @@ import {
 import {
   Field,
   firstError,
+  isRefusal,
   PageHeading,
   RefreshButton,
   RequestFailure,
@@ -132,12 +133,16 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
       kind: "legacy",
       hospital,
     })),
-    ...(intake.data?.data ?? []).map((capabilities): HospitalChoice => ({
-      key: `hr-intake:${capabilities.hospital_id}`,
-      kind: "intake",
-      hospital: { id: capabilities.hospital_id, name: capabilities.name },
-      capabilities,
-    })),
+    // Onboarding hospitals the server now hides (404) don't stay selectable (#1595);
+    // its other refusals already replace the workspace through onContextChanged.
+    ...(isRefusal(intake.error) ? [] : (intake.data?.data ?? [])).map(
+      (capabilities): HospitalChoice => ({
+        key: `hr-intake:${capabilities.hospital_id}`,
+        kind: "intake",
+        hospital: { id: capabilities.hospital_id, name: capabilities.name },
+        capabilities,
+      }),
+    ),
   ];
   const pending = hospitals.isPending || intake.isPending;
   const accessError = firstError(hospitals.error, intake.error);

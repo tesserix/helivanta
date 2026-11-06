@@ -399,3 +399,55 @@ it("shows refused onboarding hospitals as a refusal, with no retry", async () =>
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
+
+it("withdraws onboarding hospitals and their directory once a re-read answers 404", async () => {
+  const staff = "33333333-3333-4333-8333-333333333333";
+  let hidden = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/iam/me/permissions"))
+        return Response.json({ tenant_id: hospital, subject: "synthetic-scoped-hr", data: [] });
+      if (url.includes("/workforce/hr-intake-scopes?"))
+        return hidden
+          ? Response.json({ error: "not_found", message: "secret detail" }, { status: 404 })
+          : Response.json(
+              page([
+                {
+                  hospital_id: hospital,
+                  name: "Synthetic Scoped HR Hospital",
+                  can_prepare_staff: true,
+                  can_manage_staff_documents: true,
+                },
+              ]),
+            );
+      if (url.includes(`/hospitals/${hospital}/staff?`))
+        return Response.json(
+          page([
+            {
+              id: staff,
+              hospital_id: hospital,
+              employee_code: "SYN-INTAKE",
+              display_name: "Synthetic Intake Target",
+              job_category: "other",
+              employment_status: "inactive",
+            },
+          ]),
+        );
+      return Response.json(page([]));
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByText("Synthetic Intake Target")).toBeInTheDocument();
+  hidden = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Synthetic Intake Target")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /try again|retry hospital access/i })).toBeNull();
+});

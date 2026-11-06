@@ -148,22 +148,23 @@ function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: Lea
     <Panel className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">Pending leave requests</h3>
-        <Button
-          variant="outline"
-          disabled={records.isRefreshing || (locked && !denied)}
-          onClick={refresh}
+        <RefreshButton
+          busy={records.isRefreshing || (locked && !denied)}
+          refresh={refresh}
+          error={records.error}
         >
           Refresh queue
-        </Button>
+        </RefreshButton>
       </div>
       {notice && <p role="status">{notice}</p>}
       {records.isPending ? (
         <p role="status">Loading pending requests…</p>
       ) : records.isError ? (
-        <p role="alert">
-          Could not load pending requests. Your access may have changed. Refresh access or the queue
-          to try again.
-        </p>
+        <RequestFailure
+          message="Could not load pending requests. Your access may have changed."
+          retry={refresh}
+          error={records.error}
+        />
       ) : (
         <>
           {records.items.length === 0 ? (

@@ -24,6 +24,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 )
 
@@ -144,7 +145,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			perm := dr.Permission

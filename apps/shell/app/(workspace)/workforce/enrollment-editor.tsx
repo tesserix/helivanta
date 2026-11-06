@@ -48,6 +48,7 @@ import {
   type FieldPath,
   ConfirmDialog,
   SelectControl,
+  RequestFailure,
 } from "@helivanta/ui";
 
 const inputClass =
@@ -115,17 +116,16 @@ export function EnrollmentEditor({
     );
   if (staff && (!query.data || query.isError))
     return (
-      <section className="mt-6 rounded-2xl border bg-card p-8">
-        <p role="alert">Could not load enrollment. Your existing record has not been changed.</p>
-        <div className="mt-4 flex gap-3">
-          <Button variant="outline" onClick={() => void query.refetch()}>
-            Try again
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </section>
+      <div className="mt-6 space-y-3">
+        <RequestFailure
+          message="Could not load enrollment. Your existing record has not been changed."
+          retry={query.refetch}
+          error={query.error}
+        />
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
     );
   if (
     staff &&
@@ -137,17 +137,17 @@ export function EnrollmentEditor({
       query.data?.contact_masters_version !== ENROLLMENT_CONTACT_MASTERS_PROJECTION.version)
   )
     return (
-      <section className="mt-6 rounded-2xl border bg-card p-8">
-        <p role="alert">This enrollment view is not available yet. Refresh and try again.</p>
-        <div className="mt-4 flex gap-3">
-          <Button variant="outline" onClick={() => void query.refetch()}>
-            Try again
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </section>
+      <div className="mt-6 space-y-3">
+        <RequestFailure
+          message="This enrollment view is not available yet. Refresh and try again."
+          retry={query.refetch}
+          // The read succeeded with an older projection: not a refusal, so it keeps the retry.
+          error={null}
+        />
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
     );
   const value: EnrollmentInput = query.data
     ? {
@@ -609,12 +609,11 @@ function EnrollmentForm({
             </Button>
           )}
           {masters.isError && (
-            <p className="text-sm text-muted-foreground">
-              Could not load HR choices. Existing text and recorded assignments are preserved.{" "}
-              <Button type="button" variant="ghost" size="sm" onClick={masters.retry}>
-                Retry HR choices
-              </Button>
-            </p>
+            <RequestFailure
+              message="Could not load HR choices. Existing text and recorded assignments are preserved."
+              retry={masters.retry}
+              error={masters.error}
+            />
           )}
           {supervisors.hasMore && (
             <Button
@@ -628,12 +627,11 @@ function EnrollmentForm({
             </Button>
           )}
           {supervisors.isError && (
-            <p className="text-sm text-muted-foreground">
-              Could not load supervisor choices.{" "}
-              <Button type="button" variant="ghost" size="sm" onClick={supervisors.retry}>
-                Retry supervisor list
-              </Button>
-            </p>
+            <RequestFailure
+              message="Could not load supervisor choices."
+              retry={supervisors.retry}
+              error={supervisors.error}
+            />
           )}
           <section id="staff-addresses" className={cardClass}>
             {sectionHeading(

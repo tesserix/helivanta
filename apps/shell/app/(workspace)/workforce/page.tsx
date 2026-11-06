@@ -21,7 +21,11 @@ import {
 } from "@helivanta/api";
 import {
   Field,
+  firstError,
+  isRefusal,
   PageHeading,
+  RefreshButton,
+  RequestFailure,
   SelectControl,
   StaffDirectory,
   useZodForm,
@@ -72,10 +76,12 @@ function WorkforceAccount({ onRestart }: { onRestart: () => void }) {
     !Array.isArray(identity.data.data)
   )
     return (
-      <section role="alert" className="space-y-4 rounded-xl border bg-card p-6">
-        <p>Could not verify your Staff workspace. No protected record has been opened.</p>
-        <Button onClick={() => void identity.refetch()}>Retry Staff workspace</Button>
-      </section>
+      <RequestFailure
+        message="Could not verify your Staff workspace. No protected record has been opened."
+        retry={identity.refetch}
+        // A malformed answer has no error, so it keeps the retry.
+        error={identity.error}
+      />
     );
   const scope = { tenantId: identity.data.tenant_id, subject: identity.data.subject };
   return (
@@ -127,14 +133,23 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
       kind: "legacy",
       hospital,
     })),
-    ...(intake.data?.data ?? []).map((capabilities): HospitalChoice => ({
-      key: `hr-intake:${capabilities.hospital_id}`,
-      kind: "intake",
-      hospital: { id: capabilities.hospital_id, name: capabilities.name },
-      capabilities,
-    })),
+    // Onboarding hospitals the server now hides (404) don't stay selectable (#1595);
+    // its other refusals already replace the workspace through onContextChanged.
+    ...(isRefusal(intake.error) ? [] : (intake.data?.data ?? [])).map(
+      (capabilities): HospitalChoice => ({
+        key: `hr-intake:${capabilities.hospital_id}`,
+        kind: "intake",
+        hospital: { id: capabilities.hospital_id, name: capabilities.name },
+        capabilities,
+      }),
+    ),
   ];
   const pending = hospitals.isPending || intake.isPending;
+  const accessError = firstError(hospitals.error, intake.error);
+  const retryAccess = () => {
+    void hospitals.refetch();
+    void intake.refetch();
+  };
   return (
     <>
       <PageHeading description="Enrol, edit and find the staff of each hospital." />
@@ -146,15 +161,9 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
           {(hospitals.isError || intake.isError) && (
             <p className="mb-4 text-sm text-muted-foreground">
               Additional hospital access could not be verified.{" "}
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  void hospitals.refetch();
-                  void intake.refetch();
-                }}
-              >
+              <RefreshButton variant="ghost" refresh={retryAccess} error={accessError}>
                 Retry hospital access
-              </Button>
+              </RefreshButton>
             </p>
           )}
           <HospitalStaffWorkspace
@@ -166,20 +175,15 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
           />
         </>
       ) : hospitals.isError || intake.isError ? (
-        <div role="alert" className="rounded-xl border p-6">
-          {hospitals.isError
-            ? "Could not load hospitals."
-            : "Could not verify Staff onboarding hospitals."}{" "}
-          <Button
-            variant="outline"
-            onClick={() => {
-              void hospitals.refetch();
-              void intake.refetch();
-            }}
-          >
-            Try again
-          </Button>
-        </div>
+        <RequestFailure
+          message={
+            hospitals.isError
+              ? "Could not load hospitals."
+              : "Could not verify Staff onboarding hospitals."
+          }
+          retry={retryAccess}
+          error={accessError}
+        />
       ) : (
         <section className="rounded-2xl border bg-card p-12 text-center">
           <h3 className="text-lg font-semibold">
@@ -346,7 +350,7 @@ function Directory({
         isPending={query.isPending}
         isError={query.isError}
         error={query.error}
-        onRetry={() => query.refetch()}
+        retry={() => query.refetch()}
         onFirstPage={cursor ? () => setCursor(null) : undefined}
         onNextPage={
           query.data?.page.has_more && query.data.page.next_cursor

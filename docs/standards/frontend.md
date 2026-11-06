@@ -274,6 +274,26 @@ A screen that gives a status its own meaning ("not set up yet" for a 404)
 branches before `RequestFailure`. Failed saves are not covered; they stay
 inline or in toasts.
 
+No screen draws its own button to re-run a read (#1595). A failed read
+retries through `RequestFailure` or `QueryState`. A refresh of data that
+loaded is `RefreshButton` from `@helivanta/ui`. It takes the read's `error`
+and renders nothing on a refusal, so a refused screen never offers to ask
+again. A screen with a `RefreshButton` checks `isRefusal(error)` before it
+renders the data it holds: React Query keeps `data` after a failed refetch,
+and records the server now refuses must not stay on screen. Where access
+changes while the screen is open (an emergency crew assignment), pass
+`recheck="Check access again"` to `RequestFailure`. A 403 or 404 then
+offers that button, never "Try again"; a 401 still offers none.
+
+The lint rule `helivanta/no-hand-rolled-retry` (`packages/config`) enforces
+this. It fails a handler in `onClick`, `onRetry`, `onRefresh` or `onReload`
+that calls a query's `refetch` or `retry`. A prop that hands a retry to a
+shared component is named `retry` or `refresh` instead. Workforce files not
+yet converted are listed in `apps/shell/retry-legacy.mjs`. That list only
+shrinks: its test fails when a listed file no longer breaks the rule. The
+rule cannot see a retry behind a named handler (`onClick={reload}`), so
+review still checks for one.
+
 ## 6. Chrome & navigation
 
 Navigation links — the rail, the page panel, the home mark and the

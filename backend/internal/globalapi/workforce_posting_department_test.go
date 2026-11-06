@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -80,21 +81,23 @@ func (f postingDepartmentFixture) widenParent(t *testing.T) func() {
 		}))
 	}
 	prefix := func() string { return uuid.Must(uuid.NewV7()).String()[:24] }
+	// Retired nodes keep their codes, so each call's codes stay unique across scenarios sharing a hospital.
+	code := "SYN-P-WIDE-" + strings.ToUpper(uuid.New().String()[:8]) + "-"
 	// The parent and its remaining sub-unit plus these nodes total exactly one past the bound.
 	write([]any{`INSERT INTO organization_departments(tenant_id,hospital_id,id,revision_id,code,kind,name,parent_id,status,version,effective_at,created_at,updated_at)
- SELECT ?::uuid,?::uuid,(?||lpad(to_hex(n),12,'0'))::uuid,(?||lpad(to_hex(n),12,'0'))::uuid,'SYN-P-WIDE-'||n,'sub_unit','Synthetic wide sub-unit',?::uuid,'active',1,
- transaction_timestamp(),transaction_timestamp(),transaction_timestamp() FROM generate_series(1,?::int) n`, testutil.TenantA, f.hospital, prefix(), prefix(), f.parent, authz.DepartmentSubtreeLimit - 1},
+ SELECT ?::uuid,?::uuid,(?||lpad(to_hex(n),12,'0'))::uuid,(?||lpad(to_hex(n),12,'0'))::uuid,?||n,'sub_unit','Synthetic wide sub-unit',?::uuid,'active',1,
+ transaction_timestamp(),transaction_timestamp(),transaction_timestamp() FROM generate_series(1,?::int) n`, testutil.TenantA, f.hospital, prefix(), prefix(), code, f.parent, authz.DepartmentSubtreeLimit - 1},
 		[]any{`INSERT INTO organization_department_revisions(tenant_id,hospital_id,node_id,id,code,kind,name,parent_id,status,version,expected_version,reason,actor_subject,effective_at,node_created_at,created_at,updated_at)
  SELECT tenant_id,hospital_id,id,revision_id,code,kind,name,parent_id,status,version,0,'Synthetic wide fixture',?,effective_at,created_at,created_at,updated_at
- FROM organization_departments WHERE tenant_id=? AND hospital_id=? AND code LIKE 'SYN-P-WIDE-%'`, f.maker, testutil.TenantA, f.hospital})
+ FROM organization_departments WHERE tenant_id=? AND hospital_id=? AND starts_with(code,?)`, f.maker, testutil.TenantA, f.hospital, code})
 	return func() {
 		t.Helper()
 		write([]any{`INSERT INTO organization_department_revisions(tenant_id,hospital_id,node_id,id,code,kind,name,parent_id,status,version,expected_version,reason,actor_subject,effective_at,node_created_at,created_at,updated_at)
- SELECT tenant_id,hospital_id,id,(?||lpad(to_hex(substring(code from 12)::int),12,'0'))::uuid,code,kind,name,parent_id,'retired',2,1,'Synthetic wide retirement',?,transaction_timestamp(),created_at,transaction_timestamp(),transaction_timestamp()
- FROM organization_departments WHERE tenant_id=? AND hospital_id=? AND code LIKE 'SYN-P-WIDE-%' AND status='active'`, prefix(), f.maker, testutil.TenantA, f.hospital},
+ SELECT tenant_id,hospital_id,id,(?||lpad(to_hex(substring(code from ?::int)::int),12,'0'))::uuid,code,kind,name,parent_id,'retired',2,1,'Synthetic wide retirement',?,transaction_timestamp(),created_at,transaction_timestamp(),transaction_timestamp()
+ FROM organization_departments WHERE tenant_id=? AND hospital_id=? AND starts_with(code,?) AND status='active'`, prefix(), len(code) + 1, f.maker, testutil.TenantA, f.hospital, code},
 			[]any{`UPDATE organization_departments d SET revision_id=r.id,status='retired',version=2,effective_at=r.effective_at,updated_at=r.updated_at
- FROM organization_department_revisions r WHERE d.tenant_id=? AND d.hospital_id=? AND d.code LIKE 'SYN-P-WIDE-%' AND d.status='active'
- AND (r.tenant_id,r.hospital_id,r.node_id,r.version)=(d.tenant_id,d.hospital_id,d.id,2)`, testutil.TenantA, f.hospital})
+ FROM organization_department_revisions r WHERE d.tenant_id=? AND d.hospital_id=? AND starts_with(d.code,?) AND d.status='active'
+ AND (r.tenant_id,r.hospital_id,r.node_id,r.version)=(d.tenant_id,d.hospital_id,d.id,2)`, testutil.TenantA, f.hospital, code})
 	}
 }
 

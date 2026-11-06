@@ -456,12 +456,14 @@ function Counter({
         </ul>
       )}
       {basket.length > 0 && services.isError && (
-        <p role="alert" className="mt-4 text-sm text-destructive">
-          Could not load the service charges; none can be added to this sale.{" "}
-          <Button type="button" variant="ghost" onClick={() => services.refetch()}>
-            Try again
-          </Button>
-        </p>
+        <div className="mt-4">
+          <RequestFailure
+            message="Could not load the service charges; none can be added to this sale."
+            retry={services.refetch}
+            error={services.error}
+            refused="No service charges can be added: you don't have access to them."
+          />
+        </div>
       )}
       {basket.length > 0 && offered.length > 0 && (
         <fieldset className="mt-4 space-y-2 text-sm">

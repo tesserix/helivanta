@@ -56,6 +56,49 @@ describe("RequestFailure", () => {
     noRetry();
   });
 
+  it.each([403, 404])("offers the recheck for a %i, never Try again", async (status) => {
+    const retry = vi.fn();
+    renderWithProviders(
+      <RequestFailure
+        message="Could not load."
+        retry={retry}
+        error={new ApiError("forbidden", "no", status)}
+        refused={refused}
+        recheck="Check access again"
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(refused);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Check access again" }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("offers no recheck once the session has ended", () => {
+    renderWithProviders(
+      <RequestFailure
+        message="Could not load."
+        retry={vi.fn()}
+        error={new ApiError("unauthenticated", "no", 401)}
+        recheck="Check access again"
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Your session has ended.");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("still offers Try again for an outage when a recheck is set", () => {
+    renderWithProviders(
+      <RequestFailure
+        message="Could not load."
+        retry={vi.fn()}
+        error={new ApiError("internal", "boom", 500)}
+        recheck="Check access again"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Check access again" })).toBeNull();
+  });
+
   it.each([
     ["a server error", new ApiError("internal", "boom", 500)],
     ["a conflict", new ApiError("conflict", "stale", 409)],

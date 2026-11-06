@@ -13,6 +13,8 @@ import {
   FormSelectField,
   useLeaveGuard,
   useConfirmLeave,
+  RefreshButton,
+  RequestFailure,
 } from "@helivanta/ui";
 import {
   ApiError,
@@ -155,13 +157,9 @@ export function StaffEmploymentPeriods({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            disabled={source.isFetching}
-            onClick={() => void source.refetch()}
-          >
+          <RefreshButton busy={source.isFetching} refresh={source.refetch} error={source.error}>
             Recheck Staff details
-          </Button>
+          </RefreshButton>
           <Button
             variant="ghost"
             disabled={editor !== null || withdrawing !== null}
@@ -240,12 +238,12 @@ export function StaffEmploymentPeriods({
       {periods.isPending ? (
         <p role="status">Loading employment drafts…</p>
       ) : periods.isError || !validRows ? (
-        <div role="alert">
-          <p>Could not load employment drafts.</p>
-          <Button variant="outline" onClick={periods.retry}>
-            Retry drafts
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load employment drafts."
+          retry={periods.retry}
+          // Drafts that fail validation have no error, so they keep the retry.
+          error={periods.error}
+        />
       ) : rows.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No employment terms drafts recorded.</p>
       ) : (
@@ -584,12 +582,11 @@ function EmploymentTermsEditor({
             </Button>
           )}
           {sponsors.isError && (
-            <p role="alert">
-              Could not load sponsors.{" "}
-              <Button type="button" variant="ghost" onClick={sponsors.retry}>
-                Retry sponsors
-              </Button>
-            </p>
+            <RequestFailure
+              message="Could not load sponsors."
+              retry={sponsors.retry}
+              error={sponsors.error}
+            />
           )}
         </div>
         <Field

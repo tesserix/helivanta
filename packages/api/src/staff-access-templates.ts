@@ -182,6 +182,19 @@ export const staffAccessTemplates = [
     ],
     scope_kinds: ["department"],
   },
+  {
+    key: "workforce.department_leave_reviewer.v1",
+    name: "Department leave reviewer",
+    description:
+      "Review leave requests of Staff posted only within one department and its current sub-units; no leave configuration, posting or clinical authority.",
+    family: "leave",
+    permissions: [
+      "workforce.leave.approve",
+      "organization.posting_choices.read",
+      "workforce.staff_actor.use",
+    ],
+    scope_kinds: ["department"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -293,5 +306,22 @@ export const staffAccessTemplateCatalogs = {
     "workforce.posting_cutoff_admin.v1",
     "workforce.posting_source_consumer.v1",
     "workforce.department_posting_reviewer.v1",
+  ],
+  "staff-department-leave-reviews-v1": [
+    "workforce.leave_reviewer.v1",
+    "workforce.identity_manager.v1",
+    "workforce.identity_reviewer.v1",
+    "workforce.hr_intake.v1",
+    "workforce.employment_reviewer.v1",
+    "workforce.employment_activator.v1",
+    "workforce.posting_reader.v1",
+    "workforce.posting_preparer.v1",
+    "workforce.posting_submitter.v1",
+    "workforce.posting_reviewer.v1",
+    "workforce.posting_management_reviewer.v1",
+    "workforce.posting_cutoff_admin.v1",
+    "workforce.posting_source_consumer.v1",
+    "workforce.department_posting_reviewer.v1",
+    "workforce.department_leave_reviewer.v1",
   ],
 } as const;

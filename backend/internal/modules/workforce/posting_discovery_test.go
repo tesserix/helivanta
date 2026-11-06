@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -29,7 +30,9 @@ func TestPostingScopeDiscoveryRejectsMissingAccountIntentBeforeSourceReads(t *te
 		c.Set("authn.principal", authn.Principal{Subject: "synthetic-reader", TenantID: "11111111-1111-4111-8111-111111111111"})
 		c.Set("authz.permissions", authz.NewPermissionSet())
 	})
-	r := platform.NewRouter(e.Group("/v1"), postingDiscoveryMember{})
+	sealer, err := pagination.NewSealer([]byte(strings.Repeat("s", 32)))
+	require.NoError(t, err)
+	r := platform.NewRouter(e.Group("/v1"), postingDiscoveryMember{}).WithCursorSealer(sealer)
 	workforce.New().Routes(r, platform.Deps{})
 	w := httptest.NewRecorder()
 	e.ServeHTTP(w, httptest.NewRequest("GET", "/v1/workforce/posting-scopes", nil))

@@ -68,6 +68,7 @@ export function readSeededTOTPSecret(): string {
     throw new Error(
       `${path} does not exist — run 'make seed' first (scripts/seed-dev.mjs enrols and ` +
         `verifies a real TOTP factor for mfa@helivanta.dev and records its secret here): ${String(err)}`,
+      { cause: err },
     );
   }
 }

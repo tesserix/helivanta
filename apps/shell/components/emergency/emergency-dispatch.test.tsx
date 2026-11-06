@@ -110,3 +110,82 @@ it("retains exactly the same command and body after an uncertain reservation", a
     acknowledgement_seconds: 120,
   });
 });
+
+it("offers to check access again when dispatches are refused, without the server's text", async () => {
+  const fetcher = fixture(["emergency.case.read"]);
+  const read = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url, init) =>
+    url.endsWith("/dispatches")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+          status: 403,
+        })
+      : read(url, init),
+  );
+  renderWithProviders(<EmergencyDispatchPanel baseID={base} caseID={caseID} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(screen.getByRole("button", { name: "Check access again" })).toBeEnabled();
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refresh dispatches|try again/i })).toBeNull();
+});
+
+it.each([
+  [
+    "review eligibility",
+    "/dispatch-eligibility",
+    () => expect(screen.queryByRole("button", { name: "Reserve vehicle and crew" })).toBeNull(),
+  ],
+  [
+    "dispatches",
+    "/dispatches",
+    () => expect(screen.queryByText("Driver acknowledgement")).not.toBeInTheDocument(),
+  ],
+  [
+    "the fleet",
+    "/fleet",
+    () =>
+      expect(screen.getByRole("combobox", { name: "Ready vehicle" })).not.toHaveTextContent(
+        "TEST-ALS-1",
+      ),
+  ],
+])("withdraws loaded %s once a re-read is refused", async (_, path, withdrawn) => {
+  const user = userEvent.setup();
+  const fetcher = fixture(["emergency.case.read", "emergency.dispatch.manage"]);
+  const read = fetcher.getMockImplementation()!;
+  let refused = false;
+  fetcher.mockImplementation(async (url, init) => {
+    if (refused && new URL(url, "https://test.local").pathname.endsWith(path))
+      return new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+        status: 403,
+      });
+    if (url.endsWith("/dispatches"))
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: vehicle,
+              base_id: base,
+              state: "cleared",
+              version: 1,
+              driver_acknowledged: true,
+              clinician_acknowledged: false,
+            },
+          ],
+          page: { has_more: false, next_cursor: null },
+        }),
+      );
+    return read(url, init);
+  });
+  renderWithProviders(<EmergencyDispatchPanel baseID={base} caseID={caseID} />);
+  const vehicles = await screen.findByRole("combobox", { name: "Ready vehicle" });
+  await waitFor(() => expect(vehicles).toBeEnabled());
+  await chooseOption(user, vehicles, "TEST-ALS-1");
+  expect(screen.getByText("Driver acknowledgement")).toBeInTheDocument();
+  expect(vehicles).toHaveTextContent("TEST-ALS-1");
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(await screen.findByRole("button", { name: "Check access again" })).toBeEnabled();
+  withdrawn();
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+});

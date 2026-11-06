@@ -32,6 +32,7 @@ import {
   Panel,
   RequestFailure,
   useZodForm,
+  RefreshButton,
 } from "@helivanta/ui";
 import { useCountryPolicyCommand } from "./command";
 import { CountryPolicyEditor, policyLabel } from "./editor";
@@ -64,7 +65,7 @@ export function CountryPolicyDetail({
       identity={identity}
       scope={scope.data}
       onClose={onClose}
-      onRefresh={scope.refetch}
+      refresh={scope.refetch}
     />
   );
 }
@@ -73,12 +74,13 @@ function PolicyRecord({
   identity,
   scope,
   onClose,
-  onRefresh,
+  refresh,
 }: {
   identity: CountryPolicyIdentity;
   scope: CountryPolicyScope;
   onClose: () => void;
-  onRefresh: () => unknown;
+  /** Re-reads the scope. Only rendered while that read succeeds. */
+  refresh: () => unknown;
 }) {
   const { can } = usePermissions();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -155,9 +157,9 @@ function PolicyRecord({
         </Panel>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => void onRefresh()}>
+        <RefreshButton refresh={refresh} error={null}>
           Refresh policy
-        </Button>
+        </RefreshButton>
         {editable && version.data && !version.isError && (
           <Button
             variant="outline"

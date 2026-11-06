@@ -1299,6 +1299,18 @@
         "type": "string",
         "min": 1,
         "max": 150
+      },
+      {
+        "name": "scope_kind",
+        "type": "string",
+        "enum": ["hospital", "department"],
+        "orm_ignore": true
+      },
+      {
+        "name": "department_ids",
+        "type": "[]uuid",
+        "max": 50,
+        "orm_ignore": true
       }
     ],
     "leaveReviewRequest": [

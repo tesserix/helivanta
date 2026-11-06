@@ -208,7 +208,7 @@ func TestStaffFileRechecksIAMAfterStorage(t *testing.T) {
 			checker := iam.NewRevocationChecker(db)
 			identity := &staffFileIdentityState{}
 			identity.state.Store(int32(loginclient.UserStateActive))
-			api := platform.NewRouter(secure.Group("/v1", authn.Middleware(authn.NewSessionVerifier(verifier), checker), iam.NewIdentityGuard(db, bus, checker, identity), requestid.PrincipalMiddleware(), authz.Middleware(authority)), authority)
+			api := platform.NewRouter(secure.Group("/v1", authn.Middleware(authn.NewSessionVerifier(verifier), checker), iam.NewIdentityGuard(db, bus, checker, identity), requestid.PrincipalMiddleware(), authz.Middleware(authority)), authority).WithCursorSealer(testutil.CursorSealer(t))
 			workforce.New().Routes(api, platform.Deps{DB: db, Bus: bus, Documents: files})
 			upstreamServer := httptest.NewServer(secure)
 			t.Cleanup(upstreamServer.Close)

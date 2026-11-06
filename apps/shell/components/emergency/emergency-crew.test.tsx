@@ -130,6 +130,9 @@ it("hides protected details after assignment access is revoked", async () => {
     "Assignment or incident access is unavailable",
   );
   expect(screen.queryByText("Synthetic Gate C")).not.toBeInTheDocument();
+  // Asking again is a recheck of access, never a refresh of the refused records.
+  expect(screen.queryByRole("button", { name: "Refresh current assignment" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   expect(screen.queryByLabelText("Operational evidence reference")).not.toBeInTheDocument();
 });
 
@@ -152,10 +155,10 @@ it("retains an uncertain command across a failed refresh and a newer current ver
   await screen.findByText(/TEST response uncertain/);
   failRead = true;
   await user.click(screen.getByRole("button", { name: "Refresh current assignment" }));
-  await screen.findByText(/Assignment or incident access is unavailable/);
+  await screen.findByText(/Could not load the current assignment/);
   failRead = false;
   advanced = true;
-  await user.click(screen.getByRole("button", { name: "Refresh access" }));
+  await user.click(screen.getByRole("button", { name: "Try again" }));
   await user.click(await screen.findByRole("button", { name: "Retry unchanged command" }));
   await waitFor(() =>
     expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(2),
@@ -208,4 +211,25 @@ it("binds hospital transport to the current actionable receiving request", async
     receiving_request_id: base,
     evidence_reference: "TEST-HOSPITAL-TRANSPORT",
   });
+});
+
+it("rechecks refused assignment access and shows the assignment once dispatch grants it", async () => {
+  const fetcher = fixture();
+  const read = fetcher.getMockImplementation()!;
+  let granted = false;
+  fetcher.mockImplementation(async (url, init) =>
+    !granted && url.includes("/dispatches/")
+      ? json({ error: "forbidden", message: "secret detail" }, 403)
+      : read(url, init),
+  );
+  const { user } = renderWithProviders(<EmergencyCrewWorkspace />);
+  await user.click(await screen.findByRole("button", { name: "Open assignment" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Assignment or incident access is unavailable. Contact dispatch and check access before acting.",
+  );
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Refresh access" })).toBeNull();
+  granted = true;
+  await user.click(screen.getByRole("button", { name: "Check access again" }));
+  expect(await screen.findByText("Synthetic Gate C")).toBeInTheDocument();
 });

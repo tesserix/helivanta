@@ -3,6 +3,7 @@ import nextPlugin from "@next/eslint-plugin-next";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
+import { noHandRolledRetry } from "./eslint-rules/no-hand-rolled-retry.mjs";
 
 // Raw Tailwind palette colours and hex arbitrary values bypass the design
 // tokens (frontend.md §7, #1255 spec D2), so the one palette could drift again
@@ -145,6 +146,22 @@ export function hmsWorkspacePages(files, ignores = [], legacy = []) {
     { files, ignores: [tests, ...ignores, ...legacy], rules: syntax(true) },
     ...(legacy.length ? [{ files: legacy, ignores: [tests], rules: syntax(false) }] : []),
   ];
+}
+
+export const READ_RETRY_RULE = "helivanta/no-hand-rolled-retry";
+
+/**
+ * Read retries and refreshes go through RequestFailure, QueryState or
+ * RefreshButton (#1595). Its own rule rather than a no-restricted-syntax
+ * entry, so a legacy list is a plain ignores and doesn't fork the design rules.
+ */
+export function hmsReadRetries(files, ignores = []) {
+  return {
+    files,
+    ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
+    plugins: { helivanta: { rules: { "no-hand-rolled-retry": noHandRolledRetry } } },
+    rules: { [READ_RETRY_RULE]: "error" },
+  };
 }
 
 // Shared Helivanta flat config. Apps call hmsEslint(import.meta.dirname);

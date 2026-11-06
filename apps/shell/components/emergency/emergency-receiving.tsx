@@ -21,7 +21,14 @@ import {
   type EmergencyReceivingLinkCommandInput,
   type EmergencyReceivingReceipt,
 } from "@helivanta/api";
-import { formatTime, LoadMore, PageHeading, SelectControl } from "@helivanta/ui";
+import {
+  formatTime,
+  LoadMore,
+  PageHeading,
+  RefreshButton,
+  RequestFailure,
+  SelectControl,
+} from "@helivanta/ui";
 import { EmergencyCommandFailure, useEmergencyRequest } from "./emergency-command";
 const root = "/emergency/receiving/facilities";
 const invalidates = [
@@ -58,9 +65,13 @@ export function EmergencyReceivingWorkspace() {
       <PageHeading description="Review pre-alerts, confirm receiving capacity and record physical handover through your authorized campus." />
       {facilities.isPending && <p role="status">Checking campus access…</p>}
       {facilities.isError ? (
-        <div role="alert">
-          Campus access is unavailable.<Button onClick={facilities.retry}>Refresh campuses</Button>
-        </div>
+        <RequestFailure
+          message="Could not load campuses."
+          retry={facilities.retry}
+          error={facilities.error}
+          refused="Campus access is unavailable."
+          recheck="Check access again"
+        />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {facilities.items.map((item) => (
@@ -397,13 +408,18 @@ function ReceivingInbox({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-lg font-semibold">Hospital pre-alerts</h3>
-          <Button variant="outline" onClick={requests.retry}>
+          <RefreshButton refresh={requests.retry} error={requests.error}>
             Refresh pre-alerts
-          </Button>
+          </RefreshButton>
         </div>
         {requests.isPending && <p role="status">Checking directed pre-alerts…</p>}
         {requests.isError ? (
-          <p role="alert">Pre-alerts unavailable. Refresh before acting.</p>
+          <RequestFailure
+            message="Could not load pre-alerts. Try again before acting."
+            retry={requests.retry}
+            error={requests.error}
+            recheck="Check access again"
+          />
         ) : (
           requests.items.map((request) => (
             <div
@@ -435,12 +451,18 @@ function ReceivingInbox({
             <Button variant="outline" onClick={() => select(null)}>
               Close pre-alert
             </Button>
-            <Button variant="outline" onClick={() => void detail.refetch()}>
+            <RefreshButton refresh={detail.refetch} error={detail.error}>
               Refresh current pre-alert
-            </Button>
+            </RefreshButton>
           </div>
           {detail.isError ? (
-            <p role="alert">Current receiving access is unavailable.</p>
+            <RequestFailure
+              message="Could not load the current pre-alert."
+              retry={detail.refetch}
+              error={detail.error}
+              refused="Current receiving access is unavailable."
+              recheck="Check access again"
+            />
           ) : !detail.data ? (
             <p role="status">Checking current pre-alert…</p>
           ) : (

@@ -29,6 +29,7 @@ import {
   useZodForm,
   firstError,
   RequestFailure,
+  RefreshButton,
 } from "@helivanta/ui";
 import { OrganisationAccessLimits } from "./organisation-access-limits";
 import {
@@ -183,7 +184,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
             grant={editing}
             current={[...grants.items, ...legacy.items]}
             onDone={() => setEditing(undefined)}
-            onReload={() => {
+            refresh={() => {
               grants.retry();
               legacy.retry();
               setEditing(undefined);
@@ -284,13 +285,14 @@ function GrantEditor({
   grant,
   current,
   onDone,
-  onReload,
+  refresh,
 }: {
   scope: SupplyRegistryScope;
   grant: Grant | null;
   current: Array<Pick<Grant, "subject">>;
   onDone: () => void;
-  onReload: () => void;
+  /** Re-reads after a conflicting or refused save. Only rendered while the grant lists read succeeds. */
+  refresh: () => void;
 }) {
   const { changed } = useSupplyAccessRefresh(scope);
   const { can } = usePermissions();
@@ -552,9 +554,9 @@ function GrantEditor({
           <p role="alert" className="text-sm text-destructive">
             {mutation.error.message}
           </p>
-          <Button type="button" variant="outline" onClick={onReload}>
+          <RefreshButton refresh={refresh} error={null}>
             Reload organisation grants
-          </Button>
+          </RefreshButton>
         </div>
       )}
       <div className="flex flex-wrap gap-2">

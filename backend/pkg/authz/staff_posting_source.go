@@ -10,6 +10,7 @@ import (
 const StaffPostingSourceUse Permission = "workforce.posting_source.use"
 
 type StaffPostingSourceScope struct {
+	DepartmentPath                                                                 []string
 	TenantID, Subject                                                              string
 	HospitalID, StaffID, PostingID, RevisionID, DepartmentID, DepartmentRevisionID uuid.UUID
 	Version                                                                        int64

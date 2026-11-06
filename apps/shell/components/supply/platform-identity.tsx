@@ -1,9 +1,8 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
-import { Button } from "@tesserix/web";
 import { useSupplyPlatformIdentity, type SupplyRegistryScope } from "@helivanta/api";
-import { formatDateTime, RequestFailure } from "@helivanta/ui";
+import { formatDateTime, RequestFailure, RefreshButton } from "@helivanta/ui";
 
 export function PlatformIdentity({
   scope,
@@ -55,14 +54,14 @@ export function PlatformIdentity({
               </dd>
             </div>
           </dl>
-          <Button type="button" variant="outline" onClick={() => void check.refetch()}>
+          <RefreshButton refresh={check.refetch} error={check.error}>
             Check again
-          </Button>
+          </RefreshButton>
         </div>
       ) : (
-        <Button type="button" variant="outline" onClick={() => void check.refetch()}>
+        <RefreshButton refresh={check.refetch} error={check.error}>
           Check workspace identity
-        </Button>
+        </RefreshButton>
       )}
       <div className="rounded-xl border bg-muted/30 p-4 text-sm leading-6">
         <p className="font-medium">Trading approval is separate</p>

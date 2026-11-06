@@ -75,6 +75,12 @@ test("staff configure a base, receive and close a report, then revoke case acces
   await page.getByRole("button", { name: "Confirm revoke", exact: true }).click();
   await expect(page.getByText("Access revoked", { exact: true })).toBeVisible();
   await page.goto(caseURL);
-  await expect(page.getByRole("alert").filter({ hasText: /not found/ })).toBeVisible();
+  // A revoked case reads as a refusal, never the server's text or a retry (#1595).
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "This wasn't found, or you don't have access to it." }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /retry|try again/i })).toHaveCount(0);
   await expect(page.getByText("Synthetic Browser Caller", { exact: true })).toHaveCount(0);
 });

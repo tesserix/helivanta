@@ -3,7 +3,18 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Panel, Field, LoadMore, formatDateTime, useZodForm, useLeaveGuard } from "@helivanta/ui";
+import {
+  Panel,
+  Field,
+  LoadMore,
+  formatDateTime,
+  useZodForm,
+  useLeaveGuard,
+  firstError,
+  RefreshButton,
+  RequestFailure,
+  isRefusal,
+} from "@helivanta/ui";
 import {
   ApiError,
   useApiMutation,
@@ -23,6 +34,10 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
   const history = useMembershipHistory(scope);
   const [action, setAction] = useState<Action | null>(null);
   const [notice, setNotice] = useState("");
+  const refresh = () => {
+    void candidates.refetch();
+    void history.refetch();
+  };
   return (
     <Panel className="mb-6 space-y-4">
       <h2 className="text-lg font-semibold">Membership removal and recovery</h2>
@@ -30,18 +45,16 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
         Remove one organization role at a time. This does not end employment, delete Staff records
         or disable the global login account. Other roles and other organizations remain separate.
       </p>
-      <Button
-        variant="outline"
-        disabled={!!action || candidates.isFetching || history.isFetching}
-        onClick={() => {
-          void candidates.refetch();
-          void history.refetch();
-        }}
+      <RefreshButton
+        busy={!!action || candidates.isFetching || history.isFetching}
+        refresh={refresh}
+        error={firstError(candidates.error, history.error)}
       >
         Refresh memberships and history
-      </Button>
+      </RefreshButton>
       {notice && <p role="status">{notice}</p>}
-      {action && (
+      {/* A refused membership read withdraws the command opened from it (#1595). */}
+      {action && !isRefusal(firstError(candidates.error, history.error)) && (
         <MembershipCommandForm
           key={`${action.operation}:${action.basis_id}`}
           scope={scope}
@@ -58,7 +71,11 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
       {candidates.isPending ? (
         <p role="status">Loading current memberships…</p>
       ) : candidates.isError ? (
-        <p role="alert">Could not verify current memberships. Refresh before continuing.</p>
+        <RequestFailure
+          message="Could not verify current memberships. Refresh before continuing."
+          retry={candidates.refetch}
+          error={candidates.error}
+        />
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -125,7 +142,11 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
       {history.isPending ? (
         <p role="status">Loading membership history…</p>
       ) : history.isError ? (
-        <p role="alert">Could not verify membership history. Refresh before continuing.</p>
+        <RequestFailure
+          message="Could not verify membership history. Refresh before continuing."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           {!history.data.pages.some((page) => page.data.length) && (

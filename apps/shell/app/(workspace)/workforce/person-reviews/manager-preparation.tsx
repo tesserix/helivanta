@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@tesserix/web";
-import { Controller, Field, Panel, SelectControl, useLeaveGuard, useZodForm } from "@helivanta/ui";
+import {
+  Controller,
+  Field,
+  Panel,
+  SelectControl,
+  useLeaveGuard,
+  useZodForm,
+  RequestFailure,
+} from "@helivanta/ui";
 import {
   ApiError,
   PersonReviewTargetSearchInputContract,
@@ -99,12 +107,11 @@ export function ManagerPersonReviewPreparation({
           {targets.isPending || targets.isFetching ? (
             <p role="status">Loading Staff records…</p>
           ) : targets.isError ? (
-            <div role="alert">
-              <p>Could not verify the Staff list.</p>
-              <Button variant="outline" disabled={busy} onClick={() => void targets.refetch()}>
-                Retry Staff search
-              </Button>
-            </div>
+            <RequestFailure
+              message="Could not verify the Staff list."
+              retry={targets.refetch}
+              error={targets.error}
+            />
           ) : (
             <>
               {targets.data.data.length === 0 ? (
@@ -186,11 +193,12 @@ function PreparationSource(props: PreparationProps) {
     return <p role="status">Verifying current Staff identity details…</p>;
   if (source.isError)
     return (
-      <div role="alert">
-        <p>Could not verify the current identity preparation basis.</p>
-        <Button variant="outline" onClick={() => void source.refetch()}>
-          Retry preparation basis
-        </Button>
+      <div className="space-y-3">
+        <RequestFailure
+          message="Could not verify the current identity preparation basis."
+          retry={source.refetch}
+          error={source.error}
+        />
         <Button variant="ghost" onClick={props.onClose}>
           Close preparation
         </Button>
@@ -487,12 +495,11 @@ function PreparationForm({
             {files.isPending || files.isFetching ? (
               <p role="status">Verifying released identity files…</p>
             ) : files.isError ? (
-              <div role="alert">
-                <p>Could not verify the released evidence list.</p>
-                <Button type="button" variant="outline" onClick={() => void files.refetch()}>
-                  Retry evidence selection
-                </Button>
-              </div>
+              <RequestFailure
+                message="Could not verify the released evidence list."
+                retry={files.refetch}
+                error={files.error}
+              />
             ) : (
               <>
                 {files.data.data.length === 0 ? (

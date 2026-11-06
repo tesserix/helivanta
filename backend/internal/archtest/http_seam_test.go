@@ -16,6 +16,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/medicore"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testinfra"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -106,7 +107,7 @@ func newSeamHarness(t *testing.T) *gin.Engine {
 	api := platform.NewRouter(e.Group("/v1",
 		authn.Middleware(seamVerifier{}, seamNeverRevoked{}),
 		authz.Middleware(fga),
-	), fga)
+	), fga).WithCursorSealer(testutil.CursorSealer(t))
 	mod.Routes(api, deps)
 	return e
 }

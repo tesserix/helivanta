@@ -137,6 +137,10 @@ function Assignments({ identity }: { identity: Identity }) {
     scope,
     "staff-department-posting-reviews-v1",
   );
+  const leaveDepartmentCatalog = useVerifiedStaffCatalog(
+    scope,
+    "staff-department-leave-reviews-v1",
+  );
   const postingCatalogName = postingDepartmentCatalog.supported
     ? "staff-department-posting-reviews-v1"
     : postingSourceCatalog.supported
@@ -167,7 +171,9 @@ function Assignments({ identity }: { identity: Identity }) {
               ? "employment-v1"
               : family === "activation"
                 ? "employment-activation-v1"
-                : "legacy-v1"
+                : leaveDepartmentCatalog.supported
+                  ? "staff-department-leave-reviews-v1"
+                  : "legacy-v1"
     ];
   const intakeSupported = catalog.supported;
   const employmentSupported = employmentCatalog.supported;
@@ -193,7 +199,7 @@ function Assignments({ identity }: { identity: Identity }) {
     <Panel className="space-y-4">
       <p>
         {family === "leave"
-          ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. These assignments grant no hospital administration, payroll or clinical authority."
+          ? "Active leave-review assignments enable the Review leave page when the account also has an independently approved staff link. Both must remain current. A department leave reviewer decides leave only for Staff whose every current posting is in that department or its sub-units. These assignments grant no hospital administration, payroll or clinical authority."
           : family === "pharmacy_binding"
             ? "Pharmacy relationship preparers and independent reviewers link a hospital-owned outlet to its canonical department. They require a current reviewed Staff account and separate outlet editor access. These assignments grant no dispensing, professional, clinical or private HR access."
             : family === "posting"

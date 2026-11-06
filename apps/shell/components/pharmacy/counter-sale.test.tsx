@@ -72,8 +72,8 @@ function fixture(
     saleLines?: (typeof line & { prescription_id?: string; line_number?: number })[];
     /** The status every counter-payment read answers (#1386 C-4b). */
     counterPayment?: { status: string };
-    /** The outlet's service charges (#1388); "fail" answers 500. */
-    serviceCharges?: PharmacyServiceCharge[] | "fail";
+    /** The outlet's service charges (#1388); "fail" answers 500, "refuse" 403. */
+    serviceCharges?: PharmacyServiceCharge[] | "fail" | "refuse";
     /** The confirmed patient's citable OPD visits (#987); "fail" answers 500. */
     visits?: { encounter_id: string; status: string; opened_at: string }[] | "fail";
   } = {},
@@ -87,7 +87,9 @@ function fixture(
     if (url.endsWith("/service-charges"))
       return options.serviceCharges === "fail"
         ? new Response(JSON.stringify({ message: "down" }), { status: 500 })
-        : new Response(JSON.stringify({ items: options.serviceCharges ?? [] }));
+        : options.serviceCharges === "refuse"
+          ? new Response(JSON.stringify({ error: "forbidden" }), { status: 403 })
+          : new Response(JSON.stringify({ items: options.serviceCharges ?? [] }));
     if (url.endsWith("/hospital-affiliations"))
       return new Response(
         JSON.stringify(
@@ -1005,6 +1007,18 @@ describe("CounterSale", () => {
     expect(
       await screen.findByText(/Could not load the service charges; none can be added/),
     ).toBeVisible();
+  });
+
+  it("shows refused service charges as a refusal, with no retry", async () => {
+    fixture({ serviceCharges: "refuse" });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    expect(
+      await screen.findByText("No service charges can be added: you don't have access to them."),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("adds no line before the product's class is known", async () => {

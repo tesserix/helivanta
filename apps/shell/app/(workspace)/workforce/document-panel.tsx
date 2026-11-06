@@ -32,7 +32,15 @@ import {
   type Staff,
   type Hospital,
 } from "@helivanta/api";
-import { Field, SelectControl, ConfirmDialog, useZodForm, Panel } from "@helivanta/ui";
+import {
+  Field,
+  SelectControl,
+  ConfirmDialog,
+  useZodForm,
+  Panel,
+  RefreshButton,
+  RequestFailure,
+} from "@helivanta/ui";
 
 const fileMetadataSchema = staffDocumentSchema.pick({
   filename: true,
@@ -341,11 +349,12 @@ function DocumentWorkspace({
       {records.isPending ? (
         <p role="status">Loading saved record choices…</p>
       ) : records.isError ? (
-        <div role="alert" className="mb-5">
-          Could not load document choices.{" "}
-          <Button variant="outline" onClick={() => void records.refetch()}>
-            Try again
-          </Button>
+        <div className="mb-5">
+          <RequestFailure
+            message="Could not load document choices."
+            retry={records.refetch}
+            error={records.error}
+          />
         </div>
       ) : (
         <>
@@ -512,25 +521,27 @@ function DocumentWorkspace({
       )}
       <div className="mt-7 flex items-center justify-between gap-3">
         <h4 className="font-semibold">Saved documents</h4>
-        <Button
+        <RefreshButton
           variant="ghost"
           size="sm"
-          disabled={documents.isFetching}
-          onClick={() => void documents.refetch()}
+          busy={documents.isFetching}
+          refresh={documents.refetch}
+          error={documents.error}
         >
           Refresh status
-        </Button>
+        </RefreshButton>
       </div>
       {documents.isPending ? (
         <p role="status" className="py-6 text-sm">
           Loading protected documents…
         </p>
       ) : documents.isError ? (
-        <div role="alert" className="py-6">
-          Could not load documents.{" "}
-          <Button variant="outline" onClick={() => void documents.refetch()}>
-            Try again
-          </Button>
+        <div className="py-6">
+          <RequestFailure
+            message="Could not load documents."
+            retry={documents.refetch}
+            error={documents.error}
+          />
         </div>
       ) : documents.data?.data.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed px-5 py-8 text-center">

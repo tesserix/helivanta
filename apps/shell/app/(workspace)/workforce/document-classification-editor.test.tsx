@@ -335,3 +335,21 @@ it("clears classification controls and notifies Staff when a saved change is den
   ).not.toBeInTheDocument();
   expect(changed).toHaveBeenCalled();
 });
+
+// #1595: a classification the owner does not expose (404) is not an outage.
+it("shows an unavailable classification without a retry", async () => {
+  mocks.metadata.mockReturnValue({
+    data: undefined,
+    isPending: false,
+    isFetching: false,
+    isError: true,
+    error: new ApiError("not_found", "secret detail", 404),
+    refetch: mocks.reload,
+  });
+  mount();
+  expect(
+    await screen.findByText("Document classification is not available for this file."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+});

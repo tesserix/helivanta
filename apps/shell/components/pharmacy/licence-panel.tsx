@@ -91,13 +91,18 @@ export function LicencePanel({
         <RequestFailure
           message="Could not load this outlet's licences. Check your outlet access and try again."
           retry={licences.retry}
+          error={licences.error}
         />
       ) : licences.isPending ? (
         <p role="status">Loading licences…</p>
       ) : (
         <>
           {(renewals.isError || invalidNotice) && (
-            <RequestFailure message="Renewal advice is unavailable." retry={renewals.retry} />
+            <RequestFailure
+              message="Renewal advice is unavailable."
+              retry={renewals.retry}
+              error={renewals.error ?? new Error("The renewal advice response is invalid.")}
+            />
           )}
           {licences.items.length === 0 && (
             <p className="text-sm">No licence declaration recorded.</p>
@@ -298,7 +303,11 @@ function LicenceRecord({
         {!canReadEvidence ? (
           <p>Ask an authorized pharmacy owner to inspect the retained evidence.</p>
         ) : images.isError ? (
-          <RequestFailure message="Could not load the licence image." retry={images.refetch} />
+          <RequestFailure
+            message="Could not load the licence image."
+            retry={images.refetch}
+            error={images.error}
+          />
         ) : images.isPending ? (
           <p role="status">Loading image status…</p>
         ) : (

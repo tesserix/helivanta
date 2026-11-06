@@ -166,7 +166,10 @@ describe("Pharmacy licence setup", () => {
       <LicencePanel scope={scope} subject="user-reviewer" today="2026-11-01" />,
     );
     await user.click(await screen.findByText(/TEST-DL-001 · Awaiting independent review/));
-    expect(await screen.findByText("Could not load the licence image.")).toBeVisible();
+    expect(
+      await screen.findByText("This wasn't found, or you don't have access to it."),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Try again", exact: true })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Record independent licence review" }),
     ).toBeDisabled();

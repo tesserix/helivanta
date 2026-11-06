@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@tesserix/web";
-import { Panel, useConfirmLeave } from "@helivanta/ui";
+import { Panel, RefreshButton, RequestFailure, useConfirmLeave } from "@helivanta/ui";
 import {
   useStaffPostingCutoffScopes,
   useStaffPostingProposalInbox,
@@ -43,10 +43,11 @@ function CutoffAccount({ scope, onContextChanged, onBusyChanged }: Props) {
     return <p role="status">Checking posting cutoff hospitals…</p>;
   if (!hospitals.data)
     return (
-      <div role="alert">
-        Posting cutoff access could not be verified.{" "}
-        <Button onClick={() => void hospitals.refetch()}>Retry cutoff hospitals</Button>
-      </div>
+      <RequestFailure
+        message="Posting cutoff access could not be verified."
+        retry={hospitals.refetch}
+        error={hospitals.error}
+      />
     );
   const hospital = hospitals.data.data.find((row) => row.hospital_id === selected);
   return (
@@ -56,10 +57,11 @@ function CutoffAccount({ scope, onContextChanged, onBusyChanged }: Props) {
         end employment or appoint a replacement.
       </p>
       {hospitals.isError && (
-        <div role="alert">
-          Hospital admission could not be rechecked. The unconfirmed command is retained.{" "}
-          <Button onClick={() => void hospitals.refetch()}>Recheck cutoff admission</Button>
-        </div>
+        <RequestFailure
+          message="Hospital admission could not be rechecked. The unconfirmed command is retained."
+          retry={hospitals.refetch}
+          error={hospitals.error}
+        />
       )}
       <div className="flex flex-wrap gap-3">
         {hospitals.data.data.map((row) => (
@@ -115,16 +117,16 @@ function CutoffAccount({ scope, onContextChanged, onBusyChanged }: Props) {
             First cutoff hospitals
           </Button>
         )}
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
+        <RefreshButton
+          busy={busy}
+          error={hospitals.error}
+          refresh={() => {
             setSelected(null);
-            void hospitals.refetch();
+            return hospitals.refetch();
           }}
         >
           Refresh cutoff access
-        </Button>
+        </RefreshButton>
       </div>
     </section>
   );
@@ -153,10 +155,11 @@ function HospitalCutoffs({
     return <p role="status">Loading approved postings…</p>;
   if (!inbox.data)
     return (
-      <div role="alert">
-        Approved postings could not be verified.{" "}
-        <Button onClick={() => void inbox.refetch()}>Retry approved postings</Button>
-      </div>
+      <RequestFailure
+        message="Approved postings could not be verified."
+        retry={inbox.refetch}
+        error={inbox.error}
+      />
     );
   const current = busy
     ? selected
@@ -238,16 +241,16 @@ function HospitalCutoffs({
             First approved postings
           </Button>
         )}
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
+        <RefreshButton
+          busy={busy}
+          error={inbox.error}
+          refresh={() => {
             setSelected(null);
-            void inbox.refetch();
+            return inbox.refetch();
           }}
         >
           Refresh approved postings
-        </Button>
+        </RefreshButton>
       </div>
     </Panel>
   );
@@ -285,14 +288,9 @@ function CutoffDetail({
       </div>
       {notice && <p role="status">{notice}</p>}
       {!cutoff && (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={context.isFetching}
-          onClick={() => void context.refetch()}
-        >
+        <RefreshButton refresh={context.refetch} error={context.error} busy={context.isFetching}>
           Recheck posting cutoff
-        </Button>
+        </RefreshButton>
       )}
       {cutoff ? (
         <p role="alert">{STAFF_ACCESS_CHANGED}</p>
@@ -393,10 +391,11 @@ function CutoffHistory({
   if (history.isPending || history.isFetching) return <p role="status">Loading cutoff history…</p>;
   if (history.isError)
     return (
-      <div role="alert">
-        Cutoff history could not be verified.{" "}
-        <Button onClick={() => void history.refetch()}>Retry cutoff history</Button>
-      </div>
+      <RequestFailure
+        message="Cutoff history could not be verified."
+        retry={history.refetch}
+        error={history.error}
+      />
     );
   return (
     <section aria-label="Cutoff history" className="space-y-3">

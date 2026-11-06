@@ -2,7 +2,7 @@
 
 import { formatPostingUtc } from "./posting-time";
 import { Button } from "@tesserix/web";
-import { Panel, useConfirmLeave } from "@helivanta/ui";
+import { Panel, RefreshButton, RequestFailure, useConfirmLeave } from "@helivanta/ui";
 import {
   useStaffPostingLifecycleHistoryContext,
   type StaffPostingProposal,
@@ -39,10 +39,11 @@ export function PostingApprovalHistory({
       {history.isPending || history.isFetching ? (
         <p role="status">Checking protected approval history…</p>
       ) : history.isError || !history.data ? (
-        <div role="alert">
-          The retained approval history could not be verified.{" "}
-          <Button onClick={() => void history.refetch()}>Retry retained history</Button>
-        </div>
+        <RequestFailure
+          message="The retained approval history could not be verified."
+          retry={history.refetch}
+          error={history.error}
+        />
       ) : (
         <>
           <p className="font-medium">{displayName}</p>
@@ -149,9 +150,9 @@ export function PostingApprovalHistory({
             )}
           </section>
           <PostingProposalContextDetails context={history.data.context} />
-          <Button variant="outline" onClick={() => void history.refetch()}>
+          <RefreshButton refresh={history.refetch} error={history.error}>
             Recheck history access
-          </Button>
+          </RefreshButton>
         </>
       )}
     </Panel>

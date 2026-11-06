@@ -607,3 +607,21 @@ it("aborts an in-flight cutoff on account change without replaying it into the n
   expect(screen.queryByText("Synthetic canonical Staff")).not.toBeInTheDocument();
   expect(screen.queryByDisplayValue("Synthetic in-flight private cutoff")).not.toBeInTheDocument();
 });
+
+it("asks again for cutoff hospitals after an outage", async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({ error: "unavailable", message: "Synthetic outage" }, { status: 503 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffPostingCutoffWorkspace scope={scope} onContextChanged={vi.fn()} />
+    </NavigationGuardProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Posting cutoff access could not be verified.",
+  );
+  const reads = fetcher.mock.calls.length;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(reads));
+});

@@ -1476,6 +1476,20 @@ selects the appropriate assignment family. Both HR templates can read the curren
 identity source; neither read performs a review decision. Identity/background/photo cases,
 evidence review and card issue remain separate unfinished workflows (#1399).
 
+Every published template also carries `establishment_kinds`, the establishment
+roots it may be assigned on ([ADR-0054](../adr/0054-typed-employing-establishments.md)
+§4). Every current template declares `["hospital"]`. IAM migration
+`0033_iam_establishment_root` gives proposals and snapshots an immutable
+`establishment_kind`, backfilled as `hospital`, and the database refuses a root
+that the template does not declare. A restrictive policy hides every
+non-hospital row unless the transaction sets `app.assignment_establishment_root`
+to `typed`. No route sets it yet, so every existing list, decision and
+projection path stays hospital-only. Templates introduced from IAM 0034 must
+declare `["hospital"]` or `["hospital","pharmacy"]`, and only a template with
+hospital scope may declare `pharmacy`. The Staff access UI refuses a catalog
+whose root kinds differ from its bundled definitions. No pharmacy assignment can
+be proposed yet; that arrives with the first pharmacy route.
+
 ### Identity review drafts
 
 The additive `?projection=identity_drafts` source projection includes

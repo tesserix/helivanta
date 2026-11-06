@@ -7,6 +7,7 @@ export const staffAccessTemplates = [
     family: "leave",
     permissions: ["workforce.leave.approve"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.identity_manager.v1",
@@ -16,6 +17,7 @@ export const staffAccessTemplates = [
     family: "identity",
     permissions: ["workforce.identity_checks.manage"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.identity_reviewer.v1",
@@ -25,6 +27,7 @@ export const staffAccessTemplates = [
     family: "identity",
     permissions: ["workforce.identity_checks.review"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.hr_intake.v1",
@@ -34,6 +37,7 @@ export const staffAccessTemplates = [
     family: "intake",
     permissions: ["workforce.enrollment.manage", "workforce.documents.manage"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.employment_reviewer.v1",
@@ -43,6 +47,7 @@ export const staffAccessTemplates = [
     family: "employment",
     permissions: ["workforce.employment.review"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.employment_activator.v1",
@@ -52,6 +57,7 @@ export const staffAccessTemplates = [
     family: "activation",
     permissions: ["workforce.employment.activate"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_reader.v1",
@@ -61,6 +67,7 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting.read", "workforce.staff_actor.use"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_preparer.v1",
@@ -75,6 +82,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_submitter.v1",
@@ -91,6 +99,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_reviewer.v1",
@@ -106,6 +115,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_management_reviewer.v1",
@@ -115,6 +125,7 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting.management.review", "workforce.staff_actor.use"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_cutoff_admin.v1",
@@ -129,6 +140,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.posting_source_consumer.v1",
@@ -138,6 +150,7 @@ export const staffAccessTemplates = [
     family: "posting",
     permissions: ["workforce.posting_source.use", "workforce.staff_actor.use"],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "pharmacy.department_binding_preparer.v1",
@@ -152,6 +165,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "pharmacy.department_binding_reviewer.v1",
@@ -166,6 +180,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["hospital"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.department_posting_reviewer.v1",
@@ -181,6 +196,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
   },
   {
     key: "workforce.department_leave_reviewer.v1",
@@ -194,6 +210,7 @@ export const staffAccessTemplates = [
       "workforce.staff_actor.use",
     ],
     scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
   },
 ] as const;
 export const staffAccessTemplateCatalogs = {

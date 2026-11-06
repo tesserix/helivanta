@@ -15,7 +15,7 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 32)
+	require.Len(t, ids, 33)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -60,6 +60,8 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.NotEmpty(t, migs[30].SQL)
 	require.Equal(t, "0032_iam_department_leave_review_templates", migs[31].ID)
 	require.Contains(t, migs[31].SQL, "'workforce.department_leave_reviewer.v1' THEN ARRAY['department']")
+	require.Equal(t, "0033_iam_establishment_root", migs[32].ID)
+	require.Contains(t, migs[32].SQL, "CREATE POLICY establishment_root ON iam_assignment_proposals AS RESTRICTIVE")
 }
 
 func TestPharmacyDepartmentBindingTemplatesArePersisted(t *testing.T) {

@@ -232,6 +232,10 @@ export const TemplateDefinitionContract = z
       .array(z.enum(["hospital", "department"]))
       .min(1)
       .max(2),
+    establishment_kinds: z
+      .array(z.enum(["hospital", "pharmacy"]))
+      .min(1)
+      .max(2),
   })
   .strict();
 export type TemplateDefinition = z.infer<typeof TemplateDefinitionContract>;

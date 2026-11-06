@@ -42,6 +42,12 @@ type departmentGrantHarness struct {
 
 func newDepartmentGrantHarness(t *testing.T) *departmentGrantHarness {
 	t.Helper()
+	return newGrantHarness(t, iam.New(nil))
+}
+
+// newGrantHarness lets a backfill test stop IAM before a migration while Workforce stays current.
+func newGrantHarness(t *testing.T, module platform.Module) *departmentGrantHarness {
+	t.Helper()
 	fga, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
 	r, db, bus, _ := testutil.NewHarness(t, testutil.HarnessOptions{
@@ -51,7 +57,7 @@ func newDepartmentGrantHarness(t *testing.T) *departmentGrantHarness {
 			"admin":    {iam.PermMemberManage, assignmentHospitalManage, "iam.assignment.manage"},
 			"reviewer": {"iam.assignment.review"},
 		},
-		Modules: []platform.Module{iam.New(nil), assignmentWorkforceModule()},
+		Modules: []platform.Module{module, assignmentWorkforceModule()},
 	})
 	upstream := httptest.NewServer(r)
 	t.Cleanup(upstream.Close)

@@ -115,7 +115,9 @@ function useVerifiedStaffCatalog(
         actual.permissions.length === expected.permissions.length &&
         expected.permissions.every((permission) => actual.permissions.includes(permission)) &&
         actual.scope_kinds.length === expected.scope_kinds.length &&
-        expected.scope_kinds.every((kind) => actual.scope_kinds.includes(kind))
+        expected.scope_kinds.every((kind) => actual.scope_kinds.includes(kind)) &&
+        actual.establishment_kinds.length === expected.establishment_kinds.length &&
+        expected.establishment_kinds.every((kind) => actual.establishment_kinds.includes(kind))
       );
     });
   return { ...catalog, supported };

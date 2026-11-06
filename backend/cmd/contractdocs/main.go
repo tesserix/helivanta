@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -19,6 +20,7 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/pkg/authz"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"go.temporal.io/sdk/client"
 )
@@ -96,13 +98,23 @@ func migrations(items []tenantdb.Migration) []migration {
 	return out
 }
 
+// Inventory routers never serve requests; an ephemeral key only satisfies the filtered-list registration guard.
+func inventorySealer() *pagination.Sealer {
+	sealer, err := pagination.NewSealer([]byte(rand.Text() + rand.Text()))
+	if err != nil {
+		panic(err)
+	}
+	return sealer
+}
+
 func inventory() reference {
 	gin.SetMode(gin.ReleaseMode)
 	doc := reference{FormatVersion: 1, Unauthenticated: bootstrap.UnauthenticatedRoutes,
 		PlatformMigrations: migrations(bootstrap.PlatformMigrations())}
 	deps := platform.Deps{Workflows: registrationClient{}, EmergencyWorkflowsEnabled: true, EmergencyDispatchEnabled: true, PrivacyDeadlinesEnabled: true}
+	sealer := inventorySealer()
 	for _, m := range bootstrap.Modules(nil, nil) {
-		r := platform.NewRouter(gin.New().Group("/v1"), noRequests{})
+		r := platform.NewRouter(gin.New().Group("/v1"), noRequests{}).WithCursorSealer(sealer)
 		m.Routes(r, deps)
 		item := module{Name: m.Name(), Source: "backend/internal/modules/" + m.Name() + "/module.go",
 			Publishes: append([]string{}, m.Publishes()...), Directed: append([]string{}, m.DirectedSubjects()...),

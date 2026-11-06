@@ -44,6 +44,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/workforce"
 	"github.com/tesserix/helivanta/internal/modules/workspace"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -253,7 +254,7 @@ func TestEveryDeclaredPermissionIsGranted(t *testing.T) {
 			declaredByGrants[g.Permission] = true
 		}
 		e := gin.New()
-		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			if !declaredByGrants[dr.Permission] {
@@ -275,7 +276,7 @@ func routesDeclaring(t *testing.T, perm authz.Permission) []string {
 	var found []string
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			if dr.Permission == perm {
@@ -299,7 +300,7 @@ func allDeclaredRoutes(t *testing.T) []platform.DeclaredRoute {
 	var found []platform.DeclaredRoute
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group(""), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		found = append(found, r.Declared()...)
 	}

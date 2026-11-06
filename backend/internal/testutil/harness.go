@@ -243,6 +243,14 @@ type HarnessOptions struct {
 // fifth substitutable dependency and a sixth is coming — four
 // near-identical variants was already one too many, and a fifth or
 // sixth would only make that worse.
+// CursorSealer is an ephemeral filtered-list cursor key for routers a test builds itself.
+func CursorSealer(t testing.TB) *pagination.Sealer {
+	t.Helper()
+	sealer, err := pagination.NewSealer([]byte(rand.Text() + rand.Text()))
+	require.NoError(t, err)
+	return sealer
+}
+
 func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *events.Bus, context.Context) {
 	t.Helper()
 
@@ -369,13 +377,11 @@ func NewHarness(t *testing.T, opts HarnessOptions) (*gin.Engine, *tenantdb.DB, *
 	if resolver == nil {
 		resolver = harnessResolver{tokens: opts.Tokens, perms: opts.Perms}
 	}
-	cursorSealer, err := pagination.NewSealer([]byte(rand.Text() + rand.Text()))
-	require.NoError(t, err)
 	api := platform.NewRouter(r.Group("/v1",
 		authn.Middleware(verifier, revocation),
 		requestid.PrincipalMiddleware(),
 		authz.Middleware(resolver)),
-		membership).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(cursorSealer)
+		membership).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(CursorSealer(t))
 	// Consumers and the dispatcher live as long as the test, not as long as
 	// ctx: ctx's 90s bound would stop them silently mid-test, and every
 	// later wait on an event would time out instead of failing here (#1517).

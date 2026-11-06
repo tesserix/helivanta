@@ -134,6 +134,30 @@ for (const migration of migrations) {
           "Pharmacy binding templates require their exact role and Staff source permissions",
         );
     }
+    if (template?.family === "partner_membership") {
+      const role = template.key?.match(
+        /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/,
+      )?.[1];
+      const permissions = [
+        "iam.partner_group.members.read",
+        "workforce.partner_member_source.use",
+        "workforce.posting_source.use",
+        "workforce.staff_actor.use",
+        ...(role === "preparer"
+          ? ["iam.partner_group.members.prepare"]
+          : role === "reviewer"
+            ? ["iam.partner_group.members.review"]
+            : []),
+      ];
+      if (
+        !role ||
+        JSON.stringify(template.permissions) !== JSON.stringify(permissions) ||
+        JSON.stringify(template.scope_kinds) !== JSON.stringify(["hospital"])
+      )
+        throw new Error(
+          "Partner membership templates require exact hospital-only role, actor and source permissions",
+        );
+    }
     if (template?.family === "posting") {
       const kind = departmentReviewer.test(template.key ?? "")
         ? "reviewer"
@@ -193,9 +217,11 @@ for (const migration of migrations) {
       !declaredFields.every((field) => Object.hasOwn(template, field)) ||
       typeof template.key !== "string" ||
       template.key.length > templateLimits.key ||
-      !(template.family === "pharmacy_binding"
-        ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
-        : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
+      !(template.family === "partner_membership"
+        ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+        : template.family === "pharmacy_binding"
+          ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+          : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
       keys.has(template.key) ||
       ![
         "leave",
@@ -205,6 +231,7 @@ for (const migration of migrations) {
         "activation",
         "posting",
         "pharmacy_binding",
+        "partner_membership",
       ].includes(template.family) ||
       typeof template.name !== "string" ||
       !template.name ||
@@ -218,11 +245,14 @@ for (const migration of migrations) {
           JSON.stringify(["workforce.enrollment.manage", "workforce.documents.manage"])
         : template.family !== "posting" &&
           template.family !== "pharmacy_binding" &&
+          template.family !== "partner_membership" &&
           template.family !== "leave" &&
           template.permissions.length !== 1) ||
       !template.permissions.every(
         (permission) =>
           /^workforce\.[a-z_.]+$/.test(permission) ||
+          (template.family === "partner_membership" &&
+            /^iam\.partner_group\.members\.(read|prepare|review)$/.test(permission)) ||
           (template.family === "pharmacy_binding" &&
             /^pharmacy\.staff_binding\.(read|prepare|review)$/.test(permission)) ||
           (template.family === "pharmacy_binding" &&

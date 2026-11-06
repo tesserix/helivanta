@@ -43,6 +43,21 @@ var eventPayloadPHIAllowlist = map[string]string{
 // are plain `string` fields, so the distinction is recorded here
 // instead of inferred.
 var eventPayloadReviewedNonPHI = map[string]string{
+	"iam.PartnerGroupHospitalScopeRequestedData.GroupID":                   "opaque group correlation; no member identity or private reason",
+	"iam.PartnerGroupHospitalScopeRequestedData.HospitalID":                "opaque requested hospital scope; no patient data or authority",
+	"iam.PartnerGroupChangedData.GroupID":                                  "opaque group reference; owner reads require authorization",
+	"iam.PartnerGroupChangedData.HospitalID":                               "opaque hospital scope; no patient or Staff identity",
+	"iam.PartnerGroupChangedData.Version":                                  "monotonic group revision for invalidation",
+	"iam.PartnerGroupChangedData.Status":                                   "closed lifecycle vocabulary; no private rationale",
+	"iam.PartnerGroupMemberChangedData.GroupID":                            "opaque group scope; no member details",
+	"iam.PartnerGroupMemberChangedData.HospitalID":                         "opaque hospital scope; no patient identity",
+	"iam.PartnerGroupMemberChangedData.MemberID":                           "opaque membership proposal reference; Staff identity requires authorized owner lookup",
+	"iam.PartnerGroupMemberChangedData.MemberVersion":                      "monotonic membership revision for stale-state detection",
+	"iam.PartnerGroupMemberChangedData.CohortEpoch":                        "monotonic invalidation counter; not authority",
+	"iam.PartnerGroupMemberChangedData.Status":                             "closed membership lifecycle vocabulary; no review rationale",
+	"workforce.PartnerGroupHospitalScopeObservedData.GroupID":              "opaque request correlation; no member identity",
+	"workforce.PartnerGroupHospitalScopeObservedData.HospitalID":           "opaque reference echoed to same-tenant requester",
+	"workforce.PartnerGroupHospitalScopeObservedData.Exists":               "boolean hospital existence observation; not access or operating authority",
 	"pharmacy.StaffDepartmentBindingChangedData.PharmacyID":                "opaque organization reference; no commercial name or Staff details",
 	"pharmacy.StaffDepartmentBindingChangedData.OutletID":                  "opaque outlet scope; protected owner lookup required",
 	"pharmacy.StaffDepartmentBindingChangedData.HospitalID":                "opaque hospital scope; no patient or clinical data",

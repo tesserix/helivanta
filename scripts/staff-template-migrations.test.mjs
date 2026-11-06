@@ -979,12 +979,40 @@ test("generated templates publish scope kinds and the department scope function"
     );
 });
 
+test("partner membership templates refuse missing source checks or combined preparation/review", async (t) => {
+  for (const mutate of [
+    (template) => {
+      template.permissions = template.permissions.filter(
+        (permission) => permission !== "workforce.partner_member_source.use",
+      );
+    },
+    (template) => {
+      template.permissions.push("iam.partner_group.members.review");
+    },
+    (template) => {
+      template.permissions.push("pharmacy.stock.adjust");
+    },
+  ]) {
+    const { dir, contract, contractPath } = await fixture(t);
+    const template = contract.template_migrations
+      .flatMap((entry) => entry.templates)
+      .find((entry) => entry.key === "iam.partner_group_member_preparer.v1");
+    mutate(template);
+    await writeFile(contractPath, JSON.stringify(contract));
+    const result = generate(dir);
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Partner membership templates require exact hospital-only role, actor and source permissions/,
+    );
+  }
+});
 test("templates introduced from 0034 must declare their establishment kinds before writes", async (t) => {
   await rejectsBeforeWrites(
     t,
     async (contract) => {
       const entry = await extension(contract);
-      assert.equal(entry.id.slice(0, 4), "0034");
+      assert.ok(Number(entry.id.slice(0, 4)) >= 34);
       delete entry.templates[0].establishment_kinds;
       contract.template_migrations.push(entry);
     },
@@ -1018,7 +1046,7 @@ test("establishment kinds must be a reviewed ordered subset before writes", asyn
 });
 
 test("templates before 0034 stay hospital-rooted and cannot declare an establishment kind", async (t) => {
-  for (const index of [0, -1]) {
+  for (const index of [0, -2]) {
     await t.test(String(index), async (t) => {
       await rejectsBeforeWrites(
         t,
@@ -1123,7 +1151,9 @@ test("published templates declare their establishment kinds while historical SQL
   assert.ok(
     catalog.models.TemplateDefinition.some((field) => field.name === "establishment_kinds"),
   );
-  for (const migration of catalog.template_migrations)
+  for (const migration of catalog.template_migrations.filter(
+    (entry) => Number(entry.id.slice(0, 4)) < 34,
+  ))
     assert.doesNotMatch(
       await readFile(path.join(root, "backend/internal/modules/iam", migration.file), "utf8"),
       /establishment/,

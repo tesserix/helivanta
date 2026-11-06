@@ -30,6 +30,7 @@ import {
   LayoutDashboard,
   Gauge,
   ListChecks,
+  Network,
   ShoppingCart,
   PackagePlus,
   Palette,
@@ -360,6 +361,12 @@ export const ZONES: Zone[] = [
     group: "operations",
     pages: [
       { label: "Staff directory", href: "/workforce", icon: Contact, permission: "public" },
+      {
+        label: "Partner teams",
+        href: "/workforce/partner-teams",
+        icon: Network,
+        permission: "public",
+      },
       {
         label: "Department teams",
         href: "/workforce/department-teams",

@@ -15,6 +15,7 @@ func TestStaffActorAuthorizationHasOnlyReviewedConsumers(t *testing.T) {
 		allowlist: map[string]bool{
 			"internal/modules/organization/posting_choices.go":                true,
 			"internal/modules/workforce/posting_authority.go":                 true,
+			"internal/modules/workforce/partner_member_guard.go":              true, // Reviewed membership source admission; no operating authority.
 			"internal/modules/workforce/posting_source_guard.go":              true,
 			"internal/modules/workforce/staff_actor_scopes.go":                true,
 			"internal/modules/workforce/leave_department_review.go":           true,

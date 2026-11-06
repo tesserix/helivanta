@@ -181,3 +181,27 @@ it("uses the explicit intake list without mixing existing leave or identity assi
   await listStaffAssignments({ tenantId, subject: "reviewer" }, { family: "intake" });
   expect(fetch.mock.calls[0]![0]).toContain("/api/v1/iam/intake-assignment-proposals?");
 });
+
+it.each(["reader", "preparer", "reviewer"])(
+  "lists partner membership %s assignments through their dedicated family",
+  async (role) => {
+    const record = {
+      ...proposal,
+      input: { ...input, template_key: `iam.partner_group_member_${role}.v1` },
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ data: [record], page: { has_more: false, next_cursor: null } }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const result = await listStaffAssignments(
+      { tenantId, subject: "reviewer" },
+      { family: "partner_membership" },
+    );
+    expect(result.data).toEqual([record]);
+    expect(new URL(fetch.mock.calls[0]![0], "https://example.invalid").pathname).toBe(
+      "/api/v1/iam/partner-membership-assignment-proposals",
+    );
+  },
+);

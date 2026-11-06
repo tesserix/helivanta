@@ -401,6 +401,7 @@ func run() error {
 	deps := platform.Deps{
 		StaffActors:                 platform.StaffActors(registry.All(), db),
 		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),
+		PartnerMembers:              platform.PartnerMembers(registry.All(), db),
 		DepartmentReferences:        platform.DepartmentReferences(registry.All(), db),
 		PharmacyEmployers:           platform.PharmacyEmployers(registry.All(), db),
 		DepartmentScopes:            platform.DepartmentScopes(registry.All(), db),

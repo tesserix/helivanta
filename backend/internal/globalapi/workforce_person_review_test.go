@@ -385,7 +385,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0089_workforce_leave_department_scope" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -395,7 +395,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	}
 	require.Greater(t, len(provenanceMigration), 1)
 	require.Equal(t, "0059_workforce_employment_document_provenance", provenanceMigration[1].ID)
-	require.Equal(t, "0088_workforce_establishment_kind", provenanceMigration[len(provenanceMigration)-1].ID)
+	require.Equal(t, "0090_workforce_partner_group_scope", provenanceMigration[len(provenanceMigration)-1].ID)
 	require.NoError(t, db.Migrate(ctx, provenanceMigration))
 	file := uuid.Must(uuid.NewV7()).String()
 	filePath := staffBase + "/documents/" + file
@@ -2218,7 +2218,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0089_workforce_leave_department_scope" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" {
 						if migration.ID == "0082_workforce_posting_supervisor_choices" {
 							applySupervisorDiscoveryMigration(t, db, ctx, migration)
 						} else {
@@ -2399,6 +2399,15 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					}
 					grant(postingRootReviewer, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)
 					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootReviewer, HospitalID: hospital, Permission: authz.StaffPostingSourceUse})
+					grant(postingRootReviewer, "iam.partner_group_member_preparer.v1", iam.PermPartnerGroupMemberPrepare)
+					grant(postingRootReviewer, "iam.partner_group_member_reviewer.v1", iam.PermPartnerGroupMemberReview)
+					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootReviewer, HospitalID: hospital, Permission: iam.PermPartnerGroupMemberReview})
+					grant(postingRootApprover, "iam.partner_group_member_reviewer.v1", iam.PermPartnerGroupMemberReview)
+					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootApprover, HospitalID: hospital, Permission: authz.PartnerMemberSourceUse})
+					grant(recipient, "iam.partner_group_member_preparer.v1", iam.PermPartnerGroupMemberPrepare)
+					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: recipient, HospitalID: hospital, Permission: authz.PartnerMemberSourceUse})
+
+					cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: postingRootReviewer, HospitalID: hospital, Permission: iam.PermPartnerGroupMemberPrepare})
 					assertPostingSupervisedApproval(t, db, testutil.TenantA, call, requestWithContext, base, scopedStaffBase, recipient, postingRootReviewer, postingRootReviewerStaff, postingRootApprover, postingRootApproverStaff, maker, scopedDraft, scopedReceipt, scopedSource, generation, newPostingSourceUseProbe(db, authority, platform.StaffPostingSources([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func() func() {
 						initial := call(t, "GET", joinerPath+"/enrollment?hr_intake=v1", manager, nil, 200)
 						originalProfile := initial["profile"].(map[string]any)
@@ -2415,6 +2424,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					}, func(subject string) {
 						grant(subject, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)
 						cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: authz.StaffPostingSourceUse})
+					}, newPartnerMemberUseProbe(authority, platform.PartnerMembers([]platform.Module{workforce.New(), organization.New()}, db), testutil.TenantA), func(t *testing.T, source map[string]any) {
+						groupID, member := assertHospitalPartnerMembership(t, call, source, partnerMembershipActors{Maker: maker, Checker: checker, Preparer: postingRootReviewer, Reviewer: postingRootApprover, Member: recipient, Unassigned: postingDepartmentReviewer})
+						assertPartnerMemberBrowser(t, gateway, tokens, postingRootApprover, groupID, member)
 					})
 					return
 				}

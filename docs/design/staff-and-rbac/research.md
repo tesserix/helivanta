@@ -94,3 +94,70 @@ The CDSCO guidance/circular search returned both guidance entries and an explici
 Additional repository checks: [SupplyConnect integration specification](../../api/domains/supply.md), [PharmaConnect](../../api/domains/pharmacy.md), [ADR-0031](../../adr/0031-live-platform-identity-for-bilateral-trading.md), [India pharmacy/supply requirements](../../domain/india/pharmacy-and-supply.md), `backend/internal/modules/supply/access_scope.go`, `access_scope.sql`, `parties.sql` and `backend/pkg/authz/model.go`. The existing grants are subject-based and owner-tenant/premise scoped. A named supply grant and live platform identity receipt do not implement bilateral hospital-group access or complete quote/order/receipt/settlement workflows.
 
 The resulting scenarios are design examples based on these primary sources and verified owner boundaries. No live customer, shipment or real patient data was used. Hospital procurement command/ledger ownership and group disclosure contracts remain explicit review items.
+
+## Maharashtra and Odisha collaboration scope (6 November 2026)
+
+The user selected both pharmacy-outlet and SupplyConnect-premise supply models,
+India only, initially Maharashtra and Odisha. The state regulator pages below
+were opened during implementation research:
+
+- [Maharashtra Medical Education and Drugs Department: FDA](https://medical.maharashtra.gov.in/en/food-drugs-administration-fda/)
+  describes the state FDA's responsibilities for licensed drug sale/distribution.
+  Its historical narrative is not a current category-by-category operating policy.
+- [Odisha Health and Family Welfare: drug-control activities](https://health.odisha.gov.in/en/about-us/directorate/directorate-of-drug-control-administration/activites)
+  identifies state sales-establishment licensing, inspection and recall functions.
+  It does not verify a particular supplier, premise or licence.
+- [CDSCO Drugs Rules index](https://www.cdsco.gov.in/opencms/opencms/en/Acts-and-rules/Drugs-Rules/)
+  was found in current search results; direct opening timed out. Its amendment
+  list and old compiled rules are locators requiring current primary-text and
+  applicability review, not authority to activate every medicine category.
+
+Implementation consequence: retain the existing independently reviewed policy
+engine and each participant's exact state, category, operation and effective
+version. Do not turn a retail-pharmacy profile, business ownership, hospital
+status or supported-state label into blanket wholesale/regulated-trade authority.
+No licence form, monetary threshold, exemption or medicine-schedule list is seeded
+from these pages. Actual source and destination evidence and qualified review
+remain prerequisites for a live commitment.
+
+### Additional Odisha licensing source check — 6 November 2026
+
+Opened the Government of Odisha's [GoSwift retail drug-licence service](https://ssoinvestodisha.odisha.gov.in/goswift/ServiceDetails.aspx?Department=Health+and+Family+Welfare+%28H&Deptid=9&FW%29+Department=&Srvcid=30).
+It describes district Drug Inspector scrutiny and site verification before a
+licensing-authority issuance decision, and links retail, wholesale and manufacturing
+as separate services. Product consequence: record the actual premise, activity,
+issuing authority and reviewed evidence; a partner role or hospital affiliation
+cannot substitute for the licensing decision. Do not seed fees, timelines,
+application forms or medicine-category authority from this research note.
+
+Reopened the [Maharashtra FDA overview](https://medical.maharashtra.gov.in/en/food-drugs-administration-fda/).
+It confirms the state's drug-control responsibility and distinguishes regulatory
+machinery from an establishment's own administration. Product consequence: keep
+hospital/supplier governance, workforce eligibility and statutory operating
+authority as separate reviewed facts.
+
+The current [CDSCO Drugs Rules index](https://www.cdsco.gov.in/opencms/opencms/en/Acts-and-rules/Drugs-Rules/)
+was located in search, but opening it still timed out. A 2016 rules PDF appeared
+in search results; it is not sufficient to certify the current consolidated law
+or later amendments. Exact category/activity rules still require current primary
+text and accountable applicability review before production policy activation.
+
+### RBAC and professional-qualification source check — 6 November 2026
+
+Opened the [NIST RBAC FAQ](https://csrc.nist.gov/Projects/role-based-access-control/faqs).
+Its separation between roles, groups and transaction constraints supports using
+published groups as recipient cohorts while keeping permissions in reviewed role
+assignments. The healthcare relationship example supports applying object-specific
+constraints in addition to role membership. Helivanta's maker/checker separation
+and exact hospital/object checks are product decisions; this reference is not an
+India-specific regulatory approval or a certification claim.
+
+Opened the [Pharmacy Council of India FAQ](https://www.pci.gov.in/en/faqs/).
+It identifies State Pharmacy Councils as the registration authorities. Its current
+navigation also links post-2023 amendment material, 2025 regulations and newer
+policy/draft documents. Therefore a generic staff title, degree or old FAQ penalty
+statement must not be treated as current statutory authority. Keep pharmacist
+registration/designation and the employer's operating licence separate from IAM
+roles, and verify applicable current text and state evidence before activating an
+operating policy. Opening the [India Code Pharmacy Act PDF](https://www.indiacode.nic.in/bitstream/123456789/1364/1/A1948-08.pdf)
+timed out; this work does not claim to have verified its current consolidated text.

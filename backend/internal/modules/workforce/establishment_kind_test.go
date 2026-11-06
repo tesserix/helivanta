@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	iamcontract "github.com/tesserix/helivanta/internal/modules/iam/contract"                   //nolint:depguard // published contract under test
 	organizationcontract "github.com/tesserix/helivanta/internal/modules/organization/contract" //nolint:depguard // published contract under test
 	"github.com/tesserix/helivanta/internal/modules/workforce"                                  //nolint:depguard // module under test
 	"github.com/tesserix/helivanta/internal/platform"
@@ -212,7 +213,8 @@ CREATE TABLE workforce_inventory_unmapped(tenant_id uuid NOT NULL,hospital_id uu
 // unguardedEstablishmentTables lists Workforce tables with a hospital_id that no guard trigger or guarded foreign key covers.
 func unguardedEstablishmentTables(t *testing.T, tx *gorm.DB) []string {
 	t.Helper()
-	exempt := []string{"workforce_audit", "workforce_organization_observations"}
+	// Observation ledgers retain negative answers for unknown or non-hospital references.
+	exempt := []string{"workforce_audit", "workforce_organization_observations", "workforce_partner_group_observations"}
 	var tables, guarded []string
 	require.NoError(t, tx.Raw(`SELECT c.relname FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace AND s.nspname=current_schema()
  JOIN pg_attribute a ON a.attrelid=c.oid AND a.attname='hospital_id' AND NOT a.attisdropped
@@ -290,4 +292,37 @@ func TestOrganizationObservationReportsAPharmacyEstablishmentAsAbsent(t *testing
 	}
 	require.True(t, observe(h.hospital))
 	require.False(t, observe(pharmacy))
+}
+
+func TestPartnerGroupObservationReportsOnlyHospitalsAsExisting(t *testing.T) {
+	h := newEstablishmentHarness(t, workforce.New())
+	pharmacy := h.pharmacy(t, "independent")
+	var consumer events.Consumer
+	for _, candidate := range h.module.Consumers(platform.Deps{Bus: h.bus}) {
+		if candidate.Name == "workforce-partner-group-hospital-scope" {
+			consumer = candidate
+		}
+	}
+	require.NotNil(t, consumer.Handle)
+	for _, candidate := range []struct {
+		name, id string
+		exists   bool
+	}{
+		{"hospital", h.hospital, true}, {"independent pharmacy", pharmacy, false}, {"unknown", uuid.Must(uuid.NewV7()).String(), false},
+	} {
+		t.Run(candidate.name, func(t *testing.T) {
+			group := uuid.Must(uuid.NewV7())
+			raw, err := json.Marshal(iamcontract.PartnerGroupHospitalScopeRequestedData{GroupID: group, HospitalID: uuid.MustParse(candidate.id)})
+			require.NoError(t, err)
+			event := events.Event{ID: uuid.Must(uuid.NewV7()).String(), Type: iamcontract.SubjectPartnerGroupHospitalScopeRequested, Version: 1, TenantID: testutil.TenantA, Data: raw}
+			for range 2 {
+				require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error { return consumer.Handle(t.Context(), tx, event) }))
+			}
+			var observed []bool
+			require.NoError(t, h.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+				return tx.Raw(`SELECT observed_exists FROM workforce_partner_group_observations WHERE tenant_id=? AND group_id=? AND hospital_id=?`, testutil.TenantA, group, candidate.id).Scan(&observed).Error
+			}))
+			require.Equal(t, []bool{candidate.exists}, observed, "duplicates preserve one exact hospital-kind observation")
+		})
+	}
 }

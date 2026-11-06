@@ -15,7 +15,7 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	for i, migration := range migs {
 		ids[i] = migration.ID
 	}
-	require.Len(t, ids, 33)
+	require.Len(t, ids, 36)
 	require.Equal(t, "0001_iam", migs[0].ID)
 	require.Equal(t, "0002_iam", migs[1].ID)
 	require.Equal(t, "0003_iam", migs[2].ID)
@@ -62,6 +62,11 @@ func TestMigrationIDIsPhaseScoped(t *testing.T) {
 	require.Contains(t, migs[31].SQL, "'workforce.department_leave_reviewer.v1' THEN ARRAY['department']")
 	require.Equal(t, "0033_iam_establishment_root", migs[32].ID)
 	require.Contains(t, migs[32].SQL, "CREATE POLICY establishment_root ON iam_assignment_proposals AS RESTRICTIVE")
+	for i, id := range []string{"0034_iam_partner_groups", "0035_iam_partner_membership_templates", "0036_iam_partner_members"} {
+		require.Equal(t, id, migs[33+i].ID)
+		require.NotEmpty(t, migs[33+i].SQL)
+	}
+
 }
 
 func TestPharmacyDepartmentBindingTemplatesArePersisted(t *testing.T) {
@@ -114,7 +119,7 @@ func TestEverySystemRoleHasALabel(t *testing.T) {
 
 func TestModuleDeclaresMemberManage(t *testing.T) {
 	grants := iam.New(nil).Permissions()
-	require.Len(t, grants, 4)
+	require.Len(t, grants, 7)
 	require.Equal(t, iam.PermAssignmentReview, grants[2].Permission)
 	require.Empty(t, grants[2].Roles)
 	require.Equal(t, iam.PermAssignmentManage, grants[1].Permission)
@@ -122,6 +127,11 @@ func TestModuleDeclaresMemberManage(t *testing.T) {
 	require.Equal(t, iam.PermMemberManage, grants[0].Permission)
 	// tenant_admin is implicit, so the grant lists no roles.
 	require.Empty(t, grants[0].Roles)
+	for i, permission := range []authz.Permission{iam.PermPartnerGroupMemberRead, iam.PermPartnerGroupMemberPrepare, iam.PermPartnerGroupMemberReview} {
+		require.Equal(t, permission, grants[3+i].Permission)
+		require.Empty(t, grants[3+i].Roles, "membership roles require explicit scoped assignment")
+	}
+
 }
 
 // TestModuleDeclaresCredentialRevoke is #781's permission-declaration

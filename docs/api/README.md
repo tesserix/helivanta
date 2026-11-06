@@ -78,3 +78,5 @@ Generation registers handlers without dispatching requests or connecting to infr
 For a contract change, update its owning source, concrete examples, failure/retry rules and consumer references together. Run the existing generator's `--check` where relevant. A green inventory check proves registry parity only; it does not prove payload conformance, compatibility or production behavior. Follow the [review gates](review-plan.md) before consumers treat a proposal as approved.
 
 The unreleased [Workforce department handoff](workforce-department-links.md) connects legacy HR revisions to canonical structural revisions with retained owner observations and no implicit Staff posting or permission.
+
+The candidate [hospital partner-group contract](partner-groups.md) covers shared IAM publication, direct reviewed hospital Staff membership, minimal owner-selected candidates and exact recovery. It grants no supplier access; the consuming collaboration and release gates remain open.

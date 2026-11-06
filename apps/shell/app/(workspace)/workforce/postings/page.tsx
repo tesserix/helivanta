@@ -2,11 +2,16 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { PageHeading } from "@helivanta/ui";
-import { useApiQuery, type PermissionsResponse } from "@helivanta/api";
+import { useApiQuery, useTenantTransition, type PermissionsResponse } from "@helivanta/api";
 import { StaffPostingWorkspace } from "../posting-workspace";
 export default function StaffPostings() {
+  const switching = useTenantTransition();
   const [attempt, setAttempt] = useState(0);
-  return <PostingAccount key={attempt} restart={() => setAttempt((value) => value + 1)} />;
+  return switching ? (
+    <p role="status">Switching posting workspace…</p>
+  ) : (
+    <PostingAccount key={attempt} restart={() => setAttempt((value) => value + 1)} />
+  );
 }
 function PostingAccount({ restart }: { restart: () => void }) {
   const [nonce] = useState(() => crypto.randomUUID());

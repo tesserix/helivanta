@@ -74,6 +74,7 @@ export function readClientID() {
       throw new Error(
         `${SECRETS_DIR}zitadel.env does not exist — run 'make dev-infra' first ` +
           `so scripts/zitadel-bootstrap.mjs can provision the Helivanta app`,
+        { cause: err },
       );
     }
     throw err;
@@ -99,6 +100,7 @@ export function readMachinePAT() {
           `boot; check 'docker compose -f docker-compose.dev.yml logs zitadel' ` +
           `for a setup failure (the masterkey-length trap is the most likely ` +
           `cause; see docker-compose.dev.yml's zitadel service comment)`,
+        { cause: err },
       );
     }
     throw err;
@@ -125,6 +127,7 @@ export function readLoginClientPAT() {
           `first boot; check 'docker compose -f docker-compose.dev.yml logs zitadel' ` +
           `for a setup failure (the masterkey-length trap is the most likely ` +
           `cause; see docker-compose.dev.yml's zitadel service comment)`,
+        { cause: err },
       );
     }
     throw err;

@@ -55,6 +55,7 @@ export * from "./leave";
 export * from "./medicore";
 export * from "./medicore-beds";
 export * from "./pharmacy";
+export * from "./pharmacy-licences";
 export * from "./pharmacy-affiliations";
 export * from "./pharmacy-employers";
 export * from "./pharmacy-employer-queries";

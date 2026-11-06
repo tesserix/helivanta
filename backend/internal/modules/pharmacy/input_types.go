@@ -3,6 +3,31 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type LicenceFields struct {
+	LicenceKind            string `json:"licence_kind" binding:"required,oneof=retail wholesale"`
+	FormLabel              string `json:"form_label" binding:"required,min=1,max=40"`
+	LicenceNumber          string `json:"licence_number" binding:"required,min=1,max=100"`
+	IssuingAuthority       string `json:"issuing_authority" binding:"required,min=1,max=200"`
+	ValidFrom              string `json:"valid_from" binding:"required,min=10,max=10"`
+	ValidUntil             string `json:"valid_until" binding:"required,min=10,max=10"`
+	PharmacistName         string `json:"pharmacist_name" binding:"required,min=1,max=200"`
+	PharmacistRegistration string `json:"pharmacist_registration" binding:"required,min=1,max=100"`
+}
+
+type LicenceReviewFields struct {
+	Decision string `json:"decision" binding:"required,oneof=approved rejected"`
+	Reason   string `json:"reason" binding:"required,min=1,max=500"`
+}
+
+type LicenceRenewalNotice struct {
+	LicenceID     uuid.UUID `json:"licence_id" binding:"required"`
+	DateStatus    string    `json:"date_status" binding:"required,oneof=not_yet_valid expired expires_today renewal_due_30 renewal_due_90 renewal_due_180 current"`
+	DaysRemaining int64     `json:"days_remaining" binding:"min=-3652058,max=3652058"`
+	LocalDate     string    `json:"local_date" binding:"required,min=10,max=10"`
+	TimeZone      string    `json:"time_zone" binding:"required,min=1,max=100"`
+	ObservedAt    string    `json:"observed_at" binding:"required,min=20,max=35"`
+}
+
 type LicenceEvidenceFields struct {
 	Filename    string `json:"filename" binding:"required,min=1,max=180"`
 	ContentType string `json:"content_type" binding:"required,oneof=image/png image/jpeg"`

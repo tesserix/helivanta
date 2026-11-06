@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "716454b5b9251ab41ae39f81136d44956067a5edd773165283b6c6083212d0d2",
+  "registry_sha256": "5ca784eeb41299c339fa2b4b308cde55c1ace4f72d1057a45a89145b32e6d942",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 844,
-    "unclassified": 821
+    "total": 845,
+    "unclassified": 822
   },
   "entries": [
     {
@@ -6073,6 +6073,22 @@
         "authentication_required": true,
         "membership_required": true,
         "paginated": false,
+        "counted": false
+      },
+      "review": null
+    },
+    {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals",
+        "permission": "pharmacy.catalogue.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": true,
         "counted": false
       },
       "review": null

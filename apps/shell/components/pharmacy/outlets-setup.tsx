@@ -30,6 +30,7 @@ import {
 import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { OutletForm, PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { TaxRegistrationPanel } from "./tax-registration-panel";
+import { LicencePanel } from "./licence-panel";
 
 type Outlets = ReturnType<typeof useApiPagedQuery<PharmacyOutlet>>;
 
@@ -270,6 +271,15 @@ function OpenOutlet({
           outlet={row}
           today={zonedDateTimeInput(new Date().toISOString(), row.timezone).slice(0, 10)}
           onStateChange={pane.formState("tax")}
+        />
+      )}
+
+      {(can("pharmacy.licence.manage") || can("pharmacy.licence.review")) && (
+        <LicencePanel
+          scope={scope}
+          subject={subject}
+          today={zonedDateTimeInput(new Date().toISOString(), row.timezone).slice(0, 10)}
+          formState={(key) => pane.formState(key)}
         />
       )}
     </div>

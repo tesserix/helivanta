@@ -2961,6 +2961,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals",
+          "permission": "pharmacy.catalogue.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences",
           "permission": "pharmacy.catalogue.read",
           "authentication_required": true,
@@ -4144,6 +4153,11 @@
             "pharmacy_staff_binding_commands",
             "pharmacy_staff_binding_audit"
           ]
+        },
+        {
+          "id": "0035_pharmacy",
+          "sql_sha256": "966dfb31b53e170c41f56d78e4f815a3500e851428e73e8460305c7a678ff916",
+          "creates_tables": []
         }
       ]
     },

@@ -441,6 +441,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/evidence` | `pharmacy.licence.evidence.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id/review` | `pharmacy.licence.review` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/:id` | `pharmacy.licence.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences/renewals` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |

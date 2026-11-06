@@ -21,6 +21,7 @@ import {
 import { PostingApprovalHistory } from "./posting-approval-history";
 import { PostingProposalContextDetails } from "./posting-proposal-context-details";
 import { PostingLifecycleReview } from "./posting-lifecycle-review";
+import { PostingTransferSelection } from "./posting-transfer-selection";
 import { PostingProposalDecision } from "./posting-proposal-decision";
 import { PostingSubmissionWorkspace } from "./posting-submission-workspace";
 import { useStaffAccessCutoff, STAFF_ACCESS_CHANGED } from "./staff-access-cutoff";
@@ -354,14 +355,16 @@ function HospitalPostingReviews({
           }
           busy={busy}
           onBusy={onBusy}
-          onCompleted={(row) => {
+          onCompleted={(row, transferred) => {
             setSelected(null);
             setNotice(
-              row.status === "approved"
-                ? "Posting proposal approved."
-                : row.status === "rejected"
-                  ? "Posting proposal rejected."
-                  : "Posting proposal withdrawn.",
+              transferred
+                ? `Coordinated transfer recorded. The original responsibility ends when the replacement starts: ${new Date(row.starts_at).toLocaleString(undefined, { timeZoneName: "short" })}.`
+                : row.status === "approved"
+                  ? "Posting proposal approved."
+                  : row.status === "rejected"
+                    ? "Posting proposal rejected."
+                    : "Posting proposal withdrawn.",
             );
             void inbox.refetch();
           }}
@@ -405,7 +408,7 @@ type PostingProposalDetailProps = {
   action: "reject" | "withdraw" | null;
   busy: boolean;
   onBusy: (value: boolean) => void;
-  onCompleted: (row: StaffPostingProposal) => void;
+  onCompleted: (row: StaffPostingProposal, transferred?: boolean) => void;
   onClose: () => void;
   onContextChanged: () => void;
 };
@@ -441,6 +444,7 @@ function UnapprovedPostingProposalDetail({
   onClose,
   onContextChanged,
 }: Omit<PostingProposalDetailProps, "scope"> & { scope: StaffPostingProposalScope }) {
+  const [transfer, setTransfer] = useState(false);
   const [approvalReview, setApprovalReview] = useState<"management" | "chain" | null>(null);
   const managementReview = approvalReview === "management";
   const chainReview = approvalReview === "chain";
@@ -574,25 +578,52 @@ function UnapprovedPostingProposalDetail({
           Back to proposal review
         </Button>
       )}
-      {context.data && !cutoff && (
-        <PostingProposalDecision
-          key={approvalReview ?? "ordinary"}
-          scope={scope}
-          proposal={context.data.context.proposal}
-          contextAvailable={context.isSuccess && !context.isFetching}
-          onContextRecheck={() => {
-            void context.refetch();
-          }}
-          action={approvalReview ? "approve" : action}
-          approvalKind={chainReview ? "supervised" : "hospital_management"}
-          approvalUntil={approvalReview ? lifecycle.data?.effective_until : undefined}
-          lifecycleContext={approvalReview ? lifecycle.data : undefined}
-          busy={busy}
-          onBusy={onBusy}
-          onCompleted={onCompleted}
-          onContextChanged={onContextChanged}
-        />
+      {approvalReview && !departmentScoped && (
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            disabled={busy}
+            checked={transfer}
+            onChange={(event) => setTransfer(event.target.checked)}
+          />
+          Coordinate this replacement with ending an original responsibility
+        </label>
       )}
+      {context.data &&
+        !cutoff &&
+        (() => {
+          const decision = (old?: import("@helivanta/api").StaffPostingCutoffContext) => (
+            <PostingProposalDecision
+              key={`${approvalReview ?? "ordinary"}-${old?.proposal.id ?? "ordinary"}`}
+              transferFrom={old}
+              scope={scope}
+              proposal={context.data.context.proposal}
+              contextAvailable={context.isSuccess && !context.isFetching}
+              onContextRecheck={() => {
+                void context.refetch();
+              }}
+              action={approvalReview ? "approve" : action}
+              approvalKind={chainReview ? "supervised" : "hospital_management"}
+              approvalUntil={approvalReview ? lifecycle.data?.effective_until : undefined}
+              lifecycleContext={approvalReview ? lifecycle.data : undefined}
+              busy={busy}
+              onBusy={onBusy}
+              onCompleted={onCompleted}
+              onContextChanged={onContextChanged}
+            />
+          );
+          return transfer && approvalReview ? (
+            <PostingTransferSelection
+              scope={scope}
+              replacement={context.data.context.proposal}
+              busy={busy}
+            >
+              {decision}
+            </PostingTransferSelection>
+          ) : (
+            decision()
+          );
+        })()}
     </Panel>
   );
 }

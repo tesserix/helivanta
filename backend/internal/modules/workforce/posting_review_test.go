@@ -91,3 +91,59 @@ func TestPostingSupervisorChoicesFailClosedWithoutCurrentOwners(t *testing.T) {
 	require.NotContains(t, response.Body.String(), "data")
 	require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
 }
+
+func TestDepartmentTeamRefusesUnavailableAuthorityInsteadOfEmptySuccess(t *testing.T) {
+	h := newRequestHarness(t, func(opts *testutil.HarnessOptions) {
+		opts.Perms["admin"] = append(opts.Perms["admin"], "workforce.posting.proposal.read")
+	})
+	request := httptest.NewRequest("GET", h.base+"/department-team?limit=8", nil)
+	request.Header.Set("Authorization", "Bearer admin")
+	request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+	request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+	response := httptest.NewRecorder()
+	h.handler.ServeHTTP(response, request)
+	require.Equal(t, 503, response.Code, response.Body.String())
+	require.NotContains(t, response.Body.String(), "data")
+	require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
+}
+
+func TestPostingTransfersFailClosedWithoutCurrentOwners(t *testing.T) {
+	h := newRequestHarness(t, func(opts *testutil.HarnessOptions) {
+		opts.Perms["admin"] = append(opts.Perms["admin"], authz.Permission("workforce.posting.submit"), authz.Permission("workforce.posting.review"))
+	})
+	staff := h.staff("SYN-POSTING-REVIEW-SCOPE")
+	proposal := uuid.Must(uuid.NewV7()).String()
+	base := h.base + "/posting-staff/" + staff + "/posting-proposals/" + proposal
+	for _, command := range []string{"transfers"} {
+		t.Run(command, func(t *testing.T) {
+			request := httptest.NewRequest("PUT", base+"/"+command+"/"+uuid.Must(uuid.NewV7()).String(), strings.NewReader(`{}`))
+			request.Header.Set("Authorization", "Bearer admin")
+			request.Header.Set("Content-Type", "application/json")
+			request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantA)
+			request.Header.Set("X-Helivanta-Expected-Subject", "user-admin")
+			response := httptest.NewRecorder()
+			h.handler.ServeHTTP(response, request)
+			require.Equal(t, 503, response.Code, "broad permissions cannot replace unavailable current scope/source owners: %s", response.Body.String())
+			require.NotContains(t, response.Body.String(), staff)
+		})
+	}
+}
+
+func TestDepartmentTeamAndTransfersHideForeignEstablishments(t *testing.T) {
+	h := newRequestHarness(t)
+	staff := h.staff("SYN-TEAM-FOREIGN-SCOPE")
+	for _, operation := range []struct{ method, path string }{
+		{"GET", h.base + "/department-team?limit=8"},
+		{"PUT", h.base + "/posting-staff/" + staff + "/posting-proposals/" + uuid.Must(uuid.NewV7()).String() + "/transfers/" + uuid.Must(uuid.NewV7()).String()},
+	} {
+		request := httptest.NewRequest(operation.method, operation.path, strings.NewReader(`{}`))
+		request.Header.Set("Authorization", "Bearer foreign")
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Helivanta-Expected-Tenant", testutil.TenantB)
+		request.Header.Set("X-Helivanta-Expected-Subject", "user-foreign")
+		response := httptest.NewRecorder()
+		h.handler.ServeHTTP(response, request)
+		require.Equal(t, 404, response.Code, response.Body.String())
+		require.NotContains(t, response.Body.String(), staff)
+	}
+}

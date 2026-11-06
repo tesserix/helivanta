@@ -138,9 +138,9 @@ func exerciseCompoundAssignmentCommand(t *testing.T, triple bool) {
 	}{
 		{"empty", func(v []authz.ScopeCheck) []authz.ScopeCheck { return nil }},
 		{"too_many", func(v []authz.ScopeCheck) []authz.ScopeCheck {
-			for len(v) < 4 {
+			for len(v) <= authz.MaxScopedCommandChecks {
 				extra := v[0]
-				extra.Request.Permission = []authz.Permission{"workforce.posting.read", "workforce.posting.submit"}[len(v)-2]
+				extra.Request.Permission = []authz.Permission{"workforce.posting.read", "workforce.posting.submit", "workforce.posting.cutoff", authz.StaffPostingSourceUse}[len(v)-2]
 				v = append(v, extra)
 			}
 			return v

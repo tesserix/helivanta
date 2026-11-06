@@ -273,3 +273,35 @@ type StaffPostingLifecycleHistoryContext struct {
 	Supervision *StaffPostingSupervisionIntent      `json:"supervision"`
 	Review      *StaffPostingLifecycleHistoryRecord `json:"review"`
 }
+
+type StaffDepartmentTeamItem struct {
+	PostingID            uuid.UUID          `json:"posting_id"`
+	RevisionID           uuid.UUID          `json:"revision_id"`
+	HospitalID           uuid.UUID          `json:"hospital_id"`
+	Staff                StaffPostingTarget `json:"staff"`
+	Version              int64              `json:"version"`
+	DepartmentID         uuid.UUID          `json:"department_id"`
+	DepartmentRevisionID uuid.UUID          `json:"department_revision_id"`
+	StartsAt             time.Time          `json:"starts_at"`
+	EndsAt               *time.Time         `json:"ends_at"`
+	Responsibility       string             `json:"responsibility"`
+	SupervisorStaffID    *uuid.UUID         `json:"supervisor_staff_id"`
+	SupervisorPostingID  *uuid.UUID         `json:"supervisor_posting_id"`
+	State                string             `json:"state"`
+	CheckedAt            time.Time          `json:"checked_at"`
+	SourceUntil          *time.Time         `json:"source_until"`
+	CreatedAt            time.Time          `json:"created_at"`
+}
+
+type StaffPostingTransferInput struct {
+	FromPostingID     uuid.UUID                 `json:"from_posting_id"`
+	FromRevisionID    uuid.UUID                 `json:"from_revision_id"`
+	FromVersion       *int64                    `json:"from_version"`
+	FromCutoffVersion *int64                    `json:"from_cutoff_version"`
+	Decision          StaffPostingDecisionInput `json:"decision"`
+}
+
+type StaffPostingTransferReceipt struct {
+	Replacement StaffPostingProposal `json:"replacement"`
+	Ending      StaffPostingCutoff   `json:"ending"`
+}

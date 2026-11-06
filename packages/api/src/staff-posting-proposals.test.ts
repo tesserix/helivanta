@@ -1755,3 +1755,35 @@ it("keeps the department hint on supervised chain, lifecycle and recorded histor
     api.getStaffPostingLifecycleHistoryContext(department, history.context.proposal),
   ).rejects.toThrow();
 });
+
+it("refuses a transfer without the exact independently examined old and replacement observations", async () => {
+  const api = await import("./staff-posting-proposals");
+  const view = lifecycleReviewFixture();
+  await expect(
+    api.transferStaffPosting(
+      scope,
+      receipt.id,
+      id(201),
+      {
+        from_posting_id: id(202),
+        from_revision_id: id(203),
+        from_version: 2,
+        from_cutoff_version: 0,
+        decision: {
+          expected_version: receipt.version,
+          expected_revision_id: receipt.revision_id,
+          decision: "approve",
+          reason: "Synthetic transfer",
+          sources_examined: true,
+        },
+      },
+      view,
+      {
+        proposal: { ...receipt, id: id(202), revision_id: id(203), version: 2, status: "approved" },
+        cutoff: null,
+        checked_at: view.checked_at,
+      },
+    ),
+  ).rejects.toThrow();
+  expect(apiFetch).not.toHaveBeenCalled();
+});

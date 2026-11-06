@@ -68,19 +68,19 @@
         <mxCell id="hs" value="&lt;b&gt;Department / outlet staff views&lt;/b&gt;&lt;br&gt;Postings and scoped assignments reference the staff register; no duplicate HR master" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#37465b;fillColor=#f1f4f8;strokeColor=#adb9c9;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="80" y="625" width="660" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="ip" value="&lt;b&gt;Independent employer E-P&lt;/b&gt;&lt;br&gt;Pharmacy-owned staff; no hospital or synthetic hospital required" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#ffffff;fillColor=#0f2745;strokeColor=#0f2745;strokeWidth=1.5;" vertex="1" parent="1">
+        <mxCell id="ip" value="&lt;b&gt;Independent pharmacy customer&lt;/b&gt;&lt;br&gt;Each employing pharmacy owns its staff; no synthetic hospital" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#ffffff;fillColor=#0f2745;strokeColor=#0f2745;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="860" y="205" width="660" height="76" as="geometry" />
         </mxCell>
-        <mxCell id="ihr" value="&lt;b&gt;Own staff register / HR&lt;/b&gt;&lt;br&gt;Same Workforce capability&lt;br&gt;with proposed employer scope" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+        <mxCell id="ihr" value="&lt;b&gt;Workforce staff / HR&lt;/b&gt;&lt;br&gt;One staff register per&lt;br&gt;typed employing establishment" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="860" y="325" width="290" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="org" value="&lt;b&gt;Pharmacy organizations&lt;/b&gt;&lt;br&gt;Corporate administrator&lt;br&gt;P1 and P2 business scopes" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+        <mxCell id="org" value="&lt;b&gt;Pharmacy organizations&lt;/b&gt;&lt;br&gt;P1 and P2 employers&lt;br&gt;Separate approved HR scopes" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="1230" y="325" width="290" height="100" as="geometry" />
         </mxCell>
         <mxCell id="out" value="&lt;b&gt;Branches / outlets&lt;/b&gt;&lt;br&gt;B1, B2 and further outlets&lt;br&gt;Local managers and operators" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="1230" y="480" width="290" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="is" value="&lt;b&gt;Branch staff views&lt;/b&gt;&lt;br&gt;One employment; dated postings and explicit outlet role assignments" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#37465b;fillColor=#f1f4f8;strokeColor=#adb9c9;strokeWidth=1.5;" vertex="1" parent="1">
+        <mxCell id="is" value="&lt;b&gt;Branch staff views&lt;/b&gt;&lt;br&gt;One engagement per establishment; dated outlet postings and role assignments" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#37465b;fillColor=#f1f4f8;strokeColor=#adb9c9;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="860" y="625" width="660" height="80" as="geometry" />
         </mxCell>
         <mxCell id="agreement" value="&lt;b&gt;Independent operator serving a hospital = reviewed service relationship&lt;/b&gt;&lt;br&gt;Separate employers and records. Affiliation / shared location grants no staff, patient or stock authority." style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#6c4e13;fillColor=#fff4dd;strokeColor=#d5af56;strokeWidth=1.5;" vertex="1" parent="1">
@@ -531,6 +531,77 @@
         </mxCell>
         <mxCell id="footer" value="HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED" style="text;html=0;align=left;fontFamily=Helvetica;fontSize=13;fontColor=#52657e;" vertex="1" parent="1">
           <mxGeometry x="50" y="945" width="1500" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="08-department-team" name="08  /  Department teams and atomic transfers">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="08  /  Department teams and atomic transfers" style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=32;fontStyle=1;fontColor=#0f2745;" vertex="1" parent="1">
+          <mxGeometry x="50" y="35" width="1500" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Live observations and one retained owner command, with independent IAM and actor authority." style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=18;fontStyle=0;fontColor=#52657e;" vertex="1" parent="1">
+          <mxGeometry x="50" y="90" width="1500" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="panel0" value="" style="rounded=1;arcSize=3;fillColor=#eaf2ff;strokeColor=#cfdae7;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="540" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="panel1" value="" style="rounded=1;arcSize=3;fillColor=#e6f5f0;strokeColor=#cfdae7;" vertex="1" parent="1">
+          <mxGeometry x="620" y="150" width="940" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle0" value="CURRENT TEAM OBSERVATION" style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=18;fontStyle=1;fontColor=#0f2745;" vertex="1" parent="1">
+          <mxGeometry x="70" y="168" width="480" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle1" value="COORDINATED SCHEDULED TRANSFER" style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=18;fontStyle=1;fontColor=#0f2745;" vertex="1" parent="1">
+          <mxGeometry x="650" y="168" width="850" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="staff" value="REVIEWED STAFF + SCOPE&#10;Current employment and login bridge&#10;Hospital or current department subtree" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="80" y="235" width="460" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="live" value="CHECK EVERY CURRENT SOURCE&#10;Reviewed chain + Organization revisions&#10;Employment, supervisor and retained cutoffs" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="80" y="425" width="460" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="roster" value="MINIMIZED TEAM OBSERVATION&#10;Current / not currently usable, with check time&#10;Names, responsibilities and source deadline&#10;Eight approved placements per cursor page" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="80" y="625" width="460" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="old" value="EXACT ORIGINAL APPOINTMENT&#10;Approved posting + revision&#10;Observed version and ending history" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="680" y="235" width="380" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="next" value="REVIEWED REPLACEMENT&#10;Pending proposal + exact lifecycle&#10;Explicit future destination start" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="235" width="380" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="proof" value="FIVE INDEPENDENT RESERVATIONS&#10;Review + actor + cutoff + source use&#10;Posting-read or management-review support" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="800" y="425" width="560" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="commit" value="ONE WORKFORCE TRANSACTION&#10;Original ends exactly when replacement starts&#10;Approval + ending + audit + both outbox intents" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="800" y="605" width="560" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="receipt" value="PAIRED IMMUTABLE RECEIPTS&#10;One command UUID + actor + fingerprint&#10;Exact replay recovers; another consumer conflicts" style="rounded=1;arcSize=8;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;spacingLeft=18;spacingRight=18;fillColor=#ffffff;strokeColor=#8bafe0;strokeWidth=2;fontFamily=Helvetica;fontSize=18;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="800" y="785" width="560" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;" edge="1" parent="1" source="staff" target="live">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;" edge="1" parent="1" source="live" target="roster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;" edge="1" parent="1" source="old" target="proof">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;" edge="1" parent="1" source="next" target="proof">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;" edge="1" parent="1" source="proof" target="commit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;" edge="1" parent="1" source="commit" target="receipt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" value="LOCAL CANDIDATE  /  ADR-0061  /  No automatic IAM, business or clinical authority. Production release remains separate." style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=16;fontStyle=0;fontColor=#52657e;" vertex="1" parent="1">
+          <mxGeometry x="50" y="948" width="1500" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

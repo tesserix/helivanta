@@ -73,3 +73,35 @@ it("shows no headcount when hospital access is absent", async () => {
   expect(await screen.findByText(/No hospital staff access/)).toBeInTheDocument();
   expect(screen.queryByText("Active doctors")).not.toBeInTheDocument();
 });
+
+it("hides the team snapshot once a refresh is refused, with no way to retry", async () => {
+  let refused = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("/insights")
+        ? refused
+          ? new Response(JSON.stringify({ error: "forbidden" }), { status: 403 })
+          : new Response(
+              JSON.stringify({
+                hospital_id: a,
+                as_at: "2026-10-18T10:00:00Z",
+                counts: [{ category: "doctor", status: "active", count: 12 }],
+              }),
+            )
+        : new Response(
+            JSON.stringify(page([{ id: a, name: "First Hospital", access_level: "reader" }])),
+          ),
+    ),
+  );
+  const { user } = renderWithProviders(<WorkforceInsights />);
+  const region = screen.getByRole("region", { name: "Doctors & care teams" });
+  expect((await within(region).findAllByText("12")).length).toBeGreaterThan(0);
+  refused = true;
+  await user.click(within(region).getByRole("button", { name: "Refresh team" }));
+  expect(await within(region).findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(within(region).queryByText("12")).not.toBeInTheDocument();
+  expect(within(region).queryByRole("button", { name: /retry|try again|refresh/i })).toBeNull();
+});

@@ -21,10 +21,11 @@ screen from drawing its own button today.
   such as `q.refetch()` or `rows.retry`), found with the selector this spec
   adds. Three are in `packages/ui` (`RequestFailure`, `QueryState`). The rest are
   in `apps/shell`:
-  - **Workforce: 106 handlers in 42 files.**
-  - **Everything else: 39 handlers in 20 files.** These are in emergency (8
+  - **Workforce: 103 handlers in 41 files** under `app/(workspace)/workforce/`.
+  - **Everything else: 42 handlers in 21 files.** These are in emergency (8
     files, the largest share), supply (4), organization (2), pharmacy (2),
-    the dashboard, payments, settings/branding and country policy.
+    the dashboard (2, including `components/dashboard/workforce-insights.tsx`),
+    payments, settings/branding and country policy.
 - **They come in two kinds:**
   - **A retry after a failure.** The button sits in an `isError` branch,
     for example "Retry bases", "Refresh fleet", "Recheck cutoff admission" or
@@ -98,7 +99,7 @@ screen from drawing its own button today.
    "you don't have access". (My call. If wrong, some emergency screens lose
    detail the server gave.)
 6. **Workforce is converted in later slices behind a legacy list.**
-   `apps/shell/retry-legacy.mjs` lists the 42 workforce files. They are
+   `apps/shell/retry-legacy.mjs` lists the 41 workforce files. They are
    exempt from the rule until converted, and every other file, including any
    new workforce file, gets the rule from this slice on. Each later slice
    converts files and removes them from the list. The list is checked: a test
@@ -129,9 +130,9 @@ screen from drawing its own button today.
 ## Slices
 
 1. **This slice:** the rule, `RefreshButton`, the legacy list and every
-   non-workforce site: 39 `onClick` handlers in 20 files, plus the four
-   forwarding props above.
-2. **Workforce, in one or two PRs:** convert the 42 listed files and remove
+   non-workforce site: 42 `onClick` handlers in 21 files, plus the
+   forwarding props above and in supply's access and access-limits editors.
+2. **Workforce, in one or two PRs:** convert the 41 listed files and remove
    them from the list, then delete it.
 
 ## Not covered

@@ -183,6 +183,7 @@ async function ensureUser(pat, email) {
     if (!existing) {
       throw new Error(
         `${email} reported "already exists" but a search for it found nothing: ${err.message}`,
+        { cause: err },
       );
     }
     return existing;
@@ -245,6 +246,7 @@ async function ensureTOTPEnrolled(pat, userId, email) {
           `missing — Zitadel never re-exposes an enrolled secret, so mfa.spec.ts cannot compute ` +
           `a code for this account. Run 'make down && RESET_YES=1 make reset && make up' to ` +
           `re-provision it from scratch.`,
+        { cause: err },
       );
     }
     console.log(`${email} already has a verified TOTP method; reusing the recorded secret.`);

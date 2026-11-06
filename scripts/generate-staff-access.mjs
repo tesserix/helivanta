@@ -26,6 +26,9 @@ const scopeKindChoices = [["hospital"], ["department"], ["hospital", "department
   JSON.stringify(kinds),
 );
 const departmentReviewer = /^workforce\.department_posting_reviewer\.v[1-9][0-9]*$/;
+const departmentLeaveReviewer = /^workforce\.department_leave_reviewer\.v[1-9][0-9]*$/;
+const departmentScoped = (key) =>
+  departmentReviewer.test(key ?? "") || departmentLeaveReviewer.test(key ?? "");
 const scopeKinds = (template) => template.scope_kinds ?? ["hospital"];
 const templates = [];
 const keys = new Set();
@@ -66,14 +69,28 @@ for (const migration of migrations) {
       );
     if (
       scopeAware &&
-      (template.scope_kinds.includes("department") ||
-        departmentReviewer.test(template.key ?? "")) &&
+      (template.scope_kinds.includes("department") || departmentScoped(template.key)) &&
       !(
-        departmentReviewer.test(template.key ?? "") &&
+        departmentScoped(template.key) &&
         JSON.stringify(template.scope_kinds) === JSON.stringify(["department"])
       )
     )
-      throw new Error("Only the reviewed department template declares department scope, alone");
+      throw new Error("Only the reviewed department templates declare department scope, alone");
+    if (
+      scopeAware &&
+      template?.family === "leave" &&
+      JSON.stringify(template.permissions) !==
+        JSON.stringify(
+          departmentLeaveReviewer.test(template.key ?? "")
+            ? [
+                "workforce.leave.approve",
+                "organization.posting_choices.read",
+                "workforce.staff_actor.use",
+              ]
+            : ["workforce.leave.approve"],
+        )
+    )
+      throw new Error("Leave templates require their exact review permissions");
     if (template?.family === "pharmacy_binding") {
       const kind = template.key?.match(
         /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/,
@@ -206,6 +223,7 @@ for (const migration of migrations) {
         : template.family !== "posting" &&
           template.family !== "pharmacy_binding" &&
           template.family !== "partner_membership" &&
+          template.family !== "leave" &&
           template.permissions.length !== 1) ||
       !template.permissions.every(
         (permission) =>
@@ -216,7 +234,8 @@ for (const migration of migrations) {
             /^pharmacy\.staff_binding\.(read|prepare|review)$/.test(permission)) ||
           (template.family === "pharmacy_binding" &&
             permission === "organization.posting_choices.read") ||
-          (template.family === "posting" && permission === "organization.posting_choices.read"),
+          ((template.family === "posting" || template.family === "leave") &&
+            permission === "organization.posting_choices.read"),
       )
     )
       throw new Error("Invalid declared staff access template");

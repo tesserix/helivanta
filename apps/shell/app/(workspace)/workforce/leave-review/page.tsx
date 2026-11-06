@@ -20,6 +20,7 @@ import {
   useApiMutation,
   useApiPagedQuery,
   useApiQuery,
+  useStaffPostingReviewDepartmentNames,
   useTenantTransition,
   type LeaveDecisionInput,
   type LeaveRequestDetail,
@@ -32,6 +33,12 @@ import { inputClass } from "../roster-policy/policy-ui";
 const subscribeHydration = () => () => {};
 const noteSchema = leaveDecisionInputContract.pick({ note: true });
 type Identity = { tenant: string; subject: string };
+const DEPARTMENT_RETIRED = "Department retired. This access no longer applies.";
+const DEPARTMENT_MOVED = "The department structure changed. Reload the department leave queue.";
+const refusedWith = (error: unknown, status: number, code?: string) =>
+  error instanceof ApiError &&
+  error.status === status &&
+  (code === undefined || error.code === code);
 
 export default function ReviewLeave() {
   const hydrated = useSyncExternalStore(
@@ -47,7 +54,7 @@ export default function ReviewLeave() {
   );
   return (
     <>
-      <PageHeading description="Review pending requests in hospitals where you have current approval access." />
+      <PageHeading description="Review pending requests in hospitals or departments where you have current approval access." />
       {!hydrated || switching || identity.isPending ? (
         <p role="status">Checking your workspace…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (
@@ -101,7 +108,15 @@ function ReviewWorkspace({ identity }: { identity: Identity }) {
                   }))}
                 />
               </Field>
-              <ReviewQueue key={hospital.hospital_id} identity={identity} hospital={hospital} />
+              {hospital.scope_kind === "department" ? (
+                <DepartmentReview
+                  key={hospital.hospital_id}
+                  identity={identity}
+                  hospital={hospital}
+                />
+              ) : (
+                <ReviewQueue key={hospital.hospital_id} identity={identity} hospital={hospital} />
+              )}
             </>
           ) : (
             <p>No hospitals are currently available for leave review.</p>
@@ -117,16 +132,74 @@ function ReviewWorkspace({ identity }: { identity: Identity }) {
   );
 }
 
-function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: LeaveReviewScope }) {
+// A department reviewer sees only Staff posted wholly within the chosen department's current subtree (ADR-0055).
+function DepartmentReview({
+  identity,
+  hospital,
+}: {
+  identity: Identity;
+  hospital: LeaveReviewScope;
+}) {
+  const [chosen, setChosen] = useState(hospital.department_ids[0]!);
+  const department = hospital.department_ids.includes(chosen)
+    ? chosen
+    : hospital.department_ids[0]!;
+  const names = useStaffPostingReviewDepartmentNames(
+    {
+      tenantId: identity.tenant,
+      subject: identity.subject,
+      hospitalId: hospital.hospital_id,
+      access: "scoped",
+    },
+    hospital.department_ids,
+  );
+  const name = (id: string) => names.get(id) ?? `Department reference ${id}`;
+  return (
+    <div className="space-y-4">
+      <Field id="review-department" label="Department">
+        <SelectControl
+          id="review-department"
+          value={department}
+          onValueChange={setChosen}
+          options={hospital.department_ids.map((id) => ({ value: id, label: name(id) }))}
+        />
+      </Field>
+      <p className="text-sm text-muted-foreground">
+        Requests from Staff posted only within {name(department)} and its current sub-units.
+      </p>
+      <ReviewQueue
+        key={department}
+        identity={identity}
+        hospital={hospital}
+        department={department}
+      />
+    </div>
+  );
+}
+
+function ReviewQueue({
+  identity,
+  hospital,
+  department,
+}: {
+  identity: Identity;
+  hospital: LeaveReviewScope;
+  department?: string;
+}) {
   const base = `/workforce/hospitals/${hospital.hospital_id}`;
+  const query = department ? `?department=${department}` : "";
   const key = [
     "workforce",
     "leave-review-requests",
     identity.tenant,
     identity.subject,
     hospital.hospital_id,
+    department ?? null,
   ];
-  const records = useApiPagedQuery<LeaveReviewRequest>(key, `${base}/leave-review-requests`, {
+  const queue = department
+    ? `${base}/department-leave-review-requests${query}`
+    : `${base}/leave-review-requests`;
+  const records = useApiPagedQuery<LeaveReviewRequest>(key, queue, {
     request: { cache: "no-store", headers: { "X-Helivanta-Expected-Tenant": identity.tenant } },
   });
   const [selected, setSelected] = useState<LeaveReviewRequest | null>(null);
@@ -161,7 +234,12 @@ function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: Lea
         <p role="status">Loading pending requests…</p>
       ) : records.isError ? (
         <RequestFailure
-          message="Could not load pending requests. Your access may have changed."
+          message={
+            department && refusedWith(records.error, 409, "department_scope_changed")
+              ? DEPARTMENT_MOVED
+              : "Could not load pending requests. Your access may have changed."
+          }
+          refused={department && refusedWith(records.error, 404) ? DEPARTMENT_RETIRED : undefined}
           retry={refresh}
           error={records.error}
         />
@@ -219,6 +297,7 @@ function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: Lea
           key={`${current.id}:${current.version}`}
           identity={identity}
           hospital={hospital.hospital_id}
+          department={department}
           base={base}
           row={current}
           locked={locked}
@@ -238,6 +317,7 @@ function ReviewQueue({ identity, hospital }: { identity: Identity; hospital: Lea
 function ReviewDetail({
   identity,
   hospital,
+  department,
   base,
   row,
   locked,
@@ -247,6 +327,7 @@ function ReviewDetail({
 }: {
   identity: Identity;
   hospital: string;
+  department?: string;
   base: string;
   row: LeaveReviewRequest;
   locked: boolean;
@@ -261,10 +342,13 @@ function ReviewDetail({
       identity.tenant,
       identity.subject,
       hospital,
+      department ?? null,
       row.id,
       row.version,
     ],
-    `${base}/staff/${row.staff_id}/leave-review-requests/${row.id}`,
+    department
+      ? `${base}/staff/${row.staff_id}/department-leave-review-requests/${row.id}?department=${department}`
+      : `${base}/staff/${row.staff_id}/leave-review-requests/${row.id}`,
     {
       gcTime: 0,
       staleTime: 0,
@@ -288,6 +372,11 @@ function ReviewDetail({
         <p role="alert">{blocked}</p>
       ) : detail.isPending ? (
         <p role="status">Loading request details…</p>
+      ) : department && refusedWith(detail.error, 404) ? (
+        <p role="alert">
+          This request is no longer in your department&apos;s review. Close it and refresh the
+          queue.
+        </p>
       ) : detail.isError ? (
         <p role="alert">
           Could not load this request. Close it and refresh the queue; your access or the request
@@ -323,7 +412,8 @@ function ReviewDetail({
           <ReviewDecision
             identity={identity}
             hospital={hospital}
-            path={`${base}/staff/${row.staff_id}/leave-requests/${row.id}/decision`}
+            department={department}
+            path={`${base}/staff/${row.staff_id}/leave-requests/${row.id}/${department ? `department-decision?department=${department}` : "decision"}`}
             version={detail.data.request.version}
             onLock={onLock}
             onBlocked={setBlocked}
@@ -338,6 +428,7 @@ function ReviewDetail({
 function ReviewDecision({
   identity,
   hospital,
+  department,
   path,
   version,
   onLock,
@@ -346,6 +437,7 @@ function ReviewDecision({
 }: {
   identity: Identity;
   hospital: string;
+  department?: string;
   path: string;
   version: number;
   onLock: (locked: boolean) => void;
@@ -379,7 +471,14 @@ function ReviewDecision({
     {
       suppressErrorToast: true,
       invalidate: [
-        ["workforce", "leave-review-requests", identity.tenant, identity.subject, hospital],
+        [
+          "workforce",
+          "leave-review-requests",
+          identity.tenant,
+          identity.subject,
+          hospital,
+          department ?? null,
+        ],
       ],
       onSuccess: onDone,
     },

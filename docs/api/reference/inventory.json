@@ -694,7 +694,12 @@
           ]
         },
         {
-          "id": "0032_iam_partner_groups",
+          "id": "0032_iam_department_leave_review_templates",
+          "sql_sha256": "d8926f65632b1d0e6f254950c36fde452ce1d65e4db15e4ab4664a509adf57a1",
+          "creates_tables": []
+        },
+        {
+          "id": "0033_iam_partner_groups",
           "sql_sha256": "ef69560b6dcb09e2865f99f066c8d1ab4816d2e0ebde3c635fb610e5204e3529",
           "creates_tables": [
             "iam_partner_groups",
@@ -703,12 +708,12 @@
           ]
         },
         {
-          "id": "0033_iam_partner_membership_templates",
-          "sql_sha256": "852b5adf12167559fee1129120db1ce88941a381d06871ad7344ca00d29fa244",
+          "id": "0034_iam_partner_membership_templates",
+          "sql_sha256": "44bba65b11646c3772d27602ed52ef92808ebc6fc125d4f7299e4c9dabad85d1",
           "creates_tables": []
         },
         {
-          "id": "0034_iam_partner_members",
+          "id": "0035_iam_partner_members",
           "sql_sha256": "2fc54170b70eb7a7af8915ebe02af91decaba33308d235fe135972abaf717eac",
           "creates_tables": [
             "iam_partner_members",
@@ -7047,6 +7052,17 @@
           "scope_kind": "department",
           "scope_parameter": "hospital",
           "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/department-leave-review-requests",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/department-team",
           "permission": "workforce.posting.proposal.read",
           "authentication_required": true,
@@ -8780,6 +8796,17 @@
           "counted": false
         },
         {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/department-leave-review-requests/:request",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history",
           "permission": "workforce.benefits.view",
@@ -9219,6 +9246,17 @@
           "scope_parameter": "hospital",
           "method": "POST",
           "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision",
+          "permission": "workforce.leave.approve",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "POST",
+          "path": "/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/department-decision",
           "permission": "workforce.leave.approve",
           "authentication_required": true,
           "membership_required": true,
@@ -10815,14 +10853,19 @@
           "creates_tables": []
         },
         {
-          "id": "0089_workforce_partner_group_scope",
+          "id": "0089_workforce_leave_department_scope",
+          "sql_sha256": "b50315b3ef54e2af900ba7128b80454d7c316b152d788441eacb1f6f2da5fb37",
+          "creates_tables": []
+        },
+        {
+          "id": "0090_workforce_partner_group_scope",
           "sql_sha256": "09d43ba398cc37b8e0ec1a75381f57be2e039c601b1c45a653739a1426c6a754",
           "creates_tables": [
             "workforce_partner_group_observations"
           ]
         },
         {
-          "id": "0090_workforce_partner_member_candidates",
+          "id": "0091_workforce_partner_member_candidates",
           "sql_sha256": "b6011ea1074379fafe488f21925ab8d0744ad35bd0591ebea5c695786abc7150",
           "creates_tables": []
         }

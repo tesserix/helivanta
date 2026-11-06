@@ -385,7 +385,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 			generationMigration = migration
 			continue
 		}
-		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0090_workforce_partner_member_candidates" {
+		if migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" {
 			continue
 		}
 		upgrade = upgrade || migration.ID == "0059_workforce_employment_document_provenance"
@@ -395,7 +395,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	}
 	require.Greater(t, len(provenanceMigration), 1)
 	require.Equal(t, "0059_workforce_employment_document_provenance", provenanceMigration[1].ID)
-	require.Equal(t, "0089_workforce_partner_group_scope", provenanceMigration[len(provenanceMigration)-1].ID)
+	require.Equal(t, "0090_workforce_partner_group_scope", provenanceMigration[len(provenanceMigration)-1].ID)
 	require.NoError(t, db.Migrate(ctx, provenanceMigration))
 	file := uuid.Must(uuid.NewV7()).String()
 	filePath := staffBase + "/documents/" + file
@@ -1804,7 +1804,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingRootApproverStaff string
 	var postingDepartmentReviewer string
 	var pharmacyBindingPrepared *pharmacyBindingPreparation
-	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_root_dept_first", "posting_dept_reviewer", "posting_chain_child", "posting_dept_review", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
+	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_root_dept_first", "posting_dept_reviewer", "posting_chain_child", "posting_dept_review", "posting_dept_leave", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
 			grant := func(subject, template string, permission authz.Permission) {
 				t.Helper()
@@ -1820,20 +1820,21 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					assert.NotEmpty(collect, standing.AssignmentID, "permission %s must be projected from %s", permission, template)
 				}, 10*time.Second, 20*time.Millisecond)
 			}
-			grantDepartment := func(subject, department string, path []string) {
+			grantDepartment := func(subject, department string, path []string, template string, permission authz.Permission) string {
 				t.Helper()
 				proposal := "/v1/iam/assignment-proposals/" + uuid.Must(uuid.NewV7()).String()
-				call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "department_id": department, "subject": subject, "template_key": "workforce.department_posting_reviewer.v1", "reason": "Synthetic department posting review fixture", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
+				call(t, "PUT", proposal, maker, map[string]any{"hospital_id": hospital, "department_id": department, "subject": subject, "template_key": template, "reason": "Synthetic department review fixture", "valid_from": time.Now().UTC().Format(time.RFC3339), "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}, 200)
 				waitForStatus(t, proposal, maker, "pending_review")
 				standing := call(t, "GET", proposal, maker, nil, 200)
 				call(t, "POST", proposal+"/decision", checker, map[string]any{"expected_version": standing["version"], "decision": "approve", "reason": "Independent synthetic department review approval"}, 200)
 				grantContext, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				defer cancel()
 				require.EventuallyWithT(t, func(collect *assert.CollectT) {
-					held, err := authority.AuthorizeScope(grantContext, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: workforce.PermPostingReview, DepartmentPath: path})
+					held, err := authority.AuthorizeScope(grantContext, authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: permission, DepartmentPath: path})
 					assert.NoError(collect, err)
 					assert.Equal(collect, department, held.DepartmentID, "the department grant must be projected along its path")
 				}, 10*time.Second, 20*time.Millisecond)
+				return proposal
 			}
 			if scenario == "posting_supervision" || scenario == "posting_chain_child" || strings.HasPrefix(scenario, "posting_root_") {
 				require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{generationMigration}))
@@ -2217,7 +2218,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				require.EqualValues(t, beforeEvidenceBoundary+1, sourceAudits(), "only the original authorized source use commits audit evidence")
 
 				for _, migration := range workforce.New().Migrations() {
-					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0090_workforce_partner_member_candidates" {
+					if migration.ID == "0073_workforce_posting_drafts" || migration.ID == "0074_workforce_scoped_postings" || migration.ID == "0075_workforce_posting_proposals" || migration.ID == "0076_workforce_posting_proposal_browse" || migration.ID == "0077_workforce_posting_proposal_inbox_index" || migration.ID == "0079_workforce_posting_supervision_intents" || migration.ID == "0080_workforce_posting_root_approvals" || migration.ID == "0081_workforce_posting_chain_approvals" || migration.ID == "0082_workforce_posting_supervisor_choices" || migration.ID == "0083_workforce_posting_supervisor_choice_index" || migration.ID == "0084_workforce_posting_cutoffs" || migration.ID == "0085_workforce_posting_lifecycle_reviews" || migration.ID == "0086_workforce_posting_source_use" || migration.ID == "0087_workforce_department_posting_scope" || migration.ID == "0091_workforce_partner_member_candidates" || migration.ID == "0089_workforce_leave_department_scope" {
 						if migration.ID == "0082_workforce_posting_supervisor_choices" {
 							applySupervisorDiscoveryMigration(t, db, ctx, migration)
 						} else {
@@ -2274,17 +2275,17 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				call(t, "GET", choicesPath, recipient, nil, 403)
 				call(t, "GET", choicesPath, maker, nil, 403)
 				postingDepartment, postingDepartmentRevision := departmentID, departmentRevision
-				var subID, siblingID string
+				var subID, siblingID, siblingRevision string
 				var subInput map[string]any
-				if scenario == "posting_dept_review" {
+				if scenario == "posting_dept_review" || scenario == "posting_dept_leave" {
 					require.NotEmpty(t, postingDepartmentReviewer, "include the preceding department reviewer scenario")
 					departmentInput["expected_version"] = 1
 					subID, postingDepartmentRevision = uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
-					subInput = map[string]any{"expected_version": 0, "code": "SYN-P-DEPARTMENT-SUB", "name": "Synthetic department review sub-unit", "kind": "sub_unit", "parent_id": departmentID, "status": "active", "reason": "Synthetic sub-unit under the held department"}
+					subInput = map[string]any{"expected_version": 0, "code": departmentInput["code"].(string) + "-SUB", "name": "Synthetic department review sub-unit", "kind": "sub_unit", "parent_id": departmentID, "status": "active", "reason": "Synthetic sub-unit under the held department"}
 					subInput["expected_version"] = call(t, "PUT", organizationBase+"/departments/"+subID+"/revisions/"+postingDepartmentRevision, maker, subInput, 200)["version"]
-					siblingID = uuid.Must(uuid.NewV7()).String()
-					siblingInput := map[string]any{"expected_version": 0, "code": "SYN-P-DEPARTMENT-SIBLING", "name": "Synthetic sibling department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic department outside the held subtree"}
-					siblingInput["expected_version"] = call(t, "PUT", organizationBase+"/departments/"+siblingID+"/revisions/"+uuid.Must(uuid.NewV7()).String(), maker, siblingInput, 200)["version"]
+					siblingID, siblingRevision = uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+					siblingInput := map[string]any{"expected_version": 0, "code": departmentInput["code"].(string) + "-SIBLING", "name": "Synthetic sibling department", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic department outside the held subtree"}
+					siblingInput["expected_version"] = call(t, "PUT", organizationBase+"/departments/"+siblingID+"/revisions/"+siblingRevision, maker, siblingInput, 200)["version"]
 					// Children retire first so later scenarios see only their own department choice.
 					t.Cleanup(func() {
 						for _, node := range []struct {
@@ -2330,7 +2331,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					require.EqualValues(t, beforeExpiry, sourceAudits(), "post-expiry attempts retain no successful source-use audit")
 					return
 				}
-				if scenario == "posting_submission" || scenario == "posting_supervision" || scenario == "posting_dept_review" || strings.HasPrefix(scenario, "posting_root_") {
+				if scenario == "posting_submission" || scenario == "posting_supervision" || scenario == "posting_dept_review" || scenario == "posting_dept_leave" || strings.HasPrefix(scenario, "posting_root_") {
 					postingIntent["ends_at"] = sourceCutoff.UTC().Format(time.RFC3339Nano)
 				}
 				if scenario == "posting_chain_child" {
@@ -2342,11 +2343,27 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 				if scenario == "posting_dept_review" {
 					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
 					assertPostingDepartmentReviewer(t, postingDepartmentFixture{
-						call: call, request: request, grantDepartment: grantDepartment, pauseScopedCheck: pauseScopedCheck, unavailable: &authorizationUnavailable, db: db,
+						call: call, request: request, pauseScopedCheck: pauseScopedCheck, unavailable: &authorizationUnavailable, db: db,
+						grantDepartment: func(subject, department string, path []string) {
+							grantDepartment(subject, department, path, "workforce.department_posting_reviewer.v1", workforce.PermPostingReview)
+						},
 						hospital: hospital, base: base, staffBase: scopedStaffBase, organization: organizationBase,
 						submitter: recipient, reviewer: postingDepartmentReviewer, maker: maker,
 						parent: departmentID, sub: subID, sibling: siblingID, parentInput: departmentInput, subInput: subInput,
 						draft: scopedDraft, receipt: scopedReceipt, source: scopedSource, generation: generation,
+					})
+					return
+				}
+				if scenario == "posting_dept_leave" {
+					require.NotEmpty(t, postingDepartmentReviewer, "include the preceding department reviewer scenario")
+					require.NotEmpty(t, postingRootApprover, "include the preceding root-approval and chain-child scenarios")
+					grant(recipient, "workforce.posting_submitter.v1", workforce.PermPostingSubmit)
+					assertDepartmentLeaveReviewer(t, departmentLeaveFixture{
+						call: call, request: request, grant: grant, grantDepartment: grantDepartment, pauseScopedCheck: pauseScopedCheck, unavailable: &authorizationUnavailable, db: db,
+						hospital: hospital, base: base, organization: organizationBase, staff: joiner, staffBase: scopedStaffBase,
+						requester: recipient, filer: maker, reviewer: postingDepartmentReviewer, approver: postingRootReviewer, cutoffAdmin: postingRootApprover,
+						parent: departmentID, sub: subID, sibling: siblingID, subRevision: postingDepartmentRevision, siblingRevision: siblingRevision,
+						subInput: subInput, parentInput: departmentInput, draft: scopedDraft, receipt: scopedReceipt, source: scopedSource, generation: generation,
 					})
 					return
 				}
@@ -2402,7 +2419,7 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						setIdentity("Synthetic Changed Supervisor Identity", "+919000000004")
 						return func() { setIdentity(originalProfile["given_name"], originalProfile["work_phone"]) }
 					}, departmentBrowserAcceptance(t, gateway, tokens), postingDepartmentReviewer, func(subject, department string, path []string) {
-						grantDepartment(subject, department, path)
+						grantDepartment(subject, department, path, "workforce.department_posting_reviewer.v1", workforce.PermPostingReview)
 						cleanupPostingFixtureGrant(authz.ScopeRequest{TenantID: testutil.TenantA, Subject: subject, HospitalID: hospital, Permission: workforce.PermPostingReview, DepartmentPath: path})
 					}, func(subject string) {
 						grant(subject, "workforce.posting_source_consumer.v1", authz.StaffPostingSourceUse)

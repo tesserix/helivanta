@@ -881,6 +881,44 @@ test("department posting reviewer keeps exact reviewer authority and department-
   }
 });
 
+const departmentLeaveKey = "workforce.department_leave_reviewer.v1";
+
+test("department leave reviewer keeps exact leave authority and department-only scope", async (t) => {
+  for (const [name, mutate] of [
+    ["hospital scope added", (template) => (template.scope_kinds = ["hospital", "department"])],
+    ["hospital scope only", (template) => (template.scope_kinds = ["hospital"])],
+    ["broader permissions", (template) => template.permissions.push("workforce.leave.configure")],
+    ["missing staff actor", (template) => template.permissions.pop()],
+    ["posting family", (template) => (template.family = "posting")],
+  ]) {
+    await t.test(name, async (t) => {
+      await rejectsBeforeWrites(
+        t,
+        async (contract) => {
+          const template = contract.template_migrations
+            .flatMap((migration) => migration.templates)
+            .find((entry) => entry.key === departmentLeaveKey);
+          assert.ok(template, "the department leave reviewer must be declared");
+          mutate(template);
+        },
+        /Leave templates require their exact|Posting templates require their exact role|department scope/i,
+      );
+    });
+  }
+});
+
+test("a hospital leave template cannot gain department scope", async (t) => {
+  await rejectsBeforeWrites(
+    t,
+    async (contract) => {
+      const entry = await extension(contract);
+      entry.templates[0].scope_kinds = ["department"];
+      contract.template_migrations.push(entry);
+    },
+    /department scope/i,
+  );
+});
+
 test("only the reviewed department template may declare department scope", async (t) => {
   await rejectsBeforeWrites(
     t,
@@ -918,6 +956,18 @@ test("generated templates publish scope kinds and the department scope function"
   assert.match(
     sql,
     /WHEN 'workforce\.department_posting_reviewer\.v1' THEN ARRAY\['department'\]::text\[\]/,
+  );
+  assert.match(
+    go,
+    /Key: "workforce\.department_leave_reviewer\.v1",[^\n]*?Family: "leave"[^\n]*?ScopeKinds: \[\]string\{"department"\}\}/,
+  );
+  const leave = catalog.template_migrations.find((migration) =>
+    migration.templates.some((template) => template.key === departmentLeaveKey),
+  );
+  assert.ok(leave && leave.id === "0032_iam_department_leave_review_templates");
+  assert.match(
+    await readFile(path.join(root, "backend/internal/modules/iam", leave.file), "utf8"),
+    /WHEN 'workforce\.department_leave_reviewer\.v1' THEN ARRAY\['department'\]::text\[\]/,
   );
   for (const historical of catalog.template_migrations.filter((m) => m.id < "0027"))
     assert.doesNotMatch(

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
 )
 
 type noMembership struct{}
@@ -37,7 +38,7 @@ func TestEveryRegisteredRouteReachesItsProductOwner(t *testing.T) {
 	for _, module := range bootstrap.Modules(nil, nil) {
 		expected, exists := expectedOwners[module.Name()]
 		require.True(t, exists, "new module needs owner review: %s", module.Name())
-		router := platform.NewRouter(gin.New().Group("/v1"), noMembership{})
+		router := platform.NewRouter(gin.New().Group("/v1"), noMembership{}).WithCursorSealer(testutil.CursorSealer(t))
 		module.Routes(router, platform.Deps{})
 		for _, route := range router.Declared() {
 			res := httptest.NewRecorder()

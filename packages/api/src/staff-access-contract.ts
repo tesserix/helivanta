@@ -32,6 +32,7 @@ export const ProposalInputContract = z
       "pharmacy.department_binding_preparer.v1",
       "pharmacy.department_binding_reviewer.v1",
       "workforce.department_posting_reviewer.v1",
+      "workforce.department_leave_reviewer.v1",
       "iam.partner_group_member_reader.v1",
       "iam.partner_group_member_preparer.v1",
       "iam.partner_group_member_reviewer.v1",

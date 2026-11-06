@@ -94,8 +94,8 @@ Migration table declarations:
 - `0018_iam_membership_enrollments`: `iam_membership_enrollments`.
 - `0023_iam_employment_bases`: `iam_employment_bases`, `iam_employment_basis_history`, `iam_assignment_employment_bases`.
 - `0031_iam_department_assignment_scope`: `iam_assignment_department_verifications`.
-- `0032_iam_partner_groups`: `iam_partner_groups`, `iam_partner_group_scope_observations`, `iam_partner_group_commands`.
-- `0034_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
+- `0033_iam_partner_groups`: `iam_partner_groups`, `iam_partner_group_scope_observations`, `iam_partner_group_commands`.
+- `0035_iam_partner_members`: `iam_partner_members`, `iam_partner_group_cohorts`, `iam_partner_member_commands`.
 
 ## reference
 
@@ -969,6 +969,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/department-leave-review-requests` | `workforce.leave.approve` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/department-team` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
@@ -1157,6 +1158,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews/:review` | `workforce.enrollment.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials/:credential/reviews` | `workforce.enrollment.manage` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/credentials` | `workforce.enrollment.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/staff/:id/department-leave-review-requests/:request` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent/history` | `workforce.benefits.view` | true | false |
 | PUT | `/v1/workforce/hospitals/:hospital/staff/:id/dependents/:dependent` | `workforce.benefits.manage` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/dependents` | `workforce.benefits.view` | true | false |
@@ -1201,6 +1203,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-ledger` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/cancellation` | `workforce.leave.request` | false | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/decision` | `workforce.leave.approve` | false | false |
+| POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/department-decision` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/history` | `public` | true | false |
 | POST | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request/revocation` | `workforce.leave.approve` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/staff/:id/leave-requests/:request` | `public` | false | false |
@@ -1361,7 +1364,7 @@ Migration table declarations:
 - `0083_workforce_posting_supervisor_choice_index`: concurrent index `workforce_posting_supervisor_choice_order` on `workforce_posting_supervision_intents (tenant_id, hospital_id, kind, created_at DESC, proposal_id DESC)`.
 - `0084_workforce_posting_cutoffs`: `workforce_posting_cutoffs`.
 - `0085_workforce_posting_lifecycle_reviews`: `workforce_posting_lifecycle_reviews`, `workforce_posting_lifecycle_sources`.
-- `0089_workforce_partner_group_scope`: `workforce_partner_group_observations`.
+- `0090_workforce_partner_group_scope`: `workforce_partner_group_observations`.
 
 ## workspace
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@tesserix/web";
-import { Panel } from "@helivanta/ui";
+import { Panel, RefreshButton, RequestFailure, firstError } from "@helivanta/ui";
 import {
   usePharmacyBindingHospitals,
   usePharmacyBindingOutlets,
@@ -51,10 +51,11 @@ function VerifiedRead({
   if (query.isPending || query.isFetching) return <p role="status">Checking {label}…</p>;
   if (query.isError)
     return (
-      <div role="alert" className="space-y-3">
-        <p>{label} could not be verified.</p>
-        <Button onClick={() => void query.refetch()}>Retry {label}</Button>
-      </div>
+      <RequestFailure
+        message={`${label} could not be verified.`}
+        retry={query.refetch}
+        error={query.error}
+      />
     );
   return children;
 }
@@ -503,16 +504,13 @@ function RelationshipDetail({
                   </div>
                 )}
               </dl>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  void detail.refetch();
-                  void history.refetch();
-                }}
+              <RefreshButton
+                busy={busy}
+                error={firstError(detail.error, history.error)}
+                refresh={() => Promise.all([detail.refetch(), history.refetch()])}
               >
                 Recheck relationship
-              </Button>
+              </RefreshButton>
               <VerifiedRead
                 query={history}
                 label="relationship history"

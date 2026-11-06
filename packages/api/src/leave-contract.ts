@@ -708,6 +708,8 @@ export const leaveReviewScopeContract = z
       .min(1)
       .max(150)
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    scope_kind: z.enum(["hospital", "department"]),
+    department_ids: z.array(identifier).max(50),
   })
   .strict();
 export type LeaveReviewScope = z.infer<typeof leaveReviewScopeContract>;

@@ -1,5 +1,31 @@
 # Staff Management delivery tracker
 
+## Department leave review candidate (#1596, ADR-0055 slice 2) — 2026-11-06
+
+A hospital can grant leave review over one department and its current sub-units
+with the closed IAM 0032 `workforce.department_leave_reviewer.v1` template. Three
+department routes list, read and decide leave. Each call admits the department
+grant for the held Organization path in OpenFGA, holds that department through
+commit and binds the reviewer as a current Staff actor. Workforce 0089 then limits
+the session to requests whose requester has every live posting inside the held
+subtree. Hospital leave review and the hospital leave desk are unchanged. The
+shell offers a department selector. A retired department reads as a refusal with
+no retry, and a moved department structure offers a queue retry.
+
+Evidence: the person-review journey's new `posting_dept_leave` case and the
+department leave journey pass against real IAM, OpenFGA and Postgres. They also
+pass in one run with the five posting department cases that share their
+hospital (213.9s).
+They cover the template grant and its scope discovery, 403 before the grant,
+404 for sibling, foreign and unknown departments, the 0089 RLS session and audit
+evidence. Workforce unit (896s), architecture, `contractdocs -check` and the
+inventory check also pass, as do the leave-review page tests. The inventory
+re-pins 33 hashes across 23 reviews whose router and Workforce/IAM sources changed,
+plus the Workforce pin of the two department-team reviews merged from main (849
+surfaces, 824 unclassified). This is not deployed runtime acceptance;
+real-account browser acceptance with two people remains open. Counts are unchanged
+at **10 partial, 10 awaiting audit, 1 research, 0 fully accepted**.
+
 ## Standalone pharmacy employer registration (#19 slice 1) — 2026-11-06
 
 Workforce 0088 adds a typed `establishment_kind` to the employer registry.

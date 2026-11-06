@@ -60,7 +60,7 @@ unrelated latest freight.
 See [the ownership tree and membership contract](partner-membership-implementation.md)
 and the [editable draw.io diagram](diagrams/09-independent-membership.drawio)
 ([SVG preview](diagrams/09-independent-membership.svg)). The SVG preview has been
-rendered and visually inspected; the native XML passed geometry and connector checks. Candidate IAM migration `0034_iam_partner_members`
+rendered and visually inspected; the native XML passed geometry and connector checks. Candidate IAM migration `0035_iam_partner_members`
 retains direct Staff nominations, independent review commands, source references,
 cohort epochs and guarded current projections. It does not grant external access.
 
@@ -69,5 +69,27 @@ selection, followed by department transfer/cutoff regression cases, passed with
 real Postgres, OpenFGA, NATS and the race detector (280.921 seconds). Nine UI tests
 pass, including both lost-response recovery paths and removal of retained Staff
 details after authority is withdrawn. See the [validation record](validation.md#independent-membership-candidate--6-november-2026)
-for exact scope and remaining checks. No changes have been committed, merged or
-promoted from this candidate worktree.
+for exact scope and remaining checks. The reviewed-membership checkpoint is committed on the feature branch. The main
+branch and Kargo stage have not received this candidate.
+
+### Latest integration verification — 7 November 2026
+
+The candidate integrates the newer department leave-review work and dependencies
+from upstream main. Its unreleased migrations now follow those upstream changes:
+IAM `0033_iam_partner_groups`, `0034_iam_partner_membership_templates`,
+`0035_iam_partner_members`; Workforce `0090_workforce_partner_group_scope` and
+`0091_workforce_partner_member_candidates`.
+
+The integrated actual-owner/race run passed in 231.519 seconds. Its browser used
+a hospital-scoped staff role, real Global API/IAM/OpenFGA/Workforce/Postgres,
+committed a membership suspension, lost the successful response, and recovered
+its receipt with a single PUT. Integrated validation also passed 84 template
+migration tests, 81 affected UI tests, targeted IAM checks, API typechecks and the
+production shell build. The preceding feature checkpoint passed the full IAM,
+authorization and platform packages, 909 API tests and 1,712 shell tests; the
+later scoped UI correction was additionally covered by the real-browser run.
+
+These checks validate hospital recipient-team management. The external supplier
+relationship, typed independent employer operations, bilateral disclosure,
+physical stock/financial composition and production release entries above remain
+open. No readiness marker or operating licence has been activated.

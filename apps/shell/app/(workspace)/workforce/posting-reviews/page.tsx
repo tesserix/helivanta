@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@tesserix/web";
-import { PageHeading } from "@helivanta/ui";
+import { PageHeading, RequestFailure } from "@helivanta/ui";
 import { useApiQuery, useTenantTransition, type PermissionsResponse } from "@helivanta/api";
 import { StaffPostingReviewWorkspace } from "../posting-review-workspace";
 
@@ -48,10 +48,12 @@ function PostingReviewAccount({ restart }: { restart: () => void }) {
     return <p role="status">Checking posting review account…</p>;
   if (identity.isError || !identity.data?.tenant_id || !identity.data.subject)
     return (
-      <section role="alert">
-        Your posting review account could not be verified.{" "}
-        <Button onClick={() => void identity.refetch()}>Retry posting review account</Button>
-      </section>
+      <RequestFailure
+        message="Your posting review account could not be verified."
+        retry={identity.refetch}
+        // A malformed answer has no error, so it keeps the retry.
+        error={identity.error}
+      />
     );
   return (
     <StaffPostingReviewWorkspace

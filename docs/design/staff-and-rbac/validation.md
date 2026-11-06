@@ -97,3 +97,19 @@ Local behavior evidence:
 
 These are local candidate checks, not evidence of complete supplier disclosure,
 stock/finance composition, production migration, merge or Kargo promotion.
+
+### Main integration and actual-browser verification — 7 November 2026
+
+After combining upstream department leave-review work, 84 template migration
+tests and 81 affected UI tests passed; the API typecheck, generator checks,
+production build and targeted IAM cases passed. Actual-owner Global API tests
+with the race detector and the new browser scenario passed in 231.519 seconds.
+The browser screenshot was visually inspected: the scoped staff user sees the
+retained suspended membership and recovery confirmation. Exactly one suspension
+PUT was issued despite the intentionally lost post-commit response.
+
+This test caught and fixed a tenant-versus-hospital permission discovery bug:
+ordinary staff now use their current hospital capabilities, with command-time
+reauthorization. Unit coverage includes an empty tenant-wide permission list with
+a valid scoped role. No mocked tenant-wide permission is required for the browser
+scenario. The screenshot uses only synthetic fixture data.

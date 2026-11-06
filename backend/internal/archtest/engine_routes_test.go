@@ -10,6 +10,7 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/httpserver"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
 )
 
 // TestEveryEngineRouteIsDeclaredOrAllowlisted closes the one hole in the
@@ -36,7 +37,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	// /readyz, every module registers through platform.Router on /v1, and
 	// bootstrap.MountUnauthenticated adds the deliberate bypasses.
 	srv := httpserver.New(nil, nil)
-	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{})
+	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
 	}
@@ -81,7 +82,7 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	srv := httpserver.New(nil, nil)
-	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{})
+	api := platform.NewRouter(srv.Engine.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 	for _, m := range allModules() {
 		m.Routes(api, platform.Deps{})
 	}

@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@eslint/js": "^9.18.0",
+    "@eslint/js": "^10.0.1",
     "@next/eslint-plugin-next": "^16.4.3",
     "eslint": "^10.13.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",

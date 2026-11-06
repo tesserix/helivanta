@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img">
+  <title>06  /  Share with a hospital user or group</title>
+  <desc>Hospital controls its people. The record owner controls the shared actions, fields and business scope.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60748c" />
+    </marker>
+  </defs>
+  <rect width="1600" height="1000" fill="#ffffff" />
+  <text x="50" y="73" fill="#17324f" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold">06  /  Share with a hospital user or group</text>
+  <text x="50" y="112" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="normal">Hospital controls its people. The record owner controls the shared actions, fields and business scope.</text>
+  <rect x="40" y="145" width="485" height="620" rx="12" fill="#eaf2ff" stroke="#8bafe0" />
+  <text x="65" y="182" fill="#173a65" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">HOSPITAL H1  /  HOME AUTHORITY</text>
+  <rect x="555" y="145" width="485" height="620" rx="12" fill="#f1f4f8" stroke="#adb9c9" />
+  <text x="580" y="182" fill="#37465b" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">BILATERAL RELATIONSHIP R-P-H1</text>
+  <rect x="1070" y="145" width="490" height="620" rx="12" fill="#e6f5f0" stroke="#75b7a1" />
+  <text x="1095" y="182" fill="#155642" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">INDEPENDENT PHARMACY P</text>
+  <polyline points="282,320 282,460" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="238.5" y="374.0" width="87.0" height="21" fill="#ffffff" rx="3" />
+  <text x="282.0" y="390.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">membership</text>
+  <polyline points="490,272 590,272" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="500.25" y="256.0" width="79.5" height="21" fill="#ffffff" rx="3" />
+  <text x="540.0" y="272.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">nominates</text>
+  <polyline points="1105,272 1005,272" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="1026.5" y="256.0" width="57.0" height="21" fill="#ffffff" rx="3" />
+  <text x="1055.0" y="272.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">grants</text>
+  <polyline points="797,320 797,460" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="738.5" y="374.0" width="117.0" height="21" fill="#ffffff" rx="3" />
+  <text x="797.0" y="390.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">action + scope</text>
+  <polyline points="490,517 590,517" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="511.5" y="501.0" width="57.0" height="21" fill="#ffffff" rx="3" />
+  <text x="540.0" y="517.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">member</text>
+  <polyline points="1315,320 1315,460" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="1252.75" y="374.0" width="124.5" height="21" fill="#ffffff" rx="3" />
+  <text x="1315.0" y="390.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">own assignments</text>
+  <rect x="75" y="225" width="415" height="95" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="282.5" y="258.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Hospital access authority</text>
+  <text x="282.5" y="280.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Approves eligible individual members</text>
+  <text x="282.5" y="302.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Dedicated H1 group; no shared login</text>
+  <rect x="75" y="460" width="415" height="115" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="282.5" y="492.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">H1 groups or named recipients</text>
+  <text x="282.5" y="514.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Procurement / Receiving / Finance</text>
+  <text x="282.5" y="536.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Exact local role, unit and valid period</text>
+  <text x="282.5" y="558.5" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">H2 membership confers no H1 access</text>
+  <rect x="590" y="225" width="415" height="95" rx="12" fill="#f1f4f8" stroke="#adb9c9" stroke-width="1.5" />
+  <text x="797.5" y="258.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Reviewed partner grant</text>
+  <text x="797.5" y="280.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Typed recipient + template + exact scope</text>
+  <text x="797.5" y="302.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Both current approvals and valid terms</text>
+  <rect x="590" y="460" width="415" height="115" rx="12" fill="#f1f4f8" stroke="#adb9c9" stroke-width="1.5" />
+  <text x="797.5" y="492.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Authorized H1 business view</text>
+  <text x="797.5" y="514.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">H1 offers / orders / shipments / invoices</text>
+  <text x="797.5" y="536.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Minimum approved fields and actions</text>
+  <text x="797.5" y="558.5" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">No other customer, private HR or PHI</text>
+  <rect x="1105" y="225" width="420" height="95" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1315.0" y="258.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Supplier disclosure authority</text>
+  <text x="1315.0" y="280.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Selects supported recipient permissions</text>
+  <text x="1315.0" y="302.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Cannot change hospital group members</text>
+  <rect x="1105" y="460" width="420" height="115" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1315.0" y="492.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">P internal operational staff</text>
+  <text x="1315.0" y="514.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Order acceptance / own stock / dispatch</text>
+  <text x="1315.0" y="536.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Separate employer and premise roles</text>
+  <text x="1315.0" y="558.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Hospital groups cannot edit these acts</text>
+  <rect x="180" y="825" width="1240" height="80" rx="12" fill="#0f2745" stroke="#0f2745" stroke-width="1.5" />
+  <text x="800.0" y="862.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Either side can reduce access; neither side can silently widen it</text>
+  <text x="800.0" y="884.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Membership removed / grant revoked / agreement suspended → later checks deny; preserve history and authorized obligations</text>
+  <text x="50" y="970" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal">HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED</text>
+</svg>

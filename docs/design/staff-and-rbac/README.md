@@ -59,10 +59,11 @@ Read the hospital pharmacy nesting as **organizational responsibility**, not a s
 ## 2. Deliverables and reading order
 
 - Start with the tree above and the [ownership overview](diagrams/01-ownership.svg).
-- Open [the editable five-page draw.io file](staff-and-rbac.drawio) in diagrams.net.
+- Open [the editable seven-page draw.io file](staff-and-rbac.drawio) in diagrams.net.
 - Review [delegated administration](diagrams/02-administration.svg), [record ownership](diagrams/03-records.svg), [authorization](diagrams/04-authorization.svg) and [staff lifecycle](diagrams/05-lifecycle.svg).
 - Sections 3–7 define ownership, roles and permission naming; sections 8–12 cover operations, enforcement and delivery.
 - [Research and evidence](research.md) separates primary-source findings from product choices and current implementation.
+- [Independent suppliers, hospital groups and real operating scenarios](partner-collaboration.md) explains named-user/group sharing, ordering, delivery, receipt, disputes and revocation, with [group access](diagrams/06-partner-groups.svg) and [trade handoff](diagrams/07-trade-handoff.svg) diagrams.
 
 The SVGs are companion previews. The draw.io file contains native editable shapes and connectors, rather than flattened screenshots. The text is the normative draft when an overview diagram omits detail.
 
@@ -250,6 +251,10 @@ The pharmacy remains the employer; the hospital owns its department and clinical
 If direct hospital-workspace access is later necessary, the hospital must explicitly invite/review a separate guest engagement/link and approve hospital-scoped assignments. The pharmacy's home-tenant role cannot authorize a hospital request. A tenant switch re-mints session context and clears/rekeys cached state; never merge assignments across tenant contexts. Ending the agreement revokes every relationship-dependent guest assignment and stops future disclosure, while preserving prior dispense/financial/audit evidence.
 
 The hospital may approve who works on site and the pharmacy approves its employment/branch posting. Neither approval is automatically the other's employment, clinical privilege or data disclosure grant. Cross-party HR visibility is limited to service/credential evidence expressly needed by the agreement; salary/bank/tax/private HR history stays with the employer.
+
+### D. Independent pharmacy supplies hospitals and shares with their teams
+
+The [partner-collaboration design](partner-collaboration.md) extends the tree with separate trading relationships for each hospital, hospital-owned groups, named-user or typed group grants, and approved field/action policies. It permits explicit partner views and each party’s own workflow contributions; it grants no implicit cross-tenant workspace, stock administration or patient access. A clinical fulfillment contract, outsourced counter agreement and bulk procurement agreement remain distinct. This is an addition to the required business-integration review, not a deployed group-sharing feature.
 
 ## 9. Conceptual records and lifecycle
 

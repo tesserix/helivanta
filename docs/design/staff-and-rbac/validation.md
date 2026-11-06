@@ -1,6 +1,6 @@
 # Design package validation
 
-Date: 2026-11-06. Scope: [design](README.md), [research/evidence](research.md), [native draw.io](staff-and-rbac.drawio) and five SVG companion previews. This records artifact checks, not authorization implementation tests or regulatory sign-off.
+Date: 2026-11-06. Scope: [design](README.md), [research/evidence](research.md), [native draw.io](staff-and-rbac.drawio) and seven SVG companion previews. This records artifact checks, not authorization implementation tests or regulatory sign-off.
 
 ## Commands actually run
 
@@ -26,8 +26,8 @@ The temporary generation/validation scripts are authoring helpers, not applicati
 
 - Markdown formatting and whitespace checks passed.
 - All relative Markdown file links resolve within the repository.
-- The native `.drawio` XML parses and contains five pages with unique cell IDs within each page. Every connector has existing source/target cells. Cards stay inside their 1600 × 1000 page and do not overlap other cards.
-- All five SVGs parse and render in headless Google Chrome through Playwright. Browser text bounds show no text extending beyond the page. All five rendered page images were visually inspected for hierarchy, labels, connector routing and legibility.
+- The native `.drawio` XML parses and contains seven pages with unique cell IDs within each page. Every connector has existing source/target cells. Cards stay inside their 1600 × 1000 page and do not overlap other cards.
+- All seven SVGs parse and render in headless Google Chrome through Playwright. Browser text bounds show no text extending beyond the page. All seven rendered page images were visually inspected for hierarchy, labels, connector routing and legibility.
 - Diagram previews and native shapes were generated from the same layout data. Visual inspection covered browser-rendered SVG previews; native diagrams.net import/export was not exercised. XML validity and shared layout do not claim a native-editor round-trip test.
 - An initial local-link check caught the not-yet-created validation ledger; creating this file resolved it. An initial ImageMagick SVG rasterization failed because the local font configuration was unavailable; Chrome provided the successful rendering path.
 - No application code, existing documents, permissions, routes, canonical contracts or migrations were modified by this package. These checks originally preceded the user’s later commit/merge request; that request authorizes a documentation-only branch/PR. No issue update or production action is part of this package.
@@ -37,3 +37,20 @@ Application test suites, builds, linters and contract regeneration were not run:
 ## Merge preparation
 
 The user requested committing and merging this documentation. A clean worktree at `/tmp/helivanta-staff-rbac-docs-20261106` was created from `origin/main` (`ab9f8a65`), leaving the older dirty checkout untouched. Before commit, ADR links were updated to current numbering, current-main implementation differences were recorded in the research reconciliation, and department inheritance was aligned with accepted ADR-0055. Local links, formatting, XML and whitespace were checked again in that worktree. Only this design directory is included in the change.
+
+## Partner collaboration extension
+
+The user added independent suppliers working with multiple hospitals and sharing roles with named hospital users or hospital-managed groups. Added `partner-collaboration.md`, primary-source research (OpenFGA groups, GS1 healthcare supply-chain framework and WHO storage/distribution guidance), and two editable diagram pages. Supplier internal authority, hospital membership and bilateral disclosure grants remain distinct. Proposed group sharing and full procurement integration are explicitly not claimed implemented.
+
+Commands actually run for the extension:
+
+```sh
+python3 /tmp/build_helivanta_staff_diagrams_v2.py
+node /tmp/render_helivanta_staff_diagrams_v2.cjs
+python3 /tmp/validate_helivanta_staff_design_v2.py
+/Users/samyakrout/Desktop/samyak-work/projects/new-repos/helivanta/node_modules/.bin/prettier --write docs/design/staff-and-rbac/*.md
+/Users/samyakrout/Desktop/samyak-work/projects/new-repos/helivanta/node_modules/.bin/prettier --check docs/design/staff-and-rbac/*.md
+git diff --check
+```
+
+Result: 62 relative links resolve; seven native pages contain 54 nonoverlapping cards and 46 valid connectors; all seven SVGs parse/render without page text overflow. The two added previews were visually inspected, including label/arrow spacing. No application/canonical contract/permission change is included.

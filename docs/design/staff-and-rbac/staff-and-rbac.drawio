@@ -396,4 +396,143 @@
       </root>
     </mxGraphModel>
   </diagram>
+  <diagram id="06-partner-groups" name="06  /  Share with a hospital user or group">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="06  /  Share with a hospital user or group" style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=32;fontStyle=1;fontColor=#0f2745;" vertex="1" parent="1">
+          <mxGeometry x="50" y="35" width="1500" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Hospital controls its people. The record owner controls the shared actions, fields and business scope." style="text;html=0;align=left;fontFamily=Helvetica;fontSize=18;fontColor=#52657e;" vertex="1" parent="1">
+          <mxGeometry x="50" y="88" width="1500" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="panel0" value="" style="rounded=1;arcSize=3;html=0;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="145" width="485" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle0" value="HOSPITAL H1  /  HOME AUTHORITY" style="text;html=0;align=left;fontFamily=Helvetica;fontStyle=1;fontSize=17;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="65" y="160" width="435" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="panel1" value="" style="rounded=1;arcSize=3;html=0;fillColor=#f1f4f8;strokeColor=#adb9c9;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="555" y="145" width="485" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle1" value="BILATERAL RELATIONSHIP R-P-H1" style="text;html=0;align=left;fontFamily=Helvetica;fontStyle=1;fontSize=17;fontColor=#37465b;" vertex="1" parent="1">
+          <mxGeometry x="580" y="160" width="435" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="panel2" value="" style="rounded=1;arcSize=3;html=0;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="145" width="490" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle2" value="INDEPENDENT PHARMACY P" style="text;html=0;align=left;fontFamily=Helvetica;fontStyle=1;fontSize=17;fontColor=#155642;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="160" width="440" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" value="membership" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.4987951807228916;exitY=1.0;exitDx=0;exitDy=0;entryX=0.4987951807228916;entryY=0.0;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="hospital" target="groups">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" value="nominates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=1.0;exitY=0.49473684210526314;exitDx=0;exitDy=0;entryX=0.0;entryY=0.49473684210526314;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="hospital" target="grant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" value="grants" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.0;exitY=0.49473684210526314;exitDx=0;exitDy=0;entryX=1.0;entryY=0.49473684210526314;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="supplier" target="grant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" value="action + scope" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.4987951807228916;exitY=1.0;exitDx=0;exitDy=0;entryX=0.4987951807228916;entryY=0.0;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="grant" target="view">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" value="member" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=1.0;exitY=0.4956521739130435;exitDx=0;exitDy=0;entryX=0.0;entryY=0.4956521739130435;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="groups" target="view">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" value="own assignments" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="supplier" target="ops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hospital" value="&lt;b&gt;Hospital access authority&lt;/b&gt;&lt;br&gt;Approves eligible individual members&lt;br&gt;Dedicated H1 group; no shared login" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#173a65;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="75" y="225" width="415" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="groups" value="&lt;b&gt;H1 groups or named recipients&lt;/b&gt;&lt;br&gt;Procurement / Receiving / Finance&lt;br&gt;Exact local role, unit and valid period&lt;br&gt;H2 membership confers no H1 access" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#173a65;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="75" y="460" width="415" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="grant" value="&lt;b&gt;Reviewed partner grant&lt;/b&gt;&lt;br&gt;Typed recipient + template + exact scope&lt;br&gt;Both current approvals and valid terms" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#37465b;fillColor=#f1f4f8;strokeColor=#adb9c9;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="590" y="225" width="415" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="view" value="&lt;b&gt;Authorized H1 business view&lt;/b&gt;&lt;br&gt;H1 offers / orders / shipments / invoices&lt;br&gt;Minimum approved fields and actions&lt;br&gt;No other customer, private HR or PHI" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#37465b;fillColor=#f1f4f8;strokeColor=#adb9c9;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="590" y="460" width="415" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="supplier" value="&lt;b&gt;Supplier disclosure authority&lt;/b&gt;&lt;br&gt;Selects supported recipient permissions&lt;br&gt;Cannot change hospital group members" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="1105" y="225" width="420" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="ops" value="&lt;b&gt;P internal operational staff&lt;/b&gt;&lt;br&gt;Order acceptance / own stock / dispatch&lt;br&gt;Separate employer and premise roles&lt;br&gt;Hospital groups cannot edit these acts" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="1105" y="460" width="420" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="revocation" value="&lt;b&gt;Either side can reduce access; neither side can silently widen it&lt;/b&gt;&lt;br&gt;Membership removed / grant revoked / agreement suspended → later checks deny; preserve history and authorized obligations" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#ffffff;fillColor=#0f2745;strokeColor=#0f2745;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="180" y="825" width="1240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" value="HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED" style="text;html=0;align=left;fontFamily=Helvetica;fontSize=13;fontColor=#52657e;" vertex="1" parent="1">
+          <mxGeometry x="50" y="945" width="1500" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="07-trade-handoff" name="07  /  Medicines supply: separate accountable acts">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="07  /  Medicines supply: separate accountable acts" style="text;html=0;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=32;fontStyle=1;fontColor=#0f2745;" vertex="1" parent="1">
+          <mxGeometry x="50" y="35" width="1500" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="A shared timeline links owner records. Shipping, receiving, quality release and payment remain different facts." style="text;html=0;align=left;fontFamily=Helvetica;fontSize=18;fontColor=#52657e;" vertex="1" parent="1">
+          <mxGeometry x="50" y="88" width="1500" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="panel0" value="" style="rounded=1;arcSize=3;html=0;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="145" width="740" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle0" value="HOSPITAL H1  /  BUYER + RECEIVING" style="text;html=0;align=left;fontFamily=Helvetica;fontStyle=1;fontSize=17;fontColor=#173a65;" vertex="1" parent="1">
+          <mxGeometry x="65" y="160" width="690" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="panel1" value="" style="rounded=1;arcSize=3;html=0;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="145" width="740" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="paneltitle1" value="PHARMACY / SUPPLIER P  /  SOURCE" style="text;html=0;align=left;fontFamily=Helvetica;fontStyle=1;fontSize=17;fontColor=#155642;" vertex="1" parent="1">
+          <mxGeometry x="845" y="160" width="690" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="edge0" value="order" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=1.0;exitY=0.49473684210526314;exitDx=0;exitDy=0;entryX=0.0;entryY=0.49473684210526314;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="order" target="accept">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" edge="1" parent="1" source="accept" target="dispatch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" value="shipment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.0;exitY=0.5;exitDx=0;exitDy=0;entryX=1.0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="dispatch" target="receive">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" edge="1" parent="1" source="receive" target="payable">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" value="evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#60748c;strokeWidth=2;fontFamily=Helvetica;fontSize=14;fontColor=#52657e;labelBackgroundColor=#ffffff;exitX=1.0;exitY=0.49473684210526314;exitDx=0;exitDy=0;entryX=0.0;entryY=0.49473684210526314;entryDx=0;entryDy=0;dashed=1;dashPattern=5 4;" edge="1" parent="1" source="payable" target="invoice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="order" value="&lt;b&gt;1  H1 order request + independent approval&lt;/b&gt;&lt;br&gt;Approved relationship, exact destination, units and order revision" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#173a65;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="80" y="220" width="660" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="accept" value="&lt;b&gt;2  Supplier accepts or proposes changes&lt;/b&gt;&lt;br&gt;H1 accepts authorized changes; no unilateral substitution" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="860" y="220" width="660" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="receive" value="&lt;b&gt;4  H1 counts receipt and records discrepancy&lt;/b&gt;&lt;br&gt;Quality / safety review is separate from a delivery signature" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#173a65;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="80" y="420" width="660" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="dispatch" value="&lt;b&gt;3  P posts its own dispatch → in transit&lt;/b&gt;&lt;br&gt;Eligible source stock, lots / expiry, quantities and transport evidence" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="860" y="420" width="660" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="payable" value="&lt;b&gt;5  Destination receipt + payable review&lt;/b&gt;&lt;br&gt;Destination owner posts stock; receipt does not mean payment" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#173a65;fillColor=#eaf2ff;strokeColor=#8bafe0;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="80" y="620" width="660" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="invoice" value="&lt;b&gt;6  Invoice / credit / settlement reconciliation&lt;/b&gt;&lt;br&gt;Match linked evidence; preserve partial delivery and open obligations" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#155642;fillColor=#e6f5f0;strokeColor=#75b7a1;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="860" y="620" width="660" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="example" value="&lt;b&gt;Example: order 100 packs → dispatch 60 → receive 58&lt;/b&gt;&lt;br&gt;Retain 2-pack shipment shortage and remaining 40-pack order disposition. Duplicate events cannot create stock or erase evidence." style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacing=12;fontFamily=Helvetica;fontSize=17;fontColor=#6c4e13;fillColor=#fff4dd;strokeColor=#d5af56;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="180" y="825" width="1240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" value="HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED" style="text;html=0;align=left;fontFamily=Helvetica;fontSize=13;fontColor=#52657e;" vertex="1" parent="1">
+          <mxGeometry x="50" y="945" width="1500" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
 </mxfile>

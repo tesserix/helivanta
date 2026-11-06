@@ -109,10 +109,10 @@ outage. Nothing makes a new screen handle it.
   This covers reads only.
 - **Redirecting to sign-in on a 401.** The screen says so; the session flow
   is unchanged.
-- **The hand-rolled read retries, and a lint rule banning them.** About 15
-  screens render their own "Try again" for a failed read instead of
-  `RequestFailure`, so they still show a refusal as an outage. Until a lint
-  rule rejects a retry button outside `packages/ui`, a new screen can still
-  do the same. Both are the next slice.
+- **The hand-rolled read retries, and a lint rule banning them.** Screens
+  that draw their own retry or refresh button for a read still show a
+  refusal as an outage. The count was about 15 when this spec was written;
+  #1595 found 148 handlers and adds the lint rule
+  (`docs/superpowers/specs/2026-11-06-read-retries-design.md`).
 - **"Load more" under a refused list.** A list's `LoadMore` sits outside
   `QueryState`, so it stays visible under the refusal.

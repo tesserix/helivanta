@@ -11,6 +11,7 @@ const emptyPage = { data: [], page: { has_more: false, next_cursor: null } };
 function mockApi({
   perms = permissions,
   failLab = false,
+  refuseLab = (): boolean => false,
   from = "2026-10-01",
   to = "2026-10-18",
   timezone = "UTC",
@@ -40,6 +41,10 @@ function mockApi({
         if (failLab && url.includes("/lab/")) {
           status = 503;
           body = { error: "unavailable", message: "Try later" };
+        }
+        if (refuseLab() && url.includes("/lab/")) {
+          status = 403;
+          body = { error: "forbidden", message: "secret detail" };
         }
       }
       return new Response(JSON.stringify(body), {
@@ -190,7 +195,7 @@ it("isolates a failed panel and never substitutes zero for an upstream error", a
   expect(await within(lab).findByRole("alert")).toHaveTextContent(
     "Could not load laboratory insights",
   );
-  expect(within(lab).getByRole("button", { name: "Retry Laboratory" })).toBeInTheDocument();
+  expect(within(lab).getByRole("button", { name: "Try again" })).toBeInTheDocument();
   expect(within(lab).queryByText("0")).not.toBeInTheDocument();
   expect(await screen.findByRole("img", { name: "Patient activity trend" })).toBeInTheDocument();
 });
@@ -313,4 +318,19 @@ it("offers the quick ranges as one menu on a phone", async () => {
   expect(menu.closest(".sm\\:hidden")).not.toBeNull();
   await chooseOption(user, menu, "Today");
   await waitFor(() => expect(reads.some((url) => url.includes("from=2026-10-18"))).toBe(true));
+});
+
+it("hides a panel's figures once a refresh is refused, with no way to retry", async () => {
+  let refused = false;
+  mockApi({ refuseLab: () => refused });
+  const { user } = renderWithProviders(<OperationalDashboard />);
+  const lab = await screen.findByRole("region", { name: "Laboratory" });
+  const refresh = await within(lab).findByRole("button", { name: "Refresh Laboratory" });
+  refused = true;
+  await user.click(refresh);
+  expect(await within(lab).findByRole("alert")).toHaveTextContent(
+    "This wasn't found, or you don't have access to it.",
+  );
+  expect(within(lab).queryByText("7")).not.toBeInTheDocument();
+  expect(within(lab).queryByRole("button", { name: /try again|refresh/i })).toBeNull();
 });

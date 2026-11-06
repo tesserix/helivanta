@@ -23,7 +23,7 @@ const props = {
   isPending: false,
   isError: false,
   error: null,
-  onRetry: vi.fn(),
+  retry: vi.fn(),
 };
 
 it("renders canonical Staff without inventing product authority or management actions", () => {
@@ -101,7 +101,7 @@ it.each([
 it("retries a failed page without showing failure as an empty directory", async () => {
   const user = (await import("@testing-library/user-event")).default.setup();
   const retry = vi.fn();
-  render(<StaffDirectory {...props} isError onRetry={retry} rows={[]} />);
+  render(<StaffDirectory {...props} isError retry={retry} rows={[]} />);
   await user.click(screen.getByRole("button", { name: "Try again" }));
   expect(retry).toHaveBeenCalledOnce();
   expect(screen.queryByText("Your staff directory starts here")).not.toBeInTheDocument();

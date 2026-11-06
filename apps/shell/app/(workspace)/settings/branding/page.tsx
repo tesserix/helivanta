@@ -15,6 +15,7 @@ import {
   LoginSurface,
   PageHeading,
   Panel,
+  RequestFailure,
   useZodForm,
 } from "@helivanta/ui";
 const inputClass =
@@ -30,9 +31,11 @@ export default function BrandingPage() {
       ) : !can("workspace.branding.manage") ? (
         <p role="alert">Only tenant administrators can change branding.</p>
       ) : query.isError ? (
-        <p role="alert">
-          Could not load branding. <Button onClick={() => void query.refetch()}>Try again</Button>
-        </p>
+        <RequestFailure
+          message="Could not load branding."
+          retry={query.refetch}
+          error={query.error}
+        />
       ) : (
         <BrandingEditor initial={query.data ?? DEFAULT_BRANDING} />
       )}

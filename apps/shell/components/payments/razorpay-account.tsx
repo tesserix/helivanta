@@ -11,7 +11,7 @@ import {
   type PaymentAccount,
   type PaymentAccountInput,
 } from "@helivanta/api";
-import { Field, FormSelectField, Panel, useZodForm } from "@helivanta/ui";
+import { Field, FormSelectField, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)";
@@ -73,10 +73,11 @@ export function RazorpayAccount() {
   if (query.isPending) return <p role="status">Loading the payment account…</p>;
   if (query.isError)
     return (
-      <p role="alert">
-        Couldn't load the payment account.{" "}
-        <Button onClick={() => void query.refetch()}>Try again</Button>
-      </p>
+      <RequestFailure
+        message="Couldn't load the payment account."
+        retry={query.refetch}
+        error={query.error}
+      />
     );
   // Keyed on the save time so a saved account resets the form to it.
   return <AccountForm key={query.data.updated_at ?? "new"} saved={query.data} />;

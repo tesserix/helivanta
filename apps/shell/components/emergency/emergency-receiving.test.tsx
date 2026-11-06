@@ -114,3 +114,21 @@ it("records the authority level chosen from the campus authority menu", async ()
   const [, init] = fetcher.mock.calls.find(([, call]) => call?.method === "PUT")!;
   expect(JSON.parse(String(init!.body))).toMatchObject({ level: "manager" });
 });
+
+it("offers to check campus access again when it is refused, and lists campuses once granted", async () => {
+  const fetcher = fixture();
+  const read = fetcher.getMockImplementation()!;
+  let granted = false;
+  fetcher.mockImplementation(async (url, init) =>
+    !granted && new URL(url, "https://test.local").pathname.endsWith("/facilities")
+      ? json({ error: "forbidden", message: "secret detail" }, 403)
+      : read(url, init),
+  );
+  const { user } = renderWithProviders(<EmergencyReceivingWorkspace />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Campus access is unavailable.");
+  expect(screen.queryByText(/secret detail/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refresh campuses|try again/i })).toBeNull();
+  granted = true;
+  await user.click(screen.getByRole("button", { name: "Check access again" }));
+  expect(await screen.findByRole("button", { name: "Open Synthetic Campus" })).toBeEnabled();
+});

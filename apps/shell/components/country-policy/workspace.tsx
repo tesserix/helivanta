@@ -14,7 +14,7 @@ import {
   type CountryPolicyIdentity,
   type CountryPolicyScope,
 } from "@helivanta/api";
-import { LoadMore, PageHeading, Panel, RequestFailure } from "@helivanta/ui";
+import { LoadMore, PageHeading, Panel, RequestFailure, RefreshButton } from "@helivanta/ui";
 import { CountryPolicyEditor, policyLabel } from "./editor";
 import { CountryPolicyDetail } from "./detail";
 
@@ -76,9 +76,9 @@ function TenantCountryPolicies({ identity }: { identity: CountryPolicyIdentity }
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={policies.retry}>
+            <RefreshButton refresh={policies.retry} error={policies.error}>
               Refresh policies
-            </Button>
+            </RefreshButton>
             {can("workspace.country_policy.manage") && (
               <Button onClick={() => setSelected("new")}>
                 <Plus className="me-2 size-4" />

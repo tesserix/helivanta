@@ -1,4 +1,10 @@
-import { hmsEslint, hmsPublicPages, hmsWorkspacePages } from "@helivanta/config/eslint";
+import {
+  hmsEslint,
+  hmsPublicPages,
+  hmsReadRetries,
+  hmsWorkspacePages,
+} from "@helivanta/config/eslint";
+import { RETRY_LEGACY } from "./retry-legacy.mjs";
 import { SURFACE_LEGACY } from "./surface-legacy.mjs";
 
 export default [
@@ -20,6 +26,10 @@ export default [
     ["components/login-branding.tsx", "components/landing/**"],
     SURFACE_LEGACY,
   ),
+  // A read retry or refresh goes through RequestFailure, QueryState or
+  // RefreshButton, so a refusal is never drawn as an outage (#1595).
+  // Workforce files not yet converted are listed in RETRY_LEGACY.
+  hmsReadRetries(["app/**/*.tsx", "components/**/*.tsx"], RETRY_LEGACY),
   // The chrome is rendered once, by the workspace layout (#1091). A page that
   // rendered its own HmsShell would nest a second rail and a second idle
   // tracker, so importing it anywhere else in the app is an error.

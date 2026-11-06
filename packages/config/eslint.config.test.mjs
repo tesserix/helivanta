@@ -1,6 +1,12 @@
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
-import { hmsEslint, hmsPublicPages, hmsWorkspacePages } from "./eslint.config.mjs";
+import {
+  READ_RETRY_RULE,
+  hmsEslint,
+  hmsPublicPages,
+  hmsReadRetries,
+  hmsWorkspacePages,
+} from "./eslint.config.mjs";
 
 // The design rules (#1255, spec D2/D6): colours come from tokens and every
 // dropdown is the design-system Select. Asserted on the messages ESLint
@@ -318,5 +324,45 @@ describe("workspace surface rules", () => {
     expect(await legacy(`<h1 className="text-xl">x</h1>`)).toEqual([
       expect.stringMatching(/shell header owns the h1/),
     ]);
+  });
+});
+
+// #1595: a read retry or refresh goes through RequestFailure, QueryState or
+// RefreshButton, so a refusal can never be drawn as an outage.
+describe("read retries (#1595)", () => {
+  const eslint = new ESLint({
+    cwd: import.meta.dirname,
+    overrideConfigFile: true,
+    overrideConfig: [...hmsEslint(import.meta.dirname), hmsReadRetries(["**/*.tsx"])],
+  });
+  const lint = async (jsx, filePath = "fixture.tsx") =>
+    (await eslint.lintText(`export const A = () => ${jsx};`, { filePath }))[0].messages
+      .filter((m) => m.ruleId === READ_RETRY_RULE)
+      .map((m) => m.message);
+
+  it.each([
+    "<Button onClick={() => void q.refetch()}>x</Button>",
+    "<Button onClick={rows.retry}>x</Button>",
+    "<Button onClick={() => { a.retry(); void b.refetch(); }}>x</Button>",
+    "<Editor onReload={() => rows.retry()} />",
+    "<Detail onRefresh={scope.refetch} />",
+    "<List onRetry={() => q.refetch()} />",
+  ])("rejects %s", async (jsx) => {
+    expect(await lint(jsx)).toEqual([expect.stringMatching(/RefreshButton \(#1595\)/)]);
+  });
+
+  it.each([
+    "<Button onClick={() => retry.mutate(image)}>x</Button>",
+    "<Button onClick={() => void retry()}>x</Button>",
+    "<Button onClick={reset}>x</Button>",
+    "<LoadMore onClick={rows.loadMore} />",
+    "<Sale onRefused={sale.refetch} />",
+    '<RequestFailure message="m" retry={q.refetch} error={q.error} />',
+  ])("accepts %s", async (jsx) => {
+    expect(await lint(jsx)).toEqual([]);
+  });
+
+  it("leaves tests alone", async () => {
+    expect(await lint("<Button onClick={q.refetch}>x</Button>", "fixture.test.tsx")).toEqual([]);
   });
 });

@@ -33,16 +33,17 @@ import {
 import {
   DetailHeader,
   Field,
+  firstError,
+  isModifiedClick,
   ListDetail,
   LoadMore,
-  PageTabs,
   Pager,
+  PageTabs,
   Panel,
   QueryState,
-  firstError,
+  RefreshButton,
   RequestFailure,
   SelectControl,
-  isModifiedClick,
   useConfirmLeave,
   useZodForm,
 } from "@helivanta/ui";
@@ -587,9 +588,9 @@ function SelectedBatchSafety({
           <h4 tabIndex={-1} ref={focusHistory} className="font-medium">
             Safety history · {batch.lot_number}
           </h4>
-          <Button type="button" variant="outline" size="sm" onClick={incidents.retry}>
+          <RefreshButton refresh={incidents.retry} error={incidents.error}>
             Refresh safety history
-          </Button>
+          </RefreshButton>
         </div>
         <p className="text-sm text-muted-foreground">
           These are permanent reports of observed concerns, not clearance decisions.

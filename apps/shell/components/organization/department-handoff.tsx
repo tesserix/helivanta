@@ -25,6 +25,7 @@ import {
   useConfirmLeave,
   useLeaveGuard,
   useZodForm,
+  RefreshButton,
 } from "@helivanta/ui";
 import { useOrganizationCommand } from "./command";
 
@@ -169,13 +170,9 @@ function HandoffEditor({
           Close mapping
         </Button>
       </div>
-      <Button
-        variant="outline"
-        disabled={history.isFetching}
-        onClick={() => void history.refetch()}
-      >
+      <RefreshButton refresh={history.refetch} error={history.error} busy={history.isFetching}>
         Refresh mapping history
-      </Button>
+      </RefreshButton>
       <ol className="my-4 space-y-3" aria-label="Department mapping history">
         {history.data?.data.map((row) => (
           <Panel as="li" key={row.request_id}>

@@ -122,6 +122,42 @@ func TestHandlerScopedRouteReleasesAdmittedAndErrorResponses(t *testing.T) {
 	require.Equal(t, 400, invalid.Code)
 }
 
+func TestPOSTHandlerScopedRouteWithholdsUnadmittedSuccess(t *testing.T) {
+	serve := func(t *testing.T, admit bool) *httptest.ResponseRecorder {
+		t.Helper()
+		gin.SetMode(gin.TestMode)
+		e := gin.New()
+		e.Use(func(c *gin.Context) {
+			c.Set("authn.principal", authn.Principal{Subject: "synthetic-reviewer", TenantID: handlerScopeTenant})
+			c.Set("authz.permissions", authz.NewPermissionSet())
+		})
+		r := platform.NewRouter(e.Group("/v1"), scopeMembership(true))
+		r.POSTHandlerScoped("/hospitals/:hospital/decision", handlerScopePerm, "hospital", func(c *gin.Context) {
+			if admit {
+				require.True(t, admitWithEvidence(c, handlerScopeRequest(handlerScopePerm), handlerScopeRequest(handlerScopePerm)))
+			}
+			c.JSON(200, gin.H{"staff": "synthetic decided row"})
+		})
+		declared := r.Declared()
+		require.Len(t, declared, 1)
+		require.Equal(t, "POST", declared[0].Method)
+		require.Equal(t, handlerScopePerm, declared[0].Permission)
+		require.Equal(t, "department", declared[0].ScopeKind)
+		w := httptest.NewRecorder()
+		e.ServeHTTP(w, httptest.NewRequest("POST", "/v1/hospitals/"+handlerScopeHospital+"/decision", nil))
+		return w
+	}
+	withheld := serve(t, false)
+	require.Equal(t, 500, withheld.Code)
+	require.NotContains(t, withheld.Body.String(), "synthetic decided row")
+	admitted := serve(t, true)
+	require.Equal(t, 200, admitted.Code)
+	require.Contains(t, admitted.Body.String(), "synthetic decided row")
+	require.Panics(t, func() {
+		platform.NewRouter(gin.New().Group("/v1"), scopeMembership(true)).POSTHandlerScoped("/decision", handlerScopePerm, "hospital", func(*gin.Context) {})
+	})
+}
+
 func TestHandlerScopedRouteRefusesPublicPermissionAndMissingParameter(t *testing.T) {
 	r := platform.NewRouter(gin.New().Group("/v1"), scopeMembership(true))
 	require.Panics(t, func() {

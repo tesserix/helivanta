@@ -153,6 +153,11 @@ func (r *Router) GETHandlerScoped(path string, permission authz.Permission, hosp
 	r.handleHandlerScope(http.MethodGet, path, permission, hospitalParam, false, handlers...)
 }
 
+// POSTHandlerScoped is the command form of GETHandlerScoped; an unadmitted success becomes a 500.
+func (r *Router) POSTHandlerScoped(path string, permission authz.Permission, hospitalParam string, handlers ...gin.HandlerFunc) {
+	r.handleHandlerScope(http.MethodPost, path, permission, hospitalParam, false, handlers...)
+}
+
 func (r *Router) handleHandlerScope(method, path string, permission authz.Permission, hospitalParam string, paginated bool, handlers ...gin.HandlerFunc) {
 	r.handleScoped(method, path, permission, "department", hospitalParam, paginated, authz.RequireHandlerScope(permission, hospitalParam), handlers...)
 }

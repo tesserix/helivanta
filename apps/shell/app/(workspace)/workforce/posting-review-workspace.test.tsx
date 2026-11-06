@@ -2176,7 +2176,7 @@ it("withholds a supervised submission when the candidate page is unavailable", a
   const { user, form } = await openSubmission();
   await screen.findByText("Current department: SYN-PHARMA · Synthetic Pharmacy");
   await choosePostingResponsibility(user, form, "department_member");
-  await within(form).findByRole("button", { name: "Retry supervisor references" });
+  await within(form).findByRole("button", { name: "Try again" });
   expect(within(form).getByRole("button", { name: "Request independent review" })).toBeDisabled();
   expect(within(form).getByLabelText("Posting responsibility")).toBeEnabled();
   expect(writes).toHaveLength(0);

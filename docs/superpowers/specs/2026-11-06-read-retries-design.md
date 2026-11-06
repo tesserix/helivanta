@@ -138,11 +138,23 @@ screen from drawing its own button today.
      enrollment, documents, employment periods, evidence and reviews,
      identity, login links, leave, person reviews, rosters, setup, shifts,
      and access assignments and membership.
-   - **2b (14 files, 37 handlers):** postings (cutoff, drafts, reviews,
-     submission, approval history), pharmacy binding and relationships, and
-     `access/page.tsx`. Two unmerged branches touch these files, so 2b
-     waits until it is confirmed whether that work is still live. 2b
-     deletes the list.
+   - **2b (10 files, 25 handlers):** posting cutoffs (page and workspace),
+     drafts, posting reviews' page, submission, approval history, the
+     posting workspace, and pharmacy binding and relationships.
+   - **2c (4 files, 12 handlers):** `access/page.tsx`, `postings/page.tsx`,
+     `posting-proposal-decision.tsx` and `posting-review-workspace.tsx`.
+     Open PRs #1602 and #1603 change these files, so 2c waits for them to
+     merge. 2c deletes the list.
+   - **The posting and pharmacy binding screens already hand a refusal to
+     their own "Staff access changed" branch** (`useStaffAccessCutoff`),
+     which keeps precedence. Their `RequestFailure` and `RefreshButton`
+     therefore only ever see an outage. A 2b screen's tests prove the outage
+     path ("Try again" asks again); the account pages above them, whose
+     identity read has no such branch, also prove a 401 ends the session
+     with no retry.
+   - **`RequestFailure` gains `busy`, and its button is `type="button"`.**
+     Several 2b retries are disabled while a command is in flight, and some
+     sit inside a form, where an untyped button would submit it.
 
 ## Not covered
 

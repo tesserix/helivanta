@@ -132,8 +132,17 @@ screen from drawing its own button today.
 1. **This slice:** the rule, `RefreshButton`, the legacy list and every
    non-workforce site: 42 `onClick` handlers in 21 files, plus the
    forwarding props above and in supply's access and access-limits editors.
-2. **Workforce, in one or two PRs:** convert the 41 listed files and remove
-   them from the list, then delete it.
+2. **Workforce, in two PRs.** Each converts its files and removes them from
+   the list, and lowers the list's ceiling to match.
+   - **2a (28 files, 56 handlers):** the directory and its editors,
+     enrollment, documents, employment periods, evidence and reviews,
+     identity, login links, leave, person reviews, rosters, setup, shifts,
+     and access assignments and membership.
+   - **2b (13 files, 36 handlers):** postings (cutoff, drafts, reviews,
+     submission, approval history), pharmacy binding and relationships, and
+     `access/page.tsx`. Two unmerged branches touch these files, so 2b
+     waits until it is confirmed whether that work is still live. 2b
+     deletes the list.
 
 ## Not covered
 

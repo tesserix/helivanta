@@ -359,3 +359,43 @@ it("clears a scoped HR directory when the owner denies the protected profile rea
   expect(screen.queryByLabelText("Given name")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Add staff" })).not.toBeInTheDocument();
 });
+
+it("shows a refused Staff workspace check as a refusal, with no retry", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 }),
+    ),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /retry staff workspace|try again/i })).toBeNull();
+});
+
+it("shows refused onboarding hospitals as a refusal, with no retry", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/iam/me/permissions"))
+        return Response.json({ tenant_id: hospital, subject: "synthetic-scoped-hr", data: [] });
+      if (url.includes("/hr-intake-scopes?"))
+        return Response.json({ error: "not_found", message: "secret detail" }, { status: 404 });
+      return Response.json(page([]));
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <Workforce />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});

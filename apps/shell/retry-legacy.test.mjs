@@ -21,7 +21,7 @@ describe("read-retry legacy list", () => {
 
   it("is never added to", () => {
     // Lower this as workforce slices remove files; raising it needs a reason in review.
-    expect(RETRY_LEGACY.length).toBeLessThanOrEqual(35);
+    expect(RETRY_LEGACY.length).toBeLessThanOrEqual(29);
     expect(new Set(RETRY_LEGACY).size).toBe(RETRY_LEGACY.length);
   });
 });

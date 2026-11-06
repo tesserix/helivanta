@@ -444,3 +444,19 @@ it("shows the verified approval receipt without contradicting it with the old pe
   await screen.findByText("Retained approve receipt verified");
   expect(screen.queryByText("pending · Version 1")).not.toBeInTheDocument();
 });
+
+it("asks again for Staff hospitals after an outage", async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({ error: "unavailable", message: "Synthetic outage" }, { status: 503 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <PharmacyBindingWorkspace scope={scope} onContextChanged={() => {}} />,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Staff hospitals could not be verified.",
+  );
+  const reads = fetcher.mock.calls.length;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await vi.waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(reads));
+});

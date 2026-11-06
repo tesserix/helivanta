@@ -4,8 +4,6 @@
 // breaks the rule, so this list only shrinks and is deleted when empty.
 export const RETRY_LEGACY = [
   "app/(workspace)/workforce/access/page.tsx",
-  "app/(workspace)/workforce/pharmacy-binding-command.tsx",
-  "app/(workspace)/workforce/pharmacy-binding-workspace.tsx",
   "app/(workspace)/workforce/posting-proposal-decision.tsx",
   "app/(workspace)/workforce/posting-review-workspace.tsx",
   "app/(workspace)/workforce/postings/page.tsx",

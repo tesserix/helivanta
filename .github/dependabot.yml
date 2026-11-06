@@ -18,6 +18,9 @@ updates:
     ignore:
       - dependency-name: tailwindcss
         update-types: [version-update:semver-major]
+      # Expo SDK 58 requires TypeScript 6; upgrade its toolchain together.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
   # Keeps the SHA-pinned actions current; the trailing version comment is updated with the SHA.
   - package-ecosystem: github-actions
     directory: /

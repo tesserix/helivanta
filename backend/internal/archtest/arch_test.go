@@ -351,6 +351,12 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /iam/partner-groups/:id":                                                                   "one tenant-scoped partner group; directory and history are cursor-paginated",
+	"GET /iam/partner-groups/:id/commands/:command":                                                 "one immutable exact partner-group command receipt",
+	"GET /iam/hospitals/:hospital/partner-member-capabilities":                                      "one hospital-scoped response with two fixed capability booleans",
+	"GET /iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member":                   "one scoped membership proposal and source observation; directory and history are cursor-paginated",
+	"GET /iam/hospitals/:hospital/partner-groups/:group/member-proposals/:member/commands/:command": "one immutable exact membership command receipt under current scoped read authority",
+
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding":                   "one exact relationship and current source state; lists and history are separately paginated",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/hospitals/:hospital/staff-department-bindings/:binding/commands/:command": "one immutable relationship command receipt; history is separately paginated",
 	"GET /workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/cutoffs/commands/:command":                  "one original-actor immutable cutoff receipt; cutoff history is separately paginated",

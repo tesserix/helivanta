@@ -14,9 +14,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@eslint/js": "^9.18.0",
-    "@next/eslint-plugin-next": "^16.4.3",
-    "eslint": "^10.13.0",
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.4.4",
+    "eslint": "^10.14.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
@@ -24,7 +24,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "jsdom": "^30.1.3",
     "prettier": "^3.9.10",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "prettier": "@helivanta/config/prettier"
 }

@@ -61,14 +61,16 @@ models and organization/Workforce reference events. Run
 Go and Zod outputs. The non-null `exists` boolean must be explicitly present on
 the wire; the consumer rejects omission, null and non-boolean values. Canonical models also cover versioned hospital heads, department commands and
 retained snapshots, and the identifier-only department revision event. Workforce
-effective postings remain a separate unfinished owner contract.
+effective postings use their separate owner contract below.
 
-`workforce-postings.json` owns the local non-operating preparation draft inputs,
-receipts and identifier-only change event. Run
+`workforce-postings.json` owns the local preparation, proposal/review, retained cutoff,
+current department-team observation and paired transfer models, and identifier-only
+posting events. Run
 `node scripts/generate-workforce-postings.mjs` and `--check` for Go/Zod outputs.
 The generator also supplies the shared microsecond instant comparison and draft
 validation used by SDK receipts. See the [candidate contract](workforce-postings.md)
-for exact scope, retry, source binding and unfinished UI/lifecycle gates.
+for exact scope, retry, source binding, implemented local consumer gates and remaining
+review/release boundaries.
 
 Staff access definitions live in `staff-access.json.template_migrations`, an
 ordered canonical history. Each entry records its IAM migration ID, safe generated

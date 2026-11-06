@@ -1151,6 +1151,44 @@ UI shows the policy on **Leave balances**, the route in HR request review and a
 direct or escalated badge in **Review leave**. Self-service filing (#1132) must
 pin under the same trigger.
 
+### Department-scoped leave review (development slice)
+
+Designed in the [department leave review spec](../superpowers/specs/2026-11-06-department-leave-review.md)
+(#1596, ADR-0055 slice 2). IAM 0032 adds the closed
+`workforce.department_leave_reviewer.v1` template, scope kind `department` only,
+with `workforce.leave.approve`, `organization.posting_choices.read` and
+`workforce.staff_actor.use`. It adds no permission to any existing template.
+
+| Endpoint under `/workforce/hospitals/{hospital}`                            | Result                                                                                      |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `GET /department-leave-review-requests?department=`                         | Pending queue for the held subtree, at most 10 rows a page, cursors sealed and caller-bound |
+| `GET /staff/{id}/department-leave-review-requests/{request}?department=`    | The existing `leaveRequestDetail` for one pending in-scope request                          |
+| `POST /staff/{id}/leave-requests/{request}/department-decision?department=` | The existing decision body and result                                                       |
+
+`department` is required and names one held department; the scope is its current
+subtree. Each call admits department-scoped `workforce.leave.approve` and
+`workforce.staff_actor.use` grants on the Organization path in OpenFGA, holds the
+department through commit, then locks the reviewer's Staff row and login link.
+A request is in scope only when every live approved posting of the requester sits
+in the subtree, and there is at least one. Staff posted in two departments stay
+with the hospital reviewer or desk unless one subtree holds both.
+
+Hospital grants never match these routes, and department grants never match the
+hospital routes. `leave-review-scopes` rows add `scope_kind` and `department_ids`.
+A department outside every held subtree, a retired or foreign department, an
+out-of-scope or routed-elsewhere request answers 404; a caller with no department
+leave grant answers 403; a moved department answers 409
+`department_scope_changed`; IAM, OpenFGA or Organization being down answers 503.
+Self and filer decisions are refused as on the hospital route.
+
+Workforce 0089 adds a restrictive `leave_department_review_guard` on
+`workforce_leave_requests` for department sessions and a read-only
+`leave_department` posting context. The command is constrained to the earliest
+live posting deadline. Decision audits add `scope_kind`, the held `department_id`,
+`requester_departments` and `actor_generation_id`, as identifiers only. The
+**Review leave** page shows a department selector for department-held hospitals.
+Browser and live two-person acceptance remain required.
+
 ### Request and decision contract
 
 The scoped decision consumer is implemented in the current development slice;

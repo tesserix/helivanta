@@ -12,7 +12,14 @@ import {
   type RosterShift,
   type ShiftDefinition,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, useLeaveGuard, GuardedLink } from "@helivanta/ui";
+import {
+  Field,
+  SelectControl,
+  useZodForm,
+  useLeaveGuard,
+  GuardedLink,
+  RequestFailure,
+} from "@helivanta/ui";
 import { WeeklyFields } from "./weekly-fields";
 import { inputClass, configNoun } from "./roster-ui";
 
@@ -153,22 +160,20 @@ export function RosterEditor({
           {shifts.isPending ? (
             <p role="status">Loading shift choices…</p>
           ) : shifts.isError ? (
-            <div role="alert" className="rounded-lg border p-4 text-sm">
-              Shift choices could not be loaded.{" "}
-              <Button type="button" variant="outline" onClick={shifts.retry}>
-                Try again
-              </Button>
-            </div>
+            <RequestFailure
+              message="Shift choices could not be loaded."
+              retry={shifts.retry}
+              error={shifts.error}
+            />
           ) : kind === "weekly_template" ? (
             areas.isPending ? (
               <p role="status">Loading roster areas…</p>
             ) : areas.isError ? (
-              <div role="alert" className="rounded-lg border p-4 text-sm">
-                Roster areas could not be loaded.{" "}
-                <Button type="button" variant="outline" onClick={areas.retry}>
-                  Try again
-                </Button>
-              </div>
+              <RequestFailure
+                message="Roster areas could not be loaded."
+                retry={areas.retry}
+                error={areas.error}
+              />
             ) : (
               <WeeklyFields form={form} areas={areas.items} shifts={shifts.items} record={record} />
             )

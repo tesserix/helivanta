@@ -436,3 +436,54 @@ it("shows refused configurations as a refusal with no retry", async () => {
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
+
+it("withdraws loaded configurations and the open editor once a re-read is refused", async () => {
+  mock();
+  const base = vi.mocked(fetch);
+  const original = base.getMockImplementation()!;
+  let refused = false;
+  base.mockImplementation(async (url, init) =>
+    refused && !init?.method && String(url).includes("roster-configs")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+          status: 403,
+        })
+      : original(url, init),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  expect(screen.getByLabelText("Effective date")).toHaveValue("2026-10-14");
+  refused = true;
+  window.dispatchEvent(new Event("visibilitychange"));
+  expect(
+    await screen.findAllByText("This wasn't found, or you don't have access to it."),
+  ).not.toHaveLength(0);
+  expect(screen.queryByLabelText("Effective date")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /try again|refresh configurations/i })).toBeNull();
+});
+
+it("shows refused shift choices in the editor as a refusal, with no retry", async () => {
+  mock();
+  const base = vi.mocked(fetch);
+  const original = base.getMockImplementation()!;
+  base.mockImplementation(async (url, init) =>
+    !init?.method && String(url).includes("/shifts")
+      ? new Response(JSON.stringify({ error: "forbidden", message: "secret detail" }), {
+          status: 403,
+        })
+      : original(url, init),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <RosterSetup />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Edit Synthetic Area" }));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});

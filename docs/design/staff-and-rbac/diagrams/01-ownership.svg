@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img">
+  <title>01  /  Ownership and staff structure</title>
+  <desc>Hospital departments and independent pharmacy employers use separate authority boundaries.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60748c" />
+    </marker>
+  </defs>
+  <rect width="1600" height="1000" fill="#ffffff" />
+  <text x="50" y="73" fill="#17324f" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold">01  /  Ownership and staff structure</text>
+  <text x="50" y="112" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="normal">Hospital departments and independent pharmacy employers use separate authority boundaries.</text>
+  <rect x="40" y="140" width="740" height="620" rx="12" fill="#eaf2ff" stroke="#8bafe0" />
+  <text x="65" y="177" fill="#173a65" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">HOSPITAL CUSTOMER  /  Tenant H</text>
+  <rect x="820" y="140" width="740" height="620" rx="12" fill="#e6f5f0" stroke="#75b7a1" />
+  <text x="845" y="177" fill="#155642" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">INDEPENDENT PHARMACY CUSTOMER  /  Tenant P</text>
+  <polyline points="225,281 225,325" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="595,281 595,325" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="595,425 595,480" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="574.0" y="436.5" width="42.0" height="21" fill="#ffffff" rx="3" />
+  <text x="595.0" y="452.5" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">runs</text>
+  <polyline points="225,425 225,625" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="159.0" y="509.0" width="132.0" height="21" fill="#ffffff" rx="3" />
+  <text x="225.0" y="525.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">staff references</text>
+  <polyline points="595,580 595,625" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="521.5" y="586.5" width="147.0" height="21" fill="#ffffff" rx="3" />
+  <text x="595.0" y="602.5" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">outlet assignments</text>
+  <polyline points="1005,281 1005,325" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="1375,281 1375,325" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="1375,425 1375,480" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="1005,425 1005,625" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="939.0" y="509.0" width="132.0" height="21" fill="#ffffff" rx="3" />
+  <text x="1005.0" y="525.0" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">staff references</text>
+  <polyline points="1375,580 1375,625" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="6 5" />
+  <rect x="1301.5" y="586.5" width="147.0" height="21" fill="#ffffff" rx="3" />
+  <text x="1375.0" y="602.5" fill="#52657e" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14">outlet assignments</text>
+  <rect x="80" y="205" width="660" height="76" rx="12" fill="#0f2745" stroke="#0f2745" stroke-width="1.5" />
+  <text x="410.0" y="240.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Hospital H1 / accountable employer E-H</text>
+  <text x="410.0" y="262.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Hospital-owned departments; hospital is a care-data boundary</text>
+  <rect x="80" y="325" width="290" height="100" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="225.0" y="361.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Hospital staff register</text>
+  <text x="225.0" y="383.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Workforce owns employment</text>
+  <text x="225.0" y="405.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">and private HR records</text>
+  <rect x="450" y="325" width="290" height="100" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="595.0" y="361.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Pharmacy department</text>
+  <text x="595.0" y="383.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Hospital appoints head</text>
+  <text x="595.0" y="405.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">and bounded staff administrator</text>
+  <rect x="450" y="480" width="290" height="100" rx="12" fill="#eaf2ff" stroke="#8bafe0" stroke-width="1.5" />
+  <text x="595.0" y="516.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Hospital-owned pharmacy</text>
+  <text x="595.0" y="538.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Canonical PharmaConnect</text>
+  <text x="595.0" y="560.0" fill="#173a65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">organization and outlet IDs</text>
+  <rect x="80" y="625" width="660" height="80" rx="12" fill="#f1f4f8" stroke="#adb9c9" stroke-width="1.5" />
+  <text x="410.0" y="662.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Department / outlet staff views</text>
+  <text x="410.0" y="684.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Postings and scoped assignments reference the staff register; no duplicate HR master</text>
+  <rect x="860" y="205" width="660" height="76" rx="12" fill="#0f2745" stroke="#0f2745" stroke-width="1.5" />
+  <text x="1190.0" y="240.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Independent pharmacy customer</text>
+  <text x="1190.0" y="262.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Each employing pharmacy owns its staff; no synthetic hospital</text>
+  <rect x="860" y="325" width="290" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1005.0" y="361.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Workforce staff / HR</text>
+  <text x="1005.0" y="383.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">One staff register per</text>
+  <text x="1005.0" y="405.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">typed employing establishment</text>
+  <rect x="1230" y="325" width="290" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1375.0" y="361.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Pharmacy organizations</text>
+  <text x="1375.0" y="383.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">P1 and P2 employers</text>
+  <text x="1375.0" y="405.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Separate approved HR scopes</text>
+  <rect x="1230" y="480" width="290" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="1375.0" y="516.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Branches / outlets</text>
+  <text x="1375.0" y="538.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">B1, B2 and further outlets</text>
+  <text x="1375.0" y="560.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Local managers and operators</text>
+  <rect x="860" y="625" width="660" height="80" rx="12" fill="#f1f4f8" stroke="#adb9c9" stroke-width="1.5" />
+  <text x="1190.0" y="662.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Branch staff views</text>
+  <text x="1190.0" y="684.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">One engagement per establishment; dated outlet postings and role assignments</text>
+  <rect x="180" y="805" width="1240" height="90" rx="12" fill="#fff4dd" stroke="#d5af56" stroke-width="1.5" />
+  <text x="800.0" y="847.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Independent operator serving a hospital = reviewed service relationship</text>
+  <text x="800.0" y="869.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Separate employers and records. Affiliation / shared location grants no staff, patient or stock authority.</text>
+  <text x="50" y="970" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal">HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED</text>
+</svg>

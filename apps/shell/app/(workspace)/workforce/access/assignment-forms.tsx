@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
-import { Field, FormSelectField, useZodForm, type UseFormReturn } from "@helivanta/ui";
+import {
+  Field,
+  FormSelectField,
+  useZodForm,
+  type UseFormReturn,
+  RequestFailure,
+} from "@helivanta/ui";
 import { useNow } from "@/lib/use-now";
 import {
   ApiError,
@@ -236,12 +242,11 @@ export function AssignmentProposalForm({
       ) : hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <p role="alert">
-          Could not load hospitals.{" "}
-          <Button type="button" onClick={() => void hospitals.refetch()}>
-            Retry hospitals
-          </Button>
-        </p>
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.refetch}
+          error={hospitals.error}
+        />
       ) : (
         <>
           {!managers.length && (
@@ -417,12 +422,11 @@ function AssignmentDepartmentField({
     );
   if (departments.isError)
     return (
-      <p role="alert">
-        Could not load departments.{" "}
-        <Button type="button" onClick={() => void departments.refetch()}>
-          Retry departments
-        </Button>
-      </p>
+      <RequestFailure
+        message="Could not load departments."
+        retry={departments.refetch}
+        error={departments.error}
+      />
     );
   // Organization verifies the department again before review; retired or scheduled nodes are never offered.
   const active = departments.data.data.filter(

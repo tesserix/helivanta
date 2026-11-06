@@ -39,6 +39,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/events"
 	"github.com/tesserix/helivanta/pkg/logging"
+	"github.com/tesserix/helivanta/pkg/pagination"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
 	"github.com/tesserix/helivanta/pkg/session"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -496,11 +497,16 @@ func run() error {
 	} else {
 		limiter = ratelimit.NewMemory(10_000)
 	}
+	// Filtered list cursors derive their own key from the session seed, so rotating it also retires outstanding cursors.
+	cursorSealer, err := pagination.NewSealer(sessionSeed)
+	if err != nil {
+		return err
+	}
 	api := platform.NewRouter(
 		srv.Engine.Group("/v1", bootstrap.V1Chain(requestVerifier, revocationChecker, limiter, cfg, currentAuthorization,
 			iam.NewIdentityGuard(db, bus, revocationChecker, zitadelLoginClient))...),
 		currentAuthorization,
-	).WithScopedAuthorizer(scopedAuthorizer)
+	).WithScopedAuthorizer(scopedAuthorizer).WithCursorSealer(cursorSealer)
 
 	// POST /v1/auth/login is mounted directly on the raw engine — NOT
 	// through `api`/bootstrap.V1Chain above — because it is the endpoint

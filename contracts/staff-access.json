@@ -855,6 +855,26 @@
         }
       ],
       "definitions_sha256": "8f371fef3a22e1cf271733aadd396ea0345a97dfc342f2b9b92ea43cc6e17c77"
+    },
+    {
+      "id": "0032_iam_department_leave_review_templates",
+      "file": "assignment_department_leave_review_templates_generated.sql",
+      "sql_sha256": "d8926f65632b1d0e6f254950c36fde452ce1d65e4db15e4ab4664a509adf57a1",
+      "templates": [
+        {
+          "key": "workforce.department_leave_reviewer.v1",
+          "name": "Department leave reviewer",
+          "description": "Review leave requests of Staff posted only within one department and its current sub-units; no leave configuration, posting or clinical authority.",
+          "family": "leave",
+          "permissions": [
+            "workforce.leave.approve",
+            "organization.posting_choices.read",
+            "workforce.staff_actor.use"
+          ],
+          "scope_kinds": ["department"]
+        }
+      ],
+      "definitions_sha256": "467414deb72aa89393db9715f2dd5a1537111323c78a73928bdaef33ddd8471f"
     }
   ],
   "template_catalogs": [
@@ -1011,6 +1031,27 @@
         "workforce.department_posting_reviewer.v1"
       ],
       "definitions_sha256": "6a221c7f0a674326eeee2203152f09e0979349daf9ff084b4330e88b13a70955"
+    },
+    {
+      "key": "staff-department-leave-reviews-v1",
+      "template_keys": [
+        "workforce.leave_reviewer.v1",
+        "workforce.identity_manager.v1",
+        "workforce.identity_reviewer.v1",
+        "workforce.hr_intake.v1",
+        "workforce.employment_reviewer.v1",
+        "workforce.employment_activator.v1",
+        "workforce.posting_reader.v1",
+        "workforce.posting_preparer.v1",
+        "workforce.posting_submitter.v1",
+        "workforce.posting_reviewer.v1",
+        "workforce.posting_management_reviewer.v1",
+        "workforce.posting_cutoff_admin.v1",
+        "workforce.posting_source_consumer.v1",
+        "workforce.department_posting_reviewer.v1",
+        "workforce.department_leave_reviewer.v1"
+      ],
+      "definitions_sha256": "60d65dc651384feafd9ed359d16c7c2f266fa4efc58b638cbc00996692a023ed"
     }
   ]
 }

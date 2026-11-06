@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img">
+  <title>05  /  Join, move and leave safely</title>
+  <desc>Employment, posting, login link and access assignment have separate state machines.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60748c" />
+    </marker>
+  </defs>
+  <rect width="1600" height="1000" fill="#ffffff" />
+  <text x="50" y="73" fill="#17324f" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold">05  /  Join, move and leave safely</text>
+  <text x="50" y="112" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="normal">Employment, posting, login link and access assignment have separate state machines.</text>
+  <rect x="40" y="145" width="740" height="615" rx="12" fill="#e6f5f0" stroke="#75b7a1" />
+  <text x="65" y="182" fill="#155642" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">JOIN / PROPOSE / ACTIVATE</text>
+  <rect x="820" y="145" width="740" height="615" rx="12" fill="#fff4dd" stroke="#d5af56" />
+  <text x="845" y="182" fill="#6c4e13" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="bold">MOVE / EXPIRE / SUSPEND / EXIT</text>
+  <polyline points="410,310 410,390" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="410,475 410,555" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="1190,310 1190,390" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <polyline points="1190,475 1190,555" fill="none" stroke="#60748c" stroke-width="2" marker-end="url(#arrow)" />
+  <rect x="80" y="225" width="660" height="85" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="410.0" y="264.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">1  Intake → employer review → active engagement</text>
+  <text x="410.0" y="286.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">No business access from staff creation or a job title</text>
+  <rect x="80" y="390" width="660" height="85" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="410.0" y="429.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">2  Dated posting + independently reviewed login link</text>
+  <text x="410.0" y="451.5" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Explicit membership as required; posting proposes access</text>
+  <rect x="80" y="555" width="660" height="110" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
+  <text x="410.0" y="596.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">3  Approve exact assignment → project → activate</text>
+  <text x="410.0" y="618.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Independent reviewer and current evidence</text>
+  <text x="410.0" y="640.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Pending projection never becomes a temporary allow</text>
+  <rect x="860" y="225" width="660" height="85" rx="12" fill="#fff4dd" stroke="#d5af56" stroke-width="1.5" />
+  <text x="1190.0" y="264.5" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">1  Effective lifecycle event or urgent suspension</text>
+  <text x="1190.0" y="286.5" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Posting end, evidence expiry, service end or employment exit</text>
+  <rect x="860" y="390" width="660" height="85" rx="12" fill="#fceceb" stroke="#d58e89" stroke-width="1.5" />
+  <text x="1190.0" y="429.5" fill="#7e302b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">2  Authoritative current-state denial first</text>
+  <text x="1190.0" y="451.5" fill="#7e302b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Commit revoke / epoch / audit + outbox; stale graph cannot allow</text>
+  <rect x="860" y="555" width="660" height="110" rx="12" fill="#fff4dd" stroke="#d5af56" stroke-width="1.5" />
+  <text x="1190.0" y="596.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">3  Reconcile projections and dependent grants</text>
+  <text x="1190.0" y="618.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Bounded retry, deduplication and visible repair queue</text>
+  <text x="1190.0" y="640.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">New scope / rehire needs new reviewed authority</text>
+  <rect x="180" y="825" width="1240" height="80" rx="12" fill="#0f2745" stroke="#0f2745" stroke-width="1.5" />
+  <text x="800.0" y="862.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Preserve history; never revive access by replay</text>
+  <text x="800.0" y="884.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">No approval wait for revocation. No deletion of completed clinical / stock / financial evidence. No old-snapshot reactivation.</text>
+  <text x="50" y="970" fill="#52657e" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="normal">HELIVANTA  /  STAFF &amp; ACCESS DESIGN     •     06 NOV 2026     •     PROPOSED TARGET — NOT DEPLOYED</text>
+</svg>

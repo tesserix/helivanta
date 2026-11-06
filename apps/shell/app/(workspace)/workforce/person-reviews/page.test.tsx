@@ -96,6 +96,7 @@ function fixture({
   emptyEvidence = false,
   newerHistory = false,
   historyDenial = 0,
+  refuse = (() => false) as (url: string) => boolean,
 } = {}) {
   const writes: { url: string; body: Record<string, unknown>; headers: Headers }[] = [];
   const reads: string[] = [];
@@ -125,6 +126,8 @@ function fixture({
       reads.push(url);
       if (url.includes("/iam/me/permissions"))
         return Response.json({ tenant_id: tenant, subject, data: [] });
+      if (!init?.method && refuse(url))
+        return Response.json({ error: "forbidden", message: "secret detail" }, { status: 403 });
       if (url.includes("/person-review-scopes"))
         return Response.json(
           emptyFirst && !url.includes("cursor=")
@@ -819,4 +822,37 @@ it("clears private detail when history access is refused", async () => {
   await user.click(within(detail).getByRole("button", { name: "View history" }));
   expect(await screen.findByText(/Your access or workspace changed/)).toBeInTheDocument();
   expect(screen.queryByText(row.finding_reference)).not.toBeInTheDocument();
+});
+
+it("shows refused person-review access as a refusal, with no way to ask again", async () => {
+  fixture({ refuse: (url) => url.includes("/person-review-scopes") });
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PersonReviews />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /refresh access|try again/i })).toBeNull();
+});
+
+it("withdraws the loaded person-review inbox once a refreshed read is refused", async () => {
+  let refused = false;
+  fixture({ refuse: (url) => refused && url.includes("/person-review-inbox") });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PersonReviews />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    await screen.findByRole("button", { name: "Open review for Synthetic Joiner" }),
+  ).toBeVisible();
+  refused = true;
+  await user.click(screen.getByRole("button", { name: "Refresh inbox" }));
+  expect(
+    await screen.findByText("This wasn't found, or you don't have access to it."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Open review for Synthetic Joiner" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /refresh inbox|try again/i })).toBeNull();
 });

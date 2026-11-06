@@ -351,8 +351,10 @@ type leaveStatusReportRow struct {
 }
 
 type leaveReviewScope struct {
-	HospitalID uuid.UUID `json:"hospital_id"`
-	Name       string    `json:"name"`
+	HospitalID    uuid.UUID   `json:"hospital_id"`
+	Name          string      `json:"name"`
+	ScopeKind     string      `json:"scope_kind" gorm:"-"`
+	DepartmentIDs []uuid.UUID `json:"department_ids" gorm:"-"`
 }
 
 type leaveReviewRequest struct {

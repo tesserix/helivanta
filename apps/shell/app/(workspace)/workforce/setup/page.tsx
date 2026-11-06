@@ -16,7 +16,16 @@ import {
   type Hospital,
 } from "@helivanta/api";
 import { DepartmentHandoff } from "@/components/organization/department-handoff";
-import { Field, PageHeading, SelectControl, useConfirmLeave, useZodForm } from "@helivanta/ui";
+import {
+  Field,
+  isRefusal,
+  PageHeading,
+  RefreshButton,
+  RequestFailure,
+  SelectControl,
+  useConfirmLeave,
+  useZodForm,
+} from "@helivanta/ui";
 
 const inputClass =
   "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -51,12 +60,11 @@ export default function HRSetup() {
       {hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
-        <div role="alert">
-          Could not load hospitals.{" "}
-          <Button variant="outline" onClick={hospitals.retry}>
-            Try again
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load hospitals."
+          retry={hospitals.retry}
+          error={hospitals.error}
+        />
       ) : hospital ? (
         <MasterCatalog key={hospital.id} hospital={hospital} />
       ) : (
@@ -93,7 +101,10 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
     `${path}?kind=${kind}`,
   );
   const writable = can("workforce.master.manage") && hospital.access_level === "manager";
-  const rows = records.items.filter((row) =>
+  // Records the server now refuses don't stay on screen, nor do the editor,
+  // history or mapping opened from them (#1595).
+  const refused = isRefusal(records.error);
+  const rows = (refused ? [] : records.items).filter((row) =>
     `${row.code} ${row.name}`.toLowerCase().includes(filter.toLowerCase()),
   );
   const close = () => {
@@ -159,11 +170,12 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
             Loading HR setup…
           </p>
         ) : records.isError ? (
-          <div className="p-8" role="alert">
-            Could not load HR setup.{" "}
-            <Button variant="outline" onClick={records.retry}>
-              Try again
-            </Button>
+          <div className="p-5">
+            <RequestFailure
+              message="Could not load HR setup."
+              retry={records.retry}
+              error={records.error}
+            />
           </div>
         ) : !rows.length ? (
           <div className="p-12 text-center">
@@ -284,9 +296,9 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
             {records.items.length} loaded records · Hospital-specific choices
           </span>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={records.retry}>
+            <RefreshButton variant="ghost" size="sm" refresh={records.retry} error={records.error}>
               Refresh setup
-            </Button>
+            </RefreshButton>
             {records.hasMore && (
               <Button
                 size="sm"
@@ -308,7 +320,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
           onClose={close}
         />
       )}
-      {editing && (
+      {editing && !refused && (
         <MasterEditor
           key={editing === "new" ? `new-${kind}` : editing.id}
           path={path}
@@ -318,7 +330,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
           onClose={close}
         />
       )}
-      {history && (
+      {history && !refused && (
         <MasterHistory
           key={history.id}
           path={`${path}/${history.id}/history`}
@@ -505,12 +517,11 @@ function MasterHistory({
       {history.isPending ? (
         <p role="status">Loading history…</p>
       ) : history.isError ? (
-        <div role="alert">
-          Could not load history.{" "}
-          <Button variant="outline" onClick={history.retry}>
-            Try again
-          </Button>
-        </div>
+        <RequestFailure
+          message="Could not load history."
+          retry={history.retry}
+          error={history.error}
+        />
       ) : (
         <ol className="space-y-3">
           {history.items.map((revision) => (

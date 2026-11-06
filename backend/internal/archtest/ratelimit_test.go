@@ -14,6 +14,7 @@ import (
 	"github.com/tesserix/helivanta/internal/bootstrap"
 	"github.com/tesserix/helivanta/internal/config"
 	"github.com/tesserix/helivanta/internal/platform"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/authn"
 	"github.com/tesserix/helivanta/pkg/authz"
 	"github.com/tesserix/helivanta/pkg/ratelimit"
@@ -188,7 +189,7 @@ func allRegisteredV1Routes(t *testing.T) map[string]bool {
 	routes := map[string]bool{}
 	for _, m := range allModules() {
 		e := gin.New()
-		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{})
+		r := platform.NewRouter(e.Group("/v1"), dryRouteRegistrationChecker{}).WithCursorSealer(testutil.CursorSealer(t))
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			routes[dr.Method+" "+dr.Path] = true

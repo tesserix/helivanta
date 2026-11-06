@@ -136,13 +136,14 @@ func prepareScopedLeaveReview(tx *gorm.DB, p authn.Principal, hospital, staffID,
 	return json.Marshal(evidence)
 }
 
-func reviewedLeaveStanding(tx *gorm.DB, c *gin.Context, p authn.Principal, r leaveRequestRow) (bool, error) {
-	if _, ok := authz.HospitalScopeGrant(c, PermLeaveApprove, r.HospitalID.String()); !ok {
+func reviewedLeaveStanding(tx *gorm.DB, c *gin.Context, p authn.Principal, r leaveRequestRow, department bool) (bool, error) {
+	if _, ok := authz.HospitalScopeGrant(c, PermLeaveApprove, r.HospitalID.String()); !ok && !department {
 		return false, nil
 	}
 	var allowed bool
 	err := tx.Raw(`SELECT COALESCE(workforce_leave_review_context(?::uuid,?::uuid),false)
  AND NULLIF(current_setting('app.workforce_leave_review_staff',true),'')::uuid=?::uuid
- AND NULLIF(current_setting('app.workforce_leave_review_request',true),'')::uuid=?::uuid`, p.TenantID, r.HospitalID, r.StaffID, r.ID).Scan(&allowed).Error
+ AND NULLIF(current_setting('app.workforce_leave_review_request',true),'')::uuid=?::uuid
+ AND (NOT ? OR workforce_leave_department_session())`, p.TenantID, r.HospitalID, r.StaffID, r.ID, department).Scan(&allowed).Error
 	return allowed, err
 }

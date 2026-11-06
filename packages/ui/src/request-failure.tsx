@@ -26,6 +26,7 @@ export function RequestFailure({
   error,
   refused,
   recheck,
+  busy,
 }: {
   message: string;
   retry: () => unknown;
@@ -39,6 +40,8 @@ export function RequestFailure({
    * would read as an outage (#1595).
    */
   recheck?: string;
+  /** Disables the button while a command the read guards is in flight. */
+  busy?: boolean;
 }) {
   // Fail closed: retrying cannot change an authorization answer, and offering
   // it would say the records exist and merely failed to arrive. An error whose
@@ -50,7 +53,13 @@ export function RequestFailure({
       <Panel as="div" role="alert">
         <p className="text-sm">{ended ? sessionEnded : (refused ?? refusedDefault)}</p>
         {recheck && !ended && (
-          <Button className="mt-3" variant="outline" onClick={() => void retry()}>
+          <Button
+            type="button"
+            className="mt-3"
+            variant="outline"
+            disabled={busy}
+            onClick={() => void retry()}
+          >
             {recheck}
           </Button>
         )}
@@ -60,7 +69,14 @@ export function RequestFailure({
   return (
     <Panel as="div" role="alert">
       <p className="text-sm">{message}</p>
-      <Button className="mt-3" variant="outline" onClick={() => void retry()}>
+      {/* type="button": a retry inside a form must not submit it. */}
+      <Button
+        type="button"
+        className="mt-3"
+        variant="outline"
+        disabled={busy}
+        onClick={() => void retry()}
+      >
         Try again
       </Button>
     </Panel>

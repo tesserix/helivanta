@@ -114,6 +114,34 @@ func listHandlers[T Keyed](path string, h ListHandler[T]) []gin.HandlerFunc {
 }
 
 func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, maxLimit int) []gin.HandlerFunc {
+	return pageHandlers(path, h, scopeFor, maxLimit, func(rows []T) []T { return rows })
+}
+
+// Filtered is one scanned candidate; the cursor passes a withheld row without serving it.
+type Filtered[T Keyed] struct {
+	Row     T
+	Visible bool
+}
+
+func (f Filtered[T]) PageKey() (time.Time, uuid.UUID) { return f.Row.PageKey() }
+
+// HandlerScopedFilteredQueryListRoute is HandlerScopedQueryListRoute for rows that pass a per-row check after the scan.
+func HandlerScopedFilteredQueryListRoute[T Keyed](r *Router, path string, permission authz.Permission, hospitalParam string, filters []QueryFilter, maxLimit int, h ListHandler[Filtered[T]]) {
+	scope := queryCursorScope(hospitalParam, filters, maxLimit)
+	r.handleHandlerScope("GET", path, permission, hospitalParam, true, pageHandlers(path, h, scope, maxLimit, visibleRows[T])...)
+}
+
+func visibleRows[T Keyed](scanned []Filtered[T]) []T {
+	rows := make([]T, 0, len(scanned))
+	for _, candidate := range scanned {
+		if candidate.Visible {
+			rows = append(rows, candidate.Row)
+		}
+	}
+	return rows
+}
+
+func pageHandlers[T Keyed, O any](path string, h ListHandler[T], scopeFor func(*gin.Context, authn.Principal) string, maxLimit int, serve func([]T) []O) []gin.HandlerFunc {
 	return []gin.HandlerFunc{func(c *gin.Context) {
 		p, ok := authn.PrincipalFrom(c)
 		if !ok {
@@ -178,11 +206,12 @@ func listHandlersWithScope[T Keyed](path string, h ListHandler[T], scopeFor func
 
 		// A nil slice marshals to null; panels branch on an array. Make
 		// it empty rather than letting the zero value through.
-		if rows == nil {
-			rows = []T{}
+		served := serve(rows)
+		if served == nil {
+			served = []O{}
 		}
 		respond.OK(c, gin.H{
-			"data": rows,
+			"data": served,
 			"page": gin.H{"next_cursor": next, "has_more": hasMore},
 		})
 	}}

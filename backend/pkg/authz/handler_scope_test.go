@@ -226,3 +226,67 @@ func TestHandlerScopedListCursorBindsCallerHospitalAndEveryFilter(t *testing.T) 
 	}
 	require.Equal(t, 2, scans, "foreign-filter positions must be refused before querying")
 }
+
+func TestHandlerScopedFilteredListAdvancesPastWithheldRowsWithoutServingThem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	e := gin.New()
+	e.Use(func(c *gin.Context) {
+		c.Set("authn.principal", authn.Principal{Subject: "synthetic-reviewer", TenantID: handlerScopeTenant})
+		c.Set("authz.permissions", authz.NewPermissionSet())
+	})
+	r := platform.NewRouter(e.Group("/v1"), scopeMembership(true))
+	base := time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC)
+	rows := make([]handlerScopeRow, 4)
+	for i := range rows {
+		rows[i] = handlerScopeRow{uuid.Must(uuid.NewV7()), base.Add(time.Duration(len(rows)-i) * time.Second)}
+	}
+	withheld, overrun := map[uuid.UUID]bool{rows[1].ID: true}, false
+	platform.HandlerScopedFilteredQueryListRoute(r, "/hospitals/:hospital/queue", handlerScopePerm, "hospital", []platform.QueryFilter{{Key: "department"}}, 2, func(c *gin.Context, page pagination.Params) ([]platform.Filtered[handlerScopeRow], error) {
+		request := handlerScopeRequest(handlerScopePerm)
+		require.True(t, admitWithEvidence(c, request, request))
+		start := 0
+		for i, row := range rows {
+			if page.After != nil && row.ID == page.After.ID {
+				start = i + 1
+			}
+		}
+		end := min(len(rows), start+page.Limit+1)
+		if overrun {
+			end = len(rows)
+		}
+		scanned := []platform.Filtered[handlerScopeRow]{}
+		for _, row := range rows[start:end] {
+			scanned = append(scanned, platform.Filtered[handlerScopeRow]{Row: row, Visible: !withheld[row.ID]})
+		}
+		return scanned, nil
+	})
+	declared := r.Declared()
+	require.Len(t, declared, 1)
+	require.True(t, declared[0].Paginated)
+	require.Equal(t, "department", declared[0].ScopeKind)
+	call := func(query string, status int) map[string]any {
+		t.Helper()
+		response := httptest.NewRecorder()
+		e.ServeHTTP(response, httptest.NewRequest("GET", "/v1/hospitals/"+handlerScopeHospital+"/queue?department=019a5c40-0000-7000-8000-000000000003"+query, nil))
+		require.Equal(t, status, response.Code, response.Body.String())
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
+		return body
+	}
+	ids := func(body map[string]any) []string {
+		out := []string{}
+		for _, row := range body["data"].([]any) {
+			out = append(out, row.(map[string]any)["id"].(string))
+		}
+		return out
+	}
+	first := call("", 200)
+	require.Equal(t, []string{rows[0].ID.String()}, ids(first), "the withheld row and the visible probe row are never served")
+	require.Equal(t, true, first["page"].(map[string]any)["has_more"])
+	second := call("&cursor="+url.QueryEscape(first["page"].(map[string]any)["next_cursor"].(string)), 200)
+	require.Equal(t, []string{rows[2].ID.String(), rows[3].ID.String()}, ids(second), "the cursor anchors on the last scanned row, so nothing after a withheld row is skipped")
+	require.Equal(t, false, second["page"].(map[string]any)["has_more"])
+	overrun = true
+	failure := call("", 500)
+	require.NotContains(t, failure, "data")
+}

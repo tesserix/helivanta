@@ -20,7 +20,10 @@ The new Workforce-owned `workforce.posting_source.use` capability grants only
 identifier/source observations inside a guarded caller command. It grants no
 private HR rationale/directory/file read or operating authority. Product callers
 still require their independently approved action permission and current reviewed
-Staff actor. These three requirements fit the existing maximum3 compound checks.
+Staff actor. At adoption these three requirements fit the maximum3 compound checks.
+The later local [department-team candidate](0061-department-team-and-atomic-transfers.md)
+extends the shared capacity to five for a paired transfer; this source consumer
+still requires its three independent permissions.
 No legacy role replaces the required independently approved scoped assignment.
 The platform retains its existing coarse tenant-administrator permission default;
 that coarse permission alone cannot satisfy this guarded source boundary.

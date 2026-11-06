@@ -155,20 +155,8 @@ func (h *handlers) putPostingCutoff(c *gin.Context) {
 		if row.Status != "approved" || row.RevisionID != in.ExpectedRevisionID {
 			return errPostingCutoffConflict
 		}
-		err = tx.Raw(`INSERT INTO workforce_posting_cutoffs(tenant_id,hospital_id,staff_id,proposal_id,id,expected_revision_id,expected_cutoff_version,version,mode,requested_cutoff_at,reason,sources_examined,input_hash,actor_subject,actor_staff_id,actor_link_id,actor_generation_id,assignment_id,assignment_version,scope_epoch,membership_epoch)
- VALUES(?,?,?,?,?,?,?,?+1,?,?,?,true,?,?,current_setting('app.workforce_posting_actor')::uuid,current_setting('app.workforce_posting_link')::uuid,current_setting('app.workforce_posting_generation')::uuid,current_setting('app.workforce_posting_assignment')::uuid,current_setting('app.workforce_posting_assignment_version')::bigint,current_setting('app.workforce_posting_scope_epoch')::bigint,current_setting('app.workforce_posting_membership_epoch')::bigint)
- RETURNING `+postingCutoffProjection, p.TenantID, s.hospital, s.staff, s.draft, s.command, in.ExpectedRevisionID, *in.ExpectedCutoffVersion, *in.ExpectedCutoffVersion, in.Mode, in.CutoffAt, in.Reason, fingerprint, p.Subject).Scan(&out).Error
-		if err != nil {
-			return err
-		}
-		if err := postingProposalAudit(tx, p, s, "cutoff_recorded", out.Version); err != nil {
-			return err
-		}
-		payload, err := json.Marshal(workforcecontract.PostingCutoffChangedData{HospitalID: s.hospital, StaffID: s.staff, ProposalID: s.draft, CutoffID: out.ID, Version: out.Version})
-		if err != nil {
-			return err
-		}
-		return h.bus.Publish(tx, workforcecontract.SubjectPostingCutoffChanged, events.Event{Type: workforcecontract.SubjectPostingCutoffChanged, Version: 1, TenantID: p.TenantID, Data: payload})
+		out, err = h.recordPostingCutoff(tx, p, s, in, fingerprint)
+		return err
 	})
 	if err != nil {
 		respondPostingCutoffError(c, err)
@@ -198,4 +186,22 @@ func (h *handlers) getPostingCutoffReceipt(c *gin.Context) {
 		return
 	}
 	respond.OK(c, publicPostingCutoff(out))
+}
+
+func (h *handlers) recordPostingCutoff(tx *gorm.DB, p authn.Principal, s postingDraftScope, in StaffPostingCutoffInput, fingerprint string) (StaffPostingCutoff, error) {
+	var out StaffPostingCutoff
+	err := tx.Raw(`INSERT INTO workforce_posting_cutoffs(tenant_id,hospital_id,staff_id,proposal_id,id,expected_revision_id,expected_cutoff_version,version,mode,requested_cutoff_at,reason,sources_examined,input_hash,actor_subject,actor_staff_id,actor_link_id,actor_generation_id,assignment_id,assignment_version,scope_epoch,membership_epoch)
+ VALUES(?,?,?,?,?,?,?,?+1,?,?,?,true,?,?,current_setting('app.workforce_posting_actor')::uuid,current_setting('app.workforce_posting_link')::uuid,current_setting('app.workforce_posting_generation')::uuid,current_setting('app.workforce_posting_assignment')::uuid,current_setting('app.workforce_posting_assignment_version')::bigint,current_setting('app.workforce_posting_scope_epoch')::bigint,current_setting('app.workforce_posting_membership_epoch')::bigint)
+ RETURNING `+postingCutoffProjection, p.TenantID, s.hospital, s.staff, s.draft, s.command, in.ExpectedRevisionID, *in.ExpectedCutoffVersion, *in.ExpectedCutoffVersion, in.Mode, in.CutoffAt, in.Reason, fingerprint, p.Subject).Scan(&out).Error
+	if err != nil {
+		return out, err
+	}
+	if err := postingProposalAudit(tx, p, s, "cutoff_recorded", out.Version); err != nil {
+		return out, err
+	}
+	payload, err := json.Marshal(workforcecontract.PostingCutoffChangedData{HospitalID: s.hospital, StaffID: s.staff, ProposalID: s.draft, CutoffID: out.ID, Version: out.Version})
+	if err != nil {
+		return out, err
+	}
+	return out, h.bus.Publish(tx, workforcecontract.SubjectPostingCutoffChanged, events.Event{Type: workforcecontract.SubjectPostingCutoffChanged, Version: 1, TenantID: p.TenantID, Data: payload})
 }

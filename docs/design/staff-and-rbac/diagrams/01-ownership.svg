@@ -53,23 +53,23 @@
   <text x="410.0" y="662.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Department / outlet staff views</text>
   <text x="410.0" y="684.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Postings and scoped assignments reference the staff register; no duplicate HR master</text>
   <rect x="860" y="205" width="660" height="76" rx="12" fill="#0f2745" stroke="#0f2745" stroke-width="1.5" />
-  <text x="1190.0" y="240.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Independent employer E-P</text>
-  <text x="1190.0" y="262.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Pharmacy-owned staff; no hospital or synthetic hospital required</text>
+  <text x="1190.0" y="240.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Independent pharmacy customer</text>
+  <text x="1190.0" y="262.0" fill="#ffffff" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Each employing pharmacy owns its staff; no synthetic hospital</text>
   <rect x="860" y="325" width="290" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
-  <text x="1005.0" y="361.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Own staff register / HR</text>
-  <text x="1005.0" y="383.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Same Workforce capability</text>
-  <text x="1005.0" y="405.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">with proposed employer scope</text>
+  <text x="1005.0" y="361.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Workforce staff / HR</text>
+  <text x="1005.0" y="383.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">One staff register per</text>
+  <text x="1005.0" y="405.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">typed employing establishment</text>
   <rect x="1230" y="325" width="290" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
   <text x="1375.0" y="361.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Pharmacy organizations</text>
-  <text x="1375.0" y="383.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Corporate administrator</text>
-  <text x="1375.0" y="405.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">P1 and P2 business scopes</text>
+  <text x="1375.0" y="383.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">P1 and P2 employers</text>
+  <text x="1375.0" y="405.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Separate approved HR scopes</text>
   <rect x="1230" y="480" width="290" height="100" rx="12" fill="#e6f5f0" stroke="#75b7a1" stroke-width="1.5" />
   <text x="1375.0" y="516.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Branches / outlets</text>
   <text x="1375.0" y="538.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">B1, B2 and further outlets</text>
   <text x="1375.0" y="560.0" fill="#155642" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Local managers and operators</text>
   <rect x="860" y="625" width="660" height="80" rx="12" fill="#f1f4f8" stroke="#adb9c9" stroke-width="1.5" />
   <text x="1190.0" y="662.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Branch staff views</text>
-  <text x="1190.0" y="684.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">One employment; dated postings and explicit outlet role assignments</text>
+  <text x="1190.0" y="684.0" fill="#37465b" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">One engagement per establishment; dated outlet postings and role assignments</text>
   <rect x="180" y="805" width="1240" height="90" rx="12" fill="#fff4dd" stroke="#d5af56" stroke-width="1.5" />
   <text x="800.0" y="847.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold">Independent operator serving a hospital = reviewed service relationship</text>
   <text x="800.0" y="869.0" fill="#6c4e13" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="normal">Separate employers and records. Affiliation / shared location grants no staff, patient or stock authority.</text>

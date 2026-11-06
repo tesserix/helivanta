@@ -50,7 +50,7 @@ Checked before committing against `origin/main` at `ab9f8a653fa0c238f7824380f285
 - `contracts/staff-access.json` now includes optional department IDs and multiple versioned Workforce and pharmacy-binding templates, including `workforce.department_posting_reviewer.v1`. Reuse these contracts; do not narrow them to the historical single-template description.
 - `backend/internal/modules/pharmacy/staff_department_bindings*.go` and [Workforce department links](../../api/workforce-department-links.md) exist. Review their exact completion/activation evidence before extending them; the presence of these files is not proof of independent-employer HR or a live production rollout.
 - The original `scoped_leave_review.go` path no longer exists; the historical table links the current leave-review-scope implementation instead. It does not assert identical source content across revisions.
-- The current reconciler still appends `RoleTenantAdmin` to declared grants, and independent Workforce employer scope remains a proposed extension in this package.
+- The current reconciler still appends `RoleTenantAdmin` to declared grants, and independent Workforce capability delivery remains incomplete; the employer-scope decision itself is accepted in ADR-0054, as reconciled in the team-management review.
 - ADR-0055 covers a department’s current descendants and explicitly rejects exact-node-only department access. The draft preserves it; proposed fixed/reviewed outlet sets concern product scopes, not a change to department semantics.
 
 This is a targeted reconciliation of the document’s affected references and major current-state claims, not a second end-to-end implementation audit. The historical issue table below records the earlier title/state queries; it does not certify completion. No current-main code or accepted ADR was modified.
@@ -74,6 +74,10 @@ Only titles/states were cross-checked for this subset; this is not a full issue/
 ## Local design validation
 
 Application source, routes, canonical contracts, permissions and migrations are unchanged by this package. Appropriate checks are Markdown formatting, local link existence, native draw.io XML/reference/layout validation, companion preview rendering/inspection and whitespace checks. Application tests/builds and contract regeneration are not evidence for a documentation-only change and were not run for this package. Validation results and commands actually executed are recorded in [validation](validation.md).
+
+## Department-team review reconciliation
+
+The later user-directed review found accepted [ADR-0054](../../adr/0054-typed-employing-establishments.md), which settles ORG-D8. The design now follows its exact typed employing-establishment root, preserved physical keys and distinct hospital/pharmacy route and wire semantics. Current `0088_workforce_establishment_kind` registration is not full standalone HR/posting/IAM completion. The [team-management review](department-team-management.md) also anchors managerial appointments to ADR-0053, current source/cutoff use to ADR-0058/0060, and transfers to the existing atomic-transfer requirement. No accepted decision is reopened by this review.
 
 ## Partner-group and supply-scenario research
 

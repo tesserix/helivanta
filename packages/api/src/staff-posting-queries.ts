@@ -17,6 +17,8 @@ import {
   getStaffPostingCutoffContext,
   listStaffPostingCutoffHistory,
   listStaffPostingProposalInbox,
+  listStaffDepartmentTeam,
+  listStaffPostingProposals,
   listStaffPostingSupervisorChoices,
   staffPostingProposalsKey,
   type StaffPostingInboxScope,
@@ -460,5 +462,37 @@ export function useStaffPostingLifecycleHistoryContext(
       proposal.revision_id,
     ],
     queryFn: ({ signal }) => getStaffPostingLifecycleHistoryContext(scope, proposal, signal),
+  });
+}
+
+export function useStaffDepartmentTeam(scope: StaffPostingInboxScope, cursor: string | null) {
+  return useQuery({
+    ...options,
+    refetchOnWindowFocus: true,
+    queryKey: [
+      "workforce",
+      "department-team",
+      scope.tenantId,
+      scope.subject,
+      scope.hospitalId,
+      scope.department ?? null,
+      cursor,
+    ],
+    queryFn: ({ signal }) => listStaffDepartmentTeam(scope, cursor, signal),
+  });
+}
+
+export function useStaffPostingTransferChoices(
+  scope: StaffPostingProposalScope,
+  cursor: string | null,
+  busy = false,
+) {
+  return useQuery({
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: !busy,
+    queryKey: [...staffPostingProposalsKey(scope), "transfer-choices", cursor],
+    queryFn: ({ signal }) => listStaffPostingProposals(scope, cursor, signal),
   });
 }

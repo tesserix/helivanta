@@ -2994,3 +2994,98 @@ it("preserves the original microsecond timestamps in retained approval evidence"
   expect(within(retained).getByText("2026-11-03T02:00:00.123456Z")).toBeInTheDocument();
   expect(within(retained).getByText("2026-11-04T23:59:59.987654Z")).toBeInTheDocument();
 });
+
+it("recovers a coordinated transfer using the exact paired command after a lost response", async () => {
+  const next = { ...proposal, starts_at: "2026-11-04T02:00:00Z" };
+  const selected = {
+    ...context,
+    proposal: next,
+    draft: { ...context.draft, starts_at: next.starts_at },
+  };
+  const lifecycle = await lifecycleContextResponse(selected, {
+    kind: "hospital_management",
+  }).json();
+  const old = {
+    ...proposal,
+    id: id(301),
+    revision_id: id(302),
+    version: 2,
+    status: "approved" as const,
+  };
+  const previous = { proposal: old, cutoff: null, checked_at: "2026-11-04T01:00:00Z" };
+  const writes: { url: string; body: string }[] = [];
+  let recorded: unknown;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("posting-review-source")) return Response.json(source);
+      if (url.includes("/transfers/")) {
+        writes.push({ url, body: String(init?.body) });
+        const input = JSON.parse(String(init?.body));
+        const command = url.split("/").at(-1);
+        recorded = {
+          replacement: {
+            ...next,
+            revision_id: id(303),
+            command_id: command,
+            version: 2,
+            status: "approved",
+            recorded_at: "2026-11-04T01:00:00Z",
+          },
+          ending: {
+            id: command,
+            hospital_id: hospital,
+            staff_id: staff,
+            proposal_id: old.id,
+            expected_revision_id: old.revision_id,
+            expected_cutoff_version: 0,
+            version: 1,
+            mode: "scheduled",
+            requested_cutoff_at: next.starts_at,
+            cutoff_at: next.starts_at,
+            recorded_at: "2026-11-04T01:00:00Z",
+            reason: input.decision.reason,
+            sources_examined: true,
+          },
+        };
+        if (writes.length === 1) throw new TypeError("Synthetic response lost after atomic commit");
+        return Response.json(recorded);
+      }
+      throw new Error(`Unexpected transfer request ${url}`);
+    }),
+  );
+  const completed = vi.fn();
+  const { user } = renderReview(
+    <PostingProposalDecision
+      scope={{ ...scope, hospitalId: hospital, staffId: staff, access: "scoped" }}
+      proposal={{ ...next, status: "pending" }}
+      action="approve"
+      busy={false}
+      onBusy={() => {}}
+      onCompleted={completed}
+      onContextChanged={() => {}}
+      contextAvailable
+      onContextRecheck={() => {}}
+      approvalKind="hospital_management"
+      lifecycleContext={lifecycle}
+      transferFrom={previous}
+    />,
+  );
+  await screen.findByText("The current employment source matches this submission.");
+  await user.type(screen.getByLabelText("Decision rationale"), "Synthetic synchronized transfer");
+  await user.click(
+    screen.getByLabelText("I examined the submitted proposal and current employment source."),
+  );
+  await user.click(
+    screen.getByLabelText("I independently reviewed the hospital management responsibility."),
+  );
+  await user.click(screen.getByRole("button", { name: "Approve coordinated transfer" }));
+  await screen.findByRole("button", { name: "Recover or replay transfer" });
+  expect(completed).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Recover or replay transfer" }));
+  await waitFor(() => expect(completed).toHaveBeenCalledOnce());
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+  expect(JSON.parse(writes[0].body).from_posting_id).toBe(old.id);
+  expect(completed.mock.calls[0][1]).toBe(true);
+});

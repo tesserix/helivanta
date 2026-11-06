@@ -155,3 +155,34 @@ legacy/governance review, authoritative effective-time guards, lifecycle command
 all owner cutoff tests, real provider/scanner acceptance and Staff Admin → reviewer
 → recipient browser journeys remain open. Existing local migration approval is
 separate; this tooling does not apply migrations or switch the QA runtime.
+
+## Department-team source review — 2026-11-06
+
+The regenerated registry now has **846 registered surfaces: 25 source-classified
+and 821 explicitly unclassified**. This is source coverage, not full lifecycle or
+production acceptance. The strict classification prerequisite remains incomplete.
+
+Sixteen existing Workforce reviews were re-read after the two additive route
+registrations changed `module.go`. Their paths, registered permissions and owner
+guards remain unchanged. The six draft reviews that also pin `posting_authority.go`
+retain their original behavior: their callers do not request the newly composed
+live-source check. The helper now takes the hospital gate before department/actor
+locks when that source-use permission is independently reserved; it preserves the
+strict read-only disclosure frame for roster reads. Only those two changed source
+files were repinned after this review.
+
+The new current-team GET and paired-transfer PUT have explicit
+`hospital_operational` classifications. Their reviews pin the actual route,
+owner/actor/source guards, hospital visibility check and command/read handlers.
+The transfer additionally pins approval, lifecycle evidence and cutoff persistence.
+The public route marker does not substitute for the five independent permissions.
+The read discloses only permitted minimized team observations; internal ancestor
+verification creates no ancestor-directory authority.
+
+[Department-team validation](../design/staff-and-rbac/department-team-management.md)
+records real owner/browser isolation, exact/changed and concurrent command
+recovery, earlier competing transfer refusal, later ending, and audit/outbox
+rollback. This evidence does not promote the inventory to a runtime-ready marker,
+close parent-plan consumer gaps or authorize production activation. All 15
+inventory-tool tests, regeneration, normal source checking and JSON formatting
+checks pass. The existing source-drift test remains in force and was not weakened.

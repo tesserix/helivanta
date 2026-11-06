@@ -949,6 +949,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/employment-review-scopes` | `public` | true | false |
 | DELETE | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/access/:subject` | `workforce.hospital.manage` | false | false |
+| GET | `/v1/workforce/hospitals/:hospital/department-team` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/employment-review-inbox` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings/history` | `public` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/hr/attendance-settings` | `public` | false | false |
@@ -1114,6 +1115,7 @@ Source: [backend/internal/modules/workforce/module.go](../../../backend/internal
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `workforce.posting.proposal.read` | false | false |
 | PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/decisions/:command` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/history` | `workforce.posting.proposal.read` | true | false |
+| PUT | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/transfers/:command` | `public` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal` | `workforce.posting.proposal.read` | false | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals` | `workforce.posting.proposal.read` | true | false |
 | GET | `/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-review-source` | `workforce.posting.proposal.read` | false | false |

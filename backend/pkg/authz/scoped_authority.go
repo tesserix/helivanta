@@ -59,7 +59,7 @@ type ScopedCommandGuard interface {
 }
 
 // MaxScopedCommandChecks bounds independently reserved owner permissions.
-const MaxScopedCommandChecks = 3
+const MaxScopedCommandChecks = 5
 
 // ScopeCheck binds one server-required permission to its current IAM evidence.
 type ScopeCheck struct {

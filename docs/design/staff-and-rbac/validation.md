@@ -1,6 +1,6 @@
 # Design package validation
 
-Date: 2026-11-06. Scope: [design](README.md), [research/evidence](research.md), [native draw.io](staff-and-rbac.drawio) and seven SVG companion previews. This records artifact checks, not authorization implementation tests or regulatory sign-off.
+Date: 2026-11-06. Scope: [design](README.md), [research/evidence](research.md), [native draw.io](staff-and-rbac.drawio) and seven SVG companion previews. This first section records the original merged artifact checks, not implementation tests or regulatory sign-off. The later department-team candidate is described in [its delivery record](department-team-management.md).
 
 ## Commands actually run
 
@@ -54,3 +54,18 @@ git diff --check
 ```
 
 Result: 62 relative links resolve; seven native pages contain 54 nonoverlapping cards and 46 valid connectors; all seven SVGs parse/render without page text overflow. The two added previews were visually inspected, including label/arrow spacing. No application/canonical contract/permission change is included.
+
+## Department-team implementation follow-up
+
+The local candidate now includes a current roster and an owner-local atomic
+scheduled transfer, with canonical models, real Global API/owner integration and
+lost-response browser recovery. See the [complete command/result ledger](department-team-management.md#validation-record)
+and [ADR-0061](../../adr/0061-department-team-and-atomic-transfers.md). This updates
+the package to eight native pages and eight SVGs; the original seven-page merge
+record above remains historical.
+
+The latest artifact checks found 77 resolving local links, 62 nonoverlapping cards,
+52 valid connectors and no SVG page overflow. Chrome rendered all eight SVGs and
+the new page was visually inspected. Native diagrams.net import/export remains
+unexercised. Runtime acceptance is recorded separately from artifact validity;
+neither establishes regulatory or production readiness.

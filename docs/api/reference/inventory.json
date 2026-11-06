@@ -6875,6 +6875,17 @@
           "counted": false
         },
         {
+          "scope_kind": "department",
+          "scope_parameter": "hospital",
+          "method": "GET",
+          "path": "/v1/workforce/hospitals/:hospital/department-team",
+          "permission": "workforce.posting.proposal.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/workforce/hospitals/:hospital/employment-review-inbox",
           "permission": "public",
@@ -8389,6 +8400,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/workforce/hospitals/:hospital/posting-staff/:id/posting-proposals/:proposal/transfers/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {

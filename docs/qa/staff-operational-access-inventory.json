@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "8c9dd8df2ba49ec5d68bee126eb78433541b44cc78473666eafcb6fd855db66f",
+  "registry_sha256": "986f7ff5e771ce36eacfb04c1167950ad29c9c9ee842b5d6b8aac22a5d945217",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 923,
@@ -730,7 +730,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/supply/trade_relationship_store.go",
-            "sha256": "9b76667c8ab94a72c13cbeae7e8fcfd16d842156878cc612331f0844a11c63aa",
+            "sha256": "61c1b28b59fdaea1ee927faedc35b1d15e9a1739884ed1053bc4e2365849fb4d",
             "symbol": "func tradeRelationshipConsumer("
           },
           {

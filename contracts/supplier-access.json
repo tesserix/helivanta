@@ -1,0 +1,381 @@
+{
+  "maximum_validity_days": 366,
+  "templates": [
+    {
+      "key": "partner.catalogue_viewer.v1",
+      "permission": "partner.catalogue.read",
+      "group_purposes": [
+        "procurement",
+        "receiving"
+      ]
+    },
+    {
+      "key": "partner.shipment_reader.v1",
+      "permission": "partner.shipment.read",
+      "group_purposes": [
+        "procurement",
+        "receiving"
+      ]
+    },
+    {
+      "key": "partner.invoice_viewer.v1",
+      "permission": "partner.invoice.read",
+      "group_purposes": [
+        "finance"
+      ]
+    }
+  ],
+  "models": {
+    "SupplierGrantScope": [
+      {
+        "name": "source_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "recipient_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_product",
+        "type": "string",
+        "enum": [
+          "supply",
+          "pharmacy"
+        ]
+      },
+      {
+        "name": "source_organization_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "source_location_id",
+        "type": "uuid",
+        "uuid_version": 7
+      }
+    ],
+    "SupplierGrantInput": [
+      {
+        "name": "relationship_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "terms_sha256",
+        "type": "string",
+        "min": 64,
+        "max": 64
+      },
+      {
+        "name": "recipient_kind",
+        "type": "string",
+        "enum": [
+          "subject",
+          "group"
+        ]
+      },
+      {
+        "name": "recipient_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "optional": true
+      },
+      {
+        "name": "recipient_group_id",
+        "type": "uuid",
+        "uuid_version": 7,
+        "optional": true
+      },
+      {
+        "name": "template_key",
+        "type": "string",
+        "enum": [
+          "partner.catalogue_viewer.v1",
+          "partner.shipment_reader.v1",
+          "partner.invoice_viewer.v1"
+        ]
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "expires_at",
+        "type": "time"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "SupplierGrant": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "scope",
+        "type": "SupplierGrantScope"
+      },
+      {
+        "name": "input",
+        "type": "SupplierGrantInput"
+      },
+      {
+        "name": "input_sha256",
+        "type": "string",
+        "min": 64,
+        "max": 64
+      },
+      {
+        "name": "side",
+        "type": "string",
+        "enum": [
+          "source",
+          "hospital"
+        ]
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "enum": [
+          "pending_review",
+          "offered",
+          "incoming",
+          "accepted_pending_ack",
+          "approved",
+          "rejected",
+          "suspended"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "authority_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "remote_epoch",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740991
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "signed_by",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "remote_signed_by",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "home_basis_sha256",
+        "type": "string",
+        "optional": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "updated_at",
+        "type": "time"
+      }
+    ],
+    "SupplierGrantDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "suspend"
+        ]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      }
+    ],
+    "SupplierGrantExchange": [
+      {
+        "name": "grant_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "scope",
+        "type": "SupplierGrantScope"
+      },
+      {
+        "name": "input",
+        "type": "SupplierGrantInput"
+      },
+      {
+        "name": "input_sha256",
+        "type": "string",
+        "min": 64,
+        "max": 64
+      },
+      {
+        "name": "sender_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "sender_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "phase",
+        "type": "string",
+        "enum": [
+          "offered",
+          "accepted",
+          "acknowledged",
+          "rejected",
+          "suspended"
+        ]
+      },
+      {
+        "name": "signatory_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "home_basis_sha256",
+        "type": "string",
+        "optional": true
+      }
+    ],
+    "SupplierGrantRecipientBasisInput": [
+      {
+        "name": "staff_id",
+        "type": "uuid"
+      },
+      {
+        "name": "posting_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "posting_revision_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "posting_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "department_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid",
+        "uuid_version": 7
+      }
+    ],
+    "SupplierGrantHospitalDecisionInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "operation",
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "suspend"
+        ]
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "recipient_basis",
+        "type": "SupplierGrantRecipientBasisInput",
+        "optional": true
+      },
+      {
+        "name": "expected_group_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991,
+        "optional": true
+      }
+    ],
+    "SupplierGrantCommandReceipt": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "grant_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "actor_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200
+      },
+      {
+        "name": "grant",
+        "type": "SupplierGrant"
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      }
+    ]
+  }
+}

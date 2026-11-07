@@ -1,0 +1,32 @@
+name: Supplier workflow regression tests
+on:
+  pull_request:
+    paths:
+      - 'backend/pkg/supplieraccess/**'
+      - 'backend/pkg/suppliertrade/**'
+      - 'backend/internal/modules/iam/**'
+      - 'backend/internal/modules/supply/**'
+      - 'backend/internal/modules/pharmacy/**'
+      - '.github/workflows/supplier-workflow.yml'
+permissions:
+  contents: read
+concurrency:
+  group: supplier-workflow-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  supplier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Effective supplier grant consent
+        run: go test -race ./pkg/supplieraccess
